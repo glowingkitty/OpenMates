@@ -11,10 +11,7 @@ final class ComposerVisualParityUITests: XCTestCase {
     private let maxComposerWidth: CGFloat = 629
     private let widthTolerance: CGFloat = 8
     private let welcomeComposerButtonIds = [
-        "attach-files-button",
-        "share-location-button",
-        "sketch-button",
-        "take-photo-button",
+        "composer-attachment-toggle",
         "record-audio-button",
     ]
 
@@ -22,6 +19,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
     func testChatPreviewComposerUsesSharedIdentifiersAndWidthCap() throws {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
@@ -64,6 +62,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         attachScreenshot(name: "Shared composer chat preview width cap")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
     func testFocusedWelcomeComposerScreenshotShowsActionButtons() throws {
         let app = launchFocusedWelcomeComposer()
 
@@ -73,17 +72,118 @@ final class ComposerVisualParityUITests: XCTestCase {
             assertButtonIsVisibleInScreenshot(app.buttons[identifier], identifier: identifier, in: app, screenshot: screenshot)
         }
         attachScreenshot(screenshot, name: "Focused welcome composer action buttons visible")
+
+        app.buttons["composer-attachment-toggle"].tap()
+        let menu = element(in: app, identifier: "composer-attachment-menu")
+        XCTAssertTrue(menu.waitForExistence(timeout: 5))
+        for identifier in ["composer-attachment-drawing", "composer-attachment-location", "composer-attachment-camera", "composer-attachment-files"] {
+            let action = app.buttons[identifier]
+            XCTAssertTrue(action.waitForExistence(timeout: 5), "Missing attachment menu action: \(identifier)")
+            XCTAssertTrue(action.isHittable, "Attachment menu action is obscured: \(identifier)")
+            assertButtonIsVisibleInScreenshot(
+                action,
+                identifier: identifier,
+                in: app,
+                screenshot: screenshot,
+                leadingIconOnly: true
+            )
+        }
+        attachScreenshot(name: "Focused welcome composer attachment menu open")
+
+        let outsideMenu = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+        outsideMenu.tap()
+        XCTAssertFalse(app.buttons["composer-attachment-drawing"].exists, "Outside tap should dismiss the attachment menu")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
+    func testCollapsedComposerGrowsThroughThreeLinesThenScrollsAboveActions() throws {
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-welcome-seed-suggestions"]
+        )
+        let editor = waitForMessageEditor(in: app)
+        let field = element(in: app, identifier: "message-field")
+        let suggestions = element(in: app, identifier: "new-chat-suggestions")
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(suggestions.waitForExistence(timeout: 5))
+        let initialHeight = field.frame.height
+
+        editor.typeText("First line")
+        XCTAssertTrue(
+            waitForSuggestions(suggestions, above: field),
+            "Welcome suggestions must settle above the active composer"
+        )
+        let oneLineSuggestionsMaxY = suggestions.frame.maxY
+        XCTAssertLessThanOrEqual(
+            oneLineSuggestionsMaxY,
+            field.frame.minY,
+            "Welcome suggestions must remain above the active composer"
+        )
+
+        editor.typeText("\nSecond line\nThird line")
+        XCTAssertTrue(
+            waitForSuggestions(
+                suggestions,
+                above: field,
+                maxYLessThan: oneLineSuggestionsMaxY - 20
+            ),
+            "Welcome suggestions must follow the growing composer upward"
+        )
+
+        let threeLineHeight = field.frame.height
+        XCTAssertGreaterThan(
+            threeLineHeight,
+            initialHeight + 20,
+            "The collapsed composer should expand upward to reveal three recent lines"
+        )
+        XCTAssertLessThan(
+            suggestions.frame.maxY,
+            oneLineSuggestionsMaxY - 20,
+            "Welcome suggestions should move upward as the multiline composer grows"
+        )
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            field.frame.minY,
+            "Three visible lines must not overlap the welcome suggestions"
+        )
+        let sendButton = app.buttons["send-button"]
+        XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(
+            editor.frame.maxY,
+            sendButton.frame.minY + 2,
+            "Multiline text must remain above the bottom action controls"
+        )
+
+        editor.typeText("\nFourth line\nFifth line")
+
+        XCTAssertEqual(
+            field.frame.height,
+            threeLineHeight,
+            accuracy: 4,
+            "After three visible lines, the editor should scroll instead of growing over the controls"
+        )
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            field.frame.minY,
+            "Scrollable fourth and fifth lines must keep suggestions above the composer"
+        )
+        XCTAssertTrue(
+            (editor.value as? String)?.contains("Fifth line") == true,
+            "The newest line should remain in the scrollable editor value"
+        )
+        attachScreenshot(name: "Collapsed composer three-line scrolling cap")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testFocusedWelcomeComposerActionButtonsAreNotNoOpsWhenSignedOut() throws {
-        assertSignedOutWelcomeActionShowsSignupCTA("attach-files-button")
-        assertSignedOutWelcomeActionShowsSignupCTA("sketch-button")
-        assertSignedOutWelcomeActionShowsSignupCTA("take-photo-button")
+        assertSignedOutWelcomeActionShowsSignupCTA("composer-attachment-files")
+        assertSignedOutWelcomeActionShowsSignupCTA("composer-attachment-drawing")
+        assertSignedOutWelcomeActionShowsSignupCTA("composer-attachment-camera")
 
         let locationApp = launchFocusedWelcomeComposer()
-        let locationButton = locationApp.buttons["share-location-button"]
-        XCTAssertTrue(locationButton.waitForExistence(timeout: 5), "Expected share-location-button to exist")
-        XCTAssertTrue(locationButton.isHittable, "Expected share-location-button to be hittable")
+        locationApp.buttons["composer-attachment-toggle"].tap()
+        let locationButton = locationApp.buttons["composer-attachment-location"]
+        XCTAssertTrue(locationButton.waitForExistence(timeout: 5), "Expected location action to exist")
+        XCTAssertTrue(locationButton.isHittable, "Expected location action to be hittable")
         locationButton.tap()
         XCTAssertTrue(
             locationApp.descendants(matching: .any)
@@ -94,12 +194,14 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.embeds.gated-send
     func testFocusedWelcomeLocationSelectionInsertsMapsEmbedPreview() throws {
         let app = launchFocusedWelcomeComposer(
             extraArguments: ["--ui-test-location-preselected"],
             environment: ["UI_TEST_LOCATION_PRESELECTED": "1"]
         )
-        let locationButton = app.buttons["share-location-button"]
+        app.buttons["composer-attachment-toggle"].tap()
+        let locationButton = app.buttons["composer-attachment-location"]
         XCTAssertTrue(locationButton.waitForExistence(timeout: 5))
         locationButton.tap()
 
@@ -115,6 +217,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity,message-input.embeds.gated-send
     func testSeededImageAndAudioPreviewsStayLeftAlignedAcrossRotation() throws {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
@@ -124,16 +227,47 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         let field = element(in: app, identifier: "message-field")
         let image = element(in: app, identifier: "native-composer-image-content")
+        let imageInfoBar = element(in: app, identifier: "native-composer-image-info-bar")
         let audio = element(in: app, identifier: "native-composer-audio-content")
         let imageCard = element(in: app, identifier: "native-composer-preview-image-finished")
         let audioCard = element(in: app, identifier: "native-composer-preview-recording-finished")
+        let actionRow = element(in: app, identifier: "action-buttons")
 
         XCTAssertTrue(image.waitForExistence(timeout: 5), "Expected image-specific composer preview content")
+        XCTAssertTrue(imageInfoBar.waitForExistence(timeout: 5), "Expected the web-parity image metadata bar")
         XCTAssertTrue(audio.waitForExistence(timeout: 5), "Expected audio-specific composer preview content")
         XCTAssertTrue(imageCard.waitForExistence(timeout: 5))
         XCTAssertTrue(audioCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(actionRow.waitForExistence(timeout: 5))
         assertEmbed(imageCard, isLeftAlignedIn: field)
         assertEmbed(audioCard, isLeftAlignedIn: field)
+        XCTAssertEqual(imageCard.frame.width, 300, accuracy: 3)
+        XCTAssertEqual(imageCard.frame.height, 200, accuracy: 3)
+        // `scaledToFill` intentionally scales landscape/portrait source pixels
+        // beyond one card axis before the 300x200 rounded container clips them.
+        // XCUITest reports that pre-clip Image frame, so assert coverage rather
+        // than equality with the visible card bounds.
+        XCTAssertLessThanOrEqual(image.frame.minX, imageCard.frame.minX + 3)
+        XCTAssertLessThanOrEqual(image.frame.minY, imageCard.frame.minY + 3)
+        XCTAssertGreaterThanOrEqual(image.frame.maxX, imageCard.frame.maxX - 3)
+        XCTAssertGreaterThanOrEqual(image.frame.maxY, imageCard.frame.maxY - 3)
+        XCTAssertEqual(imageInfoBar.frame.height, 61, accuracy: 3)
+        XCTAssertEqual(imageInfoBar.frame.maxY, imageCard.frame.maxY, accuracy: 3)
+        XCTAssertLessThanOrEqual(
+            imageInfoBar.frame.maxY,
+            actionRow.frame.minY + 3,
+            "The image caption must remain entirely above the bottom composer controls"
+        )
+        XCTAssertTrue(app.buttons["composer-attachment-toggle"].isHittable)
+        XCTAssertTrue(app.buttons["record-audio-button"].isHittable)
+        XCTAssertFalse(
+            imageCard.buttons["native-composer-preview-action-close"].exists,
+            "Web image previews do not overlay a generic close button"
+        )
+        XCTAssertFalse(
+            imageCard.buttons["native-composer-preview-action-visible"].exists,
+            "The finished web image opens by tapping the card instead of an eye button"
+        )
 
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(image.waitForExistence(timeout: 5))
@@ -142,6 +276,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         assertEmbed(audioCard, isLeftAlignedIn: field)
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.layout.responsive-parity
     func testWelcomeComposerExpandsAndCollapsesAcrossRotation() throws {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
@@ -182,12 +317,14 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
     func testSketchToolExposesWebControlsInLandscape() throws {
         let app = launchFocusedWelcomeComposer(
             extraArguments: ["--ui-test-welcome-sketch-enabled"]
         )
         defer { XCUIDevice.shared.orientation = .portrait }
-        let sketchButton = app.buttons["sketch-button"]
+        app.buttons["composer-attachment-toggle"].tap()
+        let sketchButton = app.buttons["composer-attachment-drawing"]
         XCTAssertTrue(sketchButton.waitForExistence(timeout: 5))
         XCTAssertTrue(
             sketchButton.isHittable,
@@ -232,6 +369,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertTrue(waitForEnabled(save), "Save must become actionable after drawing")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -279,6 +417,24 @@ final class ComposerVisualParityUITests: XCTestCase {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if element.frame.height >= minimumHeight { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
+    }
+
+    private func waitForSuggestions(
+        _ suggestions: XCUIElement,
+        above field: XCUIElement,
+        maxYLessThan upperBound: CGFloat? = nil,
+        timeout: TimeInterval = 5
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let suggestionsMaxY = suggestions.frame.maxY
+            if suggestionsMaxY <= field.frame.minY,
+               upperBound.map({ suggestionsMaxY < $0 }) ?? true {
+                return true
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         return false
@@ -345,6 +501,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         line: UInt = #line
     ) {
         let app = launchFocusedWelcomeComposer()
+        app.buttons["composer-attachment-toggle"].tap()
         let button = app.buttons[identifier]
         XCTAssertTrue(button.waitForExistence(timeout: 5), "Expected \(identifier) to exist", file: file, line: line)
         XCTAssertTrue(button.isHittable, "Expected \(identifier) to be hittable", file: file, line: line)
@@ -369,6 +526,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         identifier: String,
         in app: XCUIApplication,
         screenshot: XCUIScreenshot,
+        leadingIconOnly: Bool = false,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
@@ -405,8 +563,9 @@ final class ComposerVisualParityUITests: XCTestCase {
         context.scaleBy(x: 1, y: -1)
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
 
+        let sampleWidth = leadingIconOnly ? min(cgImage.width, Int(54 * image.scale)) : cgImage.width
         let highlightedPixelRatio = highlightedPixelRatio(
-            in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height),
+            in: CGRect(x: 0, y: 0, width: sampleWidth, height: cgImage.height),
             pixels: pixels,
             imageWidth: cgImage.width,
             imageHeight: cgImage.height,
@@ -415,8 +574,8 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         XCTAssertGreaterThan(
             highlightedPixelRatio,
-            0.02,
-            "Expected \(identifier) screenshot region to contain visible icon pixels, ratio \(highlightedPixelRatio)",
+            leadingIconOnly ? 0.01 : 0.02,
+            "Expected \(identifier) screenshot region to contain colored icon pixels, ratio \(highlightedPixelRatio)",
             file: file,
             line: line
         )

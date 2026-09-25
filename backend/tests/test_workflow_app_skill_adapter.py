@@ -16,7 +16,11 @@ import pytest
 
 from backend.core.api.app import routes as routes_package
 from backend.core.api.app.services import workflow_app_skill_adapter
-from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
+from backend.core.api.app.services.workflow_app_skill_adapter import (
+    WorkflowAppSkillAdapter,
+    WorkflowSkillBillingError,
+    _normalize_skill_output,
+)
 from backend.shared.python_utils.billing_utils import BillingError
 from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch
 
@@ -219,9 +223,9 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
             "ai",
             "ask",
             {
-                "conversation": "e2e-local",
-                "temperature": 0,
                 "messages": [{"role": "user", "content": "Reply with exactly: Workflow AI OK"}],
+                "apps_enabled": False,
+                "allowed_apps": [],
                 "_user_id": "alice",
                 "_external_request": True,
             },
@@ -233,7 +237,7 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
 
 @pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
-async def test_ai_ask_preserves_openai_messages_shape() -> None:
+async def test_ai_ask_preserves_only_messages_and_forces_tools_off() -> None:
     registry = FakeRegistry()
     adapter = WorkflowAppSkillAdapter(registry=registry)
 
@@ -246,10 +250,37 @@ async def test_ai_ask_preserves_openai_messages_shape() -> None:
 
     assert registry.calls[0][2] == {
         "messages": [{"role": "system", "content": "Keep it short"}],
-        "model": "auto",
+        "apps_enabled": False,
+        "allowed_apps": [],
         "_user_id": "alice",
         "_external_request": True,
     }
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
+async def test_ai_ask_reports_already_settled_usage_without_double_charging() -> None:
+    registry = FakeRegistry(response={
+        "answer": "A concise workflow answer",
+        "usage": {"total_credits": 5},
+    })
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+
+    result = await adapter.execute(
+        "ai",
+        "ask",
+        {"prompt": "Summarize the supplied values"},
+        user_id="alice",
+        billing_context={
+            "workflow_id": "workflow-1",
+            "run_id": "run-1",
+            "node_id": "ask",
+            "source": "workflow_test",
+        },
+    )
+
+    assert result["answer"] == "A concise workflow answer"
+    assert result["_workflow_credit_cost"] == 5
 
 
 @pytest.mark.anyio
@@ -271,6 +302,134 @@ async def test_generic_output_normalization_exposes_artifact_and_task_ids() -> N
     assert result["provider"] == "ExampleProvider"
     assert result["artifact_ids"] == ["embed-1"]
     assert result["task_ids"] == ["task-1"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_generic_workflow_search_output_preserves_flattened_dict_results() -> None:
+    raw_output = {
+        "provider": "ExampleProvider",
+        "results": [
+            {
+                "id": "request-1",
+                "results": [
+                    {
+                        "title": "Coffee beans",
+                        "url": "https://shop.example/item?utm_source=test&size=1kg#details",
+                        "price": 18.5,
+                    },
+                    "discard non-object result",
+                ],
+            }
+        ],
+    }
+
+    output = _normalize_skill_output(
+        "shopping",
+        "search_products",
+        {"requests": [{"query": "coffee beans"}]},
+        raw_output,
+    )
+
+    assert output["result_count"] == 1
+    assert output["results"] == [
+        {
+            "title": "Coffee beans",
+            "url": "https://shop.example/item?utm_source=test&size=1kg#details",
+            "canonical_url": "https://shop.example/item?size=1kg",
+            "price": 18.5,
+            "provider": "ExampleProvider",
+            "source_id": "https://shop.example/item?size=1kg",
+        }
+    ]
+    assert output["raw"] is raw_output
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_travel_connection_workflow_output_preserves_real_grouped_result_fields() -> None:
+    connection = {
+        "type": "connection",
+        "hash": "internal-deduplication-hash",
+        "origin": "Berlin Hbf",
+        "destination": "Hamburg Hbf",
+        "departure": "2026-08-01T08:00:00+02:00",
+        "arrival": "2026-08-01T09:45:00+02:00",
+        "duration": "1h 45m",
+        "total_price": "29.99",
+        "currency": "EUR",
+        "transport_method": "train",
+        "booking_url": "https://booking.example/connection",
+        "source_provider": "deutsche_bahn",
+        "trip_type": "one_way",
+        "stops": 0,
+        "carriers": ["ICE"],
+        "booking_provider": "Deutsche Bahn",
+    }
+    raw_output = {
+        "provider": "travel",
+        "results": [{"id": "berlin-hamburg", "results": [connection]}],
+    }
+
+    output = _normalize_skill_output(
+        "travel",
+        "search_connections",
+        {"requests": [{"legs": [{"origin": "Berlin", "destination": "Hamburg", "date": "2026-08-01"}]}]},
+        raw_output,
+    )
+
+    assert output["result_count"] == 1
+    assert output["results"] == [{**connection, "provider": "travel"}]
+    assert output["raw"] is raw_output
+
+
+@pytest.mark.parametrize(
+    ("app_id", "skill_id", "raw_output", "expected"),
+    [
+        (
+            "finance",
+            "check_accounts",
+            {"account_count": 2, "transaction_count": 14, "overview": {"summaries": {"income_total": 1200}}},
+            {"account_count": 2, "transaction_count": 14, "overview": {"summaries": {"income_total": 1200}}},
+        ),
+        ("math", "calculate", {"result": "4"}, {"result": "4"}),
+        (
+            "openmates",
+            "share-usecase",
+            {"success": True, "message": "Use case shared"},
+            {"success": True, "message": "Use case shared"},
+        ),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_workflow_output_contract_passthrough_fields(
+    app_id: str,
+    skill_id: str,
+    raw_output: dict[str, Any],
+    expected: dict[str, Any],
+) -> None:
+    output = _normalize_skill_output(app_id, skill_id, {}, raw_output)
+
+    assert {field: output[field] for field in expected} == expected
+
+
+@pytest.mark.parametrize(
+    ("app_id", "skill_id"),
+    [("business", "company_financials"), ("web", "search")],
+)
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_inline_workflow_result_lists_are_preserved(app_id: str, skill_id: str) -> None:
+    raw_output = {"results": [{"results": [{"title": "Result", "url": "https://example.com/result"}]}]}
+
+    output = _normalize_skill_output(app_id, skill_id, {}, raw_output)
+
+    assert output["result_count"] == 1
+    assert output["results"] == [
+        {
+            "title": "Result",
+            "url": "https://example.com/result",
+            "canonical_url": "https://example.com/result",
+            "source_id": "https://example.com/result",
+        }
+    ]
 
 
 @pytest.mark.anyio

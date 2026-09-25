@@ -187,6 +187,11 @@ def test_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch
     asyncio.run(_run_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch))
 
 
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+def test_message_less_titled_chat_keeps_allocated_metadata_versions(monkeypatch):
+    asyncio.run(_run_message_less_titled_chat_keeps_allocated_metadata_versions(monkeypatch))
+
+
 async def _run_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch):
     persisted_payloads: list[dict] = []
 
@@ -226,7 +231,56 @@ async def _run_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monke
 
     assert len(persisted_payloads) == 1
     assert persisted_payloads[0]["messages_v"] == 0
-    assert "last_message_timestamp" not in persisted_payloads[0]
+    assert persisted_payloads[0]["title_v"] == 0
+    assert persisted_payloads[0]["metadata_v"] == 0
+    assert persisted_payloads[0]["last_message_timestamp"] is None
+    assert "encrypted_title" not in persisted_payloads[0]
+
+
+async def _run_message_less_titled_chat_keeps_allocated_metadata_versions(monkeypatch):
+    persisted_payloads: list[dict] = []
+
+    async def fake_persist(
+        _chat_id: str,
+        encrypted_metadata: dict,
+        _task_id: str,
+        _hashed_user_id: str,
+        _user_id: str,
+        _hashed_team_id: str | None = None,
+    ) -> bool:
+        persisted_payloads.append(dict(encrypted_metadata))
+        return True
+
+    async def fake_allocate(*_args, **_kwargs) -> dict:
+        return {"messages_v": 0, "title_v": 1, "metadata_v": 1}
+
+    monkeypatch.setattr(_handler_module(), "_async_persist_encrypted_chat_metadata", fake_persist)
+    monkeypatch.setattr(_handler_module(), "allocate_chat_metadata_versions", fake_allocate)
+
+    await _handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=FakeManager(),
+        cache_service=FakeNewChatCacheService(),
+        directus_service=FakeNewChatDirectusService(),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload={
+            "chat_id": "new-titled-chat",
+            "encrypted_chat_key": "encrypted-chat-key",
+            "encrypted_title": "encrypted-title",
+            "encrypted_icon": "encrypted-icon",
+            "encrypted_chat_category": "encrypted-category",
+            "created_at": 1_778_686_000,
+            "versions": {},
+        },
+    )
+
+    assert persisted_payloads[0]["encrypted_title"] == "encrypted-title"
+    assert persisted_payloads[0]["title_v"] == 1
+    assert persisted_payloads[0]["metadata_v"] == 1
+    assert persisted_payloads[0]["last_message_timestamp"] == 1_778_686_000
 
 
 # contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted

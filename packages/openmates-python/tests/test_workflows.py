@@ -128,10 +128,10 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
             return FakeResponse({"validation": {"draft_valid": True, "enable_ready": False, "diagnostics": [{"code": "REQUIRED_RUNTIME_INPUT"}]}})
         if url.endswith("/v1/workflows/yaml"):
             assert json == {"source": "title: Morning\n"}
-            return FakeResponse({"workflow": {"id": "wf-yaml", "title": "Morning", "graph": graph, **encrypted_slug_fields}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}})
+            return FakeResponse({"workflow": {"id": "wf-yaml", "title": "Morning", "graph": graph, **encrypted_slug_fields}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}, "warnings": [{"code": "WORKFLOW_AI_VALIDATION_UNVERIFIED", "message": "AI validation could not be completed."}]})
         if url.endswith("/v1/workflows/wf-1/yaml"):
             assert json == {"source": "title: Updated\n"}
-            return FakeResponse({"workflow": {"id": "wf-1", "title": "Updated", "graph": graph, **encrypted_slug_fields}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}})
+            return FakeResponse({"workflow": {"id": "wf-1", "title": "Updated", "graph": graph, **encrypted_slug_fields}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}, "warnings": [{"code": "WORKFLOW_AI_VALIDATION_UNVERIFIED", "message": "AI validation could not be completed."}]})
         if url.endswith("/run"):
             assert headers["Idempotency-Key"] == "stable-run-1"
             return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
@@ -143,11 +143,11 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/runs/run-1/respond"):
             assert json == {"step_id": "ask", "input": {"answer": "Berlin"}}
             return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
-        return FakeResponse({"workflow": {"id": "wf-1", "title": json.get("title", "Morning"), "enabled": json.get("enabled", True), "graph": json.get("graph", graph), **encrypted_slug_fields}})
+        return FakeResponse({"workflow": {"id": "wf-1", "title": json.get("title", "Morning"), "enabled": json.get("enabled", True), "graph": json.get("graph", graph), **encrypted_slug_fields}, "warnings": [{"code": "WORKFLOW_AI_VALIDATION_UNVERIFIED", "message": "AI validation could not be completed."}]})
 
     def fake_patch(url, *, json, headers, timeout):
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
-        return FakeResponse({"workflow": {"id": "wf-1", "title": "Updated", "graph": graph, **encrypted_slug_fields}})
+        return FakeResponse({"workflow": {"id": "wf-1", "title": "Updated", "graph": graph, **encrypted_slug_fields}, "warnings": [{"code": "WORKFLOW_AI_VALIDATION_UNVERIFIED", "message": "AI validation could not be completed."}]})
 
     def fake_put(url, *, json, headers, timeout):
         requests_seen.append({"method": "PUT", "url": url, "json": json})
@@ -182,8 +182,10 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert client.workflows.stop_input("session-1")["status"] == "stopped"
     assert client.workflows.undo_input("session-1")["status"] == "undone"
     assert client.workflows.validate_yaml("title: Morning\n")["draft_valid"] is True
-    created_from_yaml = client.workflows.create_from_yaml("title: Morning\n")["workflow"]
-    updated_from_yaml = client.workflows.update_from_yaml("wf-1", "title: Updated\n")["workflow"]
+    created_from_yaml_response = client.workflows.create_from_yaml("title: Morning\n")
+    updated_from_yaml_response = client.workflows.update_from_yaml("wf-1", "title: Updated\n")
+    created_from_yaml = created_from_yaml_response["workflow"]
+    updated_from_yaml = updated_from_yaml_response["workflow"]
     blank_workflow = client.workflows.create(title="Blank", graph=blank_graph(), enabled=False)
     created_workflow = client.workflows.create(
         title="Morning",
@@ -201,12 +203,16 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     disabled_workflow = client.workflows.disable("wf-1")
     kept_workflow = client.workflows.keep("wf-1")
     assert created_from_yaml["id"] == "wf-yaml"
+    assert created_from_yaml_response["warnings"][0]["code"] == "WORKFLOW_AI_VALIDATION_UNVERIFIED"
     assert updated_from_yaml["title"] == "Updated"
+    assert updated_from_yaml_response["warnings"][0]["message"] == "AI validation could not be completed."
     assert blank_workflow["graph"]["trigger_node_id"] is None
     assert blank_workflow["graph"]["nodes"] == []
     assert created_workflow["id"] == "wf-1"
+    assert created_workflow["authoring_warnings"][0]["code"] == "WORKFLOW_AI_VALIDATION_UNVERIFIED"
     assert fetched_workflow["id"] == "wf-1"
     assert updated_workflow["id"] == "wf-1"
+    assert updated_workflow["authoring_warnings"][0]["message"] == "AI validation could not be completed."
     assert enabled_workflow["id"] == "wf-1"
     assert disabled_workflow["id"] == "wf-1"
     assert kept_workflow["id"] == "wf-1"

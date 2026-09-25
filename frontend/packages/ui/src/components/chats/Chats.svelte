@@ -7,6 +7,7 @@
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
+	import { isPersistedDraftOnlyChat } from '../../utils/chatDraftState';
 	import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../../services/e2eTestHooks';
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
@@ -1984,6 +1985,14 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 					});
 					return;
 				}
+				// The active composer adopts a newly persisted draft itself. The local
+				// list-change event upserts its sidebar row; a full list read and a
+				// second chat selection here would repeat both on the input's critical path.
+				const persistedChat = await chatDB.getRawChat(persistedChatId).catch((error) => {
+					console.error('[Chats] Failed to inspect persisted draft shell:', persistedChatId, error);
+					return null;
+				});
+				if (isPersistedDraftOnlyChat(persistedChat)) return;
 				_chatIdToSelectAfterUpdate = persistedChatId;
 				_draftChatIdToSelectAfterUpdate = persistedChatId;
 				_draftSelectionExpectedActiveId = selectedChatId;

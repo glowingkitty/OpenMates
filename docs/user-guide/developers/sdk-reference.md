@@ -109,7 +109,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.chats.retry()` | `om.chats.retry()` | `id, dry_run, confirmed` | `id, dry_run, confirmed` | `object` |
 | `om.chats.rewind()` | `om.chats.rewind()` | `id, to_message_id, send, dry_run, confirmed` | `id, to_message_id, send, dry_run, confirmed` | `object` |
 | `om.chats.search()` | `om.chats.search()` | `input, limit, offset` | `input, limit, offset` | `list` |
-| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, slug, title, goal, goal_title, team_id, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs, sender_name, team_member_mentions` | `message, history, save_to_account, focus_mode, memory_ids, model, id, slug, title, goal, goal_title, team_id, sender_name, team_member_mentions, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
+| `om.chats.send()` | `om.chats.send()` | `message, save_to_account, focus_mode, id, slug, title, goal, goal_title, project_ids, team_id, history, memory_ids, model, recovery_poll_interval, recovery_timeout, connected_account_directory, connected_account_token_ref_inputs, sender_name, team_member_mentions` | `message, history, save_to_account, focus_mode, memory_ids, model, id, slug, title, goal, goal_title, project_ids, team_id, sender_name, team_member_mentions, connected_account_directory, connected_account_token_ref_inputs, recovery_poll_interval, recovery_timeout` | `object` |
 | `om.chats.share()` | `om.chats.share()` | `id, expires, password` | `id, expires, password` | `object` |
 
 ## `connected_accounts`
@@ -228,7 +228,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.plans.activate()` | `om.plans.activate()` | `id, chat_id` | `id, chat_id` | `object` |
 | `om.plans.addToProject()` | `om.plans.add_to_project()` | `id, project_id` | `id, project_id` | `object` |
 | `om.plans.addVerificationEvidence()` | `om.plans.add_verification_evidence()` | `id, verification_id, input` | `id, verification_id, input` | `object` |
-| `om.plans.ask()` | `om.plans.ask()` | `instruction, create, update, updates` | `instruction, create, update, updates` | `object` |
+| `om.plans.ask()` | `om.plans.ask()` | `instruction, project_ids, create, update, updates` | `instruction, project_ids, create, update, updates` | `object` |
 | `om.plans.attach()` | `om.plans.attach()` | `id, chat_id` | `id, chat_id` | `object` |
 | `om.plans.complete()` | `om.plans.complete()` | `id` | `id` | `object` |
 | `om.plans.create()` | `om.plans.create()` | `input` | `input` | `object` |

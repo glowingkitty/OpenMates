@@ -42,7 +42,6 @@ const EVENT_SEARCH_PROVIDERS = [
 	'Meetup',
 	'Luma',
 	'Eventbrite',
-	'Google Events',
 	'Resident Advisor',
 	'Siegessäule',
 	'Berlin Philharmonic',
@@ -56,7 +55,6 @@ const EVENT_SEARCH_CARD_ICON_PROVIDERS = [
 	'Meetup',
 	'Luma',
 	'Eventbrite',
-	'Google Events',
 	'Resident Advisor',
 	'Siegessäule',
 	'Berlin Philharmonic'
@@ -178,7 +176,7 @@ test.describe('App: Events / Skill: search', () => {
 	});
 
 	// ── Phase 2: CLI direct skill command ──────────────────────────────────
-	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.results.actionable,events-search.performance.bounded,events-search.surface-parity
+	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.providers.auto-relevance,events-search.results.actionable,events-search.performance.bounded,events-search.surface-parity,app-skills.search-relevance.safe-finalization
 	test('Phase 2: CLI apps events search returns results', async () => {
 		test.skip(
 			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
@@ -190,7 +188,7 @@ test.describe('App: Events / Skill: search', () => {
 			[
 				'apps', 'events', 'search',
 				'--input', JSON.stringify({
-					requests: [{ query: 'technology meetup', location: 'Berlin', provider: 'auto' }]
+					requests: [{ query: 'technology meetup', location: 'Berlin', provider: 'auto', count: 3 }]
 				}),
 				'--json'
 			],
@@ -206,14 +204,56 @@ test.describe('App: Events / Skill: search', () => {
 		const skillData = parsed.data;
 		expect(Array.isArray(skillData.results)).toBe(true);
 		expect(skillData.results.length).toBeGreaterThan(0);
+		expect(skillData.providers).toContain('meetup');
+		expect(skillData.providers).toContain('luma');
+		expect(skillData.providers).toContain('eventbrite');
+		expect(skillData.providers).not.toContain('google_events');
+		expect(skillData.providers).not.toContain('resident_advisor');
+		expect(skillData.providers).not.toContain('siegessaeule');
+		expect(skillData.providers).not.toContain('berlin_philharmonic');
 
 		const events = skillData.results[0].results || [];
 		expect(events.length).toBeGreaterThan(0);
+		expect(events.length).toBeLessThanOrEqual(3);
 
 		const ev = events[0];
 		expect(ev.name || ev.title).toBeTruthy();
 		expect(ev.url).toBeTruthy();
 		console.log(`[P2] events/search found ${events.length} event(s). First: "${ev.name || ev.title}"`);
+	});
+
+	// contract-test: direct surface=cli assertions=events-search.request.validated,events-search.providers.explicit,events-search.surface-parity
+	test('Phase 2b: CLI accepts an online-only search without location', async () => {
+		test.skip(
+			!process.env.OPENMATES_TEST_ACCOUNT_API_KEY,
+			'OPENMATES_TEST_ACCOUNT_API_KEY required.'
+		);
+
+		const result = await runCli(
+			apiUrl,
+			[
+				'apps', 'events', 'search',
+				'--input', JSON.stringify({
+					requests: [{ query: 'Rust programming workshop', event_type: 'ONLINE', provider: 'Eventbrite', count: 3 }]
+				}),
+				'--json'
+			],
+			EVENT_SEARCH_MAX_DURATION_MS,
+			{ record: false }
+		);
+
+		expectCliSuccess(result);
+		const parsed = parseCliJson(result);
+		expect(parsed.success).toBe(true);
+		const group = parsed.data?.results?.[0];
+		expect(group).toBeTruthy();
+		expect(parsed.data.providers).toEqual(['eventbrite']);
+		expect(group.error).toBeFalsy();
+		expect(Array.isArray(group.results)).toBe(true);
+		expect(group.results.length).toBeLessThanOrEqual(3);
+		for (const event of group.results) {
+			expect(event.event_type).toBe('ONLINE');
+		}
 	});
 
 	// ── Phase 3: CLI chat send triggers skill ──────────────────────────────

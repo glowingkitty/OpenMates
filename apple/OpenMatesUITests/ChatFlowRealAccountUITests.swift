@@ -85,6 +85,73 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         }
     }
 
+    // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity
+    func testExistingVideoTranscriptChildHydratesFullscreenContent() throws {
+        guard let transcriptChatQuery = RealAccountTestCredentials.configurationValue(
+            for: "OPENMATES_TEST_VIDEO_TRANSCRIPT_CHAT_QUERY"
+        ), !transcriptChatQuery.isEmpty else {
+            throw XCTSkip("Configure the test-account chat containing a video transcript")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let reuseAuthentication = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_REUSE_AUTH") == "1"
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: !reuseAuthentication,
+            extraArguments: reuseAuthentication ? [] : ["--ui-test-open-login"]
+        )
+        if !reuseAuthentication {
+            RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        }
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+
+        for query in [transcriptChatQuery] {
+            openChatsPanel(in: app, allowingSearch: true)
+            let searchButton = app.buttons.matching(NSPredicate(
+                format: "identifier == %@ OR label == %@", "search-button", "Search"
+            )).firstMatch
+            let existingSearch = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch
+            if !existingSearch.exists {
+                XCTAssertTrue(searchButton.waitForExistence(timeout: 10))
+                searchButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            let search = app.textFields.matching(NSPredicate(
+                format: "identifier == %@ OR placeholderValue == %@", "search-input", "Search"
+            )).firstMatch
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            if let value = search.value as? String, !value.isEmpty {
+                search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+            }
+            search.typeText(query)
+            let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
+            XCTAssertTrue(result.waitForExistence(timeout: 45))
+            result.tap()
+            let openedChat = app.descendants(matching: .any).matching(NSPredicate(
+                format: "identifier BEGINSWITH %@", "chat-view-"
+            )).firstMatch
+            XCTAssertTrue(openedChat.waitForExistence(timeout: 15), "Search result must open its chat")
+
+            let preview = app.descendants(matching: .any)["video-transcript-preview"].firstMatch
+            guard preview.waitForExistence(timeout: 15) else { continue }
+            preview.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+
+            let transcript = app.staticTexts["video-transcript-fullscreen-text"].firstMatch
+            XCTAssertTrue(transcript.waitForExistence(timeout: 15), "Persisted transcript child must render in fullscreen")
+            XCTAssertFalse(
+                transcript.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                "Persisted transcript content must be nonempty"
+            )
+            XCTAssertFalse(app.descendants(matching: .any)["video-transcript-fullscreen-empty"].exists)
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Existing video transcript fullscreen"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            return
+        }
+
+        XCTFail("Configured embed chats did not expose a video transcript preview")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,sync.surface.semantic-parity
     func testExistingLongChatScrollsToFinalMessageRepeatedly() throws {
         guard let query = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_LONG_CHAT_QUERY") else {
@@ -243,6 +310,237 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         XCTAssertTrue(assistants.element(boundBy: assistants.count - 1).label.contains("Osaka"),
                       "Follow-up must use the persisted conversation history")
         assertCompletionCommitted(in: app, minimumVersion: 4, assistantCount: 2)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted,chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,web-search.surface-parity
+    func testPasswordOtpWebSearchStreamsChildrenAndPersistsAfterRelaunch() throws {
+        let prompt = "Search the web for the OpenMates AI assistant official website and summarize the top two results."
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: [
+                "--ui-test-open-login", "--ui-test-fresh-new-chat",
+                "--ui-test-expose-chat-ids", "--ui-test-welcome-send-stage",
+            ]
+        )
+
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: prompt)
+
+        let userMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "message-user",
+            labelContaining: prompt
+        )
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 30), "The sent web-search request must render as the user message")
+
+        let streaming = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "streaming-banner")
+        let skillCard = app.buttons.matching(identifier: "embed-preview").firstMatch
+        let liveCard = NSPredicate { _, _ in streaming.exists && skillCard.exists }
+        let liveCardExpectation = XCTNSPredicateExpectation(predicate: liveCard, object: app)
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [liveCardExpectation], timeout: assistantResponseTimeout),
+            .completed,
+            "The web-search skill card must become visible while the assistant turn is still streaming"
+        )
+        XCTAssertTrue(skillCard.label.localizedCaseInsensitiveContains("search"),
+                      "The live app-skill card must be the requested web search")
+
+        RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
+        XCTAssertTrue(streaming.waitForNonExistence(timeout: assistantResponseTimeout))
+        // A completed answer can be taller than the viewport. The card is near
+        // the beginning of the answer while chat follows the newest text.
+        for _ in 0..<12 where skillCard.exists && !skillCard.isHittable {
+            app.swipeDown()
+        }
+        let finishedCard = NSPredicate { _, _ in
+            skillCard.exists && skillCard.isEnabled && skillCard.isHittable
+        }
+        XCTAssertEqual(
+            XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: finishedCard, object: skillCard)],
+                timeout: 20
+            ),
+            .completed,
+            "The finished skill card must remain interactive in the response"
+        )
+        skillCard.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch.waitForExistence(timeout: 15),
+            "The finished web-search card must open fullscreen"
+        )
+        let resultCards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "embed-preview-"))
+        let firstResult = resultCards.firstMatch
+        XCTAssertTrue(firstResult.waitForExistence(timeout: 30), "Fullscreen must hydrate at least one web-search child result")
+        XCTAssertFalse(
+            firstResult.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            "The hydrated child result must expose nonempty content"
+        )
+        app.buttons["embed-minimize"].firstMatch.tap()
+
+        let active = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-"))
+            .firstMatch
+        XCTAssertTrue(active.exists)
+        let chatId = String(active.identifier.dropFirst("chat-view-".count))
+        XCTAssertFalse(chatId.isEmpty)
+        let title = app.descendants(matching: .any).matching(identifier: "chat-header-title").firstMatch
+        let readyTitle = NSPredicate { _, _ in
+            guard title.exists else { return false }
+            let value = title.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalized = value.lowercased()
+            return !value.isEmpty && !normalized.contains("creating") && !normalized.contains("untitled")
+        }
+        let titleExpectation = XCTNSPredicateExpectation(predicate: readyTitle, object: title)
+        XCTAssertEqual(XCTWaiter.wait(for: [titleExpectation], timeout: 60), .completed,
+                       "Post-processing must replace the new-chat placeholder with a durable title")
+        let summary = app.descendants(matching: .any).matching(identifier: "chat-header-summary").firstMatch
+        let readySummary = NSPredicate { _, _ in
+            summary.exists && !summary.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: readySummary, object: summary)], timeout: 60),
+            .completed,
+            "Post-processing must also persist the generated chat summary before relaunch"
+        )
+        let persistedTitle = title.label.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        app.terminate()
+        app.launchArguments.removeAll {
+            ["--ui-test-disable-auth-cache", "--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-fresh-new-chat"].contains($0)
+        }
+        app.launch()
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        openChatsPanel(in: app)
+        let persistedRow = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatId)"
+        )).firstMatch
+        let history = app.scrollViews.matching(identifier: "chat-sidebar-scroll").firstMatch
+        for _ in 0..<12 where !persistedRow.exists {
+            let more = app.buttons["load-more-chats"]
+            if more.exists && more.isHittable && history.frame.insetBy(dx: 0, dy: 35).contains(
+                CGPoint(x: more.frame.midX, y: more.frame.midY)
+            ) {
+                more.tap()
+            } else {
+                history.swipeUp()
+            }
+        }
+        XCTAssertTrue(persistedRow.waitForExistence(timeout: 10), "The web-search chat must survive relaunch")
+        XCTAssertTrue(persistedRow.label.localizedCaseInsensitiveContains(persistedTitle),
+                      "The generated chat title must survive relaunch; expected=\(persistedTitle), restored=\(persistedRow.label)")
+        persistedRow.tap()
+        XCTAssertTrue(
+            RealAccountUITestSupport.accessibilityElement(
+                in: app,
+                identifier: "message-user",
+                labelContaining: prompt
+            ).waitForExistence(timeout: 25),
+            "The original web-search request must survive relaunch"
+        )
+        let persistedCard = app.buttons.matching(identifier: "embed-preview").firstMatch
+        XCTAssertTrue(persistedCard.waitForExistence(timeout: 30), "The encrypted web-search card must survive relaunch")
+        persistedCard.tap()
+        XCTAssertTrue(
+            app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "embed-preview-"))
+                .firstMatch.waitForExistence(timeout: 30),
+            "Persisted fullscreen must hydrate its child results after relaunch"
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,message-input.embeds.gated-send,chats.persistence.client-encrypted,chats.rendering.inline-entity-interaction
+    func testPasswordOtpPhotoAttachmentSendsAndPersistsAfterRelaunch() throws {
+        let prompt = "Use the image viewing skill to inspect the attached image. What single color fills it? Reply with that color."
+        let filename = "quick-action-photo.png"
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: [
+                "--ui-test-open-login", "--ui-test-fresh-new-chat",
+                "--ui-test-expose-chat-ids", "--ui-test-photo-live-upload",
+                "--ui-test-welcome-send-stage",
+            ]
+        )
+
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        let composerImage = app.descendants(matching: .any)
+            .matching(identifier: "native-composer-preview-image-finished").firstMatch
+        XCTAssertTrue(composerImage.waitForExistence(timeout: 15), "The photo quick-action fixture must reach the composer")
+        XCTAssertTrue(app.staticTexts[filename].waitForExistence(timeout: 10), "The selected photo filename must be visible before send")
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: prompt)
+
+        let userMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "message-user",
+            labelContaining: prompt
+        )
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 30), "The prompt and uploaded photo must render as the sent user message")
+        let sentThumbnail = userMessage.descendants(matching: .any)
+            .matching(identifier: "sent-image-thumbnail").firstMatch
+        XCTAssertTrue(sentThumbnail.waitForExistence(timeout: 30), "The sent message must render the uploaded photo thumbnail")
+        XCTAssertTrue(app.staticTexts[filename].waitForExistence(timeout: 20), "The sent photo must retain its filename")
+
+        RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
+        let assistant = app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(assistant.waitForExistence(timeout: 20), "The image request must receive an assistant response")
+        XCTAssertTrue(
+            assistant.label.localizedCaseInsensitiveContains("red"),
+            "The assistant must identify the red pixels in the uploaded image, proving actual image access"
+        )
+        let assistantSkill = assistant.descendants(matching: .button)
+            .matching(identifier: "embed-preview").firstMatch
+        XCTAssertTrue(
+            assistantSkill.waitForExistence(timeout: 30),
+            "An explicit image-view request must preserve its assistant skill content"
+        )
+
+        let active = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-"))
+            .firstMatch
+        XCTAssertTrue(active.exists)
+        let chatId = String(active.identifier.dropFirst("chat-view-".count))
+        XCTAssertFalse(chatId.isEmpty)
+
+        app.terminate()
+        app.launchArguments.removeAll {
+            [
+                "--ui-test-disable-auth-cache", "--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-fresh-new-chat",
+                "--ui-test-photo-live-upload",
+            ].contains($0)
+        }
+        app.launch()
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        openChatsPanel(in: app)
+        let persistedRow = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatId)"
+        )).firstMatch
+        let history = app.scrollViews.matching(identifier: "chat-sidebar-scroll").firstMatch
+        for _ in 0..<12 where !persistedRow.exists {
+            let more = app.buttons["load-more-chats"]
+            if more.exists && more.isHittable && history.frame.insetBy(dx: 0, dy: 35).contains(
+                CGPoint(x: more.frame.midX, y: more.frame.midY)
+            ) {
+                more.tap()
+            } else {
+                history.swipeUp()
+            }
+        }
+        XCTAssertTrue(persistedRow.waitForExistence(timeout: 10), "The photo chat must survive relaunch")
+        persistedRow.tap()
+        let persistedUserMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "message-user",
+            labelContaining: prompt
+        )
+        XCTAssertTrue(persistedUserMessage.waitForExistence(timeout: 25), "The sent photo message must survive relaunch")
+        XCTAssertTrue(
+            persistedUserMessage.descendants(matching: .any)
+                .matching(identifier: "sent-image-thumbnail").firstMatch.waitForExistence(timeout: 30),
+            "The uploaded photo thumbnail must hydrate after relaunch"
+        )
+        XCTAssertTrue(app.staticTexts[filename].waitForExistence(timeout: 20), "The persisted photo must retain its filename")
     }
 
     private func assertCompletionCommitted(in app: XCUIApplication, minimumVersion: Int, assistantCount: Int) {

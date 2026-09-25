@@ -2,6 +2,10 @@
 // Mirrors the web app's dual-phase send protocol: WebSocket plaintext for AI
 // processing, then client-encrypted metadata/messages for permanent storage.
 // Subscribes to StreamingClient for real-time AI response chunks.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context, message-input.recording.lifecycle, message-input.drafts.preview-persistence
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.followups.non-destructive-reconciliation, chats.persistence.client-encrypted, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
 
 import Foundation
 import SwiftUI
@@ -27,6 +31,8 @@ struct ChatStreamingLifecycleState: Equatable {
     var messageId: String?
     var userMessageId: String?
     var preprocessingStep: String?
+    var selectedMateCategory: String?
+    var selectedMateName: String?
     var thinkingContent = ""
     var isThinkingStreaming = false
     var queuedMessageText: String?
@@ -62,14 +68,20 @@ struct ChatStreamingLifecycleState: Equatable {
             phase = .sending
             errorMessage = nil
 
-        case .preprocessingStep(let chatId, let step, _):
+        case .preprocessingStep(let chatId, let step, let data):
             self.chatId = chatId
             preprocessingStep = step
+            if step == "mate_selected" {
+                selectedMateCategory = data?["mate_category"] as? String
+                selectedMateName = data?["mate_name"] as? String
+            }
             phase = .processing
 
         case .typingStarted(let chatId, let messageId, let metadata):
             self.chatId = chatId
             self.messageId = messageId
+            selectedMateCategory = metadata?.category
+            selectedMateName = nil
             if let userMessageId = metadata?.userMessageId, !userMessageId.isEmpty {
                 self.userMessageId = userMessageId
             }
@@ -93,7 +105,7 @@ struct ChatStreamingLifecycleState: Equatable {
                 phase = .typing
             }
 
-        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, _, _, _):
+        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, let category, _, _):
             guard !completedMessageIds.contains(messageId) else { return false }
             if !isFinal {
                 if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
@@ -103,6 +115,7 @@ struct ChatStreamingLifecycleState: Equatable {
             }
             self.chatId = chatId
             self.messageId = messageId
+            if let category { selectedMateCategory = category }
             if let userMessageId, !userMessageId.isEmpty {
                 self.userMessageId = userMessageId
             }
@@ -161,7 +174,7 @@ struct ChatStreamingLifecycleState: Equatable {
             isThinkingStreaming = false
             queuedMessageText = nil
 
-        case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _):
+        case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _, _, _):
             if let activeTaskId = self.taskId, taskId != activeTaskId {
                 return false
             }
@@ -199,15 +212,194 @@ enum ChatStreamingPresentationPolicy {
         thinkingContent: String,
         embedCount: Int
     ) -> Bool {
-        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !ChatMessageStreamingRenderPolicy.visibleContent(content)
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || embedCount > 0
     }
 }
 
+enum ChatLegacyEmbedLinkPolicy {
+    static func applying(
+        to messages: [Message],
+        embeds: [EmbedRecord],
+        synthesizeMissingContent: Bool = true
+    ) -> [Message] {
+        guard !messages.isEmpty, !embeds.isEmpty else { return messages }
+        let embedsByMessageHash = Dictionary(grouping: embeds.compactMap { embed in
+            embed.hashedMessageId.map { ($0, embed) }
+        }, by: { $0.0 })
+
+        return messages.map { message in
+            guard message.role == .user else { return message }
+            // Web `sendersChatMessages.ts` uses computeSHA256(message_id), and
+            // backend `embed_service.py` uses sha256(message_id.encode()).
+            let digest = SHA256.hash(data: Data(message.id.utf8))
+                .map { String(format: "%02x", $0) }
+                .joined()
+            let linked = embedsByMessageHash[digest]?.map { $0.1 } ?? []
+            guard !linked.isEmpty else { return message }
+            let existing = message.embedRefs ?? []
+            let existingIDs = Set(existing.map(\.id))
+            let recovered = linked
+                .filter { !existingIDs.contains($0.id) }
+                .map { EmbedRef(id: $0.id, type: $0.type, status: $0.status.rawValue, data: nil) }
+            let linkedRefs = linked.map {
+                EmbedRef(id: $0.id, type: $0.type, status: $0.status.rawValue, data: nil)
+            }
+            let contentIsEmpty = (message.content ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            guard !recovered.isEmpty || (synthesizeMissingContent && contentIsEmpty) else {
+                return message
+            }
+            let recoveredContent: String?
+            if synthesizeMissingContent && contentIsEmpty {
+                recoveredContent = linkedRefs.map { ref in
+                    "```json\n{\"type\": \"\(ref.type)\", \"embed_id\": \"\(ref.id)\"}\n```"
+                }.joined(separator: "\n\n")
+            } else {
+                recoveredContent = message.content
+            }
+            return Message(
+                id: message.id, chatId: message.chatId, role: message.role,
+                content: recoveredContent, encryptedContent: message.encryptedContent,
+                createdAt: message.createdAt, updatedAt: message.updatedAt,
+                appId: message.appId, isStreaming: message.isStreaming,
+                embedRefs: existing + recovered, modelName: message.modelName,
+                senderName: message.senderName, category: message.category,
+                encryptedSenderName: message.encryptedSenderName,
+                encryptedCategory: message.encryptedCategory,
+                encryptedModelName: message.encryptedModelName,
+                piiMappings: message.piiMappings,
+                encryptedPIIMappings: message.encryptedPIIMappings,
+                thinkingContent: message.thinkingContent,
+                encryptedThinkingContent: message.encryptedThinkingContent,
+                encryptedThinkingSignature: message.encryptedThinkingSignature,
+                thinkingTokenCount: message.thinkingTokenCount
+            )
+        }
+    }
+}
+
+enum ChatGeneratedMetadataPolicy {
+    static func applying(_ metadata: StreamingClient.ChatMetadata, to chat: Chat) -> Chat {
+        let title = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let category = metadata.category?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let icon = metadata.iconNames.first?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let metadataIsUninitialized = needsGeneratedTitle(chat)
+        return Chat(
+            id: chat.id,
+            title: metadataIsUninitialized && title?.isEmpty == false ? title : chat.title,
+            lastMessageAt: chat.lastMessageAt,
+            createdAt: chat.createdAt,
+            updatedAt: chat.updatedAt,
+            isArchived: chat.isArchived,
+            isPinned: chat.isPinned,
+            appId: chat.appId,
+            category: metadataIsUninitialized && category?.isEmpty == false ? category : chat.category,
+            icon: metadataIsUninitialized && icon?.isEmpty == false ? icon : chat.icon,
+            chatSummary: chat.chatSummary,
+            encryptedTitle: chat.encryptedTitle,
+            encryptedCategory: chat.encryptedCategory,
+            encryptedIcon: chat.encryptedIcon,
+            encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: chat.encryptedFollowUpRequestSuggestions,
+            encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
+            encryptedChatKey: metadata.encryptedChatKey ?? chat.encryptedChatKey,
+            messagesV: chat.messagesV,
+            titleV: chat.titleV,
+            draftV: chat.draftV,
+            metadataV: chat.metadataV,
+            lastVisibleMessageId: chat.lastVisibleMessageId,
+            parentId: chat.parentId,
+            isSubChat: chat.isSubChat,
+            subChatSettings: chat.subChatSettings,
+            budgetLimit: chat.budgetLimit,
+            budgetSpent: chat.budgetSpent,
+            encryptedActiveFocusId: chat.encryptedActiveFocusId,
+            activeFocusId: chat.activeFocusId
+        )
+    }
+
+    static func needsGeneratedTitle(_ chat: Chat) -> Bool {
+        let visibleTitle = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return (chat.titleV ?? 0) == 0 || visibleTitle.isEmpty
+    }
+
+    static func applyingProvisionalTitle(_ title: String?, to chat: Chat) -> Chat {
+        let currentTitle = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard currentTitle.isEmpty, (chat.titleV ?? 0) == 0,
+              let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return chat
+        }
+        return Chat(
+            id: chat.id,
+            title: title,
+            lastMessageAt: chat.lastMessageAt,
+            createdAt: chat.createdAt,
+            updatedAt: chat.updatedAt,
+            isArchived: chat.isArchived,
+            isPinned: chat.isPinned,
+            appId: chat.appId,
+            category: chat.category,
+            icon: chat.icon,
+            chatSummary: chat.chatSummary,
+            encryptedTitle: chat.encryptedTitle,
+            encryptedCategory: chat.encryptedCategory,
+            encryptedIcon: chat.encryptedIcon,
+            encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: chat.encryptedFollowUpRequestSuggestions,
+            encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
+            encryptedChatKey: chat.encryptedChatKey,
+            messagesV: chat.messagesV,
+            titleV: chat.titleV,
+            draftV: chat.draftV,
+            metadataV: chat.metadataV,
+            lastVisibleMessageId: chat.lastVisibleMessageId,
+            parentId: chat.parentId,
+            isSubChat: chat.isSubChat,
+            subChatSettings: chat.subChatSettings,
+            budgetLimit: chat.budgetLimit,
+            budgetSpent: chat.budgetSpent,
+            encryptedActiveFocusId: chat.encryptedActiveFocusId,
+            activeFocusId: chat.activeFocusId
+        )
+    }
+}
+
+struct ChatEncryptedMetadataAcceptedVersions: Equatable {
+    let messages: Int?
+    let title: Int?
+    let metadata: Int?
+}
+
+enum ChatEncryptedMetadataAcknowledgementPolicy {
+    static func acceptedVersions(from fields: [String: Any]) -> ChatEncryptedMetadataAcceptedVersions? {
+        guard fields["status"] as? String == "queued_for_storage" else { return nil }
+        let versions = fields["versions"] as? [String: Any]
+        return ChatEncryptedMetadataAcceptedVersions(
+            messages: versions?["messages_v"] as? Int,
+            title: versions?["title_v"] as? Int,
+            metadata: versions?["metadata_v"] as? Int
+        )
+    }
+}
+
 enum ChatFollowUpSuggestionPolicy {
+    static func clearForAcceptedSend(_ current: [String]) -> [String] {
+        current.isEmpty ? current : []
+    }
+
     static func reconcile(current: [String], incoming: [String]) -> [String] {
         incoming.isEmpty ? current : incoming
+    }
+
+    static func acceptCompletedResponse(_ incoming: [String]) -> [String] {
+        Array(incoming.prefix(18))
+    }
+
+    static func restore(stored: [String], hasStoredCiphertext: Bool, legacyExtracted: [String]) -> [String] {
+        hasStoredCiphertext ? stored : reconcile(current: stored, incoming: legacyExtracted)
     }
 }
 
@@ -389,9 +581,12 @@ final class ChatViewModel: ObservableObject {
         self.chatStore = chatStore
     }
 
+    var isSendTransportReady: Bool { wsManager?.connectionState == .connected }
+
     func loadChat(id: String, initialChat: Chat? = nil, initialMessages: [Message] = [], initialEmbeds: [EmbedRecord] = []) async {
         loadGeneration += 1
         let generation = loadGeneration
+        followUpSuggestions = []
         cancelOlderMessagesLoad()
         embedHydrationTask?.cancel()
         isLoading = true
@@ -414,6 +609,7 @@ final class ChatViewModel: ObservableObject {
             await ensureChatKey(for: loadedChat)
 
             loadedChat = await decryptMetadata(for: loadedChat)
+            let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
             chat = loadedChat
 
             let messagesResponse: [Message] = try await api.request(.get, path: "/v1/chats/\(id)/messages")
@@ -423,7 +619,11 @@ final class ChatViewModel: ObservableObject {
             let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: id)
             let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
             embedRecords = embedded.records
-            followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+                stored: storedFollowUps,
+                hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
+                legacyExtracted: extractFollowUpSuggestions(from: embedded.messages)
+            )
 
             messages = embedded.messages
             refreshWindowBoundaries()
@@ -467,13 +667,19 @@ final class ChatViewModel: ObservableObject {
 
     func applySyncedEmbeds(_ syncedEmbeds: [EmbedRecord]) async {
         guard let chatId = chat?.id, !messages.isEmpty, !syncedEmbeds.isEmpty else { return }
+        messages = ChatLegacyEmbedLinkPolicy.applying(to: messages, embeds: syncedEmbeds)
+        allMessages = ChatLegacyEmbedLinkPolicy.applying(
+            to: allMessages,
+            embeds: syncedEmbeds,
+            synthesizeMissingContent: false
+        )
         let referencedIds = Set(messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
         guard !referencedIds.isEmpty else { return }
         let currentRecords = embedRecords
         let incomingRecords = EmbedRecord.dictionaryById(syncedEmbeds, context: "chatViewModel.applySyncedEmbeds.incoming")
         let changedEmbeds = incomingRecords.values.filter { incoming in
             guard let existing = currentRecords[incoming.id] else { return true }
-            return existing.rawData == nil || existing.encryptedType != nil || existing.encryptedContent != incoming.encryptedContent
+            return Self.embedRecordNeedsRefresh(existing: existing, incoming: incoming)
         }
         guard !changedEmbeds.isEmpty else { return }
         let mergedRecords = currentRecords.merging(incomingRecords) { _, new in new }
@@ -494,12 +700,18 @@ final class ChatViewModel: ObservableObject {
         let start = NativeSyncPerfLog.now()
         await ensureChatKey(for: loadedChat)
         loadedChat = await decryptMetadata(for: loadedChat)
+        let storedFollowUps = await decryptFollowUpSuggestions(for: loadedChat)
         guard generation == loadGeneration else { return }
         if NativeSyncPerfLog.verboseCrypto {
             print("[ChatViewModel][loadSynced] chat=\(loadedChat.id.prefix(8)) afterMetadata title=\(loadedChat.title != nil) category=\(loadedChat.category != nil) icon=\(loadedChat.icon != nil) summary=\(loadedChat.chatSummary != nil) hasKey=\(ChatKeyManager.shared.hasKey(for: loadedChat.id))")
         }
 
         chat = loadedChat
+        followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+            stored: storedFollowUps,
+            hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
+            legacyExtracted: followUpSuggestions
+        )
         // A warm shell supplies a bounded seed, while its store retains the raw
         // history. Never mistake that seed for the complete paging/send source.
         let storedMessages = chatStore?.messages(for: loadedChat.id) ?? []
@@ -562,6 +774,11 @@ final class ChatViewModel: ObservableObject {
         }
         openingMetrics.initialMessagesReceived = rawMessages.count
         openingMetrics.initialEmbedsReceived = hydrationEmbeds.count
+        rawMessages = ChatLegacyEmbedLinkPolicy.applying(
+            to: rawMessages,
+            embeds: hydrationEmbeds,
+            synthesizeMissingContent: false
+        )
         allMessages = rawMessages
         let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId,
                                               destination: destination)
@@ -580,15 +797,22 @@ final class ChatViewModel: ObservableObject {
             destination: selectedTail ? .latest : visibleRawMessages.first.map { .preserve(firstMessage: $0.id) } ?? .latest,
             generation: generation, navigationGeneration: selectionGeneration, scopeGeneration: scopeGeneration
         ) else { return }
-        let embedded = PublicChatContent.attachEmbeds(to: resolvedMessages)
+        let messagesWithLegacyEmbedLinks = ChatLegacyEmbedLinkPolicy.applying(
+            to: resolvedMessages,
+            embeds: hydrationEmbeds
+        )
+        let embedded = PublicChatContent.attachEmbeds(to: messagesWithLegacyEmbedLinks)
         let existingRecords = embedRecords
         let referencedIds = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
-        embedRecords = existingRecords.merging(embedded.records) { _, new in new }
+        embedRecords = PublicChatContent.mergingHydratedRecords(
+            existing: existingRecords, inline: embedded.records
+        )
         let renderedMessages = embedded.messages
-        followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
-            current: followUpSuggestions,
-            incoming: extractFollowUpSuggestions(from: renderedMessages)
+        followUpSuggestions = ChatFollowUpSuggestionPolicy.restore(
+            stored: followUpSuggestions,
+            hasStoredCiphertext: loadedChat.encryptedFollowUpRequestSuggestions != nil,
+            legacyExtracted: extractFollowUpSuggestions(from: renderedMessages)
         )
 
         messages = renderedMessages
@@ -997,8 +1221,14 @@ final class ChatViewModel: ObservableObject {
             let latestVisible = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
             let byID = Dictionary(decrypted.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
                 .merging(latestVisible) { _, current in current }
-            let embedded = PublicChatContent.attachEmbeds(to: batch.compactMap { byID[$0.id] })
-            let availableRecords = embedRecords.merging(embedded.records) { _, new in new }
+            let windowMessages = ChatLegacyEmbedLinkPolicy.applying(
+                to: batch.compactMap { byID[$0.id] },
+                embeds: Array(embedRecords.values)
+            )
+            let embedded = PublicChatContent.attachEmbeds(to: windowMessages)
+            let availableRecords = PublicChatContent.mergingHydratedRecords(
+                existing: embedRecords, inline: embedded.records
+            )
             let referencedIDs = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
             embedRecords = EmbedRecord.dictionaryById(
                 relatedEmbeds(referencedIds: referencedIDs, from: Array(availableRecords.values)),
@@ -1048,7 +1278,8 @@ final class ChatViewModel: ObservableObject {
         excludedPIIOriginals: Set<String> = [],
         excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
-        composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil
+        composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil,
+        messageId: String? = nil
     ) async {
         guard let currentChat = chat else { return }
         if hasNewerMessages {
@@ -1085,14 +1316,36 @@ final class ChatViewModel: ObservableObject {
                 existingMessages: allMessages,
                 wsManager: wsManager,
                 chatStore: chatStore,
+                waitForInferenceReceipt: messageId != nil,
                 composerEmbeds: composerEmbeds,
                 piiMappings: mergedPIIMappings,
                 excludedPIIOriginals: excludedPIIOriginals,
                 excludedPIIPlaceholders: excludedPIIPlaceholders,
-                broadcastToSiblings: broadcastToSiblings
+                broadcastToSiblings: broadcastToSiblings,
+                messageId: messageId
             )
-            chat = result.chat
+            let provisionalTitle = allMessages.contains(where: { $0.role == .user })
+                ? nil
+                : ChatHeaderPresentation.provisionalTitle(
+                    from: ChatSendPipeline.provisionalTitleSource(
+                        content: content,
+                        composerEmbeds: composerEmbeds
+                    ) ?? ""
+                )
+            let presentedChat = ChatGeneratedMetadataPolicy.applyingProvisionalTitle(
+                provisionalTitle,
+                to: result.chat
+            )
+            chat = presentedChat
+            // The provisional title is derived from plaintext user input. Keep
+            // it in the in-memory list for immediate navigation, while the
+            // generated title later replaces it through the encrypted metadata
+            // path. SwiftData must never receive this plaintext fallback.
+            chatStore?.performWithoutPersistence {
+                chatStore?.upsertChat(presentedChat)
+            }
             appendOrReplaceLocalMessage(result.message)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(followUpSuggestions)
             if broadcastToSiblings {
                 await broadcastMessageToSiblingSubChats(
                     result.message.content ?? content,
@@ -1126,6 +1379,7 @@ final class ChatViewModel: ObservableObject {
             )
             chat = result.chat
             appendOrReplaceTransientMessage(result.message)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(followUpSuggestions)
             isStreaming = true
             streamingContent = ""
             try await sendPipeline.sendIncognitoUserMessage(
@@ -1189,6 +1443,7 @@ final class ChatViewModel: ObservableObject {
             chat = updatedChat
             chatStore?.upsertChat(updatedChat)
             appendOrReplaceLocalMessage(userMessage)
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.clearForAcceptedSend(followUpSuggestions)
             isStreaming = true
             streamingContent = ""
             streamingMessageId = assistantMessageId
@@ -1217,10 +1472,7 @@ final class ChatViewModel: ObservableObject {
             chat = updatedChat
             chatStore?.upsertChat(updatedChat)
             appendOrReplaceLocalMessage(assistant)
-            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
-                current: followUpSuggestions,
-                incoming: response.followUpSuggestions
-            )
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.acceptCompletedResponse(response.followUpSuggestions)
             isStreaming = false
             streamingContent = ""
             streamingMessageId = nil
@@ -1251,6 +1503,7 @@ final class ChatViewModel: ObservableObject {
             encryptedCategory: chat.encryptedCategory,
             encryptedIcon: chat.encryptedIcon,
             encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: chat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
             encryptedChatKey: chat.encryptedChatKey,
             messagesV: messageCount,
@@ -1378,6 +1631,9 @@ final class ChatViewModel: ObservableObject {
 
         case .typingStarted(let chatId, let messageId, let metadata):
             streamingMessageId = messageId
+            if let metadata, let currentChat = chat, currentChat.id == chatId {
+                chat = ChatGeneratedMetadataPolicy.applying(metadata, to: currentChat)
+            }
             if let userMessageId = metadata?.userMessageId {
                 userMessageIdByAssistantMessageId[messageId] = userMessageId
             }
@@ -1444,15 +1700,7 @@ final class ChatViewModel: ObservableObject {
                     }
                 }
             } else {
-                guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
-                    content: displayContent,
-                    thinkingContent: streamingLifecycle.thinkingContent,
-                    embedCount: 0
-                ) else {
-                    isStreaming = true
-                    return
-                }
-                let partialAssistantMessage = Message(
+                let rawPartialAssistantMessage = Message(
                     id: messageId, chatId: chatId, role: rejectionReason == nil ? .assistant : .system,
                     content: displayContent, encryptedContent: nil,
                     createdAt: createdAtForAssistantMessage(messageId),
@@ -1460,6 +1708,19 @@ final class ChatViewModel: ObservableObject {
                     modelName: resolvedModelName,
                     thinkingContent: streamingLifecycle.thinkingContent.isEmpty ? nil : streamingLifecycle.thinkingContent
                 )
+                let embedded = PublicChatContent.attachEmbeds(to: [rawPartialAssistantMessage])
+                for (id, record) in embedded.records {
+                    embedRecords[id] = record
+                }
+                let partialAssistantMessage = embedded.messages.first ?? rawPartialAssistantMessage
+                guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+                    content: partialAssistantMessage.content ?? displayContent,
+                    thinkingContent: streamingLifecycle.thinkingContent,
+                    embedCount: partialAssistantMessage.embedRefs?.count ?? embedded.records.count
+                ) else {
+                    isStreaming = true
+                    return
+                }
                 appendOrReplaceTransientMessage(partialAssistantMessage)
                 isStreaming = true
             }
@@ -1501,12 +1762,9 @@ final class ChatViewModel: ObservableObject {
             streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
-        case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
+        case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle, let sourceTitleVersion, let sourceMetadataVersion):
             guard chat?.id == chatId else { return }
-            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
-                current: followUpSuggestions,
-                incoming: Array(followUps.prefix(18))
-            )
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.acceptCompletedResponse(followUps)
             Task { @MainActor in
                 await sendPipeline.sendPostProcessingMetadata(
                     chatId: chatId,
@@ -1515,9 +1773,14 @@ final class ChatViewModel: ObservableObject {
                     chatSummary: summary,
                     chatTags: tags,
                     updatedTitle: updatedTitle,
+                    sourceTitleVersion: sourceTitleVersion,
+                    sourceMetadataVersion: sourceMetadataVersion,
                     wsManager: wsManager,
                     chatStore: chatStore
                 )
+                if self.chat?.id == chatId, let acceptedChat = chatStore?.chat(for: chatId) {
+                    self.chat = acceptedChat
+                }
             }
             streamingContent = ""
             streamingMessageId = nil
@@ -1876,6 +2139,7 @@ final class ChatViewModel: ObservableObject {
             encryptedCategory: currentChat.encryptedCategory,
             encryptedIcon: currentChat.encryptedIcon,
             encryptedChatSummary: currentChat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: currentChat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: currentChat.encryptedAutoSpeakResponse,
             encryptedChatKey: currentChat.encryptedChatKey,
             messagesV: currentChat.messagesV,
@@ -1963,6 +2227,8 @@ final class ChatViewModel: ObservableObject {
 
     func loadEmbeds(for messageIds: [String]) async {
         guard let chatId = chat?.id else { return }
+        let generation = loadGeneration
+        let scopeGeneration = accountScopeGeneration()
         let requestedMessageIds = Set(messageIds)
         let visibleReferencedEmbedIds = Set(messages
             .filter { requestedMessageIds.contains($0.id) }
@@ -1973,6 +2239,31 @@ final class ChatViewModel: ObservableObject {
                 .flatMap { $0.embedRefs?.map(\.id) ?? [] }
         )
         guard !referencedEmbedIds.isEmpty else { return }
+
+        // send_embed_data replaces a processing record with finalized
+        // ciphertext under the same ID. Consume the newer local ChatStore row
+        // before the loaded-ID fast path, otherwise the active ViewModel keeps
+        // rendering its stale processing copy forever.
+        if let storedEmbeds = chatStore?.embeds(for: chatId), !storedEmbeds.isEmpty {
+            let localRelated = relatedEmbeds(referencedIds: referencedEmbedIds, from: storedEmbeds)
+            let changedLocal = localRelated.filter { incoming in
+                guard let existing = embedRecords[incoming.id] else { return true }
+                return Self.embedRecordNeedsRefresh(existing: existing, incoming: incoming)
+            }
+            if !changedLocal.isEmpty {
+                let decryptedLocal = await decryptEmbeds(
+                    changedLocal,
+                    chatId: chatId,
+                    existingRecords: embedRecords
+                )
+                guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
+                      scopeGeneration == accountScopeGeneration() else { return }
+                for embed in decryptedLocal {
+                    embedRecords[embed.id] = embed
+                }
+            }
+        }
+
         let loadedEmbedIds = Set(embedRecords.keys)
         let referencedRecords = referencedEmbedIds.compactMap { embedRecords[$0] }
         let referencedChildIds = childIdsReachable(from: referencedEmbedIds)
@@ -1982,9 +2273,10 @@ final class ChatViewModel: ObservableObject {
                 record.childEmbedIds.isEmpty &&
                 !embedRecords.values.contains { $0.parentEmbedId == record.id }
         }
-        let hasEncryptedUndecryptedRecord = referencedRecords.contains { record in
-            record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil)
-        }
+        let hasEncryptedUndecryptedRecord = Self.hasUndecryptedRequiredEmbed(
+            ids: requiredEmbedIds,
+            records: embedRecords
+        )
         NativeSyncPerfLog.info(
             "phase=loadEmbedsStart chat=\(chatId.prefix(8)) requestedMessages=\(requestedMessageIds.count) referenced=\(referencedEmbedIds.count) children=\(referencedChildIds.count) loaded=\(loadedEmbedIds.count) unresolvedComposite=\(hasUnresolvedCompositeParent) encryptedUndecrypted=\(hasEncryptedUndecryptedRecord)"
         )
@@ -1999,19 +2291,17 @@ final class ChatViewModel: ObservableObject {
             // Personal encrypted embeds use the same scoped content-batch
             // protocol as messages. There is no per-chat REST embeds endpoint.
             guard let wsManager else { throw ChatContentHydrationError.websocketUnavailable }
-            let generation = loadGeneration
-            let scopeGeneration = OfflineStore.shared.scopeGeneration
             let response = try await wsManager.requestChatContentBatch(chatId: chatId)
             let batch = try ChatContentBatchPayload.decode(response.fields)
             guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
-                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
+                  scopeGeneration == accountScopeGeneration() else { return }
             EmbedKeyManager.shared.store(batch.embedKeys, source: "chatEmbedContentBatch")
             OfflineStore.shared.persistEmbedKeys(batch.embedKeys)
             let fetchedEmbeds = batch.embeds(for: chatId)
             let relatedEmbeds = relatedEmbeds(referencedIds: referencedEmbedIds, from: fetchedEmbeds)
             let decrypted = await decryptEmbeds(relatedEmbeds, chatId: chatId, existingRecords: embedRecords)
             guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
-                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
+                  scopeGeneration == accountScopeGeneration() else { return }
             for embed in decrypted {
                 embedRecords[embed.id] = embed
             }
@@ -2049,6 +2339,30 @@ final class ChatViewModel: ObservableObject {
         }
 
         return result
+    }
+
+    static func hasUndecryptedRequiredEmbed(
+        ids: Set<String>,
+        records: [String: EmbedRecord]
+    ) -> Bool {
+        ids.compactMap { records[$0] }.contains { record in
+            record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil)
+        }
+    }
+
+    static func embedRecordNeedsRefresh(existing: EmbedRecord, incoming: EmbedRecord) -> Bool {
+        existing.type != incoming.type ||
+            existing.status != incoming.status ||
+            existing.rawData != incoming.rawData ||
+            existing.encryptedContent != incoming.encryptedContent ||
+            existing.encryptedType != incoming.encryptedType ||
+            existing.encryptedTextPreview != incoming.encryptedTextPreview ||
+            existing.parentEmbedId != incoming.parentEmbedId ||
+            existing.appId != incoming.appId ||
+            existing.skillId != incoming.skillId ||
+            existing.embedIds != incoming.embedIds ||
+            existing.versionNumber != incoming.versionNumber ||
+            existing.contentHash != incoming.contentHash
     }
 
     private func visibleWindow(from rawMessages: [Message], anchorMessageId: String? = nil,
@@ -2146,6 +2460,27 @@ final class ChatViewModel: ObservableObject {
             .map { String($0) }
     }
 
+    private func decryptFollowUpSuggestions(for chat: Chat) async -> [String] {
+        guard let encrypted = chat.encryptedFollowUpRequestSuggestions,
+              let plaintext = await ChatKeyManager.shared.decryptChatField(
+                chatId: chat.id,
+                encryptedValue: encrypted,
+                fieldName: "encrypted_follow_up_request_suggestions"
+              ) else { return [] }
+        return Self.decodeFollowUpSuggestions(plaintext)
+    }
+
+    static func decodeFollowUpSuggestions(_ plaintext: String) -> [String] {
+        guard let data = plaintext.data(using: .utf8),
+              let decoded = try? JSONSerialization.jsonObject(with: data) as? [Any] else { return [] }
+        let suggestions: [String] = decoded.compactMap { value -> String? in
+            guard let suggestion = value as? String else { return nil }
+            let trimmed = suggestion.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        return Array(suggestions.prefix(18))
+    }
+
     private func cleanFollowUpSuggestion(_ suggestion: String) -> String {
         var cleaned = suggestion
         cleaned = cleaned.replacingOccurrences(
@@ -2176,7 +2511,11 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Attachment upload
 
     @discardableResult
-    func uploadAttachment(data: Data, filename: String) async -> ComposerPendingEmbed? {
+    func uploadAttachment(
+        data: Data,
+        filename: String,
+        trackingId: String? = nil
+    ) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
         guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
@@ -2188,7 +2527,7 @@ final class ChatViewModel: ObservableObject {
                 .document(filename: filename, textContent: textContent, piiMappings: safeUpload.piiMappings)
             )
         }
-        let uploadId = UUID().uuidString
+        let uploadId = trackingId ?? UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
         guard let upload = await uploadData(
@@ -2249,75 +2588,23 @@ final class ChatViewModel: ObservableObject {
         return supportedExtensions.contains(ext)
     }
 
-    func uploadRecording(url: URL, duration: TimeInterval) async -> ComposerPendingEmbed? {
+    func uploadRecording(
+        url: URL,
+        duration: TimeInterval,
+        waveform: AudioRecordingWaveform? = nil,
+        realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+        trackingId: String? = nil
+    ) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
-        guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
-            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
-            return nil
-        }
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        let uploadId = UUID().uuidString
-        let filename = url.lastPathComponent
-        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
-
-        guard let upload = await uploadData(
-            data,
-            filename: filename,
-            uploadId: uploadId,
-            contentType: "audio/mp4",
-            markFinishedOnSuccess: false
-        ) else {
-            return nil
-        }
-
-        PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
-        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
-        guard let s3Key else {
-            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
-            return nil
-        }
-
-        let embedId = UUID().uuidString
-        let request: [String: Any] = [
-            "requests": [[
-                "id": embedId,
-                "embed_id": upload.embedId,
-                "s3_key": s3Key,
-                "s3_base_url": upload.s3BaseUrl,
-                "aes_key": upload.aesKey,
-                "aes_nonce": upload.aesNonce,
-                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
-                "filename": filename,
-                "mime_type": "audio/mp4",
-                "chat_id": chatId
-            ]]
-        ]
-
-        do {
-            let response: TranscribeSkillResponse = try await APIClient.shared.request(
-                .post,
-                path: "apps/audio/skills/transcribe",
-                body: request
-            )
-            let transcription = response.data.results.first?.results.first
-            let embed = registerPendingComposerEmbed(
-                upload,
-                localData: data,
-                transcription: transcription,
-                duration: duration,
-                piiMappings: [],
-                textContent: nil
-            )
-            PendingUploadStore.shared.markFinished(id: uploadId)
-            return embed
-        } catch {
-            NativeDiagnostics.error(
-                "Composer recording transcription failed: \(type(of: error))",
-                category: "apple_composer"
-            )
-            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
-            return nil
-        }
+        guard let embed = await AudioRecordingUploadService.prepare(
+            url: url,
+            duration: duration,
+            chatId: chatId,
+            waveform: waveform,
+            realtimeResult: realtimeResult,
+            trackingId: trackingId
+        ) else { return nil }
+        return registerPendingComposerEmbed(embed)
     }
 
     private func uploadData(
@@ -2522,7 +2809,7 @@ struct ChatContentBatchPayload: Decodable {
     }
 }
 
-struct UploadFileResponse: Decodable {
+struct UploadFileResponse: Decodable, Equatable, Sendable {
     let embedId: String
     let filename: String
     let contentType: String
@@ -2536,36 +2823,317 @@ struct UploadFileResponse: Decodable {
     let deduplicated: Bool?
 }
 
-struct UploadedFileVariant: Decodable {
+struct UploadedFileVariant: Decodable, Equatable, Sendable {
     let s3Key: String
     let sizeBytes: Int?
     let width: Int?
     let height: Int?
     let format: String?
+    let encryption: String?
+
+    init(s3Key: String, sizeBytes: Int?, width: Int?, height: Int?, format: String?, encryption: String? = nil) {
+        self.s3Key = s3Key
+        self.sizeBytes = sizeBytes
+        self.width = width
+        self.height = height
+        self.format = format
+        self.encryption = encryption
+    }
 }
 
-struct TranscriptionMetadata: Decodable {
+struct AudioRecordingWaveform: Codable, Equatable, Sendable {
+    static let version = 1
+    static let kind = "rms-envelope"
+    static let sampleCount = 128
+
+    let version: Int
+    let kind: String
+    let samples: [Int]
+    let durationSeconds: TimeInterval?
+
+    init?(normalizedLevels: [Double], duration: TimeInterval?) {
+        let levels = normalizedLevels.filter(\.isFinite)
+        guard !levels.isEmpty else { return nil }
+        let resampled = (0..<Self.sampleCount).map { index in
+            let start = min(levels.count - 1, index * levels.count / Self.sampleCount)
+            let end = min(levels.count, max(start + 1, (index + 1) * levels.count / Self.sampleCount))
+            let sumOfSquares = levels[start..<end].reduce(0.0) { partial, rawLevel in
+                let level = min(1, max(0, rawLevel))
+                return partial + level * level
+            }
+            return Int((sqrt(sumOfSquares / Double(max(1, end - start))) * 100).rounded())
+        }
+        self.init(samples: resampled, duration: duration)
+    }
+
+    init?(samples: [Int], duration: TimeInterval?) {
+        guard !samples.isEmpty else { return nil }
+        version = Self.version
+        kind = Self.kind
+        self.samples = samples.map { min(100, max(0, $0)) }
+        durationSeconds = duration.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+    }
+
+    var contentObject: [String: Any] {
+        var object: [String: Any] = [
+            "version": version,
+            "kind": kind,
+            "samples": samples
+        ]
+        if let durationSeconds { object["duration_seconds"] = durationSeconds }
+        return object
+    }
+}
+
+struct AudioRecordingRealtimeResult: Equatable, Sendable {
+    let title: String?
+    let transcript: String
+    let transcriptOriginal: String
+    let transcriptCorrected: String?
+    let useCorrected: Bool
+    let model: String
+    let correctionModel: String?
+
+    var transcriptionMetadata: TranscriptionMetadata {
+        TranscriptionMetadata(
+            title: title,
+            transcript: transcript,
+            transcriptOriginal: transcriptOriginal,
+            transcriptCorrected: transcriptCorrected,
+            useCorrected: useCorrected,
+            model: model,
+            correctionModel: correctionModel,
+            waveform: nil
+        )
+    }
+}
+
+typealias AudioRecordingRealtimeResultProvider = @MainActor @Sendable () async -> AudioRecordingRealtimeResult?
+
+struct AudioRecordingUploadPipelineResult: Equatable, Sendable {
+    let upload: UploadFileResponse
+    let transcription: TranscriptionMetadata
+}
+
+@MainActor
+enum AudioRecordingUploadPipeline {
+    typealias Upload = @MainActor @Sendable () async -> UploadFileResponse?
+    typealias BatchTranscription = @MainActor @Sendable (UploadFileResponse) async -> TranscriptionMetadata?
+
+    static func run(
+        waveform: AudioRecordingWaveform?,
+        realtimeResult: AudioRecordingRealtimeResultProvider?,
+        upload: @escaping Upload,
+        batchTranscription: @escaping BatchTranscription,
+        batchTimeout: Duration = .seconds(20)
+    ) async -> AudioRecordingUploadPipelineResult? {
+        let realtimeTask = Task { @MainActor in
+            await resolveRealtime(realtimeResult)
+        }
+        async let uploaded = upload()
+
+        guard let uploadResult = await uploaded else {
+            realtimeTask.cancel()
+            return nil
+        }
+        let transcription: TranscriptionMetadata
+        if let realtimeResult = await realtimeTask.value {
+            transcription = realtimeResult.transcriptionMetadata.withWaveform(waveform)
+        } else {
+            // A failed or stalled transcription must not strand an already
+            // uploaded recording in the composer. Keep its playable file and
+            // waveform even when there is no transcript to display.
+            let batchResult = await boundedBatchTranscription(
+                uploadResult, operation: batchTranscription, timeout: batchTimeout
+            )
+            transcription = (batchResult ?? TranscriptionMetadata(transcript: nil))
+                .withWaveform(waveform ?? batchResult?.waveform)
+        }
+        return AudioRecordingUploadPipelineResult(upload: uploadResult, transcription: transcription)
+    }
+
+    private static func boundedBatchTranscription(
+        _ upload: UploadFileResponse,
+        operation: @escaping BatchTranscription,
+        timeout: Duration
+    ) async -> TranscriptionMetadata? {
+        await withTaskGroup(of: TranscriptionMetadata?.self) { group in
+            group.addTask { await operation(upload) }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return nil
+            }
+            let result = await group.next() ?? nil
+            group.cancelAll()
+            return result
+        }
+    }
+
+    private static func resolveRealtime(
+        _ realtimeResult: AudioRecordingRealtimeResultProvider?
+    ) async -> AudioRecordingRealtimeResult? {
+        await realtimeResult?()
+    }
+}
+
+@MainActor
+enum AudioRecordingUploadService {
+    static func prepare(
+        url: URL,
+        duration: TimeInterval,
+        chatId: String,
+        waveform: AudioRecordingWaveform? = nil,
+        realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+        trackingId: String? = nil
+    ) async -> ComposerPendingEmbed? {
+        guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return nil
+        }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+
+        let uploadId = trackingId ?? UUID().uuidString
+        let filename = url.lastPathComponent
+        let mimeType = "audio/mp4"
+        PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
+        PendingUploadStore.shared.updateStatus(id: uploadId, status: .transcribing)
+
+        let pipeline = await AudioRecordingUploadPipeline.run(
+            waveform: waveform,
+            realtimeResult: realtimeResult,
+            upload: {
+                await upload(
+                    data: data,
+                    filename: filename,
+                    contentType: mimeType,
+                    chatId: chatId,
+                    uploadId: uploadId
+                )
+            },
+            batchTranscription: { upload in
+                await batchTranscription(
+                    upload: upload,
+                    filename: filename,
+                    mimeType: mimeType,
+                    chatId: chatId
+                )
+            }
+        )
+
+        guard let pipeline else {
+            PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
+            return nil
+        }
+        let embed = ComposerPendingEmbed.from(
+            upload: pipeline.upload,
+            localData: data,
+            transcription: pipeline.transcription,
+            duration: duration,
+            piiMappings: [],
+            textContent: nil
+        )
+        PendingUploadStore.shared.markFinished(id: uploadId)
+        return embed
+    }
+
+    private static func upload(
+        data: Data,
+        filename: String,
+        contentType: String,
+        chatId: String,
+        uploadId: String
+    ) async -> UploadFileResponse? {
+        do {
+            let responseData = try await APIClient.shared.uploadFile(
+                data: data,
+                filename: filename,
+                contentType: contentType,
+                chatId: chatId
+            )
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let upload = try decoder.decode(UploadFileResponse.self, from: responseData)
+            PendingUploadStore.shared.updateProgress(id: uploadId, progress: 1.0)
+            return upload
+        } catch {
+            NativeDiagnostics.error(
+                "Composer recording upload failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+            return nil
+        }
+    }
+
+    private static func batchTranscription(
+        upload: UploadFileResponse,
+        filename: String,
+        mimeType: String,
+        chatId: String
+    ) async -> TranscriptionMetadata? {
+        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
+        guard let s3Key else { return nil }
+
+        let requestId = UUID().uuidString
+        let request: [String: Any] = [
+            "requests": [[
+                "id": requestId,
+                "embed_id": upload.embedId,
+                "s3_key": s3Key,
+                "s3_base_url": upload.s3BaseUrl,
+                "aes_key": upload.aesKey,
+                "aes_nonce": upload.aesNonce,
+                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
+                "filename": filename,
+                "mime_type": mimeType,
+                "chat_id": chatId
+            ]]
+        ]
+
+        do {
+            let response: TranscribeSkillResponse = try await APIClient.shared.request(
+                .post,
+                path: "apps/audio/skills/transcribe",
+                body: request
+            )
+            return response.data.results.first?.results.first
+        } catch {
+            NativeDiagnostics.error(
+                "Composer recording transcription failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+            return nil
+        }
+    }
+}
+
+struct TranscriptionMetadata: Decodable, Equatable, Sendable {
+    let title: String?
     let transcript: String?
     let transcriptOriginal: String?
     let transcriptCorrected: String?
     let useCorrected: Bool?
     let model: String?
     let correctionModel: String?
+    let waveform: AudioRecordingWaveform?
 
     init(
+        title: String? = nil,
         transcript: String?,
         transcriptOriginal: String? = nil,
         transcriptCorrected: String? = nil,
         useCorrected: Bool? = nil,
         model: String? = nil,
-        correctionModel: String? = nil
+        correctionModel: String? = nil,
+        waveform: AudioRecordingWaveform? = nil
     ) {
+        self.title = title
         self.transcript = transcript
         self.transcriptOriginal = transcriptOriginal
         self.transcriptCorrected = transcriptCorrected
         self.useCorrected = useCorrected
         self.model = model
         self.correctionModel = correctionModel
+        self.waveform = waveform
     }
 
     var displayTranscript: String? {
@@ -2573,6 +3141,19 @@ struct TranscriptionMetadata: Decodable {
             return transcriptCorrected
         }
         return transcript
+    }
+
+    func withWaveform(_ waveform: AudioRecordingWaveform?) -> TranscriptionMetadata {
+        TranscriptionMetadata(
+            title: title,
+            transcript: transcript,
+            transcriptOriginal: transcriptOriginal,
+            transcriptCorrected: transcriptCorrected,
+            useCorrected: useCorrected,
+            model: model,
+            correctionModel: correctionModel,
+            waveform: waveform
+        )
     }
 }
 
@@ -2609,6 +3190,32 @@ struct ComposerPendingEmbed: Identifiable {
 
     var canPersistDirectly: Bool {
         content != nil
+    }
+
+    @MainActor
+    static func restoredRecording(from record: EmbedRecord) -> ComposerPendingEmbed? {
+        guard record.type == "audio-recording", let raw = record.rawData else { return nil }
+        let object = raw.mapValues(\.value)
+        guard JSONSerialization.isValidJSONObject(object),
+              let encoded = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let content = String(data: encoded, encoding: .utf8) else { return nil }
+        let filename = raw["filename"]?.value as? String ?? AppStrings.audioRecording
+        let preview = raw["title"]?.value as? String
+            ?? raw["transcript_corrected"]?.value as? String
+            ?? raw["transcript"]?.value as? String
+        return ComposerPendingEmbed(
+            id: record.id,
+            type: record.type,
+            referenceType: "audio-recording",
+            status: record.status.rawValue,
+            content: content,
+            textPreview: preview,
+            record: record,
+            localData: nil,
+            filename: filename,
+            size: 0,
+            piiMappings: []
+        )
     }
 
     #if DEBUG
@@ -2658,7 +3265,7 @@ struct ComposerPendingEmbed: Identifiable {
             textContent: textContent
         )
         let content = classification.shouldSendContent ? jsonString(contentObject) : nil
-        let preview = transcription?.displayTranscript ?? upload.filename
+        let preview = transcription?.title ?? transcription?.displayTranscript ?? upload.filename
         let record = EmbedRecord(
             id: upload.embedId,
             type: classification.embedType,
@@ -2789,6 +3396,7 @@ private struct ComposerUploadClassification {
                 if let width = variant.width { item["width"] = width }
                 if let height = variant.height { item["height"] = height }
                 if let format = variant.format { item["format"] = format }
+                if let encryption = variant.encryption { item["encryption"] = encryption }
                 return item
             },
             "aes_key": upload.aesKey,
@@ -2796,9 +3404,14 @@ private struct ComposerUploadClassification {
             "vault_wrapped_aes_key": upload.vaultWrappedAesKey
         ]
         if let skillId { object["skill_id"] = skillId }
+        // The AI pipeline resolves uploaded images by their user-facing file
+        // reference. Web uploads persist the same field, and the backend uses
+        // it to build the filename -> embed ID index for images.view.
+        if appId == "images" { object["embed_ref"] = upload.filename }
         if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
         if let pageCount = upload.pageCount { object["page_count"] = pageCount }
         if let transcription {
+            if let title = transcription.title { object["title"] = title }
             if let transcript = transcription.transcript { object["transcript"] = transcript }
             if let displayTranscript = transcription.displayTranscript { object["transcription"] = displayTranscript }
             if let transcriptOriginal = transcription.transcriptOriginal { object["transcript_original"] = transcriptOriginal }
@@ -2806,6 +3419,7 @@ private struct ComposerUploadClassification {
             if let useCorrected = transcription.useCorrected { object["use_corrected"] = useCorrected }
             if let model = transcription.model { object["model"] = model }
             if let correctionModel = transcription.correctionModel { object["correction_model"] = correctionModel }
+            if let waveform = transcription.waveform { object["waveform"] = waveform.contentObject }
         }
         if let duration { object["duration"] = duration }
         if let textContent, !textContent.isEmpty, appId == "docs" {
@@ -2829,6 +3443,25 @@ private struct TranscribeSkillResponse: Decodable {
 
 @MainActor
 enum PublicChatContent {
+    static func mergingHydratedRecords(
+        existing: [String: EmbedRecord], inline: [String: EmbedRecord]
+    ) -> [String: EmbedRecord] {
+        existing.merging(inline) { hydrated, parsed in
+            // A user's canonical JSON reference contains only type/embed_id.
+            // Parsing it must not replace an uploaded or decrypted record with
+            // an empty shell during chat opening or history paging.
+            let referenceKeys: Set<String> = ["type", "embed_id", "app_id", "skill_id", "status"]
+            let parsedIsReference = parsed.rawData.map {
+                Set($0.keys).isSubset(of: referenceKeys)
+            } ?? true
+            if parsedIsReference,
+               (hydrated.rawData != nil || hydrated.encryptedContent != nil) {
+                return hydrated
+            }
+            return parsed
+        }
+    }
+
     struct PublicChat {
         let chat: Chat
         let messages: [Message]
@@ -3595,6 +4228,14 @@ final class ChatSendPipeline {
     private let crypto = CryptoManager.shared
     private static var encryptedUserStorageClaimed = Set<String>()
     private var completedAssistantStorageSent = Set<String>()
+    private struct PreparedTurn {
+        let result: SendResult
+        let accountScope: UUID
+        let turnId: String
+        let preflightPayload: [String: Any]
+        let outboundPayload: [String: Any]
+    }
+    private var preparedTurns: [String: PreparedTurn] = [:]
 
     struct SendResult {
         let chat: Chat
@@ -3751,6 +4392,12 @@ final class ChatSendPipeline {
             if content.isEmpty, let encrypted = message.encryptedContent {
                 content = try await crypto.decryptContent(base64String: encrypted, key: key)
             }
+            if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               let embedRefs = message.embedRefs, !embedRefs.isEmpty {
+                content = embedRefs.map { ref in
+                    "```json\n{\"type\": \"\(ref.type)\", \"embed_id\": \"\(ref.id)\"}\n```"
+                }.joined(separator: "\n\n")
+            }
             guard !content.isEmpty else { throw ChatSendError.historyUnavailable }
             var row: [String: Any] = [
                 "message_id": message.id, "chat_id": chatId,
@@ -3779,22 +4426,45 @@ final class ChatSendPipeline {
         excludedPIIPlaceholders: Set<String> = [],
         broadcastToSiblings: Bool = false,
         beforeRemoteSend: ((String, [String: Any], [String: Any]) throws -> Void)? = nil,
-        validateRemoteSend: (() throws -> Void)? = nil
+        validateRemoteSend: (() throws -> Void)? = nil,
+        messageId requestedMessageId: String? = nil
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        if let requestedMessageId, let prepared = preparedTurns[requestedMessageId] {
+            guard prepared.result.chat.id == chat.id,
+                  prepared.accountScope == OfflineStore.shared.scopeGeneration else {
+                preparedTurns.removeValue(forKey: requestedMessageId)
+                throw ChatSendError.webSocketUnavailable
+            }
+            try await sendRemoteUserMessage(chatId: chat.id, activateChat: activateChat,
+                wsManager: wsManager, turnId: prepared.turnId,
+                preflightPayload: prepared.preflightPayload,
+                outboundPayload: prepared.outboundPayload,
+                waitForInferenceReceipt: true, validateRemoteSend: validateRemoteSend)
+            preparedTurns.removeValue(forKey: requestedMessageId)
+            return prepared.result
+        }
         // Pin speech/account context before encryption and preference awaits.
+        let accountScope = OfflineStore.shared.scopeGeneration
         let speechScope = AssistantSpeechAppRuntime.shared.scope(for: chat.id)
         let validateSendContext: () throws -> Void = {
+            guard OfflineStore.shared.scopeGeneration == accountScope else {
+                throw ChatSendError.webSocketUnavailable
+            }
             try validateRemoteSend?()
             if let speechScope { try AssistantSpeechAppRuntime.shared.requireCurrent(speechScope, socket: wsManager) }
         }
         let now = Date()
         let createdAt = Self.isoString(from: now)
         let createdAtUnix = Int(now.timeIntervalSince1970)
-        let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
+        let messageId = requestedMessageId ?? "\(chat.id.suffix(10))-\(UUID().uuidString)"
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+        let contentWithEmbedReferences = Self.contentByAppendingComposerEmbedReferences(
+            content,
+            composerEmbeds: composerEmbeds
+        )
         let sendPreparation = contentAndMappingsForSend(
-            content: content,
+            content: contentWithEmbedReferences,
             existingMessages: existingMessages,
             piiMappings: piiMappings,
             excludedPIIOriginals: excludedPIIOriginals,
@@ -3846,7 +4516,9 @@ final class ChatSendPipeline {
             "content": contentForSend,
             "created_at": createdAtUnix,
             "sender_name": "user",
-            "chat_has_title": (updatedChat.titleV ?? 0) > 0
+            "chat_has_title": (updatedChat.titleV ?? 0) > 0,
+            "current_chat_title_v": updatedChat.titleV ?? 0,
+            "current_chat_metadata_v": updatedChat.metadataV ?? updatedChat.titleV ?? 0
         ]
         if (updatedChat.titleV ?? 0) > 0 {
             messagePayload["current_chat_title"] = updatedChat.title
@@ -3953,7 +4625,22 @@ final class ChatSendPipeline {
         try validateSendContext()
         try beforeRemoteSend?(turnId, preflightPayload, outboundPayload)
         chatStore?.upsertChat(updatedChat)
+        // A new chat can be sent directly from the welcome composer, before a
+        // ChatViewModel exists to register its uploaded attachment. Keep the
+        // durable records beside the optimistic user message so the first
+        // render and a later cold open can resolve its [[embed:...]] references.
+        if !composerEmbeds.isEmpty {
+            chatStore?.upsertEmbeds(composerEmbeds.map(\.record), for: chat.id)
+        }
         chatStore?.appendMessage(message, to: chat.id)
+
+        if requestedMessageId != nil {
+            preparedTurns[messageId] = PreparedTurn(
+                result: SendResult(chat: updatedChat, message: message),
+                accountScope: OfflineStore.shared.scopeGeneration,
+                turnId: turnId, preflightPayload: preflightPayload,
+                outboundPayload: outboundPayload)
+        }
 
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
@@ -3966,6 +4653,7 @@ final class ChatSendPipeline {
                 waitForInferenceReceipt: waitForInferenceReceipt,
                 validateRemoteSend: validateSendContext
             )
+            preparedTurns.removeValue(forKey: messageId)
         } else {
             Task { @MainActor in
                 do {
@@ -3986,6 +4674,81 @@ final class ChatSendPipeline {
         }
 
         return SendResult(chat: updatedChat, message: message)
+    }
+
+    static func contentByAppendingComposerEmbedReferences(
+        _ content: String,
+        composerEmbeds: [ComposerPendingEmbed]
+    ) -> String {
+        var result = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        for embed in composerEmbeds where !containsEmbedReference(embed.id, in: result) {
+            if !result.isEmpty { result += "\n\n" }
+            result += embed.markdownReference
+        }
+        return result
+    }
+
+    static func provisionalTitleSource(
+        content: String,
+        composerEmbeds: [ComposerPendingEmbed]
+    ) -> String? {
+        let embedFencePattern = #"```(?:json_embed|json)\s*[\s\S]*?\"embed_id\"\s*:\s*\"[^\"]+\"[\s\S]*?```"#
+        let contentRange = NSRange(content.startIndex..<content.endIndex, in: content)
+        let textOnly = (try? NSRegularExpression(pattern: embedFencePattern))?
+            .stringByReplacingMatches(in: content, range: contentRange, withTemplate: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedText = titleByReplacingEmbedReferences(
+            textOnly ?? content,
+            embedTypes: composerEmbeds.map(\.type)
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let embedLabel = composerEmbeds.first.map { titleLabel(for: $0.type) }
+        if !cleanedText.isEmpty {
+            if let embedLabel, !cleanedText.hasPrefix(embedLabel) {
+                return "\(embedLabel) \(cleanedText)"
+            }
+            return cleanedText
+        }
+
+        return composerEmbeds.lazy
+            .filter { $0.type == "audio-recording" }
+            .compactMap { embed -> String? in
+                guard let preview = embed.textPreview?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !preview.isEmpty,
+                      preview != embed.filename.trimmingCharacters(in: .whitespacesAndNewlines) else {
+                    return nil
+                }
+                return "\(titleLabel(for: embed.type)) \(preview)"
+            }
+            .first ?? embedLabel
+    }
+
+    static func titleByReplacingEmbedReferences(_ title: String, embedTypes: [String]) -> String {
+        let label = embedTypes.first.map { titleLabel(for: $0) } ?? "[Attachment]"
+        let pattern = #"\[\[embed(?:ref)?:[^\]]+\]\]"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return title }
+        let range = NSRange(title.startIndex..<title.endIndex, in: title)
+        let replaced = regex.stringByReplacingMatches(in: title, range: range, withTemplate: label)
+        return replaced.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    private static func titleLabel(for type: String) -> String {
+        let normalized = type.lowercased()
+        if normalized.contains("image") { return "[Image]" }
+        if normalized.contains("audio") || normalized.contains("recording") { return "[Audio]" }
+        if normalized.contains("video") { return "[Video]" }
+        if normalized.contains("pdf") { return "[PDF]" }
+        return "[File]"
+    }
+
+    private static func containsEmbedReference(_ embedId: String, in content: String) -> Bool {
+        if content.contains("embed:\(embedId)") { return true }
+        let escapedID = NSRegularExpression.escapedPattern(for: embedId)
+        let pattern = #"\"embed_id\"\s*:\s*\""# + escapedID + #"\""#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        return regex.firstMatch(
+            in: content,
+            range: NSRange(content.startIndex..<content.endIndex, in: content)
+        ) != nil
     }
 
     func sendSubChatConfirmation(
@@ -4084,17 +4847,44 @@ final class ChatSendPipeline {
         waitForInferenceReceipt: Bool = false,
         validateRemoteSend: (() throws -> Void)? = nil
     ) async throws {
-        if activateChat {
-            try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
+        let scope = OfflineStore.shared.scopeGeneration
+        for attempt in 0..<2 {
+            do {
+                try validateRemoteSend?()
+                if activateChat {
+                    try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
+                }
+                try await sendSavedChatTurn(
+                    turnId: turnId,
+                    preflightPayload: preflightPayload,
+                    outboundPayload: outboundPayload,
+                    transport: wsManager,
+                    waitForInferenceReceipt: waitForInferenceReceipt,
+                    validateRemoteSend: validateRemoteSend
+                )
+                return
+            } catch WebSocketError.notConnected where waitForInferenceReceipt && attempt == 0 {
+                try await waitForReconnect(wsManager, accountScope: scope, validateRemoteSend: validateRemoteSend)
+            } catch WebSocketError.messageTimeout where waitForInferenceReceipt && attempt == 0 {
+                try await waitForReconnect(wsManager, accountScope: scope, validateRemoteSend: validateRemoteSend)
+            }
         }
-        try await sendSavedChatTurn(
-            turnId: turnId,
-            preflightPayload: preflightPayload,
-            outboundPayload: outboundPayload,
-            transport: wsManager,
-            waitForInferenceReceipt: waitForInferenceReceipt,
-            validateRemoteSend: validateRemoteSend
-        )
+        throw ChatSendError.webSocketUnavailable
+    }
+
+    private func waitForReconnect(_ transport: ChatWebSocketTransport, accountScope: UUID,
+                                  validateRemoteSend: (() throws -> Void)?) async throws {
+        guard let socket = transport as? WebSocketManager else { throw ChatSendError.webSocketUnavailable }
+        for _ in 0..<120 {
+            try Task.checkCancellation()
+            guard OfflineStore.shared.scopeGeneration == accountScope else {
+                throw ChatSendError.webSocketUnavailable
+            }
+            try validateRemoteSend?()
+            if socket.connectionState == .connected { return }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        throw WebSocketError.notConnected
     }
 
     func sendSavedChatTurn(
@@ -4249,8 +5039,18 @@ final class ChatSendPipeline {
         } else {
             encryptedPIIMappings = try await encryptPIIMappings(userMessage.piiMappings ?? [], key: keyMaterial.key)
         }
-        let isNewChatMetadata = (chat.titleV ?? 0) == 0
-        let encryptedTitle = isNewChatMetadata ? try await encryptOptional(metadata.title, key: keyMaterial.key) : nil
+        let isNewChatMetadata = ChatGeneratedMetadataPolicy.needsGeneratedTitle(chat)
+        let generatedTitle = metadata.title.map {
+            Self.titleByReplacingEmbedReferences(
+                $0.trimmingCharacters(in: .whitespacesAndNewlines),
+                embedTypes: userMessage.embedRefs?.map(\.type) ?? []
+            )
+        }
+        // The prompt title belongs only in the view model's in-memory presentation.
+        // The generated title is the first authoritative encrypted title.
+        let titleForStorage = generatedTitle?.isEmpty == false ? generatedTitle : nil
+        let encryptedTitle = isNewChatMetadata && generatedTitle?.isEmpty == false
+            ? try await encryptOptional(generatedTitle, key: keyMaterial.key) : nil
         let icon = isNewChatMetadata ? preferredIcon(from: metadata.iconNames, category: metadata.category) : nil
         let encryptedIcon = try await encryptOptional(icon, key: keyMaterial.key)
         let encryptedCategory = isNewChatMetadata ? try await encryptOptional(metadata.category, key: keyMaterial.key) : nil
@@ -4260,7 +5060,7 @@ final class ChatSendPipeline {
         let nextTitleV = encryptedTitle == nil ? chat.titleV : max(chat.titleV ?? 0, 0) + 1
         let updatedChat = copyChat(
             chat,
-            title: isNewChatMetadata ? (metadata.title ?? chat.title) : chat.title,
+            title: isNewChatMetadata ? (titleForStorage ?? chat.title) : chat.title,
             updatedAt: Self.isoString(from: Date()),
             category: isNewChatMetadata ? (metadata.category ?? chat.category) : chat.category,
             icon: isNewChatMetadata ? (icon ?? chat.icon) : chat.icon,
@@ -4290,10 +5090,27 @@ final class ChatSendPipeline {
         payload["encrypted_sender_name"] = encryptedSenderName
         if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
 
-        try await wsManager.send(WSOutboundMessage(type: "encrypted_chat_metadata", payload: payload))
-        chatStore?.upsertChat(updatedChat)
+        let acknowledgement = try await wsManager.sendAndWait(
+            WSOutboundMessage(type: "encrypted_chat_metadata", payload: payload),
+            responseTypes: ["encrypted_metadata_stored", "incomplete_chat_metadata", "chat_key_mismatch"]
+        ) { fields in
+            fields["chat_id"] as? String == chat.id
+                && fields["message_id"] as? String == userMessage.id
+        }
+        guard let acceptedVersions = ChatEncryptedMetadataAcknowledgementPolicy.acceptedVersions(
+            from: acknowledgement.fields
+        ) else {
+            throw ChatSendError.webSocketUnavailable
+        }
+        let acceptedChat = copyChat(
+            updatedChat,
+            messagesV: acceptedVersions.messages,
+            titleV: acceptedVersions.title,
+            metadataV: acceptedVersions.metadata
+        )
+        chatStore?.upsertChat(acceptedChat)
         storageCompleted = true
-        return updatedChat
+        return acceptedChat
     }
 
     func claimEncryptedUserStorage(messageId: String) -> Bool {
@@ -4494,6 +5311,8 @@ final class ChatSendPipeline {
         chatSummary: String?,
         chatTags: [String],
         updatedTitle: String?,
+        sourceTitleVersion: Int? = nil,
+        sourceMetadataVersion: Int? = nil,
         wsManager: WebSocketManager?,
         chatStore: ChatStore?
     ) async {
@@ -4504,22 +5323,40 @@ final class ChatSendPipeline {
                 "chat_id": chatId,
                 "encrypted_chat_key": keyMaterial.encryptedChatKey
             ]
-            if !followUpSuggestions.isEmpty {
-                payload["encrypted_follow_up_suggestions"] = try await encryptStringArray(Array(followUpSuggestions.prefix(18)), key: keyMaterial.key)
-            }
+            let encryptedFollowUpSuggestions = try await encryptStringArray(
+                Array(followUpSuggestions.prefix(18)),
+                key: keyMaterial.key
+            )
+            payload["encrypted_follow_up_suggestions"] = encryptedFollowUpSuggestions
             if !chatTags.isEmpty {
                 payload["encrypted_chat_tags"] = try await encryptStringArray(Array(chatTags.prefix(10)), key: keyMaterial.key)
             }
+            let acceptsGeneratedSummary = sourceMetadataVersion.map {
+                (chat.metadataV ?? 0) <= $0
+                    || (chat.chatSummary?.isEmpty != false && chat.encryptedChatSummary == nil)
+            } ?? true
             var encryptedSummary: String?
-            if let chatSummary, !chatSummary.isEmpty {
+            if acceptsGeneratedSummary, let chatSummary, !chatSummary.isEmpty {
                 encryptedSummary = try await crypto.encryptContent(chatSummary, key: keyMaterial.key)
                 payload["encrypted_chat_summary"] = encryptedSummary
             }
+            let acceptsGeneratedTitle = sourceTitleVersion.map { (chat.titleV ?? 0) <= $0 } ?? true
             var encryptedUpdatedTitle: String?
-            if let updatedTitle, !updatedTitle.isEmpty {
+            if acceptsGeneratedTitle, let updatedTitle, !updatedTitle.isEmpty {
                 encryptedUpdatedTitle = try await crypto.encryptContent(updatedTitle, key: keyMaterial.key)
                 payload["encrypted_title"] = encryptedUpdatedTitle
             }
+            let proposedTitleVersion = encryptedUpdatedTitle == nil
+                ? (chat.titleV ?? 0)
+                : max(chat.titleV ?? 0, sourceTitleVersion ?? 0) + 1
+            let currentMetadataVersion = (chat.metadataV ?? 0) > 0
+                ? (chat.metadataV ?? 0) : (chat.titleV ?? 0)
+            payload["versions"] = [
+                "messages_v": chat.messagesV ?? 0,
+                "title_v": proposedTitleVersion,
+                "metadata_v": currentMetadataVersion,
+                "draft_v": chat.draftV ?? 0
+            ]
             if !newChatSuggestions.isEmpty,
                let userId = await AuthManager.currentUserId(),
                let masterKey = try await crypto.loadMasterKey(for: userId) {
@@ -4529,20 +5366,33 @@ final class ChatSendPipeline {
                 }
                 payload["encrypted_new_chat_suggestions"] = encryptedSuggestions
             }
-            guard payload.count > 2 else { return }
-            if encryptedSummary != nil || encryptedUpdatedTitle != nil || chat.encryptedChatKey != keyMaterial.encryptedChatKey {
-                chatStore?.upsertChat(copyChat(
-                    chat,
-                    title: updatedTitle?.isEmpty == false ? updatedTitle : chat.title,
-                    updatedAt: Self.isoString(from: Date()),
-                    chatSummary: chatSummary?.isEmpty == false ? chatSummary : chat.chatSummary,
-                    encryptedTitle: encryptedUpdatedTitle ?? chat.encryptedTitle,
-                    encryptedChatSummary: encryptedSummary ?? chat.encryptedChatSummary,
-                    encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
-                    encryptedChatKey: keyMaterial.encryptedChatKey
-                ))
+            let acknowledgement = try await wsManager.sendAndWait(
+                WSOutboundMessage(type: "update_post_processing_metadata", payload: payload),
+                responseType: "post_processing_metadata_stored"
+            ) { fields in
+                fields["chat_id"] as? String == chatId
             }
-            try await wsManager.send(WSOutboundMessage(type: "update_post_processing_metadata", payload: payload))
+            let acceptedVersions = acknowledgement.fields["versions"] as? [String: Any]
+            let acceptedTitleVersion = acceptedVersions?["title_v"] as? Int
+            let acceptedMetadataVersion = acceptedVersions?["metadata_v"] as? Int
+            let acceptedExpectedMutation = acceptedMetadataVersion == currentMetadataVersion + 1
+            let acceptedGeneratedTitle = encryptedUpdatedTitle != nil
+                && acceptedExpectedMutation
+                && acceptedTitleVersion == proposedTitleVersion
+            let acceptedGeneratedSummary = encryptedSummary != nil && acceptedExpectedMutation
+            chatStore?.upsertChat(copyChat(
+                chat,
+                title: acceptedGeneratedTitle ? updatedTitle : chat.title,
+                updatedAt: Self.isoString(from: Date()),
+                chatSummary: acceptedGeneratedSummary ? chatSummary : chat.chatSummary,
+                encryptedTitle: acceptedGeneratedTitle ? encryptedUpdatedTitle : chat.encryptedTitle,
+                encryptedChatSummary: acceptedGeneratedSummary ? encryptedSummary : chat.encryptedChatSummary,
+                encryptedFollowUpRequestSuggestions: encryptedFollowUpSuggestions,
+                encryptedAutoSpeakResponse: chat.encryptedAutoSpeakResponse,
+                encryptedChatKey: keyMaterial.encryptedChatKey,
+                titleV: acceptedGeneratedTitle ? acceptedTitleVersion : chat.titleV,
+                metadataV: acceptedMetadataVersion ?? chat.metadataV
+            ))
         } catch {
             print("[ChatSendPipeline] Failed to send post-processing metadata: \(error)")
         }
@@ -4556,10 +5406,19 @@ final class ChatSendPipeline {
     }
 
     private func ensureChatKey(chatId: String, encryptedChatKey: String?) async throws -> (key: SymmetricKey, encryptedChatKey: String) {
+        let accountScope = OfflineStore.shared.scopeGeneration
+        let cacheGeneration = ChatKeyManager.shared.cacheGeneration
+        func requireCurrentScope() throws {
+            guard accountScope == OfflineStore.shared.scopeGeneration,
+                  cacheGeneration == ChatKeyManager.shared.cacheGeneration else {
+                throw ChatSendError.webSocketUnavailable
+            }
+        }
         guard let userId = await AuthManager.currentUserId(),
               let masterKey = try await crypto.loadMasterKey(for: userId) else {
             throw ChatSendError.missingMasterKey
         }
+        try requireCurrentScope()
 
         if let key = ChatKeyManager.shared.key(for: chatId) {
             if requiresCachedChatKeyValidation(cachedKeyExists: true, encryptedChatKey: encryptedChatKey),
@@ -4568,21 +5427,43 @@ final class ChatSendPipeline {
                 guard Self.symmetricKeysEqual(key, wrappedKey) else {
                     throw ChatSendError.chatKeyMismatch
                 }
-                return (key, encryptedChatKey)
+                try requireCurrentScope()
+                guard let stableEncrypted = ChatKeyManager.shared.installValidatedKey(
+                    key, encryptedKey: encryptedChatKey, for: chatId, expectedGeneration: cacheGeneration
+                ) else { throw ChatSendError.webSocketUnavailable }
+                return (key, stableEncrypted)
+            }
+            if let cachedEncryptedKey = ChatKeyManager.shared.encryptedKey(for: chatId) {
+                return (key, cachedEncryptedKey)
             }
             let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
-            return (key, encrypted)
+            try requireCurrentScope()
+            guard let stableEncrypted = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+                encrypted, for: chatId, matching: key, expectedGeneration: cacheGeneration
+            ) else { throw ChatSendError.webSocketUnavailable }
+            return (key, stableEncrypted)
         }
 
         if let encryptedChatKey {
             let key = try await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey)
-            ChatKeyManager.shared.setKey(key, for: chatId)
-            return (key, encryptedChatKey)
+            try requireCurrentScope()
+            guard let stableEncrypted = ChatKeyManager.shared.installValidatedKey(
+                key, encryptedKey: encryptedChatKey, for: chatId, expectedGeneration: cacheGeneration
+            ) else { throw ChatSendError.webSocketUnavailable }
+            return (key, stableEncrypted)
         }
 
         let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+        try requireCurrentScope()
+        if let cachedEncryptedKey = ChatKeyManager.shared.encryptedKey(for: chatId) {
+            return (key, cachedEncryptedKey)
+        }
         let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
-        return (key, encrypted)
+        try requireCurrentScope()
+        guard let stableEncrypted = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            encrypted, for: chatId, matching: key, expectedGeneration: cacheGeneration
+        ) else { throw ChatSendError.webSocketUnavailable }
+        return (key, stableEncrypted)
     }
 
     func requiresCachedChatKeyValidation(cachedKeyExists: Bool, encryptedChatKey: String?) -> Bool {
@@ -4708,10 +5589,12 @@ final class ChatSendPipeline {
         encryptedCategory: String? = nil,
         encryptedIcon: String? = nil,
         encryptedChatSummary: String? = nil,
+        encryptedFollowUpRequestSuggestions: String? = nil,
         encryptedAutoSpeakResponse: String? = nil,
         encryptedChatKey: String? = nil,
         messagesV: Int? = nil,
-        titleV: Int? = nil
+        titleV: Int? = nil,
+        metadataV: Int? = nil
     ) -> Chat {
         Chat(
             id: chat.id,
@@ -4729,12 +5612,13 @@ final class ChatSendPipeline {
             encryptedCategory: encryptedCategory ?? chat.encryptedCategory,
             encryptedIcon: encryptedIcon ?? chat.encryptedIcon,
             encryptedChatSummary: encryptedChatSummary ?? chat.encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions ?? chat.encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse ?? chat.encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey ?? chat.encryptedChatKey,
             messagesV: messagesV ?? chat.messagesV,
             titleV: titleV ?? chat.titleV,
             draftV: chat.draftV,
-            metadataV: chat.metadataV,
+            metadataV: metadataV ?? chat.metadataV,
             lastVisibleMessageId: chat.lastVisibleMessageId,
             parentId: chat.parentId,
             isSubChat: chat.isSubChat,

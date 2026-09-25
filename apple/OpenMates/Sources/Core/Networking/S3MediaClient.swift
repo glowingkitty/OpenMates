@@ -165,6 +165,12 @@ enum EmbedMediaPayload {
         return originalS3Key(from: raw)
     }
 
+    static func previewS3Key(from raw: [String: AnyCodable]?) -> String? {
+        guard let raw else { return nil }
+        return variant(from: raw, named: "preview")?["s3_key"] as? String
+            ?? originalS3Key(from: raw)
+    }
+
     static func s3URL(from raw: [String: AnyCodable]?) -> String? {
         guard let raw else { return nil }
         if let direct = string(raw, keys: ["s3_url"]), !direct.isEmpty {
@@ -177,9 +183,38 @@ enum EmbedMediaPayload {
         return base.hasSuffix("/") ? "\(base)\(key)" : "\(base)/\(key)"
     }
 
+    static func previewS3URL(from raw: [String: AnyCodable]?) -> String? {
+        guard let raw else { return nil }
+        if let direct = string(raw, keys: ["preview_s3_url"]), !direct.isEmpty {
+            return direct
+        }
+        if let base = string(raw, keys: ["s3_base_url"]), !base.isEmpty,
+           let key = variant(from: raw, named: "preview")?["s3_key"] as? String,
+           !key.isEmpty {
+            return base.hasSuffix("/") ? "\(base)\(key)" : "\(base)/\(key)"
+        }
+        return s3URL(from: raw)
+    }
+
     static func encryption(from raw: [String: AnyCodable]?) -> String? {
         if let direct = string(raw, keys: ["encryption"]) { return direct }
-        return originalVariant(from: raw)?["encryption"] as? String
+        if let variantMarker = originalVariant(from: raw)?["encryption"] as? String,
+           !variantMarker.isEmpty {
+            return variantMarker
+        }
+
+        // The upload API represents nonce-prefixed media with an empty
+        // top-level `aes_nonce` and an encryption marker on each file variant.
+        // Older Apple upload models did not preserve the variant marker when
+        // constructing the encrypted embed. Recognize only that exact shape so
+        // current uploads remain readable while absent legacy metadata still
+        // fails closed.
+        if let rawNonce = raw?["aes_nonce"]?.value as? String,
+           rawNonce.isEmpty,
+           string(raw, keys: ["aes_key"]) != nil {
+            return S3MediaClient.noncePrefixedEncryption
+        }
+        return nil
     }
 
     static func string(_ raw: [String: AnyCodable]?, keys: [String]) -> String? {
@@ -210,6 +245,12 @@ enum EmbedMediaPayload {
             if let variant = value as? [String: Any] { return variant }
         }
         return nil
+    }
+
+    private static func variant(from raw: [String: AnyCodable]?, named name: String) -> [String: Any]? {
+        guard let raw,
+              let files = raw["files"]?.value as? [String: Any] else { return nil }
+        return files[name] as? [String: Any]
     }
 }
 

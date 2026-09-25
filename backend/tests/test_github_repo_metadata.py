@@ -32,6 +32,7 @@ class _FakeResponse:
 
 class _FakeAsyncClient:
     responses: dict[str, _FakeResponse] = {}
+    calls: list[tuple[str, dict]] = []
 
     def __init__(self, *args, **kwargs):
         pass
@@ -44,6 +45,7 @@ class _FakeAsyncClient:
 
     async def get(self, url: str, **kwargs):
         path = url.removeprefix(repo_metadata.GITHUB_API_BASE)
+        self.calls.append((path, kwargs))
         return self.responses.get(path, _FakeResponse({}, 404))
 
 
@@ -94,18 +96,21 @@ def _search_item(**overrides):
     return item
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_parse_github_repo_url_accepts_canonical_repo_urls():
     assert repo_metadata.parse_github_repo_url("https://github.com/openmates/example") == ("openmates", "example")
     assert repo_metadata.parse_github_repo_url("github.com/openmates/example.git") == ("openmates", "example")
     assert repo_metadata.is_github_repo_url("https://www.github.com/openmates/example") is True
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_parse_github_repo_url_rejects_non_repo_paths():
     assert repo_metadata.parse_github_repo_url("https://github.com/openmates/example/issues") is None
     assert repo_metadata.parse_github_repo_url("https://github.com/features") is None
     assert repo_metadata.parse_github_repo_url("https://gitlab.com/openmates/example") is None
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_build_github_repo_embed_returns_normalized_public_licensed_repo(monkeypatch):
     _FakeAsyncClient.responses = {
@@ -133,6 +138,7 @@ async def test_build_github_repo_embed_returns_normalized_public_licensed_repo(m
     assert embed["contributors"][0]["login"] == "mate"
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional
 @pytest.mark.asyncio
 async def test_build_github_repo_embed_skips_private_repos(monkeypatch):
     _FakeAsyncClient.responses = {
@@ -143,6 +149,7 @@ async def test_build_github_repo_embed_skips_private_repos(monkeypatch):
     assert await repo_metadata.build_github_repo_embed("https://github.com/openmates/private") is None
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional
 @pytest.mark.asyncio
 async def test_build_github_repo_embed_skips_repos_without_detectable_license(monkeypatch):
     _FakeAsyncClient.responses = {
@@ -158,6 +165,7 @@ async def test_build_github_repo_embed_skips_repos_without_detectable_license(mo
     assert await repo_metadata.build_github_repo_embed("https://github.com/openmates/unlicensed") is None
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional,app-skills.search-relevance.safe-finalization
 @pytest.mark.asyncio
 async def test_search_github_repositories_returns_public_licensed_results(monkeypatch):
     _FakeAsyncClient.responses = {
@@ -176,3 +184,27 @@ async def test_search_github_repositories_returns_public_licensed_results(monkey
     assert len(results) == 1
     assert results[0]["full_name"] == "openmates/example"
     assert results[0]["license_spdx_id"] == "MIT"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional
+@pytest.mark.asyncio
+async def test_search_github_repositories_allows_one_expanded_candidate_request(monkeypatch):
+    _FakeAsyncClient.responses = {"/search/repositories": _FakeResponse({"items": []})}
+    _FakeAsyncClient.calls = []
+    monkeypatch.setattr(repo_metadata.httpx, "AsyncClient", _FakeAsyncClient)
+
+    await repo_metadata.search_github_repositories("python cli", count=40)
+
+    assert _FakeAsyncClient.calls == [
+        (
+            "/search/repositories",
+            {
+                "params": {
+                    "q": "python cli is:public archived:false",
+                    "sort": "stars",
+                    "order": "desc",
+                    "per_page": 40,
+                }
+            },
+        )
+    ]

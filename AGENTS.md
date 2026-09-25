@@ -30,7 +30,8 @@ artifact path behind `sessions.py ci-source`.
 
 Shared dev-service mutations use `sessions.py docker restart --service <name>`
 with an explicit session. Preserve runtime leases and short push locks. Product
-tests use GitHub CI, not the shared dev stack. Production changes, destructive
+tests use GitHub CI, except tests that strictly need real AI inference: run those
+directly on the dev server for now, with disposable test state. Production changes, destructive
 data changes, and ownership transfers require their specific authorization.
 Preserve secrets and private data; use placeholders in committed examples.
 
@@ -40,6 +41,9 @@ For every behavior fix or feature, update the relevant E2E coverage, adding a
 focused case if missing. Preserve existing contract/assertion metadata. Run
 appropriate focused unit/lint/build checks locally; run product REST/WebSocket,
 CLI/SDK and browser E2E through the existing isolated GitHub CI coordinator.
+Tests that strictly need real AI inference run directly on the dev server for
+now, never in CI. Keep test Projects/folders and CLI state separate from real work;
+shared runtime changes still require an explicit target and coordinator lease.
 Use `sessions.py ci-source`, `ci_coordinator.py submit`, and `ci_coordinator.py
 wait <id>` or existing result events. JSON is opt-in for programmatic consumers.
 

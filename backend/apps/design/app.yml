@@ -85,6 +85,7 @@ embed_types:
         type: object
 skills:
   - id: search_icons
+    anonymous_access: inline
     name_translation_key: app_skills.design.search_icons
     description_translation_key: app_skills.design.search_icons.description
     icon_image: design.svg
@@ -109,31 +110,43 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: Array of icon search requests backed by Iconify.
           items:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Search query, e.g. "home", "calendar", or "settings".
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 1
                 maximum: 50
                 default: 24
                 description: Maximum number of icon results to return.
               license_policy:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [permissive, all]
                 default: permissive
                 description: Filter to permissive/no-attribution licenses by default.
               include_prefixes:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: string
                 description: Optional Iconify collection prefixes to include.
               exclude_prefixes:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: string

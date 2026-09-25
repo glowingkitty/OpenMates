@@ -30,6 +30,39 @@ AI_APP_ID = "ai"
 AI_ASK_SKILL_ID = "ask"
 OPENAI_USER_ROLE = "user"
 WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
+WORKFLOW_RESULT_LIST_SKILLS = frozenset(
+    {
+        ("business", "company_financials"),
+        ("code", "search_repos"),
+        ("code", "get_docs"),
+        ("design", "search_icons"),
+        ("electronics", "search_components"),
+        ("fitness", "search_locations"),
+        ("fitness", "search_classes"),
+        ("health", "search_appointments"),
+        ("images", "search"),
+        ("maps", "search"),
+        ("models3d", "search"),
+        ("nutrition", "search_recipes"),
+        ("openmates", "get-docs"),
+        ("shopping", "search_products"),
+        ("social_media", "get-posts"),
+        ("social_media", "search"),
+        ("travel", "search_connections"),
+        ("travel", "search_stays"),
+        ("travel", "get_flight"),
+        ("videos", "get_transcript"),
+        ("videos", "search"),
+        ("weather", "rain_radar"),
+        ("web", "read"),
+        ("web", "search"),
+    }
+)
+WORKFLOW_PASSTHROUGH_FIELDS = {
+    ("finance", "check_accounts"): ("account_count", "transaction_count", "overview"),
+    ("math", "calculate"): ("result",),
+    ("openmates", "share-usecase"): ("success", "message"),
+}
 
 
 class WorkflowSkillBillingError(RuntimeError):
@@ -123,8 +156,13 @@ class WorkflowAppSkillAdapter:
             ),
         )
         # ai.ask settles actual token usage in its existing worker pipeline;
-        # charging again here would double bill it.
+        # report that already-settled cost without charging it again here.
         workflow_credit_cost = 0
+        if billing_context and (app_id, skill_id) == (AI_APP_ID, AI_ASK_SKILL_ID):
+            usage = raw_output.get("usage") if isinstance(raw_output.get("usage"), dict) else {}
+            reported_cost = usage.get("total_credits", raw_output.get("total_credits"))
+            if isinstance(reported_cost, int) and not isinstance(reported_cost, bool) and reported_cost >= 0:
+                workflow_credit_cost = reported_cost
         if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
             workflow_credit_cost = await _charge_workflow_skill_result(
                 app_id=app_id,
@@ -150,13 +188,19 @@ def _prepare_workflow_skill_request(
     if app_id != AI_APP_ID or skill_id != AI_ASK_SKILL_ID:
         return request
     if "messages" in request:
-        skill_request = dict(request)
+        messages = request.get("messages")
+        if not isinstance(messages, list) or not messages:
+            return request
+        skill_request = {"messages": messages}
     else:
         prompt = request.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
             return request
-        skill_request = {key: value for key, value in request.items() if key != "prompt"}
-        skill_request["messages"] = [{"role": OPENAI_USER_ROLE, "content": prompt}]
+        skill_request = {"messages": [{"role": OPENAI_USER_ROLE, "content": prompt}]}
+    # Workflow Ask AI is an isolated text-processing step. Runtime enforcement is
+    # authoritative even when authoring validation was unavailable or bypassed.
+    skill_request["apps_enabled"] = False
+    skill_request["allowed_apps"] = []
     if user_id:
         skill_request["_user_id"] = user_id
     skill_request["_external_request"] = True
@@ -336,6 +380,22 @@ def _normalize_skill_output(
     if raw_output.get("error"):
         output["error"] = raw_output.get("error")
 
+    if app_id == AI_APP_ID and skill_id == AI_ASK_SKILL_ID:
+        answer = raw_output.get("answer")
+        choices = raw_output.get("choices")
+        if not isinstance(answer, str) and isinstance(choices, list) and choices:
+            first = choices[0]
+            message = first.get("message") if isinstance(first, dict) else None
+            answer = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(answer, str) or not answer.strip():
+            output["error"] = output.get("error") or "AI Ask returned no text answer"
+            return output
+        output.update({
+            "answer": answer.strip(),
+            "summary": "Ask AI completed",
+        })
+        return output
+
     if app_id == "weather" and skill_id == "forecast":
         days = [dict(day) for day in raw_output.get("results", []) if isinstance(day, dict)]
         first_day = days[0] if days else {}
@@ -383,15 +443,29 @@ def _normalize_skill_output(
         return output
 
     results = raw_output.get("results")
+    normalized_results = (
+        _search_results(raw_output)
+        if (app_id, skill_id) in WORKFLOW_RESULT_LIST_SKILLS
+        else None
+    )
     artifact_ids = _collect_artifact_ids(raw_output)
     task_ids = _collect_string_values(raw_output, ("task_id", "task_ids", "job_id", "job_ids"))
     output.update(
         {
             "summary": raw_output.get("summary") or f"{app_id}:{skill_id} completed",
-            "result_count": len(results) if isinstance(results, list) else None,
+            "result_count": (
+                len(normalized_results)
+                if normalized_results is not None
+                else len(results) if isinstance(results, list) else None
+            ),
             "provider": raw_output.get("provider"),
         }
     )
+    if normalized_results is not None:
+        output["results"] = normalized_results
+    for field in WORKFLOW_PASSTHROUGH_FIELDS.get((app_id, skill_id), ()):
+        if field in raw_output:
+            output[field] = raw_output[field]
     if artifact_ids:
         output["artifact_ids"] = artifact_ids
     if task_ids:

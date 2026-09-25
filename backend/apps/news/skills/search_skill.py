@@ -19,6 +19,13 @@ from backend.shared.providers.brave.brave_search import search_news
 from backend.shared.python_utils.domain_filter import load_tabloid_blocklist, filter_results_by_domain
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.app_skill_helpers import sanitize_external_content, check_rate_limit, wait_for_rate_limit
+from backend.shared.python_utils.search_relevance import (
+    MAX_RELEVANCE_CRITERIA_CHARS,
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    stable_deduplicate_candidates,
+)
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 from backend.apps.news.skills.search_fixture import (
@@ -32,7 +39,10 @@ logger = logging.getLogger(__name__)
 # for results that will be filtered out. This ensures users still get their requested count.
 TABLOID_FILTER_OVER_REQUEST_COUNT = 15
 # Default number of results to return to the user after filtering
-DEFAULT_RESULT_COUNT = 6
+DEFAULT_RESULT_COUNT = 10
+# Score 2 is the first News rubric level that represents substantively relevant
+# coverage rather than a peripheral mention or keyword-level relationship.
+MIN_NEWS_RELEVANCE_SCORE = 2.0
 
 
 class NewsSearchRequestItem(BaseModel):
@@ -45,7 +55,16 @@ class NewsSearchRequestItem(BaseModel):
     )
 
     query: str = Field(description="Search query string (e.g. 'AI news', 'Tesla earnings').")
-    count: int = Field(default=6, description="Number of results for this request (max 20).")
+    count: int = Field(default=10, ge=1, le=20, description="Number of final results for this request (max 20, default 10).")
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=MAX_RELEVANCE_CRITERIA_CHARS,
+        description=(
+            "Optional concise natural-language purpose or preference used to rank a larger "
+            "news candidate pool. Populate it when the user states a material goal that should "
+            "change ordering; omit it for a plain news search and never invent preferences."
+        ),
+    )
     country: Optional[str] = Field(
         default=None,
         description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us' if invalid.",
@@ -348,10 +367,15 @@ class SearchSkill(BaseSkill):
         req_freshness = req.get("freshness") or "pw"
         # Tabloid/boulevard domain filtering — enabled by default
         req_filter_tabloids = req.get("filter_tabloids", True)
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         
         # When tabloid filtering is active, over-request from the API to compensate
         # for results that will be removed. This ensures users still get their requested count.
-        api_count = TABLOID_FILTER_OVER_REQUEST_COUNT if req_filter_tabloids else req_count
+        api_count = (
+            40
+            if relevance_criteria
+            else TABLOID_FILTER_OVER_REQUEST_COUNT if req_filter_tabloids else req_count
+        )
         
         # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
         VALID_BRAVE_COUNTRY_CODES = {
@@ -457,8 +481,55 @@ class SearchSkill(BaseSkill):
                 blocked_domains = load_tabloid_blocklist()
                 if blocked_domains:
                     results = filter_results_by_domain(results, blocked_domains)
-            
-            # Trim to the user's requested count (may have over-requested for filtering)
+
+            if relevance_criteria:
+                results = stable_deduplicate_candidates(
+                    results,
+                    key=lambda item: normalize_url_for_deduplication(item.get("url")),
+                )[:40]
+                provider_ordered_results = list(results)
+                projections = []
+                for result in results:
+                    extra_snippets = result.get("extra_snippets", [])
+                    if not isinstance(extra_snippets, list):
+                        extra_snippets = []
+                    profile = result.get("profile")
+                    projections.append({
+                        "title": result.get("title", ""),
+                        "description": result.get("description", ""),
+                        "extra_snippets": extra_snippets[:4],
+                        "url": result.get("url", ""),
+                        "publisher": profile.get("name") if isinstance(profile, dict) else None,
+                        "page_age": result.get("page_age", result.get("age")),
+                        "language": result.get("language"),
+                    })
+                ranking = await rank_search_candidates(
+                    candidates=results,
+                    candidate_projections=projections,
+                    relevance_criteria=relevance_criteria,
+                    search_parameters={
+                        "query": search_query,
+                        "country": req_country,
+                        "search_lang": req_lang,
+                        "freshness": req_freshness,
+                    },
+                    profile="news",
+                    secrets_manager=secrets_manager,
+                )
+                results = ranking.candidates
+                if ranking.applied and len(ranking.scores) == len(results):
+                    results = [
+                        result
+                        for result, score in zip(results, ranking.scores)
+                        if score >= MIN_NEWS_RELEVANCE_SCORE
+                    ]
+                else:
+                    # The relevance decision is optional. Preserve the provider
+                    # order when Jev is unavailable or does not return one valid
+                    # aligned score for every candidate.
+                    results = provider_ordered_results
+
+            # Trim after optional ranking and before semantic output sanitization.
             if len(results) > req_count:
                 results = results[:req_count]
             task_id = f"news_search_{request_id}_{search_query[:50]}"

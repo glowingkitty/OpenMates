@@ -33,7 +33,7 @@ interface ProjectedSpeechSegment {
 
 interface SpeechStatusSegment {
   segment_id?: string;
-  status?: "accepted" | "queued" | "generating" | "ready" | "error" | "cancelled" | "deleted";
+  status?: "accepted" | "registered" | "queued" | "generating" | "ready" | "error" | "cancelled" | "deleted";
   generated_asset_id?: string;
   duration_seconds?: number;
   retryable?: boolean;
@@ -105,6 +105,7 @@ class AssistantSpeechController {
   readonly player = writable<AssistantSpeechPlayerState>(INITIAL_PLAYER_STATE);
   private readonly queue = new AssistantSpeechQueue({
     onStateChange: () => this.publish(),
+    onNeedSegment: (segment) => { void this.requestGeneration(segment); },
   });
   private pending: {
     chatId: string;
@@ -114,6 +115,10 @@ class AssistantSpeechController {
   private segmentSequence = new Map<string, number>();
   private readonly latestStatusBySegmentId = new Map<string, SpeechStatusSegment>();
   private lastRequest: { chatId: string; messageId: string; projected: ProjectedSpeechSegment[] } | null = null;
+  private source: { chatId: string; messageId: string; projected: ProjectedSpeechSegment[] } | null = null;
+  private readonly generationRequestedIds = new Set<string>();
+  private readonly waitingForSource = new Map<string, AssistantSpeechSegment>();
+  private streamPreludeOffset = 0;
   private chatId: string | null = null;
   private messageId: string | null = null;
   private error: string | null = null;
@@ -167,6 +172,9 @@ class AssistantSpeechController {
     this.supersedeCurrentMessage(messageId);
     this.pending = { chatId, messageId, projected };
     this.lastRequest = this.pending;
+    this.source = this.pending;
+    this.generationRequestedIds.clear();
+    this.waitingForSource.clear();
     this.stoppedMessageIds.delete(messageId);
     this.dismissedMessageIds.delete(messageId);
     this.chatId = chatId;
@@ -183,6 +191,12 @@ class AssistantSpeechController {
   }
 
   pause(): void { this.queue.pause(); }
+  /** Hold only the current owner's decrypted stream text until a chapter is needed. */
+  registerSource(chatId: string, messageId: string, markdown: string): void {
+    if (!markdown || this.publicPlayback || this.stoppedMessageIds.has(messageId)) return;
+    this.source = { chatId, messageId, projected: projectAssistantSpeech(markdown) };
+    for (const segment of this.waitingForSource.values()) void this.requestGeneration(segment);
+  }
   primeForAutoplay(): void { this.queue.primeForAutoplay(); }
   async play(): Promise<void> {
     if (this.queue.state.status === "failed") {
@@ -192,13 +206,19 @@ class AssistantSpeechController {
       if (ready?.status === "ready") {
         await this.hydrateReadySegment(ready);
       } else if (this.lastRequest) {
-        this.pending = this.lastRequest;
         if (ready) {
           await this.hydrateReadySegment({ ...ready, status: "queued" });
         } else if (!activeId) {
           this.queue.start(this.lastRequest.messageId, []);
         }
-        await this.sendRequest();
+        if (activeId) {
+          this.generationRequestedIds.delete(activeId);
+          const segment = this.queue.segmentById(activeId);
+          if (segment) await this.requestGeneration(segment);
+        } else {
+          this.pending = this.lastRequest;
+          await this.sendRequest();
+        }
         if (this.error) return;
       }
     }
@@ -211,6 +231,7 @@ class AssistantSpeechController {
     try {
       await webSocketService.sendMessage("assistant_speech", {
         action: "request", chat_id: request.chatId, assistant_message_id: request.messageId,
+        defer_after_first: true,
         segments: request.projected.map(({ chapter: _chapter, ...segment }) => segment),
       });
     } catch (cause) {
@@ -218,6 +239,34 @@ class AssistantSpeechController {
       console.error("[AssistantSpeechController] Speech request failed:", cause);
       this.error = "Speech is temporarily unavailable.";
       this.queue.fail();
+    }
+  }
+  private async requestGeneration(segment: AssistantSpeechSegment): Promise<void> {
+    if (this.publicPlayback || !this.chatId || !this.messageId || segment.status === "ready" || this.generationRequestedIds.has(segment.id)) return;
+    const source = this.source;
+    const requestSequence = this.lastRequest?.messageId === this.messageId
+      ? segment.sequence : segment.sequence - this.streamPreludeOffset;
+    const projected = source?.chatId === this.chatId && source.messageId === this.messageId
+      ? source.projected.find((candidate) => candidate.sequence === requestSequence) : undefined;
+    if (!projected) {
+      this.waitingForSource.set(segment.id, segment);
+      return;
+    }
+    this.waitingForSource.delete(segment.id);
+    this.generationRequestedIds.add(segment.id);
+    try {
+      const { chapter: _chapter, ...requestSegment } = projected;
+      await webSocketService.sendMessage("assistant_speech", {
+        action: "generate", chat_id: this.chatId, assistant_message_id: this.messageId,
+        segments: [requestSegment],
+      });
+    } catch (cause) {
+      this.generationRequestedIds.delete(segment.id);
+      console.error("[AssistantSpeechController] Speech chapter request failed:", cause);
+      if (this.queue.state.activeSegmentId === segment.id) {
+        this.error = "Speech is temporarily unavailable.";
+        this.queue.fail();
+      }
     }
   }
   previous(): Promise<void> { return this.queue.previous(); }
@@ -232,6 +281,15 @@ class AssistantSpeechController {
     this.lastRequest = null;
     this.pending = null;
     this.releaseGeneratedAudio();
+    this.source = null;
+    this.waitingForSource.clear();
+    if (!this.publicPlayback && this.chatId && this.messageId) {
+      try {
+        await webSocketService.sendMessage("assistant_speech", { action: "cancel", chat_id: this.chatId, assistant_message_id: this.messageId });
+      } catch (cause) {
+        console.error("[AssistantSpeechController] Speech cancellation failed:", cause);
+      }
+    }
   }
 
   async playPublicExample(chatId: string, messageId: string, fixtures: PublicAssistantSpeechSegment[]): Promise<void> {
@@ -266,6 +324,8 @@ class AssistantSpeechController {
     this.audioResolutionGeneration += 1;
     this.queue.stop();
     this.releaseGeneratedAudio();
+    this.source = null;
+    this.waitingForSource.clear();
     const shouldCancel = !this.publicPlayback;
     this.publicPlayback = false;
     if (shouldCancel && this.chatId && this.messageId) {
@@ -279,8 +339,14 @@ class AssistantSpeechController {
 
   private async handleStatus(payload: SpeechStatusPayload): Promise<void> {
     const statusMessageId = payload.message_id ?? this.pending?.messageId;
-    if (statusMessageId && this.stoppedMessageIds.has(statusMessageId)) return;
-    if (statusMessageId && this.dismissedMessageIds.has(statusMessageId)) return;
+    if (statusMessageId && (this.stoppedMessageIds.has(statusMessageId) || this.dismissedMessageIds.has(statusMessageId))) {
+      if (payload.chat_id && ["accepted", "queued"].includes(payload.status ?? "")) {
+        void webSocketService.sendMessage("assistant_speech", {
+          action: "cancel", chat_id: payload.chat_id, assistant_message_id: statusMessageId,
+        }).catch((cause) => console.error("[AssistantSpeechController] Late speech cancellation failed:", cause));
+      }
+      return;
+    }
     if (payload.message_id) this.supersedeCurrentMessage(payload.message_id);
     if (payload.status === "accepted" && payload.segments && this.pending) {
       const { chatId, messageId, projected } = this.pending;
@@ -315,6 +381,9 @@ class AssistantSpeechController {
           ...presentation,
         } satisfies AssistantSpeechSegment];
       });
+      for (const status of payload.segments) {
+        if (status.segment_id && status.status !== "registered") this.generationRequestedIds.add(status.segment_id);
+      }
       if (this.queue.state.responseId === messageId && this.queue.state.status !== "stopped") {
         for (const segment of segments) this.queue.upsertSegment(segment);
       } else {
@@ -322,6 +391,11 @@ class AssistantSpeechController {
       }
       this.queue.markComplete();
       await Promise.all(payload.segments.map((status) => this.hydrateReadySegment(this.latestStatusBySegmentId.get(status.segment_id ?? "") ?? status)));
+      return;
+    }
+
+    if (payload.status === "accepted" && payload.segments) {
+      await Promise.all(payload.segments.map((status) => this.handleStatus({ ...status, chat_id: this.chatId ?? undefined, message_id: this.messageId ?? undefined })));
       return;
     }
 
@@ -335,6 +409,9 @@ class AssistantSpeechController {
       const latest = this.latestStatusBySegmentId.get(payload.segment_id);
       if (latest?.status === "ready" && ["queued", "generating"].includes(payload.status ?? "")) return;
       this.latestStatusBySegmentId.set(payload.segment_id, payload);
+      if (payload.status === "queued" || payload.status === "generating" || payload.status === "ready") {
+        this.generationRequestedIds.add(payload.segment_id);
+      }
       // Acceptance supplies authoritative ordering and chapter metadata for manual
       // requests. Retain early readiness rather than starting a partial queue.
       if (this.pending) return;
@@ -348,7 +425,13 @@ class AssistantSpeechController {
         // Manual acceptance may normalize away a passive prelude and attach
         // authored headings. Subsequent worker events must preserve that mapping.
         if (!this.segmentSequence.has(payload.segment_id)) this.segmentSequence.set(payload.segment_id, payload.sequence);
-        const presentation = this.presentationBySegmentId.get(payload.segment_id) ?? defaultPresentation(payload.sequence, payload.kind);
+        if (payload.kind === "app_use_announcement") this.streamPreludeOffset = 1;
+        const sourceChapter = this.source?.messageId === payload.message_id
+          ? this.source.projected.find((item) => item.sequence === payload.sequence! - this.streamPreludeOffset)?.chapter : undefined;
+        const presentation = this.presentationBySegmentId.get(payload.segment_id) ?? {
+          ...defaultPresentation(payload.sequence, payload.kind),
+          ...(sourceChapter ? { chapter: sourceChapter } : {}),
+        };
         this.presentationBySegmentId.set(payload.segment_id, presentation);
         if (this.queue.state.responseId !== payload.message_id || this.queue.state.status === "stopped") {
           this.queue.start(payload.message_id, [{
@@ -491,6 +574,7 @@ class AssistantSpeechController {
 
   private supersedeCurrentMessage(nextMessageId: string): void {
     if (this.messageId && this.messageId !== nextMessageId) {
+      const nextSource = this.source?.messageId === nextMessageId ? this.source : null;
       this.rememberStoppedMessage(this.messageId);
       this.audioResolutionGeneration += 1;
       this.queue.stop();
@@ -499,7 +583,13 @@ class AssistantSpeechController {
       this.latestStatusBySegmentId.clear();
       this.pending = null;
       this.lastRequest = null;
+      this.source = nextSource;
+      this.generationRequestedIds.clear();
+      this.waitingForSource.clear();
+      this.streamPreludeOffset = 0;
       this.releaseGeneratedAudio();
+      if (this.chatId) void webSocketService.sendMessage("assistant_speech", { action: "cancel", chat_id: this.chatId, assistant_message_id: this.messageId })
+        .catch((cause) => console.error("[AssistantSpeechController] Superseded speech cancellation failed:", cause));
     }
   }
 

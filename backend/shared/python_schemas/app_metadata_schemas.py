@@ -94,6 +94,14 @@ class AppSkillDefinition(BaseModel):
     description_translation_key: str  # Required: Translation key for skill description (e.g., "app_translations.web.skills.search.description")
     class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - omitted for unimplemented placeholders
     default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented skill ships off by default.")
+    anonymous_access: Optional[Literal["inline", "authenticated"]] = Field(
+        default=None,
+        description=(
+            "Explicit anonymous execution classification. 'inline' is only for account-free "
+            "skills that finish in the request without creating files or durable side effects. "
+            "Missing classifications fail closed."
+        ),
+    )
     parallel_safe: bool = Field(
         default=False,
         description=(

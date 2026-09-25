@@ -38,6 +38,7 @@ from backend.apps.ai.processing.main_processor import handle_main_processing, IN
 from backend.apps.ai.sub_chat_orchestration import build_sequential_child_prompt, dispatch_sub_chat_task
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
+from backend.apps.ai.utils.main_processing_failure import main_processing_failure_reason
 from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
     derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
@@ -141,6 +142,7 @@ async def _dispatch_automatic_assistant_speech_segment(
     user_vault_key_id: Optional[str],
     voice_profile: dict[str, object],
     auto_speak: bool,
+    lazy_dispatch: bool,
     cache_service: Optional[CacheService],
     redis_channel_name: str,
     log_prefix: str,
@@ -152,17 +154,6 @@ async def _dispatch_automatic_assistant_speech_segment(
         return
     from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments
 
-    manifest = await create_manifest_and_segments(
-        directus_service,
-        user_id=user_id,
-        chat_id=str(segment["chat_id"]),
-        assistant_message_id=str(segment["assistant_message_id"]),
-        source_version=int(segment["source_version"]),
-        voice_profile=voice_profile,
-        segments=[segment],
-    )
-    if not auto_speak or str(segment["segment_id"]) not in set(manifest["dispatch_segment_ids"]):
-        return
     live_mock_context: dict[str, str] = {}
     if live_mock_mode in {"mock", "record"} and live_mock_group:
         live_mock_context = {
@@ -170,20 +161,33 @@ async def _dispatch_automatic_assistant_speech_segment(
             "live_mock_group": live_mock_group,
             "live_mock_required": "true",
         }
-    celery_config.app.send_task(
-        "apps.audio.tasks.assistant_speech_segment",
-        kwargs={
-            "arguments": {
-                **segment,
-                "user_id": user_id,
-                "user_vault_key_id": user_vault_key_id,
-                "voice_profile_key": voice_profile["key"],
-                "voice_profile_version": voice_profile["version"],
-                **live_mock_context,
-            },
-        },
-        queue="app_music",
+    manifest = await create_manifest_and_segments(
+        directus_service,
+        user_id=user_id,
+        chat_id=str(segment["chat_id"]),
+        assistant_message_id=str(segment["assistant_message_id"]),
+        source_version=int(segment["source_version"]),
+        voice_profile=voice_profile,
+        segments=[{**segment, **live_mock_context, "dispatch_status": "registered" if lazy_dispatch and int(segment["sequence"]) > 0 else "queued"}],
     )
+    if not auto_speak:
+        return
+    should_dispatch = (not lazy_dispatch or int(segment["sequence"]) == 0) and str(segment["segment_id"]) in set(manifest["dispatch_segment_ids"])
+    if should_dispatch:
+        celery_config.app.send_task(
+            "apps.audio.tasks.assistant_speech_segment",
+            kwargs={
+                "arguments": {
+                    **segment,
+                    "user_id": user_id,
+                    "user_vault_key_id": user_vault_key_id,
+                    "voice_profile_key": voice_profile["key"],
+                    "voice_profile_version": voice_profile["version"],
+                    **live_mock_context,
+                },
+            },
+            queue="app_music",
+        )
     await _publish_to_redis(
         cache_service,
         redis_channel_name,
@@ -194,7 +198,7 @@ async def _dispatch_automatic_assistant_speech_segment(
             "message_id": str(segment["assistant_message_id"]),
             "payload": {
                 "segment_id": str(segment["segment_id"]),
-                "status": "queued",
+                "status": "queued" if should_dispatch else "registered",
                 "sequence": int(segment["sequence"]),
                 "kind": str(segment["kind"]),
             },
@@ -2485,6 +2489,14 @@ def _create_redis_payload(
         payload["is_sub_chat_continuation"] = True
     if request_data.is_focus_mode_continuation:
         payload["is_focus_mode_continuation"] = True
+    if request_data.is_async_skill_continuation:
+        payload["is_async_skill_continuation"] = True
+        payload["original_user_message_id"] = (
+            request_data.original_user_message_id or request_data.message_id
+        )
+        payload["async_skill_task_id"] = request_data.async_skill_task_id
+    if request_data.awaiting_async_skill_continuation:
+        payload["awaiting_async_skill_continuation"] = True
     if awaiting_focus_mode_continuation:
         payload["awaiting_focus_mode_continuation"] = True
     
@@ -5025,6 +5037,7 @@ async def _consume_main_processing_stream(
     was_revoked_during_stream = False
     was_soft_limited_during_stream = False
     stream_exception: Optional[BaseException] = None
+    terminal_failure_reason: Optional[str] = None
     
     # Track if we filtered out fake tool calls (LLM attempted to use unavailable tools)
     # This is used at the end to show a generic fallback message if the response would be empty
@@ -5258,6 +5271,7 @@ async def _consume_main_processing_stream(
                     user_vault_key_id=user_vault_key_id,
                     voice_profile=voice_profile,
                     auto_speak=request_data.auto_speak_response,
+                    lazy_dispatch=request_data.assistant_speech_lazy_dispatch,
                     cache_service=cache_service,
                     redis_channel_name=redis_channel_name,
                     log_prefix=log_prefix,
@@ -5422,6 +5436,17 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, dict) and "__debug_metadata__" in chunk:
                 debug_metadata = chunk
                 logger.debug(f"{log_prefix} Captured debug metadata (system_prompt: {chunk.get('system_prompt_char_count', 0)} chars, tools: {chunk.get('available_tools_count', 0)})")
+                continue
+
+            failure_reason = main_processing_failure_reason(chunk)
+            if failure_reason is not None:
+                terminal_failure_reason = failure_reason
+                debug_metadata["main_processing_failure_reason"] = failure_reason
+                logger.error(
+                    "%s Main processing ended with a classified terminal failure: reason=%s",
+                    log_prefix,
+                    failure_reason,
+                )
                 continue
 
             # Check for tool calls info marker (special dict at end of stream)
@@ -8564,6 +8589,20 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+    terminal_failure_applies = (
+        terminal_failure_reason is not None
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+    )
+    if terminal_failure_applies:
+        # The internal marker, rather than response text, is authoritative. Keep
+        # already-streamed safe prose, but add the generic retryable message at the
+        # presentation boundary without exposing provider details.
+        if aggregated_response.strip():
+            aggregated_response = f"{aggregated_response.rstrip()}\n\n{standardized_error_message}"
+        else:
+            aggregated_response = standardized_error_message
+        final_response_chunks = [aggregated_response]
     finalized_interactive_response = _finalize_interactive_question_protocol(aggregated_response)
     if finalized_interactive_response != aggregated_response:
         logger.warning(
@@ -9559,6 +9598,14 @@ async def _consume_main_processing_stream(
     elif was_soft_limited_during_stream:
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
         stream_error_message_for_log = "Stream consumption interrupted by soft time limit."
+    elif terminal_failure_reason is not None:
+        logger.error(
+            "%s Finished consuming stream (FAILED: %s). %s",
+            log_prefix,
+            terminal_failure_reason,
+            log_msg_suffix,
+        )
+        stream_error_message_for_log = f"Main processing failed: {terminal_failure_reason}."
     else:
         logger.info(f"{log_prefix} Finished consuming stream (COMPLETED). {log_msg_suffix}")
 
@@ -9578,9 +9625,9 @@ async def _consume_main_processing_stream(
     # Check for both old "[ERROR:" format and new standardized error message format
     is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
     is_new_format_error = aggregated_response.strip() == standardized_error_message
-    is_error = is_old_format_error or is_new_format_error
+    is_error = terminal_failure_applies or is_old_format_error or is_new_format_error
     
-    is_server_error = (
+    is_server_error = terminal_failure_applies or (
         is_error and 
         (is_old_format_error and ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)) or
         is_new_format_error  # New standardized format always indicates server error
@@ -9597,7 +9644,11 @@ async def _consume_main_processing_stream(
     )
 
     recovery_job = None
-    if _recovery_inference_task_id(request_data) and not awaiting_sub_chats_completion:
+    if (
+        _recovery_inference_task_id(request_data)
+        and not awaiting_sub_chats_completion
+        and not request_data.awaiting_async_skill_continuation
+    ):
         recovery_job = await _persist_sealed_recovery_job(
             directus_service=directus_service,
             request_data=request_data,

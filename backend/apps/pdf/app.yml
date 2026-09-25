@@ -80,6 +80,7 @@ last_updated: "2026-02-28"
 
 skills:
   - id: read
+    anonymous_access: authenticated
     name_translation_key: pdf.read
     description_translation_key: pdf.read.description
     preprocessor_hint: >
@@ -113,6 +114,7 @@ skills:
         - file_path
 
   - id: search
+    anonymous_access: authenticated
     name_translation_key: pdf.search
     description_translation_key: pdf.search.description
     preprocessor_hint: >
@@ -145,6 +147,7 @@ skills:
         - query
 
   - id: view
+    anonymous_access: authenticated
     name_translation_key: pdf.view.skill_name
     description_translation_key: pdf.view.skill_description
     preprocessor_hint: >

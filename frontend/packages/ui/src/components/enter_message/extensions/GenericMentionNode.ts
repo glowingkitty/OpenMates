@@ -29,6 +29,7 @@ declare module "@tiptap/core" {
         mentionSyntax: string;
         mentionId?: string;
         projectId?: string;
+        projectSourceId?: string;
         projectPath?: string;
         projectAccessMode?: ProjectMentionAccessMode;
         /** Gradient start color from app config */
@@ -69,6 +70,9 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
         default: null,
       },
       projectId: {
+        default: null,
+      },
+      projectSourceId: {
         default: null,
       },
       projectPath: {
@@ -128,6 +132,7 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
         "data-display-name": HTMLAttributes.displayName,
         "data-mention-syntax": HTMLAttributes.mentionSyntax,
         "data-mention-id": HTMLAttributes.mentionId,
+        "data-project-source-id": HTMLAttributes.projectSourceId,
         "data-project-access-mode": HTMLAttributes.projectAccessMode,
         class: `generic-mention ${typeClass}`,
         style: style,

@@ -89,6 +89,12 @@
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import WorkflowsRoute from './workflows/+page.svelte';
+	import ProjectsRoute from './projects/+page.svelte';
+	import PlansRoute from './plans/+page.svelte';
+	import TasksRoute from './tasks/+page.svelte';
+	import { readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
 
 	// --- State ---
 	let isInitialLoad = $state(true);
@@ -113,6 +119,7 @@
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
+	let workspaceHashRoute = $derived(readWorkspaceHashRoute(page.url.hash));
 
 	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
 	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
@@ -1629,6 +1636,7 @@
 		console.debug('[+page.svelte] onMount started');
 		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
+		window.addEventListener('popstate', handleHashChange);
 		// Example cards can render before slower onMount setup completes, so register this early.
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 		document.documentElement.setAttribute('data-hash-router-ready', 'true');
@@ -1866,6 +1874,12 @@
 		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
+		const originalWorkspaceHashRoute = readWorkspaceHashRoute(originalHash);
+		if (originalWorkspaceHashRoute.workspace !== 'chats') {
+			// Workspace fragments belong to the shared shell. Mark initial deep-link
+			// processing complete so chat recovery cannot select a stale chat behind it.
+			deepLinkProcessed = true;
+		}
 
 		// DEFENSE-IN-DEPTH: If there is no chat hash in the URL, ensure the active chat
 		// store starts clean. This prevents stale hash values (e.g. browser restoring a
@@ -2246,8 +2260,17 @@
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
 			// During forced logout, the handler returns to new chat for empty/null hash.
 			const handlers = createDeepLinkHandlers();
-			const hashToProcess = shouldSuppressForcedLogoutHash ? '' : originalHash || '';
+			const hashToProcess =
+				shouldSuppressForcedLogoutHash || originalWorkspaceHashRoute.workspace !== 'chats'
+					? ''
+					: originalHash || '';
 			await processDeepLink(hashToProcess, handlers);
+			if (originalWorkspaceHashRoute.workspace !== 'chats') {
+				const workspaceSettingsPath = getSettingsPathFromHash(originalHash);
+				if (workspaceSettingsPath) {
+					processSettingsDeepLink(buildSettingsHash(workspaceSettingsPath));
+				}
+			}
 			const settingsPathFromCombinedHash = originalHashChatId ? getSettingsPathFromHash(hashToProcess) : null;
 			if (settingsPathFromCombinedHash) {
 				processSettingsDeepLink(buildSettingsHash(settingsPathFromCombinedHash));
@@ -2891,7 +2914,11 @@
 		// Handle other deep links using unified handler (settings, embed, signup)
 		// Note: Chat deep links are already processed at the very start of onMount
 		// Only process non-chat deep links here
-		if (window.location.hash && !originalHashChatId) {
+		if (
+			window.location.hash &&
+			!originalHashChatId &&
+			readWorkspaceHashRoute(window.location.hash).workspace === 'chats'
+		) {
 			const handlers = createDeepLinkHandlers();
 			await processDeepLink(window.location.hash, handlers);
 		}
@@ -2994,6 +3021,7 @@
 		pendingAuthenticatedDeepLinkCleanup?.();
 		pendingAuthenticatedDeepLinkCleanup = null;
 		window.removeEventListener('hashchange', handleHashChange);
+		window.removeEventListener('popstate', handleHashChange);
 		document.documentElement.removeAttribute('data-hash-router-ready');
 		if (handleWebSocketAuthError) {
 			webSocketService.removeEventListener('authError', handleWebSocketAuthError);
@@ -3236,6 +3264,14 @@
 		// in handleNewChatClick) to be treated as real user navigation — triggering
 		// loadDemoWelcomeChat and overwriting the new-chat state just as the user sent a message.
 		const newHash = window.location.hash;
+		if (readWorkspaceHashRoute(newHash).workspace !== 'chats') {
+			console.debug('[+page.svelte] Workspace hash changed:', newHash);
+			const workspaceSettingsPath = getSettingsPathFromHash(newHash);
+			if (workspaceSettingsPath) {
+				processSettingsDeepLink(buildSettingsHash(workspaceSettingsPath));
+			}
+			return;
+		}
 		const hashChatIdMatch = newHash.match(/^#chat-id=([^&]+)/);
 		const hashChatId = hashChatIdMatch ? decodeURIComponent(hashChatIdMatch[1]) : null;
 
@@ -3523,6 +3559,19 @@
 
 <svelte:window bind:innerWidth={viewportWidth} />
 
+{#if workspaceHashRoute.workspace === 'workflows'}
+	<WorkflowsRoute />
+{:else if workspaceHashRoute.workspace === 'projects'}
+	<ProjectsRoute />
+{:else if workspaceHashRoute.workspace === 'plans'}
+	{#key workspaceHashRoute.itemId}
+		<PlansRoute planId={workspaceHashRoute.itemId} />
+	{/key}
+{:else if workspaceHashRoute.workspace === 'tasks'}
+	{#key workspaceHashRoute.itemId}
+		<TasksRoute taskId={workspaceHashRoute.itemId} />
+	{/key}
+{:else}
 <!-- Accessibility: skip navigation link for keyboard users (WCAG 2.4.1) -->
 <a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
 
@@ -3585,6 +3634,7 @@
 
 <!-- Login/Signup overlay removed - incomplete feature
      TODO: Implement proper login overlay if needed -->
+{/if}
 
 <style>
 	:root {

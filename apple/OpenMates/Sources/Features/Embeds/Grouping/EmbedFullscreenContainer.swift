@@ -11,6 +11,10 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+//                specifications/features/app-skills/code-run/specification.yml
+// Assertions: chats.surface.semantic-parity,
+//             code-run.artifacts.parent-child-navigation
 
 import SwiftUI
 #if os(iOS)
@@ -27,6 +31,10 @@ struct EmbedFullscreenContainer: View {
     var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     var onClose: () -> Void = {}
     var isSidePanel = false
+    /// Web `EmbedHeader` switches at the browser viewport breakpoint, not at
+    /// the width of a side-by-side embed pane. This remains separate from the
+    /// pane width used to size the header frame.
+    var responsiveViewportWidth: CGFloat? = nil
     var showChat = false
     var onShowChat: () -> Void = {}
 
@@ -163,6 +171,15 @@ struct EmbedFullscreenContainer: View {
             selection = EmbedFullscreenSelection()
             selection.reconcile(in: embeds, initialID: initialEmbedId)
             resetPerEmbedState()
+            // Child fullscreen routes reuse this container when Close returns
+            // to their parent. The child has already animated this surface out,
+            // so make the newly selected parent visible again. Without this the
+            // full-screen view remains mounted offscreen and intercepts the chat.
+            if !isPresented {
+                withAnimation(isSidePanel ? nil : .easeOut(duration: 0.28)) {
+                    isPresented = true
+                }
+            }
         }
         .onDisappear {
             #if DEBUG
@@ -187,7 +204,8 @@ struct EmbedFullscreenContainer: View {
                                 onNavigateNext: { withAnimation { navigateFullscreen(by: 1) } },
                                 headerCTA: headerCTA(for: embed),
                                 topContentInset: safeAreaInsets.top,
-                                viewportWidth: proxy.size.width
+                                viewportWidth: proxy.size.width,
+                                responsiveViewportWidth: responsiveViewportWidth
                             )
                             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { headerFrame = $0 }
                             .zIndex(2)
@@ -963,6 +981,16 @@ struct EmbedHeaderCTA {
     }
 }
 
+enum EmbedFullscreenHeaderLayout {
+    static func isNarrow(viewportWidth: CGFloat?, fallbackCompact: Bool) -> Bool {
+        viewportWidth.map { $0 <= 730 } ?? fallbackCompact
+    }
+
+    static func height(viewportWidth: CGFloat?, fallbackCompact: Bool, topContentInset: CGFloat) -> CGFloat {
+        (isNarrow(viewportWidth: viewportWidth, fallbackCompact: fallbackCompact) ? 190 : 240) + topContentInset
+    }
+}
+
 struct EmbedFullscreenHeader: View {
     let embed: EmbedRecord
     var hasPreviousEmbed = false
@@ -972,16 +1000,26 @@ struct EmbedFullscreenHeader: View {
     var headerCTA: EmbedHeaderCTA?
     var topContentInset: CGFloat = 0
     var viewportWidth: CGFloat? = nil
+    var responsiveViewportWidth: CGFloat? = nil
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // Match the web's width breakpoint, including narrow macOS windows and
     // iPad split views whose platform size class may remain regular.
-    private var isNarrow: Bool { viewportWidth.map { $0 <= 730 } ?? (horizontalSizeClass == .compact) }
+    private var isNarrow: Bool {
+        EmbedFullscreenHeaderLayout.isNarrow(
+            viewportWidth: responsiveViewportWidth ?? viewportWidth,
+            fallbackCompact: horizontalSizeClass == .compact
+        )
+    }
     private var embedType: EmbedType? { EmbedType.normalized(rawValue: embed.type) }
     private var appId: String { embed.appId ?? embedType?.appId ?? "web" }
     private var headerHeight: CGFloat {
-        (isNarrow ? 190 : 240) + topContentInset
+        EmbedFullscreenHeaderLayout.height(
+            viewportWidth: responsiveViewportWidth ?? viewportWidth,
+            fallbackCompact: horizontalSizeClass == .compact,
+            topContentInset: topContentInset
+        )
     }
     private var headerFrameHeight: CGFloat {
         headerHeight
@@ -993,6 +1031,7 @@ struct EmbedFullscreenHeader: View {
         switch embed.skillId {
         case "search": return "search"
         case "read": return "visible"
+        case "view" where appId == "images": return "visible"
         default:
             return AppIconView.iconName(forAppId: appId)
         }

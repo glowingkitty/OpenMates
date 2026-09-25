@@ -127,11 +127,11 @@ describe("OpenMates SDK workflows", () => {
         }
         if (request.url === "/v1/workflows/yaml") {
           assert.deepEqual(body, { source: "title: Morning\n" });
-          return { workflow: { id: "wf-yaml", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, graph, ...encryptedSlugFields }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+          return { workflow: { id: "wf-yaml", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, graph, ...encryptedSlugFields }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] }, warnings: [{ code: "WORKFLOW_AI_VALIDATION_UNVERIFIED", message: "AI validation could not be completed." }] };
         }
         if (request.url === "/v1/workflows/wf-1/yaml") {
           assert.deepEqual(body, { source: "title: Updated\n" });
-          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v2", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] } };
+          return { workflow: { id: "wf-1", title: "Updated", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v2", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields }, validation: { draft_valid: true, enable_ready: true, diagnostics: [] }, warnings: [{ code: "WORKFLOW_AI_VALIDATION_UNVERIFIED", message: "AI validation could not be completed." }] };
         }
         if (request.url === "/v1/workflows/wf-1/runs") {
           return { runs: [{ id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "manual", status: "completed", content_retention_mode: "last_5", content_available: true, content_storage: "durable", node_runs: [] }] };
@@ -187,7 +187,7 @@ describe("OpenMates SDK workflows", () => {
           return { run: { id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "test", status: "completed", content_retention_mode: "none", content_available: true, content_storage: "ephemeral", node_runs: [] } };
         }
         if (request.method === "DELETE") return { deleted: true };
-        return { workflow: { id: "wf-1", title: (body as any)?.title ?? "Morning", status: "active", enabled: (body as any)?.enabled ?? true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph: (body as any)?.graph ?? graph, ...encryptedSlugFields } };
+        return { workflow: { id: "wf-1", title: (body as any)?.title ?? "Morning", status: "active", enabled: (body as any)?.enabled ?? true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph: (body as any)?.graph ?? graph, ...encryptedSlugFields }, warnings: [{ code: "WORKFLOW_AI_VALIDATION_UNVERIFIED", message: "AI validation could not be completed." }] };
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
@@ -212,12 +212,16 @@ describe("OpenMates SDK workflows", () => {
         const keptWorkflow = await client.workflows.keep("wf-1");
 
         assert.equal(createdFromYaml.workflow.id, "wf-yaml");
+        assert.equal(createdFromYaml.warnings[0]?.code, "WORKFLOW_AI_VALIDATION_UNVERIFIED");
         assert.equal(updatedFromYaml.workflow.title, "Updated");
+        assert.equal(updatedFromYaml.warnings[0]?.message, "AI validation could not be completed.");
         assert.equal(blankWorkflow.graph.trigger_node_id, null);
         assert.deepEqual(blankWorkflow.graph.nodes, []);
         assert.equal(createdWorkflow.run_content_retention, "none");
+        assert.equal(createdWorkflow.authoring_warnings?.[0]?.code, "WORKFLOW_AI_VALIDATION_UNVERIFIED");
         assert.equal(fetchedWorkflow.id, "wf-1");
         assert.equal(updatedWorkflow.id, "wf-1");
+        assert.equal(updatedWorkflow.authoring_warnings?.[0]?.code, "WORKFLOW_AI_VALIDATION_UNVERIFIED");
         assert.equal(enabledWorkflow.enabled, true);
         assert.equal(disabledWorkflow.id, "wf-1");
         assert.equal(keptWorkflow.id, "wf-1");

@@ -365,6 +365,7 @@ def test_runtime_coherence_restores_previously_managed_stopped_service(monkeypat
 def test_runtime_provenance_rejects_healthy_container_on_wrong_mount(monkeypatch, tmp_path):
     checkout_root = tmp_path / "runtime"
     (checkout_root / "backend").mkdir(parents=True)
+    monkeypatch.setattr(sessions, "_configured_backend_mount_services", lambda _root: {"api"})
     monkeypatch.setattr(
         sessions,
         "_running_backend_mounts",
@@ -373,6 +374,51 @@ def test_runtime_provenance_rejects_healthy_container_on_wrong_mount(monkeypatch
 
     with pytest.raises(RuntimeError, match="mount coherence failed for: api"):
         sessions._record_product_runtime_services(["api"], checkout_root, "commit", "tree")
+
+
+def test_configured_backend_mount_services_excludes_infrastructure(monkeypatch, tmp_path):
+    config = {
+        "services": {
+            "api": {"volumes": [{"target": "/app/backend", "source": "/runtime/backend"}]},
+            "openobserve": {"volumes": [{"target": "/data", "source": "openobserve-data"}]},
+        }
+    }
+    monkeypatch.setattr(
+        sessions,
+        "_docker_compose_command",
+        lambda *args, checkout_root: [*args],
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_run_cmd",
+        lambda command, **_kwargs: (0, json.dumps(config), ""),
+    )
+
+    assert sessions._configured_backend_mount_services(tmp_path) == {"api"}
+
+
+def test_runtime_provenance_ignores_service_without_backend_mount(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "runtime"
+    (checkout_root / "backend").mkdir(parents=True)
+    state_file = tmp_path / "runtime-state.json"
+    lock_file = tmp_path / "runtime-state.lock"
+    monkeypatch.setattr(sessions, "PRODUCT_RUNTIME_STATE_FILE", state_file)
+    monkeypatch.setattr(sessions, "PRODUCT_RUNTIME_STATE_LOCK_FILE", lock_file)
+    monkeypatch.setattr(sessions, "_configured_backend_mount_services", lambda _root: {"api"})
+    monkeypatch.setattr(
+        sessions,
+        "_running_backend_mounts",
+        lambda _root: {
+            "api": {"source": str(checkout_root / "backend"), "container_id": "api-current"},
+        },
+    )
+
+    sessions._record_product_runtime_services(
+        ["api", "openobserve"], checkout_root, "commit", "tree"
+    )
+
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    assert set(state["services"]) == {"api"}
 
 
 @pytest.mark.parametrize(

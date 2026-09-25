@@ -1,6 +1,8 @@
 // Chat and message data models matching the backend schemas.
 // Used for chat list, message display, and streaming AI responses.
 // E2EE fields (encrypted_*) are decrypted client-side using per-chat keys.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
 import Foundation
 import OSLog
@@ -91,6 +93,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let encryptedCategory: String?
     let encryptedIcon: String?
     let encryptedChatSummary: String?
+    let encryptedFollowUpRequestSuggestions: String?
     var encryptedAutoSpeakResponse: String?
     let encryptedChatKey: String?  // Per-chat AES key wrapped with master key (base64)
     let messagesV: Int?
@@ -128,6 +131,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         encryptedCategory: String? = nil,
         encryptedIcon: String? = nil,
         encryptedChatSummary: String? = nil,
+        encryptedFollowUpRequestSuggestions: String? = nil,
         encryptedAutoSpeakResponse: String? = nil,
         encryptedChatKey: String?,
         messagesV: Int? = nil,
@@ -163,6 +167,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.encryptedCategory = encryptedCategory
         self.encryptedIcon = encryptedIcon
         self.encryptedChatSummary = encryptedChatSummary
+        self.encryptedFollowUpRequestSuggestions = encryptedFollowUpRequestSuggestions
         self.encryptedAutoSpeakResponse = encryptedAutoSpeakResponse
         self.encryptedChatKey = encryptedChatKey
         self.messagesV = messagesV
@@ -207,6 +212,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         encryptedCategory = try container.decodeIfPresent(String.self, forKey: .encryptedCategory)
         encryptedIcon = try container.decodeIfPresent(String.self, forKey: .encryptedIcon)
         encryptedChatSummary = try container.decodeIfPresent(String.self, forKey: .encryptedChatSummary)
+        encryptedFollowUpRequestSuggestions = try container.decodeIfPresent(String.self, forKey: .encryptedFollowUpRequestSuggestions)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedFollowUpRequestSuggestionsSnake)
         encryptedAutoSpeakResponse = try container.decodeIfPresent(String.self, forKey: .encryptedAutoSpeakResponse)
         encryptedChatKey = try container.decodeIfPresent(String.self, forKey: .encryptedChatKey)
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
@@ -292,6 +299,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         case encryptedIcon
         case encryptedAutoSpeakResponse
         case encryptedChatSummary
+        case encryptedFollowUpRequestSuggestions
+        case encryptedFollowUpRequestSuggestionsSnake = "encrypted_follow_up_request_suggestions"
         case encryptedChatKey
         case messagesV
         case titleV
@@ -323,7 +332,10 @@ struct Chat: Identifiable, Decodable, Sendable {
     }
 
     var displayTitle: String {
-        title ?? "New Chat"
+        guard let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else {
+            return "New Chat"
+        }
+        return title
     }
 
     var isHiddenFromNormalSurfaces: Bool {

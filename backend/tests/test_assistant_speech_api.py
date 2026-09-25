@@ -141,9 +141,11 @@ async def test_rejects_rate_and_budget_before_dispatch_and_returns_safe_ready_me
         dispatch=dispatch,
     )
 
-    assert dispatches == [{"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1", "segments": payload["segments"]}]
+    assert dispatches == [{"user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1", "segments": payload["segments"], "defer_after_first": False, "require_registered": False}]
     assert result == {
         "status": "accepted",
+        "chat_id": "chat-1",
+        "message_id": "message-1",
         "segments": [
             {
                 "segment_id": "segment-0",
@@ -152,6 +154,42 @@ async def test_rejects_rate_and_budget_before_dispatch_and_returns_safe_ready_me
             }
         ],
     }
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.web-paragraph-demand,assistant-speech.on-demand.generate-missing-only,assistant-speech.access.first-party-owner-scoped
+@pytest.mark.asyncio
+async def test_deferred_web_request_preflights_only_first_paragraph_and_generate_requires_registered_source() -> None:
+    preflighted: list[int] = []
+    dispatched: list[dict[str, object]] = []
+
+    async def authorize(**_kwargs):
+        return {"chat_owner_id": "owner-1", "message_role": "assistant"}
+
+    async def preflight(**kwargs):
+        preflighted.append(kwargs["segment"]["sequence"])
+        return True
+
+    async def dispatch(**kwargs):
+        dispatched.append(kwargs)
+        return [{"segment_id": f"segment-{segment['sequence']}", "sequence": segment["sequence"], "status": "registered" if segment["sequence"] else "queued"} for segment in kwargs["segments"]]
+
+    segments = [
+        {"source_version": 1, "sequence": sequence, "kind": "prose_paragraph", "source_hash": "server-verified", "speakable_text": f"Paragraph {sequence}."}
+        for sequence in range(3)
+    ]
+    result = await handle_assistant_speech_request(
+        user_id="owner-1", payload={"chat_id": "chat-1", "assistant_message_id": "message-1", "segments": segments, "defer_after_first": True},
+        authorize=authorize, rate_limit=lambda **_kwargs: True, budget_preflight=preflight, dispatch=dispatch,
+    )
+    assert preflighted == [0]
+    assert dispatched[0]["defer_after_first"] is True
+    assert result["segments"][1]["status"] == "registered"
+    await handle_assistant_speech_request(
+        user_id="owner-1", payload={"action": "generate", "chat_id": "chat-1", "assistant_message_id": "message-1", "segments": [segments[1]]},
+        authorize=authorize, rate_limit=lambda **_kwargs: True, budget_preflight=preflight, dispatch=dispatch,
+    )
+    assert preflighted == [0, 1]
+    assert dispatched[1]["require_registered"] is True
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.access.first-party-owner-scoped
@@ -179,7 +217,7 @@ async def test_rate_limit_is_charged_once_by_requested_segment_count() -> None:
         dispatch=dispatch,
     )
 
-    assert result == {"status": "accepted", "segments": []}
+    assert result == {"status": "accepted", "chat_id": "chat-1", "message_id": "message-1", "segments": []}
     assert observed == [{"user_id": "owner-1", "chat_id": "chat-1", "segment_count": 2}]
 
 
@@ -381,6 +419,8 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
             "type": "assistant_speech_status",
             "payload": {
                 "status": "accepted",
+                "chat_id": "chat-1",
+                "message_id": "message-1",
                 "segments": [
                     {
                         "segment_id": "segment-ready",
@@ -615,6 +655,8 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
             "type": "assistant_speech_status",
             "payload": {
                 "status": "accepted",
+                "chat_id": "chat-1",
+                "message_id": "message-1",
                 "segments": [
                     {"segment_id": "segment-retryable-error", "sequence": 1, "request_sequence": 0, "kind": "prose_paragraph", "status": "queued"},
                     {"segment_id": "segment-retryable-error-2", "sequence": 2, "request_sequence": 1, "kind": "prose_paragraph", "status": "queued"},

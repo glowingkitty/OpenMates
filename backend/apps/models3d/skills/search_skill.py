@@ -14,6 +14,12 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 from backend.shared.providers.models3d_catalogs import (
     Model3DProviderError,
     Model3DSearchProvider,
@@ -42,6 +48,13 @@ class Model3DSearchRequestItem(BaseModel):
     count: int = Field(default=DEFAULT_RESULTS_PER_REQUEST, ge=1, le=MAX_RESULTS_PER_REQUEST)
     sort: str = "best_match"
     free_only: bool | None = None
+    relevance_criteria: str | None = Field(
+        default=None,
+        description=(
+            "Optional natural-language model-selection goal used to rank a larger candidate pool. "
+            "Omit it for a neutral search and never invent preferences."
+        ),
+    )
 
 
 class Model3DSearchResponse(BaseModel):
@@ -96,10 +109,44 @@ class SearchSkill(BaseSkill):
                 provider_names.update(provider.provider_name for provider in providers)
                 results, warnings = await collect_provider_search_results(
                     query=request.query.strip(),
-                    count=request.count,
+                    count=(
+                        relevance_candidate_target(request.count, profile="models3d")
+                        if request.relevance_criteria
+                        else request.count
+                    ),
                     providers=providers,
                 )
                 results = self._filter_and_sort_results(results, request)
+                if request.relevance_criteria:
+                    results = stable_deduplicate_candidates(
+                        results,
+                        key=lambda result: (
+                            result.provider.strip().lower(),
+                            result.provider_item_id.strip(),
+                        ),
+                    )
+                    projections = [self._ranking_projection(result) for result in results]
+                    try:
+                        ranking = await rank_search_candidates(
+                            candidates=results,
+                            candidate_projections=projections,
+                            relevance_criteria=request.relevance_criteria,
+                            search_parameters={
+                                "query": request.query,
+                                "providers": [provider.provider_name for provider in providers],
+                                "sort": request.sort,
+                                "free_only": bool(request.free_only),
+                            },
+                            profile="models3d",
+                            secrets_manager=secrets_manager,
+                        )
+                        results = ranking.candidates
+                    except Exception as exc:
+                        logger.warning(
+                            "models3d.search relevance ranking failed; preserving provider order: %s",
+                            type(exc).__name__,
+                        )
+                results = results[: request.count]
                 embed_results = [result.to_embed_payload() for result in results]
                 all_groups.append(
                     {
@@ -151,6 +198,7 @@ class SearchSkill(BaseSkill):
             if item.sort not in SUPPORTED_SORTS:
                 supported = ", ".join(sorted(SUPPORTED_SORTS))
                 raise ValueError(f"Unsupported 3D model search sort: {item.sort}. Supported values: {supported}")
+            item.relevance_criteria = normalize_relevance_criteria(item.relevance_criteria)
             normalized.append(item)
         return normalized
 
@@ -183,7 +231,34 @@ class SearchSkill(BaseSkill):
                 reverse=True,
             )
 
-        return filtered[: request.count]
+        return filtered
+
+    @staticmethod
+    def _ranking_projection(result: Any) -> dict[str, Any]:
+        """Return only explicit public listing facts useful for model selection."""
+
+        projection = {
+            "title": result.title,
+            "description": result.description,
+            "creator_name": result.creator_name,
+            "tags": result.tags,
+            "category": result.category,
+            "license": result.license,
+            "rating": result.rating,
+            "likes_count": result.likes_count,
+            "download_count": result.download_count,
+            "files_count": result.files_count,
+            "price": result.price,
+            "is_free": result.is_free,
+            "published_at": result.published_at,
+            "created_at": result.created_at,
+            "updated_at": result.updated_at,
+        }
+        return {
+            key: value
+            for key, value in projection.items()
+            if value is not None and value != []
+        }
 
     async def _providers_for_request(
         self,

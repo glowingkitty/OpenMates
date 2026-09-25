@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.projects
 version: 1
-status: draft
+status: approved
 title: Projects
 summary: >
   Projects are encrypted Personal or Team workspaces that organize OpenMates
@@ -24,15 +24,22 @@ scope:
     - Project key wrappers, encrypted item ids/metadata, encrypted Project associations, and explicit Personal/Team context.
     - Search, filtering, grouping, and recent activity over privacy-safe local/decrypted metadata.
     - REST, CLI, npm SDK, pip SDK, and web semantic parity where exposed.
+    - A Project-owned default Work on (project) focus, using existing repository agent instructions when available, and its relationship to chat write authorization.
+    - A required write-permission choice during new Project setup or existing-folder addition, with later changes available in Project settings through CLI, web, and native apps.
+    - Version-aware file creates and updates, safe recovery from intervening changes, and consistent conflict behavior when multiple chats use the same remote or OpenMates-stored file.
+    - Brief coordination of same-file writes and atomic publication of encrypted hosted-file revisions without granting the server independent decryption capability.
+    - Bounded waiting for an authorized file executor, a private email reminder after ten minutes, and explicit chat resume after a twenty-minute wait expires.
+    - A consistent split between Git-ignore discovery filtering, explicit exact-file inclusion, and non-overridable private-path denial across remote Project file operations.
   excludes:
     - Automatically materializing every repository test as a Project item.
     - Copying linked objects into Project-owned records or changing their canonical lifecycle state.
-    - Remote filesystem bridge behavior and source-file mutation authority.
+    - Low-level remote filesystem bridge protocols, patch application algorithms, and command execution authority; observable file-write authorization, freshness, and recovery requirements are included.
+    - Automatic Git worktree creation, branch switching, merging, and worktree cleanup in the initial file-editing release; remote edits target the connected folder directly.
     - Public APIs for raw Project ciphertext, raw keys, or server-side plaintext Project search.
     - Requiring one visual layout for every linked object type when equivalent responsive outcomes are preserved.
 
 relationships:
-  related_specifications: [feature.specifications, feature.plans, feature.tasks, feature.checks]
+  related_specifications: [feature.specifications, feature.plans, feature.tasks, feature.checks, feature.focus-modes]
 
 actors:
   - id: project_owner
@@ -99,7 +106,98 @@ models:
     status: {type: enum, values: [active, deferred, deprecated], required: true}
     position: {type: integer, required: true}
 
+  ProjectFileAccessPolicy:
+    private_paths: {type: normalized_source_relative_path_pattern_list, required: true, constraints: {extends_builtin_private_paths: true, explicit_user_activation: true, trusted_state_outside_agent_writable_project: true, weakening_builtin_rules_forbidden: true}}
+    definition_source: {type: literal, value: .openmates/permissions.yml.file_access, required: true, constraints: {definition_only: true, agent_authority: false}}
+
+  ProjectIgnoredFileGrant:
+    project_id: {type: stable_id, required: true}
+    source_id: {type: stable_id, required: true}
+    chat_id: {type: stable_id, required: true}
+    request_id: {type: stable_id, required: true}
+    normalized_path: {type: source_relative_file_path, required: true, constraints: {exact_file_only: true}}
+    approval_proof: {type: client_signed_user_confirmation, required: true}
+    expires_at: {type: timestamp, required: true, constraints: {ephemeral: true}}
+
 assertions:
+  - id: projects.files.search-scoped
+    type: security
+    must: Authorized Project filename and content search use dedicated bounded tools without per-search approval. Inputs express path, filename glob and literal or regex query; deterministic execution constructs controlled filesystem operations or rg arguments. Search cannot execute shell strings, preprocessors or user-controlled tool configuration, escape roots, follow disallowed links or broaden credential access. Remote search runs at the source and hosted search uses an authorized client, without server plaintext filesystem search or bulk remote repository upload.
+  - id: projects.files.search-consistent
+    type: behavior
+    must: Filename and content search return bounded relative paths, line numbers and snippets with honest truncation/omission status. Literal/regex, ignore and protected-path behavior is consistent across supported search implementations; a missing rg binary cannot silently change query semantics or broaden access. Ordinary source and configuration are distinguishable from credential restrictions, and search permission never implies terminal execution or file-write permission.
+  - id: projects.files.ignored-exact-inclusion
+    type: security
+    must: Git-ignore patterns are a discovery and direct-file-access filter, not a secrecy boundary. Matching files are absent from Project list and search results and cannot be directly read, previewed, imported, or edited until the client obtains explicit user confirmation for that exact normalized source-relative file. The resulting signed ephemeral grant is bound to Project, source, chat, request, path, and expiry; it accepts files only, never directories or globs, cannot be supplied or persisted by the model or Project files, and never overrides a private-path denial. Pattern matching applies consistently regardless of Git index state and across Git roots, nested repositories, hosted or plain folders, native rg, and fallback traversal.
+    depends_on: [models.ProjectIgnoredFileGrant, examples.project_file_access_policy]
+  - id: projects.files.private-path-deny
+    type: privacy
+    must: A versioned built-in private-path set plus explicitly user-activated additions defined in .openmates/permissions.yml file_access.private_paths deterministically denies Project list, search, direct read, preview, import, edit, recovery, and terminal content access or mutation. Active additions live in trusted state outside the agent-writable Project; the permissions file itself is built-in private, and deleting or changing its Project copy cannot relax active policy. The source executor or authorized hosted-file client resolves normalized paths, symlinks and known aliases and enforces the current policy before reading bytes, transmitting ciphertext or plaintext, decrypting content, or committing a write. Dedicated Project list and search omit matching names and contents, while direct file operations return only a generic private-path denial. A confined terminal may reveal that a filename exists, but cannot open, read, map, execute, overwrite, rename, link, or otherwise obtain or change its private content. Pathname enforcement covers newly created matching private paths, symlinks resolving into denied paths, and known pre-existing hard-link aliases; the sandbox cannot create or rename a denied source into an allowed alias. An external unconfined owner deliberately copying or hard-linking private data to a new allowed pathname republishes that data outside this path-based boundary, just as copying a secret into ordinary source would; source-owning peers should use the same policy. Nested repositories, plain folders, native tools, fallbacks, and reconnects retain the same boundary. Agent output, repository content, command approval, an exact ignored-file grant, or an agent-authored policy edit cannot bypass or weaken built-ins or active user policy. Existing remote and hosted encryption remains unchanged, and the server gains no plaintext path or content authority.
+    depends_on: [models.ProjectFileAccessPolicy, examples.project_file_access_policy]
+  - id: projects.files.executor-wait
+    type: behavior
+    must: When an authorized client or remote executor required for the next Project file operation is unavailable, expose a waiting state and release any write turn. Before the waiting deadline, work may resume automatically when an authorized capable executor is ready, within the original request and after current focus, role, path, write-policy, approval, and base checks. Another logged-in device is not automatically an authorized executor. The server must not bypass client-side encryption to keep working. Waiting alone must not run repeated model calls or consume model tokens.
+  - id: projects.files.wait-deadlines
+    type: invariant
+    must: Deterministic processing persists one waiting episode for the chat interruption, with a start time, a reminder due after ten elapsed minutes, and an automatic-resume deadline after twenty elapsed minutes. File count, scheduler retries, application reloads, server restarts, or connection flapping without resumed file progress must not restart the clock or create duplicate reminders. Deadline enforcement uses persisted elapsed-time state rather than a browser timer or model judgment. A stale event from an earlier episode cannot act on a newer episode.
+  - id: projects.files.wait-email
+    type: privacy
+    must: If the chat is still waiting after ten minutes and before its twenty-minute deadline, dispatch one reminder to the account running that chat through the existing eligible email-notification channel. Deduplicate by waiting episode across files and delivery retries, and recheck current state before dispatch. Email text and logs must not reveal encrypted chat or Project names, file paths, code, diffs, keys, or decryption material; an authenticated navigation link may open the relevant chat but cannot grant access or resume it by itself. Email unavailability, notification preferences, or delivery failure must not extend the deadline or falsely count as successful delivery. No additional deadline email is implied.
+  - id: projects.files.wait-expiry
+    type: behavior
+    must: At twenty elapsed minutes without resumed file progress, stop automatic waiting and continuation for the affected chat run and expose a paused state requiring an explicit user chat-resume action. Reconnection, reading an email, opening the chat, an old callback, or a Task scheduler event cannot restart it automatically. At or after the deadline, the resume path must honor expiry even if its scheduled timeout handler has not yet run. Explicit resume starts a fresh run or waiting episode as needed, retaining existing work and reevaluating current permissions, focus, policy, approvals, and file state rather than granting new access.
+  - id: projects.files.wait-result-reconciliation
+    type: invariant
+    must: Resume and timeout handling must reconcile a previously dispatched write's actual result before considering another attempt. An already-dispatched authorized ciphertext commit may finish while its client is offline; later acknowledgement may update that operation's outcome but cannot restart a chat run that has expired or was canceled. Applied work is not undone by the waiting deadline, and unknown outcomes are not claimed as applied or blindly replayed. Paused continuation data must retain existing encryption boundaries.
+  - id: projects.files.short-write-turn
+    type: invariant
+    must: Chats may read and prepare edits in parallel. Participating OpenMates writes to one underlying file serialize only the final current-state validation and commit; model inference, conflict regeneration, and human approval must not hold that exclusive turn. Different files are not reserved for an entire chat. Remote coordination must work across bridge processes and supported alternate routes to the same local target, retaining each request's own authorization. Abandoned coordination cannot indefinitely block other chats or allow a former owner to write after takeover. This does not claim coordination with arbitrary external filesystem writers.
+  - id: projects.files.hosted-ciphertext-commit
+    type: invariant
+    must: For an OpenMates-stored Project file, an authorized client with the required keys verifies the decrypted base, applies the patch, and encrypts the resulting snapshot and version/diff history. The storage service checks scoped object identity, authorization, and an expected opaque revision or version number, then atomically publishes the new encrypted head with its corresponding history. A stale revision publishes neither a replacement head nor a successful history entry. Every supported writer to the same underlying Project file, including edit and restore paths, must use this revision boundary. The server does not need to decrypt, merge, or validate plaintext patch semantics to arbitrate the commit.
+  - id: projects.files.no-server-decryption-authority
+    type: privacy
+    must: Project file editing, conflict recovery, history, undo, and coordination preserve client-side encryption. They must not grant the server the ability to decrypt stored files or embeds by itself, including through persisted plaintext, server-readable decryption keys or wrappers, or a background decryption fallback. New revision coordination metadata must not expose plaintext paths, diffs, or plaintext-content hashes; content fingerprints needed by clients remain encrypted or local. Existing user-authorized transient AI context is distinct from independent storage decryption and is not expanded by these write capabilities. Lacking an authorized decryption context cannot justify a plaintext fallback or a false claim of an applied change.
+  - id: projects.files.commit-replay
+    type: invariant
+    must: A write operation has a stable identity scoped to its authorized origin and immutable proposal. A repeated delivery after a lost response must resolve the prior outcome without applying the same mutation or adding successful history twice. Rebuilding a proposal creates a distinct attempt bound to its new base; an operation identity cannot silently be reused for different changes. Recovering an unknown outcome does not bypass current access checks or overwrite later work.
+  - id: projects.files.expected-base
+    type: invariant
+    must: A file update must identify its authorized target and expected content base or stored revision; a create must require that the target does not yet exist. The write boundary deterministically checks these preconditions. An observed content change, replaced or missing target, or failed create precondition rejects that stale mutation without changing that file. A timestamp-only change is not a content conflict. Missing or unverifiable current state is not permission to overwrite. Private file contents, paths, and content fingerprints remain within their authorized encryption and storage boundaries.
+  - id: projects.files.exact-patch
+    type: invariant
+    must: A patch must apply unambiguously to its validated base. Missing, ambiguous, or mismatched patch context produces a recoverable failure without changing that file; the system must not silently force a fuzzy replacement, discard intervening edits, or fall back to an unconditional whole-file overwrite. A regenerated patch is checked against its new base again.
+  - id: projects.files.automatic-recovery
+    type: behavior
+    must: In Apply and show changes mode, an agent receiving a recoverable stale-file or patch failure may reread authorized current content and regenerate its edit within the original request without asking for another routine write permission. It must preserve compatible intervening changes and apply the same guards on every attempt. Recovery has a finite enforced attempt budget; repeated failures must not cause an unbounded model or write loop. A requested change already present can be reported as already satisfied without a redundant write or claiming another writer's work as this chat's own.
+  - id: projects.files.conflict-decision
+    type: failure
+    must: When the agent cannot reconcile intervening changes with the requested outcome without a material choice, or its recovery budget is exhausted, it pauses the affected edit and explains the concrete conflict or failure to the user. It must not silently reverse the competing intent, expand the requested scope, or report completion. Any independent changes already applied remain distinguishable from blocked or unapplied changes; failure does not justify restoring an older whole-file snapshot over newer work.
+  - id: projects.files.recovery-authorization
+    type: security
+    must: Recovery retains the originating chat and Project identity and reevaluates current focus, role, path access, and write policy. A retry cannot borrow another chat's access or reactivate focus. Always ask before writes requires approval of the refreshed concrete proposal; approval for an earlier proposal does not authorize a changed diff. If current read access is denied, recovery must not fetch or disclose fresh contents to explain the conflict.
+  - id: projects.files.concurrent-chat-safety
+    type: invariant
+    must: Freshness and recovery requirements apply equally when an intervening change comes from another chat, another authorized client, or a detected external filesystem edit. Two OpenMates writes racing from the same base to the same underlying file must not both succeed as unconditional replacements; once one succeeds, the other must validate against the resulting state before mutating it. Different chat, device, Project-link, or bridge-process identities must not bypass this rule. Per-file freshness is not a guarantee of whole-Project snapshot isolation, atomic multi-file changes, or semantic compatibility across different files; a detected conflict remains visible rather than being reported as a successful combined change.
+  - id: projects.files.write-policy-setup
+    type: behavior
+    must: After a user initiates creating a new Project or adding an existing folder as a Project, setup must ask the user to choose Apply and show changes or Always ask before writes before completing that operation. The general Projects workspace must not show this question outside that setup flow. Apply and show changes is the recommended first option, but new setup requires an explicit answer; a preselected option or timeout is not consent. Projects created before this setting existed assume Apply and show changes and an authorized client initializes their encrypted default focus when first needed. Both choices apply to OpenMates-stored and remote Project files.
+  - id: projects.files.write-policy-enforcement
+    type: security
+    must: With the correct Project focus active and other permissions satisfied, Apply and show changes permits ordinary requested file creates and updates without another approval for each file and presents the resulting changes. Always ask before writes requires explicit approval of the concrete proposed changes before any mutation. An active focus alone cannot bypass this choice, and approval cannot silently extend to different changes. Both modes retain deterministic path, version, role, and other applicable guards; neither grants shell execution or automatic worktrees.
+  - id: projects.files.write-policy-settings
+    type: parity
+    must: Authorized users can inspect and change the Project write-permission choice at any time through Project settings in the CLI, web app, and native app. All three interfaces operate on the same persisted Project setting; changing it does not require recreating the Project or chat. Subsequent write authorization uses the current setting rather than a stale value from chat history or prior inference, and the active Project-focus prerequisite remains in force.
+    depends_on: [applies_to.cli, applies_to.gui]
+  - id: projects.focus.default-owned
+    type: behavior
+    must: Every newly created Project stores its own default focus mode named Work on (project name). The focus has an unambiguous association with that Project and its private content follows the Project's encrypted storage and access boundaries. A similarly named focus from another Project is not equivalent.
+  - id: projects.focus.existing-instructions
+    type: behavior
+    must: When an existing repository is added as a Project and has an AGENTS.md or CLAUDE.md-style agent instruction file, those existing instructions provide the Project's default Work on (project) focus instead of an unrelated generic instruction. Source files cannot grant themselves filesystem authority. Multiple-source precedence and synchronization policy remain separate design decisions.
+  - id: projects.files.chat-focus-required
+    type: security
+    must: Chat-initiated creation or modification of a Project file requires a currently active focus stored in that same Project, as enforced by the shared Project-focus write gate in feature.focus-modes. This requirement applies to both OpenMates-stored files and remote source files and does not replace ownership, role, path, version, or other applicable write checks. An active focus in another chat does not satisfy this chat's requirement.
   - id: projects.access.explicit-context
     type: security
     must: Every Project operation resolves to exactly one authenticated Personal or Team context; ambiguous context, unknown Team, or insufficient role fails before returning rows, wrappers, or item metadata.
@@ -185,13 +283,19 @@ applies_to:
             accessibility: [semantic_item_types, keyboard_list_navigation, non_color_status, focus_restored_on_close]
             responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
             design_references: optional
-      apple: {required: false}
+      apple:
+        required: true
+        role: Required native scope for this slice is the Project setup write-permission question and viewing/changing that same choice in Project settings. Full mixed-object Project organization remains deferred by the exception below.
+        requirements:
+          - id: projects.apple.write-policy
+            assertions: [projects.files.write-policy-setup, projects.files.write-policy-settings]
+            interactions: [choose_write_policy_during_setup, view_project_write_policy, change_project_write_policy]
     exceptions:
       - id: apple-project-authoring-deferred
         implementation: apple
-        reason: Full mixed-object Project organization starts on web.
+        reason: Full mixed-object Project organization starts on web; this deferral does not exclude the required native setup write-permission question or Project write-policy settings.
         equivalent_outcome: Apple must preserve encrypted Project context, object identity, lifecycle ownership, and accessible detail when implemented.
 
 examples:
   file: examples.yml
-  required_groups: [project_contexts, project_key_wrappers, project_item_links, project_surface_catalog, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]
+  required_groups: [project_executor_wait, project_encrypted_file_writes, project_file_freshness, project_file_recovery, project_file_recovery_authorization, project_file_concurrency, project_write_policy, project_default_focus, project_focus_writes, project_contexts, project_key_wrappers, project_item_links, project_surface_catalog, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]

@@ -29,6 +29,7 @@ if _SCRIPTS_DIR not in sys.path:
 from debug_trace import (  # noqa: E402
     _build_error_trace_sql,
     _get_full_trace_spans,
+    _main_via_admin_api,
     format_json,
     format_trace_timeline,
     parse_args,
@@ -635,11 +636,34 @@ class TestGetFullTraceSpans:
 
 
 class TestBuildErrorTraceSql:
-    """Error trace discovery SQL should find distinct trace IDs."""
+    """Error trace discovery SQL should find deduplicated trace IDs."""
 
     def test_error_trace_sql_deduplicates_trace_ids(self):
-        sql = _build_error_trace_sql(route="/v1/ws")
+        sql = _build_error_trace_sql(route="/v1/ws", fingerprint="timeout")
 
-        assert "SELECT DISTINCT trace_id" in sql
+        assert "SELECT trace_id, MAX(_timestamp) AS latest_timestamp" in sql
+        assert "GROUP BY trace_id ORDER BY latest_timestamp DESC" in sql
+        assert "SELECT DISTINCT trace_id" not in sql
         assert "http_status_code >= 400" in sql
         assert "operation_name LIKE '%/v1/ws%'" in sql
+        assert "status_message LIKE '%timeout%'" in sql
+
+    def test_admin_error_path_uses_openobserve_compatible_query(self):
+        args = MagicMock(
+            command="errors",
+            last="1h",
+            route="/v1/ws",
+            fingerprint="timeout",
+        )
+
+        with (
+            patch("debug_trace._get_admin_api_key", return_value="admin-key"),
+            patch("debug_trace._admin_api_trace_sql", return_value=[]) as search,
+            patch("debug_trace._collect_full_spans_via_admin_api", return_value=[]),
+            patch("debug_trace.format_json", return_value="[]"),
+        ):
+            _main_via_admin_api(args, use_json=True)
+
+        sql = search.call_args.args[0]
+        assert "SELECT trace_id, MAX(_timestamp) AS latest_timestamp" in sql
+        assert "GROUP BY trace_id ORDER BY latest_timestamp DESC" in sql

@@ -38,6 +38,7 @@ vi.mock("../websocketService", () => ({ webSocketService: mocks.webSocketService
 
 import {
   getAssistantSpeechPreference,
+  persistAssistantSpeechPreferenceIntent,
   setAssistantSpeechPreference,
 } from "../assistantSpeechPreference";
 
@@ -48,9 +49,12 @@ describe("assistant speech preference", () => {
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
     mocks.encryptWithChatKey.mockResolvedValue("encrypted-preference");
-    mocks.webSocketService.sendMessage.mockImplementation(async () => {
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      _type: string,
+      payload: { chat_id: string },
+    ) => {
       mocks.handlers.get("encrypted_metadata_stored")?.({
-        chat_id: "chat-1",
+        chat_id: payload.chat_id,
         versions: { metadata_v: 1 },
       });
     });
@@ -91,6 +95,40 @@ describe("assistant speech preference", () => {
       expect.objectContaining({
         chat_id: "chat-1",
         encrypted_chat_key: "wrapped-chat-key",
+        encrypted_auto_speak_response: "encrypted-preference",
+      }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,chats.persistence.client-encrypted
+  it("persists deferred voice intent after the first message becomes durable", async () => {
+    const draftChat = {
+      chat_id: "chat-deferred",
+      messages_v: 0,
+      title_v: 0,
+      metadata_v: 0,
+      encrypted_chat_key: "wrapped-chat-key",
+      encrypted_auto_speak_response: null,
+    };
+    const durableChat = {
+      ...draftChat,
+      messages_v: 1,
+      last_edited_overall_timestamp: 1,
+    };
+    mocks.chatDB.getChat
+      .mockResolvedValueOnce(draftChat)
+      .mockResolvedValueOnce(durableChat)
+      .mockResolvedValueOnce(durableChat);
+
+    await setAssistantSpeechPreference("chat-deferred", true);
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalled();
+
+    await persistAssistantSpeechPreferenceIntent("chat-deferred");
+
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "encrypted_chat_metadata",
+      expect.objectContaining({
+        chat_id: "chat-deferred",
         encrypted_auto_speak_response: "encrypted-preference",
       }),
     );

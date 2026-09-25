@@ -380,6 +380,24 @@ decisions:
   reason: User explicitly chose the GitHub CI path for component testing on 2026-09-20.
   decided_at: '2026-09-20'
 planning_amendments:
+- id: DAILY-RECOVERY-1
+  revision: 1
+  requested_at: '2026-09-23'
+  goal: >-
+    The daily test runs have appeared absent for days; determine the actual failure and plan the
+    most reliable path to restore scheduled execution, canonical results, and trustworthy status.
+  document: docs/plans/isolated-github-tests/daily-reliability-recovery-2026-09-23.md
+  authority: >-
+    The user requested investigation and a recovery plan on 2026-09-23. This amendment records
+    findings and execution sequencing only; implementation remains pending. Human notification
+    destinations still require explicit approval before activation.
+  execution_authority: OpenMates Tasks owns status and dependency edges; the document contains no duplicate task-status ledger.
+  task_links:
+    umbrella: da3ce961-e5bc-4114-b28f-203c2878ee9f
+    scheduler: 41cb406e-4d51-4b45-bf40-f9489943e9c4
+    finalizer: 260af82e-f5ee-45cf-a90b-8a99775b2f77
+    status: 848b1b8e-9b63-478c-9013-cfd5e028b290
+    verification: a3853a24-3653-4f46-ac1e-74e8a407325c
 - id: EFFICIENCY-2
   revision: 1
   requested_at: '2026-09-20'

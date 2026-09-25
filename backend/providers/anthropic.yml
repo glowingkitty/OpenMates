@@ -122,6 +122,58 @@ models:
         price: 1.00
         currency: USD
 
+  # Pricing verified 2026-09-23 against the official Claude Opus 5.5 model page.
+  - id: "claude-opus-5-5" # Official Claude API model ID
+    name: "Claude Opus 5.5"
+    description: "Anthropic's high-capability model for long-running agentic coding and knowledge work."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-22"
+    capability_level: "high"
+    allow_auto_select: true
+    search_aliases:
+      - "opus 5.5"
+      - "claude 5.5 opus"
+      - "claude-opus-5-5"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    reasoning: true
+    default_server: "anthropic"
+    servers:
+      - id: "anthropic"
+        name: "Anthropic API"
+        model_id: "claude-opus-5-5"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+        output:
+          per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+    costs:
+      input_per_million_token:
+        price: 4.00
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 20.00
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 5.00
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.20
+        currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "claude-opus-5" # Official Claude API model ID
     name: "Claude Opus 5"
     description: "Latest Opus model for complex agentic coding, enterprise work, and deep reasoning."

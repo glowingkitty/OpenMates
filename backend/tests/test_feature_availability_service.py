@@ -28,16 +28,15 @@ UNRELEASED_PLATFORM_FEATURES = {
     "platform:projects",
     "platform:tasks",
     "platform:plans",
-    "platform:workflows",
 }
 UNRELEASED_AI_APPS = {
     "app:projects",
     "app:tasks",
     "app:plans",
-    "app:workflows",
 }
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_features_are_enabled_by_default() -> None:
     service = FeatureAvailabilityService(
         definitions=[FeatureDefinition(id="skill:web:search", kind="skill")],
@@ -48,6 +47,7 @@ def test_features_are_enabled_by_default() -> None:
     assert service.explain("skill:web:search").effective_enabled is True
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_default_enabled_false_requires_admin_enable() -> None:
     feature = FeatureDefinition(id="embed:code:application", kind="embed", default_enabled=False)
 
@@ -61,6 +61,7 @@ def test_default_enabled_false_requires_admin_enable() -> None:
     assert enabled_service.is_enabled("embed:code:application") is True
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_disabled_parent_disables_children_unless_child_explicitly_enabled() -> None:
     definitions = [
         FeatureDefinition(id="app:videos", kind="app"),
@@ -82,6 +83,7 @@ def test_disabled_parent_disables_children_unless_child_explicitly_enabled() -> 
     assert service.is_enabled("embed:videos:video") is False
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_sparse_disabled_feature_ids_do_not_list_enabled_defaults() -> None:
     definitions = [
         FeatureDefinition(id="app:web", kind="app"),
@@ -96,6 +98,7 @@ def test_sparse_disabled_feature_ids_do_not_list_enabled_defaults() -> None:
     assert service.list_disabled_feature_ids() == ["app:videos", "embed:code:application"]
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_unfinished_platform_features_are_default_disabled() -> None:
     disabled_platform_ids = {
         definition.id
@@ -115,6 +118,7 @@ def test_unfinished_platform_features_are_default_disabled() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() -> None:
     release_config = yaml.safe_load((BACKEND_CONFIG_DIR / "backend_config.yml").read_text(encoding="utf-8"))
     dev_config = yaml.safe_load((BACKEND_CONFIG_DIR / "backend_config.dev.yml").read_text(encoding="utf-8"))
@@ -124,10 +128,14 @@ def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() ->
 
     assert UNRELEASED_PLATFORM_FEATURES.isdisjoint(release_overrides["enabled"])
     assert UNRELEASED_PLATFORM_FEATURES | UNRELEASED_AI_APPS <= set(release_overrides["disabled"])
+    assert "platform:workflows" in release_overrides["enabled"]
+    assert "platform:workflows" not in release_overrides["disabled"]
+    assert "app:workflows" not in release_overrides["disabled"]
     assert UNRELEASED_PLATFORM_FEATURES <= set(dev_overrides["enabled"])
     assert UNRELEASED_AI_APPS.isdisjoint(dev_overrides["disabled"])
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_availability_route_returns_sparse_disabled_ids(monkeypatch) -> None:
     definitions = [
         FeatureDefinition(id="app:web", kind="app"),
@@ -145,6 +153,7 @@ def test_availability_route_returns_sparse_disabled_ids(monkeypatch) -> None:
     assert "features" not in response.json()
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_legacy_disabled_apps_migrate_to_feature_overrides() -> None:
     config = {"disabled_apps": ["images", "videos"], "feature_overrides": {"disabled": ["app:web"]}}
 
@@ -154,6 +163,7 @@ def test_legacy_disabled_apps_migrate_to_feature_overrides() -> None:
     assert "disabled_apps" not in migrated
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_raw_manifest_definitions_include_default_disabled_embeds(tmp_path) -> None:
     app_dir = tmp_path / "code"
     app_dir.mkdir()
@@ -176,6 +186,7 @@ embed_types:
     assert application.default_enabled is False
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_raw_manifest_definitions_include_default_disabled_apps(tmp_path) -> None:
     app_dir = tmp_path / "workflows"
     app_dir.mkdir()

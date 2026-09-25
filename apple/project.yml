@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.20.0"
+    MARKETING_VERSION: "0.21.0"
     CURRENT_PROJECT_VERSION: 12
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -203,8 +203,11 @@ targets:
       - path: OpenMates/Sources/Core/Networking/APIClient.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      - path: OpenMates/Sources/Core/Watch/WatchItemOpenModel.swift
+      - path: OpenMates/Sources/Core/Watch/WatchPhoneOpenPayload.swift
       - path: OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
       - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      - path: OpenMates/Sources/Shared/Extensions/FontRegistration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
       - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
       - path: OpenMatesShared/OpenMatesSharedEnvironment.swift

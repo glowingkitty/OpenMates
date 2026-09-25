@@ -120,7 +120,7 @@ test.describe('Workflow definition history', () => {
 			workflowId = (await createResponse.json()).workflow.id;
 
 			await page.setViewportSize(LAPTOP_VIEWPORT);
-			await page.goto(getE2EDebugUrl(`/workflows#workflow-id=${workflowId}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl(`/#workflow-id=${workflowId}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30_000 });
 
 			const weatherNode = page.getByTestId('workflow-node-card').filter({ hasText: 'Weather' }).first();

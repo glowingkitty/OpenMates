@@ -12,6 +12,7 @@ final class SettingsFullParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testGuestPublicSettingsSubmenusOpenAndReturn() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache"]
@@ -36,6 +37,7 @@ final class SettingsFullParityUITests: XCTestCase {
         attachScreenshot(name: "Guest settings submenu smoke")
     }
 
+    // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testAuthenticatedSettingsSubmenusOpenAndReturn() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -56,6 +58,7 @@ final class SettingsFullParityUITests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testChatShareSettingsOpenAsNestedSettingsDestination() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -73,6 +76,7 @@ final class SettingsFullParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
     }
 
+    // contract-test: direct surface=gui.apple assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.logs.authenticated-capture
     func testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -112,6 +116,29 @@ final class SettingsFullParityUITests: XCTestCase {
         attachScreenshot(name: "Report issue submission success with simulator logs")
     }
 
+    // contract-test: direct surface=gui.apple assertions=issue-reporting.entry.device-shake,issue-reporting.form.role-aware-controls,issue-reporting.logs.authenticated-capture
+    func testDeviceShakeOpensReportIssueWithDiagnosticsExcludedByDefault() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-trigger-device-shake-report",
+        ]
+        app.launch()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-report-issue-form"].waitForExistence(timeout: 15),
+            "The deterministic device-shake trigger should open Report Issue."
+        )
+        let diagnosticsToggle = app.switches["report-issue-include-diagnostics"]
+        XCTAssertTrue(diagnosticsToggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(diagnosticsToggle.value as? String, "Off")
+        XCTAssertFalse(app.descendants(matching: .any)["admin-send-email-notification"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Report Issue must keep OpenMates product chrome.")
+
+        attachScreenshot(name: "Device shake report entry with diagnostics excluded")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
     func testSettingsShellProducesLightAndDarkReviewArtifacts() {
         for appearance in ["Light", "Dark"] {
             let app = XCUIApplication()

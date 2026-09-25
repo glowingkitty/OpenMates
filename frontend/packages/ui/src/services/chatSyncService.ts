@@ -80,11 +80,16 @@ import type {
   ConnectedAccountSendContext,
   PreparedConnectedAccountSendContext,
 } from "./connectedAccountTokenBrokerService";
+import type { ProjectFocusSendIntent } from "./projectFocusSendPreflight";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 import { chatListCache } from "./chatListCache";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { getTeam, unwrapTeamChatKey } from "./teamService";
+import {
+  setProjectFileJobsCapabilityEnabled,
+  setRemoteCommandJobsCapabilityEnabled,
+} from "../config/api";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -93,6 +98,38 @@ const CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY = "chat-sync-recovery";
 const CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE = "Chat sync is still recovering";
 const CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE =
   "Please keep this tab open while we reload your chats.";
+const PROJECT_FILE_COMMIT_TIMEOUT_MS = 30_000;
+const PROJECT_FILE_EXECUTOR_EVENTS = new Set([
+  "project_file_operation_claim",
+  "project_file_operation_result",
+  "project_file_operation_reject",
+]);
+const REMOTE_COMMAND_ORIGIN_EVENTS = new Set([
+  "remote_command_prepare",
+  "remote_command_reject",
+  "remote_command_stop",
+  "remote_command_origin_completion",
+]);
+
+export interface BrowserProjectFileExecutor {
+  available(payload: unknown): Promise<void>;
+  request(payload: unknown): Promise<void>;
+  stop(): void;
+}
+
+export interface BrowserRemoteCommandClient {
+  review(payload: unknown): Promise<void>;
+  event(payload: unknown): Promise<void>;
+  response(kind: string, payload: unknown): void;
+  owns(payload: unknown): boolean;
+  stop(): void;
+}
+
+interface PendingProjectFileCommit {
+  resolve: (payload: Record<string, unknown>) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+}
 
 export class ChatSynchronizationService extends EventTarget {
   private isSyncing = false;
@@ -134,6 +171,50 @@ export class ChatSynchronizationService extends EventTarget {
   private inconsistentChatIds: Set<string> = new Set();
   private inconsistencyDebounceTimer: NodeJS.Timeout | null = null;
   private readonly INCONSISTENCY_DEBOUNCE_MS = 500; // Batch inconsistencies detected within 500ms
+  private projectFileExecutor: BrowserProjectFileExecutor | null = null;
+  private remoteCommandClient: BrowserRemoteCommandClient | null = null;
+  private pendingProjectFileCommits = new Map<
+    string,
+    PendingProjectFileCommit
+  >();
+
+  /**
+   * Converge a server-confirmed focus activation into the encrypted chat metadata
+   * and live UI stores. Project focus activation calls this directly after REST;
+   * catalog focus activation reaches it through the existing WebSocket event.
+   */
+  public async applyConfirmedFocusActivation(
+    chatId: string,
+    focusId: string,
+    projectName?: string,
+  ): Promise<void> {
+    activeChatFocusStore.setActiveFocus(chatId, focusId);
+    try {
+      const chat = await chatDB.getChat(chatId);
+      if (!chat) throw new Error("Focus activation chat is unavailable");
+      const chatKey = await chatKeyManager.getKey(chatId);
+      if (!chatKey) throw new Error("Focus activation chat key is unavailable");
+      const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
+      if (!(await ensureChatKeySafeForWrite(chatId, chatKey, "active focus id encryption"))) {
+        throw new Error("Focus activation chat key is unsafe for write");
+      }
+      const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
+      const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
+      chat.encrypted_active_focus_id = encryptedFocusId;
+      await chatDB.updateChat(chat);
+      chatMetadataCache.invalidateChat(chatId);
+      await webSocketService.sendMessage("update_encrypted_active_focus_id", {
+        chat_id: chatId,
+        encrypted_active_focus_id: encryptedFocusId,
+      });
+      this.dispatchEvent(new CustomEvent("focusModeActivated", {
+        detail: { chat_id: chatId, focus_id: focusId, project_name: projectName },
+      }));
+    } catch (error) {
+      activeChatFocusStore.clearActiveFocus(chatId);
+      throw error;
+    }
+  }
 
   constructor() {
     super();
@@ -146,6 +227,8 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
       this.handlersRegistered = false;
+      this.clearProjectFileExecutor(false);
+      this.clearRemoteCommandClient(false);
       // Stop pending message retry on logout — without this, the interval
       // keeps running every 5s after logout, spamming "Skipping pending message retry"
       this.stopPendingMessageRetry();
@@ -295,6 +378,7 @@ export class ChatSynchronizationService extends EventTarget {
           "[ChatSyncService] WebSocket disconnected or error.",
           { hasCompletedInitialSync: this.hasCompletedInitialSync },
         );
+        this.rejectPendingProjectFileCommits("Project file connection closed");
 
         // Always clear in-progress sync state
         this.isSyncing = false;
@@ -354,6 +438,320 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private handlersRegistered = false; // Prevent duplicate registration
+
+  public installProjectFileExecutor(
+    executor: BrowserProjectFileExecutor,
+  ): () => void {
+    if (this.projectFileExecutor === executor)
+      return () => this.clearProjectFileExecutor(true, executor);
+    this.clearProjectFileExecutor(false);
+    this.projectFileExecutor = executor;
+    setProjectFileJobsCapabilityEnabled(true);
+    if (webSocketService.isConnected()) {
+      webSocketService.forceReconnect("Project file executor installed");
+    }
+    return () => this.clearProjectFileExecutor(true, executor);
+  }
+
+  private clearProjectFileExecutor(
+    reconnect: boolean,
+    expected?: BrowserProjectFileExecutor,
+  ): void {
+    if (
+      !this.projectFileExecutor ||
+      (expected && this.projectFileExecutor !== expected)
+    )
+      return;
+    const executor = this.projectFileExecutor;
+    this.projectFileExecutor = null;
+    executor.stop();
+    this.rejectPendingProjectFileCommits("Project file executor stopped");
+    setProjectFileJobsCapabilityEnabled(false);
+    if (
+      reconnect &&
+      webSocketService.isConnected() &&
+      get(authStore).isAuthenticated &&
+      !get(isLoggingOut) &&
+      !get(forcedLogoutInProgress)
+    ) {
+      webSocketService.forceReconnect("Project file executor removed");
+    }
+  }
+
+  public installRemoteCommandClient(
+    client: BrowserRemoteCommandClient,
+  ): () => void {
+    if (this.remoteCommandClient === client)
+      return () => this.clearRemoteCommandClient(true, client);
+    this.clearRemoteCommandClient(false);
+    this.remoteCommandClient = client;
+    setRemoteCommandJobsCapabilityEnabled(true);
+    if (webSocketService.isConnected()) {
+      webSocketService.forceReconnect("Remote command client installed");
+    }
+    return () => this.clearRemoteCommandClient(true, client);
+  }
+
+  public installProjectAgentClients(
+    projectFileExecutor: BrowserProjectFileExecutor,
+    remoteCommandClient: BrowserRemoteCommandClient,
+  ): () => void {
+    this.clearProjectFileExecutor(false);
+    this.clearRemoteCommandClient(false);
+    this.projectFileExecutor = projectFileExecutor;
+    this.remoteCommandClient = remoteCommandClient;
+    // Set both flags before opening/replacing a socket so even a cold-connect
+    // URL cannot advertise only half of the installed Project agent runtime.
+    setProjectFileJobsCapabilityEnabled(true);
+    setRemoteCommandJobsCapabilityEnabled(true);
+    if (get(authStore).isAuthenticated) {
+      webSocketService.forceReconnect("Project agent clients installed");
+    }
+    return () => {
+      this.clearProjectFileExecutor(false, projectFileExecutor);
+      this.clearRemoteCommandClient(false, remoteCommandClient);
+      if (
+        webSocketService.isConnected() &&
+        get(authStore).isAuthenticated &&
+        !get(isLoggingOut) &&
+        !get(forcedLogoutInProgress)
+      ) {
+        webSocketService.forceReconnect("Project agent clients removed");
+      }
+    };
+  }
+
+  private clearRemoteCommandClient(
+    reconnect: boolean,
+    expected?: BrowserRemoteCommandClient,
+  ): void {
+    if (
+      !this.remoteCommandClient ||
+      (expected && this.remoteCommandClient !== expected)
+    )
+      return;
+    const client = this.remoteCommandClient;
+    this.remoteCommandClient = null;
+    client.stop();
+    setRemoteCommandJobsCapabilityEnabled(false);
+    if (
+      reconnect &&
+      webSocketService.isConnected() &&
+      get(authStore).isAuthenticated &&
+      !get(isLoggingOut) &&
+      !get(forcedLogoutInProgress)
+    ) {
+      webSocketService.forceReconnect("Remote command client removed");
+    }
+  }
+
+  public sendRemoteCommandEvent = async (
+    event: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> => {
+    const chatId = payload.chat_id;
+    const isActiveChat =
+      typeof chatId === "string" &&
+      Boolean(chatId) &&
+      activeChatStore.get() === chatId &&
+      Boolean(chatKeyManager.getKeySync(chatId));
+    const isOwnedContinuation =
+      (event === "remote_command_stop" ||
+        event === "remote_command_origin_completion") &&
+      this.remoteCommandClient?.owns(payload) === true;
+    if (
+      !this.remoteCommandClient ||
+      !REMOTE_COMMAND_ORIGIN_EVENTS.has(event) ||
+      typeof chatId !== "string" ||
+      !chatId ||
+      (!isActiveChat && !isOwnedContinuation) ||
+      !get(authStore).isAuthenticated ||
+      get(isLoggingOut) ||
+      get(forcedLogoutInProgress)
+    ) {
+      throw new Error("Remote command client is unavailable");
+    }
+    await webSocketService.sendMessage(event, payload);
+  };
+
+  private async forwardRemoteCommandEvent(
+    kind: "review" | "event",
+    payload: unknown,
+  ): Promise<void> {
+    if (
+      !this.remoteCommandClient ||
+      !payload ||
+      typeof payload !== "object" ||
+      Array.isArray(payload)
+    )
+      return;
+    const chatId = (payload as Record<string, unknown>).chat_id;
+    const isOwnedEvent =
+      kind === "event" && this.remoteCommandClient.owns(payload);
+    if (
+      typeof chatId !== "string" ||
+      !chatId ||
+      (activeChatStore.get() !== chatId && !isOwnedEvent) ||
+      get(isLoggingOut) ||
+      get(forcedLogoutInProgress)
+    )
+      return;
+    const chatKey = isOwnedEvent
+      ? true
+      : chatKeyManager.getKeySync(chatId) ??
+        (await chatKeyManager.getKey(chatId));
+    if (
+      !chatKey ||
+      (activeChatStore.get() !== chatId && !isOwnedEvent) ||
+      !this.remoteCommandClient
+    )
+      return;
+    try {
+      await this.remoteCommandClient[kind](payload);
+    } catch {
+      console.warn(`[ChatSyncService] Remote command ${kind} event failed`);
+    }
+  }
+
+  private forwardRemoteCommandResponse(kind: string, payload: unknown): void {
+    if (!this.remoteCommandClient) return;
+    try {
+      this.remoteCommandClient.response(kind, payload);
+    } catch {
+      console.warn("[ChatSyncService] Remote command response failed");
+    }
+  }
+
+  public sendProjectFileExecutorEvent = async (
+    event: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> => {
+    const chatId = payload.chat_id;
+    if (
+      !this.projectFileExecutor ||
+      !PROJECT_FILE_EXECUTOR_EVENTS.has(event) ||
+      typeof chatId !== "string" ||
+      !chatId ||
+      activeChatStore.get() !== chatId ||
+      !chatKeyManager.getKeySync(chatId) ||
+      !get(authStore).isAuthenticated ||
+      get(isLoggingOut) ||
+      get(forcedLogoutInProgress)
+    ) {
+      throw new Error("Project file executor is unavailable");
+    }
+    await webSocketService.sendMessage(event, payload);
+  };
+
+  public commitProjectFileRevision = async (
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> => {
+    const chatId = payload.chat_id;
+    if (
+      !this.projectFileExecutor ||
+      typeof chatId !== "string" ||
+      !chatId ||
+      activeChatStore.get() !== chatId ||
+      !chatKeyManager.getKeySync(chatId) ||
+      !get(authStore).isAuthenticated ||
+      get(isLoggingOut) ||
+      get(forcedLogoutInProgress)
+    ) {
+      throw new Error("Project file executor is unavailable");
+    }
+    const requestId = crypto.randomUUID();
+    const response = new Promise<Record<string, unknown>>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingProjectFileCommits.delete(requestId);
+        reject(new Error("Project file commit response timed out"));
+      }, PROJECT_FILE_COMMIT_TIMEOUT_MS);
+      this.pendingProjectFileCommits.set(requestId, {
+        resolve,
+        reject,
+        timeout,
+      });
+    });
+    try {
+      await webSocketService.sendMessage("commit_embed_revision", {
+        ...payload,
+        request_id: requestId,
+      });
+    } catch (error) {
+      this.rejectPendingProjectFileCommit(
+        requestId,
+        error instanceof Error
+          ? error
+          : new Error("Project file commit failed"),
+      );
+    }
+    return response;
+  };
+
+  private rejectPendingProjectFileCommit(
+    requestId: string,
+    error: Error,
+  ): void {
+    const pending = this.pendingProjectFileCommits.get(requestId);
+    if (!pending) return;
+    this.pendingProjectFileCommits.delete(requestId);
+    clearTimeout(pending.timeout);
+    pending.reject(error);
+  }
+
+  private rejectPendingProjectFileCommits(message: string): void {
+    for (const requestId of Array.from(this.pendingProjectFileCommits.keys())) {
+      this.rejectPendingProjectFileCommit(requestId, new Error(message));
+    }
+  }
+
+  private async forwardProjectFileExecutorEvent(
+    kind: "available" | "request",
+    payload: unknown,
+  ): Promise<void> {
+    if (
+      !this.projectFileExecutor ||
+      !payload ||
+      typeof payload !== "object" ||
+      Array.isArray(payload)
+    )
+      return;
+    const chatId = (payload as Record<string, unknown>).chat_id;
+    if (
+      typeof chatId !== "string" ||
+      !chatId ||
+      activeChatStore.get() !== chatId ||
+      get(isLoggingOut) ||
+      get(forcedLogoutInProgress)
+    )
+      return;
+    const chatKey =
+      chatKeyManager.getKeySync(chatId) ??
+      (await chatKeyManager.getKey(chatId));
+    if (
+      !chatKey ||
+      activeChatStore.get() !== chatId ||
+      !this.projectFileExecutor
+    )
+      return;
+    try {
+      await this.projectFileExecutor[kind](payload);
+    } catch {
+      console.warn(`[ChatSyncService] Project file ${kind} event failed`);
+    }
+  }
+
+  private handleProjectFileCommitResult(payload: unknown): void {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload))
+      return;
+    const result = payload as Record<string, unknown>;
+    const requestId = result.request_id;
+    if (typeof requestId !== "string") return;
+    const pending = this.pendingProjectFileCommits.get(requestId);
+    if (!pending) return;
+    this.pendingProjectFileCommits.delete(requestId);
+    clearTimeout(pending.timeout);
+    pending.resolve(result);
+  }
 
   private isPayloadForActiveContext(payload: { team_id?: string | null; context_epoch?: number }): boolean {
     const activeContext = get(activeTeamContext);
@@ -504,6 +902,33 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     this.handlersRegistered = true;
+
+    webSocketService.on("project_file_operation_available", (payload) => {
+      void this.forwardProjectFileExecutorEvent("available", payload);
+    });
+    webSocketService.on("project_file_operation_request", (payload) => {
+      void this.forwardProjectFileExecutorEvent("request", payload);
+    });
+    webSocketService.on("commit_embed_revision_result", (payload) => {
+      this.handleProjectFileCommitResult(payload);
+    });
+    webSocketService.on("remote_command_review_required", (payload) => {
+      void this.forwardRemoteCommandEvent("review", payload);
+    });
+    webSocketService.on("remote_command_event", (payload) => {
+      void this.forwardRemoteCommandEvent("event", payload);
+    });
+    for (const responseType of [
+      "remote_command_prepared",
+      "remote_command_rejected",
+      "remote_command_stop_ack",
+      "remote_command_origin_completion_ack",
+      "remote_command_error",
+    ]) {
+      webSocketService.on(responseType, (payload) => {
+        this.forwardRemoteCommandResponse(responseType, payload);
+      });
+    }
 
     webSocketService.on("initial_sync_response", (payload) =>
       coreSyncHandlers.handleInitialSyncResponseImpl(
@@ -1313,70 +1738,7 @@ export class ChatSynchronizationService extends EventTarget {
         const chatId = focusPayload.chat_id;
         const focusId = focusPayload.focus_id;
         if (!chatId || !focusId) return;
-        activeChatFocusStore.setActiveFocus(chatId, focusId);
-        console.warn("[ChatSyncService] Focus mode activated:", {
-          chatId,
-          focusId,
-        });
-
-        // The server sends the plaintext focus_id — we must encrypt it with the
-        // chat key (client-side AES-GCM) before storing, because encrypted_active_focus_id
-        // is an E2E encrypted field that chatMetadataCache decrypts with decryptWithChatKey().
-        const { chatDB } = await import("./db");
-        const chat = await chatDB.getChat(chatId);
-        if (chat) {
-          const chatKey = await chatKeyManager.getKey(chatId);
-          if (chatKey) {
-            const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
-            if (
-              !(await ensureChatKeySafeForWrite(
-                chatId,
-                chatKey,
-                "active focus id encryption",
-              ))
-            ) {
-              return;
-            }
-            const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
-            const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
-            chat.encrypted_active_focus_id = encryptedFocusId;
-            await chatDB.updateChat(chat);
-            console.warn(
-              "[ChatSyncService] Encrypted and stored active focus ID in IndexedDB",
-            );
-
-            // CRITICAL: Invalidate the chatMetadataCache so the next read
-            // (e.g., from ChatContextMenu) decrypts the fresh encrypted_active_focus_id
-            // instead of returning stale cached data without activeFocusId.
-            const { chatMetadataCache } = await import("./chatMetadataCache");
-            chatMetadataCache.invalidateChat(chatId);
-            console.warn(
-              "[ChatSyncService] Invalidated chatMetadataCache for focus mode update",
-            );
-
-            // Send the client-encrypted value back to the server so it can persist
-            // the correctly encrypted value to Directus and cache. The server cannot
-            // encrypt with the chat key (E2E), so the client must provide it.
-            webSocketService.sendMessage("update_encrypted_active_focus_id", {
-              chat_id: chatId,
-              encrypted_active_focus_id: encryptedFocusId,
-            });
-            console.warn(
-              "[ChatSyncService] Sent encrypted_active_focus_id to server for persistence",
-            );
-          } else {
-            console.warn(
-              "[ChatSyncService] No chat key available for focus mode encryption",
-            );
-          }
-        }
-
-        // Dispatch event so ActiveChat and other components can react
-        this.dispatchEvent(
-          new CustomEvent("focusModeActivated", {
-            detail: { chat_id: chatId, focus_id: focusId },
-          }),
-        );
+        await this.applyConfirmedFocusActivation(chatId, focusId);
       } catch (e) {
         console.error(
           "[ChatSyncService] Error handling focus_mode_activated:",
@@ -2053,6 +2415,7 @@ export class ChatSynchronizationService extends EventTarget {
     message: Message,
     encryptedSuggestionToDelete?: string | null,
     connectedAccountContext?: ConnectedAccountSendContext,
+    projectFocusIntent?: ProjectFocusSendIntent,
   ): Promise<void> {
     const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
     let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
@@ -2073,6 +2436,7 @@ export class ChatSynchronizationService extends EventTarget {
       message,
       encryptedSuggestionToDelete,
       preparedConnectedAccountContext,
+      projectFocusIntent,
     );
   }
 

@@ -43,6 +43,46 @@ beforeEach(() => {
 const accepted = (segments: unknown[]) => mocks.handlers.get("assistant_speech_status")?.({ status: "accepted", segments });
 const ready = { segment_id: "segment-0", sequence: 0, status: "ready", generated_asset_id: "asset-0", message_id: "message", chat_id: "chat" };
 
+// contract-test: direct surface=gui.web assertions=assistant-speech.execution.web-paragraph-demand,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control
+it("registers manual chapters but dispatches a skipped chapter only when selected", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "message", "First paragraph.\n\nSecond paragraph.");
+  expect(mocks.send).toHaveBeenCalledWith("assistant_speech", expect.objectContaining({ action: "request", defer_after_first: true }));
+  await accepted([{ segment_id: "segment-0", sequence: 0, status: "queued" }, { segment_id: "segment-1", sequence: 1, status: "registered" }]);
+  expect(mocks.send).toHaveBeenCalledTimes(1);
+  await controller.selectSegment("segment-1");
+  expect(mocks.send).toHaveBeenCalledWith("assistant_speech", expect.objectContaining({
+    action: "generate", segments: [expect.objectContaining({ sequence: 1, speakable_text: "Second paragraph." })],
+  }));
+  await controller.close();
+  expect(mocks.send).toHaveBeenCalledWith("assistant_speech", expect.objectContaining({ action: "cancel", assistant_message_id: "message" }));
+});
+
+// contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.execution.web-paragraph-demand,assistant-speech.on-demand.generate-missing-only
+it("uses transient streamed text to dispatch a deferred automatic chapter", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  controller.registerSource("chat", "message", "First paragraph.\n\nSecond paragraph.");
+  await mocks.handlers.get("assistant_speech_status")?.({ segment_id: "segment-0", sequence: 0, status: "queued", kind: "prose_paragraph", message_id: "message", chat_id: "chat" });
+  await mocks.handlers.get("assistant_speech_status")?.({ segment_id: "segment-1", sequence: 1, status: "registered", kind: "prose_paragraph", message_id: "message", chat_id: "chat" });
+  expect(mocks.send).not.toHaveBeenCalled();
+  await controller.selectSegment("segment-1");
+  expect(mocks.send).toHaveBeenCalledWith("assistant_speech", expect.objectContaining({ action: "generate", assistant_message_id: "message" }));
+  await controller.close();
+});
+
+// contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control
+it("repeats cancellation if a queued acceptance arrives after Close", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "message", "First paragraph.\n\nSecond paragraph.");
+  await controller.close();
+  await mocks.handlers.get("assistant_speech_status")?.({
+    status: "accepted", chat_id: "chat", message_id: "message",
+    segments: [{ segment_id: "segment-0", sequence: 0, status: "queued" }],
+  });
+  expect(mocks.send.mock.calls.filter((call) => call[1]?.action === "cancel")).toHaveLength(2);
+  expect(get(controller.player).status).toBe("stopped");
+});
+
 // contract-test: supporting surface=gui.web assertions=assistant-speech.failure.nonblocking-visible-resumable
 it("keeps current playback controls usable when a later chapter fails", async () => {
   const { assistantSpeechController: controller } = await import("../assistantSpeechController");
@@ -128,7 +168,7 @@ it("retains normalized manual chapters when later worker status uses an offset",
 });
 
 
-// contract-test: supporting surface=gui.web assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.deterministic-chapter-labels
+// contract-test: supporting surface=gui.web assertions=assistant-speech.execution.web-paragraph-demand,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.deterministic-chapter-labels
 it("maps reused audio after collapsed searches using the requested chapter order", async () => {
   const { assistantSpeechController: controller } = await import("../assistantSpeechController");
   await controller.request("chat", "message", "## First\nFirst paragraph.\n\n## Second\nSecond paragraph.");
@@ -143,6 +183,7 @@ it("maps reused audio after collapsed searches using the requested chapter order
   await controller.next();
   expect(get(controller.player).activeSegmentId).toBe("segment-1");
   expect(get(controller.player).status).toBe("playing");
+  expect(mocks.send.mock.calls.filter((call) => call[1]?.action === "generate")).toHaveLength(0);
   await controller.close();
 });
 

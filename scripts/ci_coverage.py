@@ -24,6 +24,8 @@ CORE_SPECS = frozenset({
     "guest-interest-smart-selection.spec.ts",
     "notification-stack.spec.ts",
     "paste-classification.spec.ts",
+    # Schema/CLI metadata only; no provider credentials or AI inference.
+    "skill-search-relevance-parity.spec.ts",
 
     "interface-font-settings.spec.ts",
     "language-settings-flow.spec.ts",
@@ -35,6 +37,10 @@ CORE_SPECS = frozenset({
 
 
     "test-account-preflight.spec.ts",
+    # Real core auth/chat state; share/report failures are explicit browser stubs.
+    "report-issue-context-fallback.spec.ts",
+    # Browser media fixtures; real first-turn preflight/metadata ACKs, no TTS.
+    "voice-first-preflight-order.spec.ts",
     "tasks-flow.spec.ts",
     "task-detail-fullscreen.spec.ts",
     "task-blocked-reason.spec.ts",

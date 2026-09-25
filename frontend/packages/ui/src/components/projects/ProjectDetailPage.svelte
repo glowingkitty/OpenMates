@@ -29,7 +29,7 @@
 </script>
 
 <section class="detail-page" data-testid="project-detail-page">
-  <nav><a href="/projects">{domainLabel}</a><WorkspaceReportIssueButton /></nav>
+  <nav><a href="/#projects">{domainLabel}</a><WorkspaceReportIssueButton /></nav>
   {#if project}
     <WorkspaceDetailHeader title={project.name || $text('common.detail_untitled', { values: { item: domainLabel } })} description={project.description || ''} category="productivity" icon="folder" writable={true} onSaveTitle={saveTitle} onSaveDescription={saveDescription} metadata={$text('common.detail_items_count', { values: { count: project.encrypted.item_count ?? 0 } })} />
   {:else if hasError}

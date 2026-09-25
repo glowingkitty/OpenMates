@@ -1,0 +1,216 @@
+project_root:
+  context: Root breadcrumb label in the Project file browser
+  en: Project root
+  verified_by_human: []
+focus_active:
+  context: Active Project focus pill in the chat composer. {project} is the decrypted Project name.
+  en: Work on {project}
+  verified_by_human: []
+connected_source:
+  context: Badge for a folder or repository connected through the remote-access bridge
+  en: Connected
+  verified_by_human: []
+remote_preview_transient:
+  context: Privacy status below an on-demand remote file preview
+  en: Remote preview · loaded on demand · not stored in OpenMates
+  verified_by_human: []
+remote_preview_truncated:
+  context: Warning when a remote text preview reached the safe read limit
+  en: Preview is truncated at the safe read limit.
+  verified_by_human: []
+import_to_openmates:
+  context: Deliberate action that persists one selected remote file as an encrypted OpenMates embed
+  en: Import to OpenMates
+  verified_by_human: []
+import_unavailable:
+  context: Disabled remote-file import action when the read is incomplete
+  en: Import unavailable
+  verified_by_human: []
+import_requires_complete_read:
+  context: Tooltip explaining why a truncated remote file cannot be imported
+  en: Import requires a complete, non-truncated file read
+  verified_by_human: []
+remote_preview_unsupported:
+  context: Error shown for remote binary or otherwise unsupported preview formats
+  en: Preview unavailable for this file type.
+  verified_by_human: []
+remote_results_limited:
+  context: Notice when a connected source directory or search result reached its safe item limit
+  en: Some results are not shown because the safe result limit was reached.
+  verified_by_human: []
+remote_results_protected:
+  context: Notice when protected or ignored connected-source entries were intentionally excluded
+  en: Protected or ignored entries are hidden.
+  verified_by_human: []
+file_approval_waiting:
+  context: Persistent notification for a Project file approval waiting in another chat
+  en: A conversation is waiting for project file approval.
+  verified_by_human: []
+file_approval_view:
+  context: Action to open the chat that is waiting for a Project file approval
+  en: View
+  verified_by_human: []
+file_write_approval_title:
+  context: Heading above an exact file change requiring approval before application
+  en: Review this file change
+  verified_by_human: []
+ignored_read_approval_title:
+  context: Heading requesting consent to read one exact gitignored file
+  en: Read this ignored file?
+  verified_by_human: []
+ignored_read_approval_description:
+  context: Scope of explicit consent to read an ignored file within a chat
+  en: Allow this chat to read this file. Other ignored files remain excluded, and private files stay protected.
+  verified_by_human: []
+file_change_applied:
+  context: Heading above the exact file change successfully applied by this chat
+  en: File changed
+  verified_by_human: []
+file_change_review:
+  context: Expandable control showing the complete proposed or applied file patch
+  en: View changes
+  verified_by_human: []
+file_read_approve:
+  context: Approve reading the one ignored file shown in the approval card
+  en: Allow reading this file
+  verified_by_human: []
+file_write_approve:
+  context: Approve applying the exact file change shown in the approval card
+  en: Apply this change
+  verified_by_human: []
+file_approval_reject:
+  context: Decline the pending Project file operation
+  en: Decline
+  verified_by_human: []
+remote_command_title:
+  context: Browser remote terminal command review and execution status
+  en: "Review terminal command"
+  verified_by_human: []
+remote_command_effects:
+  context: Browser remote terminal command review and execution status
+  en: "What it does"
+  verified_by_human: []
+remote_command_risks:
+  context: Browser remote terminal command review and execution status
+  en: "Risks"
+  verified_by_human: []
+remote_command_uncertainty:
+  context: Browser remote terminal command review and execution status
+  en: "Uncertainty"
+  verified_by_human: []
+remote_command_exact_arguments:
+  context: Browser remote terminal command review and execution status
+  en: "Exact command arguments"
+  verified_by_human: []
+remote_command_directory:
+  context: Browser remote terminal command review and execution status
+  en: "Working directory"
+  verified_by_human: []
+remote_command_source_access:
+  context: Browser remote terminal command review and execution status
+  en: "Project access"
+  verified_by_human: []
+remote_command_network:
+  context: Browser remote terminal command review and execution status
+  en: "Network profile"
+  verified_by_human: []
+remote_command_writable:
+  context: Browser remote terminal command review and execution status
+  en: "Other writable locations"
+  verified_by_human: []
+remote_command_credentials:
+  context: Browser remote terminal command review and execution status
+  en: "Credential profiles"
+  verified_by_human: []
+remote_command_time_limit:
+  context: Browser remote terminal command review and execution status
+  en: "Time limit"
+  verified_by_human: []
+remote_command_none:
+  context: Browser remote terminal command review and execution status
+  en: "None"
+  verified_by_human: []
+remote_command_access_read_only:
+  context: Browser remote terminal command review and execution status
+  en: "Read only"
+  verified_by_human: []
+remote_command_access_read_write:
+  context: Browser remote terminal command review and execution status
+  en: "Read and write"
+  verified_by_human: []
+remote_command_output:
+  context: Browser remote terminal command review and execution status
+  en: "Terminal output"
+  verified_by_human: []
+remote_command_failed:
+  context: Browser remote terminal command review and execution status
+  en: "Command could not complete"
+  verified_by_human: []
+remote_command_approve:
+  context: Browser remote terminal command review and execution status
+  en: "Run this command once"
+  verified_by_human: []
+remote_command_stop:
+  context: Browser remote terminal command review and execution status
+  en: "Stop command"
+  verified_by_human: []
+remote_command_status_pending:
+  context: Browser remote terminal command review and execution status
+  en: "Waiting for your approval"
+  verified_by_human: []
+remote_command_status_preparing:
+  context: Browser remote terminal command review and execution status
+  en: "Preparing command"
+  verified_by_human: []
+remote_command_status_waiting_for_executor:
+  context: Browser remote terminal command review and execution status
+  en: "Waiting for connected machine"
+  verified_by_human: []
+remote_command_status_authorizing:
+  context: Browser remote terminal command review and execution status
+  en: "Checking access"
+  verified_by_human: []
+remote_command_status_running:
+  context: Browser remote terminal command review and execution status
+  en: "Running"
+  verified_by_human: []
+remote_command_status_stop_requested:
+  context: Browser remote terminal command review and execution status
+  en: "Stopping"
+  verified_by_human: []
+remote_command_status_succeeded:
+  context: Browser remote terminal command review and execution status
+  en: "Completed"
+  verified_by_human: []
+remote_command_status_failed:
+  context: Browser remote terminal command review and execution status
+  en: "Failed"
+  verified_by_human: []
+remote_command_status_stopped:
+  context: Browser remote terminal command review and execution status
+  en: "Stopped"
+  verified_by_human: []
+remote_command_status_timed_out:
+  context: Browser remote terminal command review and execution status
+  en: "Time limit reached"
+  verified_by_human: []
+remote_command_status_rejected:
+  context: Browser remote terminal command review and execution status
+  en: "Declined"
+  verified_by_human: []
+remote_command_status_error:
+  context: Browser remote terminal command review and execution status
+  en: "Could not run command"
+  verified_by_human: []
+remote_command_mode:
+  context: Terminal execution mode shown before approval
+  en: "Execution mode"
+  verified_by_human: []
+remote_command_mode_foreground:
+  context: Terminal execution mode shown before approval
+  en: "Wait for completion"
+  verified_by_human: []
+remote_command_mode_background:
+  context: Terminal execution mode shown before approval
+  en: "Continue chat while running"
+  verified_by_human: []

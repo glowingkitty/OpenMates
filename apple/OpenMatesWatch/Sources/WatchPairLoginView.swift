@@ -1,6 +1,6 @@
-// Watch QR/PIN pair-login view.
+// Watch short-URL/PIN pair-login view.
 // Presents the existing OpenMates Magic Pair Login flow in a compact standalone
-// watchOS layout: generate QR code, poll authorization state, then auto-submit a
+// watchOS layout: show a short URL, poll authorization state, then auto-submit a
 // sanitized six-character PIN. Runtime logic lives in PairLoginRuntime.
 
 // ─── Web source ─────────────────────────────────────────────────────
@@ -10,11 +10,21 @@
 // CSS:     frontend/packages/ui/src/styles/auth.css, buttons.css, fields.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.iphone-first-fallback
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
 private let watchPairLoginDiagnosticsCategory = "watch_pair_login"
+
+enum WatchPairLoginFixtureState: Equatable {
+    case iphoneConfirm
+    case cloudShortURL
+    case selfHostedShortURL
+    case selfHostedDomainEntry
+    case pairCodeEntry
+}
 
 @MainActor
 final class WatchPairLoginState: ObservableObject {
@@ -25,24 +35,33 @@ final class WatchPairLoginState: ObservableObject {
     @Published var pin = ""
     @Published var errorMessage: String?
     @Published var isSubmitting = false
+    @Published var showsManualFallback = false
+    @Published var manualFallbackSelected = false
+    @Published var phoneRequestSent = false
+    @Published var phoneApprovalStarted = false
+    @Published var phoneApprovalEnded = false
     @Published var serverProfile = WatchServerProfileStore().currentProfile()
     @Published var customDomain = ""
 
     var attemptState = WatchPairAttemptState()
     var initiationTask: Task<Void, Never>?
     var pollTask: Task<Void, Never>?
+    var fallbackTask: Task<Void, Never>?
 
     deinit {
         initiationTask?.cancel()
         pollTask?.cancel()
+        fallbackTask?.cancel()
     }
 
     @discardableResult
     func beginAttempt(serverProfile: ServerProfile) -> Int {
         initiationTask?.cancel()
         pollTask?.cancel()
+        fallbackTask?.cancel()
         initiationTask = nil
         pollTask = nil
+        fallbackTask = nil
         token = nil
         activeTokenServerProfile = nil
         pairURLString = nil
@@ -50,6 +69,11 @@ final class WatchPairLoginState: ObservableObject {
         pin = ""
         errorMessage = nil
         isSubmitting = false
+        showsManualFallback = false
+        manualFallbackSelected = false
+        phoneRequestSent = false
+        phoneApprovalStarted = false
+        phoneApprovalEnded = false
         self.serverProfile = serverProfile
         return attemptState.begin(serverProfile: serverProfile)
     }
@@ -57,33 +81,76 @@ final class WatchPairLoginState: ObservableObject {
 
 struct WatchPairLoginView: View {
     @ObservedObject var authStore: WatchAuthStore
-    @StateObject private var pairState = WatchPairLoginState()
-    @StateObject private var phoneBridge = WatchPhoneLoginBridge()
-    @State private var showFullScreenQRCode = false
+    @StateObject private var pairState: WatchPairLoginState
+    @StateObject private var phoneBridge = WatchPhoneLoginBridge.shared
     @State private var showSelfHostedInput = false
+    @State private var domainEditorVisible = false
+    @State private var pinEditorVisible = false
+    @State private var showsReadyShortURL = false
+    @FocusState private var domainFieldFocused: Bool
+    @FocusState private var pinFieldFocused: Bool
     @State private var selfHostedError: String?
+    private let uiTestFixture: WatchPairLoginFixtureState?
+
+    init(authStore: WatchAuthStore, uiTestFixture: WatchPairLoginFixtureState? = nil) {
+        self.authStore = authStore
+        self.uiTestFixture = uiTestFixture
+        let state = WatchPairLoginState()
+        if let uiTestFixture {
+            state.token = "WATCH42"
+            switch uiTestFixture {
+            case .iphoneConfirm:
+                state.pairURLString = "https://openmates.org/#pair=WATCH42"
+                state.status = .waiting
+                state.phoneRequestSent = true
+            case .cloudShortURL:
+                state.pairURLString = "https://openmates.org/#pair=WATCH42"
+                state.status = .waiting
+                state.showsManualFallback = true
+            case .selfHostedShortURL:
+                state.serverProfile = .custom(domain: "mydomain.org")
+                state.pairURLString = "https://mydomain.org/#pair=WATCH42"
+                state.status = .waiting
+                state.showsManualFallback = true
+            case .selfHostedDomainEntry:
+                state.pairURLString = "https://openmates.org/#pair=WATCH42"
+                state.status = .waiting
+            case .pairCodeEntry:
+                state.pairURLString = "https://openmates.org/#pair=WATCH42"
+                state.status = .ready
+            }
+        }
+        _pairState = StateObject(wrappedValue: state)
+        _showSelfHostedInput = State(initialValue: uiTestFixture == .selfHostedDomainEntry)
+    }
 
     var body: some View {
+        GeometryReader { geometry in
         ZStack {
             Color.grey100.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: .spacing4) {
-                    statusView
-
-                    if pairState.status == .waiting,
-                       phoneBridge.isPhoneReachable {
-                        confirmOnIPhoneView
-                    }
-
-                    if pairState.pairURLString != nil {
-                        manualFallbackView
-                    }
-
-                    selfHostedConnectionView
-
-                    if pairState.status == .ready {
-                        pinSection
+                    if showSelfHostedInput {
+                        selfHostedConnectionView
+                    } else if pairState.status == .ready {
+                        if showsReadyShortURL {
+                            manualFallbackView
+                        } else {
+                            pinSection
+                        }
+                    } else {
+                        statusView
+                        if pairState.status == .waiting,
+                           pairState.phoneRequestSent,
+                           !pairState.showsManualFallback {
+                            confirmOnIPhoneView
+                        }
+                        if pairState.status == .waiting,
+                           pairState.showsManualFallback,
+                           pairState.pairURLString != nil {
+                            manualFallbackView
+                        }
                     }
 
                     if pairState.status == .expired || pairState.status == .failed {
@@ -104,24 +171,40 @@ struct WatchPairLoginView: View {
                     }
                 }
                 .padding(.horizontal, .spacing3)
-                .padding(.vertical, .spacing4)
+                .padding(.top, .spacing4)
+                .padding(.bottom, .spacing8)
             }
-
-            if showFullScreenQRCode, let pairURLString = pairState.pairURLString {
-                WatchFullScreenQRCodeView(payload: pairURLString) {
-                    showFullScreenQRCode = false
+            .ignoresSafeArea(edges: .top)
+        }
+        .frame(width: geometry.size.width, height: geometry.size.height)
+        .overlay(alignment: .bottom) {
+            if showSelfHostedInput && !domainEditorVisible {
+                keyboardEntryButton(identifier: "watch-pair-self-host-keyboard") {
+                    domainEditorVisible = true
+                    domainFieldFocused = true
                 }
-                .transition(.opacity)
-                .zIndex(2)
+                .offset(y: geometry.safeAreaInsets.bottom - .spacing2)
+            } else if pairState.status == .ready && !showsReadyShortURL && !pinEditorVisible && pairState.pin.isEmpty {
+                keyboardEntryButton(identifier: "watch-pair-pin-keyboard") {
+                    pinEditorVisible = true
+                    pinFieldFocused = true
+                }
+                .offset(y: geometry.safeAreaInsets.bottom - .spacing2)
             }
         }
+        }
         .task {
-            phoneBridge.start(onApproval: { approval in handlePhoneApproval(approval) })
+            guard uiTestFixture == nil else { return }
+            phoneBridge.start(
+                onApproval: { approval in handlePhoneApproval(approval) },
+                onAcknowledgment: { acknowledgment in handlePhoneAcknowledgment(acknowledgment) }
+            )
             startPairingIfNeeded()
         }
         .onChange(of: phoneBridge.isPhoneReachable) { _, isReachable in
             if isReachable { sendPhoneLoginRequestIfPossible() }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-pair-login")
     }
 
@@ -139,11 +222,13 @@ struct WatchPairLoginView: View {
                     .multilineTextAlignment(.center)
             }
         case .waiting:
-            Text(WatchStrings.pairWaiting)
-                .font(.omXs)
-                .foregroundStyle(Color.grey0.opacity(0.82))
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("watch-pair-waiting-label")
+            if !pairState.showsManualFallback, !pairState.phoneRequestSent {
+                Text(WatchStrings.pairWaiting)
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey0.opacity(0.82))
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("watch-pair-waiting-label")
+            }
         case .ready:
             EmptyView()
         case .expired:
@@ -154,30 +239,36 @@ struct WatchPairLoginView: View {
     }
 
     private var pinSection: some View {
-        VStack(spacing: .spacing2) {
-            Text(WatchStrings.pairEnterPinTitle)
+        VStack(spacing: .spacing4) {
+            pairHeader(WatchStrings.pairShortURLLabel) {
+                showsReadyShortURL = true
+            }
+
+            Text(WatchStrings.pairEnterCodePrompt)
                 .font(.omSmall)
-                .fontWeight(.semibold)
+                .fontWeight(.bold)
                 .foregroundStyle(Color.grey0)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: 145)
+                .padding(.top, CGFloat.spacing12 + CGFloat.spacing3)
+                .accessibilityIdentifier("watch-pair-code-prompt")
 
-            Text(WatchStrings.pairEnterPinDescription)
-                .font(.omXs)
-                .foregroundStyle(Color.grey0.opacity(0.72))
-                .multilineTextAlignment(.center)
-
-            TextField(WatchStrings.pairPinPlaceholder, text: $pairState.pin)
-                .font(.omP.monospaced())
-                .fontWeight(.bold)
-                .foregroundStyle(Color.fontPrimary)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, .spacing2)
-                .padding(.horizontal, .spacing3)
-                .background(Color.grey0)
-                .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                .onChange(of: pairState.pin) { _, newValue in sanitizeAndSubmitPin(newValue) }
-                .disabled(pairState.isSubmitting)
-                .accessibilityIdentifier("watch-pair-pin-input")
+            if pinEditorVisible || !pairState.pin.isEmpty {
+                TextField(WatchStrings.pairPinPlaceholder, text: $pairState.pin)
+                    .font(.omP)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, .spacing2)
+                    .padding(.horizontal, .spacing3)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .focused($pinFieldFocused)
+                    .onAppear { pinFieldFocused = true }
+                    .onChange(of: pairState.pin) { _, newValue in sanitizeAndSubmitPin(newValue) }
+                    .disabled(pairState.isSubmitting)
+                    .accessibilityIdentifier("watch-pair-pin-input")
+            }
 
             if pairState.isSubmitting {
                 Text(WatchStrings.pairLoggingIn)
@@ -188,40 +279,73 @@ struct WatchPairLoginView: View {
                 messageBox(text: errorMessage)
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var confirmOnIPhoneView: some View {
-        VStack(spacing: .spacing3) {
+        VStack(spacing: .spacing8) {
+            Image("WatchPairLoginIcon")
+                .resizable()
+                .renderingMode(.original)
+                .frame(width: 76, height: 76)
+                .accessibilityHidden(true)
+
             Text(WatchStrings.pairConfirmOnIphone)
                 .font(.omSmall)
-                .fontWeight(.semibold)
+                .fontWeight(.bold)
                 .foregroundStyle(Color.grey0)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: 140)
                 .accessibilityIdentifier("watch-pair-confirm-iphone-title")
 
-            Text(WatchStrings.pairConfirmOnIphoneDescription)
-                .font(.omXs)
-                .foregroundStyle(Color.grey0.opacity(0.72))
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("watch-pair-confirm-iphone-description")
+            Button {
+                pairState.fallbackTask?.cancel()
+                pairState.manualFallbackSelected = true
+                pairState.showsManualFallback = true
+            } label: {
+                Text(WatchStrings.pairTapShortURL)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey0.opacity(0.82))
+                    .multilineTextAlignment(.center)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, .spacing3)
+            .accessibilityIdentifier("watch-pair-login-without-iphone-button")
 
         }
-        .padding(.spacing3)
-        .background(Color.grey80.opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .frame(maxWidth: .infinity)
+        .padding(.top, .spacing10)
     }
 
     private var selfHostedConnectionView: some View {
-        VStack(spacing: .spacing2) {
-            if showSelfHostedInput {
+        VStack(spacing: .spacing4) {
+            pairHeader(WatchStrings.pairCloudLabel) {
+                showSelfHostedInput = false
+                domainEditorVisible = false
+                selfHostedError = nil
+            }
+
+            Text(WatchStrings.pairSelfHostedDomainPrompt)
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.grey0)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 150)
+                .padding(.top, CGFloat.spacing12 + CGFloat.spacing3)
+                .accessibilityIdentifier("watch-pair-self-host-prompt")
+
+            if domainEditorVisible {
                 TextField(WatchStrings.pairSelfHostedPlaceholder, text: $pairState.customDomain)
-                    .font(.omTiny)
+                    .font(.omSmall)
                     .foregroundStyle(Color.fontPrimary)
                     .multilineTextAlignment(.center)
                     .padding(.vertical, .spacing2)
                     .padding(.horizontal, .spacing2)
                     .background(Color.grey0)
                     .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    .focused($domainFieldFocused)
+                    .onAppear { domainFieldFocused = true }
                     .accessibilityIdentifier("watch-pair-self-host-input")
 
                 if let selfHostedError {
@@ -240,52 +364,9 @@ struct WatchPairLoginView: View {
                 .buttonStyle(.plain)
                 .disabled(pairState.customDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("watch-pair-self-host-connect-button")
-
-                Button {
-                    showSelfHostedInput = false
-                    selfHostedError = nil
-                } label: {
-                    Text(WatchStrings.cancel)
-                        .font(.omTiny)
-                        .foregroundStyle(Color.grey0.opacity(0.82))
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("watch-pair-self-host-cancel-button")
-            } else {
-                Button {
-                    pairState.customDomain = pairState.serverProfile == .production
-                        ? ""
-                        : pairState.serverProfile.displayDomain
-                    showSelfHostedInput = true
-                    selfHostedError = nil
-                } label: {
-                    compactButtonLabel(WatchStrings.pairSelfHostedEdition)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("watch-pair-self-host-button")
-
-                if pairState.serverProfile != .production {
-                    Text(pairState.serverProfile.displayDomain)
-                        .font(.omTiny)
-                        .foregroundStyle(Color.grey0.opacity(0.72))
-                        .multilineTextAlignment(.center)
-
-                    Button {
-                        WatchServerProfileStore().resetToProduction()
-                        startPairing(serverProfile: .production, force: true)
-                    } label: {
-                        Text(WatchStrings.pairUseProduction)
-                            .font(.omTiny)
-                            .foregroundStyle(Color.grey0.opacity(0.82))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("watch-pair-use-production-button")
-                }
             }
         }
-        .padding(.spacing2)
-        .background(Color.grey80.opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .frame(maxWidth: .infinity)
     }
 
     private func compactButtonLabel(_ title: String) -> some View {
@@ -301,49 +382,123 @@ struct WatchPairLoginView: View {
     }
 
     private var manualFallbackView: some View {
-        VStack(spacing: .spacing3) {
-            if let token = pairState.token {
-                Text(token)
-                    .font(.omH2.monospaced())
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.grey0)
-                    .multilineTextAlignment(.center)
-                    .accessibilityIdentifier("watch-pair-token")
-            }
-
-            if let pairURLString = pairState.pairURLString {
-                VStack(spacing: .spacing1) {
-                    Text(WatchStrings.pairFullURLLabel)
-                        .font(.omXs)
-                        .foregroundStyle(Color.grey0.opacity(0.72))
-                    Text(pairURLString)
-                        .font(.omTiny)
-                        .foregroundStyle(Color.grey0.opacity(0.82))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .accessibilityIdentifier("watch-pair-url")
+        VStack(spacing: .spacing4) {
+            pairHeader(WatchStrings.pairIphoneLabel) {
+                if pairState.status == .ready {
+                    showsReadyShortURL = false
+                } else {
+                    pairState.showsManualFallback = false
+                    pairState.manualFallbackSelected = false
+                    if !pairState.phoneRequestSent,
+                       let token = pairState.token,
+                       let activeProfile = pairState.activeTokenServerProfile {
+                        startFallbackTimer(
+                            token: token,
+                            serverProfile: activeProfile,
+                            generation: pairState.attemptState.generation
+                        )
+                    }
                 }
             }
 
-            Button {
-                showFullScreenQRCode = true
-            } label: {
-                Text(WatchStrings.pairShowQRCode)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontButton)
-                    .padding(.horizontal, .spacing4)
-                    .padding(.vertical, .spacing2)
-                    .background(LinearGradient.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            if let pairURLString = pairState.pairURLString {
+                VStack(spacing: .spacing12) {
+                    Text(WatchStrings.pairLoginViaShortURL)
+                        .font(.omSmall)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey0)
+
+                    (Text(shortPairURLParts(pairURLString).domainAndPath + "\n")
+                        .foregroundColor(.grey0)
+                     + Text(shortPairURLParts(pairURLString).pairCode)
+                        .foregroundColor(Color(hex: 0x5A85EB)))
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.85)
+                        .accessibilityIdentifier("watch-pair-url")
+                }
+                .padding(.top, .spacing4)
+            }
+
+            if pairState.serverProfile == .production {
+                Button {
+                    pairState.customDomain = ""
+                    domainEditorVisible = false
+                    showSelfHostedInput = true
+                    selfHostedError = nil
+                } label: {
+                    Text(WatchStrings.pairSelfHostedEdition)
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.grey0.opacity(0.72))
+                        .multilineTextAlignment(.center)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, .spacing5)
+                .accessibilityIdentifier("watch-pair-self-host-button")
+            } else {
+                Button {
+                    WatchServerProfileStore().resetToProduction()
+                    startPairing(serverProfile: .production, force: true)
+                } label: {
+                    Text(WatchStrings.pairOfficialCloudEdition)
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.grey0.opacity(0.72))
+                        .multilineTextAlignment(.center)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, .spacing5)
+                .accessibilityIdentifier("watch-pair-use-production-button")
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch-pair-manual-fallback")
+    }
+
+    private func shortPairURLParts(_ urlString: String) -> (domainAndPath: String, pairCode: String) {
+        let shortened = urlString.replacingOccurrences(of: "^https?://", with: "", options: .regularExpression)
+        guard let fragmentIndex = shortened.range(of: "#pair=", options: .caseInsensitive) else {
+            return (shortened, "")
+        }
+        return (String(shortened[..<fragmentIndex.lowerBound]), String(shortened[fragmentIndex.lowerBound...]))
+    }
+
+    private func pairHeader(_ title: String, action: @escaping () -> Void) -> some View {
+        HStack {
+            Button(action: action) {
+                HStack(spacing: .spacing1) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.grey100)
+                        .frame(width: 20, height: 20)
+                        .background(Color(hex: 0x7096EF), in: Circle())
+                    Text(title)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color(hex: 0x7096EF))
+                }
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("watch-pair-show-qr-button")
+            .accessibilityIdentifier("watch-pair-back-button")
+            Spacer(minLength: 0)
         }
-        .padding(.spacing3)
-        .background(Color.grey80.opacity(0.55))
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .accessibilityIdentifier("watch-pair-manual-fallback")
+    }
+
+    private func keyboardEntryButton(identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "keyboard.fill")
+                .font(.system(size: 39))
+                .foregroundStyle(Color(hex: 0x5A85EB))
+                .frame(maxWidth: .infinity)
+                .frame(height: 74)
+                .background(Color.grey80)
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
     private func messageBox(text: String) -> some View {
@@ -405,6 +560,7 @@ struct WatchPairLoginView: View {
                 pairState.activeTokenServerProfile = serverProfile
                 pairState.pairURLString = initiation.pairURLString
                 pairState.status = .waiting
+                startFallbackTimer(token: initiation.token, serverProfile: serverProfile, generation: generation)
                 NativeDiagnostics.info(
                     "phase=view.initiate.success generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
                     category: watchPairLoginDiagnosticsCategory
@@ -451,6 +607,8 @@ struct WatchPairLoginView: View {
                           pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
                           pairState.token == token else { return }
                     if response.status == "ready" {
+                        pairState.fallbackTask?.cancel()
+                        pairState.showsManualFallback = false
                         pairState.status = .ready
                         NativeDiagnostics.info(
                             "phase=view.poll.ready generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
@@ -458,6 +616,7 @@ struct WatchPairLoginView: View {
                         )
                         if pairState.pin.count == 6 { submitPinIfReady() }
                     } else if response.status == "expired" {
+                        pairState.fallbackTask?.cancel()
                         pairState.status = .expired
                         NativeDiagnostics.warning(
                             "phase=view.poll.expired generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
@@ -493,6 +652,7 @@ struct WatchPairLoginView: View {
 
     private func sendPhoneLoginRequestIfPossible() {
         guard let token = pairState.token,
+              pairState.status == .waiting,
               let serverProfile = pairState.activeTokenServerProfile,
               serverProfile == pairState.serverProfile,
               let pairURLString = pairState.pairURLString else {
@@ -510,10 +670,48 @@ struct WatchPairLoginView: View {
             createdAt: Int(Date().timeIntervalSince1970)
         )
         let sent = phoneBridge.sendLoginRequest(request)
+        if sent { pairState.phoneRequestSent = true }
         NativeDiagnostics.info(
             "phase=view.phoneRequest.sent sent=\(sent) serverKind=\(serverProfile.diagnosticsKind) reachable=\(phoneBridge.isPhoneReachable)",
             category: watchPairLoginDiagnosticsCategory
         )
+    }
+
+    private func startFallbackTimer(token: String, serverProfile: ServerProfile, generation: Int) {
+        pairState.fallbackTask?.cancel()
+        pairState.fallbackTask = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled,
+                  pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
+                  pairState.token == token,
+                  pairState.status == .waiting,
+                  !pairState.phoneApprovalStarted else { return }
+            pairState.showsManualFallback = true
+            pairState.fallbackTask = nil
+        }
+    }
+
+    private func handlePhoneAcknowledgment(_ acknowledgment: WatchPairLoginAcknowledgment) {
+        guard acknowledgment.token == pairState.token,
+              pairState.status == .waiting else { return }
+        switch acknowledgment.kind {
+        case .offered:
+            pairState.phoneRequestSent = true
+        case .approvalStarted:
+            guard !pairState.phoneApprovalEnded else { return }
+            pairState.phoneApprovalStarted = true
+            pairState.fallbackTask?.cancel()
+            pairState.fallbackTask = nil
+            if !pairState.manualFallbackSelected {
+                pairState.showsManualFallback = false
+            }
+        case .denied, .approvalFailed:
+            pairState.phoneApprovalEnded = true
+            pairState.phoneApprovalStarted = false
+            pairState.fallbackTask?.cancel()
+            pairState.fallbackTask = nil
+            pairState.showsManualFallback = true
+        }
     }
 
     private func handlePhoneApproval(_ approval: WatchPairLoginApproval) {
@@ -528,6 +726,8 @@ struct WatchPairLoginView: View {
             "phase=view.phoneApproval.received status=\(pairState.status)",
             category: watchPairLoginDiagnosticsCategory
         )
+        pairState.fallbackTask?.cancel()
+        pairState.fallbackTask = nil
         pairState.pin = approval.pin
         if pairState.status == .ready { submitPinIfReady() }
     }
@@ -597,321 +797,4 @@ struct WatchPairLoginView: View {
         }
     }
 
-}
-
-private struct WatchQRCodeView: View {
-    let payload: String
-
-    var body: some View {
-        let matrix = WatchQRCodeMatrix(payload: payload)
-        Canvas { context, size in
-            let moduleSize = min(size.width, size.height) / CGFloat(matrix.size)
-            for row in 0..<matrix.size {
-                for column in 0..<matrix.size where matrix.isDark(row: row, column: column) {
-                    let rect = CGRect(
-                        x: CGFloat(column) * moduleSize,
-                        y: CGFloat(row) * moduleSize,
-                        width: moduleSize,
-                        height: moduleSize
-                    )
-                    context.fill(Path(rect), with: .color(.black))
-                }
-            }
-        }
-        .background(Color.white)
-    }
-}
-
-private struct WatchFullScreenQRCodeView: View {
-    let payload: String
-    let onClose: () -> Void
-
-    var body: some View {
-        GeometryReader { geometry in
-            let side = max(120, min(geometry.size.width, geometry.size.height) - 18)
-            ZStack {
-                Color.grey100.ignoresSafeArea()
-
-                VStack(spacing: .spacing3) {
-                    WatchQRCodeView(payload: payload)
-                        .frame(width: side, height: side)
-                        .padding(.spacing3)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                        .accessibilityLabel(WatchStrings.scanCode)
-                        .accessibilityIdentifier("watch-pair-qr-code")
-
-                    Button(WatchStrings.back) {
-                        onClose()
-                    }
-                    .buttonStyle(.plain)
-                    .font(.omSmall)
-                    .foregroundStyle(Color.grey0)
-                    .accessibilityIdentifier("watch-pair-qr-close-button")
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .accessibilityIdentifier("watch-pair-qr-fullscreen")
-    }
-}
-
-private struct WatchQRCodeMatrix {
-    let size = 33
-
-    private var modules: [Bool]
-    private var reserved: [Bool]
-
-    init(payload: String) {
-        modules = Array(repeating: false, count: size * size)
-        reserved = Array(repeating: false, count: size * size)
-
-        drawFunctionPatterns()
-        let dataCodewords = Self.encodeData(payload)
-        let errorCodewords = Self.reedSolomonRemainder(dataCodewords, degree: 20)
-        drawCodewords(dataCodewords + errorCodewords)
-        applyMask0()
-        drawFormatBits()
-    }
-
-    func isDark(row: Int, column: Int) -> Bool {
-        modules[index(row: row, column: column)]
-    }
-
-    private func index(row: Int, column: Int) -> Int {
-        row * size + column
-    }
-
-    private mutating func set(row: Int, column: Int, dark: Bool, reserve: Bool = true) {
-        guard row >= 0, row < size, column >= 0, column < size else { return }
-        let position = index(row: row, column: column)
-        modules[position] = dark
-        if reserve { reserved[position] = true }
-    }
-
-    private mutating func drawFunctionPatterns() {
-        drawFinder(row: 0, column: 0)
-        drawFinder(row: 0, column: size - 7)
-        drawFinder(row: size - 7, column: 0)
-        drawTimingPatterns()
-        drawAlignment(row: 26, column: 26)
-
-        set(row: size - 8, column: 8, dark: true)
-        reserveFormatAreas()
-    }
-
-    private mutating func drawFinder(row: Int, column: Int) {
-        for y in -1...7 {
-            for x in -1...7 {
-                let isInside = x >= 0 && x <= 6 && y >= 0 && y <= 6
-                let isBorder = x == 0 || x == 6 || y == 0 || y == 6
-                let isCenter = x >= 2 && x <= 4 && y >= 2 && y <= 4
-                set(row: row + y, column: column + x, dark: isInside && (isBorder || isCenter))
-            }
-        }
-    }
-
-    private mutating func drawTimingPatterns() {
-        for i in 8..<(size - 8) {
-            let dark = i.isMultiple(of: 2)
-            set(row: 6, column: i, dark: dark)
-            set(row: i, column: 6, dark: dark)
-        }
-    }
-
-    private mutating func drawAlignment(row: Int, column: Int) {
-        for y in -2...2 {
-            for x in -2...2 {
-                let distance = max(abs(x), abs(y))
-                set(row: row + y, column: column + x, dark: distance != 1)
-            }
-        }
-    }
-
-    private mutating func reserveFormatAreas() {
-        for i in 0..<9 {
-            if i != 6 {
-                set(row: 8, column: i, dark: false)
-                set(row: i, column: 8, dark: false)
-            }
-        }
-        for i in 0..<8 {
-            set(row: 8, column: size - 1 - i, dark: false)
-            set(row: size - 1 - i, column: 8, dark: false)
-        }
-    }
-
-    private mutating func drawCodewords(_ codewords: [UInt8]) {
-        var bits: [Bool] = []
-        for codeword in codewords {
-            for shift in stride(from: 7, through: 0, by: -1) {
-                bits.append(((codeword >> UInt8(shift)) & 1) == 1)
-            }
-        }
-        var bitIndex = 0
-        var upward = true
-        var column = size - 1
-
-        while column > 0 {
-            if column == 6 { column -= 1 }
-            let rowRange = upward ? stride(from: size - 1, through: 0, by: -1) : stride(from: 0, through: size - 1, by: 1)
-            for row in rowRange {
-                for offset in 0...1 {
-                    let currentColumn = column - offset
-                    let position = index(row: row, column: currentColumn)
-                    if reserved[position] { continue }
-                    let dark = bitIndex < bits.count ? bits[bitIndex] : false
-                    modules[position] = dark
-                    bitIndex += 1
-                }
-            }
-            upward.toggle()
-            column -= 2
-        }
-    }
-
-    private mutating func applyMask0() {
-        for row in 0..<size {
-            for column in 0..<size where !reserved[index(row: row, column: column)] {
-                if (row + column).isMultiple(of: 2) {
-                    modules[index(row: row, column: column)].toggle()
-                }
-            }
-        }
-    }
-
-    private mutating func drawFormatBits() {
-        let bits = Self.formatBits(errorCorrectionBits: 1, mask: 0)
-        for i in 0..<15 {
-            let dark = ((bits >> i) & 1) == 1
-            let first = Self.formatBitCoordinateA(i)
-            let second = Self.formatBitCoordinateB(i, size: size)
-            set(row: first.row, column: first.column, dark: dark)
-            set(row: second.row, column: second.column, dark: dark)
-        }
-    }
-
-    private static func encodeData(_ payload: String) -> [UInt8] {
-        var bits: [Bool] = []
-        append(0b0100, bitCount: 4, to: &bits)
-        let bytes = Array(payload.utf8.prefix(78))
-        append(bytes.count, bitCount: 8, to: &bits)
-        for byte in bytes {
-            append(Int(byte), bitCount: 8, to: &bits)
-        }
-        append(0, bitCount: min(4, max(0, 640 - bits.count)), to: &bits)
-        while !bits.count.isMultiple(of: 8) { bits.append(false) }
-
-        var codewords = stride(from: 0, to: bits.count, by: 8).map { offset -> UInt8 in
-            var value: UInt8 = 0
-            for bit in 0..<8 where bits[offset + bit] {
-                value |= 1 << UInt8(7 - bit)
-            }
-            return value
-        }
-        var pad: UInt8 = 0xEC
-        while codewords.count < 80 {
-            codewords.append(pad)
-            pad = pad == 0xEC ? 0x11 : 0xEC
-        }
-        return Array(codewords.prefix(80))
-    }
-
-    private static func append(_ value: Int, bitCount: Int, to bits: inout [Bool]) {
-        guard bitCount > 0 else { return }
-        for shift in (0..<bitCount).reversed() {
-            bits.append(((value >> shift) & 1) == 1)
-        }
-    }
-
-    private static func reedSolomonRemainder(_ data: [UInt8], degree: Int) -> [UInt8] {
-        let generator = reedSolomonGenerator(degree: degree)
-        var result = Array(repeating: UInt8(0), count: degree)
-        for byte in data {
-            let factor = byte ^ result.removeFirst()
-            result.append(0)
-            for i in 0..<degree {
-                result[i] ^= multiply(generator[i], factor)
-            }
-        }
-        return result
-    }
-
-    private static func reedSolomonGenerator(degree: Int) -> [UInt8] {
-        var result: [UInt8] = [1]
-        for i in 0..<degree {
-            result.append(0)
-            let root = exp(i)
-            for j in stride(from: result.count - 1, through: 1, by: -1) {
-                result[j] = result[j - 1] ^ multiply(result[j], root)
-            }
-            result[0] = multiply(result[0], root)
-        }
-        return result
-    }
-
-    private static func multiply(_ x: UInt8, _ y: UInt8) -> UInt8 {
-        if x == 0 || y == 0 { return 0 }
-        return exp(log(x) + log(y))
-    }
-
-    private static func exp(_ power: Int) -> UInt8 {
-        var value = 1
-        for _ in 0..<(power % 255) {
-            value <<= 1
-            if value >= 0x100 { value ^= 0x11D }
-        }
-        return UInt8(value)
-    }
-
-    private static func log(_ value: UInt8) -> Int {
-        var current: UInt8 = 1
-        for i in 0..<255 {
-            if current == value { return i }
-            current = multiplyNoLog(current, 2)
-        }
-        return 0
-    }
-
-    private static func multiplyNoLog(_ x: UInt8, _ y: UInt8) -> UInt8 {
-        var a = Int(x)
-        var b = Int(y)
-        var result = 0
-        while b > 0 {
-            if b & 1 != 0 { result ^= a }
-            a <<= 1
-            if a & 0x100 != 0 { a ^= 0x11D }
-            b >>= 1
-        }
-        return UInt8(result & 0xFF)
-    }
-
-    private static func formatBits(errorCorrectionBits: Int, mask: Int) -> Int {
-        let data = (errorCorrectionBits << 3) | mask
-        var value = data << 10
-        let generator = 0x537
-        for shift in stride(from: 14, through: 10, by: -1) {
-            if ((value >> shift) & 1) != 0 {
-                value ^= generator << (shift - 10)
-            }
-        }
-        return ((data << 10) | value) ^ 0x5412
-    }
-
-    private static func formatBitCoordinateA(_ index: Int) -> (row: Int, column: Int) {
-        switch index {
-        case 0...5: return (8, index)
-        case 6: return (8, 7)
-        case 7: return (8, 8)
-        case 8: return (7, 8)
-        default: return (14 - index, 8)
-        }
-    }
-
-    private static func formatBitCoordinateB(_ index: Int, size: Int) -> (row: Int, column: Int) {
-        if index < 8 {
-            return (size - 1 - index, 8)
-        }
-        return (8, size - 15 + index)
-    }
 }

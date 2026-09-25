@@ -453,14 +453,18 @@ embed_types:
         type: object
 skills:
   - id: search_repos
+    anonymous_access: inline
     name_translation_key: code.search_repos
     description_translation_key: code.search_repos.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search GitHub repositories. Use this instead of web.search whenever the
-      user asks to find GitHub repos, repositories, open-source libraries,
-      starred repos, or repo examples by topic, language, framework, or project
-      need. Returns licensed repository embeds. Costs 10 credits per search.
+      Search GitHub repositories instead of web.search for repositories or
+      open-source libraries. Use relevance_criteria only for an explicit
+      user-stated purpose, audience, quality, maintenance, license, or technical
+      preference that should change ordering. Never infer generic quality,
+      popularity, recency, or maintenance. Plain discovery such as "Find
+      TypeScript Markdown editor libraries on GitHub" is neutral: omit
+      relevance_criteria. Keep query topical. Returns licensed repositories.
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
       per_unit:
@@ -478,6 +482,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of repository search requests. Each request searches GitHub for
@@ -486,21 +492,39 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Repository search query, e.g. "svelte markdown editor",
                   "python cli framework", or "rust web server".
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 1
                 maximum: 10
-                default: 6
+                default: 10
                 description: Number of repositories to return.
+              relevance_criteria:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional concise natural-language repository-ranking goal,
+                  separate from the repository query. Set it only when the user
+                  explicitly states a purpose, audience, maintenance need,
+                  license constraint, desired quality, or preference that should
+                  change ordering. Omit it for broad or neutral discovery. Never
+                  add unstated defaults such as popular, modern, well-maintained,
+                  secure, documented, or compatible.
             required:
               - query
       required:
         - requests
   - id: get_docs
+    anonymous_access: inline
     name_translation_key: code.get_docs
     description_translation_key: code.get_docs.description
     icon_image: library.svg
@@ -515,10 +539,14 @@ skills:
       type: object
       properties:
         library:
+          x-ui:
+            basic: true
           type: string
           description: |
             Library name to search for (e.g., "Svelte 5", "React", "FastAPI", "Miro API", etc.).
         question:
+          x-ui:
+            basic: true
           type: string
           description: |
             Natural language question about the documentation needed
@@ -527,11 +555,17 @@ skills:
         - library
         - question
   - id: run
+    anonymous_access: authenticated
     name_translation_key: app_skills.code.run
     description_translation_key: app_skills.code.run.description
     icon_image: play.svg
     preprocessor_hint: >
-      Run code in an isolated E2B sandbox. When running code the assistant is
+      Run code in an isolated E2B sandbox or propose an exact command for the
+      currently focused remote Project source. Remote execution requires an
+      explicit one-run approval or an exact currently enabled command preset;
+      never infer approval from Project write mode, chat text, or prior runs.
+      Pass remote commands as argv, never as a composed shell string. When
+      running E2B code the assistant is
       creating in this same turn, pass the source through files[].code plus
       entry_path; do not invent a target_embed_id from a filename. Use
       target_embed_id only for an existing chat code embed. Ask the user before
@@ -708,6 +742,11 @@ skills:
     tool_schema:
       type: object
       properties:
+        target:
+          type: string
+          enum: [e2b, remote_source]
+          default: e2b
+          description: Use remote_source only for the current authorized Project focus and attached source.
         chat_id:
           type: string
           description: Optional chat ID containing the code embeds to run. Omit when the chat context is already available.
@@ -751,7 +790,58 @@ skills:
           items:
             type: string
           description: Optional related embed IDs to include in the run.
+        project_id:
+          type: string
+          description: Exact active Project id. Required for remote_source.
+        source_id:
+          type: string
+          description: Exact attached remote source id. Required for remote_source.
+        argv:
+          type: array
+          minItems: 1
+          maxItems: 128
+          items:
+            type: string
+          description: Exact executable and arguments. Shell expansion and command composition are forbidden.
+        cwd:
+          type: string
+          default: .
+          description: Project-relative working directory.
+        wait_for_completion:
+          type: boolean
+          default: true
+          description: Wait for the tracked event-driven result when practical; never poll.
+        background:
+          type: boolean
+          default: false
+          description: Run as a finite tracked background job. Background source writes are forbidden.
+        timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 86400
+          default: 600
+          description: Finite execution deadline.
+        source_access:
+          type: string
+          enum: [read_only, read_write]
+          default: read_only
+        writable_profiles:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+          description: Exact user-enabled writable resource profile ids.
+        network_profile:
+          type: string
+          description: Exact user-enabled network profile id. Omit for no network.
+        credential_profiles:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+          description: Exact user-enabled credential profile ids; never include credential values.
   - id: image_to_html
+    anonymous_access: authenticated
     name_translation_key: app_skills.code.image_to_html
     description_translation_key: app_skills.code.image_to_html.description
     icon_image: coding.svg
@@ -806,18 +896,23 @@ skills:
       required:
         - requests
   - id: clean_repo
+    anonymous_access: authenticated
     name_translation_key: code.clean_repo
     description_translation_key: code.clean_repo.description
   - id: get_issues
+    anonymous_access: authenticated
     name_translation_key: code.get_issues
     description_translation_key: code.get_issues.description
   - id: add_issue
+    anonymous_access: authenticated
     name_translation_key: code.add_issue
     description_translation_key: code.add_issue.description
   - id: remove_secrets
+    anonymous_access: authenticated
     name_translation_key: code.remove_secrets
     description_translation_key: code.remove_secrets.description
   - id: get_project_overview
+    anonymous_access: authenticated
     name_translation_key: code.get_project_overview
     description_translation_key: code.get_project_overview.description
 focuses:

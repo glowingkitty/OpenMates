@@ -15,7 +15,9 @@ final class ChatKeyManager: ObservableObject {
     // Invalidates in-flight crypto whenever authentication changes scope.
     private var generation = UUID()
     private var chatKeys: [String: SymmetricKey] = [:]
+    private var encryptedKeys: [String: String] = [:]
     private var encryptedKeyFingerprints: [String: String] = [:]
+    var cacheGeneration: UUID { generation }
 
     /// Whether chat keys have been loaded from the initial sync
     @Published var isReady = false
@@ -29,18 +31,63 @@ final class ChatKeyManager: ObservableObject {
         chatKeys[chatId]
     }
 
+    /// Preserve the exact wrapper accepted by the server. AES-GCM wrapping uses
+    /// a random nonce, so wrapping the same raw key again produces a different
+    /// encrypted_chat_key and fails the server's immutable-key check.
+    func encryptedKey(for chatId: String) -> String? {
+        encryptedKeys[chatId]
+    }
+
+    func rememberEncryptedKey(_ encryptedKey: String, for chatId: String) {
+        encryptedKeys[chatId] = encryptedKey
+        encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedKey)
+    }
+
+    func rememberNewEncryptedKeyIfAbsent(_ encryptedKey: String, for chatId: String,
+                                         matching key: SymmetricKey,
+                                         expectedGeneration: UUID? = nil) -> String? {
+        guard expectedGeneration == nil || expectedGeneration == generation,
+              let currentKey = chatKeys[chatId], Self.keysEqual(currentKey, key) else { return nil }
+        if let existing = encryptedKeys[chatId] { return existing }
+        rememberEncryptedKey(encryptedKey, for: chatId)
+        return encryptedKey
+    }
+
+    /// Install a validated server wrapper without replacing a key loaded by a
+    /// newer sync event while CryptoManager was suspended.
+    func installValidatedKey(_ key: SymmetricKey, encryptedKey: String, for chatId: String,
+                             expectedGeneration: UUID) -> String? {
+        guard expectedGeneration == generation else { return nil }
+        if let currentKey = chatKeys[chatId] {
+            guard Self.keysEqual(currentKey, key) else { return nil }
+            if let currentWrapper = encryptedKeys[chatId] { return currentWrapper }
+        } else {
+            chatKeys[chatId] = key
+        }
+        rememberEncryptedKey(encryptedKey, for: chatId)
+        return encryptedKey
+    }
+
     /// Store a chat key (after unwrapping from encrypted_chat_key).
     func setKey(_ key: SymmetricKey, for chatId: String) {
         chatKeys[chatId] = key
+        encryptedKeys.removeValue(forKey: chatId)
+        encryptedKeyFingerprints.removeValue(forKey: chatId)
     }
 
     /// Create or return the originating-device key for a new chat.
-    func createKeyForNewChat(_ chatId: String) async -> SymmetricKey {
+    func createKeyForNewChat(
+        _ chatId: String,
+        generateKey: @escaping @Sendable () async -> SymmetricKey = { await CryptoManager.shared.generateChatKey() }
+    ) async -> SymmetricKey {
         if let existing = chatKeys[chatId] {
             return existing
         }
         let capturedGeneration = generation
-        let key = await CryptoManager.shared.generateChatKey()
+        let key = await generateKey()
+        // Another first send (or server sync) may have installed the key while
+        // generation was suspended. Never overwrite its key and wrapper.
+        if let existing = chatKeys[chatId] { return existing }
         if capturedGeneration == generation && !Task.isCancelled {
             chatKeys[chatId] = key
         }
@@ -80,7 +127,7 @@ final class ChatKeyManager: ObservableObject {
                 )
                 guard capturedGeneration == generation, !Task.isCancelled else { return }
                 chatKeys[chatId] = chatKey
-                encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedChatKey)
+                rememberEncryptedKey(encryptedChatKey, for: chatId)
                 if NativeSyncPerfLog.verboseCrypto {
                     print("[ChatKeyManager] loaded key chat=\(chatId.prefix(8))")
                 }
@@ -109,7 +156,7 @@ final class ChatKeyManager: ObservableObject {
             )
             guard capturedGeneration == generation, !Task.isCancelled else { return false }
             chatKeys[chatId] = chatKey
-            encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedChatKey)
+            rememberEncryptedKey(encryptedChatKey, for: chatId)
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
             }
@@ -186,6 +233,7 @@ final class ChatKeyManager: ObservableObject {
     /// Remove a single chat key (on chat delete).
     func removeKey(for chatId: String) {
         chatKeys.removeValue(forKey: chatId)
+        encryptedKeys.removeValue(forKey: chatId)
         encryptedKeyFingerprints.removeValue(forKey: chatId)
     }
 
@@ -193,12 +241,19 @@ final class ChatKeyManager: ObservableObject {
     func clearAll() {
         generation = UUID()
         chatKeys.removeAll()
+        encryptedKeys.removeAll()
         encryptedKeyFingerprints.removeAll()
         isReady = false
     }
 
     private static func fingerprint(_ encryptedChatKey: String) -> String {
         SHA256.hash(data: Data(encryptedChatKey.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func keysEqual(_ lhs: SymmetricKey, _ rhs: SymmetricKey) -> Bool {
+        lhs.withUnsafeBytes { lhsBytes in
+            rhs.withUnsafeBytes { rhsBytes in Data(lhsBytes) == Data(rhsBytes) }
+        }
     }
 }
 

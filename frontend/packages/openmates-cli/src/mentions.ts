@@ -165,10 +165,13 @@ export const MODEL_ALIASES: Record<string, string> = {
 export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
   { id: "claude-fable-5", name: "Claude Fable 5" },
+  { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
   { id: "claude-opus-5", name: "Claude Opus 5" },
   { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
   { id: "gpt-6-astra", name: "GPT-6 Astra" },
+  { id: "gpt-6-luna", name: "GPT-6 Luna" },
+  { id: "gpt-6-sol", name: "GPT-6 Sol" },
   { id: "gpt-5.4", name: "GPT-5.4" },
   { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
   { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },

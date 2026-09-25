@@ -9,6 +9,29 @@ import XCTest
 
 @MainActor
 final class NativeComposerSessionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
+    func testCachedRecordingRestoresTranscriptAndDurableSendPayload() throws {
+        let record = EmbedRecord(
+            id: "recording-restore", type: "audio-recording", status: .finished,
+            data: .raw([
+                "filename": AnyCodable("recording.m4a"),
+                "title": AnyCodable("Recorded summary"),
+                "transcript": AnyCodable("Recorded words"),
+                "waveform": AnyCodable(["samples": [12, 42, 70]])
+            ]),
+            parentEmbedId: nil, appId: "audio", skillId: "transcribe",
+            embedIds: nil, createdAt: "1"
+        )
+
+        let restored = try XCTUnwrap(ComposerPendingEmbed.restoredRecording(from: record))
+        XCTAssertEqual(restored.id, record.id)
+        XCTAssertEqual(restored.referenceType, "audio-recording")
+        XCTAssertEqual(restored.textPreview, "Recorded summary")
+        XCTAssertEqual(restored.record.rawData?["transcript"]?.value as? String, "Recorded words")
+        XCTAssertNotNil(restored.serverPayload)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
     func testTextMutationPublishesCanonicalMarkdownAndRevision() throws {
         let session = NativeComposerSession(canonicalMarkdown: "Hello")
         let initialRevision = session.revision
@@ -20,6 +43,7 @@ final class NativeComposerSessionTests: XCTestCase {
         XCTAssertGreaterThan(session.revision, initialRevision)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testPendingEmbedResolvesInPlaceAndSerializesDurableReference() throws {
         let session = NativeComposerSession(canonicalMarkdown: "Before ")
         let nodeID = "composer:embed:upload-1"
@@ -47,6 +71,34 @@ final class NativeComposerSessionTests: XCTestCase {
         XCTAssertTrue(session.canonicalMarkdown.contains("durable-image-1"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testPendingRecordingPublishesRawTranscriptWithoutInventingDurableIdentity() throws {
+        let session = NativeComposerSession(canonicalMarkdown: "")
+        let nodeID = "composer:embed:recording-1"
+        try session.insertPendingEmbed(nodeID: nodeID, embedType: "recording", title: "recording.m4a")
+
+        try session.updatePendingEmbedTitle(nodeID: nodeID, title: "Raw words from realtime transcription")
+
+        let pending = try XCTUnwrap(session.controller.document.nodes.first)
+        XCTAssertEqual(pending.id, nodeID)
+        XCTAssertEqual(pending.display?.title, "Raw words from realtime transcription")
+        XCTAssertNil(pending.contentRef)
+        XCTAssertFalse(session.canonicalMarkdown.contains("embed_id"))
+        XCTAssertTrue(session.hasBlockingEmbeds)
+
+        try session.resolveEmbed(
+            nodeID: nodeID,
+            durableEmbedID: "server-recording-1",
+            referenceType: "audio-recording",
+            status: "finished"
+        )
+        let resolved = try XCTUnwrap(session.controller.document.nodes.first)
+        XCTAssertEqual(resolved.id, nodeID)
+        XCTAssertEqual(resolved.contentRef, "embed:server-recording-1")
+        XCTAssertFalse(session.hasBlockingEmbeds)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testRemoveEmbedUpdatesDocumentAndMarkdown() throws {
         let session = NativeComposerSession(canonicalMarkdown: "")
         try session.insertPendingEmbed(nodeID: "node-1", embedType: "pdf", title: "PDF")

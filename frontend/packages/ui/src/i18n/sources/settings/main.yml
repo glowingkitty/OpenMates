@@ -310,6 +310,126 @@ projects.description:
   sv: Hantera projektspecifika fjärrkällbehörigheter, skrivpolicyer och automatiska kontroller.
   he: ניהול הרשאות מקורות מרוחקים, מדיניות כתיבה ובדיקות אוטומטיות לכל פרויקט.
   verified_by_human: []
+projects.write_mode_apply_and_show:
+  context: Project write policy that applies requested file changes and then shows the result
+  en: Apply and show changes
+  de: Änderungen anwenden und anzeigen
+  zh: 应用并显示更改
+  es: Aplicar y mostrar cambios
+  fr: Appliquer et afficher les modifications
+  pt: Aplicar e mostrar alterações
+  ru: Применять и показывать изменения
+  ja: 変更を適用して表示
+  ko: 변경 사항 적용 후 표시
+  it: Applica e mostra le modifiche
+  tr: Değişiklikleri uygula ve göster
+  vi: Áp dụng và hiển thị thay đổi
+  id: Terapkan dan tampilkan perubahan
+  pl: Zastosuj i pokaż zmiany
+  nl: Wijzigingen toepassen en tonen
+  ar: تطبيق التغييرات وعرضها
+  hi: बदलाव लागू करें और दिखाएँ
+  th: ใช้และแสดงการเปลี่ยนแปลง
+  cs: Použít a zobrazit změny
+  sv: Tillämpa och visa ändringar
+  he: החלת השינויים והצגתם
+  verified_by_human: []
+projects.write_mode_always_ask:
+  context: Project write policy that requires approval before every file change
+  en: Always ask before writes
+  de: Vor Schreibvorgängen immer fragen
+  zh: 写入前始终询问
+  es: Preguntar siempre antes de escribir
+  fr: Toujours demander avant d’écrire
+  pt: Sempre perguntar antes de escrever
+  ru: Всегда спрашивать перед записью
+  ja: 書き込み前に必ず確認
+  ko: 쓰기 전에 항상 확인
+  it: Chiedi sempre prima di scrivere
+  tr: Yazmadan önce her zaman sor
+  vi: Luôn hỏi trước khi ghi
+  id: Selalu tanyakan sebelum menulis
+  pl: Zawsze pytaj przed zapisem
+  nl: Altijd vragen vóór schrijven
+  ar: السؤال دائمًا قبل الكتابة
+  hi: लिखने से पहले हमेशा पूछें
+  th: ถามเสมอก่อนเขียน
+  cs: Před zápisem se vždy zeptat
+  sv: Fråga alltid före skrivning
+  he: תמיד לשאול לפני כתיבה
+  verified_by_human: []
+projects.write_policy_prompt:
+  context: Heading shown while choosing a Project write policy
+  en: When OpenMates proposes a file change
+  de: Wenn OpenMates eine Dateiänderung vorschlägt
+  zh: 当 OpenMates 提议更改文件时
+  es: Cuando OpenMates propone cambiar un archivo
+  fr: Quand OpenMates propose de modifier un fichier
+  pt: Quando o OpenMates propõe alterar um arquivo
+  ru: Когда OpenMates предлагает изменить файл
+  ja: OpenMates がファイル変更を提案したとき
+  ko: OpenMates가 파일 변경을 제안할 때
+  it: Quando OpenMates propone una modifica a un file
+  tr: OpenMates bir dosya değişikliği önerdiğinde
+  vi: Khi OpenMates đề xuất thay đổi tệp
+  id: Saat OpenMates mengusulkan perubahan file
+  pl: Gdy OpenMates proponuje zmianę pliku
+  nl: Wanneer OpenMates een bestandswijziging voorstelt
+  ar: عندما يقترح OpenMates تغيير ملف
+  hi: जब OpenMates फ़ाइल में बदलाव सुझाए
+  th: เมื่อ OpenMates เสนอการเปลี่ยนแปลงไฟล์
+  cs: Když OpenMates navrhne změnu souboru
+  sv: När OpenMates föreslår en filändring
+  he: כאשר OpenMates מציע שינוי בקובץ
+  verified_by_human: []
+projects.write_mode_apply_and_show_description:
+  context: Description of the apply-and-show Project write policy
+  en: Apply each change, then show exactly what changed. Recommended.
+  de: Jede Änderung anwenden und danach genau anzeigen. Empfohlen.
+  zh: 应用每项更改，然后准确显示更改内容。推荐。
+  es: Aplica cada cambio y muestra exactamente qué cambió. Recomendado.
+  fr: Applique chaque modification, puis montre précisément ce qui a changé. Recommandé.
+  pt: Aplique cada alteração e mostre exatamente o que mudou. Recomendado.
+  ru: Применять каждое изменение и затем точно показывать результат. Рекомендуется.
+  ja: 各変更を適用し、変更内容を正確に表示します。推奨。
+  ko: 각 변경 사항을 적용한 다음 정확히 무엇이 바뀌었는지 표시합니다. 권장.
+  it: Applica ogni modifica e mostra esattamente cosa è cambiato. Consigliato.
+  tr: Her değişikliği uygular ve tam olarak neyin değiştiğini gösterir. Önerilir.
+  vi: Áp dụng từng thay đổi rồi hiển thị chính xác nội dung đã đổi. Khuyên dùng.
+  id: Terapkan setiap perubahan, lalu tampilkan dengan tepat apa yang berubah. Disarankan.
+  pl: Zastosuj każdą zmianę, a następnie pokaż dokładnie, co się zmieniło. Zalecane.
+  nl: Pas elke wijziging toe en toon daarna precies wat er veranderde. Aanbevolen.
+  ar: طبّق كل تغيير ثم اعرض ما تغيّر بدقة. موصى به.
+  hi: हर बदलाव लागू करें, फिर ठीक-ठीक दिखाएँ कि क्या बदला। अनुशंसित।
+  th: ใช้แต่ละการเปลี่ยนแปลง แล้วแสดงสิ่งที่เปลี่ยนอย่างชัดเจน แนะนำ
+  cs: Použít každou změnu a pak přesně ukázat, co se změnilo. Doporučeno.
+  sv: Tillämpa varje ändring och visa sedan exakt vad som ändrades. Rekommenderas.
+  he: החלת כל שינוי ולאחר מכן הצגה מדויקת של מה שהשתנה. מומלץ.
+  verified_by_human: []
+projects.write_mode_always_ask_description:
+  context: Description of the always-ask Project write policy
+  en: Ask for approval before every file change.
+  de: Vor jeder Dateiänderung um Zustimmung bitten.
+  zh: 每次更改文件前都请求批准。
+  es: Pide aprobación antes de cada cambio de archivo.
+  fr: Demande une approbation avant chaque modification de fichier.
+  pt: Peça aprovação antes de cada alteração de arquivo.
+  ru: Запрашивать подтверждение перед каждым изменением файла.
+  ja: ファイルを変更するたびに承認を求めます。
+  ko: 파일을 변경할 때마다 승인을 요청합니다.
+  it: Chiedi l’approvazione prima di ogni modifica a un file.
+  tr: Her dosya değişikliğinden önce onay iste.
+  vi: Yêu cầu phê duyệt trước mỗi thay đổi tệp.
+  id: Minta persetujuan sebelum setiap perubahan file.
+  pl: Poproś o zgodę przed każdą zmianą pliku.
+  nl: Vraag goedkeuring vóór elke bestandswijziging.
+  ar: اطلب الموافقة قبل كل تغيير في ملف.
+  hi: हर फ़ाइल बदलाव से पहले मंज़ूरी माँगें।
+  th: ขออนุมัติก่อนเปลี่ยนแปลงไฟล์ทุกครั้ง
+  cs: Před každou změnou souboru požádat o schválení.
+  sv: Be om godkännande före varje filändring.
+  he: בקשת אישור לפני כל שינוי בקובץ.
+  verified_by_human: []
 projects.project_settings:
   context: Title for a single Project settings page
   en: Project settings

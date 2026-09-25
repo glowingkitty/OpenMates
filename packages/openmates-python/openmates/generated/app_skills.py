@@ -300,16 +300,19 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
-  'description': 'Search GitHub repositories. Use this instead of web.search whenever the user '
-                 'asks to find GitHub repos, repositories, open-source libraries, starred repos, '
-                 'or repo examples by topic, language, framework, or project need. Returns '
-                 'licensed repository embeds. Costs 10 credits per search.',
+  'description': 'Search GitHub repositories instead of web.search for repositories or open-source '
+                 'libraries. Use relevance_criteria only for an explicit user-stated purpose, '
+                 'audience, quality, maintenance, license, or technical preference that should '
+                 'change ordering. Never infer generic quality, popularity, recency, or '
+                 'maintenance. Plain discovery such as "Find TypeScript Markdown editor libraries '
+                 'on GitHub" is neutral: omit relevance_criteria. Keep query topical. Returns '
+                 'licensed repositories.',
   'description_key': 'code.search_repos.description',
   'schema': {'properties': {'requests': {'description': 'Array of repository search requests. Each '
                                                         'request searches GitHub for public '
                                                         'licensed repositories matching the '
                                                         'query.\n',
-                                         'items': {'properties': {'count': {'default': 6,
+                                         'items': {'properties': {'count': {'default': 10,
                                                                             'description': 'Number '
                                                                                            'of '
                                                                                            'repositories '
@@ -332,7 +335,62 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"rust '
                                                                                            'web '
                                                                                            'server".\n',
-                                                                            'type': 'string'}},
+                                                                            'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'repository-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'repository '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'only '
+                                                                                                        'when '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'explicitly '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'purpose, '
+                                                                                                        'audience, '
+                                                                                                        'maintenance '
+                                                                                                        'need, '
+                                                                                                        'license '
+                                                                                                        'constraint, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Omit '
+                                                                                                        'it '
+                                                                                                        'for '
+                                                                                                        'broad '
+                                                                                                        'or '
+                                                                                                        'neutral '
+                                                                                                        'discovery. '
+                                                                                                        'Never '
+                                                                                                        'add '
+                                                                                                        'unstated '
+                                                                                                        'defaults '
+                                                                                                        'such '
+                                                                                                        'as '
+                                                                                                        'popular, '
+                                                                                                        'modern, '
+                                                                                                        'well-maintained, '
+                                                                                                        'secure, '
+                                                                                                        'documented, '
+                                                                                                        'or '
+                                                                                                        'compatible.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'}},
                                                    'required': ['query'],
                                                    'type': 'object'},
                                          'type': 'array'}},
@@ -364,13 +422,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
-  'description': 'Run code in an isolated E2B sandbox. When running code the assistant is creating '
-                 'in this same turn, pass the source through files[].code plus entry_path; do not '
-                 'invent a target_embed_id from a filename. Use target_embed_id only for an '
-                 'existing chat code embed. Ask the user before running unmodified user-supplied '
-                 'code or after the initial run plus two unprompted reruns. The sandbox installs '
-                 'supported dependency manifests, executes the selected file, streams terminal '
-                 'status, and returns safe artif',
+  'description': 'Run code in an isolated E2B sandbox or propose an exact command for the '
+                 'currently focused remote Project source. Remote execution requires an explicit '
+                 'one-run approval or an exact currently enabled command preset; never infer '
+                 'approval from Project write mode, chat text, or prior runs. Pass remote commands '
+                 'as argv, never as a composed shell string. When running E2B code the assistant '
+                 'is creating in this same turn, pass the source through files[].code plus '
+                 'entry_path; do not invent a target_embed_',
   'description_key': 'app_skills.code.run.description',
   'output_schema': {'properties': {'results': {'items': {'properties': {'credits_per_minute': {'type': 'integer'},
                                                                         'execution_id': {'type': 'string'},
@@ -865,10 +923,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Search for local or online events, meetups, hackathons, conferences, workshops, '
                  'networking events, parties, concerts, or any community gathering. Use ONLY this '
                  'skill for event searches — do NOT additionally call web.search or any other '
-                 'search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google '
-                 'Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ '
-                 'events), Berlin Philharmonic (classical concerts in Berlin), and official event '
-                 'schedules for GPN24, 39C3, 38C3',
+                 'search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident '
+                 'Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin '
+                 'Philharmonic (classical concerts in Berlin), and official event schedules for '
+                 'GPN24, 39C3, 38C3, and 37C3. Use',
   'description_key': 'events.search.description',
   'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                            'date_end': '2026-09-23T20:00:00+02:00',
@@ -1017,20 +1075,21 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                 'type': 'array'}},
                     'type': 'object'},
   'schema': {'properties': {'provider': {'description': "The event provider to use. 'auto' "
-                                                        '(default) queries all providers in '
-                                                        'parallel for best coverage. Use specific '
-                                                        'providers when the user asks about a '
-                                                        "particular platform/type: 'Eventbrite' "
-                                                        "for Eventbrite-only results, 'Resident "
-                                                        "Advisor' for electronic music/clubs, "
-                                                        "'Siegessäule' for Berlin LGBTQ+ events, "
-                                                        "'GPN24', '39C3', '38C3', or '37C3' for "
-                                                        'official schedules of those events.\n',
+                                                        '(default) searches general sources in '
+                                                        'parallel and adds relevant specialist '
+                                                        'sources for the topic and region. Use a '
+                                                        'specific provider when the user asks '
+                                                        'about a particular platform/type: '
+                                                        "'Eventbrite' for Eventbrite-only results, "
+                                                        "'Resident Advisor' for electronic "
+                                                        "music/clubs, 'Siegessäule' for Berlin "
+                                                        "LGBTQ+ events, 'GPN24', '39C3', '38C3', "
+                                                        "or '37C3' for official schedules of those "
+                                                        'events.\n',
                                          'enum': ['auto',
                                                   'Meetup',
                                                   'Luma',
                                                   'Eventbrite',
-                                                  'Google Events',
                                                   'Resident Advisor',
                                                   'Siegessäule',
                                                   'Berlin Philharmonic',
@@ -1054,9 +1113,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         "Each object must contain 'query' and "
                                                         "either 'location' (or lat/lon) for city "
                                                         'searches,\n'
-                                                        "or 'conference' for GPN/Congress schedule "
-                                                        'searches. All other parameters are '
-                                                        'optional.\n'
+                                                        "event_type 'ONLINE' for location-free "
+                                                        "online searches, or 'conference' for "
+                                                        'GPN/Congress\n'
+                                                        'schedule searches. All other parameters '
+                                                        'are optional.\n'
                                                         "Note: The 'id' field is auto-generated if "
                                                         'not provided.\n',
                                          'items': {'properties': {'concert_tags': {'description': 'Optional '
@@ -1224,19 +1285,21 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                               'are '
                                                                                               'not '
                                                                                               'provided. '
-                                                                                              'Not '
-                                                                                              'required '
-                                                                                              'when '
-                                                                                              'using '
-                                                                                              'a '
+                                                                                              'Optional '
+                                                                                              'for '
+                                                                                              'ONLINE '
+                                                                                              'searches '
+                                                                                              'and '
                                                                                               'GPN/Congress '
-                                                                                              'event '
-                                                                                              'schedule '
-                                                                                              'provider '
-                                                                                              'with '
+                                                                                              'schedules; '
+                                                                                              'never '
+                                                                                              'invent '
                                                                                               'a '
-                                                                                              'conference '
-                                                                                              'value.',
+                                                                                              'location '
+                                                                                              'for '
+                                                                                              'an '
+                                                                                              'online-only '
+                                                                                              'request.',
                                                                                'type': 'string'},
                                                                   'lon': {'description': 'Longitude '
                                                                                          'of '
@@ -1281,8 +1344,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'Meetup',
                                                                                         'Luma',
                                                                                         'Eventbrite',
-                                                                                        'Google '
-                                                                                        'Events',
                                                                                         'Resident '
                                                                                         'Advisor',
                                                                                         'Siegessäule',
@@ -1313,8 +1374,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                 'items': {'enum': ['Meetup',
                                                                                                    'Luma',
                                                                                                    'Eventbrite',
-                                                                                                   'Google '
-                                                                                                   'Events',
                                                                                                    'Resident '
                                                                                                    'Advisor',
                                                                                                    'Siegessäule',
@@ -1380,6 +1439,105 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'PHYSICAL '
                                                                                                   'events.',
                                                                                    'type': 'number'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'event-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'event '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'purpose, '
+                                                                                                        'intended '
+                                                                                                        'audience, '
+                                                                                                        'networking '
+                                                                                                        'goal, '
+                                                                                                        'desired '
+                                                                                                        'activity, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'such '
+                                                                                                        'as '
+                                                                                                        'promoting '
+                                                                                                        'a '
+                                                                                                        'product '
+                                                                                                        'or '
+                                                                                                        'finding '
+                                                                                                        'a '
+                                                                                                        'future '
+                                                                                                        'speaking '
+                                                                                                        'opportunity. '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'event '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields; '
+                                                                                                        'never '
+                                                                                                        'invent '
+                                                                                                        'preferences. '
+                                                                                                        'When '
+                                                                                                        'present, '
+                                                                                                        'up '
+                                                                                                        'to '
+                                                                                                        '40 '
+                                                                                                        'candidates '
+                                                                                                        '(or '
+                                                                                                        'the '
+                                                                                                        'larger '
+                                                                                                        'requested '
+                                                                                                        'count) '
+                                                                                                        'are '
+                                                                                                        'scored '
+                                                                                                        'against '
+                                                                                                        'both '
+                                                                                                        'the '
+                                                                                                        'event '
+                                                                                                        'topic '
+                                                                                                        'and '
+                                                                                                        'this '
+                                                                                                        'goal. '
+                                                                                                        'Results '
+                                                                                                        'with '
+                                                                                                        'no '
+                                                                                                        'credible '
+                                                                                                        'relationship '
+                                                                                                        'are '
+                                                                                                        'omitted, '
+                                                                                                        'so '
+                                                                                                        'fewer '
+                                                                                                        'than '
+                                                                                                        'count '
+                                                                                                        'can '
+                                                                                                        'be '
+                                                                                                        'returned '
+                                                                                                        'rather '
+                                                                                                        'than '
+                                                                                                        'padding '
+                                                                                                        'the '
+                                                                                                        'response '
+                                                                                                        'with '
+                                                                                                        'irrelevant '
+                                                                                                        'events.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'start_date': {'description': 'Start '
                                                                                                 'of '
                                                                                                 'date '
@@ -1430,18 +1588,78 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Search Urban Sports Club public fitness locations. Use this when the user asks '
                  'for gyms, studios, pools, or Urban Sports locations near a city, address, or '
                  'radius. Do not use it for class availability; use fitness.search_classes for '
-                 'dated class searches.',
+                 'dated class searches. Keep query focused on the activity or venue type. Whenever '
+                 'the user states a fitness purpose, intended activity, accessibility need, '
+                 'desired quality, or preference that should change venue ordering, put it in '
+                 'relevance_criteria even if related w',
   'description_key': 'fitness.search_locations.description',
   'schema': {'properties': {'requests': {'description': 'Location search requests.',
                                          'items': {'properties': {'address': {'type': 'string'},
                                                                   'category': {'type': 'string'},
                                                                   'city': {'type': 'string'},
                                                                   'lat': {'type': 'number'},
-                                                                  'limit': {'type': 'number'},
+                                                                  'limit': {'default': 10,
+                                                                            'maximum': 50,
+                                                                            'minimum': 1,
+                                                                            'type': 'integer'},
                                                                   'lon': {'type': 'number'},
                                                                   'plan': {'type': 'string'},
                                                                   'query': {'type': 'string'},
-                                                                  'radius_km': {'type': 'number'}},
+                                                                  'radius_km': {'type': 'number'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'venue-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'activity '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'fitness '
+                                                                                                        'purpose, '
+                                                                                                        'intended '
+                                                                                                        'activity, '
+                                                                                                        'accessibility '
+                                                                                                        'need, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Broad '
+                                                                                                        'yoga '
+                                                                                                        'variety '
+                                                                                                        'with '
+                                                                                                        'explicit '
+                                                                                                        'central-Berlin '
+                                                                                                        'evidence." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'}},
                                                    'type': 'object'},
                                          'type': 'array'}},
              'type': 'object'},
@@ -1454,7 +1672,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Search available Urban Sports Club public fitness classes. Use this when the '
                  'user asks for dated fitness classes, course availability, free spots, on-site '
                  'classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless '
-                 'the user explicitly asks for Essential, Classic, Premium, or Max.',
+                 'the user explicitly asks for Essential, Classic, Premium, or Max. Keep query '
+                 'focused on the activity. Whenever the user states a fitness purpose, intended '
+                 'activity, audience level, desired quality, or preference that should change '
+                 'class ordering, put it in relevan',
   'description_key': 'fitness.search_classes.description',
   'schema': {'properties': {'requests': {'description': 'Class search requests.',
                                          'items': {'properties': {'address': {'type': 'string'},
@@ -1464,12 +1685,70 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                   'days': {'type': 'number'},
                                                                   'end_date': {'type': 'string'},
                                                                   'lat': {'type': 'number'},
-                                                                  'limit': {'type': 'number'},
+                                                                  'limit': {'default': 10,
+                                                                            'maximum': 50,
+                                                                            'minimum': 1,
+                                                                            'type': 'integer'},
                                                                   'lon': {'type': 'number'},
                                                                   'min_spots': {'type': 'number'},
                                                                   'plan': {'type': 'string'},
                                                                   'query': {'type': 'string'},
                                                                   'radius_km': {'type': 'number'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'class-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'activity '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'fitness '
+                                                                                                        'purpose, '
+                                                                                                        'intended '
+                                                                                                        'activity, '
+                                                                                                        'audience '
+                                                                                                        'level, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Evening '
+                                                                                                        'on-site '
+                                                                                                        'yoga '
+                                                                                                        'classes '
+                                                                                                        'with '
+                                                                                                        'explicit '
+                                                                                                        'remaining '
+                                                                                                        'spots." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'start_date': {'type': 'string'},
                                                                   'venue_id': {'type': 'string'}},
                                                    'type': 'object'},
@@ -1816,7 +2095,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Search for apartments, houses, and WG rooms in German cities. Searches '
                  'ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with '
                  'prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. '
-                 'Use when user asks about finding housing in Germany.',
+                 'Use when user asks about finding housing in Germany. Keep query focused on the '
+                 'location. Whenever the user states an intended use, household need, desired '
+                 'quality, or preference not fully captured by price, room, size, property-type, '
+                 'or sort fields, put it in relevanc',
   'description_key': 'app_skills.home.search.description',
   'output_schema': {'properties': {'listings': {'example': [{'address': 'Berlin',
                                                              'canonical_url': 'https://example.invalid/apartments/one',
@@ -2082,6 +2364,73 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"Munich", '
                                                                                            '"Hamburg".\n',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'housing-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'location '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'an '
+                                                                                                        'intended '
+                                                                                                        'use, '
+                                                                                                        'household '
+                                                                                                        'need, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'not '
+                                                                                                        'represented '
+                                                                                                        'by '
+                                                                                                        'structured '
+                                                                                                        'filters. '
+                                                                                                        'Example: '
+                                                                                                        '"Prioritize '
+                                                                                                        'explicit '
+                                                                                                        'balcony '
+                                                                                                        'and '
+                                                                                                        'quiet-setting '
+                                                                                                        'evidence." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields. '
+                                                                                                        'Rank '
+                                                                                                        'only '
+                                                                                                        'explicit '
+                                                                                                        'listing '
+                                                                                                        'facts '
+                                                                                                        'and '
+                                                                                                        'never '
+                                                                                                        'infer '
+                                                                                                        'unstated '
+                                                                                                        'qualities. '
+                                                                                                        'Only '
+                                                                                                        'max_results '
+                                                                                                        'listings '
+                                                                                                        'are '
+                                                                                                        'returned.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'sort': {'default': 'price_asc',
                                                                            'description': 'Price '
                                                                                           'ascending, '
@@ -2601,7 +2950,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'maps',
   'app_namespace_py': 'maps',
   'app_namespace_ts': 'maps',
-  'description': 'Search for places, businesses, restaurants, directions, locations.',
+  'description': 'Search for places, businesses, restaurants, directions, and locations. Keep '
+                 'query focused on the place type and location. Whenever the user states a '
+                 'purpose, intended activity, audience, or preference that should change place '
+                 'ordering, put it in relevance_criteria even if related words could also be added '
+                 'to query. Example: query "cafes in Berlin" with relevance_criteria "Places '
+                 'suitable for working several hours on a laptop and taking a client call." Keep '
+                 'rating, open-now, price, and required a',
   'description_key': 'maps.search.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -2617,9 +2972,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         'Berlin"}]}\n'
                                                         "Each object must contain 'query' (search "
                                                         'query string), and can include optional '
-                                                        'parameters (pageSize, languageCode, '
-                                                        'locationBias, includedType, minRating, '
-                                                        'openNow, includeReviews).\n'
+                                                        'parameters (pageSize, relevance_criteria, '
+                                                        'languageCode, locationBias, includedType, '
+                                                        'minRating, openNow, includeReviews).\n'
                                                         "Note: The 'id' field is auto-generated if "
                                                         "not provided - you don't need to include "
                                                         'it.\n',
@@ -2851,7 +3206,68 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'near '
                                                                                            'Times '
                                                                                            'Square")',
-                                                                            'type': 'string'}},
+                                                                            'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'place-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'place '
+                                                                                                        'and '
+                                                                                                        'location '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'purpose, '
+                                                                                                        'intended '
+                                                                                                        'activity, '
+                                                                                                        'audience, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Suitable '
+                                                                                                        'for '
+                                                                                                        'working '
+                                                                                                        'several '
+                                                                                                        'hours '
+                                                                                                        'on '
+                                                                                                        'a '
+                                                                                                        'laptop '
+                                                                                                        'and '
+                                                                                                        'taking '
+                                                                                                        'a '
+                                                                                                        'client '
+                                                                                                        'call." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields; '
+                                                                                                        'never '
+                                                                                                        'invent '
+                                                                                                        'preferences.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'}},
                                                    'required': ['query'],
                                                    'type': 'object'},
                                          'type': 'array'}},
@@ -2931,9 +3347,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'models3d',
   'app_namespace_py': 'models3d',
   'app_namespace_ts': 'models3d',
-  'description': 'Search public 3D model catalogs for existing models. Use this when the user '
-                 'wants to find, browse, compare, or link to existing 3D-printable or downloadable '
-                 '3D models. Do not use it to generate new models.',
+  'description': 'Search public catalogs for existing printable or downloadable 3D models; do not '
+                 'generate models. Use relevance_criteria only for an explicit user-stated '
+                 'purpose, compatibility need, quality, or preference that should change ordering. '
+                 'Never infer printability, quality, popularity, portability, or compatibility. '
+                 'Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: '
+                 'omit relevance_criteria. Keep query focused on the object and keep free-only and '
+                 'sort constraints structured.',
   'description_key': 'app_skills.models3d.search.description',
   'schema': {'properties': {'requests': {'description': 'Array of 3D model search requests. Each '
                                                         'request searches public 3D model catalogs '
@@ -2981,6 +3401,58 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'cable '
                                                                                            'clip".',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'model-selection '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'object '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'only '
+                                                                                                        'when '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'explicitly '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'purpose, '
+                                                                                                        'compatibility '
+                                                                                                        'need, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Omit '
+                                                                                                        'it '
+                                                                                                        'for '
+                                                                                                        'broad '
+                                                                                                        'or '
+                                                                                                        'neutral '
+                                                                                                        'discovery. '
+                                                                                                        'Never '
+                                                                                                        'add '
+                                                                                                        'unstated '
+                                                                                                        'defaults '
+                                                                                                        'such '
+                                                                                                        'as '
+                                                                                                        'popular, '
+                                                                                                        'high-quality, '
+                                                                                                        'printable, '
+                                                                                                        'portable, '
+                                                                                                        'safe, '
+                                                                                                        'or '
+                                                                                                        'compatible.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'sort': {'default': 'best_match',
                                                                            'description': 'Sorting '
                                                                                           'strategy '
@@ -3116,7 +3588,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'news',
   'app_namespace_py': 'news',
   'app_namespace_ts': 'news',
-  'description': 'Search for news articles, current events, headlines, announcements.',
+  'description': 'Search for news articles, current events, headlines, and announcements. Keep '
+                 'query focused on the news topic. Whenever the user states a purpose, audience, '
+                 'decision need, impact of interest, or coverage preference that should change '
+                 'ordering, put it in relevance_criteria even if related terms could also be added '
+                 'to query. Example: query "EU AI regulation" with relevance_criteria "Changes '
+                 'most likely to affect small EU software startups." Omit relevance_criteria only '
+                 'for a neutral news search ful',
   'description_key': 'news.search.description',
   'output_schema': {'properties': {'articles': {'example': [{'canonical_url': 'https://example.invalid/news/ai',
                                                              'description': 'An example article '
@@ -3249,20 +3727,24 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         '{"query": "MacBook news"}]}\n'
                                                         "Each object must contain 'query' (search "
                                                         'query string), and can include optional '
-                                                        'parameters (count, country, search_lang, '
-                                                        'safesearch, freshness).\n'
+                                                        'parameters (count, relevance_criteria, '
+                                                        'country, search_lang, safesearch, '
+                                                        'freshness).\n'
                                                         "Note: The 'id' field is auto-generated if "
                                                         "not provided - you don't need to include "
                                                         'it.\n',
-                                         'items': {'properties': {'count': {'default': 6,
+                                         'items': {'properties': {'count': {'default': 10,
                                                                             'description': 'Number '
                                                                                            'of '
+                                                                                           'final '
                                                                                            'results '
                                                                                            'for '
                                                                                            'this '
                                                                                            'request '
-                                                                                           '(max '
-                                                                                           '20)',
+                                                                                           '(default '
+                                                                                           '10, '
+                                                                                           'max '
+                                                                                           '20).',
                                                                             'maximum': 20,
                                                                             'minimum': 1,
                                                                             'type': 'integer'},
@@ -3469,6 +3951,91 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'query '
                                                                                            'string',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'coverage-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'news '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'purpose, '
+                                                                                                        'audience, '
+                                                                                                        'decision '
+                                                                                                        'need, '
+                                                                                                        'impact '
+                                                                                                        'of '
+                                                                                                        'interest, '
+                                                                                                        'or '
+                                                                                                        'coverage '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Changes '
+                                                                                                        'most '
+                                                                                                        'likely '
+                                                                                                        'to '
+                                                                                                        'affect '
+                                                                                                        'small '
+                                                                                                        'EU '
+                                                                                                        'software '
+                                                                                                        'startups." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields; '
+                                                                                                        'never '
+                                                                                                        'invent '
+                                                                                                        'preferences. '
+                                                                                                        'When '
+                                                                                                        'present, '
+                                                                                                        'up '
+                                                                                                        'to '
+                                                                                                        '40 '
+                                                                                                        'candidates '
+                                                                                                        'are '
+                                                                                                        'ranked '
+                                                                                                        'and '
+                                                                                                        'up '
+                                                                                                        'to '
+                                                                                                        'count '
+                                                                                                        'are '
+                                                                                                        'returned; '
+                                                                                                        'candidates '
+                                                                                                        'below '
+                                                                                                        'the '
+                                                                                                        'relevant-coverage '
+                                                                                                        'threshold '
+                                                                                                        'are '
+                                                                                                        'omitted '
+                                                                                                        'rather '
+                                                                                                        'than '
+                                                                                                        'used '
+                                                                                                        'as '
+                                                                                                        'padding.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'safesearch': {'default': 'moderate',
                                                                                  'description': 'Safe '
                                                                                                 'search '
@@ -3996,7 +4563,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use '
                  'category to route groceries, marketplace products, fabrics, sewing supplies, and '
                  'patterns to compatible providers. Invalid provider/category combinations are '
-                 'rejected.',
+                 'rejected. Keep query focused on the product type. Whenever the user states an '
+                 'intended use, audience, compatibility need, desired quality, or preference that '
+                 'should change ordering, put it in relevance_criteria even if related words could '
+                 'also be added to query. Exampl',
   'description_key': 'app_skills.shopping.search_products.description',
   'schema': {'properties': {'requests': {'description': 'Array of product search requests. Each '
                                                         'request searches for products matching a '
@@ -4143,6 +4713,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  '(1-20, '
                                                                                                  'default '
                                                                                                  '10).',
+                                                                                  'maximum': 20,
+                                                                                  'minimum': 1,
                                                                                   'type': 'integer'},
                                                                   'min_price': {'description': 'Amazon-only '
                                                                                                'minimum '
@@ -4193,6 +4765,62 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            '"wireless '
                                                                                            'mouse".\n',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'product-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'product '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'an '
+                                                                                                        'intended '
+                                                                                                        'use, '
+                                                                                                        'audience, '
+                                                                                                        'compatibility '
+                                                                                                        'need, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Good '
+                                                                                                        'for '
+                                                                                                        'travel, '
+                                                                                                        'with '
+                                                                                                        'explicit '
+                                                                                                        'quiet-click, '
+                                                                                                        'long-battery, '
+                                                                                                        'and '
+                                                                                                        'multi-device '
+                                                                                                        'evidence." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'service_type': {'default': 'DELIVERY',
                                                                                    'description': 'REWE-only '
                                                                                                   'fulfilment '
@@ -5409,7 +6037,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'travel',
   'app_namespace_py': 'travel',
   'app_namespace_ts': 'travel',
-  'description': 'Run this OpenMates app skill.',
+  'description': 'Search hotels, hostels, and other stays for explicit dates and party size. Keep '
+                 'query focused on destination or property. Whenever the user states a trip '
+                 'purpose, intended activity, traveler need, desired quality, or preference that '
+                 'should change ordering, put it in relevance_criteria even if related words could '
+                 'also be added to query. Example: "Prioritize explicit reliable-Wi-Fi and in-room '
+                 'workspace or desk evidence." Keep dates, guests, price, class, rating, '
+                 'cancellation, and sort structured.',
   'description_key': 'app_skills.travel.search_stays.description',
   'schema': {'properties': {'requests': {'description': 'Array of stay search requests. Each '
                                                         'request searches for accommodation at a '
@@ -5473,7 +6107,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'of '
                                                                                                  'results '
                                                                                                  'to '
-                                                                                                 'return.',
+                                                                                                 'return '
+                                                                                                 '(1-20, '
+                                                                                                 'default '
+                                                                                                 '10).',
+                                                                                  'maximum': 20,
+                                                                                  'minimum': 1,
                                                                                   'type': 'integer'},
                                                                   'min_price': {'description': 'Minimum '
                                                                                                'nightly '
@@ -5499,6 +6138,64 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'beachfront '
                                                                                            'hotel").\n',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'stay-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'destination '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'trip '
+                                                                                                        'purpose, '
+                                                                                                        'intended '
+                                                                                                        'activity, '
+                                                                                                        'traveler '
+                                                                                                        'need, '
+                                                                                                        'desired '
+                                                                                                        'quality, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Prioritize '
+                                                                                                        'explicit '
+                                                                                                        'reliable-Wi-Fi '
+                                                                                                        'and '
+                                                                                                        'workspace '
+                                                                                                        'or '
+                                                                                                        'desk '
+                                                                                                        'evidence." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields; '
+                                                                                                        'never '
+                                                                                                        'invent '
+                                                                                                        'preferences.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'sort_by': {'default': 'relevance',
                                                                               'description': 'Sort '
                                                                                              'order '
@@ -5712,7 +6409,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'videos',
   'app_namespace_py': 'videos',
   'app_namespace_ts': 'videos',
-  'description': 'Search for videos, documentaries, tutorials, clips on the web.',
+  'description': 'Search for videos, documentaries, tutorials, and clips on the web. Keep query '
+                 'focused on the topic. Whenever the user states a viewing or learning purpose, '
+                 'audience level, desired depth, format, authority, or other preference that '
+                 'should change ordering, put it in relevance_criteria even if related words could '
+                 'also be added to query. Example: query "RAG tutorial" with relevance_criteria '
+                 '"Advanced, hands-on production guidance with deployment and evaluation details." '
+                 'Keep country, language, safe-',
   'description_key': 'videos.search.description',
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
@@ -5728,8 +6431,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         'tutorial"}]}\n'
                                                         "Each object must contain 'query' (search "
                                                         'query string), and can include optional '
-                                                        'parameters (count, country, search_lang, '
-                                                        'safesearch).\n'
+                                                        'parameters (count, relevance_criteria, '
+                                                        'country, search_lang, safesearch, '
+                                                        'freshness).\n'
                                                         "Note: The 'id' field is auto-generated if "
                                                         "not provided - you don't need to include "
                                                         'it.\n',
@@ -5881,6 +6585,64 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'query '
                                                                                            'string',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'video-ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'topic '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'viewing '
+                                                                                                        'or '
+                                                                                                        'learning '
+                                                                                                        'purpose, '
+                                                                                                        'audience '
+                                                                                                        'level, '
+                                                                                                        'desired '
+                                                                                                        'depth, '
+                                                                                                        'format, '
+                                                                                                        'authority, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering. '
+                                                                                                        'Example: '
+                                                                                                        '"Advanced, '
+                                                                                                        'hands-on '
+                                                                                                        'production '
+                                                                                                        'guidance '
+                                                                                                        'with '
+                                                                                                        'deployment '
+                                                                                                        'and '
+                                                                                                        'evaluation '
+                                                                                                        'details." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'safesearch': {'default': 'moderate',
                                                                                  'description': 'Safe '
                                                                                                 'search '
@@ -6230,7 +6992,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_py': 'web',
   'app_namespace_ts': 'web',
   'description': 'General web search for current information, prices, weather, facts, stocks, '
-                 'sports scores, etc. Use as a fallback when no specialized skill applies.',
+                 'sports scores, etc. Use as a fallback when no specialized skill applies. Keep '
+                 'query focused on the subject being retrieved. Whenever the user states a '
+                 'purpose, intended use, audience, decision need, or preference that should change '
+                 'result ordering, put that goal in relevance_criteria even if related words could '
+                 'also be added to query. For example, query "laptop-friendly cafes Berlin" with '
+                 'relevance_criteria "Places suita',
   'description_key': 'app_skills.web.search.description',
   'output_schema': {'properties': {'result_count': {'type': 'integer'},
                                    'summary': {'type': 'string'}},
@@ -6248,20 +7015,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         '{"query": "FastAPI best practices"}]}\n'
                                                         "Each object must contain 'query' (search "
                                                         'query string), and can include optional '
-                                                        'parameters (count, country, search_lang, '
-                                                        'safesearch).\n'
+                                                        'parameters (count, relevance_criteria, '
+                                                        'country, search_lang, safesearch).\n'
                                                         "Note: The 'id' field is auto-generated if "
                                                         "not provided - you don't need to include "
                                                         'it.\n',
-                                         'items': {'properties': {'count': {'default': 6,
+                                         'items': {'properties': {'count': {'default': 10,
                                                                             'description': 'Number '
                                                                                            'of '
+                                                                                           'final '
                                                                                            'results '
                                                                                            'for '
                                                                                            'this '
                                                                                            'request '
-                                                                                           '(max '
-                                                                                           '20)',
+                                                                                           '(default '
+                                                                                           '10, '
+                                                                                           'max '
+                                                                                           '20).',
                                                                             'maximum': 20,
                                                                             'minimum': 1,
                                                                             'type': 'integer'},
@@ -6435,6 +7205,83 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'query '
                                                                                            'string',
                                                                             'type': 'string'},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'concise '
+                                                                                                        'natural-language '
+                                                                                                        'ranking '
+                                                                                                        'goal, '
+                                                                                                        'separate '
+                                                                                                        'from '
+                                                                                                        'the '
+                                                                                                        'retrieval '
+                                                                                                        'query. '
+                                                                                                        'Set '
+                                                                                                        'it '
+                                                                                                        'whenever '
+                                                                                                        'the '
+                                                                                                        'user '
+                                                                                                        'states '
+                                                                                                        'a '
+                                                                                                        'purpose, '
+                                                                                                        'intended '
+                                                                                                        'use, '
+                                                                                                        'audience, '
+                                                                                                        'decision '
+                                                                                                        'need, '
+                                                                                                        'or '
+                                                                                                        'preference '
+                                                                                                        'that '
+                                                                                                        'should '
+                                                                                                        'change '
+                                                                                                        'ordering, '
+                                                                                                        'even '
+                                                                                                        'if '
+                                                                                                        'related '
+                                                                                                        'terms '
+                                                                                                        'also '
+                                                                                                        'appear '
+                                                                                                        'in '
+                                                                                                        'query. '
+                                                                                                        'Example: '
+                                                                                                        '"Research '
+                                                                                                        'useful '
+                                                                                                        'for '
+                                                                                                        'deciding '
+                                                                                                        'which '
+                                                                                                        'framework '
+                                                                                                        'to '
+                                                                                                        'adopt." '
+                                                                                                        'Omit '
+                                                                                                        'only '
+                                                                                                        'for '
+                                                                                                        'a '
+                                                                                                        'neutral '
+                                                                                                        'search '
+                                                                                                        'fully '
+                                                                                                        'expressed '
+                                                                                                        'by '
+                                                                                                        'query '
+                                                                                                        'and '
+                                                                                                        'structured '
+                                                                                                        'fields; '
+                                                                                                        'never '
+                                                                                                        'invent '
+                                                                                                        'preferences. '
+                                                                                                        'When '
+                                                                                                        'present, '
+                                                                                                        'up '
+                                                                                                        'to '
+                                                                                                        '40 '
+                                                                                                        'candidates '
+                                                                                                        'are '
+                                                                                                        'ranked '
+                                                                                                        'and '
+                                                                                                        'only '
+                                                                                                        'count '
+                                                                                                        'are '
+                                                                                                        'returned.\n',
+                                                                                         'maxLength': 1000,
+                                                                                         'type': 'string'},
                                                                   'safesearch': {'default': 'moderate',
                                                                                  'description': 'Safe '
                                                                                                 'search '
@@ -6701,7 +7548,7 @@ class CodeAppSkills:
         return self._run_skill("code", "remove_secrets", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def run(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif
+        """Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_
 
         Description key: app_skills.code.run.description
         Skill: code/run
@@ -6709,7 +7556,7 @@ class CodeAppSkills:
         return self._run_skill("code", "run", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_repos(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
+        """Search GitHub repositories instead of web.search for repositories or open-source libraries. Use relevance_criteria only for an explicit user-stated purpose, audience, quality, maintenance, license, or technical preference that should change ordering. Never infer generic quality, popularity, recency, or maintenance. Plain discovery such as "Find TypeScript Markdown editor libraries on GitHub" is neutral: omit relevance_criteria. Keep query topical. Returns licensed repositories.
 
         Description key: code.search_repos.description
         Skill: code/search_repos
@@ -6745,7 +7592,7 @@ class EventsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3
+        """Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use
 
         Description key: events.search.description
         Skill: events/search
@@ -6757,7 +7604,7 @@ class FitnessAppSkills:
         self._run_skill = run_skill
 
     def search_classes(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.
+        """Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan
 
         Description key: fitness.search_classes.description
         Skill: fitness/search_classes
@@ -6765,7 +7612,7 @@ class FitnessAppSkills:
         return self._run_skill("fitness", "search_classes", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_locations(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
+        """Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w
 
         Description key: fitness.search_locations.description
         Skill: fitness/search_locations
@@ -6797,7 +7644,7 @@ class HomeAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany.
+        """Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc
 
         Description key: app_skills.home.search.description
         Skill: home/search
@@ -6841,7 +7688,7 @@ class MapsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for places, businesses, restaurants, directions, locations.
+        """Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, price, and required a
 
         Description key: maps.search.description
         Skill: maps/search
@@ -6865,7 +7712,7 @@ class Models3dAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
+        """Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.
 
         Description key: app_skills.models3d.search.description
         Skill: models3d/search
@@ -6889,7 +7736,7 @@ class NewsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for news articles, current events, headlines, announcements.
+        """Search for news articles, current events, headlines, and announcements. Keep query focused on the news topic. Whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering, put it in relevance_criteria even if related terms could also be added to query. Example: query "EU AI regulation" with relevance_criteria "Changes most likely to affect small EU software startups." Omit relevance_criteria only for a neutral news search ful
 
         Description key: news.search.description
         Skill: news/search
@@ -7029,7 +7876,7 @@ class ShoppingAppSkills:
         self._run_skill = run_skill
 
     def search_products(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected.
+        """Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl
 
         Description key: app_skills.shopping.search_products.description
         Skill: shopping/search_products
@@ -7097,7 +7944,7 @@ class TravelAppSkills:
         return self._run_skill("travel", "search_connections", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_stays(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Run this OpenMates app skill.
+        """Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: "Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence." Keep dates, guests, price, class, rating, cancellation, and sort structured.
 
         Description key: app_skills.travel.search_stays.description
         Skill: travel/search_stays
@@ -7133,7 +7980,7 @@ class VideosAppSkills:
         return self._run_skill("videos", "get_transcript", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search for videos, documentaries, tutorials, clips on the web.
+        """Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "RAG tutorial" with relevance_criteria "Advanced, hands-on production guidance with deployment and evaluation details." Keep country, language, safe-
 
         Description key: videos.search.description
         Skill: videos/search
@@ -7173,7 +8020,7 @@ class WebAppSkills:
         return self._run_skill("web", "read", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies.
+        """General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. Keep query focused on the subject being retrieved. Whenever the user states a purpose, intended use, audience, decision need, or preference that should change result ordering, put that goal in relevance_criteria even if related words could also be added to query. For example, query "laptop-friendly cafes Berlin" with relevance_criteria "Places suita
 
         Description key: app_skills.web.search.description
         Skill: web/search

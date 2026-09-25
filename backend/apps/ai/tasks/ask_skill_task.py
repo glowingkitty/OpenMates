@@ -318,6 +318,14 @@ async def _cleanup_on_task_failure(
             logger.info(f"{log_prefix} Cleared active_ai_task marker after failure: {error_message}")
         else:
             logger.warning(f"{log_prefix} Failed to clear active_ai_task marker (may not exist)")
+        from backend.apps.ai.tasks.async_skill_continuation import (
+            dispatch_deferred_async_skill_continuations,
+        )
+        await dispatch_deferred_async_skill_continuations(
+            cache_service=cache_service,
+            user_id=user_id,
+            chat_id=chat_id,
+        )
     except Exception as e:
         logger.error(f"{log_prefix} Error clearing active_ai_task marker: {e}", exc_info=True)
     
@@ -904,6 +912,7 @@ async def _async_process_ai_skill_ask_task(
                         or request_data.is_focus_mode_continuation
                         or request_data.is_app_settings_memories_continuation
                         or request_data.is_connected_account_permission_continuation
+                        or request_data.is_async_skill_continuation
                     ),
                 },
             )
@@ -1895,8 +1904,16 @@ async def _async_process_ai_skill_ask_task(
                     # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
                     # When this is True, the user message was already persisted before the app settings/memories
                     # or focus mode deferred activation pause
-                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation,
+                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation or request_data.is_async_skill_continuation,
                 }
+                if request_data.is_async_skill_continuation:
+                    typing_payload_data.update(
+                        {
+                            "is_async_skill_continuation": True,
+                            "original_user_message_id": request_data.original_user_message_id or request_data.message_id,
+                            "async_skill_task_id": request_data.async_skill_task_id,
+                        }
+                    )
             
                 # Include encrypted_chat_key so secondary devices can cache it early
                 if encrypted_chat_key_for_typing:
@@ -2108,6 +2125,14 @@ async def _async_process_ai_skill_ask_task(
         # This allows new messages to be processed immediately instead of queued
         await cache_service_instance.clear_active_ai_task(request_data.chat_id)
         logger.debug(f"[Task ID: {task_id}] Cleared active AI task marker for chat {request_data.chat_id} after main processing")
+        from backend.apps.ai.tasks.async_skill_continuation import (
+            dispatch_deferred_async_skill_continuations,
+        )
+        await dispatch_deferred_async_skill_continuations(
+            cache_service=cache_service_instance,
+            user_id=request_data.user_id,
+            chat_id=request_data.chat_id,
+        )
         
         # Check for queued messages and process them
         # This implements the queue system: when main processing completes, process any queued messages

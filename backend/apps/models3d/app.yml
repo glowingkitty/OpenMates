@@ -121,6 +121,7 @@ instructions:
       exposing task IDs, embed IDs, provider URLs, or encryption details.
 skills:
   - id: search
+    anonymous_access: inline
     name_translation_key: app_skills.models3d.search
     description_translation_key: app_skills.models3d.search.description
     icon_image: 3dmodels.svg
@@ -128,9 +129,13 @@ skills:
       expose_get: false
       expose_post: true
     preprocessor_hint: >
-      Search public 3D model catalogs for existing models. Use this when the
-      user wants to find, browse, compare, or link to existing 3D-printable or
-      downloadable 3D models. Do not use it to generate new models.
+      Search public catalogs for existing printable or downloadable 3D models;
+      do not generate models. Use relevance_criteria only for an explicit
+      user-stated purpose, compatibility need, quality, or preference that should
+      change ordering. Never infer printability, quality, popularity,
+      portability, or compatibility. Plain discovery such as "Find adjustable
+      laptop stand 3D models" is neutral: omit relevance_criteria. Keep query
+      focused on the object and keep free-only and sort constraints structured.
     class_path: backend.apps.models3d.skills.search_skill.SearchSkill
     providers:
       - name: Printables
@@ -144,6 +149,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of 3D model search requests. Each request searches public 3D
@@ -152,34 +159,57 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Search query, e.g. "benchy", "phone stand", or "desk cable clip".
               providers:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: string
                   enum: [Printables]
                 description: Optional provider filter. Defaults to Printables.
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 1
                 maximum: 20
                 default: 10
                 description: Maximum total results to return after merging providers.
               sort:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [best_match, popular, downloads, newest]
                 default: best_match
                 description: Sorting strategy applied after provider results are merged.
               free_only:
+                x-ui:
+                  basic: true
                 type: boolean
                 default: false
                 description: Return only results that the provider marks as free.
+              relevance_criteria:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional concise natural-language model-selection goal, separate
+                  from the object query. Set it only when the user explicitly states
+                  a purpose, compatibility need, desired quality, or preference that
+                  should change ordering. Omit it for broad or neutral discovery.
+                  Never add unstated defaults such as popular, high-quality,
+                  printable, portable, safe, or compatible.
             required:
               - query
       required:
         - requests
   - id: generate
+    anonymous_access: authenticated
     # Disabled by default until Hi3D-backed generation is affordable enough to
     # keep real CLI/SDK/web verification green. Enable with skill:models3d:generate.
     default_enabled: false
@@ -204,15 +234,21 @@ skills:
       type: object
       properties:
         prompt:
+          x-ui:
+            basic: true
           type: string
           description: Text description used to create a reference image before 3D generation.
         image_embed_refs:
+          x-ui:
+            basic: true
           type: array
           items:
             type: string
           maxItems: 1
           description: One attached image embed reference.
         image_views:
+          x-ui:
+            basic: false
           type: array
           minItems: 2
           maxItems: 4
@@ -220,8 +256,12 @@ skills:
             type: object
             properties:
               embed_ref:
+                x-ui:
+                  basic: false
                 type: string
               view:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [front, back, left, right]
             required: [embed_ref, view]

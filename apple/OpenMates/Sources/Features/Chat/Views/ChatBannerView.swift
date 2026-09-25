@@ -33,11 +33,44 @@ import AppKit
 
 // MARK: - Banner State
 
-enum ChatBannerState {
+enum ChatBannerState: Equatable {
     case loading
     case loaded(title: String, appId: String, summary: String?)
     case draftOnly(preview: String)
     case incognito
+}
+
+/// Resolves the generated header independently from stream completion. Title
+/// and category metadata are delivered separately, so a usable title must not
+/// disappear merely because category hydration is still pending.
+@MainActor
+enum ChatBannerPresentation {
+    static let fallbackCategory = "general_knowledge"
+
+    static func generatedOrProvisionalState(
+        title: String?,
+        provisionalTitle: String?,
+        category: String?,
+        summary: String?,
+        shouldShowLoading: Bool
+    ) -> ChatBannerState? {
+        let resolvedTitle = firstNonEmpty(title, provisionalTitle)
+        if let resolvedTitle {
+            return .loaded(
+                title: resolvedTitle,
+                appId: firstNonEmpty(category) ?? fallbackCategory,
+                summary: summary
+            )
+        }
+        return shouldShowLoading ? .loading : nil
+    }
+
+    private static func firstNonEmpty(_ values: String?...) -> String? {
+        values.lazy.compactMap { value in
+            let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? nil : trimmed
+        }.first
+    }
 }
 
 // MARK: - Banner View

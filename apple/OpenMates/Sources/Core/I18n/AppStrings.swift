@@ -2,6 +2,8 @@
 // These resolve through LocalizationManager, which loads translations from the
 // web app's i18n JSON files. All keys match the web app's translation paths.
 // Every user-visible string in the app must use these keys — no hardcoded English.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.streaming.progressive-presentation, chats.surface.semantic-parity
 
 import Foundation
 
@@ -86,6 +88,21 @@ enum AppStrings {
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("enter_message.processing") }
+    static func mateIsTyping(_ mate: String) -> String {
+        LocalizationManager.shared.text("enter_message.is_typing", replacements: ["mate": mate])
+    }
+    static func mateIsThinking(_ mate: String) -> String {
+        LocalizationManager.shared.text("enter_message.is_thinking", replacements: ["mate": mate])
+    }
+    static var sendingMessage: String { L("enter_message.sending") }
+    static var selectingMateAndModel: String { L("enter_message.status.selecting_mate_and_model") }
+    static var selectingMate: String { L("enter_message.status.selecting_mate") }
+    static var selectingModel: String { L("enter_message.status.selecting_model") }
+    static var analyzingMessage: String { L("enter_message.status.analyzing_message") }
+    static var thinkingHeaderStreaming: String { L("chat.thinking.header_streaming") }
+    static var thinkingHeaderDone: String { L("chat.thinking.header_done") }
+    static var thinkingExpand: String { L("chat.thinking.expand") }
+    static var thinkingCollapse: String { L("chat.thinking.collapse") }
     static var stopResponse: String { L("chat.stop_response") }
     static var messageQueued: String { L("enter_message.message_queued") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }
@@ -107,7 +124,9 @@ enum AppStrings {
     static var renameChat: String { L("chat.rename") }
     static var chatTitle: String { L("chat.title") }
     static var conversationForked: String { L("chat.forked") }
-    static var setReminder: String { L("chat.set_reminder") }
+    // Specification: specifications/features/chats/specification.yml
+    // Assertion: chats.layout.responsive-history
+    static var setReminder: String { L("chat.header.set_reminder") }
     static var chats: String { L("common.chats") }
     static var summary: String { L("common.summary") }
     static var explore: String { L("common.explore") }
@@ -608,6 +627,8 @@ enum AppStrings {
     static var reportIssueScreenshotHint: String { L("settings.report_issue.screenshot_hint") }
     static var reportIssueScreenshotUploadButton: String { L("settings.report_issue.screenshot_upload_button") }
     static var reportIssueScreenshotRemove: String { L("settings.report_issue.screenshot_remove") }
+    static var reportIssueScreenshotSizeTooLarge: String { L("settings.report_issue.screenshot_size_too_large") }
+    static var reportIssueScreenshotUploadFailed: String { L("settings.report_issue.screenshot_upload_failed") }
     static var reportIssueSubmitButton: String { L("settings.report_issue.submit_button") }
     static var reportIssueSubmitting: String { L("settings.report_issue.submitting") }
     static var reportIssueSuccess: String { L("settings.report_issue_success") }
@@ -776,8 +797,18 @@ enum AppStrings {
     }
 
     // MARK: - Embeds
-    static var voiceRecording: String { L("embed.voice_recording") }
-    static var transcription: String { L("embed.transcription") }
+    static var audioRecording: String { L("app_skills.audio.transcribe.audio_recording") }
+    static var audioRecordingDescription: String { L("app_skills.audio.transcribe.description") }
+    static var audioTranscriptUnavailable: String { L("app_skills.audio.transcribe.no_transcript") }
+    static var audioAutoCorrecting: String { L("app_skills.audio.transcribe.auto_correcting") }
+    static var voiceRecording: String { audioRecording }
+    static var transcription: String { L("app_skills.audio.transcribe.edit_transcript") }
+    static func audioTranscribedBy(model: String) -> String {
+        LocalizationManager.shared.text(
+            "app_skills.audio.transcribe.transcribed_by",
+            replacements: ["model": model]
+        )
+    }
     static var play: String { L("audio.play") }
     static var pause: String { L("audio.pause") }
     static var locationNearby: String { L("embeds.maps_location.nearby") }
@@ -788,6 +819,11 @@ enum AppStrings {
     static var snippets: String { L("embeds.snippets") }
     static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var via: String { L("embeds.via") }
+    static var videoGetTranscript: String { L("app_skills.videos.get_transcript") }
+    static var transcriptYouTubeVideo: String { L("embeds.youtube_video") }
+    static var transcriptVia: String { L("embeds.via") }
+    static var transcriptWords: String { L("embeds.document_word_plural") }
+    static var transcriptNoResults: String { L("embeds.search_no_results") }
     static var searchFailed: String { L("embeds.search_failed") }
     static var embedStoredEncrypted: String { L("embeds.stored_encrypted") }
     static var embedClickToShowDetails: String { L("embeds.click_to_show_details") }
@@ -802,6 +838,7 @@ enum AppStrings {
     static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
     static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
     static var codeRun: String { L("app_skills.code.run") }
+    static var codeSearchRepos: String { L("app_skills.code.search_repos") }
     static var codeRunCode: String { L("app_skills.code.run_code") }
     static var codeRunOutput: String { L("app_skills.code.run.output") }
     static var codeRunViewCode: String { L("app_skills.code.run.view_code") }

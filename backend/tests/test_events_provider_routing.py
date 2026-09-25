@@ -97,6 +97,109 @@ async def test_unknown_explicit_provider_is_visible_error(monkeypatch: pytest.Mo
     assert response.results[0]["error"] == "Unknown events provider: luna"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.providers.auto-relevance
+async def test_removed_google_events_is_not_queried_or_silently_replaced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skill = _make_skill()
+    skill._providers_meta = [
+        {"id": "google_events", "scope": "global"},
+        {"id": "eventbrite", "scope": "global"},
+    ]
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+    calls: list[str] = []
+
+    async def eventbrite_result(**_kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
+        calls.append("eventbrite")
+        return ([{
+            "id": "eventbrite-ai",
+            "provider": "eventbrite",
+            "title": "AI Community Night",
+            "url": "https://eventbrite.com/e/ai-community-night",
+            "date_start": "2026-10-10T18:00:00+02:00",
+        }], 1, None)
+
+    async def no_enrichment(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(skill, "_search_eventbrite", eventbrite_result)
+    monkeypatch.setattr(skill, "_enrich_finalists", no_enrichment)
+
+    auto = await skill.execute(SearchRequest(requests=[{
+        "query": "AI", "location": "Berlin",
+    }]))
+    assert auto.providers == ["eventbrite"]
+    assert auto.warnings == []
+    assert calls == ["eventbrite"]
+
+    for request in (
+        SearchRequest(provider="Google Events", requests=[{"query": "AI", "location": "Berlin"}]),
+        SearchRequest(requests=[{"query": "AI", "location": "Berlin", "providers": ["Google Events", "Eventbrite"]}]),
+    ):
+        response = await skill.execute(request)
+        assert response.results[0]["error"] == (
+            "Google Events is no longer available; choose another provider or auto."
+        )
+    assert calls == ["eventbrite"]
+    assert SearchSkill.resolve_preview_metadata({"provider": "Google Events"})["providers"] == []
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.providers.explicit,events-search.surface-parity
+async def test_location_free_online_auto_uses_only_compatible_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skill = _make_skill()
+    skill._providers_meta = [
+        {"id": "meetup", "scope": "global"},
+        {"id": "eventbrite", "scope": "global"},
+    ]
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    async def forbidden_meetup(*args: Any, **kwargs: Any):
+        raise AssertionError("Meetup must not receive a location-free request")
+
+    async def online_eventbrite(**kwargs: Any):
+        assert kwargs["location_str"] == ""
+        assert kwargs["event_type"] == "ONLINE"
+        return ([{
+            "id": "rust-online",
+            "provider": "eventbrite",
+            "title": "Rust Systems Workshop",
+            "description": "A live online Rust programming workshop.",
+            "url": "https://eventbrite.com/e/rust-online",
+            "date_start": "2026-10-10T18:00:00Z",
+            "event_type": "ONLINE",
+        }], 1, None)
+
+    monkeypatch.setattr(skill, "_search_meetup", forbidden_meetup)
+    monkeypatch.setattr(skill, "_search_eventbrite", online_eventbrite)
+
+    response = await skill.execute(SearchRequest(requests=[{
+        "query": "Rust programming workshops",
+        "event_type": "ONLINE",
+        "count": 10,
+    }]))
+
+    assert response.error is None
+    assert response.providers == ["eventbrite"]
+    assert response.results[0]["results"][0]["id"] == "rust-online"
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.providers.explicit
+async def test_location_free_online_explicit_incompatible_provider_is_visible_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    skill = _make_skill()
+    monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
+
+    response = await skill.execute(SearchRequest(
+        provider="Meetup",
+        requests=[{"query": "Rust programming", "event_type": "ONLINE"}],
+    ))
+
+    assert "requires a location" in response.results[0]["error"]
+
+
 # contract-test: direct surface=rest_api assertions=events-search.conference.supported,events-search.request.validated
 async def test_event_schedule_provider_allows_conference_without_location(monkeypatch: pytest.MonkeyPatch) -> None:
     """Conference searches should not require a city location when conference is set."""
@@ -336,7 +439,6 @@ async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypat
     monkeypatch.setattr(skill, "_search_meetup", empty_provider)
     monkeypatch.setattr(skill, "_search_luma", empty_provider)
     monkeypatch.setattr(skill, "_search_eventbrite", empty_provider)
-    monkeypatch.setattr(skill, "_search_google_events", empty_provider)
     monkeypatch.setattr(skill, "_search_resident_advisor", empty_provider)
     monkeypatch.setattr(skill, "_search_berlin_philharmonic", empty_provider)
     monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)

@@ -5,194 +5,247 @@
 -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { Header, ProjectsPage, Settings, NotificationStack, authStore, initialize, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import {
+		Header,
+		ProjectsPage,
+		Settings,
+		NotificationStack,
+		authStore,
+		initialize,
+		panelState,
+		featureAvailabilityStore,
+		initializeFeatureAvailability,
+		createPlanForProjectTarget,
+		prepareProjectChatNavigation,
+		prepareProjectWorkflowNavigation,
+		notificationStore,
+		type ProjectCreationTarget
+	} from '@repo/ui';
 
-  let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let projectsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:projects'] !== true && $featureAvailabilityStore.disabledById !== null);
+	let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
+	let projectsEnabled = $derived(
+		$featureAvailabilityStore.disabledById?.['platform:projects'] !== true &&
+			$featureAvailabilityStore.disabledById !== null
+	);
 
-  onMount(() => {
-    initialize().catch((error) => {
-      console.error('[ProjectsRoute] Failed to initialize auth:', error);
-    });
+	async function startProjectChat(target: ProjectCreationTarget): Promise<void> {
+		prepareProjectChatNavigation(target);
+		await goto('/');
+	}
 
-    initializeFeatureAvailability().catch((error: unknown) => {
-      console.warn('[ProjectsRoute] Failed to load feature availability:', error);
-    });
-  });
+	async function startProjectWorkflow(target: ProjectCreationTarget): Promise<void> {
+		prepareProjectWorkflowNavigation(target);
+		await goto('/#workflows');
+	}
+
+	async function startProjectPlan(target: ProjectCreationTarget): Promise<void> {
+		try {
+			const plan = await createPlanForProjectTarget(target);
+			await goto(`/#plan-id=${encodeURIComponent(plan.plan_id)}`);
+		} catch (error) {
+			console.error('[ProjectsRoute] Failed to create project plan:', error);
+			notificationStore.error('Could not create the project plan');
+		}
+	}
+
+	onMount(() => {
+		if (window.location.pathname !== '/') {
+			const projectId = new URLSearchParams(window.location.hash.replace(/^#\/?/, '')).get(
+				'project-id'
+			);
+			void goto(projectId ? `/#project-id=${encodeURIComponent(projectId)}` : '/#projects', {
+				replaceState: true
+			});
+			return;
+		}
+
+		initialize().catch((error) => {
+			console.error('[ProjectsRoute] Failed to initialize auth:', error);
+		});
+
+		initializeFeatureAvailability().catch((error: unknown) => {
+			console.warn('[ProjectsRoute] Failed to load feature availability:', error);
+		});
+	});
 </script>
 
 {#if !$authStore.isInitialized || !featureAvailabilityLoaded}
-  <main class="projects-route-state" data-testid="projects-auth-loading">Loading projects...</main>
+	<main class="projects-route-state" data-testid="projects-auth-loading">Loading projects...</main>
 {:else if !projectsEnabled}
-  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-  <main class="projects-route-state" data-testid="projects-feature-disabled">
-    <h1>Projects unavailable</h1>
-    <p>Projects are disabled on this server.</p>
-  </main>
+	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+	<main class="projects-route-state" data-testid="projects-feature-disabled">
+		<h1>Projects unavailable</h1>
+		<p>Projects are disabled on this server.</p>
+	</main>
 {:else if $authStore.isAuthenticated}
-  <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
-    {#if $panelState.isActivityHistoryOpen}
-      <div class="sidebar-content">
-        <ProjectsPage variant="sidebar" />
-      </div>
-    {/if}
-  </div>
-  <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
-    <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-    <div class="projects-container" class:menu-open={$panelState.isSettingsOpen}>
-      <div class="projects-wrapper" id="main-projects" tabindex="-1">
-        <ProjectsPage />
-      </div>
-      <div class="settings-wrapper">
-        <Settings isLoggedIn={$authStore.isAuthenticated} />
-      </div>
-    </div>
-  </div>
+	<div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
+		{#if $panelState.isActivityHistoryOpen}
+			<div class="sidebar-content">
+				<ProjectsPage
+					variant="sidebar"
+					onNewChat={startProjectChat}
+					onNewPlan={startProjectPlan}
+					onNewWorkflow={startProjectWorkflow}
+				/>
+			</div>
+		{/if}
+	</div>
+	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
+		<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+		<div class="projects-container" class:menu-open={$panelState.isSettingsOpen}>
+			<div class="projects-wrapper" id="main-projects" tabindex="-1">
+				<ProjectsPage onNewChat={startProjectChat} onNewPlan={startProjectPlan} onNewWorkflow={startProjectWorkflow} />
+			</div>
+			<div class="settings-wrapper">
+				<Settings isLoggedIn={$authStore.isAuthenticated} />
+			</div>
+		</div>
+	</div>
 {:else}
-  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-  <main class="projects-route-state" data-testid="projects-auth-required">
-    <h1>Projects</h1>
-    <p>Please log in to organize chats, embeds, and uploaded files into projects.</p>
-  </main>
+	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+	<main class="projects-route-state" data-testid="projects-auth-required">
+		<h1>Projects</h1>
+		<p>Please log in to organize chats, embeds, and uploaded files into projects.</p>
+	</main>
 {/if}
 <NotificationStack />
 
 <style>
-  .projects-route-state {
-    min-height: calc(100vh - 90px);
-    display: grid;
-    place-content: center;
-    gap: var(--spacing-8, 16px);
-    padding: var(--spacing-20, 40px);
-    text-align: center;
-    color: var(--color-font-primary);
-  }
+	.projects-route-state {
+		min-height: calc(100vh - 90px);
+		display: grid;
+		place-content: center;
+		gap: var(--spacing-8, 16px);
+		padding: var(--spacing-20, 40px);
+		text-align: center;
+		color: var(--color-font-primary);
+	}
 
-  .sidebar {
-    position: fixed;
-    inset-inline-start: 0;
-    top: 0;
-    bottom: 0;
-    width: var(--sidebar-width, 325px);
-    background-color: var(--color-grey-20);
-    z-index: 10;
-    overflow: hidden;
-    box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
-    transition:
-      transform 0.3s ease,
-      opacity 0.3s ease,
-      visibility 0.3s ease;
-    transform: translateX(0);
-    opacity: 1;
-    visibility: visible;
-  }
+	.sidebar {
+		position: fixed;
+		inset-inline-start: 0;
+		top: 0;
+		bottom: 0;
+		width: var(--sidebar-width, 325px);
+		background-color: var(--color-grey-20);
+		z-index: 10;
+		overflow: hidden;
+		box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
+		transition:
+			transform 0.3s ease,
+			opacity 0.3s ease,
+			visibility 0.3s ease;
+		transform: translateX(0);
+		opacity: 1;
+		visibility: visible;
+	}
 
-  .sidebar.closed {
-    transform: translateX(-100%);
-    opacity: 0;
-    visibility: hidden;
-  }
+	.sidebar.closed {
+		transform: translateX(-100%);
+		opacity: 0;
+		visibility: hidden;
+	}
 
-  :global([dir='rtl']) .sidebar.closed {
-    transform: translateX(100%);
-  }
+	:global([dir='rtl']) .sidebar.closed {
+		transform: translateX(100%);
+	}
 
-  :global([dir='rtl']) .sidebar {
-    box-shadow: inset 6px 0 12px -4px rgba(0, 0, 0, 0.25);
-  }
+	:global([dir='rtl']) .sidebar {
+		box-shadow: inset 6px 0 12px -4px rgba(0, 0, 0, 0.25);
+	}
 
-  .sidebar-content {
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-  }
+	.sidebar-content {
+		height: 100%;
+		width: 100%;
+		overflow: hidden;
+	}
 
-  .main-content {
-    container: main-content / inline-size;
-    position: fixed;
-    inset-inline-start: calc(var(--sidebar-width, 325px) + var(--sidebar-margin, 10px));
-    inset-inline-end: 0;
-    top: 0;
-    bottom: 0;
-    background: var(--color-grey-0);
-    z-index: 10;
-    transition:
-      inset-inline-start 0.3s ease,
-      transform 0.3s ease;
-  }
+	.main-content {
+		container: main-content / inline-size;
+		position: fixed;
+		inset-inline-start: calc(var(--sidebar-width, 325px) + var(--sidebar-margin, 10px));
+		inset-inline-end: 0;
+		top: 0;
+		bottom: 0;
+		background: var(--color-grey-0);
+		z-index: 10;
+		transition:
+			inset-inline-start 0.3s ease,
+			transform 0.3s ease;
+	}
 
-  .main-content.menu-closed {
-    inset-inline-start: var(--sidebar-margin, 10px);
-  }
+	.main-content.menu-closed {
+		inset-inline-start: var(--sidebar-margin, 10px);
+	}
 
-  .projects-container {
-    display: flex;
-    flex-direction: row;
-    height: calc(100vh - 82px);
-    height: calc(100dvh - 82px);
-    gap: 0;
-    padding: 10px 20px 10px 10px;
-  }
+	.projects-container {
+		display: flex;
+		flex-direction: row;
+		height: calc(100vh - 82px);
+		height: calc(100dvh - 82px);
+		gap: 0;
+		padding: 10px 20px 10px 10px;
+	}
 
-  @media (min-width: 1100px) {
-    .projects-container.menu-open {
-      gap: 20px;
-    }
-  }
+	@media (min-width: 1100px) {
+		.projects-container.menu-open {
+			gap: 20px;
+		}
+	}
 
-  .projects-wrapper {
-    flex: 1;
-    display: flex;
-    min-width: 0;
-  }
+	.projects-wrapper {
+		flex: 1;
+		display: flex;
+		min-width: 0;
+	}
 
-  .settings-wrapper {
-    display: flex;
-    align-items: flex-start;
-    min-width: fit-content;
-  }
+	.settings-wrapper {
+		display: flex;
+		align-items: flex-start;
+		min-width: fit-content;
+	}
 
-  @media (max-width: 600px) {
-    .sidebar {
-      width: 100%;
-    }
+	@media (max-width: 600px) {
+		.sidebar {
+			width: 100%;
+		}
 
-    .main-content {
-      inset-inline-start: 0;
-      inset-inline-end: 0;
-      z-index: 20;
-      transform: translateX(0);
-    }
+		.main-content {
+			inset-inline-start: 0;
+			inset-inline-end: 0;
+			z-index: 20;
+			transform: translateX(0);
+		}
 
-    .main-content.menu-closed {
-      inset-inline-start: 0;
-    }
+		.main-content.menu-closed {
+			inset-inline-start: 0;
+		}
 
-    .main-content:not(.menu-closed) {
-      transform: translateX(100%);
-    }
+		.main-content:not(.menu-closed) {
+			transform: translateX(100%);
+		}
 
-    :global([dir='rtl']) .main-content:not(.menu-closed) {
-      transform: translateX(-100%);
-    }
+		:global([dir='rtl']) .main-content:not(.menu-closed) {
+			transform: translateX(-100%);
+		}
 
-    .projects-container {
-      height: calc(100vh - 66px);
-      height: calc(100dvh - 66px);
-      padding-inline-end: 10px;
-      box-sizing: border-box;
-    }
-  }
+		.projects-container {
+			height: calc(100vh - 66px);
+			height: calc(100dvh - 66px);
+			padding-inline-end: 10px;
+			box-sizing: border-box;
+		}
+	}
 
-  .projects-route-state h1 {
-    margin: 0;
-    font-size: 2rem;
-  }
+	.projects-route-state h1 {
+		margin: 0;
+		font-size: 2rem;
+	}
 
-  .projects-route-state p {
-    margin: 0;
-    color: var(--color-font-secondary);
-  }
-
+	.projects-route-state p {
+		margin: 0;
+		color: var(--color-font-secondary);
+	}
 </style>

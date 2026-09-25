@@ -6,6 +6,8 @@
 // Svelte:  frontend/packages/ui/src/components/ProcessingDetails.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.streaming.progressive-presentation, chats.surface.semantic-parity
 
 import SwiftUI
 
@@ -67,6 +69,7 @@ struct ProcessingDetailsView: View {
 
 // MARK: - Convenience init from streaming preprocessing events
 
+@MainActor
 extension ProcessingDetailsView.ProcessingStep {
     static func fromPreprocessing(_ stepName: String) -> ProcessingDetailsView.ProcessingStep {
         let (label, appId) = parseStepName(stepName)
@@ -78,22 +81,25 @@ extension ProcessingDetailsView.ProcessingStep {
         )
     }
 
+    static func stageLabel(for stepName: String) -> String {
+        parseStepName(stepName).0
+    }
+
     private static func parseStepName(_ name: String) -> (String, String?) {
         switch name {
-        case "loading_preferences": return ("Loading preferences", nil)
-        case "loading_memories": return ("Loading memories", nil)
-        case "detecting_language": return ("Detecting language", nil)
-        case "pii_detection": return ("Checking for personal data", nil)
-        case "selecting_model": return ("Selecting AI model", nil)
+        case "title_generated": return (AppStrings.selectingMate, nil)
+        case "mate_selected", "selecting_model": return (AppStrings.selectingModel, nil)
+        case "model_selected": return (AppStrings.analyzingMessage, nil)
+        case "loading_preferences", "loading_memories", "detecting_language", "pii_detection":
+            return (AppStrings.selectingMateAndModel, nil)
         case _ where name.hasPrefix("skill_"):
-            let skillName = String(name.dropFirst(6)).replacingOccurrences(of: "_", with: " ").capitalized
-            return ("Running \(skillName)", nil)
+            return (AppStrings.aiResponding, nil)
         case _ where name.hasPrefix("app:"):
             let parts = name.split(separator: ":")
             let appId = parts.count > 1 ? String(parts[1]) : nil
-            return ("Using \(appId?.capitalized ?? "app")", appId)
+            return (AppStrings.aiResponding, appId)
         default:
-            return (name.replacingOccurrences(of: "_", with: " ").capitalized, nil)
+            return (AppStrings.aiResponding, nil)
         }
     }
 }

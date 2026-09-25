@@ -26,7 +26,7 @@ def install_code_route_import_stubs() -> None:
         def _stub_encode(value: dict) -> str:
             return "\n".join(f"{key}: {item}" for key, item in value.items())
 
-        def _stub_decode(value: str) -> dict:
+        def _stub_decode(value: str, *_args, **_kwargs) -> dict:
             decoded: dict[str, str] = {}
             for line in value.splitlines():
                 key, _, item = line.partition(": ")
@@ -36,6 +36,7 @@ def install_code_route_import_stubs() -> None:
 
         toon_format_stub.encode = _stub_encode
         toon_format_stub.decode = _stub_decode
+        toon_format_stub.DecodeOptions = lambda **_kwargs: object()
         sys.modules.setdefault("toon_format", toon_format_stub)
 
     if _module_missing("celery"):

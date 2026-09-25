@@ -1,4 +1,108 @@
+// Responsive chat, embed, sidebar, and settings pane composition.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/apps/web_app/src/routes/+page.svelte
+//          frontend/packages/ui/src/components/ActiveChat.svelte
+// CSS:     frontend/apps/web_app/src/routes/+page.svelte
+//          Classes: .sidebar, .main-content.edge-dragging, .chat-container.menu-open
+// Tokens:  SpacingTokens.generated.swift
+// ──────────────────────────────────────────────────────────────────────
+
 import SwiftUI
+
+enum ShellSwipeTarget: Equatable {
+    case openChats
+    case closeChats
+    case openSettings
+    case closeSettings
+}
+
+/// Mirrors the web shell's edge widths, live progress, and 35% settle point.
+/// The bottom-corner guard leaves iPadOS screenshot gestures to the system.
+enum ShellSwipePolicy {
+    static let edgeStartWidth: CGFloat = 28
+    static let bottomCornerExclusionHeight: CGFloat = 64
+    static let completionProgress: CGFloat = 0.35
+    static let verticalCancelDistance: CGFloat = 48
+
+    static func target(
+        startLocation: CGPoint,
+        translation: CGSize,
+        viewportSize: CGSize,
+        chatsOpen: Bool,
+        settingsOpen: Bool,
+        settingsSideBySide: Bool
+    ) -> ShellSwipeTarget? {
+        let dx = translation.width
+        let startedNearLeftEdge = startLocation.x <= edgeStartWidth
+        let startedNearRightEdge = startLocation.x >= viewportSize.width - edgeStartWidth
+        let startedInBottomCorner = startLocation.y >= viewportSize.height - bottomCornerExclusionHeight
+            && (startedNearLeftEdge || startedNearRightEdge)
+        guard !startedInBottomCorner else { return nil }
+
+        let settingsPanelWidth = min(max(0, viewportSize.width - 40), 323)
+        let startedInSettingsPanel = startLocation.x >= viewportSize.width - settingsPanelWidth
+
+        if settingsOpen, dx > 0, !settingsSideBySide || startedInSettingsPanel {
+            return .closeSettings
+        }
+        if !chatsOpen, startedNearLeftEdge, dx > 0 {
+            return .openChats
+        }
+        if !settingsOpen, startedNearRightEdge, dx < 0 {
+            return .openSettings
+        }
+        if chatsOpen, dx < 0 {
+            return .closeChats
+        }
+        return nil
+    }
+
+    static func isCancelledByVerticalMovement(_ translation: CGSize) -> Bool {
+        abs(translation.height) > verticalCancelDistance
+            && abs(translation.width) <= abs(translation.height) * 1.2
+    }
+
+    static func progress(
+        target: ShellSwipeTarget,
+        translation: CGSize,
+        viewportWidth: CGFloat
+    ) -> CGFloat {
+        let chatTravel = viewportWidth <= 600 ? viewportWidth : 325
+        let settingsTravel = min(max(0, viewportWidth - 40), 323)
+        let raw: CGFloat
+        switch target {
+        case .openChats:
+            raw = translation.width / max(1, chatTravel)
+        case .closeChats:
+            raw = 1 + translation.width / max(1, chatTravel)
+        case .openSettings:
+            raw = -translation.width / max(1, settingsTravel)
+        case .closeSettings:
+            raw = 1 - translation.width / max(1, settingsTravel)
+        }
+        return min(1, max(0, raw))
+    }
+
+    static func shouldSettleOpen(
+        target: ShellSwipeTarget,
+        translation: CGSize,
+        viewportWidth: CGFloat
+    ) -> Bool {
+        progress(target: target, translation: translation, viewportWidth: viewportWidth) >= completionProgress
+    }
+}
+
+enum WorkspaceSidebarLayoutPolicy {
+    static func leadingInset(width: CGFloat, isOpen: Bool, dragOffset: CGFloat) -> CGFloat {
+        guard width > 600 else { return 0 }
+        let panelWidth: CGFloat = 325
+        let reveal = isOpen
+            ? min(panelWidth, max(0, panelWidth + dragOffset))
+            : min(panelWidth, max(0, dragOffset))
+        return 10 + reveal
+    }
+}
 
 /// ActiveChat.svelte side-by-side contract. The same transcript subtree stays
 /// mounted across overlay/split and hide/restore, preserving scroll and editor state.
@@ -16,6 +120,7 @@ struct ChatEmbedWorkspace<Transcript: View, Embed: View>: View {
             let split = embedOpen && geometry.size.width >= 1024
             let chatWidth: CGFloat = split ? 400 : geometry.size.width
             let leading: CGFloat = split && !chatHidden ? 410 : 0
+            let embedWidth = max(0, geometry.size.width - leading)
             ZStack(alignment: .leading) {
                 transcript()
                     .environment(\.workspacePaneIsVisible, parentVisible && (!embedOpen || (split && !chatHidden)))
@@ -30,14 +135,23 @@ struct ChatEmbedWorkspace<Transcript: View, Embed: View>: View {
                     .allowsHitTesting(!embedOpen || (split && !chatHidden))
                     .accessibilityHidden(embedOpen && (!split || chatHidden))
                 if embedOpen {
-                    embed()
-                        .environment(\.workspacePaneIsVisible, parentVisible)
-                        .frame(width: max(0, geometry.size.width - leading), height: geometry.size.height)
-                        .clipShape(RoundedRectangle(cornerRadius: 17))
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("workspace-embed")
-                        .offset(x: leading)
-                        .transition(reduceMotion ? .identity : .modifier(active: WorkspaceEmbedReveal(progress: 0), identity: WorkspaceEmbedReveal(progress: 1)))
+                    // Lay the pane out after a real leading reservation. Offsetting
+                    // an already clipped child leaves AppKit rendering clipped to
+                    // its pre-offset bounds, so a 410pt strip at the trailing edge
+                    // appears blank even though the accessibility frame is correct.
+                    HStack(spacing: 0) {
+                        Color.clear
+                            .frame(width: leading, height: geometry.size.height)
+                            .accessibilityHidden(true)
+                        embed()
+                            .environment(\.workspacePaneIsVisible, parentVisible)
+                            .frame(width: embedWidth, height: geometry.size.height)
+                            .clipShape(RoundedRectangle(cornerRadius: 17))
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("workspace-embed")
+                            .transition(reduceMotion ? .identity : .modifier(active: WorkspaceEmbedReveal(progress: 0), identity: WorkspaceEmbedReveal(progress: 1)))
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
@@ -62,7 +176,11 @@ struct WorkspaceSidebarLayout<Sidebar: View, Content: View>: View {
     var body: some View {
         let mobile = width <= 600
         let panelWidth: CGFloat = mobile ? width : 325
-        let inset: CGFloat = mobile ? 0 : isOpen ? 335 : 10
+        let inset = WorkspaceSidebarLayoutPolicy.leadingInset(
+            width: width,
+            isOpen: isOpen,
+            dragOffset: dragOffset
+        )
         ZStack(alignment: .leading) {
             sidebar()
                 .environment(\.workspacePaneIsVisible, parentVisible && isOpen)

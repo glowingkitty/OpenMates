@@ -37,7 +37,7 @@
 
     let projects = $state<ProjectViewModel[]>([]);
     let sources = $state<ProjectSourceViewModel[]>([]);
-    let writeMode = $state<ProjectWriteMode>('always_ask');
+    let writeMode = $state<ProjectWriteMode | null>(null);
     let isLoading = $state(true);
     let isSavingSettings = $state(false);
     let loadError = $state('');
@@ -73,13 +73,13 @@
                 writeMode = projectSettings.writeMode;
             } else {
                 sources = [];
-                writeMode = 'always_ask';
+                writeMode = null;
             }
         } catch (error) {
             console.error('[SettingsProjects] Failed to load Projects settings:', error);
             loadError = $text('settings.projects.load_error');
             sources = [];
-            writeMode = 'always_ask';
+            writeMode = null;
         } finally {
             isLoading = false;
         }
@@ -91,10 +91,7 @@
         saveError = '';
         saveMessage = '';
         try {
-            const updated = await updateProjectSettings(selectedProject, nextWriteMode, {
-                protected_path_patterns: [],
-                automated_checks: 'not_configured',
-            });
+            const updated = await updateProjectSettings(selectedProject, nextWriteMode);
             writeMode = updated.writeMode;
             saveMessage = 'Project write policy saved.';
         } catch (error) {
@@ -106,9 +103,9 @@
     }
 
     function writeModeLabel(mode: ProjectWriteMode): string {
-        return mode === 'auto_approve_safe_writes'
-            ? 'Auto approve safe writes'
-            : 'Always ask before writes';
+        return mode === 'apply_and_show'
+            ? $text('settings.projects.write_mode_apply_and_show')
+            : $text('settings.projects.write_mode_always_ask');
     }
 
     function openProject(project: ProjectViewModel): void {
@@ -144,10 +141,19 @@
             <SettingsCard>
                 <SettingsDetailRow label="Name" value={selectedProject.name || 'Untitled project'} highlight />
                 <SettingsDetailRow label="Items" value={`${selectedProject.encrypted.item_count ?? 0}`} />
-                <SettingsDetailRow label="Write policy" value={writeModeLabel(writeMode)} />
+                <SettingsDetailRow label="Write policy" value={writeMode ? writeModeLabel(writeMode) : 'Choose a policy'} />
                 <SettingsDetailRow label="Automated checks" value="Not configured" muted />
             </SettingsCard>
             <SettingsButtonGroup align="left">
+                <SettingsButton
+                    variant={writeMode === 'apply_and_show' ? 'primary' : 'secondary'}
+                    disabled={isSavingSettings || writeMode === 'apply_and_show'}
+                    loading={isSavingSettings && writeMode !== 'apply_and_show'}
+                    dataTestid="project-settings-write-mode-apply-and-show"
+                    onClick={() => void saveWriteMode('apply_and_show')}
+                >
+                    {$text('settings.projects.write_mode_apply_and_show')}
+                </SettingsButton>
                 <SettingsButton
                     variant={writeMode === 'always_ask' ? 'primary' : 'secondary'}
                     disabled={isSavingSettings || writeMode === 'always_ask'}
@@ -155,16 +161,7 @@
                     dataTestid="project-settings-write-mode-always-ask"
                     onClick={() => void saveWriteMode('always_ask')}
                 >
-                    Always ask
-                </SettingsButton>
-                <SettingsButton
-                    variant={writeMode === 'auto_approve_safe_writes' ? 'primary' : 'secondary'}
-                    disabled={isSavingSettings || writeMode === 'auto_approve_safe_writes'}
-                    loading={isSavingSettings && writeMode !== 'auto_approve_safe_writes'}
-                    dataTestid="project-settings-write-mode-safe-writes"
-                    onClick={() => void saveWriteMode('auto_approve_safe_writes')}
-                >
-                    Auto approve safe writes
+                    {$text('settings.projects.write_mode_always_ask')}
                 </SettingsButton>
             </SettingsButtonGroup>
             {#if saveMessage}

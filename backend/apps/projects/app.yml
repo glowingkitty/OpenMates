@@ -12,6 +12,7 @@ instructions:
       - Project content is client-side encrypted. Do not invent server-visible project search results.
 skills:
   - id: create
+    anonymous_access: authenticated
     name_translation_key: projects.skills.create
     description_translation_key: projects.skills.create.description
     icon_image: project.svg
@@ -37,6 +38,7 @@ skills:
         - name
 
   - id: search
+    anonymous_access: authenticated
     name_translation_key: projects.skills.search
     description_translation_key: projects.skills.search.description
     icon_image: search.svg

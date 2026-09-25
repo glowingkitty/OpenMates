@@ -1,0 +1,53 @@
+id: chat-failure-incident-2026-09-22
+title: Restore chat inference and incident reporting on dev and production
+status: implementing
+# Goal-first profile avoids duplicating the existing OpenMates Tasks ledger.
+profile: lightweight
+goal: >-
+  connect to prod sever via ssh to check if we need to apply any fixes to both dev
+  and prod server. (if needed, apply the docker images + quick hotfix, so we can
+  get prod server to run stable again).
+scope:
+  - Diagnose and repair the repeated dev QMCH2 protocol-guard response failure.
+  - Diagnose and repair production Gemini post-tool retry failure.
+  - Keep issue submission usable when optional context sharing fails.
+  - Restore dev OpenObserve and repair error-trace queries.
+  - Apply and verify scoped production configuration and backend fixes.
+  - Restore audio WebSocket routing and make recorder cancellation recover reliably.
+  - Fix voice-first send ordering for dev issue 6Z2NS without weakening preflight checks.
+  - Investigate HNEAD notebook execution and the completeness of its diagnostic data.
+decisions:
+  - User authorized dev and production fixes and the production image update.
+  - Preserve optional app-skill selection, encryption boundaries, and real tool results.
+  - Do not equate identical generic errors with an identical root cause.
+  - User explicitly requested real OpenMates CLI chats on dev before applying the production code hotfix.
+  - Production release baseline is PR 524 merge 9f3228ef9ac3e4061b8129a1f42e983925214900.
+  - Previous production image is sha-cd5feb7e8e83f225cc65dc398c447dbddd8c05fe.
+  - User confirmed production chat and audio recovery, then prohibited further production changes; SSH was closed.
+  - Continue source fixes and verification on dev; further production deployment requires renewed approval.
+checks:
+  - Focused unit regressions for protocol recovery and Gemini retry/history handling.
+  - Issue reporting regression with failed optional context sharing.
+  - Relevant isolated GitHub CI product coverage before production hotfix; explicit live-dev validation requires scoped dev publication first.
+  - Real dev CLI Jev follow-up and events/images tool-loop chats, with backend outcome and provider-affinity logs checked before production hotfix.
+  - Fresh trace ingestion and a successful error-trace query.
+  - Production image identity and provider-free runtime health verification.
+  - Recorder bare-preview regressions for lost stop events, cancellation, and normal final audio chunks.
+  - Voice-first send must finish first-turn preflight before persisting speech metadata.
+  - Verify fresh Docker log ingestion as well as direct trace ingestion.
+evidence:
+  - Production image workflow 35740853568 succeeded for the release baseline.
+  - Matching production Vercel deployment dpl_HMzuGXsTs9CuxV1rB2S7eL4DLNZQ is Ready.
+  - Baseline update completed; core health passes; billing freshness and notification checks remain unresolved.
+  - Dev commit 124d8c18f72a00d51195def145e208b4da465367 contains inference recovery and issue-report fallback fixes.
+  - Real dev CLI chats exercised successful protocol-guard recovery and AI Studio to Vertex signed-tool continuation.
+  - Production AI worker received the six-file verified inference hotfix; user confirmed normal chat completion.
+  - Production Caddy audio matcher and handler ordering were repaired with backups, validation, and reload; user confirmed recording works.
+  - Production is frozen with the verified writable-layer AI hotfix still active; immutable replacement is intentionally deferred.
+  - Dev OpenObserve and Promtail are restored; commit dcfa1a49554344f95c36851fe545f56d6dd8133c drops empty lines before ingestion, with fresh API and worker logs verified and no further empty-line batch errors.
+  - Commit 1898cc216aedcb606bb4de4ed7d8e0892ed696d4 preserves the audio WebSocket route ordering fix in deployment templates; six focused Caddy tests passed. No additional production apply was performed.
+  - Dev issue 6Z2NS was caused by speech-preference metadata creating the chat before first-turn preflight; the pending source fix defers this write until confirmation and preserves backend validation.
+  - Recorder and speech-preference unit regressions passed (24 tests); isolated deferred-audio-send run 35754812379 passed all four tests against the final product-code snapshot.
+  - HNEAD fails at production Caddy notebook CORS preflight before reaching the API. The scoped production route correction is blocked by the user freeze.
+  - HNEAD issue processing and API telemetry are present, but host Caddy access logs are not ingested; API trace absence cannot explain an edge-rejected request.
+  - Full generated-speech coverage is held because the original assistant_response_speech_web provider recordings are unavailable; no paid replacement recordings were authorized or synthesized.

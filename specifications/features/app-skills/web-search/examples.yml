@@ -5,6 +5,9 @@ valid_inputs:
   - id: single-search
     input: {requests: [{query: OpenMates AI assistant, count: 5}]}
     expect: {groups: 1, maximum_results_per_group: 5}
+  - id: search-with-ranking-goal
+    input: {requests: [{query: AI observability tools, relevance_criteria: Technical evaluations with concrete benchmarks and primary-source evidence}]}
+    expect: {accepted: true, default_final_count: 10, relevance_ranking: enabled}
   - id: correlated-parallel-search
     input:
       requests:
@@ -64,6 +67,9 @@ error_outputs:
     forbidden: [provider_api_key, authorization_header, raw_stack_trace]
 
 boundary_cases:
+  - id: default-count
+    input: {requests: [{query: OpenMates}]}
+    expect: {maximum_results_per_group: 10}
   - id: minimum-count
     input: {requests: [{query: OpenMates, count: 1}]}
     expect: accepted
@@ -79,6 +85,40 @@ boundary_cases:
   - id: invalid-safesearch-fallback
     input: {requests: [{query: OpenMates, safesearch: invalid}]}
     expect: {effective_safesearch: moderate}
+
+ranking_cases:
+  - id: ordinary-chat-material-goal
+    given: Alice asks for AI observability resources suitable for evaluating a production purchase and prioritizes concrete benchmarks and primary-source evidence.
+    when: The assistant prepares the web search request.
+    then: It supplies a concise faithful relevance_criteria value while preserving the query and does not require Alice to name the field.
+    assertion_ids: [web-search.relevance.activation]
+  - id: forty-candidates-return-ten
+    input: {requests: [{query: AI observability tools, relevance_criteria: Concrete technical evaluations with primary-source evidence}]}
+    given: The two Brave pages contain forty valid unique results.
+    then: Web search makes two Brave calls, ranks no more than forty unique candidates once, and returns no more than the default ten results.
+    expect: {brave_calls: 2, maximum_candidates_ranked: 40, maximum_results_returned: 10, jev_calls: 1}
+    assertion_ids: [web-search.relevance.bounded-ranking]
+  - id: omitted-criteria-preserves-provider-order
+    input: {requests: [{query: AI observability tools}]}
+    given: A valid web search omits relevance criteria.
+    then: It keeps existing provider retrieval and Brave ordering and makes no Jev ranking call.
+    expect: {jev_calls: 0, provider_fetch_behavior: existing, result_order: brave_order}
+    assertion_ids: [web-search.relevance.activation]
+  - id: evidence-quality-not-keywords-alone
+    given: The candidate pool contains an official technical source, a substantive evaluation, a thin SEO list, and an unrelated page with similar keywords.
+    when: Jev scores the candidates.
+    then: Intent fit and source/evidence quality determine ordering; keyword overlap alone cannot place the thin or unrelated page above supported matches.
+    assertion_ids: [web-search.relevance.bounded-ranking]
+  - id: ranking-failure-falls-back
+    given: Brave returns valid candidates but Jev times out or returns incomplete scores.
+    when: The result group is finalized.
+    then: Up to count results are returned in Brave order and still pass output-safety processing, without raw Jev diagnostics in the response.
+    assertion_ids: [web-search.relevance.safe-fallback]
+  - id: relevance-ranking-surface-parity
+    given: The same web search with relevance criteria and count ten is sent through direct CLI and assistant chat surfaces.
+    when: Both requests reach the public app-skill contract.
+    then: They accept the same field, use the same candidate and fallback semantics, and return no more than ten results with the same result schema.
+    assertion_ids: [web-search.surface-parity]
 
 safety_cases:
   - id: whole-snippet-not-prefix

@@ -27,6 +27,13 @@ from backend.shared.python_utils.app_skill_helpers import (
     sanitize_long_text_fields_in_payload,
     wait_for_rate_limit,
 )
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 
@@ -52,7 +59,12 @@ class MapSearchRequestItem(BaseModel):
     query: str = Field(
         description="Text query string to search for places (e.g. 'restaurants in Berlin', 'museums near Times Square')."
     )
-    pageSize: int = Field(default=10, description="Number of results to return per request (max 20).")
+    pageSize: int = Field(default=10, ge=1, le=20, description="Number of results to return per request (max 20).")
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=1_000,
+        description="Optional natural-language goal used only to rank matching place candidates.",
+    )
     languageCode: str = Field(default="en", description="Language code for results (ISO 639-1, e.g. 'en', 'es', 'fr', 'de').")
     locationBias: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -614,7 +626,13 @@ class SearchSkill(BaseSkill):
             return (request_id, [], "Missing 'query' parameter")
         
         # Extract request-specific parameters (with defaults from schema)
-        req_page_size = req.get("pageSize", 20)
+        requested_page_size = max(1, min(20, int(req.get("pageSize") or 10)))
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
+        req_page_size = (
+            relevance_candidate_target(requested_page_size, profile="maps")
+            if relevance_criteria
+            else requested_page_size
+        )
         req_language_code = req.get("languageCode", "en")
         req_location_bias = req.get("locationBias")
         req_included_type = req.get("includedType")
@@ -758,6 +776,52 @@ class SearchSkill(BaseSkill):
                 secrets_manager=secrets_manager,
                 cache_service=cache_service,
             )
+
+            if relevance_criteria:
+                previews = stable_deduplicate_candidates(
+                    previews,
+                    key=lambda item: (
+                        item.get("place_id")
+                        or normalize_url_for_deduplication(item.get("website_uri"))
+                        or f"{item.get('name', '')}|{item.get('formatted_address', '')}".casefold()
+                    ),
+                )
+                ranking = await rank_search_candidates(
+                    candidates=previews,
+                    candidate_projections=[
+                        {
+                            "name": item.get("name"),
+                            "formatted_address": item.get("formatted_address"),
+                            "types": item.get("types"),
+                            "rating": item.get("rating"),
+                            "user_rating_count": item.get("user_rating_count"),
+                            "price_level": item.get("price_level"),
+                            "opening_hours": item.get("opening_hours"),
+                            "open_now": item.get("open_now"),
+                            "description": item.get("description"),
+                            "generative_summary": item.get("generative_summary"),
+                            "reviews": item.get("reviews"),
+                            "osm_enrichment": item.get("osm_enrichment"),
+                        }
+                        for item in previews
+                    ],
+                    relevance_criteria=relevance_criteria,
+                    search_parameters={
+                        "query": search_query,
+                        "language_code": req_language_code,
+                        "location_bias": req_location_bias,
+                        "included_type": req_included_type,
+                        "min_rating": req_min_rating,
+                        "open_now": req_open_now,
+                        "price_levels": req_price_levels,
+                        "amenity_filters": req.get("amenityFilters"),
+                    },
+                    profile="maps",
+                    secrets_manager=secrets_manager,
+                )
+                previews = ranking.candidates
+
+            previews = previews[:requested_page_size]
             
             logger.info(f"Place search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
             return (request_id, previews, None, metadata)

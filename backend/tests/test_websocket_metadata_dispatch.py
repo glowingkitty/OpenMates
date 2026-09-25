@@ -85,6 +85,7 @@ def _install_websockets_import_stubs(monkeypatch):
         "store_embed_handler": ["handle_store_embed"],
         "store_embed_keys_handler": ["handle_store_embed_keys"],
         "store_embed_diff_handler": ["handle_store_embed_diff"],
+        "commit_embed_revision_handler": ["handle_commit_embed_revision"],
         "delete_new_chat_suggestion_handler": ["handle_delete_new_chat_suggestion"],
         "system_message_handler": ["handle_chat_system_message_added"],
         "email_notification_settings_handler": ["handle_email_notification_settings"],
@@ -98,6 +99,26 @@ def _install_websockets_import_stubs(monkeypatch):
             "handle_project_remote_access_disconnect",
             "handle_project_remote_access_heartbeat",
             "handle_project_remote_access_register",
+        ],
+        "project_file_operation_handlers": [
+            "handle_project_file_operation_claim",
+            "handle_project_file_operation_reject",
+            "handle_project_file_operation_result",
+            "send_available_project_file_operations",
+        ],
+        "remote_command_handlers": [
+            "handle_remote_command_claim",
+            "handle_remote_command_discover",
+            "handle_remote_command_event",
+            "handle_remote_command_prepare",
+            "handle_remote_command_recover",
+            "handle_remote_command_reject",
+            "handle_remote_command_revalidate",
+            "handle_remote_command_source_completion",
+            "handle_remote_command_stop",
+        ],
+        "remote_command_origin_completion_handler": [
+            "handle_remote_command_origin_completion",
         ],
         "update_chat_pinned_handler": ["handle_update_chat_pinned"],
         "key_received_handler": ["handle_key_received"],
@@ -560,3 +581,86 @@ def test_stale_phased_sync_epoch_does_not_cancel_newer_context(monkeypatch):
     assert should_schedule is False
     assert next_context == ("team-123", 2)
     assert pending_task.cancelled is False
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.no-server-decryption-authority
+@pytest.mark.asyncio
+async def test_project_file_available_uses_app_directus_and_only_current_capable_device(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+    directus_service = object()
+    authorization_inputs = []
+    sent = []
+
+    class Authorization:
+        def __init__(self, directus, cache):
+            authorization_inputs.append((directus, cache))
+
+        async def get_active_focus(self, *, user_id, chat_id):
+            assert (user_id, chat_id) == ("user-1", "chat-1")
+            return {"project_id": "project-1"}
+
+    _stub_module(
+        monkeypatch,
+        "backend.core.api.app.services.project_write_authorization_service",
+        ProjectWriteAuthorizationService=Authorization,
+    )
+
+    class Cache:
+        def __init__(self):
+            async def ready():
+                return self
+            self.client = ready()
+
+        async def subscribe_to_channel(self, channel):
+            assert channel == "user_updates::*"
+            yield {
+                "channel": "user_updates::user-1",
+                "data": {
+                    "event_for_client": "project_file_operation_available",
+                    "user_id_uuid": "user-1",
+                    "payload": {
+                        "operation_id": "operation-1",
+                        "chat_id": "chat-1",
+                        "project_id": "project-1",
+                    },
+                },
+            }
+
+    cache = Cache()
+
+    class Manager:
+        def get_connections_for_user(self, user_id):
+            assert user_id == "user-1"
+            return ["current-device", "other-device"]
+
+        def can_execute_project_file_job(self, user_id, device, chat_id):
+            return (user_id, device, chat_id) == (
+                "user-1", "current-device", "chat-1"
+            )
+
+        async def send_personal_message(self, message, user_id, device):
+            sent.append((message, user_id, device))
+
+    monkeypatch.setattr(websockets, "manager", Manager())
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            cache_service=cache,
+            directus_service=directus_service,
+        )
+    )
+
+    await websockets.listen_for_user_updates(app)
+
+    assert authorization_inputs == [(directus_service, cache)]
+    assert sent == [(
+        {
+            "type": "project_file_operation_available",
+            "payload": {
+                "operation_id": "operation-1",
+                "chat_id": "chat-1",
+                "project_id": "project-1",
+            },
+        },
+        "user-1",
+        "current-device",
+    )]

@@ -114,7 +114,7 @@ struct EmbedPreviewCard: View {
                 .accessibilityIdentifier("embed-preview")
                 .accessibleEmbed(
                     type: embedType?.displayName ?? embed.type,
-                    title: embedType?.displayName
+                    title: statusTitle
                 )
                 .accessibilityValue(statusAccessibilityValue)
             }
@@ -256,7 +256,12 @@ struct EmbedPreviewCard: View {
 
     @ViewBuilder
     private var previewLayout: some View {
-        if hasFullWidthDetails {
+        if embedType == .recording, embed.status == .finished {
+            // RecordingRenderer owns the finished recording's web-parity
+            // details + BasicInfosBar composition so playback state can drive
+            // the footer play button without duplicating a second header.
+            contentArea
+        } else if hasFullWidthDetails {
             contentArea
                 .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
                 .overlay(alignment: .bottom) {
@@ -280,7 +285,16 @@ struct EmbedPreviewCard: View {
         ZStack(alignment: .topLeading) {
             Color.grey25
 
-            if embed.status == .processing {
+            if embed.status == .processing, embed.isAppSkillUse {
+                EmbedContentView(
+                    embed: embed,
+                    mode: .preview,
+                    allEmbedRecords: allEmbedRecords,
+                    previewVariant: variant
+                )
+                .padding(.horizontal, appId == "web" ? 20 : .spacing20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else if embed.status == .processing {
                 processingView
             } else if embed.status == .error {
                 errorView
@@ -293,7 +307,12 @@ struct EmbedPreviewCard: View {
                     allEmbedRecords: allEmbedRecords,
                     previewVariant: variant
                 )
-                    .padding(.horizontal, hasFullWidthDetails ? 0 : appId == "web" ? 20 : .spacing20)
+                    .padding(
+                        .horizontal,
+                        hasFullWidthDetails || embedType == .recording
+                            ? 0
+                            : appId == "web" ? 20 : .spacing20
+                    )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
@@ -304,7 +323,7 @@ struct EmbedPreviewCard: View {
         VStack(spacing: .spacing4) {
             ProgressView()
                 .scaleEffect(1.2)
-            Text(LocalizationManager.shared.text("embed.processing"))
+            Text(LocalizationManager.shared.text("embeds.processing"))
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
         }
@@ -353,6 +372,8 @@ struct EmbedPreviewCard: View {
         case "search", "search_products", "search_connections", "search_stays", "search_appointments", "search_recipes":
             return "search"
         case "read":
+            return "visible"
+        case "view" where appId == "images":
             return "visible"
         case "get_docs":
             return "docs"
@@ -496,6 +517,10 @@ struct EmbedPreviewCard: View {
         switch (appId, skillId) {
         case ("events", "search"), ("web", "search"), ("news", "search"), ("images", "search"), ("videos", "search"):
             return LocalizationManager.shared.text("common.search")
+        case ("videos", "get_transcript"), ("videos", "get-transcript"):
+            return AppStrings.videoGetTranscript
+        case ("images", "view"):
+            return LocalizationManager.shared.text("common.view")
         case ("travel", "search_connections"):
             return "Search connections"
         case ("code", "get_docs"):

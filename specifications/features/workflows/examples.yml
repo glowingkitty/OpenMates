@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@4
+specification: feature.workflows@5
 activation_readiness:
 - id: activation_readiness-1
   given: A blank draft has no steps or schedule.
@@ -53,12 +53,17 @@ surface_parity:
   when: She opens it on the web and runs it through an authorized client.
   then: All surfaces show the same Check, costs, delivery states and run-deletion forgetting; exposed
     SDK methods do not change these semantics.
+- id: surface_parity-ask-ai
+  given: Alice creates an Events search followed by Ask AI in the Python SDK, then opens it on the web.
+  when: The Workflow runs and she inspects it using the CLI and npm SDK.
+  then: All surfaces use the same saved instruction, selected Events output, one text Answer, and server-side
+    app-skill-request validation; only web authoring runs typing-time hints.
 mvp_steps:
 - id: mvp_steps-1
   given: Alice opens a new Workflow.
   when: She adds a step.
-  then: She can choose Use app skill, Check, or Send message; no AI evaluation, code, wait, or separate
-    notification action is offered.
+  then: She can choose Use app, Ask AI, Add check, or Send message. Check starts with an exact rule and also offers
+    Use AI judgment; Ask AI is not duplicated in Use app, and code, wait, or a separate notification action is not offered.
 - id: mvp_steps-2
   given: An older Workflow contains an email action.
   when: Alice opens it and attempts to enable it.
@@ -123,6 +128,38 @@ check:
   when: Alice removes the Check.
   then: An equality-to-true Check over an earlier boolean rewrites the message dependency to that same boolean;
     any dependency that cannot be preserved blocks removal and names the affected steps.
+ai_check:
+- id: ai_check-1
+  given: A weather step exposes rain probability, wind, temperature and a short forecast summary, and Alice selects those four values for a Check.
+  when: She chooses Use AI judgment, asks "Is the weather unpleasant enough that I should warn someone planning an outdoor lunch?", previews the selected values, and tests the Check.
+  then: One bounded decision returns If true or If false from only those selected values. Text inside the forecast is treated as untrusted data, and the run shows the outcome, confidence band and whether the primary or fallback decided without exposing a raw provider response.
+- id: ai_check-2
+  given: Bob's AI Check asks whether a newly found apartment is a strong fit for his stated preferences, and he has put Send message in its Unsure branch.
+  when: Jev is unavailable and the independent fallback also fails to return a reliable true or false, or the Workflow retries the accepted node execution.
+  then: The Unsure branch sends Bob's configured message without running either true or false branch. The run identifies evaluator failure as the reason, and a completed prior outcome is reused without another inference or charge.
+ask_ai_execution:
+- id: ask-ai-summarizes-existing-events
+  given: Alice has added an Events search whose typed output contains event results.
+  when: She adds Ask AI with "Summarize [Events Search · Results] and explain what makes each event special", Tests it, then sends [Ask AI · Answer] to chat in a full run.
+  then: Ask AI sees only the bounded referenced Events results, produces one reusable text Answer, and can neither
+    call another app skill nor access Alice's unrelated chat history or memories. Test does not save the graph;
+    the full run uses normal AI charging and encrypted retained content.
+- id: ask-ai-failure-stops-dependent-message
+  given: A saved Workflow sends the Ask AI Answer in a later message.
+  when: AI processing fails after the earlier app result succeeds, or a completed step is retried.
+  then: Failure stops the dependent message without inventing an Answer or taking an AI Check Unsure branch;
+    a completed Answer is reused on retry without a duplicate inference or charge.
+ask_ai_validation:
+- id: ask-ai-uses-existing-output-not-new-skill
+  given: Alice's Workflow already has an Events search step, and her Ask AI instruction says "Use [Events Search · Results] to write a summary."
+  when: She saves from the web or creates or updates the Workflow through REST, CLI, npm SDK or Python SDK.
+  then: Server validation treats the reference as existing data, not a request to invoke an app skill, and accepts
+    the instruction; CLI and SDK need no typing-time requests.
+- id: ask-ai-rejects-new-app-call-or-reminds-when-unverified
+  given: Bob enters "Find new events for me using the Events app" in Ask AI without a preceding Events step.
+  when: Jev or the Gemini 3.8 Flash fallback reliably recognizes a request to invoke an app skill during create or update.
+  then: Every authoring surface rejects the save with guidance to add Use app instead. If both evaluators are
+    unavailable or uncertain, saving is allowed with a neutral reminder, and Ask AI still has no runtime tools.
 typed_data:
 - id: typed_data-1
   given: Alice has added an Events search but never run it.

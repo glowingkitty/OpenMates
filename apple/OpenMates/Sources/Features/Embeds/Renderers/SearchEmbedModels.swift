@@ -14,6 +14,10 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/app-skills/web-search/specification.yml
+//                specifications/features/chats/specification.yml
+// Assertions: web-search.surface-parity, chats.surface.semantic-parity
+
 import Foundation
 
 struct SearchSkillPreviewModel {
@@ -52,21 +56,34 @@ struct SearchSkillPreviewModel {
         let fallbackProvider = appId == "images" ? "Brave" : "Brave Search"
         provider = EmbedFieldReader.string(raw, keys: ["provider"]).map(Self.displayProvider) ?? fallbackProvider
         status = embed.status
-        childEmbeds = Self.resolveChildren(for: embed, appId: appId, allEmbedRecords: allEmbedRecords)
+        childEmbeds = Self.resolveChildren(
+            for: embed,
+            appId: appId,
+            inlineRecords: Self.previewRecords(from: embed),
+            allEmbedRecords: allEmbedRecords
+        )
         previewResultCount = EmbedFieldReader.int(raw, keys: ["result_count"])
             ?? (childEmbeds.isEmpty ? Self.previewRecords(from: embed).count : childEmbeds.count)
     }
 
     private static func previewRecords(from embed: EmbedRecord) -> [EmbedRecord] {
         let raw = embed.rawData ?? [:]
-        let previewResults = EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
-        guard !previewResults.isEmpty else { return [] }
+        let inlineResults = EmbedFieldReader.dictionaryArray(raw, key: "results")
+        let previewResults = inlineResults.isEmpty
+            ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
+            : inlineResults
+        let resolvedResults = previewResults.isEmpty
+            ? resultsFromEncodedPayload(raw["results_toon"]?.value as? String)
+            : flattenedResults(previewResults)
+        guard !resolvedResults.isEmpty else { return [] }
 
-        return previewResults.enumerated().map { index, result in
+        return resolvedResults.enumerated().map { index, result in
             var recordData = result.mapValues { AnyCodable($0) }
             recordData["app_id"] = recordData["app_id"] ?? AnyCodable(embed.appId ?? "web")
             return EmbedRecord(
-                id: "\(embed.id)-preview-\(index)",
+                id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
+                    ?? (embed.childEmbedIds.indices.contains(index) ? embed.childEmbedIds[index] : nil)
+                    ?? "\(embed.id)-preview-\(index)",
                 type: Self.previewChildType(for: embed),
                 status: .finished,
                 data: .raw(recordData),
@@ -76,6 +93,76 @@ struct SearchSkillPreviewModel {
                 embedIds: nil,
                 createdAt: embed.createdAt
             )
+        }
+    }
+
+    fileprivate static func resultsFromEncodedPayload(_ payload: String?) -> [[String: Any]] {
+        guard let payload, !payload.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        let decoded = EmbedRecord.parseContent(payload)
+        if let results = decoded["results"] as? [[String: Any]] { return flattenedResults(results) }
+        if let results = decoded["results"] as? [Any] {
+            return flattenedResults(results.compactMap { $0 as? [String: Any] })
+        }
+        // The backend TOON encoder selects a YAML-like list for web search
+        // payloads whose rows do not share an identical field set:
+        //
+        // results[2]:
+        //   - type: search_result
+        //     title: First result
+        //     url: https://example.com
+        //
+        // EmbedRecord.parseContent handles compact tabular TOON, but older and
+        // current persisted chats can contain this list form. Parse each flat
+        // result mapping here so the encrypted parent remains a complete
+        // rendering fallback while child records hydrate asynchronously.
+        let listResults = listResultsFromEncodedPayload(payload)
+        if !listResults.isEmpty { return flattenedResults(listResults) }
+        return decoded["url"] == nil ? [] : [decoded]
+    }
+
+    private static func listResultsFromEncodedPayload(_ payload: String) -> [[String: Any]] {
+        let lines = payload.components(separatedBy: .newlines)
+        guard let headerIndex = lines.firstIndex(where: { line in
+            let value = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.hasPrefix("results[") && value.hasSuffix("]:")
+        }) else { return [] }
+
+        let headerIndent = indentation(of: lines[headerIndex])
+        var rows: [[String: Any]] = []
+        var rowLines: [String] = []
+
+        func appendRow() {
+            guard !rowLines.isEmpty else { return }
+            let decoded = EmbedRecord.parseContent(rowLines.joined(separator: "\n"))
+            if !decoded.isEmpty { rows.append(decoded) }
+            rowLines.removeAll(keepingCapacity: true)
+        }
+
+        for rawLine in lines.dropFirst(headerIndex + 1) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+            let indent = indentation(of: rawLine)
+            if indent <= headerIndent { break }
+            if trimmed.hasPrefix("- ") {
+                appendRow()
+                rowLines.append(String(trimmed.dropFirst(2)))
+            } else if !rowLines.isEmpty {
+                rowLines.append(trimmed)
+            }
+        }
+        appendRow()
+        return rows
+    }
+
+    private static func indentation(of line: String) -> Int {
+        line.prefix { $0 == " " || $0 == "\t" }.count
+    }
+
+    fileprivate static func flattenedResults(_ rows: [[String: Any]]) -> [[String: Any]] {
+        rows.flatMap { row in
+            guard let nested = row["results"] as? [Any] else { return [row] }
+            let nestedRows = nested.compactMap { $0 as? [String: Any] }
+            return nestedRows.isEmpty ? [row] : flattenedResults(nestedRows)
         }
     }
 
@@ -94,15 +181,21 @@ struct SearchSkillPreviewModel {
     private static func resolveChildren(
         for embed: EmbedRecord,
         appId: String,
+        inlineRecords: [EmbedRecord],
         allEmbedRecords: [String: EmbedRecord]
     ) -> [EmbedRecord] {
         let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
-        if !explicit.isEmpty { return deduplicated(explicit) }
-
         let parented = allEmbedRecords.values
             .filter { $0.parentEmbedId == embed.id }
             .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
-        if !parented.isEmpty { return deduplicated(parented) }
+        let hydrated = deduplicated(explicit + parented)
+        if !inlineRecords.isEmpty || !hydrated.isEmpty {
+            return mergedRecords(
+                parentOrder: embed.childEmbedIds,
+                inlineRecords: inlineRecords,
+                hydratedRecords: hydrated
+            )
+        }
 
         let fallback = allEmbedRecords.values
             .filter { child in
@@ -119,6 +212,109 @@ struct SearchSkillPreviewModel {
             }
             .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
         return deduplicated(fallback)
+    }
+
+    /// Preserve the parent's declared result order and full inline fallback,
+    /// replacing synthetic rows only when the corresponding decrypted child is
+    /// available. A partially hydrated graph must never collapse the grid.
+    static func mergedRecords(
+        parentOrder: [String],
+        inlineRecords: [EmbedRecord],
+        hydratedRecords: [EmbedRecord]
+    ) -> [EmbedRecord] {
+        let inlineById = Dictionary(inlineRecords.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+        let hydratedById = Dictionary(hydratedRecords.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+        var seen = Set<String>()
+        var resolved: [EmbedRecord] = []
+
+        for id in parentOrder where seen.insert(id).inserted {
+            if let record = hydratedById[id] ?? inlineById[id] {
+                resolved.append(record)
+            }
+        }
+        for inline in inlineRecords where seen.insert(inline.id).inserted {
+            resolved.append(hydratedById[inline.id] ?? inline)
+        }
+        for hydrated in hydratedRecords where seen.insert(hydrated.id).inserted {
+            resolved.append(hydrated)
+        }
+        return resolved
+    }
+
+    private static func deduplicated(_ embeds: [EmbedRecord]) -> [EmbedRecord] {
+        var seen = Set<String>()
+        return embeds.filter { seen.insert($0.id).inserted }
+    }
+}
+
+/// Normalized parent/child graph for Code's GitHub repository search. Finished
+/// live results can arrive as child embeds, while persisted Apple chat payloads
+/// can contain only the parent's encrypted `results_toon` fallback.
+@MainActor
+struct CodeRepoSearchModel {
+    let embed: EmbedRecord
+    let query: String
+    let provider: String?
+    let status: EmbedStatus
+    let repositoryEmbeds: [EmbedRecord]
+    let resultCount: Int
+
+    var resultCountLabel: String {
+        // Match CodeRepoSearchEmbedPreview.svelte's explicit irregular plural.
+        let noun = resultCount == 1 ? "repository" : "repositories"
+        return "\(resultCount) \(noun)"
+    }
+
+    init(embed: EmbedRecord, allEmbedRecords: [String: EmbedRecord]) {
+        let raw = embed.rawData ?? [:]
+        self.embed = embed
+        query = EmbedFieldReader.string(raw, keys: ["query", "title"])
+            ?? AppStrings.codeSearchRepos
+        provider = EmbedFieldReader.string(raw, keys: ["provider"])
+        status = embed.status
+
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        let parented = allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
+        let hydrated = Self.deduplicated(explicit + parented)
+        repositoryEmbeds = SearchSkillPreviewModel.mergedRecords(
+            parentOrder: embed.childEmbedIds,
+            inlineRecords: Self.inlineRepositoryEmbeds(parent: embed, raw: raw),
+            hydratedRecords: hydrated
+        )
+        resultCount = EmbedFieldReader.int(raw, keys: ["result_count"])
+            ?? (embed.childEmbedIds.isEmpty ? repositoryEmbeds.count : embed.childEmbedIds.count)
+    }
+
+    private static func inlineRepositoryEmbeds(
+        parent: EmbedRecord,
+        raw: [String: AnyCodable]
+    ) -> [EmbedRecord] {
+        let direct = EmbedFieldReader.dictionaryArray(raw, key: "results")
+        let previews = direct.isEmpty
+            ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
+            : direct
+        let rows = previews.isEmpty
+            ? SearchSkillPreviewModel.resultsFromEncodedPayload(raw["results_toon"]?.value as? String)
+            : SearchSkillPreviewModel.flattenedResults(previews)
+
+        return rows.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable("code")
+            return EmbedRecord(
+                id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
+                    ?? "\(parent.id)-repository-\(index)",
+                type: EmbedType.codeRepo.rawValue,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: parent.id,
+                appId: "code",
+                skillId: nil,
+                embedIds: nil,
+                createdAt: parent.createdAt
+            )
+        }
     }
 
     private static func deduplicated(_ embeds: [EmbedRecord]) -> [EmbedRecord] {

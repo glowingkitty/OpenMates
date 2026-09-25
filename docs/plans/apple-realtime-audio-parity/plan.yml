@@ -1,0 +1,116 @@
+schema_version: 2
+id: apple-realtime-audio-parity
+title: Apple recording and realtime transcript parity
+status: implementing
+goal: >
+  Make Apple audio recording match the web app, including one-tap recording,
+  live transcription, correction, reliable encrypted upload, and sending the
+  same voice message while processing continues.
+scope:
+  in:
+    - Match the rendered web recording controls, waveform, timer, and lifecycle.
+    - Stream authenticated 16 kHz PCM16 audio to the existing first-party realtime transcription WebSocket.
+    - Show live text and raw/corrected transcript states on the same composer embed.
+    - Run encrypted audio upload alongside correction; use batch transcription once if realtime fails.
+    - Keep one stable embed and optimistic message through immediate send and finalization.
+    - Verify native unit and UI contracts, then real microphone/upload behavior on a signed device.
+  out:
+    - A new provider or backend transcription protocol.
+    - Realtime provider spend for anonymous recordings.
+    - Persisting plaintext transcript or audio in local diagnostics.
+context:
+  web_plan: docs/plans/realtime-audio-recording-transcription/plan.yml
+  note: The verified web plan explicitly deferred Apple; this user request authorizes its native phase.
+scenarios:
+  - id: S-1
+    title: Record and show live text
+    given: [An authenticated person has granted microphone access.]
+    when: [They tap record and speak.]
+    then: [The overlay stays open until Finish or Cancel, updates transcript text without blocking controls, and keeps the keyboard closed until the person taps the text field.]
+  - id: S-2
+    title: Finish while upload and correction run
+    given: [A realtime transcript and local audio file exist.]
+    when: [They finish recording.]
+    then: [One playable embed shows raw text, then correction, while encrypted upload runs concurrently without batch transcription.]
+  - id: S-3
+    title: Fail and cancel safely
+    given: [Realtime capture or transport may fail.]
+    when: [They finish a valid recording or cancel it.]
+    then: [Finish falls back to batch exactly once; Cancel releases capture and creates no embed.]
+  - id: S-4
+    title: Send during processing
+    given: [The recording embed is still uploading or correcting.]
+    when: [They send the message immediately.]
+    then: [One optimistic message persists and receives final audio, transcript, and waveform metadata.]
+acceptance_criteria:
+  - {id: AC-1, scenario: S-1, text: Native recording starts on one tap, keeps the keyboard closed until text input is tapped, and displays live authenticated transcript with responsive controls., required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-RECORDER, T-APPLE-UI]}
+  - {id: AC-2, scenario: S-2, text: Successful realtime recording uploads encrypted audio and applies correction to one embed without a batch call., required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-SOCKET, T-PIPELINE]}
+  - {id: AC-3, scenario: S-3, text: Realtime failure calls batch once and cancellation releases capture without an embed., required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-SOCKET, T-PIPELINE]}
+  - {id: AC-4, scenario: S-4, text: Immediate send finalizes the same optimistic message with complete audio metadata., required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-PIPELINE, T-APPLE-UI, T-DEVICE]}
+tests:
+  - id: T-SOCKET
+    type: unit
+    file: apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
+    command: xcodebuild test -scheme OpenMates_iOS -only-testing:OpenMatesTests/AudioRealtimeTranscriptionClientTests
+    covers: [AC-2, AC-3]
+    assertions: [Ordered WebSocket deltas, finish, correction, cancel, bounded queue, and authenticated failure have one terminal result.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Verified web protocol already establishes the absent native behavior.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-RECORDER
+    type: unit
+    file: apple/OpenMatesTests/VoiceRecorderTests.swift
+    command: xcodebuild test -scheme OpenMates_iOS -only-testing:OpenMatesTests/VoiceRecorderTests
+    covers: [AC-1]
+    assertions: [PCM conversion and bounded waveform are deterministic; a validated local recording is retained on finish.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Existing waveform tests establish the baseline.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PIPELINE
+    type: unit
+    file: apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    command: xcodebuild test -scheme OpenMates_iOS -only-testing:OpenMatesTests/ChatAudioPipelineTests
+    covers: [AC-2, AC-3, AC-4]
+    assertions: [Encrypted upload overlaps correction; realtime avoids batch; fallback calls batch once; one message receives complete metadata.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Current native source documents a serial batch-only path.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-APPLE-UI
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: xcodebuild test -scheme OpenMates_iOS -only-testing:OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers: [AC-1, AC-4]
+    assertions: [One-tap overlay, transcript, Finish, Cancel, correction state, and immediate send are visible and operable; keyboard stays closed through recording and opens only on a later text-field tap.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Prior screenshots and code show the parity gap.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-DEVICE
+    type: manual
+    covers: [AC-4]
+    assertions: [Signed physical device records audible audio, streams text, uploads, sends, and plays the same clip.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Headless Simulator CoreAudio hung during real capture.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+implementation_state: {subject_commit: 7a3b1d8f54737f3069f7cfde71ebeabb3366f859}
+approvals:
+  specification: {status: not_required, reason: This implements the existing web recording behavior on Apple under the user's explicit parity request; a draft Message Input contract wording update is prepared separately.}
+  plan: {status: approved, approved_at: '2026-09-23', source: User explicitly requested full Apple audio parity in this task.}
+decisions:
+  - {id: D-1, status: active, decision: Use a dedicated first-party audio socket and existing native session credentials., reason: The chat WebSocket has a different endpoint and event lifecycle., decided_at: '2026-09-23'}
+  - {id: D-2, status: active, decision: Preserve encrypted upload and call batch transcription only if realtime fails., reason: Recording remains usable without double provider spend., decided_at: '2026-09-23'}
+  - {id: D-3, status: active, decision: Require signed-device evidence for real microphone capture and playback., reason: The headless Simulator CoreAudio capture path hung and cannot prove physical input., decided_at: '2026-09-23'}
+tasks:
+  - id: TASK-1
+    title: Deliver native realtime recording parity in the current Codex task.
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]}
+    expected_files: [apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift, apple/OpenMates/Sources/Core/Networking/AudioRealtimeTranscriptionClient.swift, apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift]
+    verification_ids: [T-SOCKET, T-RECORDER, T-PIPELINE, T-APPLE-UI, T-DEVICE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: codex, files: [apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift], shared_files: [apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift]}
+attempts:
+  - {id: A-1, task_id: TASK-1, outcome: planned, approach: Reuse the verified web protocol and native encrypted upload, then verify each pipeline seam., recorded_at: '2026-09-23'}
+handoff:
+  current_task_id: TASK-1
+  next_action: Complete base recorder UI checks and the dedicated native audio socket before pipeline integration.
+  command: xcodebuild test -scheme OpenMates_iOS -only-testing:OpenMatesUITests/MessageInputAudioRecordingUITests
+  expected_outcome: Native recording controls pass, followed by realtime and upload pipeline checks.
+  last_verified_commit: 7a3b1d8f54737f3069f7cfde71ebeabb3366f859

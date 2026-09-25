@@ -140,6 +140,46 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 
 ---
 
+## Mandatory: Specification Traceability
+
+Apple product behavior must remain linked to the same approved Specifications as
+the corresponding web behavior.
+
+- Every touched production Swift file that implements Specification behavior
+  must name the project-relative `specifications/**/specification.yml` path and
+  the exact assertion IDs it implements in its file header. Keep these beside the
+  web-source block when both apply:
+
+  ```swift
+  // Specification: specifications/features/pii-protection/specification.yml
+  // Assertions: pii.composer.detect-redact-exclude, pii.surface.semantic-parity
+  ```
+- Every Apple unit or UI test that proves a requirement must put the existing
+  metadata comment immediately above the test declaration, using
+  `surface=gui.apple` and stable assertion IDs:
+
+  ```swift
+  // contract-test: direct surface=gui.apple assertions=pii.composer.detect-redact-exclude
+  func testComposerReplacesDetectedPIIBeforeSend() { ... }
+  ```
+
+  Use `direct` only when the test proves the assertion outcome; use `supporting`
+  for partial or lower-level evidence.
+- The approved Specification must declare Apple under
+  `applies_to.gui.implementations.apple`. When Apple is required, add or update
+  contract-linked Apple proof for each affected assertion. A source comment alone
+  is traceability, not proof.
+- Run `python3 scripts/specifications.py generate` after adding or changing test
+  metadata. The generated `specifications/generated/assertion-index.yml` is the
+  reciprocal Specification-to-Apple link: it records each annotated Apple test's
+  path, line, proof classification, and `gui.apple` surface. Validate the affected
+  Specification bundle with `python3 scripts/specifications.py validate <bundle>`.
+- Do not add ad hoc implementation-path or proof fields to
+  `specification.yml`; use the supported `applies_to` schema, test metadata, and
+  generated assertion index.
+
+---
+
 ## Canonical File ↔ Web Mapping
 
 | Swift file | Svelte source | CSS source |

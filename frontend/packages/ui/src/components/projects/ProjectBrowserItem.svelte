@@ -10,37 +10,75 @@
   import type { Component } from 'svelte';
   import type { ProjectItemViewModel } from '../../services/projectService';
   import { decodeToonContent, resolveEmbed } from '../../services/embedResolver';
-  import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
+  import type { EmbedFullscreenDispatchDetail } from '../../services/embedFullscreenController';
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
+  import { embedAvailabilityVersion } from '../../services/embedStore';
 
-  let { item, viewMode = 'tile' }: { item: ProjectItemViewModel; viewMode?: 'tile' | 'list' } = $props();
+  interface ProjectBrowserResolvedEmbed {
+    embedData: Record<string, unknown>;
+    decodedContent: Record<string, unknown>;
+  }
+
+  let {
+    item,
+    viewMode = 'tile',
+    onOpenFullscreen,
+    loadProjectEmbed,
+    displayName = item.displayName,
+  }: {
+    item: ProjectItemViewModel;
+    viewMode?: 'tile' | 'list';
+    onOpenFullscreen: (detail: EmbedFullscreenDispatchDetail) => void;
+    loadProjectEmbed?: (item: ProjectItemViewModel) => Promise<ProjectBrowserResolvedEmbed | null>;
+    displayName?: string;
+  } = $props();
 
   let previewComponent = $state<{ component: unknown; props: Record<string, unknown> } | null>(null);
   let isLoading = $state(false);
+  let resolvedEmbedData = $state<Record<string, unknown> | null>(null);
+  let resolvedContent = $state<Record<string, unknown> | null>(null);
+  let childFullscreenDispatchedAt = 0;
+  let loadGeneration = 0;
 
   onMount(() => {
+    let mounted = false;
+    const unsubscribe = embedAvailabilityVersion.subscribe(() => {
+      if (mounted && item.item_type === 'embed') void loadPreview();
+    });
+    mounted = true;
     if (item.item_type === 'embed') {
       isLoading = true;
       void loadPreview();
     }
+    return unsubscribe;
   });
 
   async function loadPreview(): Promise<void> {
+    const generation = ++loadGeneration;
     isLoading = true;
     try {
-      const embedData = await resolveEmbed(item.target_id);
+      const projectEmbed = await loadProjectEmbed?.(item);
+      const embedData = projectEmbed?.embedData ?? await resolveEmbed(item.target_id);
+      if (generation !== loadGeneration) return;
       if (!embedData || typeof embedData !== 'object') {
         previewComponent = null;
+        resolvedEmbedData = null;
+        resolvedContent = null;
         return;
       }
 
-      const decodedContent = await decodeToonContent(embedData.content);
+      const decodedContent = projectEmbed?.decodedContent ?? await decodeToonContent(embedData.content);
+      if (generation !== loadGeneration) return;
       if (!decodedContent) {
         previewComponent = null;
+        resolvedEmbedData = null;
+        resolvedContent = null;
         return;
       }
 
       const decoded = decodedContent as Record<string, unknown>;
+      resolvedEmbedData = embedData;
+      resolvedContent = decoded;
       const appId = String(decoded.app_id || item.metadata.app_id || item.item_type);
       previewComponent = await embedPreviewRegistry.resolve({
         embedId: item.target_id,
@@ -51,18 +89,24 @@
           type: decoded.type || item.metadata.embed_type || embedData.type,
         },
         decodedContent: decoded,
-        onFullscreen: () => openEmbedFullscreen(embedData, decoded),
+        onFullscreen: () => {
+          childFullscreenDispatchedAt = performance.now();
+          openEmbedFullscreen(embedData, decoded);
+        },
       });
     } catch (error) {
+      if (generation !== loadGeneration) return;
       console.error('[ProjectBrowserItem] Failed to render project embed preview:', error);
       previewComponent = null;
+      resolvedEmbedData = null;
+      resolvedContent = null;
     } finally {
-      isLoading = false;
+      if (generation === loadGeneration) isLoading = false;
     }
   }
 
   function openEmbedFullscreen(embedData: Record<string, unknown>, decodedContent: Record<string, unknown>): void {
-    dispatchEmbedFullscreen({
+    const detail: EmbedFullscreenDispatchDetail = {
       embedId: item.target_id,
       embedData,
       decodedContent,
@@ -72,7 +116,22 @@
         contentRef: `embed:${item.target_id}`,
         status: embedData.status || 'finished',
       },
-    });
+      hasChatContext: false,
+    };
+    onOpenFullscreen(detail);
+  }
+
+  function activateItem(event?: MouseEvent | KeyboardEvent): void {
+    if (!resolvedEmbedData || !resolvedContent) return;
+    const target = event?.target instanceof Element ? event.target : null;
+    const nestedControl = target?.closest('button, a, input, [role="button"]');
+    if (nestedControl && nestedControl !== event?.currentTarget) return;
+    if (event instanceof MouseEvent) {
+      if (performance.now() - childFullscreenDispatchedAt < 100) return;
+    }
+    if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') return;
+    event?.preventDefault();
+    openEmbedFullscreen(resolvedEmbedData, resolvedContent);
   }
 
   // Svelte dynamic components are heterogeneous because each embed preview has a
@@ -84,67 +143,85 @@
   }
 </script>
 
-<article class="browser-item {viewMode}" data-testid="project-item-card" data-item-type={item.item_type}>
-  {#if viewMode === 'tile' && item.item_type === 'embed'}
-    <div class="embed-preview-shell">
-      {#if isLoading}
-        <div class="embed-preview-fallback">Loading preview...</div>
-      {:else if previewComponent}
-        {@const Component = getRenderableComponent(previewComponent.component)}
-        <Component {...previewComponent.props} />
-      {:else}
-        <div class="embed-preview-fallback">{item.displayName || item.target_id}</div>
-      {/if}
+{#if viewMode === 'tile' && item.item_type === 'embed'}
+  <!-- The shared preview is the complete project tile. It already owns the
+       details body, identity footer, focus treatment, and fullscreen click. -->
+  <article class="browser-item tile" data-testid="project-item-card" data-item-type={item.item_type}>
+    {#if isLoading}
+      <div class="embed-preview-fallback">Loading preview...</div>
+    {:else if previewComponent}
+      {@const Component = getRenderableComponent(previewComponent.component)}
+      <Component {...previewComponent.props} />
+    {:else}
+      <div class="embed-preview-fallback">{displayName || item.target_id}</div>
+    {/if}
+  </article>
+{:else}
+  <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+  <article
+    class="browser-item list"
+    class:actionable={!!resolvedEmbedData && !!resolvedContent}
+    data-testid="project-item-card"
+    data-item-type={item.item_type}
+    role="button"
+    tabindex={resolvedEmbedData && resolvedContent ? 0 : undefined}
+    aria-disabled={!resolvedEmbedData || !resolvedContent}
+    aria-label={resolvedEmbedData && resolvedContent ? `Open ${displayName || 'Project item'}` : undefined}
+    onclick={activateItem}
+    onkeydown={activateItem}
+  >
+    <div class="browser-item-meta">
+      <span class="item-kind">{item.metadata.embed_type?.toString() || item.item_type}</span>
+      <strong>{displayName || item.target_id}</strong>
+      <small>{item.item_type}</small>
     </div>
-  {/if}
-  <div class="browser-item-meta">
-    <span class="item-kind">{item.metadata.embed_type?.toString() || item.item_type}</span>
-    <strong>{item.displayName || item.target_id}</strong>
-    <small>{item.item_type}</small>
-  </div>
-</article>
+  </article>
+{/if}
 
 <style>
   .browser-item {
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-5);
-    background: var(--color-grey-0);
     color: var(--color-font-primary);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
   }
 
   .browser-item.tile {
-    min-height: 210px;
+    display: flex;
+    min-width: 0;
+    min-height: 12.5rem;
+    justify-content: center;
   }
 
   .browser-item.list {
     display: flex;
     align-items: center;
-    min-height: 64px;
-    padding: 0 14px;
+    min-height: 4rem;
+    padding: 0 var(--spacing-7);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
     box-shadow: none;
   }
 
-  .embed-preview-shell {
-    height: 154px;
-    overflow: hidden;
-    background: var(--color-grey-10);
+  .browser-item.actionable {
+    cursor: pointer;
   }
 
-  .embed-preview-shell :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    height: 100%;
-    border-radius: 0;
+  .browser-item.actionable:focus-visible {
+    outline: 2px solid var(--color-focus, var(--color-font-primary));
+    outline-offset: 2px;
+  }
+
+  .browser-item.tile :global(.unified-embed-preview) {
+    flex: 0 0 auto;
   }
 
   .embed-preview-fallback {
     display: grid;
     place-items: center;
-    height: 100%;
-    padding: 16px;
+    width: min(18.75rem, 100%);
+    min-height: 12.5rem;
+    padding: var(--spacing-8);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
     color: var(--color-font-secondary);
     font-weight: 700;
     text-align: center;
@@ -152,12 +229,12 @@
 
   .browser-item-meta {
     display: grid;
-    gap: 6px;
-    padding: 16px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-8);
   }
 
   .list .browser-item-meta {
-    grid-template-columns: minmax(90px, 140px) 1fr auto;
+    grid-template-columns: minmax(5.625rem, 8.75rem) 1fr auto;
     align-items: center;
     width: 100%;
     padding: 0;
@@ -166,7 +243,7 @@
   .item-kind,
   small {
     color: var(--color-font-secondary);
-    font-size: 0.82rem;
+    font-size: var(--font-size-xs);
   }
 
   .item-kind {

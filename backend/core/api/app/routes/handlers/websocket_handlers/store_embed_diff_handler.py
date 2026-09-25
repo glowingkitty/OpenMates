@@ -15,6 +15,9 @@ from fastapi import WebSocket
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.embed_version_transaction_service import (
+    requires_atomic_project_embed_write,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +105,19 @@ async def handle_store_embed_diff(
             logger.warning("Invalid store_embed_diff payload from user %s", user_id)
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Invalid embed diff payload"}},
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
+
+        if await requires_atomic_project_embed_write(directus_service, embed_id):
+            logger.warning(
+                "Rejected legacy store_embed_diff for atomic Project embed %s from user %s",
+                embed_id,
+                user_id,
+            )
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Project file revisions require atomic commit"}},
                 user_id,
                 device_fingerprint_hash,
             )

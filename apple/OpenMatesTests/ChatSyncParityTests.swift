@@ -123,6 +123,77 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(store.messages(for: "chat-1").first?.encryptedContent, "server-ciphertext")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction,chats.persistence.client-encrypted
+    func testEncryptedSyncKeepsFinishedLocalRecordingVisibleDuringFirstChatOpen() {
+        let store = ChatStore()
+        let ref = EmbedRef(id: "recording-1", type: "audio-recording", status: "finished", data: nil)
+        let optimistic = Message(
+            id: "user-1", chatId: "chat-1", role: .user,
+            content: "[[embed:recording-1]]\nAudio check", encryptedContent: "local-cipher",
+            createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: [ref]
+        )
+        let committed = Message(
+            id: optimistic.id, chatId: optimistic.chatId, role: .user,
+            content: nil, encryptedContent: "server-cipher",
+            createdAt: optimistic.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil
+        )
+        let preview = EmbedRecord(
+            id: ref.id, type: "audio-recording", status: .finished,
+            data: .raw(["filename": AnyCodable("recording.m4a")]),
+            parentEmbedId: nil, appId: "audio", skillId: nil,
+            embedIds: nil, createdAt: nil
+        )
+        let synced = EmbedRecord(
+            id: ref.id, type: "audio-recording", status: .finished,
+            data: nil, encryptedContent: "encrypted-recording",
+            encryptedType: "encrypted-type", parentEmbedId: nil,
+            appId: nil, skillId: nil, embedIds: nil,
+            hashedMessageId: "message-hash", createdAt: nil
+        )
+        store.appendMessage(optimistic, to: "chat-1")
+        store.upsertEmbeds([preview], for: "chat-1")
+        store.applySyncedContent(
+            messagesByChat: ["chat-1": [committed]],
+            embedsByChat: ["chat-1": [synced]]
+        )
+        XCTAssertEqual(store.messages(for: "chat-1").first?.embedRefs?.map(\.id), [ref.id])
+        XCTAssertEqual(store.embeds(for: "chat-1").first?.rawData?["filename"]?.value as? String, "recording.m4a")
+        XCTAssertEqual(store.embeds(for: "chat-1").first?.encryptedContent, "encrypted-recording")
+        XCTAssertEqual(store.initialEmbedsForVisibleWindow(
+            for: "chat-1", messages: store.messages(for: "chat-1")
+        ).map(\.id), [ref.id])
+        store.setMessages(for: "chat-1", messages: [committed])
+        store.upsertEmbeds([synced], for: "chat-1")
+        XCTAssertEqual(store.messages(for: "chat-1").first?.embedRefs?.map(\.id), [ref.id])
+        XCTAssertEqual(store.embeds(for: "chat-1").first?.rawData?["filename"]?.value as? String, "recording.m4a")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testReferenceOnlyInlineRecordCannotEraseHydratedPhoto() {
+        let hydrated = EmbedRecord(
+            id: "photo-1", type: "images-image", status: .finished,
+            data: .raw([
+                "filename": AnyCodable("quick-action-photo.png"),
+                "files": AnyCodable(["thumbnail": ["s3_key": "thumbnail-key"]])
+            ]),
+            parentEmbedId: nil, appId: "images", skillId: nil,
+            embedIds: nil, createdAt: nil
+        )
+        let reference = EmbedRecord(
+            id: hydrated.id, type: "images-image", status: .finished,
+            data: .raw(["type": AnyCodable("image"), "embed_id": AnyCodable(hydrated.id)]),
+            parentEmbedId: nil, appId: nil, skillId: nil,
+            embedIds: nil, createdAt: nil
+        )
+        let merged = PublicChatContent.mergingHydratedRecords(
+            existing: [hydrated.id: hydrated], inline: [reference.id: reference]
+        )
+        XCTAssertEqual(merged[hydrated.id]?.rawData?["filename"]?.value as? String,
+                       "quick-action-photo.png")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testPendingRecoveryCannotRetainUserRowsOrRowsFromAnotherChat() {
         let store = ChatStore()
@@ -308,6 +379,140 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(merged?.isHiddenCandidate, true)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
+    func testSameRevisionTitleHydrationPopulatesSidebarAndPersistsForColdBoot() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("TitleHydrationTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let encrypted = makeChat(
+            id: "chat-title",
+            title: nil,
+            titleV: 4,
+            encryptedTitle: "current-title-ciphertext"
+        )
+        let hydrated = makeChat(
+            id: encrypted.id,
+            title: "Hydrated research title",
+            titleV: 4,
+            encryptedTitle: encrypted.encryptedTitle
+        )
+
+        store.upsertChat(encrypted)
+        store.upsertChat(hydrated)
+
+        XCTAssertEqual(store.chat(for: encrypted.id)?.displayTitle, "Hydrated research title")
+        XCTAssertEqual(offlineStore.loadChat(id: encrypted.id)?.displayTitle, "Hydrated research title")
+        XCTAssertEqual(offlineStore.loadStartupChats(lastOpenedChatId: encrypted.id, limit: 20).first?.title,
+                       "Hydrated research title")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.persistence.client-encrypted
+    func testSameRevisionTitleHydrationRejectsPlaintextForDifferentCiphertext() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("TitleHydrationFenceTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let current = makeChat(
+            id: "chat-title",
+            title: nil,
+            titleV: 4,
+            encryptedTitle: "current-title-ciphertext"
+        )
+        let mismatched = makeChat(
+            id: current.id,
+            title: "Plaintext from another revision",
+            titleV: 4,
+            encryptedTitle: "different-title-ciphertext"
+        )
+
+        store.upsertChat(current)
+        store.upsertChat(mismatched)
+
+        XCTAssertNil(store.chat(for: current.id)?.title)
+        XCTAssertEqual(store.chat(for: current.id)?.encryptedTitle, "current-title-ciphertext")
+        XCTAssertNil(offlineStore.loadChat(id: current.id)?.title)
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.encryptedTitle, "current-title-ciphertext")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
+    func testNewerEncryptedTitleRevisionClearsOlderDecryptedTitleUntilHydrated() {
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(makeChat(
+                id: "chat-title",
+                title: "Old title",
+                titleV: 3,
+                encryptedTitle: "old-title-ciphertext"
+            ))
+            store.upsertChat(makeChat(
+                id: "chat-title",
+                title: nil,
+                titleV: 4,
+                encryptedTitle: "new-title-ciphertext"
+            ))
+            store.upsertChat(makeChat(
+                id: "chat-title",
+                title: "Stale title",
+                titleV: 3,
+                encryptedTitle: "stale-title-ciphertext"
+            ))
+        }
+
+        XCTAssertNil(store.chat(for: "chat-title")?.title)
+        XCTAssertEqual(store.chat(for: "chat-title")?.encryptedTitle, "new-title-ciphertext")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation,chats.surface.semantic-parity
+    func testOlderMetadataCannotReplaceEncryptedFollowUpsInMemoryOrOffline() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("FollowUpMetadataFenceTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let current = makeChat(
+            id: "chat-follow-ups",
+            title: "Current",
+            metadataV: 8,
+            encryptedFollowUpRequestSuggestions: "newer-ciphertext"
+        )
+        let older = makeChat(
+            id: "chat-follow-ups",
+            title: "Older page",
+            metadataV: 7,
+            encryptedFollowUpRequestSuggestions: "older-ciphertext"
+        )
+
+        store.upsertChat(current)
+        store.upsertChat(older)
+
+        XCTAssertEqual(store.chat(for: current.id)?.encryptedFollowUpRequestSuggestions, "newer-ciphertext")
+        XCTAssertEqual(store.chat(for: current.id)?.metadataV, 8)
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.encryptedFollowUpRequestSuggestions, "newer-ciphertext")
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.metadataV, 8)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
+    func testOlderMetadataCannotReplaceGeneratedSummaryInMemoryOrOffline() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("SummaryMetadataFenceTests", schema: schema, isStoredInMemoryOnly: true)
+        let offlineStore = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offlineStore))
+        let current = makeChat(id: "chat-summary", title: "Current", metadataV: 8,
+                               chatSummary: "Current summary", encryptedChatSummary: "current-cipher")
+        let older = makeChat(id: "chat-summary", title: "Older", metadataV: 7,
+                             chatSummary: "Stale summary", encryptedChatSummary: "stale-cipher")
+        store.upsertChat(current)
+        store.upsertChat(older)
+        XCTAssertEqual(store.chat(for: current.id)?.chatSummary, "Current summary")
+        XCTAssertEqual(store.chat(for: current.id)?.encryptedChatSummary, "current-cipher")
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.chatSummary, "Current summary")
+        XCTAssertEqual(offlineStore.loadChat(id: current.id)?.encryptedChatSummary, "current-cipher")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chat-navigation.open.local-first-coherent
     func testContinuationUsesActualWireDraftPresenceInsteadOfVersion() throws {
         let decoder = JSONDecoder()
@@ -404,6 +609,43 @@ final class ChatSyncParityTests: XCTestCase {
 
         let recent = WelcomeScreenState.recentChats(from: [hidden, visible], excluding: nil)
         XCTAssertEqual(recent.map(\.id), ["visible-chat"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded
+    func testContinuationMatchesWebEligibilityForPinnedArchivesEmptyShellsAndNewsletters() {
+        let pinnedArchived = makeChat(
+            id: "pinned-archived",
+            title: "Pinned archive",
+            isArchived: true,
+            isPinned: true
+        )
+        let archived = makeChat(id: "archived", title: "Archive", isArchived: true)
+        let empty = makeChat(id: "empty", title: nil, messagesV: 0, metadataV: 0)
+        let newsletter = makeChat(id: "tips-weekly", title: "Tips")
+        let ordinary = makeChat(id: "ordinary", title: "Ordinary")
+
+        XCTAssertEqual(
+            WelcomeScreenState.recentChats(
+                from: [ordinary, newsletter, empty, archived, pinnedArchived],
+                excluding: nil
+            ).map(\.id),
+            ["pinned-archived", "ordinary"]
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chat-navigation.draft-only.addressable,drafts.established-chat.presentation-unchanged
+    func testContinuationDoesNotRenderPartiallySyncedGeneratedMetadataAsDraftOnly() {
+        let generated = makeChat(
+            id: "generated",
+            title: nil,
+            messagesV: 0,
+            titleV: 2,
+            draftV: 3,
+            hasNonEmptyDraft: true
+        )
+
+        XCTAssertFalse(WelcomeScreenState.isDraftOnly(generated))
+        XCTAssertEqual(WelcomeScreenState.resumeChat(from: [generated], lastOpened: generated.id)?.id, generated.id)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
@@ -559,6 +801,40 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(merged.map(\.id), ["snapshot", "realtime"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
+    func testEmbedRecordDecodesMessageOwnershipAndPreservesItAfterDecryption() throws {
+        let snakeCase = """
+        {
+          "embed_id": "image-1",
+          "embed_type": "image",
+          "status": "finished",
+          "hashed_chat_id": "chat-hash",
+          "hashed_message_id": "message-hash",
+          "hashed_user_id": "user-hash"
+        }
+        """.data(using: .utf8)!
+        let camelCase = """
+        {
+          "embedId": "image-2",
+          "type": "image",
+          "status": "finished",
+          "hashedChatId": "chat-hash-2",
+          "hashedMessageId": "message-hash-2",
+          "hashedUserId": "user-hash-2"
+        }
+        """.data(using: .utf8)!
+
+        let snakeRecord = try JSONDecoder().decode(EmbedRecord.self, from: snakeCase)
+        let camelRecord = try JSONDecoder().decode(EmbedRecord.self, from: camelCase)
+
+        XCTAssertEqual(snakeRecord.hashedMessageId, "message-hash")
+        XCTAssertEqual(camelRecord.hashedMessageId, "message-hash-2")
+        XCTAssertEqual(
+            snakeRecord.decryptedCopy(content: "filename: receipt.png", type: "image").hashedMessageId,
+            "message-hash"
+        )
+    }
+
     private func makeChat(
         id: String,
         title: String?,
@@ -566,6 +842,7 @@ final class ChatSyncParityTests: XCTestCase {
         isSubChat: Bool? = nil,
         encryptedActiveFocusId: String? = nil,
         messagesV: Int? = 1,
+        titleV: Int? = nil,
         metadataV: Int? = 1,
         lastMessageAt: String = "2026-01-01T00:00:00Z",
         isArchived: Bool = false,
@@ -574,6 +851,9 @@ final class ChatSyncParityTests: XCTestCase {
         isPinned: Bool = false,
         draftV: Int? = nil,
         encryptedTitle: String? = nil,
+        chatSummary: String? = nil,
+        encryptedChatSummary: String? = nil,
+        encryptedFollowUpRequestSuggestions: String? = nil,
         hasNonEmptyDraft: Bool? = nil
     ) -> Chat {
         Chat(
@@ -585,10 +865,13 @@ final class ChatSyncParityTests: XCTestCase {
             isArchived: isArchived,
             isPinned: isPinned,
             appId: "ai",
+            chatSummary: chatSummary,
             encryptedTitle: encryptedTitle,
+            encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedChatKey: nil,
             messagesV: messagesV,
-            titleV: title == nil ? 0 : 1,
+            titleV: titleV ?? (title == nil ? 0 : 1),
             draftV: draftV,
             metadataV: metadataV,
             parentId: parentId,

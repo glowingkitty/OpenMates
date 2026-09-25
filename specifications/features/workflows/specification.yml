@@ -1,12 +1,12 @@
 schema_version: 1
 id: feature.workflows
-version: 4
+version: 5
 status: approved
 title: Workflows
 summary: >
   OpenMates Workflows execute validated user-authored automation graphs with
   encrypted retained content, explicit lifecycle state, and fenced side effects
-  through deterministic app-skill, Check, and Send message steps,
+  through deterministic app-skill, Ask AI, Check, bounded AI Check, and Send message steps,
   with optional schedules and run-owned remembered deliveries.
 
 scope:
@@ -15,12 +15,15 @@ scope:
     - Manual execution readiness, optional single-schedule activation, deterministic control flow, visible costs, and run deletion.
     - Encrypted retained Workflow inputs, outputs, pending chat delivery, and indexed run-owned delivery fingerprints.
     - Date/time recurrence, new-result filtering, selective embed creation, and deterministic chat templates.
+    - Bounded boolean AI Check decisions over explicitly selected earlier values, with an independent fallback and an explicit Unsure outcome.
+    - Tool-isolated Ask AI text processing over explicit earlier Workflow values, with shared authoring validation across web, CLI and SDKs.
     - Workflow send_chat_message delivery for existing or newly routed owner chats.
     - Owner-device claim, encrypted persistence, acknowledgement, retry, expiry, cancellation, and reconnect semantics for chat delivery.
   excludes:
     - General Filter nodes, advanced recurrence, and new day/week/month budget forecasts and caps (deferred beyond this delivery).
     - Non-Workflow chat sends and normal chat inference.
-    - V1 AI evaluation, AI inference steps, AI authoring/editing, user-input pauses, general loops, Wait nodes, and custom code execution.
+    - AI-authored Workflow construction or editing, user-input pauses, general loops, Wait nodes, and custom code execution in this contract amendment.
+    - Structured or multiple named Ask AI outputs and Ask AI-initiated app-skill calls.
     - V1 event/chat/webhook triggers, direct project writes, cross-provider duplicate detection, and comparison with manually saved project content.
     - Separate report, push, or email action nodes; normal chat notifications remain available.
     - Automatic apartment applications and other external mutations.
@@ -43,7 +46,52 @@ models:
       values: [send_chat_message]
     non_qualifying_nodes:
       type: workflow_node_type_set
-      values: [app_skill_action, check]
+      values: [app_skill_action, check, ai_check]
+
+  WorkflowAskAi:
+    instruction:
+      type: multiline_user_authored_text_with_typed_earlier_references
+      required: true
+    selected_inputs:
+      type: bounded_earlier_workflow_values
+      constraints: {explicit_references_only: true, whole_run_or_chat_context: forbidden, earlier_app_skill_outputs_allowed: true}
+    answer:
+      type: single_reusable_text_output
+      required: true
+    runtime:
+      type: isolated_workflow_ai_ask
+      constraints: {app_skill_or_tool_calls: forbidden, chat_history_and_memories: forbidden, external_text_as_instructions: forbidden}
+
+  WorkflowAskAiValidation:
+    verdict:
+      type: enum
+      values: [allowed, asks_to_invoke_app_skill, unverified]
+    validation_path:
+      type: enum
+      values: [jev, gemini_3_8_flash_fallback, no_reliable_verdict]
+    unverified_save:
+      type: save_with_neutral_reminder
+      required: true
+
+  WorkflowAiCheck:
+    decision_question:
+      type: bounded_user_authored_boolean_question
+      required: true
+    selected_inputs:
+      type: typed_earlier_value_references
+      required: true
+      constraints: {minimum: 1, explicit_selection_only: true, whole_run_or_chat_context: forbidden}
+    result:
+      type: enum
+      values: [true, false, unsure]
+      required: true
+    decision_path:
+      type: enum
+      values: [bounded_decision_primary, structured_generative_fallback, no_decision]
+      required: true
+    retained_detail:
+      type: encrypted_run_content
+      constraints: {raw_provider_response: forbidden, secrets_or_credentials: forbidden, unsure_reason: distinguishes_uncertain_judgment_from_evaluator_failure}
 
   WorkflowRun:
     run_id:
@@ -131,12 +179,12 @@ assertions:
     depends_on: [models.WorkflowChatPersistence, examples.chat_delivery_encrypted_persistence]
   - id: workflows.surface.semantic-parity
     type: parity
-    must: Backend, CLI, npm SDK, Python SDK and web preserve identical manual/scheduled readiness, Check results, deterministic message templates, selected embeds, only-new-results memory, run deletion and existing encryption boundaries. Apple UI remains deferred.
+    must: Backend, CLI, npm SDK, Python SDK and web preserve identical manual/scheduled readiness, deterministic and AI Check results, Ask AI validation and text outputs, deterministic message templates, selected embeds, only-new-results memory, run deletion and existing encryption boundaries. Web-only typing-time hints do not change server-side create/update validation; Apple UI remains deferred.
     depends_on: [models, examples.surface_parity, applies_to]
 
   - id: workflows.mvp.steps
     type: behavior
-    must: V1 authoring offers Use app skill, Check and Send message, plus an optional time/date trigger. General Filter, AI authoring/inference, code, pauses, loops, Wait and separate report/push/email actions are out of scope. Legacy definitions remain inspectable and are never silently rewritten; unsupported legacy actions require an explicit edit before new execution.
+    must: Authoring offers Use app skill, Ask AI, Check and Send message, plus an optional time/date trigger. Ask AI uses the AI app's Ask capability internally but is not offered inside Use app. Check starts as an exact typed rule and can instead use bounded AI judgment for a boolean question over explicitly selected earlier values. AI-authored Workflow construction or editing, structured Ask AI outputs, code, pauses, loops, Wait and separate report/push/email actions remain out of scope for this contract amendment. Legacy definitions remain inspectable and are never silently rewritten; unsupported legacy actions require an explicit edit before new execution.
     depends_on:
     - examples.mvp_steps
   - id: workflows.schedule.recurrence
@@ -191,6 +239,23 @@ assertions:
       causes a clear rejection that names the dependent steps instead of saving a broken graph.
     depends_on:
     - examples.check
+  - id: workflows.control.ai-check
+    type: behavior
+    must: >
+      An AI Check answers one bounded boolean question using only the earlier typed values the author explicitly selects. The author can inspect the exact projected values before testing or saving. The runtime minimizes and bounds those values, labels external text as untrusted data, excludes whole-run context, chat history, attachments, credentials and opaque access material, and never lets selected data change the authored question. A complete reliable primary decision chooses If true or If false. Primary unavailability, invalid output, or insufficient confidence invokes one independent structured generative fallback; if that fallback is unavailable, invalid or genuinely uncertain, the Check automatically follows Unsure. The author can configure the Unsure branch with the same supported steps as the true and false branches, or leave it empty to do nothing in that branch. An empty branch still resumes any shared continuation. Retained encrypted run detail shows the question, projected inputs, outcome, confidence band, decision path and whether Unsure arose from uncertain judgment or evaluator failure, without raw provider responses. An accepted completed decision is reused across retries rather than re-inferred or charged twice.
+    depends_on:
+    - models.WorkflowAiCheck
+    - examples.ai_check
+  - id: workflows.ai-ask.execution
+    type: behavior
+    must: >
+      Ask AI evaluates one multiline authored instruction with only explicitly referenced, accessible earlier Workflow values and returns one text answer that later steps can reference. A prior Use app result, including a bounded result list, may be an input; Ask AI cannot discover or invoke app skills itself. Server-side execution enforces a fresh tool-disabled Workflow context without ordinary chat history or memories, treats upstream text as untrusted data, bounds and previews selected values, and does not expose credentials or opaque access material. Test uses unsaved inputs without committing a graph, and full runs use normal AI usage, credit and idempotency controls. The answer and useful failure detail are encrypted retained run content; failure stops dependent steps rather than inventing an answer or taking the AI Check Unsure branch.
+    depends_on: [models.WorkflowAskAi, examples.ask_ai_execution]
+  - id: workflows.ai-ask.authoring-validation
+    type: behavior
+    must: >
+      Every create or update through the web, REST, CLI, npm SDK or Python SDK validates the current Ask AI instruction on the server before persistence. Jev first checks whether it asks AI to invoke a new app skill; if Jev is unavailable or uncertain, a structured Gemini 3.8 Flash fallback checks the same distinction. A reliable app-invocation verdict rejects Save with plain-language guidance to add Use app, while instructions merely processing referenced outputs from existing Use app steps remain valid. If neither evaluator returns a reliable verdict, Save is allowed with a neutral, non-blocking reminder; validation failure never enables runtime tool access. An available exact-instruction server verdict may be reused, but edited text requires a fresh authoritative verdict. CLI and SDK create/update expose the same rejection or reminder without typing-time evaluation.
+    depends_on: [models.WorkflowAskAiValidation, examples.ask_ai_validation]
   - id: workflows.control.typed-data
     type: behavior
     must: Declared output schemas drive references to accessible earlier steps before any test run. Incompatible types, forward references, cycles and branch-local references outside their branch are rejected before charged work. App skill Test may execute unsaved inputs with supplied earlier test outputs, stores only temporary test evidence, and never commits the graph or requires a successful test before Save.
@@ -289,7 +354,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery]
+  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, ai_check, ask_ai_execution, ask_ai_validation, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery]
 
 approval:
   source: user-approved workflow v1 implementation plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

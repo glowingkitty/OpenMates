@@ -2,6 +2,7 @@ import type {
   WorkflowGraph,
   WorkflowNode,
 } from "../../stores/workflowWorkspaceStore";
+import { hiddenWorkflowField } from "./workflowValuePresentation";
 
 export type Schema = {
   "x-ui"?: { control?: string; start_field?: string; end_field?: string; min?: string; max_offset_days?: number; default?: string; hidden?: boolean; basic?: boolean };
@@ -46,12 +47,67 @@ export type Output = {
 };
 export type Insertion = { after: string | null; branch?: string };
 
+function declaredOutputs(
+  nodeId: string,
+  nodeLabel: string,
+  properties: Record<string, Schema>,
+  referencePrefix = `$nodes.${nodeId}.output`,
+  labelPrefix = nodeLabel,
+  projectAsList = false,
+): Output[] {
+  return Object.entries(properties).flatMap(([key, schema]) => {
+    if (hiddenWorkflowField(key, schema)) return [];
+    const reference = `${referencePrefix}.${key}`;
+    const outputLabel = `${labelPrefix} · ${schema.title || label(key)}`;
+    const output: Output = {
+      reference,
+      nodeId,
+      label: outputLabel,
+      schema: projectAsList
+        ? {
+            type: "array",
+            items: schema,
+            ...(schema["x-ui"] ? { "x-ui": schema["x-ui"] } : {}),
+          }
+        : schema,
+    };
+    const objectProperties = schema.properties;
+    const itemProperties =
+      schema.type === "array"
+        ? schema.items?.properties
+        : undefined;
+    return [
+      output,
+      ...(objectProperties
+        ? declaredOutputs(
+            nodeId,
+            nodeLabel,
+            objectProperties,
+            reference,
+            outputLabel,
+            projectAsList,
+          )
+        : []),
+      ...(itemProperties
+        ? declaredOutputs(
+            nodeId,
+            nodeLabel,
+            itemProperties,
+            reference,
+            outputLabel,
+            true,
+          )
+        : []),
+    ];
+  });
+}
+
 export const record = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
 export const label = (value: string): string =>
-  value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 export const isCheck = (node: WorkflowNode): boolean =>
   ["check", "decision"].includes(node.type);
 export const isTrigger = (node: WorkflowNode): boolean =>
@@ -60,6 +116,10 @@ export const isMessage = (node: WorkflowNode): boolean =>
   ["send_chat_message", "create_chat_report", "start_new_chat"].includes(
     node.type,
   );
+export const isAskAi = (node: WorkflowNode): boolean =>
+  node.type === "app_skill_action" &&
+  node.config?.app_id === "ai" &&
+  node.config?.skill_id === "ask";
 export const capabilityFor = (
   node: WorkflowNode,
   capabilities: Capability[],
@@ -160,12 +220,11 @@ export function outputsBefore(
         ? { matched: { type: "boolean", title: "Check matched" } }
         : (capabilityFor(node, capabilities)?.metadata.output_schema
             ?.properties ?? {});
-      return Object.entries(properties).map(([key, schema]) => ({
-        reference: `$nodes.${node.id}.output.${key}`,
-        nodeId: node.id,
-        label: `${node.title || label(String(node.config?.app_id ?? node.type))} · ${schema.title || label(key)}`,
-        schema,
-      }));
+      return declaredOutputs(
+        node.id,
+        node.title || label(String(node.config?.app_id ?? node.type)),
+        properties,
+      );
     });
 }
 
@@ -248,7 +307,7 @@ export function removeNode(
     // message condition. Preserve other consumers for the dependency error.
     if (typeof value === "string" && replacement) {
       if (nullable) return key === "include_if" && (value === oldReference || value === oldToken) ? replacement : value;
-      return value === oldReference ? replacement : value.replaceAll(oldToken, newToken);
+      return value === oldReference ? replacement : value.split(oldToken).join(newToken);
     }
     if (Array.isArray(value)) return value.map(child => rewrite(child));
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, rewrite(child, key)]));

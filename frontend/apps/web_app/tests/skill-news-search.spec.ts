@@ -46,13 +46,13 @@ test.describe('App: News / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+	// contract-test: supporting surface=gui.web assertions=news-search.surface-parity
 	test('Phase 1: embed preview renders at /dev/preview/embeds/news', async ({ page }) => {
 		const log = (msg: string) => console.log(`[P1] ${msg}`);
 		await verifyEmbedPreviewPage(page, 'news', log);
 	});
 
-	// contract-test: supporting surface=cli assertions=web-search.surface-parity
+	// contract-test: supporting surface=cli assertions=news-search.surface-parity,news-search.results.safe-and-bounded
 	test('Phase 2: CLI apps news search returns results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -60,7 +60,7 @@ test.describe('App: News / Skill: search', () => {
 			apiUrl,
 			[
 				'apps', 'news', 'search',
-				'--input', JSON.stringify({ requests: [{ query: NEWS_SEARCH_FIXTURE_QUERY, freshness: 'pw' }] }),
+				'--input', JSON.stringify({ requests: [{ query: NEWS_SEARCH_FIXTURE_QUERY, freshness: 'pw', count: 2 }] }),
 				'--json'
 			],
 			30_000
@@ -72,12 +72,13 @@ test.describe('App: News / Skill: search', () => {
 
 		const results = parsed.data?.results?.[0]?.results || [];
 		expect(results.length).toBeGreaterThan(0);
+		expect(results.length).toBeLessThanOrEqual(2);
 		expect(results[0].title || results[0].name).toBeTruthy();
 		expect(results[0].url).toBeTruthy();
 		console.log(`[P2] news/search found ${results.length} article(s)`);
 	});
 
-	// contract-test: supporting surface=cli assertions=web-search.surface-parity
+	// contract-test: supporting surface=cli assertions=news-search.surface-parity
 	test('Phase 3: CLI chats new triggers news search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -94,7 +95,7 @@ test.describe('App: News / Skill: search', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=web-search.surface-parity
+	// contract-test: direct surface=gui.web assertions=news-search.surface-parity
 	test('Phase 4: Web chat and short follow-up each execute news search with embeds', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -157,6 +158,8 @@ test.describe('App: News / Skill: search', () => {
 		await expect(followupEmbed).toContainText(/OpenAI/i);
 		await expect(followup.getByTestId('chat-mate-name')).toHaveText(originalMate);
 		await expect(followup).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
+		await expect(followup).not.toContainText(/AI service encountered an error|try again in a moment/i);
+		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 		await expect(followup.locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
 		const followupOverlay = await openFullscreen(page, followupEmbed);
 		await verifySearchGrid(followupOverlay);
@@ -174,6 +177,7 @@ test.describe('App: News / Skill: search', () => {
 		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 		await expect(summary.locator('[data-testid="embed-preview"][data-skill-id="search"]')).toHaveCount(0);
 		await expect(summary).not.toContainText(/app_id:|skill_id:|```toon/);
+		await expect(summary).not.toContainText(/AI service encountered an error|try again in a moment/i);
 		await expect(summary.getByTestId('chat-mate-name')).toHaveText(originalMate);
 
 		await page.reload({ waitUntil: 'networkidle' });

@@ -10,13 +10,25 @@ scope:
   - Shared focus activation, cancellation, deactivation, per-request system prompts and historical events.
   - Current-state restoration and historical rendering across supported first-party surfaces.
   - Web focus activation display, details/off interactions and Career insights banner placement.
+  - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
+  - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation of read access to files already shown in the chat after deactivation.
   excludes:
   - Exact focus prompt wording, conversational tactics, and instruction authoring; these belong to app instruction
     implementation.
-  - Changes to individual focus instruction content, career guidance/disclaimer policy, or model and mate selection.
+  - Changes to individual focus instruction content, career guidance/disclaimer policy, or selection of remaining models and mates.
   - New endpoints, altered authentication, rate or credit limits, and changes to encryption protocol.
 assertions:
+- id: focus-modes.project-write-gate
+  type: security
+  must: Every chat-initiated Project file mutation must deterministically check that this chat currently has an active focus stored in the target Project. Prompt text, preprocessor recommendations, past activation events, another chat's state, and a matching display name cannot substitute for that active Project-bound state. The requirement applies equally to OpenMates-stored and remote Project files; all other write permissions and guards still apply.
+  depends_on:
+  - examples.project_write_gate
+- id: focus-modes.project-off-read-preserved
+  type: behavior
+  must: After a Project focus is deactivated, new chat file-write requests to that Project are denied and its active instruction is excluded from subsequent system prompts. Files already shown in the chat remain readable within their existing authorized access; deactivation does not erase chat content or grant broader Project reads. Re-reading a historical focus event or displayed file cannot restore write authority.
+  depends_on:
+  - examples.project_off_read
 - id: focus-modes.activation
   type: behavior
   must: A suggested or relevant focus is not active merely because it was discovered or an activation embed finished
@@ -92,6 +104,11 @@ assertions:
     disclaimer wording, or model/mate selection policies.
   depends_on:
   - examples.specializations
+- id: focus-modes.retired-welcome-and-suki
+  type: behavior
+  must: The Welcome focus mode and its dedicated Suki mate are absent from selectable web and Apple catalogs, and signup does not create a Welcome chat. New requests cannot route to Suki or activate Welcome; an OpenMates platform question uses General Knowledge when no specialized mate applies. Existing chats that used Suki remain readable.
+  depends_on:
+  - examples.retirement
 applies_to:
   rest_api:
     required: true
@@ -123,6 +140,8 @@ applies_to:
 examples:
   file: examples.yml
   required_groups:
+  - project_write_gate
+  - project_off_read
   - activation
   - full_instruction
   - off_instruction
@@ -133,3 +152,4 @@ examples:
   - restoration
   - banner_placement
   - specializations
+  - retirement

@@ -18,12 +18,145 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/app-skills/code-run/specification.yml
+// Assertions: code-run.surface-parity
 
 import SwiftUI
 import WebKit
+import AVFoundation
 #if os(iOS)
 import UIKit
 #endif
+
+struct AppleCodeEmbedContent: Equatable {
+    let code: String
+    let language: String
+    let filename: String?
+    let lineCount: Int
+
+    init(data: [String: AnyCodable]?) {
+        let root = data ?? [:]
+        let resolved = Self.contentDictionary(in: root)
+        let rawCode = Self.string(resolved, keys: ["code", "code_content"])
+            ?? Self.string(root, keys: ["code", "code_content"])
+            ?? Self.contentString(in: resolved)
+            ?? Self.contentString(in: root)
+            ?? ""
+        let languageHint = Self.string(resolved, keys: ["language"])
+            ?? Self.string(root, keys: ["language"])
+        let filenameHint = Self.string(resolved, keys: ["filename", "path", "name"])
+            ?? Self.string(root, keys: ["filename", "path", "name"])
+        let parsed = Self.parse(rawCode, language: languageHint, filename: filenameHint)
+        code = parsed.code
+        language = parsed.language
+        filename = parsed.filename
+        lineCount = Self.int(resolved, keys: ["line_count", "lineCount"])
+            ?? Self.int(root, keys: ["line_count", "lineCount"])
+            ?? Self.countLines(parsed.code)
+    }
+
+    static func parse(_ rawCode: String, language: String?, filename: String?) -> (code: String, language: String, filename: String?) {
+        let normalized = rawCode
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let firstNewline = normalized.firstIndex(of: "\n")
+        let firstLine = String(normalized[..<(firstNewline ?? normalized.endIndex)])
+            .replacingOccurrences(of: #"\s+$"#, with: "", options: .regularExpression)
+        let header = parseLanguagePathHeader(firstLine)
+        let code: String
+        if header != nil, let firstNewline {
+            code = String(normalized[normalized.index(after: firstNewline)...])
+        } else if header != nil {
+            code = ""
+        } else {
+            code = normalized
+        }
+        let usefulLanguage = language?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedLanguage: String
+        if let usefulLanguage,
+           !usefulLanguage.isEmpty,
+           !["text", "plaintext"].contains(usefulLanguage.lowercased()) {
+            resolvedLanguage = usefulLanguage
+        } else {
+            resolvedLanguage = header?.language ?? ""
+        }
+        let usefulFilename = filename?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (code, resolvedLanguage, usefulFilename?.isEmpty == false ? usefulFilename : header?.filename)
+    }
+
+    private static func contentDictionary(in root: [String: AnyCodable]) -> [String: AnyCodable] {
+        for key in ["decodedContent", "decoded_content", "data"] {
+            if let dictionary = root[key]?.value as? [String: Any] {
+                return dictionary.mapValues(AnyCodable.init)
+            }
+            if let dictionary = root[key]?.value as? [String: AnyCodable] { return dictionary }
+        }
+        if let content = root["content"]?.value as? String {
+            let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("{"), let data = trimmed.data(using: .utf8),
+               let dictionary = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               isRecognizedCodeWrapper(dictionary) {
+                return dictionary.mapValues(AnyCodable.init)
+            }
+        }
+        return root
+    }
+
+    private static func contentString(in root: [String: AnyCodable]) -> String? {
+        root["content"]?.value as? String
+    }
+
+    private static func isRecognizedCodeWrapper(_ dictionary: [String: Any]) -> Bool {
+        guard dictionary["code"] is String || dictionary["code_content"] is String else { return false }
+        if dictionary["code_content"] is String { return true }
+        if let type = dictionary["type"] as? String,
+           ["code", "code-code"].contains(type.lowercased()) {
+            return true
+        }
+        return ["language", "filename", "path", "line_count", "lineCount"].contains {
+            dictionary[$0] != nil
+        }
+    }
+
+    private static func string(_ root: [String: AnyCodable], keys: [String]) -> String? {
+        keys.lazy.compactMap { root[$0]?.value as? String }.first { !$0.isEmpty }
+    }
+
+    private static func int(_ root: [String: AnyCodable], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = root[key]?.value as? Int { return value }
+            if let value = root[key]?.value as? String, let parsed = Int(value) { return parsed }
+        }
+        return nil
+    }
+
+    private static func parseLanguagePathHeader(_ line: String) -> (language: String, filename: String)? {
+        let pattern = #"^([a-zA-Z0-9_+.#-]{1,32}):(.{1,512})$"#
+        guard let expression = try? NSRegularExpression(pattern: pattern),
+              let match = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+              let languageRange = Range(match.range(at: 1), in: line),
+              let filenameRange = Range(match.range(at: 2), in: line) else { return nil }
+        let language = String(line[languageRange]).lowercased()
+        let filename = String(line[filenameRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let knownURISchemes: Set<String> = [
+            "data", "file", "ftp", "git", "http", "https", "mailto", "ssh", "urn", "vscode", "ws", "wss"
+        ]
+        let isHierarchicalURI = filename.hasPrefix("//")
+        let isWindowsDrivePath = language.count == 1 && (filename.hasPrefix("\\") || filename.hasPrefix("/"))
+        guard !language.allSatisfy(\.isNumber),
+              !knownURISchemes.contains(language),
+              !isHierarchicalURI,
+              !isWindowsDrivePath,
+              filename.contains(".") || filename.contains("/") || filename.contains("\\") else { return nil }
+        return (language, filename)
+    }
+
+    private static func countLines(_ code: String) -> Int {
+        guard !code.isEmpty else { return 0 }
+        let content = code.hasSuffix("\n") ? String(code.dropLast()) : code
+        return content.isEmpty ? 0 : content.components(separatedBy: "\n").count
+    }
+}
 
 struct CodeEmbedRenderer: View {
     let data: [String: AnyCodable]?
@@ -35,18 +168,11 @@ struct CodeEmbedRenderer: View {
     var isLargePreview = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    private var code: String {
-        (data?["code"]?.value as? String ?? "")
-            .replacingOccurrences(of: #"\""#, with: #"""#)
-            .replacingOccurrences(of: #"\/"#, with: "/")
-    }
-    private var language: String { data?["language"]?.value as? String ?? "" }
-    private var filename: String? { data?["filename"]?.value as? String }
-    private var lineCount: Int {
-        data?["lineCount"]?.value as? Int
-            ?? data?["line_count"]?.value as? Int
-            ?? code.components(separatedBy: "\n").count
-    }
+    private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
+    private var code: String { content.code }
+    private var language: String { content.language }
+    private var filename: String? { content.filename }
+    private var lineCount: Int { content.lineCount }
 
     var body: some View {
         switch mode {
@@ -76,6 +202,7 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier(code.isEmpty ? "code-embed-processing" : "code-embed-source-preview")
 
         case .fullscreen:
             VStack(spacing: 0) {
@@ -187,6 +314,624 @@ struct CodeEmbedRenderer: View {
         case "python", "py": return "Python"
         default: return language.uppercased()
         }
+    }
+}
+
+// MARK: - Generated audio
+
+struct GeneratedAudioEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let status: EmbedStatus
+    let skillId: String
+    let mode: EmbedDisplayMode
+
+    @State private var player: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var isLoading = false
+    @State private var elapsed: TimeInterval = 0
+    @State private var loadFailed = false
+
+    private var payload: GeneratedAudioEmbedPayload { GeneratedAudioEmbedPayload(data) }
+    private var identifierPrefix: String { skillId == "speak" ? "audio-speak" : "audio-generate" }
+    private var skillName: String {
+        AppStrings.localized(skillId == "speak" ? "app_skills.audio.speak" : "app_skills.audio.generate")
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing5) {
+                HStack(spacing: .spacing4) {
+                    playbackButton(compact: true)
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(skillName)
+                            .font(.omP)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(payload.metadata)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.localized("embeds.music_generate.prompt_label"))
+                        .font(.omMicro)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontTertiary)
+                    Text(payload.prompt ?? skillName)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(3)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("\(identifierPrefix)-preview")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing8) {
+                HStack(spacing: .spacing8) {
+                    playbackButton(compact: false)
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        audioProgress
+                        Text("\(Self.duration(elapsed)) / \(Self.duration(effectiveDuration))")
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                .padding(.spacing10)
+                .background(Color.grey0)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.grey20).frame(height: 1) }
+
+                VStack(alignment: .leading, spacing: .spacing6) {
+                    detail(AppStrings.localized("embeds.music_generate.prompt_label"), payload.prompt ?? skillName)
+                    detail(AppStrings.localized("embeds.music_generate.model_label"), payload.model ?? "ElevenLabs")
+                    detail(AppStrings.localized("embeds.music_generate.duration"), Self.duration(effectiveDuration))
+                }
+                .padding(.spacing10)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("\(identifierPrefix)-fullscreen")
+        }
+    }
+
+    @ViewBuilder
+    private func playbackButton(compact: Bool) -> some View {
+        if status == .processing {
+            ProgressView()
+                .tint(Color.buttonPrimary)
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .accessibilityIdentifier("\(identifierPrefix)-loading")
+        } else if status == .error || loadFailed {
+            Icon("warning", size: compact ? 22 : 28)
+                .foregroundStyle(Color.error)
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .accessibilityIdentifier("\(identifierPrefix)-error")
+        } else {
+            Button {
+                togglePlayback()
+            } label: {
+                Group {
+                    if isLoading { ProgressView().tint(Color.grey0) }
+                    else { Icon(isPlaying ? "pause" : "play", size: compact ? 18 : 22).foregroundStyle(Color.grey0) }
+                }
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .background(LinearGradient.appAudio)
+                .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading || !payload.hasPlayableMedia)
+            .accessibilityLabel(isPlaying ? AppStrings.localized("audio.pause") : AppStrings.localized("audio.play"))
+            .accessibilityIdentifier("\(identifierPrefix)-\(compact ? "preview" : "fullscreen")-play-button")
+        }
+    }
+
+    private var audioProgress: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.grey20)
+                Capsule().fill(LinearGradient.appAudio)
+                    .frame(width: proxy.size.width * progress)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                guard proxy.size.width > 0 else { return }
+                seek(value.location.x / proxy.size.width)
+            })
+        }
+        .frame(height: 10)
+        .accessibilityElement()
+        .accessibilityLabel(AppStrings.localized("audio.playback_progress"))
+        .accessibilityValue("\(Int(progress * 100))%")
+        .accessibilityIdentifier("\(identifierPrefix)-fullscreen-waveform")
+        .task(id: isPlaying) {
+            while !Task.isCancelled, isPlaying, let player {
+                elapsed = player.currentTime
+                if !player.isPlaying { isPlaying = false }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+    }
+
+    private var effectiveDuration: TimeInterval { max(player?.duration ?? 0, payload.duration ?? 0) }
+    private var progress: Double { effectiveDuration > 0 ? min(max(elapsed / effectiveDuration, 0), 1) : 0 }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(label).font(.omXs).fontWeight(.semibold).foregroundStyle(Color.fontSecondary)
+            Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+        }
+    }
+
+    private func seek(_ value: Double) {
+        let next = min(max(value, 0), 1) * effectiveDuration
+        elapsed = next
+        player?.currentTime = next
+    }
+
+    private func togglePlayback() {
+        if let player {
+            if player.isPlaying { player.pause() } else { player.play() }
+            isPlaying = player.isPlaying
+            return
+        }
+        guard payload.hasPlayableMedia else { return }
+        isLoading = true
+        loadFailed = false
+        Task {
+            do {
+                let bytes = try await payload.loadAudio()
+                #if os(iOS)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                #endif
+                let audioPlayer = try AVAudioPlayer(data: bytes)
+                audioPlayer.prepareToPlay()
+                audioPlayer.play()
+                player = audioPlayer
+                isPlaying = true
+            } catch {
+                loadFailed = true
+            }
+            isLoading = false
+        }
+    }
+
+    fileprivate static func duration(_ seconds: TimeInterval) -> String {
+        let value = max(0, Int(seconds.rounded(.down)))
+        return "\(value / 60):\(String(format: "%02d", value % 60))"
+    }
+}
+
+private struct GeneratedAudioEmbedPayload {
+    let prompt: String?
+    let model: String?
+    let mode: String?
+    let duration: Double?
+    let directURL: String?
+    let s3BaseURL: String?
+    let s3Key: String?
+    let aesKey: String?
+    let aesNonce: String?
+    let encryption: String?
+
+    init(_ data: [String: AnyCodable]?) {
+        let raw = Self.flattened(data)
+        prompt = Self.string(raw, ["prompt", "text_preview", "text"])
+        model = Self.string(raw, ["model"])
+        mode = Self.string(raw, ["mode", "voice", "generation_type"])
+        let original = Self.dictionary(Self.dictionary(raw?["files"]?.value)?["original"])
+        duration = Self.number(raw?["duration_seconds"]?.value) ?? Self.number(original?["duration_seconds"])
+        if let encoded = Self.string(raw, ["audio_base64"]) {
+            let mime = Self.string(raw, ["mime_type"]) ?? "audio/mpeg"
+            directURL = "data:\(mime);base64,\(encoded)"
+        } else {
+            directURL = Self.string(raw, ["previewAudioUrl", "preview_audio_url", "audio_url"])
+        }
+        s3BaseURL = Self.string(raw, ["s3_base_url"])
+        s3Key = Self.string(original, ["s3_key"]) ?? Self.string(raw, ["files_original_s3_key"])
+        aesKey = Self.string(raw, ["aes_key"])
+        aesNonce = Self.string(raw, ["aes_nonce"])
+        encryption = Self.string(original, ["encryption"]) ?? Self.string(raw, ["files_original_encryption"])
+    }
+
+    var modeLabel: String? { mode?.replacingOccurrences(of: "_", with: " ").capitalized }
+    var metadata: String {
+        [model ?? "ElevenLabs", duration.map { GeneratedAudioEmbedRenderer.duration($0) }]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+    var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
+
+    func loadAudio() async throws -> Data {
+        if let directURL {
+            if directURL.hasPrefix("data:"), let comma = directURL.firstIndex(of: ",") {
+                let encoded = String(directURL[directURL.index(after: comma)...])
+                guard let data = Data(base64Encoded: encoded) else { throw URLError(.cannotDecodeContentData) }
+                return data
+            }
+            guard let url = URL(string: directURL) else { throw URLError(.badURL) }
+            return try await URLSession.shared.data(from: url).0
+        }
+        guard let s3Key, let aesKey else { throw URLError(.badURL) }
+        return try await S3MediaClient.shared.fetchAndDecrypt(
+            s3Url: s3BaseURL ?? "",
+            aesKeyHex: aesKey,
+            aesNonceHex: aesNonce,
+            encryption: encryption,
+            s3Key: s3Key
+        )
+    }
+
+    private static func flattened(_ data: [String: AnyCodable]?) -> [String: AnyCodable]? {
+        guard var data else { return nil }
+        if let results = data["results"]?.value as? [[String: Any]], let first = results.first {
+            for (key, value) in first { data[key] = AnyCodable(value) }
+        }
+        return data
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return nil
+    }
+
+    private static func string(_ data: [String: AnyCodable]?, _ keys: [String]) -> String? {
+        for key in keys { if let value = data?[key]?.value as? String, !value.isEmpty { return value } }
+        return nil
+    }
+
+    private static func string(_ data: [String: Any]?, _ keys: [String]) -> String? {
+        for key in keys { if let value = data?[key] as? String, !value.isEmpty { return value } }
+        return nil
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
+    }
+}
+
+// MARK: - Notebook
+
+/// Inert Jupyter notebook renderer. Execution remains a separate capability;
+/// this view only normalizes and presents the stored notebook document.
+struct NotebookEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var payload: NotebookEmbedPayload { NotebookEmbedPayload(data) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing3) {
+                if payload.cells.isEmpty {
+                    Text(AppStrings.localized("embeds.notebook_empty"))
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                } else {
+                    ForEach(Array(payload.cells.prefix(3))) { cell in
+                        notebookCell(cell, compact: true)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("notebook-preview")
+
+        case .fullscreen:
+            LazyVStack(alignment: .leading, spacing: .spacing6) {
+                HStack(spacing: .spacing3) {
+                    Icon("coding", size: 24)
+                        .foregroundStyle(LinearGradient.appCode)
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(payload.filename)
+                            .font(.omH4)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(payload.summary)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+
+                if payload.cells.isEmpty {
+                    Text(AppStrings.localized("embeds.notebook_empty"))
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                } else {
+                    ForEach(payload.cells) { cell in
+                        notebookCell(cell, compact: false)
+                    }
+                }
+            }
+            .padding(.spacing8)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("notebook-fullscreen")
+        }
+    }
+
+    private func notebookCell(_ cell: NotebookEmbedCell, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text("\(cell.index + 1). \(cell.kind.uppercased())")
+                .font(.omMicro)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontTertiary)
+
+            if cell.kind == "code" {
+                CodeLinesView(
+                    code: compact ? cell.previewSource : cell.source,
+                    language: payload.language,
+                    showsLineNumbers: !compact,
+                    fontSize: compact ? 11 : 13,
+                    clipsLongLines: compact
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(compact ? cell.firstLine : cell.source)
+                    .font(compact ? .omSmall : .omP)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(compact ? 2 : nil)
+                    .textSelection(.enabled)
+            }
+
+            if !compact, let output = cell.output, !output.isEmpty {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.localized("embeds.notebook_output"))
+                        .font(.omMicro)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontSecondary)
+                    Text(output)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontPrimary)
+                        .textSelection(.enabled)
+                }
+                .padding(.spacing4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                .accessibilityIdentifier("notebook-cell-output-\(cell.index)")
+            }
+        }
+        .padding(.spacing4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey0)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.grey40)
+                .frame(width: 3)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .accessibilityIdentifier(compact ? "notebook-preview-cell" : "notebook-cell-\(cell.index)")
+    }
+}
+
+private struct NotebookEmbedCell: Identifiable {
+    let index: Int
+    let kind: String
+    let source: String
+    let output: String?
+    var id: Int { index }
+    var firstLine: String { source.split(whereSeparator: \.isNewline).first.map(String.init) ?? "" }
+    var previewSource: String { source.split(whereSeparator: \.isNewline).prefix(3).joined(separator: "\n") }
+}
+
+private struct NotebookEmbedPayload {
+    let filename: String
+    let language: String
+    let cells: [NotebookEmbedCell]
+
+    init(_ data: [String: AnyCodable]?) {
+        let root = data?.mapValues(\.value) ?? [:]
+        let notebook = Self.notebookDictionary(root) ?? [:]
+        let metadata = Self.dictionary(notebook["metadata"]) ?? [:]
+        let kernelspec = Self.dictionary(metadata["kernelspec"]) ?? [:]
+        let languageInfo = Self.dictionary(metadata["language_info"]) ?? [:]
+        let explicitLanguage = Self.string(root["language"])
+        language = (explicitLanguage ?? Self.string(kernelspec["language"])
+            ?? Self.string(languageInfo["name"]) ?? Self.string(kernelspec["name"]) ?? "unknown")
+            .lowercased()
+            .replacingOccurrences(of: "python3", with: "python")
+
+        let rawFilename = Self.string(root["filename"]) ?? "notebook.ipynb"
+        let leaf = rawFilename.replacingOccurrences(of: "\\", with: "/").split(separator: "/").last.map(String.init) ?? "notebook.ipynb"
+        filename = leaf.lowercased().hasSuffix(".ipynb") ? leaf : "\(leaf).ipynb"
+
+        cells = Self.array(notebook["cells"]).enumerated().compactMap { index, rawCell in
+            guard let cell = Self.dictionary(rawCell) else { return nil }
+            let kind = Self.string(cell["cell_type"]) ?? "raw"
+            let source = Self.sourceText(cell["source"])
+            let output = Self.outputText(cell["outputs"])
+            return NotebookEmbedCell(index: index, kind: kind, source: source, output: output)
+        }
+    }
+
+    @MainActor var summary: String {
+        let key = cells.count == 1 ? "embeds.notebook_cell_singular" : "embeds.notebook_cell_plural"
+        return "\(cells.count) \(AppStrings.localized(key)), \(AppStrings.localized("embeds.notebook_type"))"
+    }
+
+    private static func notebookDictionary(_ root: [String: Any]) -> [String: Any]? {
+        if let notebook = dictionary(root["notebook"]) { return notebook }
+        if let content = dictionary(root["content"]) { return content }
+        if let content = string(root["content"]),
+           let decoded = try? JSONSerialization.jsonObject(with: Data(content.utf8)),
+           let dictionary = decoded as? [String: Any] { return dictionary }
+        return array(root["cells"]).isEmpty ? nil : root
+    }
+
+    private static func sourceText(_ value: Any?) -> String {
+        if let value = string(value) { return value }
+        return array(value).compactMap(string).joined()
+    }
+
+    private static func outputText(_ value: Any?) -> String? {
+        let outputs = array(value)
+        let lines = outputs.compactMap { item -> String? in
+            guard let output = dictionary(item) else { return string(item) }
+            if let text = output["text"] { return sourceText(text) }
+            if let traceback = output["traceback"] { return sourceText(traceback) }
+            if let data = dictionary(output["data"]), let plain = data["text/plain"] { return sourceText(plain) }
+            let error = [string(output["ename"]), string(output["evalue"])].compactMap { $0 }
+            return error.isEmpty ? nil : error.joined(separator: ": ")
+        }.filter { !$0.isEmpty }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return nil
+    }
+
+    private static func array(_ value: Any?) -> [Any] {
+        if let value = value as? [Any] { return value }
+        if let value = value as? [AnyCodable] { return value.map(\.value) }
+        return []
+    }
+
+    private static func string(_ value: Any?) -> String? {
+        if let value = value as? String, !value.isEmpty { return value }
+        if let value = value as? AnyCodable { return string(value.value) }
+        return nil
+    }
+}
+
+// MARK: - Safe file metadata
+
+struct FileEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+    @Environment(\.openURL) private var openURL
+
+    private var payload: FileEmbedPayload { FileEmbedPayload(data) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(spacing: .spacing4) {
+                Icon("files", size: 46)
+                    .foregroundStyle(LinearGradient.primary)
+                Text(payload.filename)
+                    .font(.omP)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+                if !payload.metadata.isEmpty {
+                    Text(payload.metadata)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("file-embed-preview")
+
+        case .fullscreen:
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: .spacing12) { fileIcon; fileDetails }
+                VStack(alignment: .leading, spacing: .spacing8) { fileIcon; fileDetails }
+            }
+            .padding(.spacing12)
+            .frame(maxWidth: 704, alignment: .leading)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey25, lineWidth: 1) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("file-embed-fullscreen")
+        }
+    }
+
+    private var fileIcon: some View {
+        Icon("files", size: mode == .preview ? 46 : 64)
+            .foregroundStyle(LinearGradient.primary)
+            .accessibilityHidden(true)
+    }
+
+    private var fileDetails: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(payload.path)
+                .font(.omH4)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .textSelection(.enabled)
+            Text(payload.metadata)
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+            if let downloadURL = payload.availableDownloadURL {
+                Button {
+                    openURL(downloadURL)
+                } label: {
+                    Label(AppStrings.download, systemImage: "arrow.down.circle.fill")
+                }
+                .buttonStyle(OMSecondaryButtonStyle())
+                .accessibilityIdentifier("file-download-button")
+            } else {
+                Text(AppStrings.localized("app_skills.code.run.download_unavailable"))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.warning)
+                    .accessibilityIdentifier("file-download-unavailable")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct FileEmbedPayload {
+    let path: String
+    let filename: String
+    let mimeType: String
+    let sizeBytes: Int64?
+    let downloadURL: URL?
+    let downloadExpiresAt: TimeInterval?
+
+    init(_ data: [String: AnyCodable]?) {
+        let pathValue = Self.string(data, keys: ["normalized_path", "path", "filename"]) ?? "File"
+        path = pathValue
+        filename = Self.string(data, keys: ["filename"])
+            ?? pathValue.replacingOccurrences(of: "\\", with: "/").split(separator: "/").last.map(String.init)
+            ?? pathValue
+        mimeType = Self.string(data, keys: ["mime_type"]) ?? "application/octet-stream"
+        sizeBytes = Self.number(data?["size_bytes"]?.value).map { Int64($0) }
+        downloadURL = Self.string(data, keys: ["download_url"]).flatMap(URL.init(string:))
+        downloadExpiresAt = Self.number(data?["download_expires_at"]?.value)
+    }
+
+    var metadata: String {
+        [mimeType, sizeBytes.map(Self.formatBytes)].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    var availableDownloadURL: URL? {
+        guard let downloadURL else { return nil }
+        guard let downloadExpiresAt else { return downloadURL }
+        return downloadExpiresAt > Date().timeIntervalSince1970 ? downloadURL : nil
+    }
+
+    private static func string(_ data: [String: AnyCodable]?, keys: [String]) -> String? {
+        for key in keys {
+            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? Int64 { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
+    }
+
+    private static func formatBytes(_ count: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: count, countStyle: .file)
     }
 }
 
@@ -605,11 +1350,19 @@ private struct CodePreviewPane: View {
 private struct CodeHTMLPreview: UIViewRepresentable {
     let html: String
 
+    final class Coordinator {
+        var loadedHTML: String?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIView(context: Context) -> WKWebView {
         WKWebView()
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedHTML != html else { return }
+        context.coordinator.loadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }
@@ -617,11 +1370,19 @@ private struct CodeHTMLPreview: UIViewRepresentable {
 private struct CodeHTMLPreview: NSViewRepresentable {
     let html: String
 
+    final class Coordinator {
+        var loadedHTML: String?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> WKWebView {
         WKWebView()
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.loadedHTML != html else { return }
+        context.coordinator.loadedHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }

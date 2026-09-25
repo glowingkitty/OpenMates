@@ -100,16 +100,38 @@ struct DevEmbedPreviewSkill: Identifiable {
 }
 
 enum DevEmbedPreviewFixtures {
+    /// The generated web registry contains 88 keys. `wiki` and
+    /// `diagrams-mermaid` remain native-only legacy types and are excluded.
+    static var registryKeys: [String] {
+        EmbedType.allCases
+            .filter { $0 != .wiki && $0 != .diagramsMermaid }
+            .map(\.rawValue)
+            .sorted()
+    }
+
+    static func skill(forRegistryKey registryKey: String) -> DevEmbedPreviewSkill? {
+        let allSkills = DevEmbedPreviewApp.allCases.flatMap { skills(for: $0) }
+        if let exact = allSkills.first(where: { $0.primaryEmbed.type == registryKey }) {
+            return exact
+        }
+        switch EmbedType(rawValue: registryKey) {
+        case .imagesGenerateDraft:
+            return allSkills.first { $0.primaryEmbed.type == EmbedType.imagesGenerate.rawValue }
+        default:
+            return nil
+        }
+    }
+
     static func skills(for app: DevEmbedPreviewApp) -> [DevEmbedPreviewSkill] {
         switch app {
         case .audio:
-            return [recording]
+            return [audioGenerate, audioSpeak, recording]
         case .business:
             return [businessCompanyFinancials, businessFinancialResult]
         case .calendar:
-            return [calendarGetEvents, calendarCreateEvent, calendarUpdateEvent, calendarDeleteEvent]
+            return [calendarListCalendars, calendarGetEvents, calendarCreateEvent, calendarUpdateEvent, calendarDeleteEvent]
         case .code:
-            return [codeEmbed, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
+            return [codeEmbed, codeNotebook, fileArtifact, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
         case .design:
             return [designSearchIcons, designIconResult]
         case .diagrams:
@@ -183,36 +205,22 @@ enum DevEmbedPreviewFixtures {
                 "type": "code",
                 "app_id": "code",
                 "skill_id": "code",
-                "language": "svelte",
-                "filename": "MyComponent.svelte",
-                "line_count": 28,
-                "code": """
-                <script lang="ts">
-                  let count = $state(0);
-                  let doubled = $derived(count * 2);
-
-                  function increment() {
-                    count += 1;
-                  }
-                </script>
-
-                <section class="counter">
-                  <h1>Svelte 5 Counter</h1>
-                  <button onclick={increment}>
-                    Count: {count}
-                  </button>
-                  <p>Doubled: {doubled}</p>
-                </section>
-
-                <style>
-                  .counter {
-                    display: grid;
-                    gap: 1rem;
-                    place-items: center;
-                    padding: 2rem;
-                  }
-                </style>
-                """
+                // Mirrors the hydrated web payload shape that previously left
+                // Apple showing Processing despite finished index.html content.
+                "decodedContent": [
+                    "language": "html",
+                    "filename": "index.html",
+                    "line_count": 8,
+                    "code": """
+                    <!doctype html>
+                    <html lang="en">
+                    <head><title>OpenMates preview</title></head>
+                    <body>
+                      <main><h1>Rendered index.html</h1></main>
+                    </body>
+                    </html>
+                    """
+                ]
             ],
             versionNumber: 3,
             versionHistory: [
@@ -223,6 +231,64 @@ enum DevEmbedPreviewFixtures {
             versionHistoryReadonly: false
         )
         return skill(id: "code-code", label: "Code", primary: embed)
+    }
+
+    private static var codeNotebook: DevEmbedPreviewSkill {
+        let embed = record(
+            id: "preview-code-notebook-1",
+            type: EmbedType.codeNotebook.rawValue,
+            appId: "code",
+            skillId: "notebook",
+            data: [
+                "filename": "berlin-weather.ipynb",
+                "source_version": "v3",
+                "notebook": [
+                    "nbformat": 4,
+                    "nbformat_minor": 5,
+                    "metadata": [
+                        "kernelspec": ["language": "python", "name": "python3"]
+                    ],
+                    "cells": [
+                        [
+                            "cell_type": "markdown",
+                            "source": ["# Berlin weather analysis\n", "A synthetic notebook fixture for native parity."]
+                        ],
+                        [
+                            "cell_type": "code",
+                            "execution_count": 1,
+                            "source": ["temperatures = [18, 21, 23, 20]\n", "sum(temperatures) / len(temperatures)"],
+                            "outputs": [[
+                                "output_type": "execute_result",
+                                "data": ["text/plain": "20.5"]
+                            ]]
+                        ],
+                        [
+                            "cell_type": "raw",
+                            "source": "Source: synthetic local fixture"
+                        ]
+                    ]
+                ]
+            ]
+        )
+        return skill(id: "code-notebook", label: "Notebook", primary: embed)
+    }
+
+    private static var fileArtifact: DevEmbedPreviewSkill {
+        let embed = record(
+            id: "preview-file-file-1",
+            type: EmbedType.fileFile.rawValue,
+            appId: "file",
+            skillId: "file",
+            data: [
+                "normalized_path": "artifacts/reports/berlin-weather.csv",
+                "filename": "berlin-weather.csv",
+                "mime_type": "text/csv",
+                "size_bytes": 24_576,
+                "download_url": "https://example.invalid/download/berlin-weather.csv",
+                "download_expires_at": 1_893_456_000
+            ]
+        )
+        return skill(id: "file-file", label: "File", primary: embed)
     }
 
     private static var codeGetDocs: DevEmbedPreviewSkill {
@@ -574,6 +640,72 @@ enum DevEmbedPreviewFixtures {
     private static var recording: DevEmbedPreviewSkill {
         let embed = record(id: "preview-recording-1", type: EmbedType.recording.rawValue, appId: "audio", data: ["filename": "voice-note.m4a", "duration_seconds": 42, "transcript": "Synthetic voice note transcript for embed parity."])
         return skill(id: "recording", label: "Recording", primary: embed)
+    }
+
+    private static var audioGenerate: DevEmbedPreviewSkill {
+        let prompt = "Soft rain on a Berlin courtyard with distant bicycle bells"
+        let embed = generatedAudioRecord(
+            id: "preview-audio-generate-1",
+            type: .audioGenerate,
+            skillId: "generate",
+            prompt: prompt,
+            mode: "sound_effect"
+        )
+        return skill(id: "audio-generate", label: "Generate audio", primary: embed)
+    }
+
+    private static var audioSpeak: DevEmbedPreviewSkill {
+        let prompt = "Your itinerary is ready for tomorrow morning."
+        let embed = generatedAudioRecord(
+            id: "preview-audio-speak-1",
+            type: .audioSpeak,
+            skillId: "speak",
+            prompt: prompt,
+            mode: "calm"
+        )
+        return skill(id: "audio-speak", label: "Speak", primary: embed)
+    }
+
+    private static func generatedAudioRecord(
+        id: String,
+        type: EmbedType,
+        skillId: String,
+        prompt: String,
+        mode: String
+    ) -> EmbedRecord {
+        appSkill(
+            id: id,
+            type: type.rawValue,
+            appId: "audio",
+            skillId: skillId,
+            data: [
+                "prompt": prompt,
+                "text_preview": prompt,
+                "mode": mode,
+                "voice": mode,
+                "model": "eleven_multilingual_v2",
+                "duration_seconds": 12.4,
+                "preview_audio_url": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
+            ]
+        )
+    }
+
+    private static var calendarListCalendars: DevEmbedPreviewSkill {
+        let embed = appSkill(
+            id: "preview-calendar-list-calendars-1",
+            type: EmbedType.calendarListCalendars.rawValue,
+            appId: "calendar",
+            skillId: "list-calendars",
+            data: [
+                "title": "Available calendars",
+                "summary": "2 calendars",
+                "results": [
+                    ["title": "Work", "status": "primary"],
+                    ["title": "Personal", "status": "selected"]
+                ]
+            ]
+        )
+        return skill(id: "calendar-list-calendars", label: "List calendars", primary: embed)
     }
 
     private static var calendarGetEvents: DevEmbedPreviewSkill {
@@ -961,8 +1093,35 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static var videoTranscript: DevEmbedPreviewSkill {
-        let embed = appSkill(id: "preview-video-transcript-1", type: EmbedType.videosTranscript.rawValue, appId: "videos", skillId: "get_transcript", data: ["title": "Svelte 5 transcript", "transcript": "Today we are going to learn about Svelte 5 runes."])
-        return skill(id: "videos-get-transcript", label: "Transcript", primary: embed)
+        let parentID = "preview-video-transcript-1"
+        let child = record(
+            id: "preview-video-transcript-result-1",
+            type: EmbedType.videosVideo.rawValue,
+            appId: "videos",
+            skillId: "transcript_result",
+            data: [
+                "type": "transcript_result",
+                "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "transcript": "[00:00:00.000] Grouped transcript fixture proof text renders in fullscreen.",
+                "word_count": 9,
+                "characters_count": 75,
+                "language": "en",
+                "hash": "fixture-transcript-hash"
+            ],
+            parentEmbedId: parentID
+        )
+        let embed = appSkill(
+            id: parentID,
+            type: EmbedType.videosTranscript.rawValue,
+            appId: "videos",
+            skillId: "get_transcript",
+            data: [
+                "result_count": 1,
+                "preview_results": [["url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"]]
+            ],
+            embedIds: child.id
+        )
+        return skill(id: "videos-get-transcript", label: "Get Transcript", primary: embed, children: [child])
     }
 
     private static var videoGenerate: DevEmbedPreviewSkill {

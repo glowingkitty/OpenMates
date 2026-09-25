@@ -67,6 +67,7 @@ embed_types:
     i18n_namespace: embeds.calendar.event_delete
 skills:
   - id: list-calendars
+    anonymous_access: authenticated
     external_data: true
     name_translation_key: app_skills.calendar.list_calendars
     description_translation_key: app_skills.calendar.list_calendars.description
@@ -103,6 +104,7 @@ skills:
                 default: 100
       required: [requests]
   - id: get-events
+    anonymous_access: authenticated
     name_translation_key: app_skills.calendar.get_events
     description_translation_key: app_skills.calendar.get_events.description
     icon_image: calendar.svg
@@ -132,6 +134,7 @@ skills:
           minItems: 1
       required: [requests]
   - id: create-event
+    anonymous_access: authenticated
     name_translation_key: app_skills.calendar.create_event
     description_translation_key: app_skills.calendar.create_event.description
     icon_image: calendar.svg
@@ -158,6 +161,7 @@ skills:
           minItems: 1
       required: [requests]
   - id: update-event
+    anonymous_access: authenticated
     name_translation_key: app_skills.calendar.update_event
     description_translation_key: app_skills.calendar.update_event.description
     icon_image: calendar.svg
@@ -185,6 +189,7 @@ skills:
           minItems: 1
       required: [requests]
   - id: delete-event
+    anonymous_access: authenticated
     name_translation_key: app_skills.calendar.delete_event
     description_translation_key: app_skills.calendar.delete_event.description
     icon_image: calendar.svg

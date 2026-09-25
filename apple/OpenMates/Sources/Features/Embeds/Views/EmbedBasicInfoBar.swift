@@ -1,6 +1,8 @@
 // Shared basic information bar for native embed previews.
 // Mirrors BasicInfosBar.svelte's desktop preview layout: app gradient circle,
 // optional skill icon or title favicon, and title/status text.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.recording.lifecycle
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
@@ -26,6 +28,31 @@ struct EmbedBasicInfoBar: View {
     let subtitle: String?
     let faviconURL: String?
     let showSkillIcon: Bool
+    let titleLineLimit: Int?
+    let titleTruncationMode: Text.TruncationMode
+    let trailingAction: AnyView?
+
+    init(
+        appId: String,
+        skillIconName: String,
+        title: String,
+        subtitle: String?,
+        faviconURL: String?,
+        showSkillIcon: Bool,
+        titleLineLimit: Int? = nil,
+        titleTruncationMode: Text.TruncationMode = .tail,
+        trailingAction: AnyView? = nil
+    ) {
+        self.appId = appId
+        self.skillIconName = skillIconName
+        self.title = title
+        self.subtitle = subtitle
+        self.faviconURL = faviconURL
+        self.showSkillIcon = showSkillIcon
+        self.titleLineLimit = titleLineLimit
+        self.titleTruncationMode = titleTruncationMode
+        self.trailingAction = trailingAction
+    }
 
     var body: some View {
         HStack(spacing: showSkillIcon ? 10 : 6) {
@@ -53,7 +80,8 @@ struct EmbedBasicInfoBar: View {
                         .font(.omP)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.grey100)
-                        .lineLimit(subtitle == nil ? 2 : 1)
+                        .lineLimit(titleLineLimit ?? (subtitle == nil ? 2 : 1))
+                        .truncationMode(titleTruncationMode)
                         // Bundled Lexend ascender/descender total 1.25em;
                         // add the remaining 0.15em for web's 1.4 line box.
                         .lineSpacing(subtitle == nil ? 2.4 : 0)
@@ -70,6 +98,11 @@ struct EmbedBasicInfoBar: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let trailingAction {
+                trailingAction
+                    .padding(.trailing, 10)
+            }
         }
         .frame(height: Constants.height)
         .background(Color.grey30)

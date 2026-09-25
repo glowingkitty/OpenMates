@@ -58,10 +58,16 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	sendMessage,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -171,6 +177,111 @@ test.describe('Report Issue Flow', () => {
 		await expect(reportForm).toBeVisible({ timeout: 10000 });
 		await expectAdminReportActionsHidden(page);
 		logCheckpoint('Admin-only report issue actions are hidden for a guest/non-admin context.');
+	});
+
+	// contract-test: direct surface=gui.web assertions=issue-reporting.submission.confirmed-and-durable
+	test('Report submission survives a 404 while sharing a new chat', async ({ page }) => {
+		const logCheckpoint = createSignupLogger('REPORT_ISSUE_SHARE_404');
+		await installAnonymousUsageStatusStub(page);
+		attachConsoleListeners(page, logCheckpoint);
+		attachNetworkListeners(page, logCheckpoint);
+
+		const shareFailureWarnings: string[] = [];
+		page.on('console', (message: any) => {
+			if (message.type() === 'warning' && message.text().includes('Continuing without shared context')) {
+				shareFailureWarnings.push(message.text());
+			}
+		});
+
+		await loginToTestAccount(page, logCheckpoint);
+		await startNewChat(page, logCheckpoint);
+		await sendMessage(
+			page,
+			withMockMarker('What is the capital of Germany?', 'chat_flow_capital'),
+			logCheckpoint
+		);
+		await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
+		await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+		const newChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+		expect(newChatId).toBeTruthy();
+		await expect(page.locator('[data-action="message-input"]').last())
+			.toHaveAttribute('data-current-chat-id', newChatId);
+
+		let metadataPayload: Record<string, unknown> | null = null;
+		await page.route('**/v1/share/chat/metadata', async (route: any) => {
+			if (route.request().method() !== 'POST') {
+				await route.continue();
+				return;
+			}
+			metadataPayload = route.request().postDataJSON();
+			await route.fulfill({
+				status: 404,
+				contentType: 'application/json',
+				body: JSON.stringify({ detail: 'Chat not found' }),
+			});
+		});
+
+		let reportPayload: Record<string, any> | null = null;
+		await page.route('**/v1/settings/issues', async (route: any) => {
+			if (route.request().method() !== 'POST') {
+				await route.continue();
+				return;
+			}
+			reportPayload = route.request().postDataJSON();
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					issue_id: '00000000-0000-4000-8000-000000000404',
+					short_issue_id: 'ABCD4',
+					screenshot_uploaded: false,
+				}),
+			});
+		});
+
+		await navigateToReportIssue(page, logCheckpoint);
+		await expect(page.locator('#share-chat-toggle')).toBeChecked();
+		await page.getByTestId('report-issue-title').fill('New chat report with unavailable sharing');
+		await page.getByTestId('report-issue-user-flow').fill('Started a new chat and opened the report form.');
+		const plaintextMarker = 'private rendered chat text must not be attached';
+		await page.evaluate((marker: string) => {
+			const message = document.createElement('div');
+			message.setAttribute('data-message-id', 'share-failure-privacy-probe');
+			message.innerHTML = `<div class="chat-message-text"><div class="ProseMirror"></div></div>`;
+			const body = message.querySelector('.ProseMirror');
+			if (body) body.textContent = marker;
+			document.body.append(message);
+			console.warn(
+				'[ReportIssueShareFailureRedactionProbe]',
+				marker,
+				'https://app.example/share/chat/example#key=secret-report-share-key-material'
+			);
+		}, plaintextMarker);
+
+		await page.getByTestId('report-issue-submit').click();
+		await expect(page.getByTestId('report-issue-confirmation')).toBeVisible({ timeout: 10000 });
+
+		expect(metadataPayload).toEqual(expect.objectContaining({
+			chat_id: newChatId,
+			is_shared: true,
+		}));
+		expect(JSON.stringify(metadataPayload)).not.toContain('#key=');
+		expect(reportPayload).not.toBeNull();
+		expect(reportPayload?.chat_or_embed_url).toBeNull();
+		expect(reportPayload?.last_messages_html).toBeNull();
+		expect(reportPayload?.description).toContain('Started a new chat');
+		expect(reportPayload?.runtime_debug_state).toEqual(expect.any(Object));
+		expect(reportPayload?.device_info).toEqual(expect.any(Object));
+		expect(reportPayload?.console_logs).toEqual(expect.any(String));
+		expect(reportPayload?.console_logs).toContain('[CHAT-CONTENT-REDACTED]');
+		expect(reportPayload?.console_logs).toContain('[SHARE-KEY-REDACTED]');
+		expect(JSON.stringify(reportPayload)).not.toContain(plaintextMarker);
+		expect(JSON.stringify(reportPayload)).not.toContain('secret-report-share-key-material');
+		expect(JSON.stringify(reportPayload)).not.toContain('#key=');
+		expect(shareFailureWarnings).toHaveLength(1);
+		expect(shareFailureWarnings.join('\n')).not.toContain('#key=');
+		logCheckpoint('Report submitted without optional chat data after share metadata returned 404.');
 	});
 
 	// contract-test: direct surface=rest_api assertions=issue-reporting.input.long-title-preserved

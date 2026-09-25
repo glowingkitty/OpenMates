@@ -1323,7 +1323,9 @@ def test_saved_chat_preflights_epoch_one_encrypted_recovery_material(monkeypatch
 
 def test_goal_chat_creates_attached_draft_plan(monkeypatch):
     api_key = "sk-api-python-goal"
-    key_wrapper = _wrap_master_key(api_key, os.urandom(32))
+    master_key = os.urandom(32)
+    project_key = os.urandom(32)
+    key_wrapper = _wrap_master_key(api_key, master_key)
     requests_seen = []
     task_id = "77777777-7777-4777-8777-777777777777"
     job_id = "88888888-8888-4888-8888-888888888888"
@@ -1385,13 +1387,19 @@ def test_goal_chat_creates_attached_draft_plan(monkeypatch):
         assert url.endswith("/v1/user-plans")
         return FakeResponse({"plan": json})
 
+    def fake_get(url, *, headers, timeout):
+        assert url.endswith(f"/v1/projects/{PROJECT_ID}")
+        return FakeResponse({"project": {"project_id": PROJECT_ID, "encrypted_project_key": _encrypt_combined(project_key, master_key)}})
+
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
 
     client = OpenMates(api_key=api_key, device_id="test-device-id")
     response = client.chats.send(
         "Start the work",
         goal="Ship the docs update",
         goal_title="Docs launch",
+        project_ids=[PROJECT_ID],
         recovery_poll_interval_seconds=0.001,
     )
 
@@ -1414,7 +1422,9 @@ def test_goal_chat_creates_attached_draft_plan(monkeypatch):
     assert isinstance(plan_payload["encrypted_goal"], str)
     assert "Ship the docs update" not in json_module.dumps(plan_payload)
     chat_wrapper = next(wrapper for wrapper in plan_payload["key_wrappers"] if wrapper["key_type"] == "chat")
+    project_wrapper = next(wrapper for wrapper in plan_payload["key_wrappers"] if wrapper["key_type"] == "project")
     assert chat_wrapper["hashed_chat_id"] == hashlib.sha256(saved["chat_id"].encode()).hexdigest()
+    assert project_wrapper["hashed_project_id"] == hashlib.sha256(PROJECT_ID.encode()).hexdigest()
 
 
 def test_goal_chat_rejects_explicit_non_persistent_mode():

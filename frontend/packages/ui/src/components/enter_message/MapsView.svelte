@@ -25,6 +25,11 @@
         allowCurrentLocation?: boolean;
         allowFullscreen?: boolean;
         requireCity?: boolean;
+        /** Optional saved location used to restore an embedded picker's map position. */
+        initialLatitude?: number;
+        initialLongitude?: number;
+        /** Saved display text to show at restored coordinates or geocode when coordinates are absent. */
+        initialLocationText?: string;
     }
     let {
         defaultImprecise = true,
@@ -32,7 +37,10 @@
         allowImprecise = true,
         allowCurrentLocation = true,
         allowFullscreen = true,
-        requireCity = false
+        requireCity = false,
+        initialLatitude,
+        initialLongitude,
+        initialLocationText = ''
     }: Props = $props();
     
     let mapContainer: HTMLElement;
@@ -182,6 +190,14 @@
         
         L = (await import('leaflet')).default;
         checkDarkMode();
+
+        const hasInitialCoordinates = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
+        if (hasInitialCoordinates) {
+            currentLocation = { lat: initialLatitude as number, lon: initialLongitude as number };
+            if (initialLocationText.trim()) {
+                selectedLocationText = { mainLine: initialLocationText.trim(), subLine: '' };
+            }
+        }
         
         customIcon = L.divIcon({
             className: 'custom-map-marker',
@@ -315,6 +331,14 @@
                     accuracyCircle.setLatLng([center.lat, center.lng]);
                 }
             });
+
+            if (hasInitialCoordinates && currentLocation) {
+                mapCenter = { ...currentLocation };
+                void reverseGeocode(currentLocation.lat, currentLocation.lon);
+            } else if (initialLocationText.trim()) {
+                searchQuery = initialLocationText.trim();
+                void searchLocations(searchQuery, true);
+            }
         }
     }
 
@@ -697,8 +721,7 @@
         }
     }
 
-    // Update debouncedSearch function
-    const debouncedSearch = debounce(async (query: string) => {
+    async function searchLocations(query: string, selectFirstResult = false): Promise<void> {
         if (!query.trim()) {
             searchResults = [];
             showResults = false;
@@ -797,12 +820,20 @@
             
             showResults = true;
             addSearchMarkersToMap();
+            if (selectFirstResult && searchResults.length > 0) {
+                handleSearchResultClick(searchResults[0]);
+            }
         } catch (error) {
             console.error('[MapsView] Search error:', error);
             searchResults = [];
         } finally {
             isSearching = false;
         }
+    }
+
+    // Update debouncedSearch function
+    const debouncedSearch = debounce((query: string) => {
+        void searchLocations(query);
     }, 300);
 
     // Update the formatSearchResult function

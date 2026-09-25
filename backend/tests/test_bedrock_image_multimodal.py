@@ -15,9 +15,8 @@ import types
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from backend.apps.images.skills.view_skill import ViewSkill
+from backend.apps.images.skills.view_skill import ViewSkill, _decode_embed_content
 from backend.shared.python_utils.image_mime import detect_image_mime_type
-from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
 
 try:
     from backend.apps.ai.llm_providers.bedrock_shared import (
@@ -33,6 +32,30 @@ def test_detect_image_mime_type_uses_jpeg_magic_bytes() -> None:
     jpeg_bytes = b"\xff\xd8\xff\xe0" + b"jpeg payload"
 
     assert detect_image_mime_type(jpeg_bytes, "uploaded.webp") == "image/jpeg"
+
+
+def test_image_view_decodes_apple_json_embed_content() -> None:
+    payload = {
+        "app_id": "images",
+        "skill_id": "upload",
+        "type": "image",
+        "filename": "IMG_6945.JPG",
+        "embed_ref": "IMG_6945.JPG",
+        "aes_nonce": "",
+        "files": {"original": {"s3_key": "encrypted/original.bin"}},
+    }
+
+    assert _decode_embed_content(json.dumps(payload)) == payload
+
+
+@pytest.mark.asyncio
+async def test_image_view_missing_reference_raises_instead_of_returning_text_success() -> None:
+    with pytest.raises(RuntimeError, match="embed reference"):
+        await _view_skill().execute(
+            "IMG_6945.JPG",
+            user_vault_key_id="vault-key-1",
+            file_path_index={},
+        )
 
 
 def _view_skill() -> ViewSkill:
@@ -80,7 +103,56 @@ async def test_image_view_lookup_accepts_upload_cache_record_without_encrypted_c
 
 
 @pytest.mark.asyncio
-async def test_image_view_decrypts_nonce_prefixed_media_without_top_level_nonce(monkeypatch) -> None:
+async def test_image_view_lookup_decodes_vault_decrypted_apple_json(monkeypatch) -> None:
+    apple_content = {
+        "app_id": "images",
+        "skill_id": "upload",
+        "type": "image",
+        "filename": "IMG_6945.JPG",
+        "embed_ref": "IMG_6945.JPG",
+        "aes_key": "client-key",
+        "aes_nonce": "",
+        "vault_wrapped_aes_key": "wrapped-aes-key",
+        "files": {"original": {"s3_key": "encrypted/original.bin"}},
+    }
+    redis = _FakeRedis(json.dumps({"encrypted_content": "vault:v1:ciphertext"}))
+    redis_module = types.ModuleType("redis")
+    redis_asyncio_module = types.ModuleType("redis.asyncio")
+    redis_asyncio_module.from_url = lambda *args, **kwargs: redis
+    redis_module.asyncio = redis_asyncio_module
+    monkeypatch.setitem(sys.modules, "redis", redis_module)
+    monkeypatch.setitem(sys.modules, "redis.asyncio", redis_asyncio_module)
+
+    class _VaultResponse:
+        status_code = 200
+        text = ""
+
+        def json(self) -> dict[str, object]:
+            plaintext = base64.b64encode(json.dumps(apple_content).encode("utf-8")).decode("ascii")
+            return {"data": {"plaintext": plaintext}}
+
+    class _VaultClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            return _VaultResponse()
+
+    monkeypatch.setattr("backend.apps.images.skills.view_skill.httpx.AsyncClient", lambda **kwargs: _VaultClient())
+    skill = _view_skill()
+    monkeypatch.setattr(skill, "_load_vault_token", lambda: "service-token")
+
+    content = await skill._lookup_embed_content("embed-1", "vault-key-1")
+
+    assert content == apple_content
+    assert redis.closed is True
+
+
+@pytest.mark.asyncio
+async def test_image_view_decrypts_apple_upload_missing_variant_marker(monkeypatch) -> None:
     skill = _view_skill()
     nonce = b"\x33" * 12
     aes_key = b"\x11" * 32
@@ -91,13 +163,16 @@ async def test_image_view_decrypts_nonce_prefixed_media_without_top_level_nonce(
         assert embed_id == "embed-1"
         assert vault_key_id == "vault-key-1"
         return {
-            "filename": "chair.png",
+            # Some upload-record fallbacks use original_filename rather than
+            # the canonical encrypted embed field name `filename`.
+            "original_filename": "chair.png",
+            "aes_key": base64.b64encode(aes_key).decode("ascii"),
+            "aes_nonce": "",
             "vault_wrapped_aes_key": "wrapped-aes-key",
             "files": {
                 "original": {
                     "s3_key": "inputs/chair.png",
                     "format": "png",
-                    "encryption": MEDIA_ENCRYPTION_V2,
                 }
             },
         }

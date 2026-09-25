@@ -400,28 +400,3 @@ general_knowledge:
   sv: Expert på allmänkunskap
   he: מומחה לידע כללי
   verified_by_human: []
-
-onboarding_support:
-  context: Description for the OpenMates onboarding and support mate (Suki)
-  en: OpenMates guide & support
-  de: OpenMates Begleitung & Support
-  zh: OpenMates 引导与支持
-  es: Guía y soporte de OpenMates
-  fr: Guide et support OpenMates
-  pt: Guia e suporte OpenMates
-  ru: Гид и поддержка OpenMates
-  ja: OpenMates ガイド＆サポート
-  ko: OpenMates 가이드 및 지원
-  it: Guida e supporto OpenMates
-  tr: OpenMates rehber ve destek
-  vi: Hướng dẫn & hỗ trợ OpenMates
-  id: Panduan & dukungan OpenMates
-  pl: Przewodnik i wsparcie OpenMates
-  nl: OpenMates gids & ondersteuning
-  ar: دليل ودعم OpenMates
-  hi: OpenMates गाइड और सहायता
-  th: คู่มือและการสนับสนุน OpenMates
-  cs: Průvodce a podpora OpenMates
-  sv: OpenMates guide & support
-  he: מדריכה ותמיכה ב-OpenMates
-  verified_by_human: []

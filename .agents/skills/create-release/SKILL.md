@@ -18,7 +18,7 @@ argument-hint: "[tag]"
 
 ### Step 1 — Determine Version
 
-Current phase: **Alpha**. Product UI shows short product lines such as `v0.20`; release tags and package/image artifacts use exact alpha-train versions such as `v0.20.0-alpha.0`, `v0.20.0-alpha.1`, and `v0.20.0-alpha.2`. Check the latest tag:
+Current phase: **Alpha**. Product UI shows short product lines such as `v0.21`; release tags and package/image artifacts use exact alpha-train versions such as `v0.21.0-alpha.0`, `v0.21.0-alpha.1`, and `v0.21.0-alpha.2`. Check the latest tag:
 ```bash
 gh release list --limit 3
 ```
@@ -26,9 +26,9 @@ gh release list --limit 3
 Version bump decision:
 | Change type | Bump | Example |
 |-------------|------|---------|
-| New features | Minor product line | v0.20 → v0.20 |
-| Bug fixes / repeated dev publishes | Alpha artifact | v0.20.0-alpha.0 → v0.20.0-alpha.1 |
-| Breaking changes | Major | v0.20 → v1.0 |
+| New features | Minor product line | v0.21 → v0.21 |
+| Bug fixes / repeated dev publishes | Alpha artifact | v0.21.0-alpha.0 → v0.21.0-alpha.1 |
+| Breaking changes | Major | v0.21 → v1.0 |
 
 ### Step 2 — Write Release Notes
 

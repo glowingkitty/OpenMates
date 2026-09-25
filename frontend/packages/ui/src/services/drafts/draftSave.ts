@@ -9,7 +9,6 @@ import { getEditorInstance, clearEditorAndResetDraftState } from "./draftCore";
 import { chatSyncService } from "../chatSyncService"; // Import the new service
 import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers"; // Import markdown converter
 import { encryptWithMasterKey } from "../cryptoService"; // Import encryption functions
-import { extractUrlFromJsonEmbedBlock } from "../../components/enter_message/services/urlMetadataService"; // For URL extraction
 import { chatMetadataCache } from "../chatMetadataCache"; // For cache invalidation
 import { authStore } from "../../stores/authStore"; // Import auth store to check authentication status
 import { isPublicChat } from "../../demo_chats/convertToChat"; // Import to detect demo/legal chats
@@ -20,6 +19,7 @@ import {
 import { modelsMetadata } from "../../data/modelsMetadata"; // For model name lookup
 import { matesMetadata } from "../../data/matesMetadata"; // For mate name lookup
 import { appSkillsStore } from "../../stores/appSkillsStore"; // For skill/focus/memory name lookup
+import { draftEmbedLabel, formatDraftPreview } from "../../utils/draftPreview";
 
 // Slightly longer than draftCore's context-switch guard so explicit empty flushes
 // from the dismiss button can become authoritative after chat restoration settles.
@@ -148,40 +148,8 @@ function convertMentionSyntaxToDisplayName(text: string): string {
  * the type comes from the node's attrs.type field.
  */
 function embedNodeToDisplayToken(attrs: Record<string, unknown>): string {
-  const type = (attrs.type as string) ?? "";
-  const contentRef = attrs.contentRef as string | null | undefined;
-
-  if (contentRef?.startsWith("embed:")) {
-    // Serialized embed — type is already known from attrs
-    // Map internal type names to user-facing tokens
-    if (type === "web-website") return "[Website]";
-    if (type === "videos-video") return "[Video]";
-    if (type === "code-code") return "[Code]";
-    if (type === "maps") return "[Location]";
-    if (type === "image") return "[Image]";
-    if (type === "audio") return "[Audio]";
-    if (type === "recording") return "[Recording]";
-    if (type === "pdf") return "[PDF]";
-    if (type === "file") return "[File]";
-    if (type === "book") return "[Book]";
-    if (type) return `[${type}]`;
-  } else {
-    // Unserialized embed (still uploading, demo mode, or no contentRef yet)
-    // Also covers preview embeds (contentRef starts with "preview:") which
-    // are created for unauthenticated users — these share the same type values
-    // as serialized embeds (e.g. "code-code"), so we handle both here.
-    if (type === "image") return "[Image]";
-    if (type === "audio") return "[Audio]";
-    if (type === "recording") return "[Recording]";
-    if (type === "videos-video") return "[Video]";
-    if (type === "pdf") return "[PDF]";
-    if (type === "file") return "[File]";
-    if (type === "code" || type === "code-code") return "[Code]";
-    if (type === "book") return "[Book]";
-    if (type) return `[${type}]`;
-  }
-
-  return "";
+  const type = attrs.type;
+  return typeof type === "string" && type ? draftEmbedLabel(type) : "";
 }
 
 /**
@@ -308,13 +276,10 @@ function buildPreviewTokensFromTiptap(doc: unknown): string[] {
 function processMarkdownForPreview(markdown: string): string {
   let displayText = convertMentionSyntaxToDisplayName(markdown);
 
-  // Replace legacy json_embed code blocks with their URLs
+  // Legacy json_embed blocks are website embeds.
   displayText = displayText.replace(
     /```json_embed\n([\s\S]*?)\n```/g,
-    (match) => {
-      const url = extractUrlFromJsonEmbedBlock(match);
-      return url ? ` ${url} ` : match;
-    },
+    " [Website] ",
   );
 
   // Replace serialized embed reference blocks (```json\n{...}\n```) with tokens
@@ -324,12 +289,7 @@ function processMarkdownForPreview(markdown: string): string {
       try {
         const parsed = JSON.parse(jsonContent.trim());
         const type = parsed?.type;
-        if (type === "location") return " [Location] ";
-        if (type === "video") return " [Video] ";
-        if (type === "website") return " [Website] ";
-        if (type === "image") return " [Image] ";
-        if (type === "code") return " [Code] ";
-        if (type) return ` [${type}] `;
+        if (typeof type === "string" && type) return ` ${draftEmbedLabel(type)} `;
       } catch {
         // Not valid JSON — fall through
       }
@@ -372,9 +332,10 @@ function generateDraftPreview(
       const cleanedText = tokens.join(" ").replace(/\s+/g, " ").trim();
       if (!cleanedText) return "";
 
-      return cleanedText.length > maxLength
-        ? cleanedText.substring(0, maxLength) + "..."
-        : cleanedText;
+      const safeText = formatDraftPreview(cleanedText);
+      return safeText.length > maxLength
+        ? safeText.substring(0, maxLength) + "..."
+        : safeText;
     } catch (error) {
       console.error(
         "[DraftService] Error building preview from TipTap JSON, falling back to markdown:",
@@ -391,14 +352,16 @@ function generateDraftPreview(
   try {
     const displayText = processMarkdownForPreview(markdown);
     const cleanedText = displayText.replace(/\s+/g, " ").trim();
-    return cleanedText.length > maxLength
-      ? cleanedText.substring(0, maxLength) + "..."
-      : cleanedText;
+    const safeText = formatDraftPreview(cleanedText);
+    return safeText.length > maxLength
+      ? safeText.substring(0, maxLength) + "..."
+      : safeText;
   } catch (error) {
     console.error("[DraftService] Error generating draft preview:", error);
-    return markdown.length > maxLength
-      ? markdown.substring(0, maxLength) + "..."
-      : markdown;
+    const safeText = formatDraftPreview(markdown);
+    return safeText.length > maxLength
+      ? safeText.substring(0, maxLength) + "..."
+      : safeText;
   }
 }
 

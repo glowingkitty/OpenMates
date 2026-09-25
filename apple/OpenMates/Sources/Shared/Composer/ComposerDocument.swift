@@ -4,6 +4,9 @@
 // Encryption material and platform editor objects must never enter this model.
 // Invalid runtime documents fail explicitly rather than losing partial content.
 
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.drafts.preview-persistence
+
 import Foundation
 
 struct ComposerDocumentV1: Codable, Equatable, Sendable {
@@ -318,14 +321,18 @@ enum ComposerMarkdownAdapter {
             let embedId = value["embed_id"] as? String,
             let embedType = value["type"] as? String
         {
+            // The durable reference uses the backend type, while the composer
+            // registry uses the preview family name. Preserve canonicalSource
+            // verbatim so sending/restoring the draft keeps the wire contract.
+            let previewType = embedType == "audio-recording" ? "recording" : embedType
             return .embed(
                 id: nodeId,
-                embedType: embedType,
+                embedType: previewType,
                 canonicalSource: canonicalSource,
                 referenceOnly: value["reference_only"] as? Bool == true,
                 display: ComposerEmbedDisplayV1(
                     title: value["title"] as? String ?? displayName(embedType),
-                    mediaKind: embedType
+                    mediaKind: previewType
                 ),
                 contentRef: "embed:\(embedId)"
             )

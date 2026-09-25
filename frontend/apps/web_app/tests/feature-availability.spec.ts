@@ -33,6 +33,7 @@ test.describe('Feature availability', () => {
 		expect(disabled).not.toContain('platform:projects');
 		expect(disabled).not.toContain('platform:plans');
 		expect(disabled).not.toContain('platform:workflows');
+		expect(disabled).not.toContain('app:workflows');
 		expect(disabled).not.toContain('platform:tasks');
 		expect(disabled).not.toContain('app:web');
 

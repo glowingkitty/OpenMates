@@ -32,6 +32,12 @@ def test_cloud_and_unknown_coverage_never_fall_back_to_self_host():
     assert "new.spec.ts" in held
 
 
+def test_search_relevance_schema_parity_uses_core_without_provider_access():
+    allowed, held = partition(["skill-search-relevance-parity.spec.ts"])
+    assert allowed == ["skill-search-relevance-parity.spec.ts"]
+    assert held == {}
+
+
 def test_cleanup_failure_and_skipped_preflight_cannot_activate():
     data = receipt()
     data["state"] = "failure"

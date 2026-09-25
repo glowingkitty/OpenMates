@@ -6,10 +6,11 @@ import SwiftUI
 @MainActor
 enum DevHistoryWelcomeData {
     static func chat(_ id: String, title: String? = nil, messages: Int = 2, draft: Int = 0,
-                     pinned: Bool = false, hidden: Bool = false, parent: String? = nil) -> Chat {
+                     pinned: Bool = false, archived: Bool = false, hidden: Bool = false,
+                     parent: String? = nil) -> Chat {
         Chat(id: id, title: title, lastMessageAt: "2026-09-12T12:00:00Z",
              createdAt: "2026-09-12T10:00:00Z", updatedAt: "2026-09-12T12:00:00Z",
-             isArchived: false, isPinned: pinned, appId: nil,
+             isArchived: archived, isPinned: pinned, appId: nil,
              category: title == nil ? nil : "technology", encryptedTitle: nil,
              encryptedChatKey: nil, messagesV: messages, titleV: title == nil ? 0 : 1,
              draftV: draft, parentId: parent, isHiddenCandidate: hidden, hasNonEmptyDraft: draft > 0)
@@ -29,9 +30,13 @@ enum DevHistoryWelcomeData {
     static let welcomeChats = [
         chat("fixture-resume", title: "Continue the research"),
         chat("fixture-pinned", title: "Pinned research", pinned: true),
+        chat("fixture-pinned-archived", title: "Pinned archived", pinned: true, archived: true),
         chat("fixture-draft", messages: 0, draft: 1),
+        chat("fixture-empty", messages: 0),
         chat("fixture-hidden-empty", messages: 0, hidden: true),
         chat("demo-excluded", title: "Public example"),
+        chat("tips-excluded", title: "Public newsletter"),
+        chat("fixture-archived", title: "Archived", archived: true),
         chat("fixture-child", title: "Child chat", parent: "fixture-resume")
     ]
 }

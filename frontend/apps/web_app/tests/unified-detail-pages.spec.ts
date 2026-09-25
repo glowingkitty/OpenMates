@@ -21,10 +21,10 @@ function deriveApiUrl(baseUrl: string): string {
 
 async function expectUnifiedDetail(page, domain: string, itemId: string, headerSystem = 'workspace-detail'): Promise<void> {
 	const urlPattern = domain === 'projects'
-		? new RegExp(`/${domain}#(?:[^#]*&)?project-id=${itemId}(?:&|$)`)
+		? new RegExp(`/#(?:[^#]*&)?project-id=${itemId}(?:&|$)`)
 		: domain === 'workflows'
-			? new RegExp(`/${domain}#(?:[^#]*&)?workflow-id=${itemId}(?:&|$)`)
-			: new RegExp(`/${domain}/${itemId}(?:[?#]|$)`);
+			? new RegExp(`/#(?:[^#]*&)?workflow-id=${itemId}(?:&|$)`)
+			: new RegExp(`/#(?:[^#]*&)?task-id=${itemId}(?:&|$)`);
 	await expect(page).toHaveURL(urlPattern);
 	const header = page.getByTestId('workspace-detail-header');
 	await expect(header).toBeVisible({ timeout: 30000 });
@@ -44,6 +44,7 @@ test.describe('Unified workspace detail pages', () => {
 		await loginToTestAccount(page);
 	});
 
+	// contract-test: direct surface=gui.web assertions=projects.lifecycle.encrypted-crud
 	test('Project cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:projects']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -59,6 +60,8 @@ test.describe('Unified workspace detail pages', () => {
 			);
 			await page.getByTestId('project-input-textarea').fill(title);
 			await page.getByTestId('project-input-submit').click();
+			await page.getByTestId('project-write-policy-apply-and-show').check();
+			await page.getByTestId('project-write-policy-confirm').click();
 			projectId = (await (await created).json()).project.project_id;
 			await expectUnifiedDetail(page, 'projects', projectId);
 		} finally {
@@ -70,6 +73,7 @@ test.describe('Unified workspace detail pages', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=tasks.detail.embed-responsive
 	test('Task cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -94,6 +98,7 @@ test.describe('Unified workspace detail pages', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=plans.ui.edit-approve-resume
 	test('Plan cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -118,6 +123,7 @@ test.describe('Unified workspace detail pages', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=workflows-ui.detail.stable-visual-header
 	test('Workflow cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');

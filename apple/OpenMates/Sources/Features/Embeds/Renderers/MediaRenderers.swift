@@ -4,13 +4,22 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, GradientTokens.generated.swift,
 //          SpacingTokens.generated.swift, TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/app-skills/videos-get-transcript/specification.yml
+//                specifications/features/app-skills/audio-generate/specification.yml
+//                specifications/features/app-skills/audio-speak/specification.yml
+// Assertions: videos.transcript.surface-parity, audio-generate.surface-parity,
+//             audio-speak.surface-parity
 
 import SwiftUI
 #if os(iOS)
@@ -22,6 +31,293 @@ import AppKit
 import QuickLookUI
 #endif
 import AVFoundation
+
+// MARK: - Generated audio app skills
+
+struct GeneratedAudioSkillEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let status: EmbedStatus
+    let skillId: String
+    let mode: EmbedDisplayMode
+
+    @State private var player: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var isLoading = false
+    @State private var elapsed: TimeInterval = 0
+    @State private var loadFailed = false
+
+    private var payload: GeneratedAudioSkillPayload { GeneratedAudioSkillPayload(data) }
+    private var identifierPrefix: String { skillId == "speak" ? "audio-speak" : "audio-generate" }
+    private var skillName: String {
+        AppStrings.localized(skillId == "speak" ? "app_skills.audio.speak" : "app_skills.audio.generate")
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing5) {
+                HStack(spacing: .spacing4) {
+                    playbackButton(compact: true)
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(skillName)
+                            .font(.omP)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(payload.metadata)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(AppStrings.localized("embeds.music_generate.prompt_label"))
+                        .font(.omMicro)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontTertiary)
+                    Text(payload.prompt ?? skillName)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(3)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("\(identifierPrefix)-preview")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing8) {
+                HStack(spacing: .spacing8) {
+                    playbackButton(compact: false)
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        audioProgress
+                        Text("\(Self.duration(elapsed)) / \(Self.duration(effectiveDuration))")
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                .padding(.spacing10)
+                .background(Color.grey0)
+                .overlay(alignment: .bottom) { Rectangle().fill(Color.grey20).frame(height: 1) }
+
+                VStack(alignment: .leading, spacing: .spacing6) {
+                    detail(AppStrings.localized("embeds.music_generate.prompt_label"), payload.prompt ?? skillName)
+                    detail(AppStrings.localized("embeds.music_generate.model_label"), payload.model ?? "ElevenLabs")
+                    detail(AppStrings.localized("embeds.music_generate.duration"), Self.duration(effectiveDuration))
+                }
+                .padding(.spacing10)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("\(identifierPrefix)-fullscreen")
+        }
+    }
+
+    @ViewBuilder
+    private func playbackButton(compact: Bool) -> some View {
+        if status == .processing {
+            ProgressView()
+                .tint(Color.buttonPrimary)
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .accessibilityIdentifier("\(identifierPrefix)-loading")
+        } else if status == .error || loadFailed {
+            Icon("warning", size: compact ? 22 : 28)
+                .foregroundStyle(Color.error)
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .accessibilityIdentifier("\(identifierPrefix)-error")
+        } else {
+            Button {
+                togglePlayback()
+            } label: {
+                Group {
+                    if isLoading {
+                        ProgressView().tint(Color.grey0)
+                    } else {
+                        Icon(isPlaying ? "pause" : "play", size: compact ? 18 : 22)
+                            .foregroundStyle(Color.grey0)
+                    }
+                }
+                .frame(width: compact ? 40 : 48, height: compact ? 40 : 48)
+                .background(LinearGradient.appAudio)
+                .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading || !payload.hasPlayableMedia)
+            .accessibilityLabel(isPlaying ? AppStrings.localized("audio.pause") : AppStrings.localized("audio.play"))
+            .accessibilityIdentifier("\(identifierPrefix)-\(compact ? "preview" : "fullscreen")-play-button")
+        }
+    }
+
+    private var audioProgress: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.grey20)
+                Capsule().fill(LinearGradient.appAudio)
+                    .frame(width: proxy.size.width * progress)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                guard proxy.size.width > 0 else { return }
+                seek(value.location.x / proxy.size.width)
+            })
+        }
+        .frame(height: 10)
+        .accessibilityElement()
+        .accessibilityLabel(AppStrings.localized("audio.playback_progress"))
+        .accessibilityValue("\(Int(progress * 100))%")
+        .accessibilityIdentifier("\(identifierPrefix)-fullscreen-waveform")
+        .task(id: isPlaying) {
+            while !Task.isCancelled, isPlaying, let player {
+                elapsed = player.currentTime
+                if !player.isPlaying { isPlaying = false }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+    }
+
+    private var effectiveDuration: TimeInterval { max(player?.duration ?? 0, payload.duration ?? 0) }
+    private var progress: Double { effectiveDuration > 0 ? min(max(elapsed / effectiveDuration, 0), 1) : 0 }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(label).font(.omXs).fontWeight(.semibold).foregroundStyle(Color.fontSecondary)
+            Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+        }
+    }
+
+    private func seek(_ value: Double) {
+        let next = min(max(value, 0), 1) * effectiveDuration
+        elapsed = next
+        player?.currentTime = next
+    }
+
+    private func togglePlayback() {
+        if let player {
+            if player.isPlaying { player.pause() } else { player.play() }
+            isPlaying = player.isPlaying
+            return
+        }
+        guard payload.hasPlayableMedia else { return }
+        isLoading = true
+        loadFailed = false
+        Task {
+            do {
+                let bytes = try await payload.loadAudio()
+                #if os(iOS)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                #endif
+                let audioPlayer = try AVAudioPlayer(data: bytes)
+                audioPlayer.prepareToPlay()
+                audioPlayer.play()
+                player = audioPlayer
+                isPlaying = true
+            } catch {
+                loadFailed = true
+            }
+            isLoading = false
+        }
+    }
+
+    fileprivate static func duration(_ seconds: TimeInterval) -> String {
+        let value = max(0, Int(seconds.rounded(.down)))
+        return "\(value / 60):\(String(format: "%02d", value % 60))"
+    }
+}
+
+private struct GeneratedAudioSkillPayload {
+    let prompt: String?
+    let model: String?
+    let duration: Double?
+    let directURL: String?
+    let s3BaseURL: String?
+    let s3Key: String?
+    let aesKey: String?
+    let aesNonce: String?
+    let encryption: String?
+
+    init(_ data: [String: AnyCodable]?) {
+        let raw = Self.flattened(data)
+        prompt = Self.string(raw, ["prompt", "text_preview", "text"])
+        model = Self.string(raw, ["model"])
+        let original = Self.dictionary(Self.dictionary(raw?["files"]?.value)?["original"])
+        duration = Self.number(raw?["duration_seconds"]?.value) ?? Self.number(original?["duration_seconds"])
+        if let encoded = Self.string(raw, ["audio_base64"]) {
+            let mime = Self.string(raw, ["mime_type"]) ?? "audio/mpeg"
+            directURL = "data:\(mime);base64,\(encoded)"
+        } else {
+            directURL = Self.string(raw, ["previewAudioUrl", "preview_audio_url", "audio_url"])
+        }
+        s3BaseURL = Self.string(raw, ["s3_base_url"])
+        s3Key = Self.string(original, ["s3_key"]) ?? Self.string(raw, ["files_original_s3_key"])
+        aesKey = Self.string(raw, ["aes_key"])
+        aesNonce = Self.string(raw, ["aes_nonce"])
+        encryption = Self.string(original, ["encryption"]) ?? Self.string(raw, ["files_original_encryption"])
+    }
+
+    var metadata: String {
+        [model ?? "ElevenLabs", duration.map { GeneratedAudioSkillEmbedRenderer.duration($0) }]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+
+    var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
+
+    func loadAudio() async throws -> Data {
+        if let directURL {
+            if directURL.hasPrefix("data:"), let comma = directURL.firstIndex(of: ",") {
+                let encoded = String(directURL[directURL.index(after: comma)...])
+                guard let data = Data(base64Encoded: encoded) else { throw URLError(.cannotDecodeContentData) }
+                return data
+            }
+            guard let url = URL(string: directURL) else { throw URLError(.badURL) }
+            return try await URLSession.shared.data(from: url).0
+        }
+        guard let s3Key, let aesKey else { throw URLError(.badURL) }
+        return try await S3MediaClient.shared.fetchAndDecrypt(
+            s3Url: s3BaseURL ?? "",
+            aesKeyHex: aesKey,
+            aesNonceHex: aesNonce,
+            encryption: encryption,
+            s3Key: s3Key
+        )
+    }
+
+    private static func flattened(_ data: [String: AnyCodable]?) -> [String: AnyCodable]? {
+        guard var data else { return nil }
+        if let results = data["results"]?.value as? [[String: Any]], let first = results.first {
+            for (key, value) in first { data[key] = AnyCodable(value) }
+        }
+        return data
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any]? {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return nil
+    }
+
+    private static func string(_ data: [String: AnyCodable]?, _ keys: [String]) -> String? {
+        for key in keys {
+            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    private static func string(_ data: [String: Any]?, _ keys: [String]) -> String? {
+        for key in keys {
+            if let value = data?[key] as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
+        return nil
+    }
+}
 
 // MARK: - Disk-backed public image loader
 
@@ -812,8 +1108,7 @@ struct RecordingRenderer: View {
         Group {
             switch mode {
             case .preview:
-                recordingContent(compact: true)
-                    .padding(.spacing6)
+                recordingPreview
             case .fullscreen:
                 recordingContent(compact: false)
                     .padding(.spacing12)
@@ -824,6 +1119,78 @@ struct RecordingRenderer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .task(id: isPlaying) { await updatePlaybackProgress() }
         .onDisappear { audioPlayer?.pause() }
+    }
+
+    private var recordingPreview: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                if let samples = waveformSamples {
+                    RecordingPreviewWaveform(samples: samples, progress: progress)
+                }
+
+                if let activeTranscript, !activeTranscript.isEmpty {
+                    Text(activeTranscript)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(4)
+                        .textSelection(.disabled)
+                        .accessibilityIdentifier("recording-transcript")
+                } else {
+                    Text(AppStrings.localized("app_skills.audio.transcribe.no_transcript"))
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .italic()
+                        .accessibilityIdentifier("recording-transcript")
+                }
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityIdentifier("recording-preview")
+
+            EmbedBasicInfoBar(
+                appId: "audio",
+                skillIconName: "microphone",
+                title: AppStrings.localized("app_skills.audio.transcribe.audio_recording"),
+                subtitle: Self.formatDuration(effectiveDuration),
+                faviconURL: nil,
+                showSkillIcon: false,
+                trailingAction: AnyView(recordingPreviewPlayButton)
+            )
+            .accessibilityIdentifier("recording-preview-info-bar")
+        }
+    }
+
+    private var recordingPreviewPlayButton: some View {
+        Button(action: togglePlayback) {
+            Circle()
+                .fill(LinearGradient.appAudio)
+                .frame(width: 36, height: 36)
+                .overlay {
+                    if isLoading {
+                        ProgressView().tint(Color.grey0)
+                    } else {
+                        Icon(isPlaying ? "pause" : "play", size: 16)
+                            .foregroundStyle(Color.grey0)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoading || !hasPlayableMetadata)
+        .accessibilityLabel(isPlaying ? AppStrings.pause : AppStrings.play)
+        .accessibilityIdentifier("recording-playback-toggle")
+    }
+
+    private var waveformSamples: [Double]? {
+        guard let waveform = data?["waveform"]?.value as? [String: Any],
+              let rawSamples = waveform["samples"] as? [Any] else { return nil }
+        let samples = rawSamples.compactMap { value -> Double? in
+            if let value = value as? Double { return value }
+            if let value = value as? Int { return Double(value) }
+            if let value = value as? NSNumber { return value.doubleValue }
+            return nil
+        }.map { min(1, max(0.06, $0 / 100)) }
+        return samples.isEmpty ? nil : samples
     }
 
     private func recordingContent(compact: Bool) -> some View {
@@ -1082,6 +1449,34 @@ struct RecordingRenderer: View {
     }
 }
 
+private struct RecordingPreviewWaveform: View {
+    let samples: [Double]
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                HStack(alignment: .center, spacing: 1) {
+                    ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                        Capsule()
+                            .fill(LinearGradient.appAudio)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: max(2, 30 * sample))
+                    }
+                }
+
+                Capsule()
+                    .fill(LinearGradient.appAudio)
+                    .frame(width: 2, height: 30)
+                    .offset(x: max(0, min(proxy.size.width - 2, proxy.size.width * progress)))
+            }
+        }
+        .frame(height: 30)
+        .accessibilityHidden(true)
+        .accessibilityIdentifier("recording-preview-waveform")
+    }
+}
+
 private struct RecordingSeekBar: View {
     let progress: Double
     let onSeek: (Double) -> Void
@@ -1247,34 +1642,362 @@ struct VideoPlayerView: View {
 
 // MARK: - Transcript
 
+struct VideoTranscriptPayload: Equatable {
+    let title: String?
+    let channelName: String?
+    let channelThumbnailURL: URL?
+    let videoThumbnailURL: URL?
+    let sourceURL: String?
+    let videoID: String?
+    let transcript: String
+    let wordCount: Int
+    let language: String?
+    let duration: String?
+
+    init(data: [String: AnyCodable]?) {
+        let root = data ?? [:]
+        let flattenedResults = Self.flattenedResults(in: root)
+        let result = flattenedResults.first(where: { Self.string($0, keys: ["transcript", "formatted_transcript", "text", "content"]) != nil })
+            ?? flattenedResults.first
+            ?? root.mapValues(\.value)
+        let metadata = Self.dictionary(result["metadata"])
+
+        title = Self.string(metadata, keys: ["title"])
+            ?? Self.string(result, keys: ["title"])
+            ?? EmbedFieldReader.string(root, keys: ["title"])
+        channelName = Self.string(metadata, keys: ["channel_name", "channel_title"])
+            ?? Self.string(result, keys: ["channel_name", "channel_title"])
+        let thumbnail = Self.string(metadata, keys: ["channel_thumbnail", "channel_thumbnail_url"])
+            ?? Self.string(result, keys: ["channel_thumbnail", "channel_thumbnail_url"])
+        channelThumbnailURL = EmbedFieldReader.proxiedImageURL(thumbnail, maxWidth: 58).flatMap(URL.init(string:))
+        sourceURL = Self.string(result, keys: ["url"])
+            ?? EmbedFieldReader.string(root, keys: ["url"])
+        videoID = Self.string(result, keys: ["video_id"])
+            ?? EmbedFieldReader.string(root, keys: ["video_id"])
+            ?? Self.youtubeVideoID(from: sourceURL)
+        let videoThumbnail = Self.string(metadata, keys: ["thumbnail_url", "thumbnail", "thumbnail_original"])
+            ?? Self.string(result, keys: ["thumbnail_url", "thumbnail", "thumbnail_original"])
+            ?? videoID.map { "https://i.ytimg.com/vi/\($0)/hqdefault.jpg" }
+        videoThumbnailURL = EmbedFieldReader.proxiedImageURL(videoThumbnail, maxWidth: 640).flatMap(URL.init(string:))
+        transcript = Self.string(result, keys: ["transcript", "formatted_transcript", "text", "content"])
+            ?? EmbedFieldReader.string(root, keys: ["transcript", "formatted_transcript", "text", "content"])
+            ?? ""
+        wordCount = flattenedResults.reduce(0) { partial, item in
+            partial + (Self.int(item, keys: ["word_count", "wordCount"]) ?? 0)
+        }
+        language = Self.string(result, keys: ["language"])
+            ?? EmbedFieldReader.string(root, keys: ["language"])
+        duration = Self.string(metadata, keys: ["duration", "duration_formatted"])
+            ?? Self.string(result, keys: ["duration", "duration_formatted"])
+    }
+
+    static func flattenedResults(in data: [String: AnyCodable]) -> [[String: Any]] {
+        let candidates = ["results", "preview_results"]
+            .lazy
+            .map { EmbedFieldReader.dictionaryArray(data, key: $0) }
+            .first { !$0.isEmpty } ?? []
+        let flattened = candidates.flatMap { candidate -> [[String: Any]] in
+            let nested = dictionaryArray(candidate["results"])
+            return nested.isEmpty ? [candidate] : nested
+        }
+        if !flattened.isEmpty { return flattened }
+        return EmbedFieldReader.string(data, keys: ["transcript", "formatted_transcript", "text", "content"]) == nil
+            ? []
+            : [data.mapValues(\.value)]
+    }
+
+    /// Reconstitute the web fullscreen payload from its persisted parent and
+    /// child records. Parent preview metadata supplies title/thumbnail fields;
+    /// the child supplies the full transcript and wins on duplicate keys.
+    static func mergedData(
+        parent: [String: AnyCodable],
+        child: [String: AnyCodable]
+    ) -> [String: AnyCodable] {
+        var merged = parent
+        if let preview = EmbedFieldReader.dictionaryArray(parent, key: "preview_results").first {
+            for (key, value) in preview where merged[key] == nil {
+                merged[key] = AnyCodable(value)
+            }
+        }
+        for (key, value) in child {
+            merged[key] = value
+        }
+        let normalizedResult = merged.reduce(into: [String: Any]()) { result, field in
+            guard field.key != "results", field.key != "preview_results" else { return }
+            result[field.key] = field.value.value
+        }
+        merged["results"] = AnyCodable([normalizedResult])
+        return merged
+    }
+
+    private static func dictionary(_ value: Any?) -> [String: Any] {
+        if let value = value as? [String: Any] { return value }
+        if let value = value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return [:]
+    }
+
+    private static func dictionaryArray(_ value: Any?) -> [[String: Any]] {
+        if let value = value as? [[String: Any]] { return value }
+        if let value = value as? [Any] { return value.map(dictionary).filter { !$0.isEmpty } }
+        return []
+    }
+
+    private static func string(_ data: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            if let value = data[key] as? String,
+               !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func int(_ data: [String: Any], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = data[key] as? Int { return value }
+            if let value = data[key] as? Double { return Int(value) }
+            if let value = data[key] as? String, let parsed = Int(value) { return parsed }
+        }
+        return nil
+    }
+
+    private static func youtubeVideoID(from sourceURL: String?) -> String? {
+        guard let sourceURL, let components = URLComponents(string: sourceURL) else { return nil }
+        if components.host?.lowercased().hasSuffix("youtu.be") == true {
+            return components.path.split(separator: "/").first.map(String.init)
+        }
+        guard components.host?.lowercased().contains("youtube.com") == true else { return nil }
+        return components.queryItems?.first(where: { $0.name == "v" })?.value
+    }
+}
+
+struct VideoTranscriptMetadata: Decodable, Equatable {
+    let title: String?
+    let channelName: String?
+    let channelThumbnail: String?
+    let videoId: String?
+    let thumbnails: Thumbnails?
+    let duration: Duration?
+
+    struct Thumbnails: Decodable, Equatable {
+        let `default`: String?
+        let medium: String?
+        let high: String?
+        let standard: String?
+        let maxres: String?
+    }
+
+    struct Duration: Decodable, Equatable {
+        let totalSeconds: Double?
+        let formatted: String?
+
+        enum CodingKeys: String, CodingKey {
+            case totalSeconds = "total_seconds"
+            case formatted
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case channelName = "channel_name"
+        case channelThumbnail = "channel_thumbnail"
+        case videoId = "video_id"
+        case thumbnails
+        case duration
+    }
+
+    var channelThumbnailURL: URL? {
+        EmbedFieldReader.proxiedImageURL(channelThumbnail, maxWidth: 58).flatMap(URL.init(string:))
+    }
+
+    var videoThumbnailURL: URL? {
+        let raw = thumbnails?.maxres ?? thumbnails?.standard ?? thumbnails?.high ?? thumbnails?.medium ?? thumbnails?.default
+        return EmbedFieldReader.proxiedImageURL(raw, maxWidth: 640).flatMap(URL.init(string:))
+    }
+}
+
+enum VideoTranscriptMetadataLoader {
+    static func metadataURL(for sourceURL: String) -> URL? {
+        guard let source = URL(string: sourceURL),
+              source.scheme == "https",
+              let host = source.host?.lowercased(),
+              host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com" || host == "youtu.be" else {
+            return nil
+        }
+        var components = URLComponents(string: "https://preview.openmates.org/api/v1/youtube")
+        components?.queryItems = [URLQueryItem(name: "url", value: sourceURL)]
+        return components?.url
+    }
+
+    static func load(sourceURL: String, session: URLSession = .shared) async throws -> VideoTranscriptMetadata {
+        guard let url = metadataURL(for: sourceURL) else { throw URLError(.badURL) }
+        #if DEBUG
+        if let fixture = ProcessInfo.processInfo.environment["DEV_TRANSCRIPT_METADATA_RESPONSE"],
+           let fixtureData = fixture.data(using: .utf8) {
+            return try JSONDecoder().decode(VideoTranscriptMetadata.self, from: fixtureData)
+        }
+        #endif
+        let (data, response) = try await session.data(from: url)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(VideoTranscriptMetadata.self, from: data)
+    }
+}
+
 struct TranscriptRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? { data?["title"]?.value as? String }
-    private var transcript: String? { data?["transcript"]?.value as? String }
+    @Environment(\.openURL) private var openURL
+    @State private var fetchedMetadata: VideoTranscriptMetadata?
+
+    private var payload: VideoTranscriptPayload { VideoTranscriptPayload(data: data) }
+    private var title: String? { fetchedMetadata?.title ?? payload.title }
+    private var channelName: String? { fetchedMetadata?.channelName ?? payload.channelName }
+    private var channelThumbnailURL: URL? {
+        fetchedMetadata?.channelThumbnailURL ?? payload.channelThumbnailURL
+    }
+    private var videoThumbnailURL: URL? {
+        fetchedMetadata?.videoThumbnailURL ?? payload.videoThumbnailURL
+    }
+    private var duration: String? { fetchedMetadata?.duration?.formatted ?? payload.duration }
 
     var body: some View {
-        switch mode {
+        Group {
+            switch mode {
         case .preview:
             VStack(alignment: .leading, spacing: .spacing3) {
-                if let title {
-                    Text(title).font(.omSmall).fontWeight(.medium)
-                        .foregroundStyle(Color.fontPrimary).lineLimit(1)
+                HStack(alignment: .top, spacing: .spacing4) {
+                    if let thumbnailURL = channelThumbnailURL {
+                        CachedRemoteImage(url: thumbnailURL) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            Circle().fill(Color.grey30)
+                        }
+                        .frame(width: 29, height: 29)
+                        .clipShape(Circle())
+                        .accessibilityHidden(true)
+                    }
+
+                    Text(title ?? AppStrings.transcriptYouTubeVideo)
+                        .font(.omP)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey100)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .accessibilityIdentifier("video-transcript-title")
                 }
-                if let transcript {
-                    Text(transcript).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(5)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(channelName.map { "\(AppStrings.transcriptVia) YouTube · \($0)" } ?? "\(AppStrings.transcriptVia) YouTube")
+                    if payload.wordCount > 0 {
+                        Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords)")
+                    }
                 }
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.grey70)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("video-transcript-subtitle")
             }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("video-transcript-preview")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let transcript {
-                    Text(transcript).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+            VStack(alignment: .center, spacing: .spacing8) {
+                if payload.sourceURL != nil {
+                    transcriptVideoPreview
+                }
+
+                if payload.wordCount > 0 {
+                    Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords):")
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .frame(maxWidth: 722, alignment: .center)
+                        .accessibilityIdentifier("video-transcript-fullscreen-metadata")
+                }
+
+                if payload.transcript.isEmpty {
+                    Text(AppStrings.transcriptNoResults)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("video-transcript-fullscreen-empty")
+                } else {
+                    Text(payload.transcript)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontPrimary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.spacing10)
+                        .frame(maxWidth: 722, alignment: .leading)
+                        .background(Color.grey10)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
+                        .accessibilityIdentifier("video-transcript-fullscreen-text")
                 }
             }
+            .padding(.top, .spacing10)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("video-transcript-fullscreen")
+            }
+        }
+        .task(id: payload.sourceURL) {
+            fetchedMetadata = nil
+            guard let sourceURL = payload.sourceURL,
+                  payload.title == nil || payload.channelName == nil || payload.channelThumbnailURL == nil else { return }
+            fetchedMetadata = try? await VideoTranscriptMetadataLoader.load(sourceURL: sourceURL)
         }
     }
+
+    private var transcriptVideoPreview: some View {
+        Button {
+            guard let sourceURL = payload.sourceURL, let url = URL(string: sourceURL) else { return }
+            openURL(url)
+        } label: {
+            VStack(spacing: 0) {
+                ZStack {
+                    if let videoThumbnailURL {
+                        CachedRemoteImage(url: videoThumbnailURL) { image in
+                            image.resizable().aspectRatio(contentMode: .fill)
+                        } placeholder: {
+                            LinearGradient.appVideos
+                        }
+                    } else {
+                        LinearGradient.appVideos
+                    }
+
+                    Icon("play", size: 36)
+                        .foregroundStyle(Color.grey0.opacity(0.9))
+                        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
+                }
+                .frame(height: 139)
+                .clipped()
+
+                EmbedBasicInfoBar(
+                    appId: "videos",
+                    skillIconName: "videos",
+                    title: title ?? AppStrings.transcriptYouTubeVideo,
+                    subtitle: [channelName, duration].compactMap { $0 }.joined(separator: " · ").nonEmpty,
+                    faviconURL: nil,
+                    showSkillIcon: false
+                )
+            }
+            .frame(width: 300, height: 200)
+            .background(Color.grey25)
+            .clipShape(RoundedRectangle(cornerRadius: 30))
+            .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.openVideo)
+        .accessibilityIdentifier("video-transcript-video-preview")
+    }
+}
+
+private extension String {
+    var nonEmpty: String? { isEmpty ? nil : self }
 }

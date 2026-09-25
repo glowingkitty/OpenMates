@@ -30,7 +30,6 @@
   import cookingFoodMateUrl from '../../static/images/mates/cooking_food.jpeg?url';
   import activismMateUrl from '../../static/images/mates/activism.jpeg?url';
   import generalKnowledgeMateUrl from '../../static/images/mates/general_knowledge.jpeg?url';
-  import onboardingSupportMateUrl from '../../static/images/mates/onboarding_support.jpeg?url';
 
   interface Props {
     controller?: AssistantSpeechPlaybackController;
@@ -62,7 +61,6 @@
     cooking_food: cookingFoodMateUrl,
     activism: activismMateUrl,
     general_knowledge: generalKnowledgeMateUrl,
-    onboarding_support: onboardingSupportMateUrl,
   };
   let isPlaying = $derived($player.status === 'playing');
   let isPaused = $derived(['paused', 'completed'].includes($player.status));

@@ -1,4 +1,5 @@
 // Shared real-account UI-test helpers.
+// contract-test-file: infrastructure
 // Keeps credential loading, password + OTP login, TOTP generation, and stable
 // chat selectors in one place for native live-dev chat tests. Credentials are
 // read only from the XCTest process environment or the local live-test file
@@ -118,29 +119,43 @@ enum RealAccountUITestSupport {
         // Failed live runs intentionally retain their draft. Replace only this
         // test's known prompt through the real editor; preserve unknown content.
         if let restored = editor.value as? String, !restored.isEmpty {
+            let preservesPhotoAttachment = app.launchArguments.contains("--ui-test-photo-live-upload")
+            let attachmentPlaceholder = "\u{fffc}"
             var remaining = restored
             for _ in 0..<4 {
                 let reduced = remaining.replacingOccurrences(of: prompt, with: "")
                 if reduced == remaining { break }
                 remaining = reduced
             }
-            guard remaining.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            let remainingText = preservesPhotoAttachment
+                ? remaining.replacingOccurrences(of: attachmentPlaceholder, with: "")
+                : remaining
+            guard remainingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 XCTFail("An unrelated draft is present; the live test preserved it")
                 return
             }
-            editor.press(forDuration: 1.1)
-            let menuSelectAll = app.menuItems["Select All"]
-            let selectAll = menuSelectAll.exists ? menuSelectAll : app.buttons["Select All"]
-            guard selectAll.waitForExistence(timeout: 3) else {
-                XCTFail("Expected native Select All to replace the retained test draft")
-                return
+            if !remaining.contains(attachmentPlaceholder) {
+                editor.press(forDuration: 1.1)
+                let menuSelectAll = app.menuItems["Select All"]
+                let selectAll = menuSelectAll.exists ? menuSelectAll : app.buttons["Select All"]
+                guard selectAll.waitForExistence(timeout: 3) else {
+                    XCTFail("Expected native Select All to replace the retained test draft")
+                    return
+                }
+                selectAll.tap()
+                app.typeText(XCUIKeyboardKey.delete.rawValue)
+                XCTAssertEqual(editor.value as? String, "", "Native editing must clear the retained test draft")
             }
-            selectAll.tap()
-            app.typeText(XCUIKeyboardKey.delete.rawValue)
-            XCTAssertEqual(editor.value as? String, "", "Native editing must clear the retained test draft")
         }
         app.typeText(prompt)
-        XCTAssertEqual(editor.value as? String, prompt, "Typing must preserve the complete prompt before send")
+        if app.launchArguments.contains("--ui-test-photo-live-upload") {
+            XCTAssertTrue(
+                (editor.value as? String)?.contains(prompt) == true,
+                "Typing must preserve the complete prompt beside the photo attachment before send"
+            )
+        } else {
+            XCTAssertEqual(editor.value as? String, prompt, "Typing must preserve the complete prompt before send")
+        }
 
         let send = app.buttons["send-button"]
         XCTAssertTrue(send.waitForExistence(timeout: 5))
@@ -336,12 +351,45 @@ enum RealAccountUITestSupport {
     }
 
     static func openNewChatIfNeeded(app: XCUIApplication) {
-        if waitForMessageEditor(in: app, timeout: 1) != nil {
+        if app.launchArguments.contains("--ui-test-fresh-new-chat"),
+           let editor = waitForMessageEditor(in: app, timeout: 10) {
+            // Fresh-session setup saves any restored draft before replacing
+            // the composer. Wait for that transition instead of navigating
+            // away from the already selected new-chat workspace.
+            let livePhotoFixture = app.descendants(matching: .any)
+                .matching(identifier: "native-composer-preview-image-finished").firstMatch
+            let cleared = NSPredicate { _, _ in
+                let value = editor.value as? String ?? ""
+                return value.isEmpty
+                    || value == editor.placeholderValue
+                    || (app.launchArguments.contains("--ui-test-photo-live-upload") && livePhotoFixture.exists)
+            }
+            XCTAssertEqual(
+                XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: cleared, object: editor)], timeout: 15),
+                .completed,
+                "Fresh chat must present an empty editor after preserving the previous draft"
+            )
             return
         }
-        let newChatButton = accessibilityElement(in: app, identifier: "new-chat-button")
-        guard newChatButton.waitForExistence(timeout: 2) else { return }
-        newChatButton.tap()
+        // The launch argument can already land on the empty Chat workspace.
+        // Opening the workspace switcher in that state does not expose another
+        // Chats action, so keep the fresh composer instead of failing setup.
+        if accessibilityElement(in: app, identifier: "new-chat-suggestions").exists,
+           waitForMessageEditor(in: app, timeout: 2) != nil {
+            return
+        }
+        let chatNavigation = accessibilityElement(in: app, identifier: "chats-nav-link")
+        if !chatNavigation.exists || !chatNavigation.isHittable {
+            let workspaceSwitcher = accessibilityElement(in: app, identifier: "workspace-switcher")
+            if workspaceSwitcher.waitForExistence(timeout: 2), workspaceSwitcher.isHittable {
+                workspaceSwitcher.tap()
+            }
+        }
+        guard chatNavigation.waitForExistence(timeout: 3), chatNavigation.isHittable else {
+            XCTFail("Expected the Chat workspace action to start a fresh chat")
+            return
+        }
+        chatNavigation.tap()
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
     }
 

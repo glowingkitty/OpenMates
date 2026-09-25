@@ -268,7 +268,14 @@ describe("OpenMatesClient Teams V1", () => {
     const project = await buildProjectRecord(masterKey, "project-canonical", "project slug");
     const task = await buildCreateUserTaskInput(masterKey, { title: "Task title", slug: "task slug" }) as UserTaskRecord;
     task.task_id = "task-canonical";
-    const plan = await buildCreateUserPlanInput(masterKey, { title: "Plan title", slug: "plan slug" }) as UserPlanRecord;
+    const planProjectKey = randomBytes(32);
+    const plan = await buildCreateUserPlanInput(masterKey, {
+      title: "Plan title",
+      goal: "Move the plan",
+      slug: "plan slug",
+      linkedProjectIds: [project.project_id],
+      linkedProjectKeys: [{ projectId: project.project_id, projectKey: planProjectKey }],
+    }) as UserPlanRecord;
     plan.plan_id = "plan-canonical";
     const workflow = await buildWorkflowRecord(masterKey, "workflow-canonical", "workflow slug");
     saveLocalTeamKey(session.hashedEmail, "team-1", bytesToBase64(teamKey));

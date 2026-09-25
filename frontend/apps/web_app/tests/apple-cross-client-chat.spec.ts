@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Cross-client chat producer and consumer scaffold.
- * Uses only opaque run IDs, chat IDs, and synthetic marker text in artifacts.
+ * Uses only opaque run IDs and chat IDs in artifacts. Synthetic prompt text is
+ * reconstructed in each client and never persisted in control-plane files.
  * A control-plane runner supplies one shared artifact directory to Web, CLI,
  * and Apple test jobs; credentials remain in each client's normal test setup.
  * This test intentionally uses deployed Playwright execution only.
@@ -16,8 +17,19 @@ const path = require('node:path');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	waitForEmbedFinished,
+	openFullscreen,
+	verifySearchGrid,
+	closeFullscreen
+} = require('./helpers/embed-test-helpers');
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+// The bounded Apple-to-web proof receives the same unnumbered personal dev
+// account environment as CrossClientChatSyncUITests.fromEnvironment().
+const fallbackAccount = getTestAccount();
+const TEST_EMAIL = process.env.OPENMATES_TEST_ACCOUNT_EMAIL || fallbackAccount.email;
+const TEST_PASSWORD = process.env.OPENMATES_TEST_ACCOUNT_PASSWORD || fallbackAccount.password;
+const TEST_OTP_KEY = process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY || fallbackAccount.otpKey;
 const RUN_ID = process.env.APPLE_CROSS_CLIENT_RUN_ID || '';
 const ARTIFACT_DIR = process.env.APPLE_CROSS_CLIENT_ARTIFACT_DIR || '';
 
@@ -50,7 +62,9 @@ test('publishes a saved web producer manifest for Apple consumption', async ({ p
 	const { runId, artifactDir } = requireControlPlane();
 	const webMarker = marker('web');
 
-	await loginToTestAccount(page);
+	await loginToTestAccount(page, undefined, undefined, {
+		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+	});
 	await startNewChat(page);
 	await sendMessage(page, webMarker);
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30000 });
@@ -71,26 +85,56 @@ test('publishes a saved web producer manifest for Apple consumption', async ({ p
 
 // contract-test: direct surface=gui.web assertions=chats.message.identity-idempotent,chats.surface.semantic-parity
 test('opens the Apple-produced chat once when its consumer manifest is available', async ({ page }: { page: any }) => {
-	test.setTimeout(120000);
+	test.setTimeout(240000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	const { runId, artifactDir } = requireControlPlane();
 	const apple = readManifest(artifactDir, 'apple-producer');
 	expect(apple.run_id).toBe(runId);
 	expect(typeof apple.chat_id).toBe('string');
-	expect(typeof apple.marker).toBe('string');
+	const appleMarker = `Apple parity Apple web search ${runId}`;
 
-	await loginToTestAccount(page);
+	await loginToTestAccount(page, undefined, undefined, {
+		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
+	});
 	await page.goto(`/#chat-id=${encodeURIComponent(String(apple.chat_id))}`);
-	await expect(page.getByTestId('message-user').last()).toContainText(String(apple.marker), { timeout: 60000 });
-	await expect(page.getByTestId('message-user')).toHaveCount(1);
-	await expect(page.getByTestId('message-assistant')).toHaveCount(1);
-	await deleteActiveChat(page);
+	await assertAppleSearchChat(page, appleMarker);
+
+	await page.reload({ waitUntil: 'networkidle' });
+	await assertAppleSearchChat(page, appleMarker);
+
 	writeManifest(artifactDir, 'web-consumer', {
 		schema_version: 1,
 		run_id: runId,
 		consumer: 'web',
 		chat_id: apple.chat_id,
-		marker_hash: crypto.createHash('sha256').update(String(apple.marker)).digest('hex'),
+		marker_hash: crypto.createHash('sha256').update(appleMarker).digest('hex'),
 		consumed_at: new Date().toISOString()
 	});
+	await deleteActiveChat(page);
 });
+
+async function assertAppleSearchChat(page: any, appleMarker: string): Promise<void> {
+	const title = page.getByTestId('chat-header-title');
+	const summary = page.getByTestId('chat-header-summary');
+	await expect(title).toBeVisible({ timeout: 60_000 });
+	await expect(title).not.toHaveText('', { timeout: 60_000 });
+	await expect(title).not.toContainText(/creating|untitled/i);
+	await expect(summary).toBeVisible({ timeout: 60_000 });
+	await expect(summary).not.toHaveText('', { timeout: 60_000 });
+
+	const user = page.getByTestId('message-user');
+	const assistant = page.getByTestId('message-assistant');
+	await expect(user).toHaveCount(1, { timeout: 60_000 });
+	await expect(user.last()).toContainText(appleMarker);
+	await expect(assistant).toHaveCount(1, { timeout: 60_000 });
+	await expect(assistant.last()).toBeVisible();
+	await expect(assistant.last()).not.toHaveText('');
+	await expect(assistant.last()).not.toContainText(/app_skill_use|embed_ref/);
+
+	const skill = await waitForEmbedFinished(page, 'web', 'search', 90_000);
+	await expect(skill).toBeVisible();
+	const fullscreen = await openFullscreen(page, skill);
+	const children = await verifySearchGrid(fullscreen, 1, 60_000);
+	expect(await children.count()).toBeGreaterThan(0);
+	await closeFullscreen(page, fullscreen);
+}

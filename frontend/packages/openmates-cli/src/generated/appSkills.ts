@@ -362,7 +362,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "search_repos",
     "description_key": "code.search_repos.description",
-    "description": "Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.",
+    "description": "Search GitHub repositories instead of web.search for repositories or open-source libraries. Use relevance_criteria only for an explicit user-stated purpose, audience, quality, maintenance, license, or technical preference that should change ordering. Never infer generic quality, popularity, recency, or maintenance. Plain discovery such as \"Find TypeScript Markdown editor libraries on GitHub\" is neutral: omit relevance_criteria. Keep query topical. Returns licensed repositories.",
     "schema": {
       "type": "object",
       "properties": {
@@ -380,8 +380,13 @@ export const APP_SKILL_METADATA = [
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 10,
-                "default": 6,
+                "default": 10,
                 "description": "Number of repositories to return."
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language repository-ranking goal, separate from the repository query. Set it only when the user explicitly states a purpose, audience, maintenance need, license constraint, desired quality, or preference that should change ordering. Omit it for broad or neutral discovery. Never add unstated defaults such as popular, modern, well-maintained, secure, documented, or compatible.\n"
               }
             },
             "required": [
@@ -430,7 +435,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "run",
     "description_key": "app_skills.code.run.description",
-    "description": "Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif",
+    "description": "Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_",
     "schema": {
       "type": "object",
       "properties": {
@@ -959,19 +964,18 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "events",
     "skill_method_py": "search",
     "description_key": "events.search.description",
-    "description": "Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches \u2014 do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegess\u00e4ule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3",
+    "description": "Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches \u2014 do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegess\u00e4ule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use",
     "schema": {
       "type": "object",
       "properties": {
         "provider": {
           "type": "string",
-          "description": "The event provider to use. 'auto' (default) queries all providers in parallel for best coverage. Use specific providers when the user asks about a particular platform/type: 'Eventbrite' for Eventbrite-only results, 'Resident Advisor' for electronic music/clubs, 'Siegess\u00e4ule' for Berlin LGBTQ+ events, 'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.\n",
+          "description": "The event provider to use. 'auto' (default) searches general sources in parallel and adds relevant specialist sources for the topic and region. Use a specific provider when the user asks about a particular platform/type: 'Eventbrite' for Eventbrite-only results, 'Resident Advisor' for electronic music/clubs, 'Siegess\u00e4ule' for Berlin LGBTQ+ events, 'GPN24', '39C3', '38C3', or '37C3' for official schedules of those events.\n",
           "enum": [
             "auto",
             "Meetup",
             "Luma",
             "Eventbrite",
-            "Google Events",
             "Resident Advisor",
             "Siegess\u00e4ule",
             "Berlin Philharmonic",
@@ -983,7 +987,7 @@ export const APP_SKILL_METADATA = [
         },
         "requests": {
           "type": "array",
-          "description": "REQUIRED: Array of event search request objects for parallel processing.\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin, Germany\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin\"}, {\"query\": \"Python\", \"location\": \"Munich\"}]}\nEach object must contain 'query' and either 'location' (or lat/lon) for city searches,\nor 'conference' for GPN/Congress schedule searches. All other parameters are optional.\nNote: The 'id' field is auto-generated if not provided.\n",
+          "description": "REQUIRED: Array of event search request objects for parallel processing.\nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin, Germany\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"AI\", \"location\": \"Berlin\"}, {\"query\": \"Python\", \"location\": \"Munich\"}]}\nEach object must contain 'query' and either 'location' (or lat/lon) for city searches,\nevent_type 'ONLINE' for location-free online searches, or 'conference' for GPN/Congress\nschedule searches. All other parameters are optional.\nNote: The 'id' field is auto-generated if not provided.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -993,7 +997,7 @@ export const APP_SKILL_METADATA = [
               },
               "location": {
                 "type": "string",
-                "description": "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Not required when using a GPN/Congress event schedule provider with a conference value."
+                "description": "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
               },
               "lat": {
                 "type": "number",
@@ -1031,6 +1035,11 @@ export const APP_SKILL_METADATA = [
                 "maximum": 50,
                 "default": 10
               },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language event-ranking goal, separate from the event query. Set it whenever the user states a purpose, intended audience, networking goal, desired activity, or preference such as promoting a product or finding a future speaking opportunity. Omit only for a neutral event search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates (or the larger requested count) are scored against both the event topic and this goal. Results with no credible relationship are omitted, so fewer than count can be returned rather than padding the response with irrelevant events.\n"
+              },
               "provider": {
                 "type": "string",
                 "description": "Provider for this request. Overrides the top-level provider when set.",
@@ -1039,7 +1048,6 @@ export const APP_SKILL_METADATA = [
                   "Meetup",
                   "Luma",
                   "Eventbrite",
-                  "Google Events",
                   "Resident Advisor",
                   "Siegess\u00e4ule",
                   "Berlin Philharmonic",
@@ -1057,7 +1065,6 @@ export const APP_SKILL_METADATA = [
                     "Meetup",
                     "Luma",
                     "Eventbrite",
-                    "Google Events",
                     "Resident Advisor",
                     "Siegess\u00e4ule",
                     "Berlin Philharmonic",
@@ -1314,7 +1321,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "fitness",
     "skill_method_py": "search_locations",
     "description_key": "fitness.search_locations.description",
-    "description": "Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.",
+    "description": "Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w",
     "schema": {
       "type": "object",
       "properties": {
@@ -1348,7 +1355,15 @@ export const APP_SKILL_METADATA = [
                 "type": "string"
               },
               "limit": {
-                "type": "number"
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language venue-ranking goal, separate from the activity query. Set it whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change ordering. Example: \"Broad yoga variety with explicit central-Berlin evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               }
             }
           },
@@ -1365,7 +1380,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "fitness",
     "skill_method_py": "search_classes",
     "description_key": "fitness.search_classes.description",
-    "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.",
+    "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan",
     "schema": {
       "type": "object",
       "properties": {
@@ -1417,7 +1432,15 @@ export const APP_SKILL_METADATA = [
                 "type": "string"
               },
               "limit": {
-                "type": "number"
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language class-ranking goal, separate from the activity query. Set it whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change ordering. Example: \"Evening on-site yoga classes with explicit remaining spots.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               }
             }
           },
@@ -1541,7 +1564,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "home",
     "skill_method_py": "search",
     "description_key": "app_skills.home.search.description",
-    "description": "Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany.",
+    "description": "Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc",
     "schema": {
       "type": "object",
       "properties": {
@@ -1608,6 +1631,11 @@ export const APP_SKILL_METADATA = [
                 "type": "number",
                 "minimum": 0,
                 "description": "Minimum advertised area in square metres. Unknown area is excluded when set."
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language housing-ranking goal, separate from the location query. Set it whenever the user states an intended use, household need, desired quality, or preference not represented by structured filters. Example: \"Prioritize explicit balcony and quiet-setting evidence.\" Omit only for a neutral search fully expressed by query and structured fields. Rank only explicit listing facts and never infer unstated qualities. Only max_results listings are returned.\n"
               },
               "max_results": {
                 "type": "integer",
@@ -2053,13 +2081,13 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "maps",
     "skill_method_py": "search",
     "description_key": "maps.search.description",
-    "description": "Search for places, businesses, restaurants, directions, locations.",
+    "description": "Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"cafes in Berlin\" with relevance_criteria \"Places suitable for working several hours on a laptop and taking a client call.\" Keep rating, open-now, price, and required a",
     "schema": {
       "type": "object",
       "properties": {
         "requests": {
           "type": "array",
-          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"restaurants in Berlin\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"restaurants in Berlin\"}, {\"query\": \"museums in Berlin\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
+          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"restaurants in Berlin\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"restaurants in Berlin\"}, {\"query\": \"museums in Berlin\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (pageSize, relevance_criteria, languageCode, locationBias, includedType, minRating, openNow, includeReviews).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -2073,6 +2101,11 @@ export const APP_SKILL_METADATA = [
                 "minimum": 1,
                 "maximum": 20,
                 "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language place-ranking goal, separate from the place and location query. Set it whenever the user states a purpose, intended activity, audience, or preference that should change ordering. Example: \"Suitable for working several hours on a laptop and taking a client call.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences.\n"
               },
               "languageCode": {
                 "type": "string",
@@ -2281,7 +2314,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "models3d",
     "skill_method_py": "search",
     "description_key": "app_skills.models3d.search.description",
-    "description": "Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.",
+    "description": "Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as \"Find adjustable laptop stand 3D models\" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2327,6 +2360,11 @@ export const APP_SKILL_METADATA = [
                 "type": "boolean",
                 "default": false,
                 "description": "Return only results that the provider marks as free."
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language model-selection goal, separate from the object query. Set it only when the user explicitly states a purpose, compatibility need, desired quality, or preference that should change ordering. Omit it for broad or neutral discovery. Never add unstated defaults such as popular, high-quality, printable, portable, safe, or compatible.\n"
               }
             },
             "required": [
@@ -2427,13 +2465,13 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "news",
     "skill_method_py": "search",
     "description_key": "news.search.description",
-    "description": "Search for news articles, current events, headlines, announcements.",
+    "description": "Search for news articles, current events, headlines, and announcements. Keep query focused on the news topic. Whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering, put it in relevance_criteria even if related terms could also be added to query. Example: query \"EU AI regulation\" with relevance_criteria \"Changes most likely to affect small EU software startups.\" Omit relevance_criteria only for a neutral news search ful",
     "schema": {
       "type": "object",
       "properties": {
         "requests": {
           "type": "array",
-          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"iPhone news\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"iPhone news\"}, {\"query\": \"MacBook news\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch, freshness).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
+          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"iPhone news\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"iPhone news\"}, {\"query\": \"MacBook news\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch, freshness).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -2443,10 +2481,15 @@ export const APP_SKILL_METADATA = [
               },
               "count": {
                 "type": "integer",
-                "description": "Number of results for this request (max 20)",
+                "description": "Number of final results for this request (default 10, max 20).",
                 "minimum": 1,
                 "maximum": 20,
-                "default": 6
+                "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language coverage-ranking goal, separate from the news query. Set it whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering. Example: \"Changes most likely to affect small EU software startups.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and up to count are returned; candidates below the relevant-coverage threshold are omitted rather than used as padding.\n"
               },
               "country": {
                 "type": "string",
@@ -3256,7 +3299,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "shopping",
     "skill_method_py": "search_products",
     "description_key": "app_skills.shopping.search_products.description",
-    "description": "Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected.",
+    "description": "Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl",
     "schema": {
       "type": "object",
       "properties": {
@@ -3309,7 +3352,14 @@ export const APP_SKILL_METADATA = [
               "max_results": {
                 "type": "integer",
                 "description": "Maximum number of products to return (1-20, default 10).",
+                "minimum": 1,
+                "maximum": 20,
                 "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language product-ranking goal, separate from the product query. Set it whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering. Example: \"Good for travel, with explicit quiet-click, long-battery, and multi-device evidence.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
               "sort": {
                 "type": "string",
@@ -4003,7 +4053,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "travel",
     "skill_method_py": "search_stays",
     "description_key": "app_skills.travel.search_stays.description",
-    "description": "Run this OpenMates app skill.",
+    "description": "Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: \"Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence.\" Keep dates, guests, price, class, rating, cancellation, and sort structured.",
     "schema": {
       "type": "object",
       "properties": {
@@ -4059,8 +4109,15 @@ export const APP_SKILL_METADATA = [
               },
               "max_results": {
                 "type": "integer",
-                "description": "Maximum number of results to return.",
+                "description": "Maximum number of results to return (1-20, default 10).",
+                "minimum": 1,
+                "maximum": 20,
                 "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language stay-ranking goal, separate from the destination query. Set it whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering. Example: \"Prioritize explicit reliable-Wi-Fi and workspace or desk evidence.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences.\n"
               }
             },
             "required": [
@@ -4265,13 +4322,13 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "videos",
     "skill_method_py": "search",
     "description_key": "videos.search.description",
-    "description": "Search for videos, documentaries, tutorials, clips on the web.",
+    "description": "Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query \"RAG tutorial\" with relevance_criteria \"Advanced, hands-on production guidance with deployment and evaluation details.\" Keep country, language, safe-",
     "schema": {
       "type": "object",
       "properties": {
         "requests": {
           "type": "array",
-          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"Python tutorial\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"Python tutorial\"}, {\"query\": \"FastAPI tutorial\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
+          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"Python tutorial\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"Python tutorial\"}, {\"query\": \"FastAPI tutorial\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch, freshness).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -4285,6 +4342,11 @@ export const APP_SKILL_METADATA = [
                 "minimum": 1,
                 "maximum": 20,
                 "default": 6
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language video-ranking goal, separate from the topic query. Set it whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or preference that should change ordering. Example: \"Advanced, hands-on production guidance with deployment and evaluation details.\" Omit only for a neutral search fully expressed by query and structured fields.\n"
               },
               "country": {
                 "type": "string",
@@ -4974,13 +5036,13 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "web",
     "skill_method_py": "search",
     "description_key": "app_skills.web.search.description",
-    "description": "General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies.",
+    "description": "General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. Keep query focused on the subject being retrieved. Whenever the user states a purpose, intended use, audience, decision need, or preference that should change result ordering, put that goal in relevance_criteria even if related words could also be added to query. For example, query \"laptop-friendly cafes Berlin\" with relevance_criteria \"Places suita",
     "schema": {
       "type": "object",
       "properties": {
         "requests": {
           "type": "array",
-          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"Python async\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"Python async\"}, {\"query\": \"FastAPI best practices\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
+          "description": "REQUIRED: Array of search request objects for parallel processing (up to 5 requests). \nThis parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.\nExample for single search: {\"requests\": [{\"query\": \"Python async\"}]}\nExample for multiple searches: {\"requests\": [{\"query\": \"Python async\"}, {\"query\": \"FastAPI best practices\"}]}\nEach object must contain 'query' (search query string), and can include optional parameters (count, relevance_criteria, country, search_lang, safesearch).\nNote: The 'id' field is auto-generated if not provided - you don't need to include it.\n",
           "items": {
             "type": "object",
             "properties": {
@@ -4990,10 +5052,15 @@ export const APP_SKILL_METADATA = [
               },
               "count": {
                 "type": "integer",
-                "description": "Number of results for this request (max 20)",
+                "description": "Number of final results for this request (default 10, max 20).",
                 "minimum": 1,
                 "maximum": 20,
-                "default": 6
+                "default": 10
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional concise natural-language ranking goal, separate from the retrieval query. Set it whenever the user states a purpose, intended use, audience, decision need, or preference that should change ordering, even if related terms also appear in query. Example: \"Research useful for deciding which framework to adopt.\" Omit only for a neutral search fully expressed by query and structured fields; never invent preferences. When present, up to 40 candidates are ranked and only count are returned.\n"
               },
               "country": {
                 "type": "string",
@@ -5363,7 +5430,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "remove_secrets", input, options);
   }
   /**
-   * Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif
+   * Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_
    * Description key: app_skills.code.run.description
    * Skill: code/run
    */
@@ -5371,7 +5438,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "run", input, options);
   }
   /**
-   * Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.
+   * Search GitHub repositories instead of web.search for repositories or open-source libraries. Use relevance_criteria only for an explicit user-stated purpose, audience, quality, maintenance, license, or technical preference that should change ordering. Never infer generic quality, popularity, recency, or maintenance. Plain discovery such as "Find TypeScript Markdown editor libraries on GitHub" is neutral: omit relevance_criteria. Keep query topical. Returns licensed repositories.
    * Description key: code.search_repos.description
    * Skill: code/search_repos
    */
@@ -5416,7 +5483,7 @@ export class EventsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Google Events, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3
+   * Search for local or online events, meetups, hackathons, conferences, workshops, networking events, parties, concerts, or any community gathering. Use ONLY this skill for event searches — do NOT additionally call web.search or any other search skill for the same query. Sources: Meetup, Luma, Eventbrite, Resident Advisor (electronic music/clubs), Siegessäule (Berlin LGBTQ+ events), Berlin Philharmonic (classical concerts in Berlin), and official event schedules for GPN24, 39C3, 38C3, and 37C3. Use
    * Description key: events.search.description
    * Skill: events/search
    */
@@ -5431,7 +5498,7 @@ export class FitnessAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.
+   * Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max. Keep query focused on the activity. Whenever the user states a fitness purpose, intended activity, audience level, desired quality, or preference that should change class ordering, put it in relevan
    * Description key: fitness.search_classes.description
    * Skill: fitness/search_classes
    */
@@ -5439,7 +5506,7 @@ export class FitnessAppSkills {
     return this.runSkill<T>("fitness", "search_classes", input, options);
   }
   /**
-   * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
+   * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches. Keep query focused on the activity or venue type. Whenever the user states a fitness purpose, intended activity, accessibility need, desired quality, or preference that should change venue ordering, put it in relevance_criteria even if related w
    * Description key: fitness.search_locations.description
    * Skill: fitness/search_locations
    */
@@ -5477,7 +5544,7 @@ export class HomeAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany.
+   * Search for apartments, houses, and WG rooms in German cities. Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously. Returns listings with prices, sizes, rooms, addresses, and direct links. Costs 10 credits per search. Use when user asks about finding housing in Germany. Keep query focused on the location. Whenever the user states an intended use, household need, desired quality, or preference not fully captured by price, room, size, property-type, or sort fields, put it in relevanc
    * Description key: app_skills.home.search.description
    * Skill: home/search
    */
@@ -5530,7 +5597,7 @@ export class MapsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for places, businesses, restaurants, directions, locations.
+   * Search for places, businesses, restaurants, directions, and locations. Keep query focused on the place type and location. Whenever the user states a purpose, intended activity, audience, or preference that should change place ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria "Places suitable for working several hours on a laptop and taking a client call." Keep rating, open-now, price, and required a
    * Description key: maps.search.description
    * Skill: maps/search
    */
@@ -5560,7 +5627,7 @@ export class Models3dAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
+   * Search public catalogs for existing printable or downloadable 3D models; do not generate models. Use relevance_criteria only for an explicit user-stated purpose, compatibility need, quality, or preference that should change ordering. Never infer printability, quality, popularity, portability, or compatibility. Plain discovery such as "Find adjustable laptop stand 3D models" is neutral: omit relevance_criteria. Keep query focused on the object and keep free-only and sort constraints structured.
    * Description key: app_skills.models3d.search.description
    * Skill: models3d/search
    */
@@ -5590,7 +5657,7 @@ export class NewsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search for news articles, current events, headlines, announcements.
+   * Search for news articles, current events, headlines, and announcements. Keep query focused on the news topic. Whenever the user states a purpose, audience, decision need, impact of interest, or coverage preference that should change ordering, put it in relevance_criteria even if related terms could also be added to query. Example: query "EU AI regulation" with relevance_criteria "Changes most likely to affect small EU software startups." Omit relevance_criteria only for a neutral news search ful
    * Description key: news.search.description
    * Skill: news/search
    */
@@ -5751,7 +5818,7 @@ export class ShoppingAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected.
+   * Search products on REWE, Amazon, or Stoffe.de with real-time prices. Use category to route groceries, marketplace products, fabrics, sewing supplies, and patterns to compatible providers. Invalid provider/category combinations are rejected. Keep query focused on the product type. Whenever the user states an intended use, audience, compatibility need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Exampl
    * Description key: app_skills.shopping.search_products.description
    * Skill: shopping/search_products
    */
@@ -5828,7 +5895,7 @@ export class TravelAppSkills {
     return this.runSkill<T>("travel", "search_connections", input, options);
   }
   /**
-   * Run this OpenMates app skill.
+   * Search hotels, hostels, and other stays for explicit dates and party size. Keep query focused on destination or property. Whenever the user states a trip purpose, intended activity, traveler need, desired quality, or preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: "Prioritize explicit reliable-Wi-Fi and in-room workspace or desk evidence." Keep dates, guests, price, class, rating, cancellation, and sort structured.
    * Description key: app_skills.travel.search_stays.description
    * Skill: travel/search_stays
    */
@@ -5867,7 +5934,7 @@ export class VideosAppSkills {
     return this.runSkill<T>("videos", "get_transcript", input, options);
   }
   /**
-   * Search for videos, documentaries, tutorials, clips on the web.
+   * Search for videos, documentaries, tutorials, and clips on the web. Keep query focused on the topic. Whenever the user states a viewing or learning purpose, audience level, desired depth, format, authority, or other preference that should change ordering, put it in relevance_criteria even if related words could also be added to query. Example: query "RAG tutorial" with relevance_criteria "Advanced, hands-on production guidance with deployment and evaluation details." Keep country, language, safe-
    * Description key: videos.search.description
    * Skill: videos/search
    */
@@ -5913,7 +5980,7 @@ export class WebAppSkills {
     return this.runSkill<T>("web", "read", input, options);
   }
   /**
-   * General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies.
+   * General web search for current information, prices, weather, facts, stocks, sports scores, etc. Use as a fallback when no specialized skill applies. Keep query focused on the subject being retrieved. Whenever the user states a purpose, intended use, audience, decision need, or preference that should change result ordering, put that goal in relevance_criteria even if related words could also be added to query. For example, query "laptop-friendly cafes Berlin" with relevance_criteria "Places suita
    * Description key: app_skills.web.search.description
    * Skill: web/search
    */

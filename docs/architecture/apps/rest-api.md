@@ -70,6 +70,26 @@ POST /v1/apps/{app_id}/skills/{skill_id}
 
 Examples: `POST /v1/apps/web/skills/search`, `POST /v1/apps/videos/skills/get_transcript`, `POST /v1/apps/images/skills/generate`
 
+### Anonymous CLI Skill Calls
+
+The official cloud also accepts logged-out CLI calls at
+`POST /v1/anonymous/apps/{app_id}/skills/{skill_id}` with a stable
+`X-OpenMates-Anonymous-ID` header. The body uses the same skill schema, with
+exactly one provider request per call. Provider rate-limit waits are rejected
+instead of queued. Only skills explicitly marked
+`anonymous_access: inline` in `app.yml` are eligible: they return an immediate
+result, require no connected account, and create no file or background job.
+File generation, uploads, account actions, and private chat/embed references
+require authentication.
+
+The server quotes and reserves credits before dispatch against the same
+per-identity and server-wide daily, weekly, and monthly anonymous limits used
+by web and CLI chat. When a limit is exhausted, anonymous work returns 429;
+authenticated users with account credits continue through the authenticated
+endpoint. Anonymous calls pass no user, chat, message, embed, or upload context
+to skills and create no permanent Directus content records. The anonymous route
+is intentionally outside the authenticated developer OpenAPI schema.
+
 ### Auto-Registration
 
 REST routes are **auto-registered per discovered app** at `api` startup by `register_app_and_skill_routes()` in [apps_api.py](../../backend/core/api/app/routes/apps_api.py). There is no manual registration step and no hardcoded app/hostname map.

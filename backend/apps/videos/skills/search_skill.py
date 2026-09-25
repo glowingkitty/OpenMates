@@ -23,6 +23,13 @@ from backend.shared.providers.youtube.youtube_metadata import (
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.app_skill_helpers import sanitize_external_content, check_rate_limit, wait_for_rate_limit
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 
@@ -70,7 +77,12 @@ class VideoSearchRequestItem(BaseModel):
     """A single video search request."""
 
     query: str = Field(description="Search query string (e.g. 'Python tutorial', 'funny cats').")
-    count: int = Field(default=6, description="Number of results for this request (max 20).")
+    count: int = Field(default=6, ge=1, le=20, description="Number of results for this request (max 20).")
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=1_000,
+        description="Optional natural-language viewing or learning goal used only to rank matching videos.",
+    )
     country: Optional[str] = Field(
         default=None,
         description="Country code for localized results (e.g. 'US', 'DE', 'GB'). Defaults to 'us'.",
@@ -354,11 +366,12 @@ class SearchSkill(BaseSkill):
         # is present with value None. We therefore use "or <default>" to treat both None
         # and empty-string the same as "not provided", preventing httpx from sending
         # None/empty values to the Brave API (which rejects them with 422).
-        req_count = req.get("count") or 10
+        req_count = req.get("count") or 6
         # Enforce maximum result count to limit metadata and sanitization costs.
         if req_count and req_count > MAX_RETURNED_VIDEO_RESULTS:
             logger.warning(f"Requested count {req_count} exceeds maximum of {MAX_RETURNED_VIDEO_RESULTS} for video search '{search_query}' (id: {request_id}). Capping to {MAX_RETURNED_VIDEO_RESULTS}.")
             req_count = MAX_RETURNED_VIDEO_RESULTS
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         req_country_raw = req.get("country") or "us"
         req_lang = req.get("search_lang") or "en"
         req_freshness = req.get("freshness") or None
@@ -399,7 +412,17 @@ class SearchSkill(BaseSkill):
                 request_id,
                 search_query,
             )
-            return (request_id, fixture_results, None)
+            if relevance_criteria:
+                fixture_ranking = await rank_search_candidates(
+                    candidates=fixture_results,
+                    candidate_projections=[_video_relevance_projection(item) for item in fixture_results],
+                    relevance_criteria=relevance_criteria,
+                    search_parameters={"query": search_query},
+                    profile="videos",
+                    secrets_manager=secrets_manager,
+                )
+                fixture_results = fixture_ranking.candidates
+            return (request_id, fixture_results[:req_count], None)
         
         try:
             # Check and enforce rate limits before calling external API
@@ -452,7 +475,11 @@ class SearchSkill(BaseSkill):
             
             # Search a small buffer above the requested count so direct CLI/API calls stay fast
             # while still giving YouTube metadata sorting a few extra candidates.
-            brave_search_count = _candidate_count_for_requested_count(req_count)
+            brave_search_count = (
+                relevance_candidate_target(req_count, profile="videos")
+                if relevance_criteria
+                else _candidate_count_for_requested_count(req_count)
+            )
             search_result = await search_videos(
                 query=search_query,
                 secrets_manager=secrets_manager,
@@ -564,12 +591,13 @@ class SearchSkill(BaseSkill):
             # Sort by view count (highest first)
             enriched_videos.sort(key=lambda x: x['view_count'], reverse=True)
             
-            # Take top req_count videos (default 6) after sorting by view count
-            # We always search for 50 videos from Brave, but return only req_count after sorting
-            result_count = req_count if req_count else 10
-            top_videos = enriched_videos[:result_count]
+            # Relevance ranking needs the full bounded candidate pool. Without criteria,
+            # preserve the existing popularity-based final limit.
+            result_count = req_count if req_count else 6
+            formatting_count = brave_search_count if relevance_criteria else result_count
+            top_videos = enriched_videos[:formatting_count]
             
-            logger.info(f"Selected top {len(top_videos)} videos by view count from {len(enriched_videos)} YouTube videos (requested: {result_count})")
+            logger.info(f"Selected {len(top_videos)} video candidates by view count from {len(enriched_videos)} videos (requested: {result_count})")
             
             # Convert to results format using YouTube API data where available
             results = []
@@ -858,6 +886,29 @@ class SearchSkill(BaseSkill):
                         }
                         previews.append(preview)
             
+            if relevance_criteria:
+                previews = stable_deduplicate_candidates(
+                    previews,
+                    key=lambda item: normalize_url_for_deduplication(item.get("url"))
+                    or item.get("hash"),
+                )
+                ranking = await rank_search_candidates(
+                    candidates=previews,
+                    candidate_projections=[_video_relevance_projection(item) for item in previews],
+                    relevance_criteria=relevance_criteria,
+                    search_parameters={
+                        "query": search_query,
+                        "country": req_country,
+                        "search_lang": req_lang,
+                        "safesearch": req_safesearch,
+                        "freshness": req_freshness,
+                    },
+                    profile="videos",
+                    secrets_manager=secrets_manager,
+                )
+                previews = ranking.candidates
+
+            previews = previews[:result_count]
             logger.info(f"Video search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
             return (request_id, previews, None)
             
@@ -974,6 +1025,22 @@ class SearchSkill(BaseSkill):
 def _candidate_count_for_requested_count(requested_count: int | None) -> int:
     result_count = max(1, min(int(requested_count or 10), MAX_RETURNED_VIDEO_RESULTS))
     return min(MAX_RETURNED_VIDEO_RESULTS, max(MIN_VIDEO_CANDIDATES, result_count + VIDEO_CANDIDATE_BUFFER))
+
+
+def _video_relevance_projection(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the minimized evidence Jev may use for one video candidate."""
+
+    return {
+        "title": item.get("title"),
+        "description": item.get("description"),
+        "tags": item.get("tags"),
+        "channel_title": item.get("channelTitle"),
+        "published_at": item.get("publishedAt") or item.get("age"),
+        "duration": item.get("duration"),
+        "view_count": item.get("viewCount"),
+        "like_count": item.get("likeCount"),
+        "comment_count": item.get("commentCount"),
+    }
 
 
 def _is_e2e_video_fixture_query(query: str) -> bool:

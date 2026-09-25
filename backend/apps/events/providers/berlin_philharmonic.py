@@ -5,9 +5,11 @@
 # Architecture Doc: docs/architecture/README.md
 # Tests: N/A (covered by manual API scripts in scripts/api_tests/)
 
+from datetime import datetime, timezone
 import time
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
+from zoneinfo import ZoneInfo
 
 from backend.shared.testing.caching_http_transport import create_http_client
 
@@ -23,6 +25,8 @@ def _build_filter_expression(
     include_guest_events: bool,
     tags: List[str],
     include_past: bool,
+    start_epoch: Optional[int] = None,
+    end_epoch: Optional[int] = None,
 ) -> str:
     clauses: List[str] = []
     clauses.append(f"is_guest_event:{'true' if include_guest_events else 'false'}")
@@ -34,9 +38,29 @@ def _build_filter_expression(
         clauses.append("tags:!=Guided tours")
         clauses.append("tags:!=On tour")
 
+    lower_bound = start_epoch
     if not include_past:
-        clauses.append(f"time_start:>={int(time.time())}")
+        lower_bound = max(lower_bound or 0, int(time.time()))
+    if lower_bound is not None:
+        clauses.append(f"time_start:>={lower_bound}")
+    if end_epoch is not None:
+        clauses.append(f"time_start:<{end_epoch}")
     return " && ".join(clauses)
+
+
+def _iso_to_epoch(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Berlin"))
+    return int(parsed.timestamp())
+
+
+def _epoch_to_iso(value: Any) -> Optional[str]:
+    if not isinstance(value, (int, float)):
+        return None
+    return datetime.fromtimestamp(value, tz=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 async def search_events_async(
@@ -47,6 +71,8 @@ async def search_events_async(
     count: int,
     include_guest_events: bool = False,
     include_past: bool = False,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     if "berlin" not in (location or "").lower():
         raise ValueError("Berlin Philharmonic provider currently supports Berlin location only.")
@@ -62,6 +88,8 @@ async def search_events_async(
             include_guest_events=include_guest_events,
             tags=tags,
             include_past=include_past,
+            start_epoch=_iso_to_epoch(start_date),
+            end_epoch=_iso_to_epoch(end_date),
         ),
         "facet_by": "tags",
         "max_facet_values": "40",
@@ -93,9 +121,9 @@ async def search_events_async(
                 "title": doc.get("title", ""),
                 "description": doc.get("super_title") or doc.get("brand_title") or "",
                 "url": urljoin(BASE_URL, detail_url_raw) if detail_url_raw else None,
-                "date_start": doc.get("date_time_string"),
-                "date_end": None,
-                "timezone": None,
+                "date_start": _epoch_to_iso(doc.get("time_start")),
+                "date_end": _epoch_to_iso(doc.get("time_end")),
+                "timezone": "Europe/Berlin",
                 "event_type": "PHYSICAL",
                 "venue": {
                     "name": doc.get("place"),
@@ -112,7 +140,7 @@ async def search_events_async(
                 "fee": None,
                 "image_url": None,
                 "booking_url": booking_url,
-                "date_text": doc.get("date_string", ""),
+                "date_text": doc.get("date_time_string") or doc.get("date_string", ""),
                 "tags": doc.get("tags", []),
                 "is_guest_event": bool(doc.get("is_guest_event", False)),
             }

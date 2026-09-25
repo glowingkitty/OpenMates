@@ -56,7 +56,7 @@ def first_sentence(text: str | None) -> str:
     if not text:
         return "Run this OpenMates app skill."
     flattened = " ".join(str(text).split())
-    return flattened[:500]
+    return flattened[:500].rstrip()
 
 
 def load_skills() -> list[dict[str, Any]]:

@@ -7,27 +7,25 @@
 #   - meetup:            Meetup.com internal GraphQL (lat/lon, global, includes descriptions)
 #   - luma:              Luma.com internal REST API (78 featured cities, includes descriptions)
 #   - eventbrite:        Eventbrite web API search (includes descriptions via event pages)
-#   - google_events:     Google Events via SerpAPI (aggregates Eventbrite, Ticketmaster, etc.)
 #   - resident_advisor:  RA (ra.co) scraping — electronic music, clubs, DJ events
 #   - siegessaeule:      Siegessäule scraping — Berlin LGBTQ+ events (Berlin-only)
 #
 # Provider selection via the 'provider' request field:
-#   "auto"              (default) — searches all applicable providers in parallel, merges results
+#   "auto"              (default) — searches general and relevant specialist providers
 #   "meetup"            — Meetup only
 #   "luma"              — Luma only (requires city to be in Luma's 78 featured cities)
 #   "eventbrite"        — Eventbrite only (caps at 10 results with descriptions)
-#   "google_events"     — Google Events only (requires SerpAPI key)
 #   "resident_advisor"  — Resident Advisor only (electronic music cities)
 #   "siegessaeule"      — Siegessäule only (Berlin LGBTQ+ events)
 #
-# In "auto" mode, all providers are queried simultaneously. Results from all
-# providers are merged, deduplicated by URL, sorted by date, and sliced to count.
+# In "auto" mode, selected providers run concurrently. Results are merged,
+# deduplicated by URL, sorted by date, and sliced to count.
 #
 # Architecture:
 #   - Direct async execution in the app-events container (no Celery task dispatch)
 #   - Each request in the 'requests' array is processed independently
 #   - Multiple requests are processed in parallel via asyncio.gather
-#   - Within each request, all providers run concurrently via asyncio.gather
+#   - Within each request, selected providers run concurrently
 #
 # Pricing: 5 credits per request
 #   Cost basis: Meetup ~200 KB via Webshare proxy + Luma list + description pages
@@ -40,6 +38,8 @@ from datetime import datetime
 import logging
 import os
 import re
+import time
+import unicodedata
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -50,21 +50,33 @@ from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
 from backend.apps.events.providers import eventbrite as eventbrite_provider
-from backend.apps.events.providers import google_events as google_events_provider
 from backend.apps.events.providers import luma as luma_provider
 from backend.apps.events.providers import meetup as meetup_provider
 from backend.apps.events.providers import pretalx as pretalx_provider
 from backend.apps.events.providers import resident_advisor as ra_provider
 from backend.apps.events.providers import siegessaeule as siegessaeule_provider
 from backend.apps.events.providers.registry import filter_providers
+from backend.apps.events.skills.provider_routing import (
+    deterministic_auto_providers,
+    select_ambiguous_specialists,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.search_relevance import (
+    MAX_RELEVANCE_CRITERIA_CHARS,
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 
 logger = logging.getLogger(__name__)
 
-# Valid provider values. "auto" runs all applicable providers in parallel.
-_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "google_events", "resident_advisor", "siegessaeule", "berlin_philharmonic", "pretalx"}
+# Valid provider values. "auto" routes to applicable, relevant providers.
+_VALID_PROVIDERS = {"auto", "meetup", "luma", "eventbrite", "resident_advisor", "siegessaeule", "berlin_philharmonic", "pretalx"}
 
-# Normalize provider names from LLM tool calls (e.g. "Google Events" -> "google_events").
+# Normalize provider names from LLM tool calls. Retain retired Google aliases only
+# so explicit requests receive a clear error instead of falling back to auto.
 _PROVIDER_ALIASES: Dict[str, str] = {
     "none": "auto",
     "google events": "google_events",
@@ -97,7 +109,6 @@ _PROVIDER_LABELS: Dict[str, str] = {
     "meetup": "Meetup",
     "luma": "Luma",
     "eventbrite": "Eventbrite",
-    "google_events": "Google Events",
     "resident_advisor": "Resident Advisor",
     "siegessaeule": "Siegessäule",
     "berlin_philharmonic": "Berlin Philharmonic",
@@ -144,6 +155,26 @@ _DEFAULT_COUNT = 10
 # provider, then merge + deduplicate + slice to count.
 _AUTO_PROVIDER_MULTIPLIER = 2
 
+# Leave room within the outer 20-second skill deadline for optional ranking,
+# finalist enrichment, and inherited output safety.
+_PROVIDER_WORK_DEADLINE_SECONDS = 6.0
+_FINALIST_ENRICHMENT_DEADLINE_SECONDS = 2.0
+
+# Location-free online discovery is supported only by providers whose public
+# search contracts do not require a city or coordinates.
+_LOCATION_FREE_ONLINE_PROVIDERS = {"eventbrite"}
+
+# Jev's events rubric assigns 1 to a weak but defensible relationship. Results
+# below that floor are omitted instead of padding the response with unrelated
+# events. Ranking failures still use the deterministic unfiltered fallback.
+_MIN_EVENT_RELEVANCE_SCORE = 1.0
+
+_EVENT_TITLE_DEDUP_STOPWORDS = frozenset({
+    "a", "an", "and", "at", "berlin", "event", "events", "in", "meetup",
+    "new", "of", "on", "online", "paris", "san", "francisco", "sept",
+    "september", "the", "tokyo", "workshop",
+})
+
 
 # ---------------------------------------------------------------------------
 # Pydantic models (auto-discovered by apps_api.py for OpenAPI documentation)
@@ -168,7 +199,7 @@ class SearchRequestItem(BaseModel):
     location: Optional[str] = Field(
         default=None,
         description="City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York'). "
-        "Used if lat/lon are not provided.",
+        "Used if lat/lon are not provided. Optional for location-free ONLINE searches.",
     )
     lat: Optional[float] = Field(
         default=None,
@@ -196,7 +227,19 @@ class SearchRequestItem(BaseModel):
     )
     count: int = Field(
         default=10,
+        ge=1,
+        le=50,
         description="Maximum number of events to return (default: 10, max: 50).",
+    )
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=MAX_RELEVANCE_CRITERIA_CHARS,
+        description=(
+            "Optional concise natural-language event-selection goal used to rank a larger "
+            "candidate pool. Populate it when the user states a material purpose such as "
+            "networking, promoting a product, or finding future speaking opportunities; "
+            "omit it for a plain event search and never invent preferences."
+        ),
     )
     provider: Optional[str] = Field(
         default=None,
@@ -243,8 +286,9 @@ class SearchRequest(BaseModel):
         ...,
         description=(
             "Array of event search request objects. Each object must contain 'query' "
-            "and 'location' (or 'lat'/'lon') for city searches, or 'conference' for "
-            "Conference Schedule searches. Optional: start_date, end_date, event_type, "
+            "and 'location' (or 'lat'/'lon') for physical city searches, 'event_type=ONLINE' "
+            "for location-free online discovery, or 'conference' for Conference Schedule "
+            "searches. Optional: start_date, end_date, event_type, "
             "radius_miles, count, past_events."
         ),
     )
@@ -279,7 +323,7 @@ class SearchResponse(BaseModel):
         default_factory=list,
         description=(
             "List of provider IDs searched for the request "
-            "(e.g. ['meetup', 'luma', 'eventbrite', 'google_events']). "
+            "(e.g. ['meetup', 'luma', 'eventbrite']). "
             "Providers can be present even when they returned zero results."
         ),
     )
@@ -315,7 +359,8 @@ class SearchSkill(BaseSkill):
     Supports multiple parallel search requests via the 'requests' array pattern.
     Each request can specify its own provider, location, date range, and filters.
 
-    In "auto" mode (default), all applicable providers are queried simultaneously.
+    In "auto" mode (default), applicable general and relevant specialist providers
+    are queried concurrently.
     Results are merged, deduplicated by URL, sorted by start date, and limited to
     the requested count.
 
@@ -335,11 +380,12 @@ class SearchSkill(BaseSkill):
         else:
             provider_choice = str(request.get("provider", "auto")).lower().strip()
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
-            provider_ids = (
-                [provider_choice]
-                if provider_choice in _VALID_PROVIDERS and provider_choice != "auto"
-                else [provider_id for provider_id in _PROVIDER_LABELS]
-            )
+            if provider_choice == "auto":
+                provider_ids = list(_PROVIDER_LABELS)
+            elif provider_choice in _VALID_PROVIDERS:
+                provider_ids = [provider_choice]
+            else:
+                provider_ids = []
 
         providers = [provider_id for provider_id in provider_ids if provider_id in _PROVIDER_LABELS]
         provider = providers[0] if len(providers) == 1 else "auto"
@@ -465,6 +511,101 @@ class SearchSkill(BaseSkill):
         return value
 
     @staticmethod
+    def _event_start(event: Dict[str, Any]) -> Optional[datetime]:
+        """Parse an event start and attach its declared timezone when needed."""
+        parsed = SearchSkill._parse_event_datetime(event.get("date_start"))
+        if parsed is None or parsed.tzinfo is not None:
+            return parsed
+        timezone_name = event.get("timezone")
+        if isinstance(timezone_name, str) and timezone_name:
+            try:
+                return parsed.replace(tzinfo=ZoneInfo(timezone_name))
+            except ZoneInfoNotFoundError:
+                logger.warning("[events:search] Invalid provider timezone")
+        return parsed
+
+    @staticmethod
+    def _dedup_text(value: Any) -> str:
+        normalized = unicodedata.normalize("NFKD", str(value or ""))
+        normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+        return re.sub(r"[^a-z0-9]+", " ", normalized.lower()).strip()
+
+    @staticmethod
+    def _title_tokens(event: Dict[str, Any]) -> set[str]:
+        return {
+            token
+            for token in SearchSkill._dedup_text(event.get("title")).split()
+            if token not in _EVENT_TITLE_DEDUP_STOPWORDS and not token.isdigit()
+        }
+
+    @staticmethod
+    def _venue_identity(event: Dict[str, Any]) -> str:
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            return SearchSkill._dedup_text(
+                " ".join(str(venue.get(field) or "") for field in ("name", "address", "city"))
+            )
+        return SearchSkill._dedup_text(venue or event.get("location"))
+
+    @staticmethod
+    def _description_identity(event: Dict[str, Any]) -> str:
+        return SearchSkill._dedup_text(event.get("description"))[:800]
+
+    @staticmethod
+    def _description_urls(event: Dict[str, Any]) -> set[str]:
+        urls = re.findall(r"https?://[^\s\])>]+", str(event.get("description") or ""))
+        return {
+            normalized
+            for url in urls
+            if (normalized := normalize_url_for_deduplication(url.rstrip(".,;")))
+        }
+
+    @classmethod
+    def _events_are_duplicates(cls, first: Dict[str, Any], second: Dict[str, Any]) -> bool:
+        first_url = normalize_url_for_deduplication(_event_result_url(first))
+        second_url = normalize_url_for_deduplication(_event_result_url(second))
+        if first_url and first_url == second_url:
+            return True
+
+        first_start = cls._event_start(first)
+        second_start = cls._event_start(second)
+        if first_start is None or second_start is None:
+            return False
+        second_start = cls._align_event_datetime(second_start, first_start)
+        if abs((first_start - second_start).total_seconds()) > 90 * 60:
+            return False
+
+        if cls._description_urls(first) & cls._description_urls(second):
+            return True
+
+        first_tokens = cls._title_tokens(first)
+        second_tokens = cls._title_tokens(second)
+        if first_tokens and second_tokens:
+            overlap = len(first_tokens & second_tokens) / min(len(first_tokens), len(second_tokens))
+            if overlap >= 0.75:
+                return True
+
+        first_description = cls._description_identity(first)
+        second_description = cls._description_identity(second)
+        if (
+            len(first_description) >= 80
+            and first_description == second_description
+            and cls._venue_identity(first) == cls._venue_identity(second)
+        ):
+            return True
+        return False
+
+    @classmethod
+    def _deduplicate_events(cls, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Keep one stable representative for each real-world event."""
+        unique: List[Dict[str, Any]] = []
+        for event in events:
+            if any(cls._events_are_duplicates(existing, event) for existing in unique):
+                continue
+            unique.append(event)
+        return unique
+
+    @staticmethod
     def _parse_money(value: Any) -> Optional[float]:
         if value in (None, ""):
             return None
@@ -557,7 +698,10 @@ class SearchSkill(BaseSkill):
                 filtered_out_count += 1
                 continue
 
-            event_start = SearchSkill._parse_event_datetime(result.get("date_start"))
+            event_start = SearchSkill._event_start(result)
+            if (start_dt or end_dt) and event_start is None:
+                filtered_out_count += 1
+                continue
             if start_dt and event_start and SearchSkill._align_event_datetime(event_start, start_dt) < start_dt:
                 filtered_out_count += 1
                 continue
@@ -759,6 +903,28 @@ class SearchSkill(BaseSkill):
             logger.warning("Meetup search failed for query=%r: %s", query, exc)
             return [], 0, str(exc)
 
+    async def _search_meetup_with_location(
+        self,
+        *,
+        location_str: str,
+        lat: Optional[float],
+        lon: Optional[float],
+        city: str,
+        country: str,
+        **kwargs: Any,
+    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
+        """Resolve uncached Meetup coordinates off the event loop, for Meetup only."""
+        if lat is None or lon is None:
+            try:
+                lat, lon, city, country = await asyncio.to_thread(
+                    meetup_provider.resolve_location, location_str,
+                )
+            except ValueError as exc:
+                return [], 0, f"Location resolution failed: {exc}"
+        return await self._search_meetup(
+            lat=lat, lon=lon, city=city, country=country, **kwargs,
+        )
+
     async def _search_luma(
         self,
         query: str,
@@ -781,8 +947,9 @@ class SearchSkill(BaseSkill):
                 city=location_str,
                 query=query,
                 count=count,
-                fetch_descriptions=True,
+                fetch_descriptions=False,
                 proxy_url=proxy_url,
+                geocode_venues=False,
             )
             return events, total, None
         except ValueError:
@@ -796,46 +963,11 @@ class SearchSkill(BaseSkill):
             logger.warning("Luma search failed for query=%r city=%r: %s", query, location_str, exc)
             return [], 0, str(exc)
 
-    async def _search_google_events(
-        self,
-        query: str,
-        location_str: str,
-        start_date: Optional[str],
-        end_date: Optional[str],
-        event_type: Optional[str],
-        count: int,
-        secrets_manager: Optional[SecretsManager] = None,
-    ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
-        """
-        Search Google Events via SerpAPI and return (events, total_available, error_or_None).
-        Never raises — errors are returned as the third tuple element.
-
-        Requires SerpAPI key in Vault. Returns empty results with error message
-        if the key is not configured.
-        """
-        try:
-            events, total = await google_events_provider.search_events_async(
-                query=query,
-                location=location_str,
-                start_date=start_date,
-                end_date=end_date,
-                event_type=event_type,
-                count=count,
-                secrets_manager=secrets_manager,
-            )
-            return events, total, None
-        except ValueError as exc:
-            # Missing API key — not a transient error.
-            logger.warning("Google Events search unavailable: %s", exc)
-            return [], 0, str(exc)
-        except Exception as exc:
-            logger.warning("Google Events search failed for query=%r: %s", query, exc)
-            return [], 0, str(exc)
-
     async def _search_eventbrite(
         self,
         query: str,
         location_str: str,
+        event_type: Optional[str],
         count: int,
         proxy_url: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
@@ -847,11 +979,15 @@ class SearchSkill(BaseSkill):
         enriched with a direct event-page fetch for full descriptions.
         """
         try:
+            provider_query = query
+            if event_type == "ONLINE" and "online" not in query.lower():
+                provider_query = f"{query} online"
             events, total = await eventbrite_provider.search_events_async(
                 location=location_str,
-                query=query,
+                query=provider_query,
                 count=count,
                 proxy_url=proxy_url,
+                fetch_descriptions=False,
             )
             return events, total, None
         except Exception as exc:
@@ -900,6 +1036,7 @@ class SearchSkill(BaseSkill):
         query: str,
         location_str: str,
         start_date: Optional[str],
+        end_date: Optional[str],
         count: int,
         proxy_url: Optional[str] = None,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
@@ -920,6 +1057,7 @@ class SearchSkill(BaseSkill):
                 query=query,
                 count=count,
                 start_date=start_date,
+                end_date=end_date,
                 proxy_url=proxy_url,
             )
             return events, total, None
@@ -932,6 +1070,8 @@ class SearchSkill(BaseSkill):
         query: str,
         location_str: str,
         concert_tags: Optional[List[str]],
+        start_date: Optional[str],
+        end_date: Optional[str],
         count: int,
     ) -> Tuple[List[Dict[str, Any]], int, Optional[str]]:
         """
@@ -950,6 +1090,8 @@ class SearchSkill(BaseSkill):
                 query=query,
                 tags=concert_tags or [],
                 count=count,
+                start_date=start_date,
+                end_date=end_date,
             )
             return events, total, None
         except Exception as exc:
@@ -1026,6 +1168,27 @@ class SearchSkill(BaseSkill):
 
         return merged[:count]
 
+    @staticmethod
+    def _relevance_deduplication_key(event: Dict[str, Any]) -> str:
+        """Identify cross-provider copies before relevance ranking."""
+
+        title = re.sub(r"\s+", " ", str(event.get("title") or "")).strip().lower()
+        date_start = str(event.get("date_start") or "").strip().lower()
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            venue_text = "|".join(
+                str(venue.get(field) or "").strip().lower()
+                for field in ("name", "address", "city")
+            )
+        else:
+            venue_text = str(venue or event.get("location") or "").strip().lower()
+        if title and date_start:
+            return f"event:{title}|{date_start}|{venue_text}"
+        url = normalize_url_for_deduplication(_event_result_url(event))
+        if url:
+            return f"url:{url}"
+        return ""
+
     async def _process_single_search_request(
         self,
         req: Dict[str, Any],
@@ -1059,6 +1222,7 @@ class SearchSkill(BaseSkill):
         query = req.get("query") or req.get("q") or conference
         if not query:
             return (request_id, [], "Missing 'query' parameter", 0, [])
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
 
         # Strip platform-brand and filler stopwords before passing to providers.
         # e.g. "AI meetup" -> "AI", "tech events" -> "tech". Falls back to the
@@ -1082,10 +1246,14 @@ class SearchSkill(BaseSkill):
                 _PROVIDER_ALIASES.get(str(p).lower().strip(), str(p).lower().strip())
                 for p in raw_providers
             ]
+            if "google_events" in requested_providers:
+                return (request_id, [], "Google Events is no longer available; choose another provider or auto.", 0, [])
         else:
             # Legacy format: single provider string (or "auto")
             provider_choice = str(req.get("provider", "auto")).lower().strip()
             provider_choice = _PROVIDER_ALIASES.get(provider_choice, provider_choice)
+            if provider_choice == "google_events":
+                return (request_id, [], "Google Events is no longer available; choose another provider or auto.", 0, [])
             if provider_choice not in _VALID_PROVIDERS:
                 logger.warning(
                     "Unknown provider %r for request %s — refusing provider fallback",
@@ -1098,6 +1266,18 @@ class SearchSkill(BaseSkill):
 
         searched_provider_ids: List[str] = [] if provider_choice == "auto" else [provider_choice]
 
+        # Parse the type before resolving location: ONLINE searches can be
+        # location-free when routed only to providers that support that mode.
+        event_type_raw = req.get("event_type")
+        event_type: Optional[str] = self._normalize_event_type(event_type_raw)
+        if event_type not in (None, "PHYSICAL", "ONLINE"):
+            logger.warning(
+                "Invalid event_type %r for request %s — ignoring",
+                event_type_raw,
+                request_id,
+            )
+            event_type = None
+
         # --- Resolve location ---
         lat: Optional[float] = req.get("lat")
         lon: Optional[float] = req.get("lon")
@@ -1105,6 +1285,26 @@ class SearchSkill(BaseSkill):
         country: str = ""
         # Use "or" to handle None from Pydantic model_dump() — prevents AttributeError on .strip()
         location_str: str = (req.get("location") or "").strip()
+        location_free_online = (
+            event_type == "ONLINE"
+            and not location_str
+            and lat is None
+            and lon is None
+        )
+
+        if (
+            location_free_online
+            and provider_choice != "auto"
+            and provider_choice not in _LOCATION_FREE_ONLINE_PROVIDERS
+        ):
+            return (
+                request_id,
+                [],
+                f"Provider {provider_choice} requires a location; use eventbrite "
+                "or auto for location-free ONLINE searches.",
+                0,
+                searched_provider_ids,
+            )
 
         if lat is not None and lon is not None:
             try:
@@ -1113,7 +1313,9 @@ class SearchSkill(BaseSkill):
             except (TypeError, ValueError) as exc:
                 return (request_id, [], f"Invalid lat/lon values: {exc}", 0, searched_provider_ids)
         else:
-            if not location_str:
+            if location_free_online:
+                city, country = "", ""
+            elif not location_str:
                 if provider_choice == "pretalx" or pretalx_provider.is_conference_query(query):
                     lat, lon = 0.0, 0.0
                     city, country = "", ""
@@ -1125,7 +1327,7 @@ class SearchSkill(BaseSkill):
                         0,
                         searched_provider_ids,
                     )
-            if lat is None or lon is None:
+            if not location_free_online and (lat is None or lon is None):
                 if not location_str:
                     return (
                         request_id,
@@ -1134,35 +1336,25 @@ class SearchSkill(BaseSkill):
                         0,
                         searched_provider_ids,
                     )
-                try:
+                lookup_key = location_str.lower().split(",")[0].strip()
+                if lookup_key in meetup_provider.CITY_COORDS:
                     lat, lon, city, country = meetup_provider.resolve_location(location_str)
-                except ValueError as exc:
-                    # Location cannot be resolved for Meetup geocoder.
-                    # If provider is location-text based only, we don't need Meetup coordinates.
-                    if provider_choice in {"luma", "eventbrite", "pretalx"}:
-                        lat, lon = 0.0, 0.0
-                    else:
-                        return (request_id, [], f"Location resolution failed: {exc}", 0, searched_provider_ids)
+                else:
+                    # Text-based providers may run while Meetup resolves this
+                    # unfamiliar city in a worker thread.
+                    city = location_str
 
         # Use provided location string as city for Luma if city wasn't set by geocoder.
-        luma_city = city or location_str
+        luma_city = city or location_str.split(",", 1)[0].strip()
 
         # --- Optional parameters ---
         start_date: Optional[str] = req.get("start_date")
         end_date: Optional[str] = req.get("end_date")
-        event_type: Optional[str] = req.get("event_type")
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
+        candidate_target = relevance_candidate_target(count) if relevance_criteria else count
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
         past_events: bool = bool(req.get("past_events", False))
-
-        if event_type and event_type not in ("PHYSICAL", "ONLINE"):
-            logger.warning(
-                "Invalid event_type %r for request %s — ignoring",
-                event_type,
-                request_id,
-            )
-            event_type = None
 
         logger.debug(
             "Events search (id=%s): provider=%r query=%r location=%r count=%d",
@@ -1176,8 +1368,9 @@ class SearchSkill(BaseSkill):
         # --- Execute provider(s) ---
         if provider_choice == "meetup":
             # Meetup only
-            meetup_events, total, meetup_err = await self._search_meetup(
+            meetup_events, total, meetup_err = await self._search_meetup_with_location(
                 query=query,
+                location_str=location_str,
                 lat=lat,
                 lon=lon,
                 city=city,
@@ -1186,7 +1379,7 @@ class SearchSkill(BaseSkill):
                 end_date=end_date,
                 event_type=event_type,
                 radius_miles=radius_miles,
-                count=count,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if meetup_err and not meetup_events:
@@ -1199,7 +1392,7 @@ class SearchSkill(BaseSkill):
             luma_events, total, luma_err = await self._search_luma(
                 query=query,
                 location_str=luma_city,
-                count=count,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if luma_err and not luma_events:
@@ -1207,28 +1400,13 @@ class SearchSkill(BaseSkill):
             all_events = luma_events
             total_available = total
 
-        elif provider_choice == "google_events":
-            # Google Events only (via SerpAPI)
-            ge_events, total, ge_err = await self._search_google_events(
-                query=query,
-                location_str=luma_city,
-                start_date=start_date,
-                end_date=end_date,
-                event_type=event_type,
-                count=count,
-                secrets_manager=secrets_manager,
-            )
-            if ge_err and not ge_events:
-                return (request_id, [], f"Google Events search failed: {ge_err}", 0, searched_provider_ids)
-            all_events = ge_events
-            total_available = total
-
         elif provider_choice == "eventbrite":
             # Eventbrite only (web app API, full descriptions via event pages)
             eb_events, total, eb_err = await self._search_eventbrite(
                 query=query,
                 location_str=luma_city,
-                count=count,
+                event_type=event_type,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if eb_err and not eb_events:
@@ -1243,7 +1421,7 @@ class SearchSkill(BaseSkill):
                 location_str=luma_city,
                 start_date=start_date,
                 end_date=end_date,
-                count=count,
+                count=candidate_target,
             )
             if ra_err and not ra_events:
                 return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0, searched_provider_ids)
@@ -1256,7 +1434,8 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 start_date=start_date,
-                count=count,
+                end_date=end_date,
+                count=candidate_target,
                 proxy_url=proxy_url,
             )
             if ss_err and not ss_events:
@@ -1270,7 +1449,9 @@ class SearchSkill(BaseSkill):
                 query=query,
                 location_str=luma_city,
                 concert_tags=concert_tags,
-                count=count,
+                start_date=start_date,
+                end_date=end_date,
+                count=candidate_target,
             )
             if bp_err and not bp_events:
                 return (request_id, [], f"Berlin Philharmonic search failed: {bp_err}", 0, searched_provider_ids)
@@ -1285,7 +1466,7 @@ class SearchSkill(BaseSkill):
                 conference=conference,
                 start_date=start_date,
                 end_date=end_date,
-                count=count,
+                count=candidate_target,
                 past_events=past_events,
             )
             if pretalx_err and not pretalx_events:
@@ -1296,24 +1477,62 @@ class SearchSkill(BaseSkill):
         else:
             # "auto" or per-request providers list: query applicable providers
             # in parallel with extra headroom for deduplication.
-            per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
-
             # Safety filter: validate LLM's provider choices against region scope
             applicable_ids = filter_providers(
                 requested_providers=requested_providers,
                 city=luma_city,
                 providers_meta=self._providers_meta,
             )
+            if location_free_online:
+                applicable_ids = [
+                    provider_id
+                    for provider_id in applicable_ids
+                    if provider_id in _LOCATION_FREE_ONLINE_PROVIDERS
+                ]
+            if not requested_providers:
+                # These specialists have no location-free online inventory.
+                if event_type == "ONLINE":
+                    applicable_ids = [
+                        pid for pid in applicable_ids
+                        if pid not in {"resident_advisor", "siegessaeule", "berlin_philharmonic"}
+                    ]
+                if luma_city:
+                    try:
+                        luma_provider.resolve_city(luma_city)
+                    except ValueError:
+                        applicable_ids = [pid for pid in applicable_ids if pid != "luma"]
+                    try:
+                        ra_provider._resolve_area_id(luma_city)
+                    except ValueError:
+                        applicable_ids = [pid for pid in applicable_ids if pid != "resident_advisor"]
+                else:
+                    applicable_ids = [
+                        pid for pid in applicable_ids if pid not in {"luma", "resident_advisor"}
+                    ]
+                immediate_ids, ambiguous_ids = deterministic_auto_providers(
+                    query=query, eligible_ids=applicable_ids,
+                )
+            else:
+                immediate_ids, ambiguous_ids = applicable_ids, []
+            if relevance_criteria:
+                provider_count = max(1, len(immediate_ids))
+                per_provider_count = max(
+                    count,
+                    (candidate_target + provider_count - 1) // provider_count,
+                )
+            else:
+                per_provider_count = count * _AUTO_PROVIDER_MULTIPLIER
 
             logger.info(
-                "Auto mode for request %s: %d applicable providers for city=%r: %s",
-                request_id, len(applicable_ids), luma_city, applicable_ids,
+                "Event provider routing request=%s city=%r eligible=%s immediate=%s ambiguous=%s",
+                request_id, luma_city, applicable_ids, immediate_ids, ambiguous_ids,
             )
 
             # Build dispatch: provider ID → coroutine (each has different params)
             dispatch = {
-                "meetup": lambda: self._search_meetup(
-                    query=query, lat=lat, lon=lon, city=city, country=country,
+                "meetup": lambda: self._search_meetup_with_location(
+                    query=query, location_str=location_str,
+                    lat=lat, lon=lon, city=city, country=country,
                     start_date=start_date, end_date=end_date, event_type=event_type,
                     radius_miles=radius_miles, count=per_provider_count, proxy_url=proxy_url,
                 ),
@@ -1323,12 +1542,8 @@ class SearchSkill(BaseSkill):
                 ),
                 "eventbrite": lambda: self._search_eventbrite(
                     query=query, location_str=luma_city,
+                    event_type=event_type,
                     count=per_provider_count, proxy_url=proxy_url,
-                ),
-                "google_events": lambda: self._search_google_events(
-                    query=query, location_str=luma_city,
-                    start_date=start_date, end_date=end_date, event_type=event_type,
-                    count=per_provider_count, secrets_manager=secrets_manager,
                 ),
                 "resident_advisor": lambda: self._search_resident_advisor(
                     query=query, location_str=luma_city,
@@ -1336,11 +1551,13 @@ class SearchSkill(BaseSkill):
                 ),
                 "siegessaeule": lambda: self._search_siegessaeule(
                     query=query, location_str=luma_city,
-                    start_date=start_date, count=per_provider_count, proxy_url=proxy_url,
+                    start_date=start_date, end_date=end_date,
+                    count=per_provider_count, proxy_url=proxy_url,
                 ),
                 "berlin_philharmonic": lambda: self._search_berlin_philharmonic(
                     query=query, location_str=luma_city,
-                    concert_tags=concert_tags, count=per_provider_count,
+                    concert_tags=concert_tags, start_date=start_date,
+                    end_date=end_date, count=per_provider_count,
                 ),
                 "pretalx": lambda: self._search_pretalx(
                     query=query, location_str=luma_city, conference=conference,
@@ -1350,28 +1567,85 @@ class SearchSkill(BaseSkill):
             }
 
             if (
-                "pretalx" not in applicable_ids
+                "pretalx" not in immediate_ids
                 and pretalx_provider.is_conference_query(query, luma_city)
             ):
-                applicable_ids.append("pretalx")
+                immediate_ids.append("pretalx")
 
-            # Execute only applicable providers in parallel
+            # Start general and deterministic specialist searches immediately.
+            # Ambiguous Jev routing runs alongside them.
+            routing_task = (
+                asyncio.create_task(select_ambiguous_specialists(
+                    query=query,
+                    location=luma_city,
+                    event_type=event_type,
+                    candidates=ambiguous_ids,
+                    provider_metadata=self._providers_meta,
+                    secrets_manager=secrets_manager,
+                ))
+                if ambiguous_ids else None
+            )
+            provider_started = time.monotonic()
+
+            async def run_provider(pid: str) -> tuple[List[Dict[str, Any]], int, Optional[str]]:
+                started = time.monotonic()
+                try:
+                    return await dispatch[pid]()
+                finally:
+                    logger.info(
+                        "Event provider completed request=%s provider=%s latency_ms=%.1f",
+                        request_id, pid, (time.monotonic() - started) * 1000,
+                    )
+
             task_entries = [
-                (pid, dispatch[pid]())
-                for pid in applicable_ids
-                if pid in dispatch
+                (pid, asyncio.create_task(run_provider(pid)))
+                for pid in immediate_ids if pid in dispatch
             ]
+            if routing_task:
+                completed_decisions, pending_decisions = await asyncio.wait(
+                    [routing_task], timeout=0.9,
+                )
+                for pending_decision in pending_decisions:
+                    pending_decision.cancel()
+                if pending_decisions:
+                    await asyncio.gather(*pending_decisions, return_exceptions=True)
+                if routing_task in completed_decisions:
+                    for pid in routing_task.result():
+                        if pid in dispatch and pid not in immediate_ids:
+                            task_entries.append((pid, asyncio.create_task(run_provider(pid))))
+
             searched_provider_ids = [pid for pid, _ in task_entries]
 
             if not task_entries:
-                return (request_id, [], "No applicable providers for this location", 0, [])
+                error = (
+                    "No selected provider supports location-free ONLINE searches"
+                    if location_free_online
+                    else "No applicable providers for this location"
+                )
+                return (request_id, [], error, 0, [])
 
-            results_tuples = await asyncio.gather(*[t[1] for t in task_entries])
+            remaining = max(
+                0.0, _PROVIDER_WORK_DEADLINE_SECONDS - (time.monotonic() - provider_started),
+            )
+            done, pending = await asyncio.wait(
+                [task for _, task in task_entries], timeout=remaining,
+            )
+            for pending_task in pending:
+                pending_task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
 
             # Log errors, collect results
             all_event_lists = []
             total_available = 0
-            for (pid, _), (events, total, err) in zip(task_entries, results_tuples):
+            for pid, task in task_entries:
+                if task not in done:
+                    events, total, err = [], 0, "provider deadline exceeded"
+                else:
+                    try:
+                        events, total, err = task.result()
+                    except Exception as exc:
+                        events, total, err = [], 0, str(exc)
                 if err:
                     logger.warning(
                         "%s failed in auto mode for request %s: %s", pid, request_id, err
@@ -1415,7 +1689,69 @@ class SearchSkill(BaseSkill):
             end_date=end_date,
             query=query,
         )
+        before_dedup_count = len(results)
+        results = self._deduplicate_events(results)
+        duplicate_count = before_dedup_count - len(results)
+        if duplicate_count:
+            quality_metadata["filtered_out_count"] = (
+                quality_metadata.get("filtered_out_count", 0) + duplicate_count
+            )
+            quality_metadata.setdefault("applied_filters", []).append("semantic_deduplication")
+        if relevance_criteria:
+            results = stable_deduplicate_candidates(
+                results,
+                key=self._relevance_deduplication_key,
+            )[:candidate_target]
+            projections = []
+            for result in results:
+                projections.append({
+                    "title": result.get("title"),
+                    "description": result.get("description"),
+                    "date_start": result.get("date_start"),
+                    "date_end": result.get("date_end"),
+                    "event_type": result.get("event_type"),
+                    "venue": result.get("venue") or result.get("location"),
+                    "organizer": result.get("organizer"),
+                    "provider": result.get("provider"),
+                    "price": result.get("price") or result.get("fee"),
+                    "constraint_matches": result.get("constraint_matches"),
+                    "url": result.get("url"),
+                })
+            ranking = await rank_search_candidates(
+                candidates=results,
+                candidate_projections=projections,
+                relevance_criteria=relevance_criteria,
+                search_parameters={
+                    "query": query,
+                    "location": luma_city,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "event_type": event_type,
+                    "radius_miles": radius_miles,
+                    "conference": conference,
+                    "providers": searched_provider_ids,
+                },
+                profile="events",
+                secrets_manager=secrets_manager,
+            )
+            results = ranking.candidates
+            if ranking.applied and len(ranking.scores) == len(results):
+                scored_results = list(zip(results, ranking.scores))
+                results = [
+                    result
+                    for result, score in scored_results
+                    if score >= _MIN_EVENT_RELEVANCE_SCORE
+                ]
+                omitted_count = len(scored_results) - len(results)
+                if omitted_count:
+                    quality_metadata["filtered_out_count"] = (
+                        quality_metadata.get("filtered_out_count", 0) + omitted_count
+                    )
+                    quality_metadata.setdefault("applied_filters", []).append(
+                        "relevance_floor"
+                    )
         results = results[:count]
+        await self._enrich_finalists(results, proxy_url=proxy_url)
         if quality_metadata.get("filtered_out_count"):
             logger.info(
                 "Events quality filters removed %d result(s) for request %s: %s",
@@ -1433,6 +1769,40 @@ class SearchSkill(BaseSkill):
             query,
         )
         return (request_id, results, None, total_available, searched_provider_ids, provider_warnings)
+
+    @staticmethod
+    async def _enrich_finalists(
+        results: List[Dict[str, Any]],
+        *,
+        proxy_url: Optional[str],
+    ) -> None:
+        """Hydrate only selected events, with a deadline below the skill guard."""
+        luma_events = [event for event in results if event.get("provider") == "luma"]
+        eventbrite_events = [event for event in results if event.get("provider") == "eventbrite"]
+        if not luma_events and not eventbrite_events:
+            return
+        tasks = []
+        if luma_events:
+            tasks.append(luma_provider.enrich_events_async(
+                luma_events, proxy_url=proxy_url,
+            ))
+        if eventbrite_events:
+            tasks.append(eventbrite_provider.enrich_events_async(
+                eventbrite_events, proxy_url=proxy_url,
+            ))
+        try:
+            outcomes = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=_FINALIST_ENRICHMENT_DEADLINE_SECONDS,
+            )
+            for outcome in outcomes:
+                if isinstance(outcome, Exception):
+                    logger.warning("Event finalist enrichment failed: %s", outcome)
+        except asyncio.TimeoutError:
+            logger.info("Event finalist enrichment reached its %.1fs deadline", _FINALIST_ENRICHMENT_DEADLINE_SECONDS)
+        finally:
+            for event in luma_events:
+                event.pop("_url_slug", None)
 
     # ------------------------------------------------------------------
     # Public execute() — called by BaseApp/route handler

@@ -8,8 +8,8 @@
   import type { Output } from './workflowBuilder';
   import { documentToTemplate, templateToDocument, outputToken, WORKFLOW_OUTPUT_NODE } from './workflowMessageTokens';
 
-  let { value = '', outputs = [], placeholder = '', disabled = false, onChange, onMentionTrigger }: {
-    value?: string; outputs?: Output[]; placeholder?: string; disabled?: boolean;
+  let { value = '', outputs = [], placeholder = '', id = undefined, ariaLabel = placeholder, dataTestid = 'workflow-message-template', compact = false, disabled = false, onChange, onMentionTrigger }: {
+    value?: string; outputs?: Output[]; placeholder?: string; id?: string; ariaLabel?: string; dataTestid?: string; compact?: boolean; disabled?: boolean;
     onChange: (value: string) => void; onMentionTrigger: (visible: boolean) => void;
   } = $props();
   let element: HTMLDivElement | undefined = $state();
@@ -56,12 +56,16 @@
       onUpdate: ({ editor: updated }) => { onChange(documentToTemplate(updated.getJSON())); onMentionTrigger?.(mentionAtCursor(updated)); },
       onSelectionUpdate: ({ editor: updated }) => onMentionTrigger?.(mentionAtCursor(updated)),
       editorProps: {
-        attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': placeholder, 'data-testid': 'workflow-message-template' },
-        handleKeyDown: (_view, event) => { if (event.key === 'Escape') onMentionTrigger?.(false); return false; },
+        attributes: { ...(id ? { id } : {}), role: 'textbox', 'aria-multiline': compact ? 'false' : 'true', 'aria-label': ariaLabel, 'data-testid': dataTestid },
+        handleKeyDown: (_view, event) => {
+          if (event.key === 'Escape') onMentionTrigger?.(false);
+          return compact && event.key === 'Enter';
+        },
         handlePaste: (_view, event) => {
           const pasted = event.clipboardData?.getData('text/plain');
-          if (!pasted?.includes('{{')) return false;
-          instance.commands.insertContent(templateToDocument(pasted, outputs).content ?? []);
+          if (!pasted || (!compact && !pasted.includes('{{'))) return false;
+          const inserted = compact ? pasted.replace(/\s*\n+\s*/g, ' ') : pasted;
+          instance.commands.insertContent(templateToDocument(inserted, outputs).content ?? []);
           return true;
         },
       },
@@ -77,8 +81,14 @@
   });
 </script>
 
-<div class="workflow-message-editor" class:disabled bind:this={element}></div>
+<div class="workflow-message-editor" class:compact class:disabled bind:this={element}></div>
 
 <style>
-  .workflow-message-editor{min-width:0;border:1px solid var(--color-grey-25);border-radius:.8rem;background:var(--color-grey-0);box-shadow:var(--shadow-sm);text-align:start;color:var(--color-font-primary);font-size:var(--font-size-p)}.workflow-message-editor:focus-within{outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-message-editor :global(.tiptap){padding:.65rem .8rem;min-height:8rem;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;font-size:var(--font-size-p);user-select:text}.workflow-message-editor :global(p){margin:0;min-height:1.65em}.workflow-message-editor :global(.generic-mention){display:inline-block;vertical-align:baseline;border-radius:1rem;padding:0 .5rem;margin:0 .1rem;background:var(--color-primary);color:var(--color-font-button)!important;-webkit-text-fill-color:var(--color-font-button)!important;opacity:1!important;font-size:var(--font-size-p);line-height:1.55;white-space:normal;cursor:default;user-select:all}.workflow-message-editor :global(.ProseMirror-selectednode){outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-message-editor :global(p.is-editor-empty:first-child::before){content:attr(data-placeholder);float:left;color:var(--color-font-secondary);height:0;pointer-events:none}.disabled{opacity:.65}
+  .workflow-message-editor{min-width:0;border:1px solid var(--color-grey-25);border-radius:.8rem;background:var(--workflow-input-surface,var(--color-grey-10));box-shadow:var(--shadow-sm);text-align:start;color:var(--color-font-primary);font-size:var(--font-size-p)}.workflow-message-editor:focus-within{outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-message-editor :global(.tiptap){padding:.65rem .8rem;min-height:8rem;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;font-size:var(--font-size-p);user-select:text}.workflow-message-editor :global(p){margin:0;min-height:1.65em}.workflow-message-editor :global(.generic-mention){display:inline-block;vertical-align:baseline;border-radius:1rem;padding:0 .5rem;margin:0 .1rem;background:var(--color-primary);color:var(--color-font-button)!important;-webkit-text-fill-color:var(--color-font-button)!important;opacity:1!important;font-size:var(--font-size-p);line-height:1.55;white-space:normal;cursor:default;user-select:all}.workflow-message-editor :global(.ProseMirror-selectednode){outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-message-editor :global(p.is-editor-empty:first-child::before){content:attr(data-placeholder);float:left;color:var(--color-font-secondary);height:0;pointer-events:none}.disabled{opacity:.65}
+  .workflow-message-editor.compact{box-sizing:border-box;width:100%;border:0;border-radius:1.5rem;background:var(--workflow-input-surface,var(--color-grey-10));box-shadow:0 .25rem .25rem rgba(0,0,0,.1);overflow-x:auto}
+  .workflow-message-editor.compact:focus-within{outline:0;box-shadow:0 .25rem .5rem rgba(0,0,0,.15),0 0 0 .125rem var(--color-primary-start)}
+  .workflow-message-editor.compact :global(.tiptap){box-sizing:border-box;width:max-content;min-width:100%;min-height:0;padding:1.0625rem 1.4375rem;white-space:nowrap;overflow-wrap:normal;line-height:1.25;font-weight:500}
+  .workflow-message-editor.compact :global(p){display:inline;min-height:0}
+  .workflow-message-editor.compact :global(p + p)::before{content:' '}
+  .workflow-message-editor.compact :global(.generic-mention){line-height:1.25;white-space:nowrap}
 </style>

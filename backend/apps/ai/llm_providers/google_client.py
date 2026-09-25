@@ -36,6 +36,7 @@ _temp_credentials_file: Optional[str] = None
 GOOGLE_AI_STUDIO_SECRET_PATH = "kv/data/providers/google_ai_studio"
 GOOGLE_AI_STUDIO_API_KEY_NAME = "api_key"
 _google_ai_studio_api_key: Optional[str] = None
+GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY = "google_thought_signature_provider"
 
 # Minimum temperature for Gemini thinking models (gemini-2.5-*, gemini-3-*).
 # Google's own engineers confirmed (Jan 2026) that setting temperature < 1.0 causes
@@ -105,6 +106,38 @@ class ParsedGoogleToolCall(BaseModel):
     function_arguments_parsed: Dict[str, Any]
     parsing_error: Optional[str] = None
     thought_signature: Optional[str] = None  # For Gemini 3 thinking models - must be passed back in multi-turn
+    # Gemini thought signatures are bound to the API surface that minted them.
+    # MainProcessor preserves this opaque state in the in-flight tool history so
+    # llm_utils can keep later turns on AI Studio or Vertex, respectively.
+    provider_transport_state: Optional[Dict[str, str]] = None
+
+
+def _parse_streamed_google_tool_call(
+    function_call: Any,
+    *,
+    function_call_thought_signature: Any = None,
+    candidate_thought_signature: Optional[str],
+    signature_provider_id: str,
+) -> ParsedGoogleToolCall:
+    """Convert a streamed Gemini function call and retain signature affinity."""
+    args_dict = dict(function_call.args) if function_call.args else {}
+    thought_signature = (
+        serialize_thought_signature(function_call_thought_signature)
+        or candidate_thought_signature
+    )
+    return ParsedGoogleToolCall(
+        tool_call_id=f"{function_call.name}-{uuid.uuid4().hex[:8]}",
+        function_name=function_call.name,
+        function_arguments_parsed=args_dict,
+        function_arguments_raw=json.dumps(args_dict),
+        thought_signature=thought_signature,
+        provider_transport_state=(
+            {GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: signature_provider_id}
+            if thought_signature
+            else None
+        ),
+    )
+
 
 class UnifiedGoogleResponse(BaseModel):
     task_id: str
@@ -581,7 +614,10 @@ async def invoke_google_ai_studio_chat_completions(
         google_tools = _map_tools_to_google_format(tools)
 
         tool_config_dict = {}
-        if google_tools:
+        # A continuation can include earlier function calls even when this
+        # request supplies no tools. Explicitly disable function calling so
+        # Gemini does not continue that pattern on the final answer turn.
+        if google_tools or (tool_choice or "").lower() == "none":
             mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE", "required": "ANY"}
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
@@ -735,22 +771,17 @@ async def invoke_google_ai_studio_chat_completions(
                                     # Check for function call on this part (with thought signature)
                                     # This is the proper way to get function calls + signatures together
                                     if hasattr(part, 'function_call') and part.function_call:
-                                        fc = part.function_call
-                                        args_dict = dict(fc.args) if fc.args else {}
-                                        # CRITICAL: Extract thought_signature from the part
-                                        # The signature may be bytes (binary) - convert to base64 string for storage
-                                        thought_sig = (
-                                            serialize_thought_signature(getattr(part, 'thought_signature', None))
-                                            or candidate_thought_sig
+                                        parsed_tool_call = _parse_streamed_google_tool_call(
+                                            part.function_call,
+                                            function_call_thought_signature=getattr(part, "thought_signature", None),
+                                            candidate_thought_signature=candidate_thought_sig,
+                                            signature_provider_id="google_ai_studio",
                                         )
-                                        parsed_tool_call = ParsedGoogleToolCall(
-                                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
-                                            function_name=fc.name,
-                                            function_arguments_parsed=args_dict,
-                                            function_arguments_raw=json.dumps(args_dict),
-                                            thought_signature=thought_sig  # Capture for multi-turn (base64 if bytes)
+                                        logger.info(
+                                            f"{log_prefix} Yielding a tool call from stream: "
+                                            f"{parsed_tool_call.function_name} "
+                                            f"(has_signature={parsed_tool_call.thought_signature is not None})"
                                         )
-                                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name} (has_signature={thought_sig is not None})")
                                         yield parsed_tool_call
                                     # Check if this is a thinking/thought part
                                     elif hasattr(part, 'thought') and part.thought:
@@ -965,7 +996,7 @@ async def invoke_google_chat_completions(
         google_tools = _map_tools_to_google_format(tools)
         
         tool_config_dict = {}
-        if google_tools:
+        if google_tools or (tool_choice or "").lower() == "none":
             mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE", "required": "ANY"}
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
@@ -1117,22 +1148,17 @@ async def invoke_google_chat_completions(
                                     # Check for function call on this part (with thought signature)
                                     # This is the proper way to get function calls + signatures together
                                     if hasattr(part, 'function_call') and part.function_call:
-                                        fc = part.function_call
-                                        args_dict = dict(fc.args) if fc.args else {}
-                                        # CRITICAL: Extract thought_signature from the part
-                                        # The signature may be bytes (binary) - convert to base64 string for storage
-                                        thought_sig = (
-                                            serialize_thought_signature(getattr(part, 'thought_signature', None))
-                                            or candidate_thought_sig
+                                        parsed_tool_call = _parse_streamed_google_tool_call(
+                                            part.function_call,
+                                            function_call_thought_signature=getattr(part, "thought_signature", None),
+                                            candidate_thought_signature=candidate_thought_sig,
+                                            signature_provider_id="google",
                                         )
-                                        parsed_tool_call = ParsedGoogleToolCall(
-                                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
-                                            function_name=fc.name,
-                                            function_arguments_parsed=args_dict,
-                                            function_arguments_raw=json.dumps(args_dict),
-                                            thought_signature=thought_sig  # Capture for multi-turn (base64 if bytes)
+                                        logger.info(
+                                            f"{log_prefix} Yielding a tool call from stream: "
+                                            f"{parsed_tool_call.function_name} "
+                                            f"(has_signature={parsed_tool_call.thought_signature is not None})"
                                         )
-                                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name} (has_signature={thought_sig is not None})")
                                         yield parsed_tool_call
                                     # Check if this is a thinking/thought part
                                     elif hasattr(part, 'thought') and part.thought:

@@ -55,6 +55,15 @@ def test_today_date_value_resolves_again_for_each_run_and_test() -> None:
     assert second == {"start_date": "2026-09-15"}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_today_end_datetime_uses_local_timezone_and_inclusive_boundary() -> None:
+    assert resolve_workflow_runtime_values(
+        {"$date": "today_end", "format": "datetime"},
+        now=stamp("2026-09-14T23:30:00+02:00"),
+        timezone="Europe/Berlin",
+    ) == "2026-09-14T23:59:59+02:00"
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
 @pytest.mark.parametrize("app,alias", [("news", "articles"), ("events", "events"), ("home", "listings")])
 def test_search_results_are_flat_and_identity_ignores_tracking(app: str, alias: str) -> None:

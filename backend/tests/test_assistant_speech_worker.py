@@ -24,6 +24,8 @@ from backend.apps.audio.assistant_speech.persistence import (
     finalize_speech_segment_execution,
     invalidate_speech_segment,
     prepare_manifest_billing,
+    prepare_next_segment_billing,
+    complete_segment_billing,
     safe_segment_status,
     update_segment_status,
 )
@@ -131,6 +133,87 @@ def test_assistant_response_speech_uses_one_message_level_character_rounding_ste
     assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 2
     assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v3_conversational"
     assert DEFAULT_SPEECH_MODEL == "eleven_v3"
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
+@pytest.mark.asyncio
+async def test_incremental_billing_claims_each_ready_segment_once_with_cumulative_rounding() -> None:
+    manifest = {
+        "id": "manifest-row", "manifest_id": "manifest-1", "user_id": "user-1", "chat_id": "chat-1",
+        "assistant_message_id": "message-1", "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+        "execution_version": 0, "billing_status": "pending", "billing_settled_segment_ids": [],
+        "billing_settled_characters": 0, "billing_claim_segment_id": None,
+    }
+    segments = [
+        {"id": "row-1", "segment_id": "segment-1", "sequence": 0, "status": "ready", "billable_character_count": 8},
+        {"id": "row-2", "segment_id": "segment-2", "sequence": 1, "status": "registered", "billable_character_count": None},
+    ]
+
+    class Directus:
+        async def get_items(self, collection, *, params, no_cache):
+            return [manifest.copy()] if collection == "assistant_speech_manifests" else [row.copy() for row in segments]
+
+        async def update_item_if_version(self, collection, row_id, data, expected_version, **kwargs):
+            if manifest["execution_version"] != expected_version:
+                return None
+            for key, value in kwargs.get("extra_filters", {}).items():
+                if manifest.get(key) != value:
+                    return None
+            manifest.update(data)
+            return manifest.copy()
+
+        async def update_item(self, collection, row_id, data):
+            next(row for row in segments if row["id"] == row_id).update(data)
+
+    directus = Directus()
+    first = await prepare_next_segment_billing(directus, "manifest-1")
+    assert first and first["segment_id"] == "segment-1"
+    competing = await prepare_next_segment_billing(directus, "manifest-1")
+    assert competing and competing["segment_id"] == "segment-1"
+    assert await complete_segment_billing(directus, first, usage_id="usage-1") is True
+    assert await complete_segment_billing(directus, competing, usage_id="usage-1") is False
+    assert await prepare_next_segment_billing(directus, "manifest-1") is None
+
+    segments[1].update({"status": "ready", "billable_character_count": 8})
+    second = await prepare_next_segment_billing(directus, "manifest-1")
+    assert second and second["settled_characters"] == 8
+    delta = calculate_assistant_response_speech_credits(submitted_characters=16) - calculate_assistant_response_speech_credits(submitted_characters=8)
+    assert delta == 1
+    assert await complete_segment_billing(directus, second, usage_id="usage-2") is True
+    assert manifest["billing_settled_characters"] == 16
+    assert manifest["billing_settled_segment_ids"] == ["segment-1", "segment-2"]
+    assert await prepare_next_segment_billing(directus, "manifest-1") is None
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
+@pytest.mark.asyncio
+async def test_legacy_committed_aggregate_is_not_billed_again() -> None:
+    manifest = {
+        "id": "manifest-row", "manifest_id": "manifest-1", "user_id": "user-1", "chat_id": "chat-1",
+        "assistant_message_id": "message-1", "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+        "execution_version": 0, "billing_status": "committed", "billing_usage_id": "old-usage",
+        "billing_settled_segment_ids": None, "billing_settled_characters": 0,
+    }
+
+    class Directus:
+        async def get_items(self, collection, *, params, no_cache):
+            if collection == "assistant_speech_manifests":
+                return [manifest.copy()]
+            return [{"segment_id": "old-segment", "sequence": 0, "status": "ready", "billable_character_count": 29}]
+
+        async def update_item(self, collection, row_id, data):
+            assert collection == "assistant_speech_segments"
+            assert row_id == "old-segment"
+            assert data == {"billing_usage_id": "old-usage"}
+
+        async def update_item_if_version(self, collection, row_id, data, expected_version, **kwargs):
+            assert manifest["execution_version"] == expected_version
+            manifest.update(data)
+            return manifest.copy()
+
+    assert await prepare_next_segment_billing(Directus(), "manifest-1") is None
+    assert manifest["billing_settled_segment_ids"] == ["old-segment"]
+    assert manifest["billing_settled_characters"] == 29
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.safety.provider-after-approval,assistant-speech.failure.nonblocking-visible-resumable

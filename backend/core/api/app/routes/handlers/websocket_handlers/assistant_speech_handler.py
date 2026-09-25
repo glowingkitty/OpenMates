@@ -66,7 +66,9 @@ async def handle_assistant_speech_request(
         return _error("canonical_segment_required")
     if not await _resolve(rate_limit(user_id=user_id, chat_id=chat_id, segment_count=len(segments))):
         return _error("rate_limited")
-    for segment in segments:
+    for index, segment in enumerate(segments):
+        if payload.get("defer_after_first") and index > 0:
+            continue
         if not isinstance(segment, Mapping) or not await _resolve(
             budget_preflight(
                 user_id=user_id,
@@ -82,9 +84,12 @@ async def handle_assistant_speech_request(
         chat_id=chat_id,
         assistant_message_id=assistant_message_id,
         segments=segments,
+        defer_after_first=bool(payload.get("defer_after_first")),
+        require_registered=payload.get("action") == "generate",
     )
     results = dispatched if isinstance(dispatched, list) else [dispatched]
-    return {"status": "accepted", "segments": [_safe_result(result) for result in results if result]}
+    return {"status": "accepted", "chat_id": chat_id, "message_id": assistant_message_id,
+            "segments": [_safe_result(result) for result in results if result]}
 
 
 def _error(error: str) -> dict[str, str]:
@@ -115,7 +120,7 @@ async def handle_assistant_speech_websocket(
 ) -> None:
     """Route first-party request, retry, and deletion actions without echoing text."""
     action = str(payload.get("action") or "request")
-    if action == "request":
+    if action in {"request", "generate"}:
         result = await handle_assistant_speech_request(
             user_id=user_id,
             payload=payload,
@@ -236,7 +241,8 @@ async def handle_assistant_speech_event(
         def eligible(row: Mapping[str, object]) -> bool:
             return (
                 str(row.get("segment_id") or "") not in excluded
-                and str(row.get("status") or "") not in ASSISTANT_SPEECH_INELIGIBLE_STATUSES
+                and (str(row.get("status") or "") not in ASSISTANT_SPEECH_INELIGIBLE_STATUSES
+                     or row.get("status") == "cancelled" and not row.get("generated_asset_id"))
             )
 
         async def exact_match(candidate_text: str) -> Mapping[str, object] | None:
@@ -328,6 +334,9 @@ async def handle_assistant_speech_event(
         segments = kwargs["segments"]
         if not isinstance(segments, list):
             return []
+        defer_after_first = bool(kwargs.get("defer_after_first"))
+        require_registered = bool(kwargs.get("require_registered"))
+        first_sequence = min(int(segment["sequence"]) for segment in segments if isinstance(segment, Mapping))
         safe_results: list[dict[str, object]] = []
         normalized: list[dict[str, object]] = []
         historical_by_version: dict[int, list[dict[str, object]]] = {}
@@ -344,6 +353,9 @@ async def handle_assistant_speech_event(
                 excluded_segment_ids=matched_segment_ids,
             )
             if match is None:
+                if require_registered:
+                    safe_results.append({"sequence": int(segment["sequence"]), "status": "error", "error": "Speech source is no longer current.", "retryable": False})
+                    continue
                 source_version = int(segment["source_version"])
                 request_sequence = int(segment["sequence"])
                 sequence = request_sequence + await sequence_offset_for(
@@ -363,9 +375,20 @@ async def handle_assistant_speech_event(
                     "speakable_text": text,
                     "voice_profile_key": HISTORICAL_SPEECH_VOICE_PROFILE["key"],
                     "voice_profile_version": HISTORICAL_SPEECH_VOICE_PROFILE["version"],
+                    "dispatch_status": "registered" if defer_after_first and request_sequence != first_sequence else "queued",
                 })
                 continue
             row, canonical_text = match
+            if row.get("status") == "cancelled":
+                reset = await directus_service.update_item_if_version(
+                    "assistant_speech_segments", str(row.get("id") or row["segment_id"]),
+                    {"status": "registered"}, int(row.get("execution_version") or 0),
+                    version_field="execution_version", extra_filters={"status": "cancelled"},
+                )
+                if not reset:
+                    safe_results.append({"segment_id": str(row["segment_id"]), "sequence": int(row["sequence"]), "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True})
+                    continue
+                row = {**row, "status": "registered"}
             source_hash = _speech_source_identity(canonical_text)
             matched_segment_ids.add(str(row["segment_id"]))
             request_sequence = int(segment["sequence"])
@@ -373,6 +396,18 @@ async def handle_assistant_speech_event(
             if status in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES or (status == "error" and not row.get("retryable")):
                 safe_results.append(_safe_result({**row, "request_sequence": request_sequence}))
                 continue
+            should_generate = not (defer_after_first and request_sequence != first_sequence)
+            if status == "registered" and should_generate:
+                version = int(row.get("execution_version") or 0)
+                queued = await directus_service.update_item_if_version(
+                    "assistant_speech_segments", str(row.get("id") or row["segment_id"]),
+                    {"status": "queued", "execution_version": version + 1}, version,
+                    version_field="execution_version", extra_filters={"status": "registered"},
+                )
+                if not queued:
+                    safe_results.append(_safe_result({**row, "status": "queued", "request_sequence": request_sequence}))
+                    continue
+                row = {**row, "status": "queued", "execution_version": version + 1}
             normalized.append({
                 "segment_id": str(row["segment_id"]),
                 "source_version": int(row["source_version"]),
@@ -383,6 +418,8 @@ async def handle_assistant_speech_event(
                 "speakable_text": canonical_text,
                 "voice_profile_key": str(row["voice_profile_key"]),
                 "voice_profile_version": int(row["voice_profile_version"]),
+                **{key: row[key] for key in ("live_mock_mode", "live_mock_group", "live_mock_required") if row.get(key)},
+                "dispatch_status": "registered" if not should_generate else "queued",
             })
         for source_version, historical_segments in historical_by_version.items():
             manifest = await create_manifest_and_segments(
@@ -428,6 +465,8 @@ async def handle_assistant_speech_event(
                     })
         user_vault_key_id = await get_user_vault_key_id() if normalized else None
         for segment in normalized:
+            if segment.get("dispatch_status") == "registered":
+                continue
             if not user_vault_key_id:
                 safe_results.append({"segment_id": segment["segment_id"], "sequence": segment["sequence"], "request_sequence": segment["request_sequence"], "kind": segment["kind"], "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True})
                 continue
@@ -439,10 +478,10 @@ async def handle_assistant_speech_event(
                 "sequence": segment["sequence"],
                 "request_sequence": segment["request_sequence"],
                 "kind": segment["kind"],
-                "status": "queued",
+                "status": "registered" if segment.get("dispatch_status") == "registered" else "queued",
             }
             for segment in normalized
-            if user_vault_key_id
+            if user_vault_key_id or segment.get("dispatch_status") == "registered"
         )
         return [*safe_results, *queued]
 

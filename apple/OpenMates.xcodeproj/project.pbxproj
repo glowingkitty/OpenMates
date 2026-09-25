@@ -79,12 +79,15 @@
 		A3B68128D54EE2757C2C0ADF /* ProgressiveMessagePreviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA061E0EECAAED2B2A7503B /* ProgressiveMessagePreviewUITests.swift */; };
 		AF1300000000000000040000 /* DevAuthFormUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF1200000000000000000004 /* DevAuthFormUITests.swift */; };
 		C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */; };
+		C0FFEE000000000000054102 /* WatchFlowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000054101 /* WatchFlowUITests.swift */; };
 		0007B5C7FCB6FC85F1DD7107 /* SettingsLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */; };
 		00E9903CB4B266B59E16AB50 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
 		012057623219277299AA30A1 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
 		01A6184F6B962FB34FA5B574 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
 		02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B6AD3DACC91432F04B1E17 /* OfflineSyncBridge.swift */; };
 		033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */; };
+		D5A000000000000000000002 /* DeviceShakeReportTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */; };
+		D5A000000000000000000003 /* DeviceShakeReportTrigger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */; };
 		C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
@@ -159,6 +162,7 @@
 		C0FFEE000000000000048022 /* i18n in Resources */ = {isa = PBXBuildFile; fileRef = 2B48B4BA9CC01C1F47E89D75 /* i18n */; };
 		C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */; };
 		C0FFEE000000000000048025 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 82F8B920FCEFE49C520D05ED /* Fonts */; };
+		C0FFEE000000000000048026 /* FontRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50826BC7A9753643CB205C57 /* FontRegistration.swift */; };
 		AE1700000000000000010000 /* modelsMetadata.json in Resources */ = {isa = PBXBuildFile; fileRef = AE1600000000000000000001 /* modelsMetadata.json */; };
 		C0FFEE000000000000049002 /* WatchChatViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049001 /* WatchChatViews.swift */; };
 		C0FFEE000000000000049004 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
@@ -313,6 +317,8 @@
 		C0FFEE000000000000055004 /* ChatNavigationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */; };
 		C0FFEE000000000000056004 /* LandingOnboardingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */; };
 		C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */; };
+		C0FFEE000000000000075004 /* CrossClientChatSyncUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000075001 /* CrossClientChatSyncUITests.swift */; };
+		C0FFEE000000000000076004 /* PendingUploadStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000076001 /* PendingUploadStoreTests.swift */; };
 		C0FFEE000000000000005004 /* RealAccountUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */; };
 		C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */; };
 		C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */; };
@@ -352,6 +358,8 @@
 		C0FFEE000000000000021004 /* RemindersPublicContentParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */; };
 		C0FFEE000000000000022004 /* SkillApplicationParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */; };
 		C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */; };
+		B7A710000000000000000002 /* VideoTranscriptPayloadParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A710000000000000000001 /* VideoTranscriptPayloadParityTests.swift */; };
+		B7A720000000000000000002 /* ComposerAudioPreviewContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A720000000000000000001 /* ComposerAudioPreviewContentTests.swift */; };
 		C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000024001 /* SettingsFullParityTests.swift */; };
 		A22E00000000000000000011 /* SettingsModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000001 /* SettingsModeModels.swift */; };
 		A22E00000000000000000012 /* SettingsModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22E00000000000000000001 /* SettingsModeModels.swift */; };
@@ -398,6 +406,11 @@
 		C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
 		C0FFEE00000000000003600C /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
 		C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
+		A0D100000000000000000002 /* AudioRealtimeTranscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */; };
+		A0D100000000000000000003 /* AudioRealtimeTranscriptionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */; };
+		A0D100000000000000000005 /* AudioRealtimeTranscriptionClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000004 /* AudioRealtimeTranscriptionClientTests.swift */; };
+		A0D100000000000000000007 /* ChatAudioPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D100000000000000000006 /* ChatAudioPipelineTests.swift */; };
+		A0D200000000000000000002 /* APIClientUploadTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D200000000000000000001 /* APIClientUploadTransportTests.swift */; };
 		C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
 		C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */; };
@@ -774,6 +787,18 @@
 		C2E0287AA4A56BC4EDEB5E8F /* NativeSignupStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A148178FFF0BD307ED297726 /* NativeSignupStateTests.swift */; };
 		91460556C18F0D0F02ABE2FA /* NativeSignupPasswordPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8013FB1332B8A3DD9FE57A /* NativeSignupPasswordPolicyTests.swift */; };
 		98741A9C0A0FF3E558346983 /* DevSignupRuntimeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C7B8D58A082AE5D30624C17 /* DevSignupRuntimeUITests.swift */; };
+		1849878CFE42D13E127D27E0 /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */; };
+		468C32E57DC056BAEFD042D4 /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */; };
+		F3AD7C8BE79B4D1E3EC0B0D7 /* WatchItemOpenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */; };
+		2287142A4DD127B4123E6938 /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
+		83136C15A6FE80F35F0541CD /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
+		752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
+		1AF6B5DE991CA6579DDF1B1C /* WatchHubDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */; };
+		A3C7D64E1D9847CBA19428F1 /* WatchHubDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */; };
+		3B6494DB3177E720650E3849 /* WatchHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6764F2FB4283163E9DE77C /* WatchHubView.swift */; };
+		C69C86A067648BC7AFDD5AF3 /* WatchItemOpenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */; };
+		055E07B8EB1520CBEC63C717 /* WatchPhoneOpenPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */; };
+		A3C7D64E1D9847CBA19428F2 /* WatchHubDataServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3C7D64E1D9847CBA19428F3 /* WatchHubDataServiceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1018,6 +1043,10 @@
 		A10000000000000000000005 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		A10000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000008 /* OpenMatesNotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesNotificationService.entitlements; sourceTree = "<group>"; };
+		A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRealtimeTranscriptionClient.swift; sourceTree = "<group>"; };
+		A0D100000000000000000004 /* AudioRealtimeTranscriptionClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift; sourceTree = SOURCE_ROOT; };
+		A0D100000000000000000006 /* ChatAudioPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/ChatAudioPipelineTests.swift; sourceTree = SOURCE_ROOT; };
+		A0D200000000000000000001 /* APIClientUploadTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/APIClientUploadTransportTests.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000009 /* OpenMatesNotificationService.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OpenMatesNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		50826BC7A9753643CB205C57 /* FontRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontRegistration.swift; sourceTree = "<group>"; };
 		57079AD3AF054B1475AB1E48 /* NutritionSearchIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionSearchIntent.swift; sourceTree = "<group>"; };
@@ -1060,6 +1089,7 @@
 		E1A0E57A8C5C4F0E92A10102 /* EventsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		7F34D30BDD3CA6FB3E99D6F3 /* NewsletterSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsletterSettingsView.swift; sourceTree = "<group>"; };
 		7F5C1DCEC899C0A6F6DC2139 /* ReportIssueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportIssueView.swift; sourceTree = "<group>"; };
+		D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceShakeReportTrigger.swift; sourceTree = "<group>"; };
 		7F8A1C85BF2BCAB833E8CE8B /* ImageEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageEmbedRenderer.swift; sourceTree = "<group>"; };
 		8091075B043B717B7D8BC5A8 /* GradientTokens.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientTokens.generated.swift; sourceTree = "<group>"; };
 		81714243E70B081FD236EDEA /* TravelSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelSearchEmbedRenderer.swift; sourceTree = "<group>"; };
@@ -1158,12 +1188,15 @@
 		C0FFEE000000000000001003 /* OpenMatesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatLayoutUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000054101 /* WatchFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchFlowUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000054003 /* OpenMatesWatchUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesWatchUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A11E00000000000000000001 /* SettingsMacShellParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMacShellParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000055001 /* ChatNavigationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatNavigationParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000056001 /* LandingOnboardingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandingOnboardingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFlowRealAccountUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000075001 /* CrossClientChatSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossClientChatSyncUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000076001 /* PendingUploadStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadStoreTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000005001 /* RealAccountUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealAccountUITestSupport.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatNotificationUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAttachmentUITests.swift; sourceTree = "<group>"; };
@@ -1198,6 +1231,8 @@
 		C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersPublicContentParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000022001 /* SkillApplicationParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillApplicationParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillApplicationParityTests.swift; sourceTree = "<group>"; };
+		B7A710000000000000000001 /* VideoTranscriptPayloadParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoTranscriptPayloadParityTests.swift; sourceTree = "<group>"; };
+		B7A720000000000000000001 /* ComposerAudioPreviewContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerAudioPreviewContentTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000024001 /* SettingsFullParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsFullParityTests.swift; sourceTree = "<group>"; };
 		A22E00000000000000000001 /* SettingsModeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModeModels.swift; sourceTree = "<group>"; };
 		A22E00000000000000000002 /* SettingsLearningModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLearningModeView.swift; sourceTree = "<group>"; };
@@ -1315,6 +1350,13 @@
 		A148178FFF0BD307ED297726 /* NativeSignupStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/NativeSignupStateTests.swift; sourceTree = SOURCE_ROOT; };
 		BF8013FB1332B8A3DD9FE57A /* NativeSignupPasswordPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesTests/NativeSignupPasswordPolicyTests.swift; sourceTree = SOURCE_ROOT; };
 		6C7B8D58A082AE5D30624C17 /* DevSignupRuntimeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesUITests/DevSignupRuntimeUITests.swift; sourceTree = SOURCE_ROOT; };
+		ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchItemOpenModel.swift; sourceTree = "<group>"; };
+		914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPhoneOpenPayload.swift; sourceTree = "<group>"; };
+		6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubDataService.swift; sourceTree = "<group>"; };
+		7C6764F2FB4283163E9DE77C /* WatchHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubView.swift; sourceTree = "<group>"; };
+		A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchItemOpenModelTests.swift; sourceTree = "<group>"; };
+		9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPhoneOpenPayloadTests.swift; sourceTree = "<group>"; };
+		A3C7D64E1D9847CBA19428F3 /* WatchHubDataServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubDataServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1510,6 +1552,7 @@
 				C0FFEE000000000000046001 /* MessageComposerView.swift */,
 				196E2615E6B7768CDD149B36 /* OMButtonStyles.swift */,
 				90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */,
+				D5A000000000000000000001 /* DeviceShakeReportTrigger.swift */,
 				96B5D464AD5823963A861166 /* RichMarkdownRenderer.swift */,
 				40704843A9B6CF388F231FAB /* ProgressiveMarkdownRenderProjection.swift */,
 				5BFC6131B2CFDC1BDE64CE86 /* ToastNotification.swift */,
@@ -1557,6 +1600,7 @@
 			isa = PBXGroup;
 			children = (
 				EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */,
+				A0D100000000000000000001 /* AudioRealtimeTranscriptionClient.swift */,
 				C0DE00000000000000000001 /* CodeRunService.swift */,
 				710225174647E1642E8B5863 /* DeepLinkHandler.swift */,
 				A10000000000000000000001 /* NotificationPreviewCrypto.swift */,
@@ -1864,6 +1908,8 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000049003 /* WatchChatRuntime.swift */,
+				ACB290E611E10A27C28CC4F2 /* WatchItemOpenModel.swift */,
+				914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */,
 				C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */,
 			);
 			path = Watch;
@@ -1970,6 +2016,7 @@
 				C0FFEE000000000000030001 /* SettingsInterfaceLanguageParityUITests.swift */,
 				C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */,
 				C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */,
+				C0FFEE000000000000075001 /* CrossClientChatSyncUITests.swift */,
 				A99209120000000000000006 /* DevComponentPreviewUITests.swift */,
 				35A95C4E8E98CC70470D64F5 /* HistoryWelcomeComponentUITests.swift */,
 				AE1600000000000000000000 /* ModelFixtureUITests.swift */,
@@ -1998,6 +2045,7 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000054001 /* WatchChatLayoutUITests.swift */,
+				C0FFEE000000000000054101 /* WatchFlowUITests.swift */,
 			);
 			path = OpenMatesWatchUITests;
 			sourceTree = "<group>";
@@ -2023,6 +2071,8 @@
 				C0FFEE000000000000048009 /* WatchLocalization.swift */,
 				C0FFEE000000000000048013 /* WatchPairLoginView.swift */,
 				C0FFEE000000000000047003 /* WatchRootView.swift */,
+				6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */,
+				7C6764F2FB4283163E9DE77C /* WatchHubView.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -2030,11 +2080,17 @@
 		C0FFEE000000000000002012 /* OpenMatesTests */ = {
 			isa = PBXGroup;
 			children = (
+				A0D100000000000000000004 /* AudioRealtimeTranscriptionClientTests.swift */,
+				A0D100000000000000000006 /* ChatAudioPipelineTests.swift */,
+				A0D200000000000000000001 /* APIClientUploadTransportTests.swift */,
 				C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */,
 				B70000000000000000000005 /* SettingsPrivacyParityTests.swift */,
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
 				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
 				C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */,
+				A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */,
+				9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */,
+				A3C7D64E1D9847CBA19428F3 /* WatchHubDataServiceTests.swift */,
 				C0FFEE000000000000049030 /* WatchAuthStoreTests.swift */,
 				C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
@@ -2058,6 +2114,7 @@
 				C0FFEE00000000000005005C /* VoiceRecorderTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
+				C0FFEE000000000000076001 /* PendingUploadStoreTests.swift */,
 				A99209120000000000000004 /* DevPreviewLaunchConfigurationTests.swift */,
 				AF1200000000000000000003 /* AuthFormTests.swift */,
 				CA06B179BE4D99FC530BF7A5 /* AuthSessionReauthenticationTests.swift */,
@@ -2082,6 +2139,8 @@
 				C0FFEE000000000000019001 /* SettingsBillingParityTests.swift */,
 				C0FFEE000000000000021001 /* RemindersPublicContentParityTests.swift */,
 				C0FFEE000000000000023001 /* SkillApplicationParityTests.swift */,
+				B7A710000000000000000001 /* VideoTranscriptPayloadParityTests.swift */,
+				B7A720000000000000000001 /* ComposerAudioPreviewContentTests.swift */,
 				C0FFEE000000000000024001 /* SettingsFullParityTests.swift */,
 				B66000000000000000000001 /* SettingsMemoriesMatesParityTests.swift */,
 				A22E00000000000000000003 /* SettingsModesParityTests.swift */,
@@ -2748,6 +2807,8 @@
 				C0FFEE000000000000048016 /* APIClient.swift in Sources */,
 				C0FFEE000000000000048017 /* ServerConfiguration.swift in Sources */,
 				C0FFEE000000000000049004 /* WatchChatRuntime.swift in Sources */,
+				1849878CFE42D13E127D27E0 /* WatchItemOpenModel.swift in Sources */,
+				2287142A4DD127B4123E6938 /* WatchPhoneOpenPayload.swift in Sources */,
 				C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */,
 				C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */,
@@ -2756,8 +2817,11 @@
 				C0FFEE000000000000049014 /* WatchEmbedViews.swift in Sources */,
 				C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */,
 				C0FFEE000000000000047004 /* WatchRootView.swift in Sources */,
+				1AF6B5DE991CA6579DDF1B1C /* WatchHubDataService.swift in Sources */,
+				3B6494DB3177E720650E3849 /* WatchHubView.swift in Sources */,
 				D1A6D1A6D1A6D1A6D1A60005 /* NativeDiagnostics.swift in Sources */,
 				C0FFEE000000000000047006 /* DataExtensions.swift in Sources */,
+				C0FFEE000000000000048026 /* FontRegistration.swift in Sources */,
 				C0FFEE000000000000048021 /* OpenMatesSharedEnvironment.swift in Sources */,
 				C0FFEE000000000000047008 /* ColorTokens.generated.swift in Sources */,
 				C0FFEE000000000000047024 /* GradientTokens.generated.swift in Sources */,
@@ -2799,6 +2863,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5A000000000000000000003 /* DeviceShakeReportTrigger.swift in Sources */,
+				A0D100000000000000000003 /* AudioRealtimeTranscriptionClient.swift in Sources */,
 				C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */,
 				C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */,
 				C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */,
@@ -2821,6 +2887,8 @@
 				D28496BC291A569EA6AD7667 /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */,
+				468C32E57DC056BAEFD042D4 /* WatchItemOpenModel.swift in Sources */,
+				83136C15A6FE80F35F0541CD /* WatchPhoneOpenPayload.swift in Sources */,
 				C0FFEE000000000000049011 /* WatchEmbedPreviewModel.swift in Sources */,
 				31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */,
 				EE49D3D4C3BA1DAED058F015 /* BackupCodeView.swift in Sources */,
@@ -3085,6 +3153,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D5A000000000000000000002 /* DeviceShakeReportTrigger.swift in Sources */,
+				A0D100000000000000000002 /* AudioRealtimeTranscriptionClient.swift in Sources */,
 				87BC11EACC54693695953576 /* AITypingIndicator.swift in Sources */,
 				555AD52BB0EB143F00E3B872 /* APIClient.swift in Sources */,
 				C0DE00000000000000000002 /* CodeRunService.swift in Sources */,
@@ -3103,6 +3173,9 @@
 				F98B349F4D92BA38E6A386DE /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */,
+				F3AD7C8BE79B4D1E3EC0B0D7 /* WatchItemOpenModel.swift in Sources */,
+				752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */,
+				A3C7D64E1D9847CBA19428F1 /* WatchHubDataService.swift in Sources */,
 				C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */,
 				88923DFE92A96AF8D50B9372 /* BackgroundChatSender.swift in Sources */,
 				E628B3A1F3BF0C7F6F112E67 /* BackupCodeView.swift in Sources */,
@@ -3434,6 +3507,7 @@
 				C0FFEE000000000000030004 /* SettingsInterfaceLanguageParityUITests.swift in Sources */,
 				C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */,
 				C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */,
+				C0FFEE000000000000075004 /* CrossClientChatSyncUITests.swift in Sources */,
 				A99209120000000000000007 /* DevComponentPreviewUITests.swift in Sources */,
 				2322F1CFE771DB3571B53312 /* HistoryWelcomeComponentUITests.swift in Sources */,
 				AE1700000000000000000000 /* ModelFixtureUITests.swift in Sources */,
@@ -3464,6 +3538,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000054002 /* WatchChatLayoutUITests.swift in Sources */,
+				C0FFEE000000000000054102 /* WatchFlowUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3471,10 +3546,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0D100000000000000000005 /* AudioRealtimeTranscriptionClientTests.swift in Sources */,
+				A0D100000000000000000007 /* ChatAudioPipelineTests.swift in Sources */,
+				A0D200000000000000000002 /* APIClientUploadTransportTests.swift in Sources */,
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
 				C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
+				C69C86A067648BC7AFDD5AF3 /* WatchItemOpenModelTests.swift in Sources */,
+				055E07B8EB1520CBEC63C717 /* WatchPhoneOpenPayloadTests.swift in Sources */,
+				A3C7D64E1D9847CBA19428F2 /* WatchHubDataServiceTests.swift in Sources */,
 				C0FFEE000000000000049031 /* WatchAuthStoreTests.swift in Sources */,
 				C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
@@ -3498,6 +3579,7 @@
 				C0FFEE00000000000005005D /* VoiceRecorderTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
+				C0FFEE000000000000076004 /* PendingUploadStoreTests.swift in Sources */,
 				A99209120000000000000005 /* DevPreviewLaunchConfigurationTests.swift in Sources */,
 				AF1300000000000000030000 /* AuthFormTests.swift in Sources */,
 				B992E8C98042AB67CE10D589 /* AuthSessionReauthenticationTests.swift in Sources */,
@@ -3522,6 +3604,8 @@
 				C0FFEE000000000000019004 /* SettingsBillingParityTests.swift in Sources */,
 				C0FFEE000000000000021004 /* RemindersPublicContentParityTests.swift in Sources */,
 				C0FFEE000000000000023004 /* SkillApplicationParityTests.swift in Sources */,
+				B7A710000000000000000002 /* VideoTranscriptPayloadParityTests.swift in Sources */,
+				B7A720000000000000000002 /* ComposerAudioPreviewContentTests.swift in Sources */,
 				C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */,
 				B66000000000000000000004 /* SettingsMemoriesMatesParityTests.swift in Sources */,
 				A22E00000000000000000015 /* SettingsModesParityTests.swift in Sources */,
@@ -3848,7 +3932,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.20.0;
+				MARKETING_VERSION = 0.21.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -3929,7 +4013,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.20.0;
+				MARKETING_VERSION = 0.21.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -8,10 +8,10 @@
 <script lang="ts">
   import {
     isWorkflowRunTaskProjectionViewModel,
-    taskAssigneeDisplayName,
     type TasksBoardItem,
     type UserTaskStatus,
   } from '../../services/userTaskService';
+  import { onMount } from 'svelte';
 
   let {
     task,
@@ -19,8 +19,11 @@
     onStartAI,
     onSkip,
     onDelete,
-    onCancelWorkflowRun,
+    onCancelWorkflowRun: _onCancelWorkflowRun,
     onSelect,
+    linkedProjectName = null,
+    assigneeAvatarUrl = null,
+    wasRecentlyDropped = false,
   }: {
     task: TasksBoardItem;
     onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
@@ -29,15 +32,56 @@
     onDelete: (task: TasksBoardItem) => void;
     onCancelWorkflowRun: (task: TasksBoardItem) => void;
     onSelect: (task: TasksBoardItem) => void;
+    linkedProjectName?: string | null;
+    assigneeAvatarUrl?: string | null;
+    wasRecentlyDropped?: boolean;
   } = $props();
 
   const statuses: UserTaskStatus[] = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
   let workflowRun = $derived(isWorkflowRunTaskProjectionViewModel(task) ? task : null);
+  let dragging = $state(false);
+  let settling = $state(false);
+  let isAssignedToAI = $derived(task.assigneeType === 'openmates' || task.assigneeType === 'external_ai');
+  let isAssignedToUser = $derived(task.assigneeType === 'user');
+  let linkedProjectLabel = $derived(task.linkedProjectIds.length > 0 ? linkedProjectName || 'Project' : null);
+
+  onMount(() => {
+    if (!wasRecentlyDropped) return;
+    settling = true;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => { settling = false; });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  });
 
   function handleDragStart(event: DragEvent): void {
+    dragging = true;
     event.dataTransfer?.setData('application/x-openmates-task-id', task.task_id);
     event.dataTransfer?.setData('text/plain', task.task_id);
-    event.dataTransfer?.setDragImage(event.currentTarget as Element, 12, 12);
+    if (event.dataTransfer && event.currentTarget instanceof HTMLElement) {
+      const dragImage = event.currentTarget.cloneNode(true) as HTMLElement;
+      dragImage.classList.add('dragging');
+      dragImage.removeAttribute('data-testid');
+      dragImage.removeAttribute('data-task-id');
+      dragImage.querySelectorAll('[data-testid]').forEach((element) => element.removeAttribute('data-testid'));
+      dragImage.style.position = 'fixed';
+      dragImage.style.inset = 'auto auto -1000px -1000px';
+      dragImage.style.width = `${event.currentTarget.getBoundingClientRect().width}px`;
+      dragImage.style.transition = 'none';
+      dragImage.style.transform = 'translateY(-8px) rotate(10deg) scale(1.02)';
+      dragImage.setAttribute('aria-hidden', 'true');
+      document.body.append(dragImage);
+      event.dataTransfer.setDragImage(dragImage, 12, 12);
+      requestAnimationFrame(() => dragImage.remove());
+    }
+  }
+
+  function handleDragEnd(): void {
+    dragging = false;
   }
 
   function formatStatus(status: UserTaskStatus): string {
@@ -47,10 +91,14 @@
 
 <article
   class="task-card"
+  class:dragging
+  class:settling
   draggable={!workflowRun}
   ondragstart={handleDragStart}
+  ondragend={handleDragEnd}
   data-testid="task-card"
   data-task-id={task.task_id}
+  data-drag-state={dragging ? 'picked-up' : 'settled'}
 >
   <button
     type="button"
@@ -62,183 +110,277 @@
     onclick={() => onSelect(task)}
   ></button>
   <div class="task-card-main">
-    {#if !workflowRun}<label class="done-toggle" data-testid="task-done-toggle">
-      <input
-        type="checkbox"
-        checked={task.status === 'done'}
-        onchange={() => onMove(task, task.status === 'done' ? 'todo' : 'done')}
-        aria-label={`Mark ${task.title || 'task'} done`}
-      />
-      <span></span>
-    </label>{/if}
     <div class="task-card-copy">
       <h3>{task.title || 'Untitled task'}</h3>
-      {#if task.description}
-        <p>{task.description}</p>
-      {/if}
     </div>
   </div>
 
-  {#if task.tags.length > 0}
-    <div class="task-tags" aria-label="Task tags">
-      {#each task.tags as tag}
-        <span>{tag}</span>
-      {/each}
+  {#if workflowRun}
+    <a
+      class="workflow-run-link"
+      href={`/#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=runs${workflowRun.workflowRunId ? `&run-id=${encodeURIComponent(workflowRun.workflowRunId)}` : ''}`}
+      data-testid="workflow-run-open"
+    ><span aria-hidden="true"></span>Open workflow run</a>
+  {:else}
+    <div class="task-card-metadata">
+      {#if linkedProjectLabel}
+        <span class="project-pill" data-testid="task-project-pill"><span aria-hidden="true"></span>{linkedProjectLabel}</span>
+      {/if}
+      {#if task.dueAt}
+        <span class="due">Due {new Date(task.dueAt * 1000).toLocaleDateString()}</span>
+      {/if}
+      {#if isAssignedToUser && assigneeAvatarUrl}
+        <img
+          class="assignment-avatar"
+          src={assigneeAvatarUrl}
+          alt=""
+          aria-label="Assigned to user"
+          data-testid="task-assignment-user"
+        />
+      {:else if isAssignedToAI || isAssignedToUser}
+        <span
+          class="assignment-indicator"
+          class:ai={isAssignedToAI}
+          class:user={!isAssignedToAI}
+          data-testid={isAssignedToAI ? 'task-assignment-ai' : 'task-assignment-user'}
+          aria-label={isAssignedToAI ? 'Assigned to AI' : 'Assigned to user'}
+        ></span>
+      {/if}
     </div>
+    {#if isAssignedToAI && task.primaryChatId}
+      <a class="open-chat-link" href={`/#chat-id=${encodeURIComponent(task.primaryChatId)}`} data-testid="task-open-chat"><span aria-hidden="true"></span>Open chat</a>
+    {/if}
   {/if}
 
-  <footer class="task-card-footer">
-    <span class="assignee" data-assignee={task.assigneeType}>{workflowRun ? 'Workflow run' : taskAssigneeDisplayName(task.assigneeIdentity) || (task.assigneeType === 'unassigned' ? 'Unassigned' : 'My task')}</span>
-    {#if task.dueAt}
-      <span class="due">Due {new Date(task.dueAt * 1000).toLocaleDateString()}</span>
-    {/if}
-  </footer>
-
+  {#if !workflowRun}
   <div class="task-actions" aria-label="Move task">
-    {#if workflowRun}
-      <a href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=details`} data-testid="workflow-open">Open workflow</a>
-      {#if workflowRun.workflowRunId}
-        <a href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=runs&run-id=${encodeURIComponent(workflowRun.workflowRunId)}`} data-testid="workflow-run-open">Open workflow run</a>
-      {/if}
-      {#if workflowRun.canCancel}
-        <button type="button" onclick={() => onCancelWorkflowRun(workflowRun)} data-testid="workflow-run-cancel">Cancel run</button>
-      {/if}
-      {#if workflowRun.canDelete}
-        <button type="button" onclick={() => onDelete(workflowRun)} data-testid="workflow-next-run-skip">Skip next run</button>
-      {/if}
-    {:else}
-      <a href={`/tasks/${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open</a>
-      {#each statuses as status}
-        {#if status !== task.status}
-          <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
-        {/if}
-      {/each}
-      {#if task.status !== 'blocked'}
-        <button type="button" onclick={() => onMove(task, 'blocked')} data-testid="task-block-button">Block</button>
-      {:else}
-        <button type="button" onclick={() => onMove(task, 'todo')} data-testid="task-unblock-button">Unblock</button>
-      {/if}
-      {#if task.status !== 'backlog'}
-        <button type="button" onclick={() => onSkip(task)} data-testid="task-skip-button">Skip</button>
-      {/if}
-      {#if task.assigneeType !== 'openmates' || task.status !== 'in_progress'}
-      <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Start with AI</button>
-      {/if}
-      <button class="danger-action" type="button" onclick={() => onDelete(task)} data-testid="task-delete-button">Delete</button>
-    {/if}
+      <details class="task-action-menu">
+        <summary data-testid="task-actions-more" aria-label={`More actions for ${task.title || 'task'}`} title="More actions"><span aria-hidden="true">•••</span></summary>
+        <div class="task-action-menu-items">
+          <a href={`/#task-id=${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open task</a>
+          {#if !isAssignedToAI}
+            <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Assign to AI</button>
+          {/if}
+          {#each statuses as status}
+            {#if status !== task.status && status !== 'blocked'}
+              <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
+            {/if}
+          {/each}
+          {#if task.status !== 'blocked'}
+            <button type="button" onclick={() => onMove(task, 'blocked')} data-testid="task-block-button">Block</button>
+          {:else}
+            <button type="button" onclick={() => onMove(task, 'todo')} data-testid="task-unblock-button">Unblock</button>
+          {/if}
+          {#if task.status !== 'backlog'}
+            <button type="button" onclick={() => onSkip(task)} data-testid="task-skip-button">Skip</button>
+          {/if}
+          <button class="danger-action" type="button" onclick={() => onDelete(task)} data-testid="task-delete-button">Delete</button>
+        </div>
+      </details>
   </div>
+  {/if}
 </article>
 
 <style>
   .task-card {
     position: relative;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    border-radius: 24px;
+    gap: var(--spacing-2);
+    min-height: 4.25rem;
+    padding: var(--spacing-5);
+    border-radius: var(--radius-5);
     background: var(--color-grey-0);
-    border: 1px solid var(--color-grey-20);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--color-grey-25);
+    box-shadow: var(--shadow-md);
     color: var(--color-font-primary);
+    cursor: grab;
+    transform: none;
+    transform-origin: center;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+    will-change: transform;
+  }
+
+  .task-card.dragging {
+    z-index: 8;
+    cursor: grabbing;
+    transform: translateY(-8px) rotate(10deg) scale(1.02);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .task-card.settling {
+    transform: translateY(-8px) rotate(10deg) scale(1.02);
+    transition: none;
   }
 
   .card-select { position: absolute; z-index: 1; inset: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
   .card-select:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
-  .task-card-main, .task-tags, .task-card-footer, .task-actions { position: relative; z-index: 2; pointer-events: none; }
-  .done-toggle, .task-actions a, .task-actions button { pointer-events: auto; }
+  .task-card-main, .task-card-metadata, .task-actions { position: relative; z-index: 2; pointer-events: none; }
+  .open-chat-link, .workflow-run-link, .task-actions a, .task-actions button, .task-action-menu { pointer-events: auto; }
 
   .task-card-main {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-  }
-
-  .done-toggle {
-    position: relative;
-    display: inline-grid;
-    flex: 0 0 44px;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    cursor: pointer;
-  }
-
-  .done-toggle input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .done-toggle span {
-    display: grid;
-    place-items: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    border: 2px solid var(--color-grey-40);
-    background: var(--color-grey-0);
-  }
-
-  .done-toggle input:checked + span {
-    border-color: var(--color-button-primary);
-    background: var(--color-button-primary);
-  }
-
-  .done-toggle input:checked + span::after {
-    content: '';
-    width: 8px;
-    height: 4px;
-    border-inline-start: 2px solid var(--color-font-button);
-    border-bottom: 2px solid var(--color-font-button);
-    transform: rotate(-45deg) translate(1px, -1px);
+    gap: 0;
   }
 
   .task-card-copy {
     min-width: 0;
+    width: 100%;
   }
 
-  h3,
-  p {
-    margin: 0;
-  }
+  h3 { margin: 0; }
 
   h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-grey-100);
     font-size: 1rem;
-    line-height: 1.25;
+    font-weight: 700;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
 
-  p {
-    margin-top: 6px;
-    color: var(--color-font-secondary);
-    font-size: 0.88rem;
-    line-height: 1.4;
-  }
-
-  .task-tags,
-  .task-card-footer,
+  .task-card-metadata,
   .task-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--spacing-4);
     align-items: center;
   }
 
-  .task-tags span,
-  .assignee,
-  .due {
-    border-radius: 999px;
-    padding: 4px 9px;
-    background: var(--color-grey-10);
-    color: var(--color-font-secondary);
-    font-size: 0.75rem;
+  .task-card-metadata {
+    min-height: 1.25rem;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
   }
 
-  .assignee[data-assignee='ai'] {
+  .project-pill,
+  .due {
+    border-radius: var(--radius-full);
+    padding: 2px var(--spacing-3);
+    font-size: var(--font-size-xxs);
+    line-height: 1.25;
+  }
+
+  .project-pill {
+    display: inline-flex;
+    min-width: 0;
+    max-width: calc(100% - 2rem);
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-inline-end: auto;
+    overflow: hidden;
+    background: var(--color-primary);
     color: var(--color-font-button);
-    background: var(--color-button-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-pill > span {
+    width: 0.75rem;
+    height: 0.75rem;
+    flex: 0 0 0.75rem;
+    background: currentColor;
+    -webkit-mask: url('@openmates/ui/static/icons/project.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/project.svg') center / contain no-repeat;
+  }
+
+  .due {
+    width: fit-content;
+    background: var(--color-grey-10);
+    color: var(--color-font-secondary);
+  }
+
+  .assignment-indicator {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 1.25rem;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+  }
+
+  .assignment-avatar {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 1.25rem;
+    border-radius: var(--radius-full);
+    object-fit: cover;
+  }
+
+  .assignment-indicator::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--color-font-button);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 64%;
+    mask-size: 64%;
+  }
+
+  .assignment-indicator.ai::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+  }
+
+  .assignment-indicator.user::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
+    mask-image: url('@openmates/ui/static/icons/user.svg');
+  }
+
+  .open-chat-link,
+  .workflow-run-link {
+    position: relative;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    line-height: normal;
+    text-decoration: none;
+  }
+
+  .workflow-run-link {
+    width: fit-content;
+    margin: 0 auto;
+  }
+
+  .workflow-run-link > span {
+    width: 0.875rem;
+    height: 0.875rem;
+    background: currentColor;
+    -webkit-mask: url('@openmates/ui/static/icons/workflow.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/workflow.svg') center / contain no-repeat;
+  }
+
+  .open-chat-link > span {
+    width: 0.875rem;
+    height: 0.875rem;
+    background: currentColor;
+    -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
+  }
+
+  .task-actions {
+    position: absolute;
+    inset-block-start: var(--spacing-2);
+    inset-inline-end: var(--spacing-2);
+    display: flex;
+    flex-wrap: nowrap;
+    padding: 0;
+    border: 0;
   }
 
   .task-actions button {
@@ -246,30 +388,93 @@
     border-radius: 999px;
     background: var(--color-grey-10);
     color: var(--color-font-primary);
-    padding: 6px 10px;
+    min-height: 1.5rem;
+    padding: var(--spacing-1) var(--spacing-3);
     font: inherit;
-    font-size: 0.75rem;
+    font-size: var(--font-size-xxs);
     cursor: pointer;
   }
 
   .task-actions a {
     display: grid;
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 2.5rem;
+    min-height: 1.5rem;
     place-items: center;
     border-radius: var(--radius-full);
     background: var(--color-grey-10);
     color: var(--color-font-primary);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-xxs);
+    text-align: center;
+    text-decoration: none;
   }
 
-  .task-actions .ai-action {
-    background: var(--color-button-primary);
+  .task-actions .ai-action { color: var(--color-font-primary); }
+
+  .task-actions .danger-action {
+    background: var(--color-error);
     color: var(--color-font-button);
   }
 
-  .task-actions .danger-action {
-    background: var(--color-error, #c83a32);
-    color: var(--color-grey-0);
+  .task-action-menu {
+    position: relative;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .task-card:hover .task-action-menu,
+  .task-card:focus-within .task-action-menu,
+  .task-action-menu[open] { opacity: 1; }
+
+  .task-action-menu summary {
+    display: grid;
+    width: 1.75rem;
+    min-height: 1.5rem;
+    place-items: center;
+    border-radius: var(--radius-full);
+    padding: 0;
+    background: transparent;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xxs);
+    line-height: 1rem;
+    letter-spacing: 0.08em;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .task-action-menu summary::-webkit-details-marker { display: none; }
+
+  .task-action-menu-items {
+    position: absolute;
+    z-index: 4;
+    inset-block-start: calc(100% + var(--spacing-2));
+    inset-inline-end: 0;
+    display: grid;
+    width: 8.5rem;
+    gap: var(--spacing-2);
+    border: 1px solid var(--color-grey-25);
+    border-radius: var(--radius-5);
+    padding: var(--spacing-4);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .task-action-menu-items button { width: 100%; }
+
+  .task-action-menu-items a {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .task-actions a:hover,
+  .task-actions button:hover {
+    filter: brightness(0.96);
+  }
+
+  .task-actions a:focus-visible,
+  .task-actions button:focus-visible,
+  .task-action-menu summary:focus-visible,
+  .open-chat-link:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
   }
 </style>

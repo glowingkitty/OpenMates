@@ -28,6 +28,13 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 from backend.apps.base_skill import BaseSkill
 from backend.apps.shopping.providers.amazon_provider import (
     search_products as amazon_search,
@@ -101,7 +108,14 @@ class SearchProductsRequestItem(BaseModel):
     )
     max_results: int = Field(
         default=10,
+        ge=1,
+        le=20,
         description="Maximum number of products to return (1-20, default 10).",
+    )
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=1_000,
+        description="Optional natural-language purchase goal used only to rank matching products.",
     )
     sort: str = Field(
         default="relevance",
@@ -437,7 +451,13 @@ class SearchProductsSkill(BaseSkill):
         )
         if provider_error:
             return (request_id, [], provider_error)
-        max_results: int = int(req.get("max_results", 10))
+        requested_max_results = max(1, min(20, int(req.get("max_results") or 10)))
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
+        max_results = (
+            relevance_candidate_target(requested_max_results, profile="shopping")
+            if relevance_criteria
+            else requested_max_results
+        )
         sort: str = req.get("sort", "relevance")
         # Use "or" to handle None from Pydantic model_dump() — prevents None reaching rewe_search()
         service_type: str = req.get("service_type") or "DELIVERY"
@@ -453,9 +473,6 @@ class SearchProductsSkill(BaseSkill):
 
         if not query:
             return (request_id, [], "Missing 'query' in request")
-
-        # Clamp max_results to sensible range
-        max_results = max(1, min(20, max_results))
 
         try:
             if provider == self.REWE_PROVIDER:
@@ -546,6 +563,60 @@ class SearchProductsSkill(BaseSkill):
                 exc_info=True,
             )
             return (request_id, [], "Content sanitization failed")
+
+        if relevance_criteria:
+            results = stable_deduplicate_candidates(
+                results,
+                key=lambda item: (
+                    item.get("product_id")
+                    or item.get("asin")
+                    or normalize_url_for_deduplication(
+                        item.get("purchase_url") or item.get("url")
+                    )
+                    or str(item.get("title") or item.get("name") or "").casefold()
+                ),
+            )
+            ranking = await rank_search_candidates(
+                candidates=results,
+                candidate_projections=[
+                    {
+                        "title": item.get("title") or item.get("name"),
+                        "description": item.get("description"),
+                        "brand": item.get("brand"),
+                        "category_path": item.get("category_path"),
+                        "attributes": item.get("attributes"),
+                        "price": item.get("price"),
+                        "price_amount": item.get("price_amount"),
+                        "old_price": item.get("old_price"),
+                        "rating": item.get("rating"),
+                        "reviews": item.get("reviews"),
+                        "delivery": item.get("delivery"),
+                        "prime": item.get("prime"),
+                        "is_salable": item.get("is_salable"),
+                        "bought_last_month": item.get("bought_last_month"),
+                        "sponsored": item.get("sponsored"),
+                        "provider": item.get("provider"),
+                    }
+                    for item in results
+                ],
+                relevance_criteria=relevance_criteria,
+                search_parameters={
+                    "query": query,
+                    "provider": provider,
+                    "category": category,
+                    "country": country,
+                    "department": department,
+                    "min_price": min_price,
+                    "max_price": max_price,
+                    "sort": sort,
+                    "service_type": service_type,
+                },
+                profile="shopping",
+                secrets_manager=secrets_manager,
+            )
+            results = ranking.candidates
+
+        results = results[:requested_max_results]
 
         logger.info(
             "Shopping search provider=%s query=%r → %d products (total=%d)",

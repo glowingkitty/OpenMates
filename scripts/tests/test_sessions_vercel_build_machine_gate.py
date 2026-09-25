@@ -83,6 +83,51 @@ def test_vercel_build_machine_gate_requires_token(monkeypatch):
         sessions._enforce_vercel_standard_build_machine()
 
 
+def test_local_mac_apple_only_deploy_skips_vercel_token(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        sessions,
+        "_enforce_vercel_standard_build_machine",
+        lambda: pytest.fail("Apple-only local Mac deploy should not query Vercel"),
+    )
+
+    sessions._verify_vercel_build_machine_for_paths([
+        "apple/OpenMates/Sources/App/MainAppView.swift",
+        "scripts/sessions.py",
+        "specifications/generated/assertion-index.yml",
+        "docs/plans/apple-realtime-audio-parity/plan.yml",
+    ])
+
+
+@pytest.mark.parametrize(
+    "paths",
+    [[], ["frontend/packages/ui/src/components/enter_message/MessageInput.svelte"],
+     ["apple/OpenMates/Sources/App/MainAppView.swift", "docs/plans/apple-ui/plan.yml",
+      "frontend/apps/web_app/src/routes/dev/preview/embeds/+page.svelte"]],
+)
+def test_local_mac_unknown_or_web_scope_keeps_vercel_gate(monkeypatch, paths):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions.sys, "platform", "darwin")
+    checks = []
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: checks.append(True))
+
+    sessions._verify_vercel_build_machine_for_paths(paths)
+
+    assert checks == [True]
+
+
+def test_other_hosts_keep_vercel_gate_for_apple_only_deploy(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions.sys, "platform", "linux")
+    checks = []
+    monkeypatch.setattr(sessions, "_enforce_vercel_standard_build_machine", lambda: checks.append(True))
+
+    sessions._verify_vercel_build_machine_for_paths(["apple/OpenMates/Sources/App/MainAppView.swift"])
+
+    assert checks == [True]
+
+
 def test_vercel_deploy_gate_blocks_node20_runtime(monkeypatch):
     sessions = load_sessions_module()
 

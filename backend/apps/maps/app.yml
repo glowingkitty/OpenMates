@@ -82,18 +82,26 @@ settings_and_memories:
         - name
 skills:
   - id: search
+    anonymous_access: inline
     name_translation_key: maps.search
     description_translation_key: maps.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search for places, businesses, restaurants, directions, locations.
+      Search for places, businesses, restaurants, directions, and locations. Keep query focused on
+      the place type and location. Whenever the user states a purpose, intended activity, audience,
+      or preference that should change place ordering, put it in relevance_criteria even if related
+      words could also be added to query. Example: query "cafes in Berlin" with relevance_criteria
+      "Places suitable for working several hours on a laptop and taking a client call." Keep rating,
+      open-now, price, and required amenities structured. Omit relevance_criteria only for a neutral
+      place search fully expressed by query and structured fields; never invent preferences.
     class_path: |
       backend.apps.maps.skills.search_skill.SearchSkill
     providers:
       - Google
       - Geoapify
     pricing:
-      per_request_credits: 40
+      per_unit:
+        credits: 40
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Show me more places nearby"
@@ -110,81 +118,136 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
             Example for single search: {"requests": [{"query": "restaurants in Berlin"}]}
             Example for multiple searches: {"requests": [{"query": "restaurants in Berlin"}, {"query": "museums in Berlin"}]}
-            Each object must contain 'query' (search query string), and can include optional parameters (pageSize, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
+            Each object must contain 'query' (search query string), and can include optional parameters (pageSize, relevance_criteria, languageCode, locationBias, includedType, minRating, openNow, includeReviews).
             Note: The 'id' field is auto-generated if not provided - you don't need to include it.
           items:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Text query string to search for places (e.g., "restaurants in Berlin", "museums near Times Square")
               pageSize:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of results to return per request (max 20)
                 minimum: 1
                 maximum: 20
                 default: 10
+              relevance_criteria:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional concise natural-language place-ranking goal, separate from the place and
+                  location query. Set it whenever the user states a purpose, intended activity,
+                  audience, or preference that should change ordering. Example: "Suitable for working
+                  several hours on a laptop and taking a client call." Omit only for a neutral search
+                  fully expressed by query and structured fields; never invent preferences.
               languageCode:
+                x-ui:
+                  basic: false
                 type: string
                 description: Language code for results (ISO 639-1, e.g., 'en', 'es', 'fr', 'de'). Defaults to 'en' if not specified.
                 default: "en"
               locationBias:
+                x-ui:
+                  basic: false
                 type: object
                 description: Optional location bias to prioritize results near a specific area. Can be a circle (center + radius) or rectangle (viewport).
                 properties:
                   circle:
+                    x-ui:
+                      basic: false
                     type: object
                     properties:
                       center:
+                        x-ui:
+                          basic: false
                         type: object
                         properties:
                           latitude:
+                            x-ui:
+                              basic: false
                             type: number
                           longitude:
+                            x-ui:
+                              basic: false
                             type: number
                       radius:
+                        x-ui:
+                          basic: false
                         type: number
                         description: Radius in meters (0.0 to 50000.0)
                   rectangle:
+                    x-ui:
+                      basic: false
                     type: object
                     properties:
                       low:
+                        x-ui:
+                          basic: false
                         type: object
                         properties:
                           latitude:
+                            x-ui:
+                              basic: false
                             type: number
                           longitude:
+                            x-ui:
+                              basic: false
                             type: number
                       high:
+                        x-ui:
+                          basic: false
                         type: object
                         properties:
                           latitude:
+                            x-ui:
+                              basic: false
                             type: number
                           longitude:
+                            x-ui:
+                              basic: false
                             type: number
               includedType:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional place type filter (e.g., 'restaurant', 'museum', 'pharmacy'). See Google Places API place types documentation for full list.
               minRating:
+                x-ui:
+                  basic: true
                 type: number
                 description: Minimum rating filter (0.0 to 5.0, increments of 0.5). Only places with rating >= minRating will be returned.
                 minimum: 0.0
                 maximum: 5.0
               openNow:
+                x-ui:
+                  basic: true
                 type: boolean
                 description: If true, return only places that are currently open. Defaults to false.
                 default: false
               includeReviews:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: If true, include user reviews in the response. Defaults to false to keep response size manageable. Reviews significantly increase response size.
                 default: false
               osmEnrichment:
+                x-ui:
+                  basic: false
                 type: string
                 enum:
                   - auto
@@ -193,35 +256,53 @@ skills:
                 description: Optional OSM/Geoapify enrichment mode. Use auto for source-labelled amenity details, disabled to avoid Geoapify calls, or required when amenity filters must be provider-verified.
                 default: auto
               amenityFilters:
+                x-ui:
+                  basic: false
                 type: object
                 description: Optional OSM-backed amenity filters. Mark a value as required to keep only Geoapify/OSM-verified matches; unknown OSM fields are not treated as matches.
                 properties:
                   airConditioning:
+                    x-ui:
+                      basic: false
                     type: string
                     enum:
                       - required
                   internetAccess:
+                    x-ui:
+                      basic: false
                     type: string
                     enum:
                       - free_required
                       - required
                   wheelchair:
+                    x-ui:
+                      basic: false
                     type: string
                     enum:
                       - required
                   outdoorSeating:
+                    x-ui:
+                      basic: false
                     type: string
                     enum:
                       - required
                   toilets:
+                    x-ui:
+                      basic: false
                     type: string
                     enum:
                       - required
                   smoking:
+                    x-ui:
+                      basic: false
                     type: string
                   diet:
+                    x-ui:
+                      basic: false
                     type: string
                   payment:
+                    x-ui:
+                      basic: false
                     type: string
             required:
               - query

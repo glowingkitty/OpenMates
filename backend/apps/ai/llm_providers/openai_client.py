@@ -27,7 +27,11 @@ except Exception:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh", "max"}
-OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS = {"gpt-5.6-luna"}
+OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS = {
+    "gpt-5.6-luna",
+    "gpt-6-luna",
+    "gpt-6-sol",
+}
 
 # Global state
 _openai_client_initialized: bool = False
@@ -91,7 +95,7 @@ def _is_reasoning_model(model_id: str) -> bool:
     if model_config and (model_config.get("reasoning") or model_config.get("features", {}).get("reasoning_token_support")):
         return True
     # Fallback for known reasoning models if config is missing
-    return normalized_model_id.startswith(("o1", "o3", "gpt-5"))
+    return normalized_model_id.startswith(("o1", "o3", "gpt-5", "gpt-6"))
 
 
 def _select_server_for_model(model_id: str) -> str:

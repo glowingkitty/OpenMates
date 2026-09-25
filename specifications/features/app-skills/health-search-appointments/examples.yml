@@ -155,6 +155,7 @@ modality_language:
     limitation_visible: true
 window_order:
 - id: earlier-prp-cannot-win
+  given: An earlier PRP treatment and a later general consultation are available for an initial-assessment request.
   input:
     visit_motive_category: general
     slots:
@@ -164,6 +165,9 @@ window_order:
       time: '2026-09-09T15:00:00+02:00'
   expect:
     earliest_matching_service: Allgemeine Sprechstunde
+  then: The incompatible earlier treatment is excluded and the eligible consultation is the earliest returned match.
+  assertion_ids:
+  - health-search-appointments.availability.window-order
 - id: offset-and-window
   input:
     now: '2026-09-08T10:00:00Z'
@@ -178,6 +182,20 @@ window_order:
     - '2026-09-08T12:30:00+02:00'
     - '2026-09-08T11:00:00Z'
     past_and_outside_window_excluded: true
+- id: no-relevance-ranking
+  input:
+    speciality: orthopädie
+    city: Berlin
+    max_doctors: 10
+  given: Several eligible appointments and one earlier incompatible treatment are available.
+  then: The incompatible treatment is excluded and eligible appointments remain earliest-first without relevance criteria or a Jev call.
+  expect:
+    relevance_criteria_supported: false
+    jev_calls: 0
+    incompatible_treatment_excluded: true
+    eligible_results_ordered_earliest_first: true
+  assertion_ids:
+  - health-search-appointments.availability.window-order
 result_grouping:
 - id: distinct-service-cards
   input:

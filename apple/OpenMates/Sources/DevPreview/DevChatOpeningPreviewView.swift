@@ -77,6 +77,9 @@ struct DevChatOpeningPreviewView: View {
                         initialMessages: initialWindow,
                         initialEmbeds: [],
                         chatStore: chatStore,
+                        onShareChat: {},
+                        onOpenChatSettings: {},
+                        onCloseChat: {},
                         onReportIssue: { reportIssuePrefill = $0 }
                     )
                     .environment(\.layoutDirection, uiTestLayoutDirection)
@@ -172,8 +175,7 @@ struct DevChatOpeningPreviewView: View {
     }
 
     private var headerContractProbe: some View {
-        let iconVisible = fixture.chat.category != nil || fixture.chat.appId != nil
-        let contract = "chat-header-title=\(fixture.chat.displayTitle); chat-header-icon=\(iconVisible)"
+        let contract = "chat-header-title=\(fixture.chat.displayTitle); chat-compact-header-icon=false"
         return Text(contract)
             .font(.omMicro)
             .foregroundStyle(Color.fontTertiary)

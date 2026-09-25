@@ -18,7 +18,7 @@ translations:
       description: OpenMates entfernt Zitate, die nicht gegen das Quellmaterial verifiziert werden können.
     events-search:
       title: Events finden
-      headline: Suche Meetup, Luma, Google Events, Resident Advisor und mehr von einem Chat aus.
+      headline: Suche Meetup, Luma, Eventbrite, Resident Advisor und mehr von einem Chat aus.
       description: OpenMates kann mehrere Event-Quellen durchsuchen, damit du schneller passende Veranstaltungen findest.
     learning-mode:
       title: Lernmodus
@@ -93,7 +93,7 @@ features:
 
   - id: events-search
     title: Find Events
-    headline: Search Meetup, Luma, Google Events, Resident Advisor, and more from one chat.
+    headline: Search Meetup, Luma, Eventbrite, Resident Advisor, and more from one chat.
     description: OpenMates can search multiple event sources so you find relevant events faster.
     icon: calendar-search
     tags: [find_events, find_restaurant, learning]

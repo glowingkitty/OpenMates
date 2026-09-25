@@ -57,6 +57,7 @@ function rectsOverlap(a: ClientRectSnapshot, b: ClientRectSnapshot): boolean {
 }
 
 test.describe('Unified detail header editing', () => {
+	// contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible
 	test('Task title and description expose hints, save, and undo semantics', async ({ page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -82,7 +83,7 @@ test.describe('Unified detail header editing', () => {
 			await page.getByTestId('task-create-button').click();
 			taskId = (await (await created).json()).task.task_id;
 
-			await page.goto(getE2EDebugUrl(`/tasks/${taskId}`), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl(`/#task-id=${taskId}`), { waitUntil: 'domcontentloaded' });
 			const header = page.getByTestId('workspace-detail-header');
 			await expect(header).toBeVisible({ timeout: 30000 });
 			await expect(header).toHaveAttribute('data-header-system', 'workspace-detail');

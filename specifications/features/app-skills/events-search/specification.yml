@@ -15,6 +15,9 @@ scope:
   includes:
     - One or more event searches with location, coordinates, dates, type, provider, or known conference filters
     - Explicit, auto, multi-provider, and supported conference-schedule routing
+    - Auto-only provider relevance routing with deterministic eligibility and safe semantic fallback
+    - Optional Jev relevance ranking over bounded deduplicated provider candidates
+    - Deferred nonessential event-detail and venue-geocoding enrichment for selected candidates
     - Sanitized event cards with usable source URLs and grouped map rendering
   excludes:
     - Ticket purchasing or RSVP mutation
@@ -41,6 +44,7 @@ models:
     providers: {type: array, nullable: true, items: string}
     conference: {type: string, nullable: true, constraints: {supported_values: [GPN24, 39C3, 38C3, 37C3]}}
     past_events: {type: boolean, default: false}
+    relevance_criteria: {type: string, nullable: true, constraints: {trim: true, blank: treat_as_omitted, max_length: 1000}}
 
   EventResult:
     title: {type: string, required: true, constraints: {blank: false}}
@@ -58,19 +62,71 @@ models:
     suggestions_follow_up_requests: {type: array, nullable: true, items: string}
     error: {type: string, nullable: true, constraints: {safe: true, secrets: forbidden}}
 
+  EventsSearchRelevanceRanking:
+    candidate_retrieval:
+      type: bounded_merged_provider_pool
+      required: true
+      constraints: {when_criteria_present_target: max_40_or_requested_count, hard_filters_before_ranking: true, cross_provider_deduplication: true, provider_shortfall: return_smaller_pool, when_criteria_absent: existing_provider_fetch_behavior}
+    decision:
+      type: typesafe_jev_scores
+      required: true
+      constraints: {event_goal_evidence: required, query_topic_fit: required, title_keyword_overlap_alone: insufficient, missing_organizer_or_format_facts: unknown, minimum_retained_score: weak_related_fit, below_minimum_omitted: true, candidate_text: untrusted_data}
+    fallback:
+      type: deterministic
+      required: true
+      constraints: {ranking_failure: existing_event_order, final_count: requested_count, output_safety_after_selection: required}
+
+  EventsSearchAutoProviderRouting:
+    eligibility:
+      type: deterministic
+      required: true
+      constraints: {explicit_selection_bypasses_semantic_routing: true, region_and_capability_gates_first: true, known_conference_routing: deterministic, location_free_online_compatibility: required}
+    specialist_selection:
+      type: deterministic_or_typesafe_jev
+      required: true
+      constraints: {auto_only: true, candidates: eligible_specialists_only, obvious_intent: deterministic, ambiguous_intent: one_bounded_multi_select_decision}
+    fallback:
+      type: deterministic
+      required: true
+      constraints: {decision_failure: continue_general_search, raw_diagnostics: forbidden, explicit_selection_unchanged: true}
+
 assertions:
   - id: events-search.request.validated
     type: validation
-    must: Each request requires a usable city/coordinate query or a supported conference schedule, validates date/type/count fields, and rejects malformed request items without blocking independent valid items in the same batch.
-    depends_on: [models.EventsSearchRequest, models.EventsSearchRequestItem, examples.requests]
+    must: Each request requires a topic or supported conference schedule, validates date/type/count fields, and rejects malformed request items without blocking independent valid items in the same batch. Physical searches require a usable city or coordinates unless the selected provider has an explicit location-free contract. Online searches may omit location and query only providers that support location-free online discovery without fabricating a city or coordinates.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchRequestItem]
   - id: events-search.providers.explicit
     type: behavior
-    must: An explicit provider is never silently broadened to auto mode, unknown providers return a visible error, auto mode queries applicable providers, and the response lists providers that were queried even when they returned no results.
-    depends_on: [models.EventsSearchRequest, models.EventsSearchResponse.providers, examples.provider_routing]
+    must: An explicit provider or provider list is never silently broadened to auto mode and bypasses semantic provider routing. Unknown providers return a visible error. The response lists providers that were actually queried even when they returned no results.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchResponse.providers]
+  - id: events-search.providers.auto-relevance
+    type: behavior
+    must: Auto mode first applies deterministic region, event-type, online-capability, conference, and provider-availability gates. General event sources remain deterministically available, obvious specialist intent is handled deterministically, and only genuinely ambiguous intent may invoke one bounded Jev multi-select decision over the still-eligible specialist providers. The decision cannot add an ineligible provider. Missing credentials, rejection, malformed output, or timeout preserves the deterministic general search without exposing raw diagnostics or failing the request.
+    depends_on: [models.EventsSearchAutoProviderRouting]
   - id: events-search.results.actionable
     type: invariant
     must: Returned events have a nonblank title, usable source or booking URL, provider, and start time; invalid events are omitted, valid events remain available, and results are bounded by the requested count.
     depends_on: [models.EventResult, examples.results]
+  - id: events-search.relevance.activation
+    type: behavior
+    must: relevance_criteria is optional and blank values are treated as omitted. A material event-selection goal stated in ordinary assistant conversation is faithfully populated without requiring the user to name the field, while a plain event request does not gain invented preferences. Without nonblank criteria, selected providers preserve their existing candidate retrieval and ordering and no event-candidate ranking Jev call occurs; an independent auto-provider routing decision remains permitted by events-search.providers.auto-relevance.
+    depends_on: [models.EventsSearchRequestItem.relevance_criteria]
+  - id: events-search.relevance.bounded-candidates
+    type: invariant
+    must: With nonblank relevance_criteria, applicable providers build a bounded pool targeting forty candidates or the larger requested count. Hard date, location, type, conference, and provider filters run first; cross-provider duplicates are removed; provider shortfalls return a smaller pool without fabrication or unbounded retries; and the final result group remains bounded by count.
+    depends_on: [models.EventsSearchRelevanceRanking.candidate_retrieval, models.EventsSearchRelevanceRanking.fallback]
+  - id: events-search.relevance.evidence-ranking
+    type: behavior
+    must: One event-specific Jev decision ranks only remaining candidates using evidence for both the search topic and stated event goal. Similar title keywords alone are insufficient, missing organizer or format facts remain unknown, and no score can reintroduce an event rejected by a structured filter. Candidates with no credible topical or goal relationship are omitted, candidates with at least a weak defensible relationship may remain, and the result group returns fewer than count rather than padding with clearly irrelevant events.
+    depends_on: [models.EventsSearchRelevanceRanking.decision]
+  - id: events-search.relevance.safe-fallback
+    type: failure
+    must: Candidate text is untrusted. Missing credentials, rejection, malformed or incomplete scores, or timeout falls back to existing event order without failing an otherwise successful provider search or exposing raw diagnostics, and selected events still receive inherited output-safety processing.
+    depends_on: [models.EventsSearchRelevanceRanking.fallback]
+  - id: events-search.enrichment.deferred
+    type: behavior
+    must: Nonessential event-detail retrieval and venue-coordinate enrichment run only after structured filters, cross-provider deduplication, and optional relevance ranking have selected the candidates that can still enter the bounded response. Search-location resolution required to call a provider remains available and nonblocking to independent provider work. Missing detail or venue-coordinate enrichment does not discard an otherwise actionable event, and any enriched external text still receives inherited output safety.
+    depends_on: [models.EventResult, examples.enrichment]
   - id: events-search.conference.supported
     type: behavior
     must: Supported GPN and Congress schedules accept conference-only searches, preserve topic filters when supplied, exclude past sessions by default, and participate in auto routing when the conference is known.
@@ -81,12 +137,12 @@ assertions:
     depends_on: [models.EventResult, examples.results]
   - id: events-search.performance.bounded
     type: behavior
-    must: A direct warmed CLI auto-provider search typically completes within five seconds in the controlled dev proof environment and the deterministic proof deadline remains ten seconds without disabling output safety.
-    depends_on: [models.EventsSearchRequest, models.EventsSearchResponse, examples.performance]
+    must: A direct warmed CLI auto-provider search typically completes within five seconds in the controlled dev proof environment and the deterministic proof deadline remains ten seconds without disabling output safety. Provider work has a bounded deadline below the outer skill deadline, completed providers may return partial results when another provider stalls, and a partial success is not discarded by retrying the entire provider batch.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchResponse]
   - id: events-search.surface-parity
     type: parity
-    must: REST API, CLI, npm/pip SDKs, web, and Apple preserve the same request grouping, provider routing, event result, visible error, output-safety, and date-range semantics; GUI clients may additionally render grouped event cards and a resolved map view.
-    depends_on: [models, examples.surface_parity, applies_to]
+    must: REST API, CLI, npm/pip SDKs, web, and Apple preserve the same request grouping, provider routing, event result, visible error, output-safety, optional relevance-ranking, final-count, and date-range semantics; GUI clients may additionally render grouped event cards and a resolved map view.
+    depends_on: [models, applies_to]
 
 applies_to:
   rest_api: {required: true}
@@ -107,4 +163,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [requests, provider_routing, results, conferences, performance, surface_parity]
+  required_groups: [requests, provider_routing, results, relevance_ranking, enrichment, conferences, performance, surface_parity]

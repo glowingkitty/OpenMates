@@ -12,6 +12,8 @@
 //          frontend/packages/ui/src/styles/fields.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
 
 import AVFoundation
 import SwiftUI
@@ -61,7 +63,10 @@ private final class WatchAudioRecorder: ObservableObject {
 
         do {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
-            audioRecorder?.record()
+            guard audioRecorder?.record() == true else {
+                errorMessage = WatchStrings.microphoneBlocked
+                return
+            }
             isRecording = true
             duration = 0
             timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -80,14 +85,60 @@ private final class WatchAudioRecorder: ObservableObject {
         isRecording = false
         return recordingURL
     }
+
+    func cancelRecording() {
+        if let url = stopRecording() {
+            try? FileManager.default.removeItem(at: url)
+        }
+        recordingURL = nil
+        duration = 0
+    }
+}
+
+@MainActor
+private enum WatchChatCopy {
+    static var chats: String { WatchLocalization.text("common.chats") }
+    static var search: String { WatchLocalization.text("activity.search") }
+    static var settings: String { WatchLocalization.text("common.settings") }
+    static var chatsLoadFailed: String {
+        WatchLocalization.text("common.detail_load_error", replacements: ["item": chats])
+    }
+    static var recording: String { WatchLocalization.text("enter_message.record_audio.recording") }
+    static func welcomeGreeting(username: String?) -> String {
+        guard let username = username?.trimmingCharacters(in: .whitespacesAndNewlines), !username.isEmpty else {
+            return WatchLocalization.text("chat.welcome.hey_guest")
+        }
+        return WatchLocalization.text("chat.welcome.hey_user", replacements: ["username": username])
+    }
+    static var welcomePrompt: String { WatchLocalization.text("watch.chats.welcome_prompt") }
+}
+
+// Watch artboards use a dedicated black, blue, and teal palette at 184 × 224 pt.
+private enum WatchChatPalette {
+    static let background = Color.black
+    static let foreground = Color.white
+    static let muted = Color(red: 0.68, green: 0.69, blue: 0.72)
+    static let surface = Color(red: 0.18, green: 0.19, blue: 0.20)
+    static let blue = Color(red: 79.0 / 255, green: 117.0 / 255, blue: 216.0 / 255)
+    static let teal = Color(red: 0.02, green: 0.69, blue: 0.57)
+    static let orange = Color(red: 1.0, green: 0.33, blue: 0.24)
+    static let recordingGradient = LinearGradient(
+        colors: [Color(red: 0.02, green: 0.78, blue: 0.64), Color(red: 0.02, green: 0.65, blue: 0.53)],
+        startPoint: .top, endPoint: .bottom
+    )
 }
 
 struct WatchChatShellView: View {
     @StateObject private var runtime: WatchChatRuntime
-    @StateObject private var phoneBridge = WatchPhoneLoginBridge()
+    @StateObject private var phoneBridge = WatchPhoneLoginBridge.shared
     private let startsNetworkTasks: Bool
+    private let onOpenHub: (() -> Void)?
+    private let onOpenSettings: (() -> Void)?
+    private let initialSearchText: String?
+    private let showsRecordingFixture: Bool
+    private let currentUsername: String?
 
-    init(currentUserId: String?, webSocketToken: String?) {
+    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
             currentUserId: currentUserId,
             syncSession: WatchSyncSession(
@@ -96,117 +147,252 @@ struct WatchChatShellView: View {
             )
         ))
         startsNetworkTasks = true
+        self.onOpenHub = onOpenHub
+        self.onOpenSettings = onOpenSettings
+        initialSearchText = nil
+        showsRecordingFixture = false
+        self.currentUsername = currentUsername
     }
 
 #if DEBUG
-    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String) {
+    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
             uiTestSnapshot: uiTestSnapshot,
             selectedChatId: selectedChatId
         ))
         startsNetworkTasks = false
+        self.onOpenHub = onOpenHub
+        self.onOpenSettings = onOpenSettings
+        self.initialSearchText = initialSearchText
+        self.showsRecordingFixture = showsRecordingFixture
+        self.currentUsername = currentUsername
     }
 #endif
 
     var body: some View {
-        Group {
+        ZStack {
             if runtime.selectedChatId == nil {
-                WatchChatListView(runtime: runtime)
+                WatchChatListView(runtime: runtime, onOpenHub: onOpenHub,
+                                  onOpenSettings: onOpenSettings, initialSearchText: initialSearchText)
             } else {
-                WatchChatThreadView(runtime: runtime)
+                WatchChatThreadView(runtime: runtime, currentUsername: currentUsername, showsRecordingFixture: showsRecordingFixture)
                     .environmentObject(phoneBridge)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.grey100)
+        .background(WatchChatPalette.background)
         .ignoresSafeArea(edges: .bottom)
         .task {
             guard startsNetworkTasks else { return }
-            phoneBridge.start { _ in }
+            phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in })
             await runtime.loadCachedSnapshot()
             await runtime.startRealtimeSync()
             await runtime.refresh()
         }
-        .accessibilityIdentifier("watch-chat-shell")
     }
 }
 
 private struct WatchChatListView: View {
     @ObservedObject var runtime: WatchChatRuntime
+    let onOpenHub: (() -> Void)?
+    let onOpenSettings: (() -> Void)?
+    @State private var isSearching: Bool
+    @State private var searchText: String
+
+    init(runtime: WatchChatRuntime, onOpenHub: (() -> Void)?, onOpenSettings: (() -> Void)?, initialSearchText: String?) {
+        self.runtime = runtime
+        self.onOpenHub = onOpenHub
+        self.onOpenSettings = onOpenSettings
+        _isSearching = State(initialValue: initialSearchText != nil)
+        _searchText = State(initialValue: initialSearchText ?? "")
+    }
+
+    private var visibleChats: [WatchChatSummary] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return runtime.chats }
+        return runtime.chats.filter {
+            ($0.title ?? "").localizedCaseInsensitiveContains(query)
+                || ($0.preview ?? "").localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: .spacing3) {
-                WatchChatHeader(title: WatchStrings.newChat, isSyncing: runtime.isSyncing)
-
-                if runtime.isOffline {
-                    WatchStatusPill(text: WatchStrings.offlineBanner)
+        VStack(spacing: 0) {
+            Button {
+                onOpenHub?()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.system(size: 18))
                 }
-
-                if runtime.chats.isEmpty && !runtime.isSyncing {
-                    Text(WatchStrings.noChats)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.grey0.opacity(0.76))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, .spacing8)
-                        .accessibilityIdentifier("watch-chat-empty")
-                }
-
-                ForEach(runtime.chats) { chat in
-                    Button {
-                        Task { await runtime.openChat(chat) }
-                    } label: {
-                        WatchChatRow(chat: chat)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("watch-chat-row-\(chat.id)")
-                }
+                .foregroundStyle(WatchChatPalette.foreground)
+                .frame(width: 95, height: 37)
+                .background(
+                    LinearGradient(
+                        colors: [Color(red: 0.30, green: 0.43, blue: 0.81), Color(red: 0.34, green: 0.52, blue: 0.91)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), in: Capsule()
+                )
             }
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing5)
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 49)
+            .padding(.leading, .spacing4)
+            .background(WatchChatPalette.background)
+            .accessibilityLabel(WatchChatCopy.chats)
+            .accessibilityIdentifier("watch-chats-heading")
+            .zIndex(1)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: .spacing3) {
+                    HStack(spacing: 0) {
+                        Button {
+                            isSearching.toggle()
+                            if !isSearching { searchText = "" }
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .accessibilityLabel(WatchChatCopy.search)
+                        .accessibilityIdentifier("watch-chat-search-button")
+
+                        Button {
+                            Task { await runtime.createNewChat() }
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .accessibilityLabel(WatchStrings.newChat)
+                        .accessibilityIdentifier("watch-new-chat-button")
+
+                        Button {
+                            onOpenSettings?()
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .disabled(onOpenSettings == nil)
+                        .accessibilityLabel(WatchChatCopy.settings)
+                        .accessibilityIdentifier("watch-chat-settings-button")
+                    }
+                    .foregroundStyle(WatchChatPalette.blue)
+                    .buttonStyle(.plain)
+                    .padding(.top, 27)
+
+                    // The first conversation sits below the three large controls
+                    // in the 184-point Figma Watch frame.
+                    Color.clear.frame(height: 25)
+
+                    if isSearching {
+                        TextField(WatchChatCopy.search, text: $searchText)
+                            .font(.omXs)
+                            .foregroundStyle(WatchChatPalette.foreground)
+                            .tint(WatchChatPalette.blue)
+                            .padding(.horizontal, .spacing3)
+                            .frame(height: 28)
+                            .background(WatchChatPalette.surface, in: Capsule())
+                            .accessibilityIdentifier("watch-chat-search-input")
+                    }
+
+                    if runtime.isOffline {
+                        WatchStatusPill(text: WatchStrings.offlineBanner)
+                    }
+
+                    if runtime.chatLoadFailed && !runtime.isOffline {
+                        WatchStatusPill(text: WatchChatCopy.chatsLoadFailed)
+                            .accessibilityIdentifier("watch-chat-load-error")
+                        Button {
+                            Task { await runtime.refresh() }
+                        } label: {
+                            Text(WatchStrings.retry)
+                                .font(.omXs)
+                                .foregroundStyle(WatchChatPalette.foreground)
+                                .padding(.horizontal, .spacing4)
+                                .frame(minHeight: 28)
+                                .background(WatchChatPalette.blue, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("watch-chat-load-retry")
+                    }
+
+                    if runtime.unavailableChatCount > 0 {
+                        WatchStatusPill(text: WatchLocalization.text("workflows.builder.chats_unavailable"))
+                            .accessibilityIdentifier("watch-chat-unavailable")
+                    }
+
+                    if runtime.chats.isEmpty && !runtime.isSyncing && !runtime.isOffline && !runtime.chatLoadFailed && runtime.unavailableChatCount == 0 {
+                        Text(WatchStrings.noChats)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.grey0.opacity(0.76))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, .spacing8)
+                            .accessibilityIdentifier("watch-chat-empty")
+                    }
+
+                    ForEach(visibleChats) { chat in
+                        Button {
+                            Task { await runtime.openChat(chat) }
+                        } label: {
+                            WatchChatRow(chat: chat)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("watch-chat-row-\(chat.id)")
+                    }
+                }
+                .padding(.horizontal, .spacing4)
+                .padding(.bottom, .spacing5)
+            }
+            .accessibilityIdentifier("watch-chat-list")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.grey100)
-        .accessibilityIdentifier("watch-chat-list")
+        .background(WatchChatPalette.background)
+        .ignoresSafeArea(edges: .top)
     }
 }
 
 private struct WatchChatThreadView: View {
     @ObservedObject var runtime: WatchChatRuntime
+    let currentUsername: String?
     @EnvironmentObject private var phoneBridge: WatchPhoneLoginBridge
     @StateObject private var audioRecorder = WatchAudioRecorder()
     @State private var draft = ""
-    @State private var isPreparingAudio = false
+    @State private var isSending = false
+    @State private var pendingRecording: (url: URL, duration: TimeInterval)?
+    @State private var recordingPreviewActive: Bool
+
+    init(runtime: WatchChatRuntime, currentUsername: String? = nil, showsRecordingFixture: Bool = false) {
+        self.runtime = runtime
+        self.currentUsername = currentUsername
+        _recordingPreviewActive = State(initialValue: showsRecordingFixture)
+    }
 
     var body: some View {
-        VStack(spacing: .spacing3) {
-            HStack(spacing: .spacing2) {
-                Button {
-                    runtime.selectedChatId = nil
-                } label: {
-                    Text("‹")
-                        .font(.omH2)
-                        .foregroundStyle(Color.grey0)
-                        .frame(width: .iconSizeMd, height: .iconSizeMd)
-                        .background(Color.grey90, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(WatchStrings.back)
-                .accessibilityIdentifier("watch-chat-back")
-
-                Text(runtime.selectedChat?.title ?? WatchStrings.untitledChat)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey0)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
+        ZStack {
+            if audioRecorder.isRecording || recordingPreviewActive {
+                recordingView
+            } else {
+                threadView
             }
-            .padding(.horizontal, .spacing4)
-            .padding(.top, .spacing4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WatchChatPalette.background)
+        .ignoresSafeArea(edges: .top)
+    }
+
+    private var threadView: some View {
+        VStack(spacing: 0) {
+            navigationHeader
 
             ScrollView {
                 LazyVStack(spacing: .spacing3) {
+                    if runtime.selectedMessages.isEmpty {
+                        emptyChatWelcome
+                    }
                     ForEach(runtime.selectedMessages) { message in
                         WatchMessageBubble(message: message) { model in
                             sendEmbedOpenNotification(model)
@@ -214,60 +400,57 @@ private struct WatchChatThreadView: View {
                     }
                 }
                 .padding(.horizontal, .spacing4)
-                .padding(.vertical, .spacing2)
+                .padding(.bottom, .spacing2)
             }
+            .accessibilityIdentifier("watch-chat-shell")
 
             HStack(spacing: .spacing2) {
-                Button {
-                    Task { await toggleAudioRecording() }
-                } label: {
-                    Text(audioRecorder.isRecording ? "■" : "●")
-                        .font(.omMicro)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey0)
-                        .frame(width: .iconSizeMd, height: .iconSizeMd)
-                        .background(audioRecorder.isRecording ? Color.error : Color.grey90, in: Circle())
-                        .overlay(Circle().stroke(Color.grey70, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .disabled(isPreparingAudio)
-                .accessibilityIdentifier(audioRecorder.isRecording ? "watch-audio-stop-button" : "watch-audio-record-button")
-
+                Image(systemName: "keyboard")
+                    .font(.omSmall)
+                    .foregroundStyle(WatchChatPalette.blue)
+                    .accessibilityHidden(true)
                 TextField(WatchStrings.messagePlaceholder, text: $draft)
+                    .textFieldStyle(.plain)
                     .font(.omXs)
-                    .foregroundStyle(Color.grey0)
-                    .tint(Color.buttonPrimary)
-                    .padding(.horizontal, .spacing3)
-                    .padding(.vertical, .spacing2)
-                    .background(Color.grey90, in: Capsule())
-                    .overlay(Capsule().stroke(Color.grey70, lineWidth: 1))
+                    .foregroundStyle(WatchChatPalette.foreground)
+                    .tint(WatchChatPalette.blue)
                     .accessibilityIdentifier("watch-message-input")
 
-                Button {
-                    let text = draft
-                    draft = ""
-                    Task { await runtime.queueLocalText(text) }
-                } label: {
-                    Text(WatchStrings.send)
-                        .font(.omMicro)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontButton)
-                        .padding(.horizontal, .spacing3)
-                        .padding(.vertical, .spacing2)
-                        .background(Color.buttonPrimary, in: Capsule())
+                if draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        Task { await audioRecorder.startRecording() }
+                    } label: {
+                        Image(systemName: "mic.fill")
+                            .font(.omSmall)
+                            .foregroundStyle(WatchChatPalette.blue)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSending)
+                    .accessibilityIdentifier("watch-audio-record-button")
+                } else {
+                    Button {
+                        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !text.isEmpty else { return }
+                        Task {
+                            if await runtime.sendText(text) { draft = "" }
+                        }
+                    } label: {
+                        Text(WatchStrings.send)
+                            .font(.omMicro)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(WatchChatPalette.foreground)
+                            .padding(.horizontal, .spacing2)
+                            .padding(.vertical, .spacing1)
+                            .background(WatchChatPalette.blue, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-message-send")
                 }
-                .buttonStyle(.plain)
-                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
-                .accessibilityIdentifier("watch-message-send")
             }
             .padding(.horizontal, .spacing4)
-
-            if isPreparingAudio {
-                WatchStatusPill(text: WatchStrings.transcribing)
-                    .padding(.horizontal, .spacing4)
-                    .accessibilityIdentifier("watch-audio-transcribing")
-            }
+            .frame(height: 38)
+            .background(WatchChatPalette.surface, in: Capsule())
+            .padding(.horizontal, .spacing4)
 
             if let errorMessage = audioRecorder.errorMessage ?? runtime.errorMessage, !errorMessage.isEmpty {
                 WatchStatusPill(text: errorMessage)
@@ -275,37 +458,200 @@ private struct WatchChatThreadView: View {
                     .accessibilityIdentifier("watch-audio-error")
             }
 
+            if pendingRecording != nil {
+                Button(WatchStrings.retry) { Task { await retryRecording() } }
+                    .font(.omXs)
+                    .foregroundStyle(WatchChatPalette.blue)
+                    .disabled(isSending)
+                    .accessibilityIdentifier("watch-audio-retry-button")
+            }
+
             ForEach(runtime.pendingAudioEmbeds) { embed in
                 WatchPendingAudioEmbedView(embed: embed)
                     .padding(.horizontal, .spacing4)
             }
-
-            if audioRecorder.isRecording {
-                Text(WatchStrings.recordingDuration(seconds: audioRecorder.duration))
-                    .font(.omMicro)
-                    .foregroundStyle(Color.grey30)
-                    .accessibilityIdentifier("watch-audio-recording-duration")
-            }
         }
         .padding(.bottom, .spacing4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.grey100)
+    }
+
+    private var navigationHeader: some View {
+        HStack(spacing: 2) {
+            Button {
+                runtime.selectedChatId = nil
+            } label: {
+                HStack(spacing: 2) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(WatchChatPalette.background)
+                        .frame(width: 20, height: 20)
+                        .background(WatchChatPalette.blue, in: Circle())
+                    Text(WatchChatCopy.chats)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(WatchChatPalette.blue)
+                }
+                // watchOS reserves the top 38 points for the status window.
+                // The visible control matches Figma's top row; its hit target
+                // extends below that window so taps reach this button.
+                .frame(height: 76, alignment: .top)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(WatchStrings.back)
+            .accessibilityIdentifier("watch-chat-back")
+            .padding(.bottom, -56)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, .spacing4)
+        .padding(.top, .spacing4)
+        .zIndex(1)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(runtime.selectedChat?.title ?? WatchStrings.untitledChat)
         .accessibilityIdentifier("watch-chat-thread")
     }
 
-    private func toggleAudioRecording() async {
-        if audioRecorder.isRecording {
-            guard let url = audioRecorder.stopRecording(),
-                  let data = try? Data(contentsOf: url) else { return }
-            isPreparingAudio = true
-            _ = await runtime.prepareAudioRecording(
-                data: data,
-                filename: url.lastPathComponent,
-                duration: audioRecorder.duration
-            )
-            isPreparingAudio = false
-        } else {
-            await audioRecorder.startRecording()
+    private var emptyChatWelcome: some View {
+        VStack(spacing: 21) {
+            Image(systemName: "phone.fill")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(WatchChatPalette.blue)
+                .accessibilityHidden(true)
+            VStack(spacing: 0) {
+                Text(WatchChatCopy.welcomeGreeting(username: currentUsername))
+                Text(WatchChatCopy.welcomePrompt)
+            }
+            .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+            .foregroundStyle(WatchChatPalette.foreground)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 120)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 6)
+    }
+
+    private var recordingView: some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 2) {
+                Button {
+                    recordingPreviewActive = false
+                    audioRecorder.cancelRecording()
+                    runtime.selectedChatId = nil
+                } label: {
+                    HStack(spacing: 2) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(WatchChatPalette.background)
+                            .frame(width: 20, height: 20)
+                            .background(WatchChatPalette.blue, in: Circle())
+                        Text(recordingPreviewActive ? WatchStrings.newChat : (runtime.selectedChat?.title ?? WatchStrings.newChat))
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(WatchChatPalette.blue)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("watch-audio-back-button")
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, .spacing4)
+            .frame(height: 31)
+
+            recordingCard
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WatchChatPalette.background)
+    }
+
+    private var recordingCard: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 5.5) {
+                ForEach(0..<17, id: \.self) { index in
+                    Capsule()
+                        .fill(WatchChatPalette.foreground)
+                        .frame(width: 3, height: CGFloat([12, 22, 16, 29, 17, 26, 12][index % 7]))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 31)
+            .padding(.top, 8)
+            .accessibilityHidden(true)
+
+            Text(WatchChatCopy.recording)
+                .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+                .foregroundStyle(WatchChatPalette.foreground)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(height: 28, alignment: .top)
+                .padding(.top, 12)
+
+            Text(String(format: "%02d:%02d", Int(recordingPreviewActive ? 1 : audioRecorder.duration) / 60, Int(recordingPreviewActive ? 1 : audioRecorder.duration) % 60))
+                .font(.custom(FontRegistration.fontFamily, size: 16).weight(.bold))
+                .foregroundStyle(WatchChatPalette.foreground)
+                .frame(width: 84, height: 31)
+                .background(Color.red, in: Capsule())
+                .padding(.top, 12)
+                .accessibilityIdentifier("watch-audio-recording-duration")
+
+            Spacer(minLength: 0)
+
+            HStack(spacing: 8) {
+                Button {
+                    recordingPreviewActive = false
+                    audioRecorder.cancelRecording()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundStyle(WatchChatPalette.foreground)
+                        .frame(width: 42, height: 42)
+                        .background(WatchChatPalette.teal, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(WatchStrings.cancel)
+                .accessibilityIdentifier("watch-audio-cancel-button")
+
+                Button {
+                    Task { await sendRecording() }
+                } label: {
+                    Text(WatchStrings.send)
+                        .font(.custom(FontRegistration.fontFamily, size: 16).weight(.medium))
+                        .foregroundStyle(WatchChatPalette.foreground)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 41)
+                        .background(WatchChatPalette.orange, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isSending)
+                .accessibilityIdentifier("watch-audio-send-button")
+            }
+            .padding(.bottom, 12)
+        }
+        .padding(.horizontal, .spacing4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WatchChatPalette.recordingGradient, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch-audio-recording-screen")
+    }
+
+    private func sendRecording() async {
+        guard !isSending else { return }
+        let duration = audioRecorder.duration
+        guard let url = audioRecorder.stopRecording() else { return }
+        pendingRecording = (url, duration)
+        await retryRecording()
+    }
+
+    private func retryRecording() async {
+        guard !isSending, let pendingRecording else { return }
+        isSending = true
+        defer { isSending = false }
+        guard let data = try? Data(contentsOf: pendingRecording.url) else {
+            self.pendingRecording = nil
+            return
+        }
+        if await runtime.sendAudioRecording(data: data, filename: pendingRecording.url.lastPathComponent,
+                                            duration: pendingRecording.duration) {
+            try? FileManager.default.removeItem(at: pendingRecording.url)
+            self.pendingRecording = nil
         }
     }
 
@@ -372,33 +718,37 @@ private struct WatchChatRow: View {
     let chat: WatchChatSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing1) {
-            HStack(spacing: .spacing2) {
-                Text(chat.title ?? WatchStrings.untitledChat)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.grey0)
-                    .lineLimit(1)
-                if chat.isPinned {
-                    Circle()
-                        .fill(Color.buttonPrimary)
-                        .frame(width: 5, height: 5)
-                        .accessibilityHidden(true)
+        HStack(alignment: .top, spacing: .spacing2) {
+            Image(systemName: "bubble.left.fill")
+                .font(.omSmall)
+                .foregroundStyle(WatchChatPalette.foreground)
+                .frame(width: 28, height: 28)
+                .background(WatchChatPalette.teal.opacity(0.55), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: .spacing1) {
+                    Text(chat.title ?? WatchStrings.untitledChat)
+                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+                        .foregroundStyle(WatchChatPalette.foreground)
+                        .lineLimit(3)
+                    if chat.isPinned {
+                        Circle()
+                            .fill(WatchChatPalette.blue)
+                            .frame(width: 5, height: 5)
+                            .accessibilityHidden(true)
+                    }
+                }
+                if let preview = chat.preview?.trimmingCharacters(in: .whitespacesAndNewlines), !preview.isEmpty {
+                    Text(preview)
+                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+                        .foregroundStyle(WatchChatPalette.muted)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
                 }
             }
-            Text(chat.preview ?? WatchStrings.clientEncrypted)
-                .font(.omMicro)
-                .foregroundStyle(Color.grey30)
-                .lineLimit(2)
         }
-        .padding(.horizontal, .spacing4)
-        .padding(.vertical, .spacing3)
+        .padding(.vertical, .spacing2)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius6, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: .radius6, style: .continuous)
-                .stroke(Color.grey80, lineWidth: 1)
-        )
     }
 }
 
@@ -428,12 +778,12 @@ private struct WatchMessageBubble: View {
                 if let displayContent = message.watchDisplayContent {
                     Text(displayContent)
                         .font(.omXs)
-                        .foregroundStyle(isUser ? Color.grey100 : Color.fontPrimary)
+                        .foregroundStyle(WatchChatPalette.foreground)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if embedPreviews.isEmpty {
                     Text(WatchStrings.clientEncrypted)
                         .font(.omXs)
-                        .foregroundStyle(isUser ? Color.grey100 : Color.fontPrimary)
+                        .foregroundStyle(WatchChatPalette.foreground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -446,12 +796,12 @@ private struct WatchMessageBubble: View {
                 if message.isPending {
                     Text(WatchStrings.pendingSend)
                         .font(.omMicro)
-                        .foregroundStyle(isUser ? Color.grey80 : Color.grey40)
+                        .foregroundStyle(WatchChatPalette.muted)
                 }
             }
             .padding(.horizontal, .spacing3)
             .padding(.vertical, .spacing2)
-            .background(isUser ? Color.greyBlue : Color.grey0, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .background(isUser ? WatchChatPalette.surface : WatchChatPalette.background, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
             if !isUser { Spacer(minLength: .spacing5) }
         }
     }
@@ -463,11 +813,11 @@ private struct WatchStatusPill: View {
     var body: some View {
         Text(text)
             .font(.omMicro)
-            .foregroundStyle(Color.grey0)
+            .foregroundStyle(WatchChatPalette.foreground)
             .padding(.horizontal, .spacing3)
             .padding(.vertical, .spacing2)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.grey90, in: Capsule())
-            .overlay(Capsule().stroke(Color.buttonPrimary.opacity(0.55), lineWidth: 1))
+            .background(WatchChatPalette.surface, in: Capsule())
+            .overlay(Capsule().stroke(WatchChatPalette.blue.opacity(0.55), lineWidth: 1))
     }
 }

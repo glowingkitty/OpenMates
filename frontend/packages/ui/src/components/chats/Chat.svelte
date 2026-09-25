@@ -9,7 +9,6 @@
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
-  import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
   import { chatListCache } from '../../services/chatListCache'; // Global cache for last messages
@@ -21,6 +20,7 @@
   import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
   import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+  import { draftEmbedLabel, formatDraftPreview } from '../../utils/draftPreview';
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
   import { websocketStatus } from '../../stores/websocketStatusStore'; // Import WebSocket status for connection checks
   import { 
@@ -92,10 +92,8 @@
     aiMessageId: null 
   });
 
-  const TEST_LIVE_MOCK_MARKER_PATTERN = /<<<TEST_LIVE_MOCK:[^>]+>>>/g;
-
   function sanitizeDraftPreview(value: string | null | undefined): string {
-    return (value ?? '').replace(TEST_LIVE_MOCK_MARKER_PATTERN, '').replace(/\s+/g, ' ').trim();
+    return formatDraftPreview(value);
   }
   
   // Category circle state
@@ -283,11 +281,8 @@
       // e.g., "@ai-model:claude-4-sonnet" -> "@Claude-4.5-Sonnet"
       displayText = convertMentionSyntaxToDisplayName(displayText);
       
-      // Replace legacy json_embed code blocks with their URLs for display
-      displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match) => {
-        const url = extractUrlFromJsonEmbedBlock(match);
-        return url ? ` ${url} ` : match;
-      });
+      // Legacy json_embed blocks are website embeds.
+      displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, ' [Website] ');
       
       // Replace serialized embed reference blocks (```json\n{...}\n```) with human-readable tokens.
       // These are produced by serializers.ts for embeds stored in EmbedStore.
@@ -297,12 +292,7 @@
         try {
           const parsed = JSON.parse(jsonContent.trim());
           const type = parsed?.type;
-          if (type === 'location') return ' [Location] ';
-          if (type === 'video') return ' [Video] ';
-          if (type === 'website') return ' [Website] ';
-          if (type === 'image') return ' [Image] ';
-          if (type === 'code' || type === 'code-code' || type === 'code-code-group') return ' [Code] ';
-          if (type) return ` [${type}] `;
+          if (typeof type === 'string' && type) return ` ${draftEmbedLabel(type)} `;
         } catch {
           // Not valid JSON — fall through to generic code-block handler
         }

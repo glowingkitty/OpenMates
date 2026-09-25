@@ -26,8 +26,8 @@ GITHUB_API_BASE = "https://api.github.com"
 GITHUB_TIMEOUT_SECONDS = 12
 GITHUB_REPO_PATH_RE = re.compile(r"^/([^/]+)/([^/]+?)(?:\.git)?/?$")
 MIT_LICENSE_MARKER = "MIT License"
-DEFAULT_REPO_SEARCH_COUNT = 6
-MAX_REPO_SEARCH_COUNT = 10
+DEFAULT_REPO_SEARCH_COUNT = 10
+MAX_REPO_SEARCH_COUNT = 40
 
 
 def parse_github_repo_url(url: str) -> tuple[str, str] | None:

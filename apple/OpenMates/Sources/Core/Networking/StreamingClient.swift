@@ -118,6 +118,10 @@ actor StreamingClient {
             AsyncIterator(iterator: stream.makeAsyncIterator(), generation: generation, gate: gate,
                           lifetime: StreamingSubscriptionLifetime(cancel: cancel))
         }
+
+        func finish() async {
+            await cancel()
+        }
     }
     enum StreamEvent: @unchecked Sendable {
         case taskInitiated(chatId: String, taskId: String, userMessageId: String)
@@ -130,7 +134,7 @@ actor StreamingClient {
         case typingEnded(chatId: String, messageId: String?)
         case messageQueued(chatId: String, taskId: String?, userMessageId: String?, message: String?)
         case cancelRequested(chatId: String, taskId: String?)
-        case postProcessingCompleted(chatId: String, taskId: String, followUpSuggestions: [String], newChatSuggestions: [String], chatSummary: String?, chatTags: [String], updatedTitle: String?)
+        case postProcessingCompleted(chatId: String, taskId: String, followUpSuggestions: [String], newChatSuggestions: [String], chatSummary: String?, chatTags: [String], updatedTitle: String?, sourceTitleVersion: Int?, sourceMetadataVersion: Int?)
         case error(String)
     }
 

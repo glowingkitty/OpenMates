@@ -106,6 +106,7 @@ instructions:
 
 skills:
   - id: set-reminder
+    anonymous_access: authenticated
     name_translation_key: reminder.set_reminder
     description_translation_key: reminder.set_reminder.description
     icon_image: reminder.svg
@@ -235,6 +236,7 @@ skills:
         - timezone
 
   - id: list-reminders
+    anonymous_access: authenticated
     name_translation_key: reminder.list_reminders
     description_translation_key: reminder.list_reminders.description
     icon_image: task.svg
@@ -256,6 +258,7 @@ skills:
           description: "Filter reminders by status. 'pending' shows only upcoming reminders."
 
   - id: cancel-reminder
+    anonymous_access: authenticated
     name_translation_key: reminder.cancel_reminder
     description_translation_key: reminder.cancel_reminder.description
     icon_image: delete.svg

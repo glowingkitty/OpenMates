@@ -28,6 +28,9 @@
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { deactivateFocusForChat, isProjectFocusId } from '../services/projectFocusSendPreflight';
+    import { getActiveProjectFocus, getProject } from '../services/projectService';
+    import { activeChatFocusStore } from '../stores/activeChatFocusStore';
     import { assistantSpeechController } from '../services/assistantSpeechController';
     import { getAssistantSpeechPreference, setAssistantSpeechPreference } from '../services/assistantSpeechPreference';
     import { isTeamAIInvocation } from '../services/teamService';
@@ -106,6 +109,7 @@
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
     import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from '../utils/chatDraftState';
+    import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
@@ -1542,17 +1546,20 @@
         if (!chatId) return;
         console.debug('[ActiveChat] Deactivating focus mode:', focusId);
         
-        // Send deactivation to the backend via WebSocket
-        // The backend handler clears cache + dispatches Celery task for Directus
         try {
             const { webSocketService } = await import('../services/websocketService');
-            webSocketService.sendMessage('chat_focus_mode_deactivate', {
-                chat_id: chatId,
-                focus_id: focusId,
+            await deactivateFocusForChat({
+                chatId,
+                focusId,
+                sendCatalogDeactivation: async (payload) => {
+                    await webSocketService.sendMessage('chat_focus_mode_deactivate', payload);
+                },
             });
             console.debug('[ActiveChat] Sent focus mode deactivation to backend');
         } catch (e) {
             console.error('[ActiveChat] Error sending focus mode deactivation:', e);
+            notificationStore.error('Focus mode could not be deactivated. Please try again.');
+            return;
         }
         
         // Clear the local encrypted_active_focus_id and invalidate the metadata cache
@@ -1566,6 +1573,9 @@
             }
             const { chatMetadataCache } = await import('../services/chatMetadataCache');
             chatMetadataCache.invalidateChat(chatId);
+            activeChatFocusStore.clearActiveFocus(chatId);
+            activeFocusId = null;
+            activeProjectFocusName = null;
             console.debug('[ActiveChat] Cleared local focus mode state and invalidated cache');
         } catch (e) {
             console.error('[ActiveChat] Error clearing local focus mode state:', e);
@@ -3390,10 +3400,7 @@
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
 
-        const sanitizeVisibleDraftPreview = (value: string | null): string | null => {
-            const sanitized = value?.replace(/\s*<<<TEST_LIVE_MOCK:[^>]+>>>\s*/g, ' ').replace(/\s+/g, ' ').trim() || null;
-            return sanitized;
-        };
+        const sanitizeVisibleDraftPreview = (value: string | null): string | null => formatDraftPreview(value) || null;
 
         if (isDraftOnly) {
             try {
@@ -4212,14 +4219,14 @@
         const encryptedPreview = chat.encrypted_draft_preview || chat.encrypted_draft_md;
         if (!encryptedPreview) return false;
 
-        const preview = await decryptWithMasterKey(encryptedPreview);
-        if (!preview?.trim()) {
+        const preview = formatDraftPreview(await decryptWithMasterKey(encryptedPreview));
+        if (!preview) {
             console.error(`[ActiveChat] ${reason}: Failed to decrypt persisted draft preview for ${chat.chat_id}`);
             return false;
         }
         if (!isCurrentTarget()) return false;
 
-        activeChatDecryptedTitle = preview.trim();
+        activeChatDecryptedTitle = preview;
         activeChatDecryptedCategory = 'general_knowledge';
         activeChatDecryptedIcon = 'lightbulb';
         activeChatDecryptedSummary = null;
@@ -5494,6 +5501,7 @@
     // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
     // Used to render the "Focus active" header banner in the chat view.
     let activeFocusId = $state<string | null>(null);
+    let activeProjectFocusName = $state<string | null>(null);
     // Guard flag: set by focusModeActivatedHandler to prevent the $effect async metadata
     // load from overwriting activeFocusId with a stale null when the WebSocket event
     // fires before the focus_id has been persisted to IndexedDB.
@@ -5503,9 +5511,10 @@
     // (where the guard must be preserved).
     let lastLoadedChatId: string | null = null;
     // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
-    let activeFocusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+    let activeFocusIsProject = $derived(isProjectFocusId(activeFocusId));
+    let activeFocusAppId = $derived(activeFocusId && !activeFocusIsProject ? activeFocusId.split('-')[0] : null);
     // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
-    let activeFocusModeKey = $derived(activeFocusId ? activeFocusId.split('-').slice(1).join('-') : null);
+    let activeFocusModeKey = $derived(activeFocusId && !activeFocusIsProject ? activeFocusId.split('-').slice(1).join('-') : null);
     // Resolved focus mode metadata for the banner name translation
     let activeFocusModeMetadata = $derived.by(() => {
         if (!activeFocusAppId || !activeFocusModeKey) return null;
@@ -5826,6 +5835,44 @@
         !(currentChat && isLegalChat(currentChat.chat_id))
     );
 
+    async function refreshProjectFocusPresentation(chatId: string, focusId: string): Promise<void> {
+        if (!isProjectFocusId(focusId)) {
+            activeProjectFocusName = null;
+            return;
+        }
+        let activeProjectFocus: Awaited<ReturnType<typeof getActiveProjectFocus>>;
+        try {
+            activeProjectFocus = await getActiveProjectFocus(chatId);
+        } catch (error) {
+            console.warn('[ActiveChat] Could not revalidate active Project focus:', error);
+            if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
+                activeProjectFocusName = 'Project';
+            }
+            return;
+        }
+        if (!activeProjectFocus || activeProjectFocus.focus_id !== focusId) {
+            if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
+                activeChatFocusStore.clearActiveFocus(chatId);
+                activeFocusId = null;
+                activeProjectFocusName = null;
+            }
+            return;
+        }
+        try {
+            const project = await getProject(activeProjectFocus.project_id, {
+                teamId: activeProjectFocus.team_id,
+            });
+            if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
+                activeProjectFocusName = project.name || 'Project';
+            }
+        } catch (error) {
+            console.warn('[ActiveChat] Could not decrypt active Project name:', error);
+            if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
+                activeProjectFocusName = 'Project';
+            }
+        }
+    }
+
     // Load and refresh the active focus ID whenever the current chat changes.
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
     $effect(() => {
@@ -5836,14 +5883,17 @@
         if (chatId !== lastLoadedChatId) {
             focusPillSetByEvent = false;
             activeFocusId = null;
+            activeProjectFocusName = null;
         }
         if (!chatId) {
             activeFocusId = null;
+            activeProjectFocusName = null;
             lastLoadedChatId = null;
             return;
         }
         if (currentChat?.active_focus_id) {
             activeFocusId = currentChat.active_focus_id;
+            void refreshProjectFocusPresentation(chatId, currentChat.active_focus_id);
             lastLoadedChatId = chatId;
             return;
         }
@@ -5858,6 +5908,11 @@
                 // AND the event handler hasn't already set a more current value.
                 if (currentChat?.chat_id === loadedChatId && !focusPillSetByEvent) {
                     activeFocusId = metadata?.activeFocusId ?? null;
+                    if (metadata?.activeFocusId) {
+                        void refreshProjectFocusPresentation(loadedChatId, metadata.activeFocusId);
+                    } else {
+                        activeProjectFocusName = null;
+                    }
                 }
             } catch (e) {
                 console.warn('[ActiveChat] Could not load active focus ID:', e);
@@ -6445,6 +6500,9 @@
 
         // Save to IndexedDB or incognito service
         if (messageToSave) {
+            if (autoSpeakResponse && messageToSave.role === 'assistant' && typeof messageToSave.content === 'string') {
+                assistantSpeechController.registerSource(chunk.chat_id, chunk.message_id, messageToSave.content);
+            }
             try {
                 const saveStartTime = performance.now();
                 
@@ -11225,19 +11283,21 @@
         const focusModeDeactivatedHandler = (event: CustomEvent) => {
             const { focusId } = event.detail || {};
             console.debug('[ActiveChat] Focus mode deactivated:', focusId);
-            handleFocusModeDeactivation(focusId);
-            // Clear the banner state immediately so the header banner disappears
-            activeFocusId = null;
+            void handleFocusModeDeactivation(focusId);
         };
         document.addEventListener('focusModeDeactivated', focusModeDeactivatedHandler as EventListenerCallback);
         
         // Listen for focus mode activation events from chatSyncService to update the banner
         const focusModeActivatedHandler = (event: CustomEvent) => {
-            const { chat_id, focus_id } = event.detail || {};
+            const { chat_id, focus_id, project_name } = event.detail || {};
             if (chat_id && focus_id && currentChat?.chat_id === chat_id) {
                 console.debug('[ActiveChat] Focus mode activated, updating banner:', focus_id);
                 focusPillSetByEvent = true;
                 activeFocusId = focus_id;
+                activeProjectFocusName = isProjectFocusId(focus_id) && typeof project_name === 'string'
+                    ? project_name
+                    : null;
+                void refreshProjectFocusPresentation(chat_id, focus_id);
             }
         };
         chatSyncService.addEventListener('focusModeActivated', focusModeActivatedHandler as EventListenerCallback);
@@ -13961,7 +14021,7 @@
                          <!-- New-chat suggestions are tied to the active message input. The short
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
-                         {#if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                         {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
@@ -14013,7 +14073,7 @@
                         <!-- Chat search suggestions — shown when typing in an open chat's message input.
                              Searches existing chats and shows matching results as horizontal cards.
                              Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
-                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                        {#if !showWelcome && !isActiveDraftOnlyChat && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
                             <ChatSearchSuggestions
                                 messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
@@ -14069,6 +14129,7 @@
                                     activeFocusId={!showWelcome ? activeFocusId : null}
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
+                                    activeProjectFocusName={!showWelcome ? activeProjectFocusName : null}
                                     isIdeaBucketChat={!!currentChat?.ideabucket}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
@@ -14078,8 +14139,7 @@
                                     }}
                                     onFocusPillDeactivate={() => {
                                         if (activeFocusId) {
-                                            handleFocusModeDeactivation(activeFocusId);
-                                            activeFocusId = null;
+                                            void handleFocusModeDeactivation(activeFocusId);
                                         }
                                     }}
                                     isIncognitoMode={!!(currentChat?.is_incognito || (showWelcome && $incognitoMode))}

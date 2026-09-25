@@ -46,6 +46,7 @@ instructions:
       - Running an existing workflow creates a pending countdown or approval state before execution.
 skills:
   - id: create-or-modify
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.create_or_modify
     description_translation_key: workflows.skills.create_or_modify.description
     icon_image: workflow.svg
@@ -72,6 +73,7 @@ skills:
         - title
 
   - id: search
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.search
     description_translation_key: workflows.skills.search.description
     icon_image: search.svg
@@ -93,6 +95,7 @@ skills:
           description: Include temporary chat-created workflows in the search results.
 
   - id: run
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.run
     description_translation_key: workflows.skills.run.description
     icon_image: play.svg
@@ -119,6 +122,7 @@ skills:
         - workflow_id
 
   - id: schedule-once
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.schedule_once
     description_translation_key: workflows.skills.schedule_once.description
     icon_image: schedule.svg
@@ -146,6 +150,7 @@ skills:
         - graph
 
   - id: schedule-recurring
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.schedule_recurring
     description_translation_key: workflows.skills.schedule_recurring.description
     icon_image: repeat.svg
@@ -173,6 +178,7 @@ skills:
         - graph
 
   - id: cancel-pending
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.cancel_pending
     description_translation_key: workflows.skills.cancel_pending.description
     icon_image: close.svg
@@ -193,6 +199,7 @@ skills:
         - pending_id
 
   - id: keep-temporary
+    anonymous_access: authenticated
     name_translation_key: workflows.skills.keep_temporary
     description_translation_key: workflows.skills.keep_temporary.description
     icon_image: bookmark.svg

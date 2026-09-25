@@ -241,6 +241,18 @@ def test_plan_backed_batch_approval_matches_exact_bundle_hash(tmp_path):
     )
 
     assert module.check_approval(approvals_path, "d1ff", bundle.specification_id, bundle.fingerprint) is None
+    # A new exact approved batch must remain usable when an older direct PDF
+    # receipt still exists, without accepting a third, unapproved fingerprint.
+    saved = json.loads(approvals_path.read_text(encoding="utf-8"))
+    saved["sessions"]["d1ff"][bundle.specification_id] = {
+        "confirmation": "explicit_user_confirmation",
+        "fingerprint": "older-approved-bundle",
+    }
+    approvals_path.write_text(json.dumps(saved), encoding="utf-8")
+    assert module.check_approval(approvals_path, "d1ff", bundle.specification_id, bundle.fingerprint) is None
+    assert "stale" in module.check_approval(approvals_path, "d1ff", bundle.specification_id, "unapproved-bundle")
+    del saved["sessions"]["d1ff"][bundle.specification_id]
+    approvals_path.write_text(json.dumps(saved), encoding="utf-8")
     assert "stale batch approval" in module.check_approval(
         approvals_path,
         "d1ff",

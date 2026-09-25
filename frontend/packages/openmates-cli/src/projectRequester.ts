@@ -12,6 +12,10 @@ import { randomUUID } from "node:crypto";
 import type { OpenMatesClient, ProjectSourceRecord, TeamContextOptions } from "./client.js";
 import { decryptWithAesGcmCombined, encryptWithAesGcmCombined } from "./crypto.js";
 import {
+  isProjectFileMutationOperation, projectFileMutationDigest, validateProjectFileMutation,
+} from "../../ui/src/utils/projectFileMutationProtocol.js";
+import { createProjectIgnoredReadGrant } from "../../ui/src/utils/projectIgnoredReadGrant.js";
+import {
   RemoteAccessReplayGuard,
   createRemoteAccessHandshake,
   deriveRemoteAccessSessionKey,
@@ -49,10 +53,11 @@ export async function requestProjectRemoteOperation(options: {
   projectId: string;
   projectKey: Uint8Array;
   source: ProjectSourceRecord;
-  operation: "list" | "search" | "read_text";
+  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
   arguments: Record<string, unknown>;
   context: TeamContextOptions;
   timeoutMs?: number;
+  approvedIgnoredRead?: { path: string; chatId: string; operationId: string };
 }): Promise<unknown> {
   if (options.source.status !== "connected") {
     throw new ProjectRequesterError("source_offline", "The selected Project source is offline.");
@@ -71,6 +76,35 @@ export async function requestProjectRemoteOperation(options: {
 
   const requestingClientId = randomUUID();
   const requestId = randomUUID();
+  let ignoredReadGrant: Awaited<ReturnType<typeof createProjectIgnoredReadGrant>> | undefined;
+  if (options.approvedIgnoredRead) {
+    const approval = options.approvedIgnoredRead;
+    if (options.operation !== "read_text" || options.arguments.path !== approval.path
+      || !approval.chatId || !approval.operationId) {
+      throw new ProjectRequesterError("ignored_read_scope_mismatch", "The ignored-file approval does not match this exact read.");
+    }
+    ignoredReadGrant = await createProjectIgnoredReadGrant(options.projectKey, {
+      projectId: options.projectId,
+      sourceId: options.source.source_id,
+      requestId,
+      chatId: approval.chatId,
+      operationId: approval.operationId,
+      path: approval.path,
+    });
+  }
+  let writeContext: { chat_id: string; operation_id: string; proposal_digest: string } | undefined;
+  if (isProjectFileMutationOperation(options.operation)) {
+    const chatId = options.arguments.chat_id;
+    const mutation = validateProjectFileMutation(options.arguments.mutation);
+    if (typeof chatId !== "string" || !chatId || mutation.operation !== options.operation) {
+      throw new ProjectRequesterError("write_context_required", "A Project write requires the originating chat and an exact proposal.");
+    }
+    writeContext = {
+      chat_id: chatId,
+      operation_id: mutation.operation_id,
+      proposal_digest: await projectFileMutationDigest(options.projectKey, options.projectId, chatId, mutation),
+    };
+  }
   const identity = await buildIdentity(
     options.client,
     options.projectId,
@@ -86,6 +120,13 @@ export async function requestProjectRemoteOperation(options: {
     requester_handshake: requester.handshake,
     operation: options.operation,
     arguments: options.arguments,
+    ...(ignoredReadGrant && options.approvedIgnoredRead ? {
+      ignored_read_grant: ignoredReadGrant,
+      ignored_read_context: {
+        chatId: options.approvedIgnoredRead.chatId,
+        operationId: options.approvedIgnoredRead.operationId,
+      },
+    } : {}),
   }), options.projectKey);
   const created = await options.client.createProjectRemoteAccessRequest(
     options.projectId,
@@ -96,6 +137,7 @@ export async function requestProjectRemoteOperation(options: {
       operation: options.operation,
       key_epoch: keyEpoch,
       encrypted_envelope: encryptedEnvelope,
+      ...writeContext,
     },
     options.context,
   );
@@ -253,6 +295,13 @@ function remoteErrorMessage(code: string): string {
     invalid_path: "The requested path is invalid, unavailable, or a symbolic link.",
     search_query_required: "A search query is required.",
     operation_failed: "The Project source operation failed.",
+    file_changed: "The file changed. Read its current content and rebuild the edit.",
+    target_exists: "The create target already exists; its content was preserved.",
+    invalid_patch: "The patch does not exactly match the current file.",
+    operation_conflict: "This operation identity was already used for different changes.",
+    operation_unconfirmed: "A previous write outcome needs reconciliation before another attempt.",
+    write_authorization_denied: "The originating chat no longer has permission to write this Project.",
+    ignored_path_requires_approval: "This ignored file requires explicit approval.",
   };
   return messages[code] ?? `The Project source rejected the request (${code}).`;
 }

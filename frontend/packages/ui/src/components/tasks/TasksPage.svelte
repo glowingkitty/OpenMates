@@ -17,6 +17,9 @@
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { notificationStore } from '../../stores/notificationStore';
   import { userProfile } from '../../stores/userProfile';
+  import { getApiUrl } from '../../config/api';
+  import { getProfileImageBlobUrl } from '../../services/profileImageService';
+  import { listProjects } from '../../services/projectService';
   import {
     blockUserTask,
     completeUserTask,
@@ -44,8 +47,9 @@
   import {
     activateUserPlan,
     completeUserPlan,
-    createUserPlan,
     listUserPlans,
+    updateUserPlan,
+    type UserPlanStatus,
     type UserPlanViewModel,
   } from '../../services/userPlanService';
 
@@ -56,11 +60,19 @@
     chatId = null,
     compact = false,
     focus = 'tasks',
+    previewTasks = null,
+    previewPlans = null,
+    previewProjectNames = {},
+    previewAssigneeAvatarUrl = null,
   }: {
     projectId?: string | null;
     chatId?: string | null;
     compact?: boolean;
     focus?: 'tasks' | 'plans';
+    previewTasks?: TasksBoardItem[] | null;
+    previewPlans?: UserPlanViewModel[] | null;
+    previewProjectNames?: Record<string, string>;
+    previewAssigneeAvatarUrl?: string | null;
   } = $props();
 
   let tasks = $state<TasksBoardItem[]>([]);
@@ -72,8 +84,6 @@
   let hasLoadError = $state(false);
   let title = $state('');
   let description = $state('');
-  let planTitle = $state('');
-  let planSummary = $state('');
   let taskAssigneeChoice = $state<TaskAssigneeChoice>('user');
   let transcriptText = $state('');
   let correctedTranscriptText = $state('');
@@ -89,20 +99,26 @@
   let selectedWorkflowRunProjection = $state<WorkflowRunTaskProjectionViewModel | null>(null);
   let selectedTask = $state<UserTaskViewModel | null>(null);
   let taskBoardPanel: HTMLElement | null = $state(null);
+  let projectNames = $state<Record<string, string>>({});
+  let assigneeAvatarUrl = $state<string | null>(null);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
-  let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
-  let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
+  let hasPreviewData = $derived(previewTasks !== null || previewPlans !== null);
+  let tasksEnabled = $derived(previewTasks !== null || (featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true));
+  let plansEnabled = $derived(previewPlans !== null || (!hasPreviewData && featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true));
   let isCentralTasksWorkspace = $derived(!compact && focus === 'tasks');
   let isNarrowTasksWorkspace = $derived(tasksPageWidth <= 900);
 
-  const totalCount = $derived(tasks.length);
-  const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
-  const doneCount = $derived(tasks.filter((task) => task.status === 'done').length);
+  const boardPlans = $derived(plans.filter((plan) => plan.status !== 'archived'));
+  const totalCount = $derived(tasks.length + boardPlans.length);
+  const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length + plans.filter((plan) => plan.status === 'executing' || plan.status === 'running_checks').length);
+  const doneCount = $derived(tasks.filter((task) => task.status === 'done').length + plans.filter((plan) => plan.status === 'completed').length);
   const activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
   const completedPlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
   const greetingName = $derived(formatGreetingName($userProfile.username));
   const taskFilterChips = $derived(resolveTaskFilterChips(tasks));
   const visibleTasks = $derived(filterTasks(tasks, searchTerm));
+  const visiblePlans = $derived(filterPlans(boardPlans, searchTerm));
+  const isBoardLoading = $derived(isLoading || (plansEnabled && isLoadingPlans));
   let canAssignCodex = $state(false);
 
   function formatGreetingName(username: string): string {
@@ -124,6 +140,19 @@
       task.description,
       task.assigneeType,
       ...task.tags,
+    ].some((value) => value.toLowerCase().includes(normalized)));
+  }
+
+  function filterPlans(items: UserPlanViewModel[], query: string): UserPlanViewModel[] {
+    const normalized = query.trim().replace(/^#/, '').toLowerCase();
+    if (!normalized) return items;
+    return items.filter((plan) => [
+      plan.title,
+      plan.goal,
+      plan.status,
+      plan.status.replaceAll('_', '-'),
+      plan.risks,
+      ...plan.linkedProjectIds.map((id) => projectNames[id] ?? ''),
     ].some((value) => value.toLowerCase().includes(normalized)));
   }
 
@@ -266,6 +295,21 @@
     }
   }
 
+  async function refreshTaskPresentation(): Promise<void> {
+    if (previewTasks !== null) {
+      projectNames = previewProjectNames;
+      assigneeAvatarUrl = previewAssigneeAvatarUrl;
+      return;
+    }
+    try {
+      const projects = await listProjects();
+      projectNames = Object.fromEntries(projects.map((project) => [project.project_id, project.name]));
+    } catch (error) {
+      console.error('[TasksPage] Failed to load linked project labels:', error);
+      projectNames = {};
+    }
+  }
+
   async function refreshPlans(): Promise<void> {
     if (!plansEnabled) {
       plans = [];
@@ -277,7 +321,6 @@
       plans = await listUserPlans({
         projectId: projectId ?? undefined,
         chatId: chatId ?? undefined,
-        limit: compact ? 5 : 12,
       });
     } catch (error) {
       console.error('[TasksPage] Failed to load plans:', error);
@@ -485,32 +528,6 @@
     extractedProposals = extractedProposals.filter((candidate) => candidate !== proposal);
   }
 
-  async function handleCreatePlan(): Promise<void> {
-    if (!plansEnabled) return;
-    const trimmedTitle = planTitle.trim();
-    if (!trimmedTitle || isSaving) return;
-    isSaving = true;
-    try {
-      const plan = await createUserPlan({
-        title: trimmedTitle,
-        summary: planSummary.trim(),
-        status: 'draft',
-        primaryChatId: chatId,
-        linkedProjectIds: projectId ? [projectId] : [],
-      });
-      plans = [plan, ...plans];
-      broadcastPlansChanged();
-      planTitle = '';
-      planSummary = '';
-      notificationStore.success('Plan created');
-    } catch (error) {
-      console.error('[TasksPage] Failed to create plan:', error);
-      notificationStore.error('Failed to create plan');
-    } finally {
-      isSaving = false;
-    }
-  }
-
   async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<void> {
     if (isWorkflowRunTaskProjectionViewModel(task)) return;
     const previous = tasks;
@@ -599,43 +616,74 @@
     }
   }
 
-  async function handleActivatePlan(plan: UserPlanViewModel): Promise<void> {
-    if (!plansEnabled) return;
-    planActionId = plan.plan_id;
-    try {
-      const updated = await activateUserPlan(plan);
-      plans = plans.map((candidate) => candidate.plan_id === updated.plan_id ? updated : candidate);
-      broadcastPlansChanged();
-      notificationStore.success('Plan activated');
-    } catch (error) {
-      console.error('[TasksPage] Failed to activate plan:', error);
-      notificationStore.error('Failed to activate plan');
-    } finally {
-      planActionId = null;
-    }
+  function planStatusForColumn(status: UserTaskStatus): UserPlanStatus {
+    if (status === 'done') return 'completed';
+    if (status === 'blocked') return 'blocked';
+    if (status === 'in_progress') return 'executing';
+    if (status === 'todo') return 'awaiting_confirmation';
+    return 'draft';
   }
 
-  async function handleCompletePlan(plan: UserPlanViewModel): Promise<void> {
-    if (!plansEnabled) return;
+  async function handleMovePlan(plan: UserPlanViewModel, status: UserTaskStatus): Promise<void> {
+    if (!plansEnabled || planActionId) return;
+    if ((status === 'in_progress' || status === 'blocked') && !plan.primaryChatId) {
+      notificationStore.error(status === 'in_progress' ? 'Link this plan to a chat before starting it.' : 'Link this plan to a chat before blocking it.');
+      return;
+    }
+    const previous = plans;
+    plans = plans.map((candidate) => candidate.plan_id === plan.plan_id ? { ...candidate, status: planStatusForColumn(status) } : candidate);
     planActionId = plan.plan_id;
     try {
-      const updated = await completeUserPlan(plan);
+      let updated: UserPlanViewModel;
+      if (status === 'done') {
+        updated = await completeUserPlan(plan);
+      } else if (status === 'todo') {
+        updated = plan.primaryChatId ? await activateUserPlan(plan) : await updateUserPlan(plan, { status: 'awaiting_confirmation' });
+      } else if (status === 'in_progress') {
+        updated = await updateUserPlan(plan, { status: 'executing' });
+      } else if (status === 'blocked') {
+        updated = await updateUserPlan(plan, { status: 'blocked' });
+      } else {
+        updated = await updateUserPlan(plan, { status: 'draft' });
+      }
       plans = plans.map((candidate) => candidate.plan_id === updated.plan_id ? updated : candidate);
       broadcastPlansChanged();
-      notificationStore.success('Plan completed');
+      notificationStore.success(status === 'done' ? 'Plan completed' : 'Plan updated');
     } catch (error) {
-      console.error('[TasksPage] Failed to complete plan:', error);
-      notificationStore.error('Plan still has blockers');
+      plans = previous;
+      console.error('[TasksPage] Failed to move plan:', error);
+      notificationStore.error(status === 'done' ? 'Plan still has blockers before completion' : error instanceof Error ? error.message : 'Failed to update plan');
     } finally {
       planActionId = null;
     }
   }
 
   onMount(() => {
+    if (hasPreviewData) return;
     void initializeFeatureAvailability();
     if (!isCentralTasksWorkspace) {
       void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
     }
+    void refreshTaskPresentation();
+  });
+
+  $effect(() => {
+    const profileImageUrl = $userProfile.profile_image_url;
+    const userId = $userProfile.user_id;
+    if (hasPreviewData) {
+      projectNames = previewProjectNames;
+      assigneeAvatarUrl = previewAssigneeAvatarUrl;
+      return;
+    }
+    if (!profileImageUrl || !userId) {
+      assigneeAvatarUrl = null;
+      return;
+    }
+    let cancelled = false;
+    getProfileImageBlobUrl(profileImageUrl, getApiUrl(), userId).then((resolved) => {
+      if (!cancelled) assigneeAvatarUrl = resolved;
+    });
+    return () => { cancelled = true; };
   });
 
   $effect(() => {
@@ -643,6 +691,14 @@
     void chatId;
     void tasksEnabled;
     void plansEnabled;
+    if (hasPreviewData) {
+      tasks = previewTasks ?? [];
+      plans = previewPlans ?? [];
+      isLoading = false;
+      isLoadingPlans = false;
+      hasLoadError = false;
+      return;
+    }
     if (!$featureAvailabilityStore.initialized) return;
     void refreshTasks();
     void refreshPlans();
@@ -689,6 +745,25 @@
 
   {#if isCentralTasksWorkspace}
     <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
+      <section class="tasks-daily-suggestion" data-testid="tasks-daily-suggestion" aria-label="Daily suggestion">
+        <div class="tasks-suggestion-label">
+          <span class="tasks-suggestion-book" aria-hidden="true"></span>
+          <span data-testid="tasks-suggestion-heading">Daily suggestion</span>
+        </div>
+        <div class="tasks-suggestion-content">
+          <p data-testid="tasks-suggestion-description">Security is essential, especially in the age of AI. Review your public endpoints before launch.</p>
+          <article class="tasks-suggestion-card" data-testid="tasks-suggestion-card" aria-label="Suggested task">
+            <strong>Double check security and potential risks of FastAPI endpoints.</strong>
+            <span>OpenMates</span>
+          </article>
+        </div>
+        <button
+          type="button"
+          class="tasks-suggestion-create"
+          data-testid="tasks-suggestion-create"
+          onclick={() => { taskPromptValue = 'Create a task to double check security and potential risks of FastAPI endpoints'; }}
+        ><span aria-hidden="true">＋</span> Click to create task</button>
+      </section>
       <WorkspaceHomeShell
           surface="tasks"
           testId="tasks-workspace-home"
@@ -711,7 +786,7 @@
                     <input id="task-search" bind:value={searchTerm} placeholder="Search" data-testid="task-search-input" />
                   </label>
                 {:else}
-                  <button type="button" class="task-search-link" data-testid="task-search-link" onclick={() => { showTaskSearch = true; }}>Search</button>
+                  <button type="button" class="task-search-link" data-testid="task-search-link" onclick={() => { showTaskSearch = true; }}><span class="task-search-link-icon" aria-hidden="true"></span>Search</button>
                 {/if}
                 {#if showDesktopTaskTags}
                   <div class="task-filter-chips" data-testid="task-filter-tags" aria-label="Task filters">
@@ -744,7 +819,7 @@
           </div>
         </div>
 
-        {#if isLoading}
+        {#if isBoardLoading}
           <div class="tasks-state" data-testid="tasks-loading">Loading tasks...</div>
         {:else if hasLoadError}
           <div class="tasks-state" data-testid="tasks-load-error">
@@ -756,16 +831,21 @@
             <div class="task-board-stage">
               <TaskBoard
                 tasks={visibleTasks}
+                plans={visiblePlans}
+                {projectNames}
+                {assigneeAvatarUrl}
+                {planActionId}
                 onMove={(task, status) => void handleMove(task, status)}
+                onMovePlan={(plan, status) => void handleMovePlan(plan, status)}
                 onStartAI={(task) => void handleStartAI(task)}
                 onSkip={(task) => void handleSkip(task)}
                 onDelete={(task) => void handleDelete(task)}
                 onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
                 onSelect={handleSelectTask}
               />
-              {#if visibleTasks.length === 0 && searchTerm.trim()}
-                <div class="tasks-filter-empty" data-testid="tasks-filter-empty">No tasks match that filter.</div>
-              {:else if visibleTasks.length === 0}
+              {#if visibleTasks.length === 0 && visiblePlans.length === 0 && searchTerm.trim()}
+                <div class="tasks-filter-empty" data-testid="tasks-filter-empty">No tasks or plans match that filter.</div>
+              {:else if visibleTasks.length === 0 && visiblePlans.length === 0}
                 <div class="tasks-filter-empty" data-testid="tasks-empty">Click above to add your first task.</div>
               {/if}
             </div>
@@ -806,55 +886,7 @@
       </WorkspaceHomeShell>
     </section>
   {:else}
-  {#if plansEnabled}
-  <section class="plans-strip" data-testid="linked-plans-section" aria-label="Linked plans">
-    <div class="plans-strip-heading">
-      <div>
-        <p class="eyebrow">Plans</p>
-        <h2>{chatId ? 'Chat plan' : projectId ? 'Project plans' : 'Active plans'}</h2>
-      </div>
-      <span>{activePlans.length}</span>
-    </div>
-    <form class="plan-create-row" onsubmit={(event) => { event.preventDefault(); void handleCreatePlan(); }} data-testid="plan-create-form">
-      <input bind:value={planTitle} placeholder={compact ? 'New project plan' : 'New plan'} data-testid="plan-title-input" />
-      <input bind:value={planSummary} placeholder="Optional plan summary" data-testid="plan-summary-input" />
-      <button type="submit" disabled={isSaving || !planTitle.trim()} data-testid="plan-create-button">
-        {isSaving ? 'Creating...' : 'Create plan'}
-      </button>
-    </form>
-    {#if isLoadingPlans}
-      <div class="plans-loading" data-testid="plans-loading">Loading plans...</div>
-    {:else if activePlans.length > 0}
-      <div class="plan-card-list">
-        {#each activePlans as plan (plan.plan_id)}
-          <article class="plan-card" data-testid="linked-plan-card" data-plan-status={plan.status}>
-            <div>
-              <p class="plan-status">{plan.status.replaceAll('_', ' ')}</p>
-              <h3>{plan.title || 'Untitled plan'}</h3>
-              {#if plan.summary || plan.goal}
-                <p>{plan.summary || plan.goal}</p>
-              {/if}
-            </div>
-            <div class="plan-actions">
-              <a href={`/plans/${encodeURIComponent(plan.plan_id)}`} data-testid="plan-detail-link">Open</a>
-              {#if plan.status === 'draft' || plan.status === 'awaiting_confirmation'}
-                <button type="button" disabled={planActionId === plan.plan_id} onclick={() => void handleActivatePlan(plan)} data-testid="plan-activate-button">
-                  {planActionId === plan.plan_id ? 'Activating...' : 'Activate'}
-                </button>
-              {/if}
-              <button type="button" disabled={planActionId === plan.plan_id} onclick={() => void handleCompletePlan(plan)} data-testid="plan-complete-button">
-                {planActionId === plan.plan_id ? 'Saving...' : 'Complete'}
-              </button>
-            </div>
-          </article>
-        {/each}
-      </div>
-    {:else}
-      <div class="plans-empty" data-testid="plans-empty">Create a plan above to coordinate tasks and verification.</div>
-    {/if}
-  </section>
-  {/if}
-
+  {#if !compact}
   <form class="task-create-card" class:compact onsubmit={(event) => { event.preventDefault(); void handleCreateTask(); }} data-testid="task-create-form">
     <div>
       <label for={compact ? 'project-task-title' : 'task-title'}>New task</label>
@@ -938,29 +970,76 @@
       </div>
     {/if}
   </section>
+  {/if}
 
-  {#if isLoading}
+  {#if compact}
+    <div class="compact-task-toolbar" data-testid="project-task-toolbar">
+      <label class="compact-task-search" for="project-task-search">
+        <span class="search-icon" aria-hidden="true"></span>
+        <input id="project-task-search" bind:value={searchTerm} placeholder="Search" data-testid="project-task-search-input" />
+      </label>
+      <div class="task-filter-chips compact-filters" data-testid="project-task-filter-tags" aria-label="Project task filters">
+        {#each taskFilterChips as chip}
+          <button type="button" class:active={searchTerm.replace(/^#/, '') === chip} onclick={() => { searchTerm = searchTerm.replace(/^#/, '') === chip ? '' : chip; }}>#{chip}</button>
+        {/each}
+      </div>
+      <button type="button" class="task-filter-button" data-testid="project-task-filter-button" aria-label="Task filters"><span aria-hidden="true"></span></button>
+    </div>
+  {/if}
+
+  {#if isBoardLoading}
     <div class="tasks-state" data-testid="tasks-loading">Loading tasks...</div>
   {:else if hasLoadError}
     <div class="tasks-state" data-testid="tasks-load-error">
       <p>Tasks could not be loaded.</p>
       <button type="button" onclick={() => void refreshTasks()}>Retry</button>
     </div>
-  {:else if tasks.length === 0}
+  {:else if tasks.length === 0 && boardPlans.length === 0}
     <div class="tasks-state" data-testid="tasks-empty">
-      <h2>No tasks yet</h2>
-      <p>Create your first task above to start planning work.</p>
+      <h2>No tasks or plans yet</h2>
+      <p>{compact ? 'Add your first task or plan to start planning work.' : 'Create your first task above to start planning work.'}</p>
     </div>
   {:else}
     <TaskBoard
-      {tasks}
+      tasks={compact ? visibleTasks : tasks}
+      plans={compact ? visiblePlans : boardPlans}
+      {projectNames}
+      {assigneeAvatarUrl}
+      {planActionId}
       onMove={(task, status) => void handleMove(task, status)}
+      onMovePlan={(plan, status) => void handleMovePlan(plan, status)}
       onStartAI={(task) => void handleStartAI(task)}
       onSkip={(task) => void handleSkip(task)}
       onDelete={(task) => void handleDelete(task)}
       onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
       onSelect={handleSelectTask}
     />
+  {/if}
+  {#if compact}
+    <div class="compact-task-composer" data-testid="project-task-composer-shell">
+      <WorkspacePromptComposer
+        surface="tasks"
+        bind:value={taskPromptValue}
+        placeholder="Click here to add or update tasks"
+        submitLabel="Send"
+        submittingLabel="Saving..."
+        disabled={!tasksEnabled || isSaving}
+        submitting={isSaving}
+        testId="project-task-workspace-composer"
+        inputTestId="project-task-workspace-input"
+        submitTestId="project-task-workspace-submit"
+        micTestId="project-task-workspace-mic"
+        onSubmit={handleTaskPromptSubmit}
+        onMicClick={() => { notificationStore.error('Voice task input is not available yet'); }}
+      />
+      {#if pendingTaskDelete}
+        <div class="task-confirmation" data-testid="task-delete-confirmation">
+          <span>Delete "{pendingTaskDelete.task.title}"? This cannot be undone.</span>
+          <button type="button" onclick={() => void confirmTaskDelete()} data-testid="task-delete-confirm">Delete</button>
+          <button type="button" onclick={() => { pendingTaskDelete = null; }} data-testid="task-delete-cancel">Cancel</button>
+        </div>
+      {/if}
+    </div>
   {/if}
   {/if}
   {#if selectedTask}
@@ -992,14 +1071,74 @@
     overflow: visible;
   }
 
+  .compact-task-composer {
+    position: absolute;
+    z-index: 4;
+    bottom: var(--spacing-4);
+    left: 50%;
+    width: min(42rem, calc(100% - 2 * var(--spacing-8)));
+    margin: var(--spacing-8) auto 0;
+    transform: translateX(-50%);
+  }
+
+  .compact-task-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    margin: 0 var(--spacing-8) var(--spacing-6);
+  }
+
+  .compact-task-search {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    width: min(78px, 24vw);
+    min-height: 20px;
+    padding: 0;
+    color: var(--color-font-secondary);
+  }
+
+  .compact-task-search input {
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-p);
+    font-weight: 700;
+    line-height: 20px;
+    box-shadow: none;
+  }
+
+  .compact-task-search input::placeholder {
+    color: var(--color-font-secondary);
+    opacity: 1;
+  }
+
+  .compact-task-search .search-icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+  }
+
+  .compact-filters {
+    flex-wrap: nowrap;
+  }
+
+
   .tasks-page.figma-layout {
+    display: flex;
+    flex-direction: column;
     background: var(--color-grey-20);
     overflow: hidden;
     padding: 0;
+    max-height: 100dvh;
+    box-sizing: border-box;
   }
 
   .tasks-hero,
-  .plans-strip,
   .task-create-card,
   .task-extract-card,
   .tasks-state {
@@ -1033,11 +1172,128 @@
     min-height: 0;
     min-width: 0;
     flex-direction: column;
-    gap: 18px;
+    gap: 0;
     overflow: hidden;
     border-radius: 17px;
     background: var(--color-grey-20);
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .tasks-daily-suggestion {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 clamp(180px, 33dvh, 322px);
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 17px;
+    padding: clamp(18px, 3vh, 28px) clamp(28px, 8vw, 250px);
+    background:
+      radial-gradient(circle at 72% 130%, color-mix(in srgb, var(--color-app-business-end) 72%, transparent), transparent 46%),
+      linear-gradient(135deg, var(--color-app-business-start), color-mix(in srgb, var(--color-app-business-start) 38%, var(--color-app-business-end)), var(--color-app-business-end));
+    color: var(--color-font-button);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  .tasks-suggestion-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-3);
+    color: color-mix(in srgb, var(--color-font-button) 58%, transparent);
+    font-size: var(--font-size-p);
+    font-weight: 700;
+  }
+
+  .tasks-suggestion-book {
+    width: 20px;
+    height: 18px;
+    border: 3px solid currentColor;
+    border-block-start: 0;
+    border-radius: 2px;
+    box-sizing: border-box;
+  }
+
+  .tasks-suggestion-content {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.72fr);
+    align-items: center;
+    gap: clamp(28px, 7vw, 110px);
+    width: min(100%, 680px);
+    margin: clamp(22px, 4vh, 42px) auto 0;
+  }
+
+  .tasks-suggestion-content > p {
+    margin: 0;
+    font-size: var(--font-size-p);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .tasks-suggestion-card {
+    display: grid;
+    gap: var(--spacing-3);
+    padding: 14px 16px;
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .tasks-suggestion-card strong {
+    font-size: var(--font-size-p);
+    line-height: 1.22;
+  }
+
+  .tasks-suggestion-card span {
+    width: fit-content;
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    background: var(--color-app-business-end);
+    color: var(--color-font-button);
+    font-size: var(--font-size-xxs);
+  }
+
+  .tasks-suggestion-create {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: clamp(18px, 3vh, 34px) auto 0;
+    border: 0;
+    background: transparent;
+    color: color-mix(in srgb, var(--color-font-button) 58%, transparent);
+    font: inherit;
+    font-size: var(--font-size-p);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .tasks-suggestion-create:hover,
+  .tasks-suggestion-create:focus-visible {
+    color: var(--color-font-button);
+  }
+
+  .tasks-figma-workspace :global(.workspace-daily-inspiration-area) {
+    display: none;
+  }
+
+  .tasks-figma-workspace :global(.workspace-home-shell) {
+    height: auto;
+    min-height: 0;
+    flex: 1;
+    border-radius: 0 0 17px 17px;
+    box-shadow: none;
+  }
+
+  .tasks-figma-workspace :global(.workspace-center-content.center-content) {
+    margin-top: var(--spacing-12);
+  }
+
+  .tasks-figma-workspace :global(.workspace-content-slot) {
+    margin-top: var(--spacing-12);
+  }
+
+  .tasks-figma-workspace :global(.workspace-composer-slot) {
+    z-index: var(--z-index-raised-2, 20);
   }
 
   .task-board-panel {
@@ -1049,61 +1305,79 @@
   }
 
   .task-workspace-toolbar {
-    position: relative;
+    position: absolute;
+    inset-block-start: var(--spacing-8);
+    inset-inline: 22px;
     z-index: 2;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: flex-end;
     gap: 18px;
   }
 
   .task-search-cluster {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-end;
-    gap: 12px;
+    gap: 32px;
   }
 
   .task-search-stack {
     display: flex;
     min-width: 0;
-    flex-direction: column;
-    align-items: flex-end;
+    flex-direction: row;
+    align-items: center;
     gap: 6px;
   }
 
   .task-search-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    height: 20px;
+    min-height: 20px;
     border: 0;
     background: transparent;
     padding: 0;
     color: var(--color-font-secondary);
     font: inherit;
-    font-size: var(--font-size-small);
     font-weight: 700;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    font-size: var(--font-size-p);
+    line-height: 20px;
+    text-decoration: none;
     box-shadow: none;
+  }
+
+  .task-search-link-icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    background: currentColor;
+    -webkit-mask: url('@openmates/ui/static/icons/search.svg') center / contain no-repeat;
+    mask: url('@openmates/ui/static/icons/search.svg') center / contain no-repeat;
   }
 
   .task-search-field {
     display: flex;
+    box-sizing: border-box;
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
-    min-height: 44px;
+    gap: 8px;
+    min-height: 32px;
     border: 1px solid var(--color-grey-20);
     border-radius: var(--radius-full);
     background: var(--color-grey-10);
-    padding: 8px 12px;
+    padding: 4px 10px;
     color: var(--color-font-secondary);
   }
 
   .search-icon {
     position: relative;
-    width: 18px;
-    height: 18px;
-    border: 3px solid currentColor;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
     border-radius: 999px;
     opacity: 0.65;
   }
@@ -1111,22 +1385,22 @@
   .search-icon::after {
     content: '';
     position: absolute;
-    right: -8px;
-    bottom: -7px;
-    width: 9px;
-    height: 3px;
+    right: -6px;
+    bottom: -5px;
+    width: 7px;
+    height: 2px;
     border-radius: 999px;
     background: currentColor;
     transform: rotate(45deg);
   }
 
   .task-search-field input {
-    width: min(100%, 190px);
+    width: min(100%, 160px);
     border: 0;
     background: transparent;
-    padding: 6px 0;
+    padding: 2px 0;
     color: var(--color-font-primary);
-    font-size: 1.08rem;
+    font-size: var(--font-size-small);
     font-weight: 700;
   }
 
@@ -1138,17 +1412,22 @@
   .task-filter-chips {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
   }
 
   .task-filter-chips button {
+    min-width: 0;
+    height: 20px;
+    min-height: 20px;
     border-radius: 999px;
     background: var(--color-primary);
     color: var(--color-font-button);
-    padding: 5px 12px;
-    font-size: 0.85rem;
-    font-weight: 700;
+    padding: 2px 9px 3px;
+    font-size: var(--font-size-xxs);
+    font-weight: 500;
+    line-height: 15px;
     box-shadow: none;
   }
 
@@ -1158,29 +1437,34 @@
 
   .task-filter-button {
     display: grid;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    flex: 0 0 40px;
     place-items: center;
     border: 0;
     border-radius: var(--radius-full);
     padding: 0;
-    background: var(--color-grey-10);
+    margin: 0;
+    background: var(--color-grey-0);
     box-shadow: var(--shadow-md);
+    filter: none;
     box-sizing: border-box;
     cursor: pointer;
   }
 
   .task-filter-button span {
-    width: 20px;
-    height: 20px;
-    background: var(--color-font-primary);
+    width: 24px;
+    height: 24px;
+    background: var(--color-primary);
     -webkit-mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
     mask: url('@openmates/ui/static/icons/filter.svg') center / contain no-repeat;
   }
 
   .task-filter-button.active {
-    background: color-mix(in srgb, var(--color-primary) 16%, var(--color-grey-10));
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-md);
   }
 
   .task-board-stage {
@@ -1193,7 +1477,7 @@
   .task-board-detail-layout.split { grid-template-columns: minmax(0, 1fr) minmax(360px, 40%); }
 
   .task-board-stage :global(.task-board) {
-    grid-template-columns: repeat(5, minmax(260px, 280px));
+    grid-template-columns: repeat(5, minmax(230px, 1fr));
     gap: 14px;
     width: 100%;
     min-width: 0;
@@ -1206,30 +1490,24 @@
   .task-board-stage :global(.task-column) {
     min-height: 410px;
     border: 0;
-    border-radius: 26px;
+    border-radius: var(--radius-8);
     background: transparent;
-    padding: 18px;
+    padding: var(--spacing-8) var(--spacing-6);
   }
 
-  .task-board-stage :global([data-testid='task-column-backlog']) {
-    background: var(--color-grey-10);
-  }
-
-  .task-board-stage :global(.task-column header p),
-  .task-board-stage :global(.task-column header span) {
-    display: none;
+  .task-board-stage :global([data-testid='task-column-blocked']) {
+    background: var(--color-grey-25);
   }
 
   .task-board-stage :global(.task-column h2) {
-    font-size: clamp(1.25rem, 1.6vw, 1.55rem);
-    line-height: 1.1;
-    letter-spacing: -0.04em;
+    font-size: var(--font-size-h3);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
   }
 
   .task-board-stage :global(.task-card) {
-    border: 0;
-    border-radius: 16px;
-    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.16);
+    border-radius: var(--radius-5);
+    box-shadow: var(--shadow-md);
   }
 
   .task-board-stage :global(.task-actions) {
@@ -1266,111 +1544,6 @@
     color: var(--color-grey-0);
   }
 
-  .plans-strip {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding: 16px;
-    margin-bottom: 18px;
-  }
-
-  .tasks-page.compact .plans-strip {
-    box-shadow: none;
-    margin-bottom: 16px;
-  }
-
-  .plans-strip-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .plans-strip-heading span {
-    display: grid;
-    place-items: center;
-    min-width: 30px;
-    height: 30px;
-    border-radius: 999px;
-    background: var(--color-grey-0);
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-  }
-
-  .plan-create-row {
-    display: grid;
-    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) auto;
-    gap: 10px;
-    align-items: center;
-  }
-
-  .tasks-page.compact .plan-create-row {
-    grid-template-columns: 1fr;
-  }
-
-  .plans-loading,
-  .plans-empty {
-    border: 1px dashed var(--color-grey-30);
-    border-radius: 20px;
-    padding: 16px;
-    color: var(--color-font-secondary);
-    font-size: 0.88rem;
-  }
-
-  .plan-card-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 12px;
-  }
-
-  .plan-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 16px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: 24px;
-    padding: 14px;
-    background: var(--color-grey-0);
-  }
-
-  .plan-card h3 {
-    margin: 0;
-    font-size: 1rem;
-  }
-
-  .plan-card p:not(.plan-status) {
-    margin-top: 6px;
-    color: var(--color-font-secondary);
-    font-size: 0.86rem;
-  }
-
-  .plan-status {
-    margin: 0 0 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--color-font-secondary);
-    font-size: 0.68rem;
-    font-weight: 700;
-  }
-
-  .plan-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .plan-actions a {
-    display: grid;
-    min-width: 44px;
-    min-height: 44px;
-    place-items: center;
-    border-radius: var(--radius-full);
-    background: var(--color-grey-10);
-    color: var(--color-font-primary);
-    font-size: var(--font-size-xs);
-  }
-
   .eyebrow {
     margin: 0 0 8px;
     text-transform: uppercase;
@@ -1382,7 +1555,6 @@
 
   h1,
   h2,
-  h3,
   p {
     margin: 0;
   }
@@ -1555,7 +1727,53 @@
       min-height: 0;
     }
 
+    .tasks-daily-suggestion {
+      flex-basis: 182px;
+      padding: 16px 22px;
+    }
+
+    .compact-task-toolbar {
+      margin-inline: var(--spacing-4);
+    }
+
+    .compact-task-search {
+      width: min(12rem, 64vw);
+    }
+
+    .compact-filters {
+      display: none;
+    }
+
+    .tasks-suggestion-label {
+      justify-content: flex-start;
+      font-size: var(--font-size-small);
+    }
+
+    .tasks-suggestion-content {
+      display: block;
+      margin-top: 18px;
+    }
+
+    .tasks-suggestion-content > p {
+      padding-inline-end: 24px;
+      font-size: var(--font-size-small);
+      line-height: 1.3;
+    }
+
+    .tasks-suggestion-card {
+      display: none;
+    }
+
+    .tasks-suggestion-create {
+      margin: 17px 0 0;
+      padding: 0;
+      font-size: var(--font-size-small);
+    }
+
     .task-workspace-toolbar {
+      inset-block-start: var(--spacing-5);
+      inset-inline-end: var(--spacing-5);
+      inset-inline-start: auto;
       align-items: flex-start;
     }
 
@@ -1575,7 +1793,7 @@
     }
 
     .task-board-stage :global(.task-board) {
-      grid-template-columns: repeat(5, minmax(252px, 270px));
+      grid-template-columns: repeat(5, minmax(15rem, 16rem));
     }
 
     .task-board-stage :global(.task-column) {

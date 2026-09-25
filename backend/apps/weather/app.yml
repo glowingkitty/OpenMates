@@ -40,6 +40,7 @@ instructions:
       When you use the weather-rain-radar tool, the tool returns deterministic rain summaries and compact timeline metadata for German DWD radar. Use those summaries for inference. Do not describe raw radar pixels or storage fields; the fullscreen embed renders the radar timeline separately.
 skills:
   - id: forecast
+    anonymous_access: inline
     name_translation_key: apps.weather.forecast
     description_translation_key: apps.weather.forecast.description
     icon_image: search.svg
@@ -81,6 +82,8 @@ skills:
         default: today
       properties:
         location:
+          x-ui:
+            basic: true
           type: string
           description: "Place name for the forecast, e.g. Berlin, Karlsruhe, Tokyo. Required unless latitude and longitude are provided."
         days:
@@ -90,25 +93,38 @@ skills:
           maximum: 14
           default: 7
           x-ui:
+            basic: false
             hidden: true
         start_date:
+          x-ui:
+            basic: true
           type: string
           format: date
           description: "First forecast date, inclusive, in the location timezone. Must be today or later and supplied with end_date."
         end_date:
+          x-ui:
+            basic: true
           type: string
           format: date
           description: "Last forecast date, inclusive, in the location timezone. Must be within the 14-day forecast window and supplied with start_date."
         latitude:
+          x-ui:
+            basic: false
           type: number
           description: "Optional latitude in decimal degrees. Use with longitude for exact coordinates."
         longitude:
+          x-ui:
+            basic: false
           type: number
           description: "Optional longitude in decimal degrees. Use with latitude for exact coordinates."
         timezone:
+          x-ui:
+            basic: false
           type: string
           description: "Optional IANA timezone. Defaults to provider/location timezone."
         units:
+          x-ui:
+            basic: false
           type: string
           description: "Unit system. Only metric is currently supported."
           enum: ["metric"]
@@ -135,16 +151,24 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
             example: Weather forecast for Berlin
           result_count:
+            x-ui:
+              basic: false
             type: integer
             example: 1
           start_date:
+            x-ui:
+              basic: false
             type: string
             format: date
             example: '2026-09-21'
           end_date:
+            x-ui:
+              basic: false
             type: string
             format: date
             example: '2026-09-21'
@@ -152,8 +176,12 @@ skills:
             type:
             - number
             - 'null'
+            x-ui:
+              basic: true
             example: 60
           max_temperature_c:
+            x-ui:
+              basic: false
             type:
             - number
             - 'null'
@@ -162,74 +190,110 @@ skills:
             type:
             - boolean
             - 'null'
+            x-ui:
+              basic: true
             example: true
           rain_summary:
+            x-ui:
+              basic: false
             type: string
             example: 'Rain is forecast today: 12:00–14:00 (Europe/Berlin).'
           forecast_day:
             type: object
+            x-ui:
+              basic: true
             properties:
               date:
+                x-ui:
+                  basic: true
                 type: string
                 example: '2026-09-21'
               title:
+                x-ui:
+                  basic: false
                 type: string
                 example: Berlin weather
               timezone:
+                x-ui:
+                  basic: false
                 type: string
                 example: Europe/Berlin
               condition:
+                x-ui:
+                  basic: true
                 type:
                 - string
                 - 'null'
                 example: rain
               temperature_min_c:
+                x-ui:
+                  basic: true
                 type:
                 - number
                 - 'null'
                 example: 12
               temperature_max_c:
+                x-ui:
+                  basic: true
                 type:
                 - number
                 - 'null'
                 example: 20
               precipitation_total_mm:
+                x-ui:
+                  basic: false
                 type:
                 - number
                 - 'null'
                 example: 1.2
               precipitation_probability_max_pct:
+                x-ui:
+                  basic: false
                 type:
                 - number
                 - 'null'
                 example: 60
               hourly:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: object
                   properties:
                     timestamp:
+                      x-ui:
+                        basic: false
                       type: string
                       example: '2026-09-21T12:00:00+02:00'
                     time:
+                      x-ui:
+                        basic: true
                       type: string
                       example: '12:00'
                     precipitation_mm:
+                      x-ui:
+                        basic: false
                       type:
                       - number
                       - 'null'
                       example: 0.4
                     precipitation_probability_pct:
+                      x-ui:
+                        basic: true
                       type:
                       - number
                       - 'null'
                       example: 60
                     condition:
+                      x-ui:
+                        basic: true
                       type:
                       - string
                       - 'null'
                       example: rain
                     temperature_c:
+                      x-ui:
+                        basic: true
                       type:
                       - number
                       - 'null'
@@ -265,71 +329,103 @@ skills:
                 condition: rain
                 temperature_c: 18
           forecast_days:
+            x-ui:
+              basic: false
             type: array
             items:
               type: object
               properties:
                 date:
+                  x-ui:
+                    basic: true
                   type: string
                   example: '2026-09-21'
                 title:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Berlin weather
                 timezone:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Europe/Berlin
                 condition:
+                  x-ui:
+                    basic: true
                   type:
                   - string
                   - 'null'
                   example: rain
                 temperature_min_c:
+                  x-ui:
+                    basic: true
                   type:
                   - number
                   - 'null'
                   example: 12
                 temperature_max_c:
+                  x-ui:
+                    basic: true
                   type:
                   - number
                   - 'null'
                   example: 20
                 precipitation_total_mm:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 1.2
                 precipitation_probability_max_pct:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 60
                 hourly:
+                  x-ui:
+                    basic: false
                   type: array
                   items:
                     type: object
                     properties:
                       timestamp:
+                        x-ui:
+                          basic: false
                         type: string
                         example: '2026-09-21T12:00:00+02:00'
                       time:
+                        x-ui:
+                          basic: true
                         type: string
                         example: '12:00'
                       precipitation_mm:
+                        x-ui:
+                          basic: false
                         type:
                         - number
                         - 'null'
                         example: 0.4
                       precipitation_probability_pct:
+                        x-ui:
+                          basic: true
                         type:
                         - number
                         - 'null'
                         example: 60
                       condition:
+                        x-ui:
+                          basic: true
                         type:
                         - string
                         - 'null'
                         example: rain
                       temperature_c:
+                        x-ui:
+                          basic: true
                         type:
                         - number
                         - 'null'
@@ -381,32 +477,46 @@ skills:
                 condition: rain
                 temperature_c: 18
           hourly:
+            x-ui:
+              basic: false
             type: array
             items:
               type: object
               properties:
                 timestamp:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-21T12:00:00+02:00'
                 time:
+                  x-ui:
+                    basic: true
                   type: string
                   example: '12:00'
                 precipitation_mm:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 0.4
                 precipitation_probability_pct:
+                  x-ui:
+                    basic: true
                   type:
                   - number
                   - 'null'
                   example: 60
                 condition:
+                  x-ui:
+                    basic: true
                   type:
                   - string
                   - 'null'
                   example: rain
                 temperature_c:
+                  x-ui:
+                    basic: true
                   type:
                   - number
                   - 'null'
@@ -427,27 +537,41 @@ skills:
               temperature_c: 18
           rain_periods:
             type: array
+            x-ui:
+              basic: true
             items:
               type: object
               properties:
                 start:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-21T12:00:00+02:00'
                 end:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-21T14:00:00+02:00'
                 start_time:
+                  x-ui:
+                    basic: true
                   type: string
                   example: '12:00'
                 end_time:
+                  x-ui:
+                    basic: true
                   type: string
                   example: '14:00'
                 timezone:
+                  x-ui:
+                    basic: false
                   type:
                   - string
                   - 'null'
                   example: Europe/Berlin
                 probability_pct:
+                  x-ui:
+                    basic: true
                   type:
                   - number
                   - 'null'
@@ -467,6 +591,7 @@ skills:
               timezone: Europe/Berlin
               probability_pct: 60
   - id: rain_radar
+    anonymous_access: authenticated
     name_translation_key: apps.weather.rain_radar
     description_translation_key: apps.weather.rain_radar.description
     icon_image: weather.svg
@@ -497,21 +622,31 @@ skills:
       type: object
       properties:
         location:
+          x-ui:
+            basic: true
           type: string
           description: "German place name for the radar, e.g. Berlin, Hamburg, Munich. Required unless latitude and longitude are provided."
         latitude:
+          x-ui:
+            basic: false
           type: number
           description: "Optional latitude in decimal degrees. Use with longitude for exact coordinates. V1 supports Germany only."
         longitude:
+          x-ui:
+            basic: false
           type: number
           description: "Optional longitude in decimal degrees. Use with latitude for exact coordinates. V1 supports Germany only."
         radius_km:
+          x-ui:
+            basic: true
           type: integer
           description: "Radar radius around the location in kilometers. Defaults to 5 for a neighborhood/city-part view. Maximum 100."
           minimum: 1
           maximum: 100
           default: 5
         timezone:
+          x-ui:
+            basic: false
           type: string
           description: "Optional IANA timezone. Defaults to provider/location timezone."
       required:

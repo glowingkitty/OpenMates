@@ -121,7 +121,7 @@ slowapi_stub.Limiter = _LimiterStub
 slowapi_util_stub.get_remote_address = lambda request: "127.0.0.1"
 sys.modules.setdefault("slowapi", slowapi_stub)
 sys.modules.setdefault("slowapi.util", slowapi_util_stub)
-from toon_format import encode
+from toon_format import decode, encode
 
 from backend.apps.code.tasks.run_code_task import RUN_CREDITS_PER_MINUTE as TASK_RUN_CREDITS_PER_MINUTE
 from backend.apps.code.tasks import run_code_task as code_run_task
@@ -150,6 +150,8 @@ from backend.core.api.app.routes.handlers.websocket_handlers.code_run_output_han
     code_run_output_cache_key,
 )
 from backend.core.api.app.services.embed_service import EmbedService
+from backend.shared.python_utils import terminal_output_safety
+from backend.shared.python_utils.structured_content_sanitization import StructuredScanError, TextDecision
 
 
 CHAT_ID = "chat-1"
@@ -347,6 +349,29 @@ def _metadata(encrypted_content: str = "client-ciphertext") -> dict:
     }
 
 
+def _scanned_output_receipt(output: str) -> dict:
+    return {
+        "policy": "terminal-output-v1",
+        "receipt_id": "server-receipt-1",
+        "scan_status": "scanned",
+        "scan_reason": None,
+        "coverage": "full",
+        "input_chars": len(output),
+        "normalized_chars": len(output),
+        "selected_chars": len(output),
+        "delivered_chars": len(output),
+        "omitted_chars": 0,
+        "truncated": False,
+        "terminal_sequences_removed": 0,
+        "ascii_characters_removed": 0,
+        "unit_count": 1 if output else 0,
+        "safe_units": 1 if output else 0,
+        "injection_units": 0,
+        "injection_spans": 0,
+        "uncertain_units": 0,
+    }
+
+
 def test_code_run_artifact_status_metadata_strips_sensitive_fields() -> None:
     artifacts = _safe_artifact_metadata([
         {
@@ -376,6 +401,31 @@ def test_code_run_artifact_status_metadata_strips_sensitive_fields() -> None:
             "status": "captured",
         }
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.output.cached-inference-guard
+@pytest.mark.anyio
+async def test_code_run_completion_withholds_error_text_when_terminal_scan_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def unavailable(*_args, **_kwargs):
+        raise StructuredScanError("OUTPUT_SAFETY_UNAVAILABLE")
+
+    monkeypatch.setattr(terminal_output_safety, "classify_text_units", unavailable)
+    safety = await terminal_output_safety.sanitize_terminal_output_for_model(
+        "Run failed: planted terminal instruction",
+        task_id="completion-failure",
+    )
+    completion = code_run_task._build_code_run_completion_result(
+        execution_id="execution-1",
+        payload={"target_path": "main.py", "files": []},
+        final_status={"status": "failed", "error": "planted terminal instruction"},
+        output_safety=safety,
+    )
+
+    assert completion["error"] is None
+    assert "output" not in completion
+    assert completion["output_safety_receipt"]["scan_status"] == "unscanned"
 
 
 # contract-test: direct surface=rest_api assertions=code-run.artifacts.encrypted-indexed,code-run.artifacts.child-renderer-routing
@@ -538,6 +588,7 @@ async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_
     assert chat_bound[0]["native_render_payload"]["content"]["files"]["full"]["encryption"] == "test"
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.output.external-text-guard,code-run.output.bounded-delivery
 def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeClient:
         def __init__(self):
@@ -604,7 +655,9 @@ def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypa
     async def fake_get_e2b_api_key_async(_secrets_manager):
         return "e2b-key"
 
-    def fake_run_code_in_e2b(*_args, **_kwargs):
+    def fake_run_code_in_e2b(*args, **_kwargs):
+        on_output = args[2]
+        on_output("stdout", "\x1b[31mhello from run\x1b[0m\n")
         return SimpleNamespace(
             exit_code=0,
             duration_seconds=1.2,
@@ -626,6 +679,9 @@ def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypa
     async def fake_dispatch_code_run_async_continuation(**kwargs):
         continuations.append(kwargs)
 
+    async def safe_classifier(units, **_kwargs):
+        return {unit["id"]: TextDecision("safe") for unit in units}
+
     monkeypatch.setattr(code_run_task, "get_worker_cache_service", fake_get_worker_cache_service)
     monkeypatch.setattr(code_run_task, "SecretsManager", FakeSecretsManager)
     monkeypatch.setattr(code_run_task, "get_e2b_api_key_async", fake_get_e2b_api_key_async)
@@ -633,6 +689,7 @@ def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypa
     monkeypatch.setattr(code_run_task, "_charge_run_credits", fake_charge_run_credits)
     monkeypatch.setattr(code_run_task, "_persist_code_run_artifacts", fake_persist_code_run_artifacts)
     monkeypatch.setattr(code_run_task, "_dispatch_code_run_async_continuation", fake_dispatch_code_run_async_continuation)
+    monkeypatch.setattr(terminal_output_safety, "classify_text_units", safe_classifier)
 
     code_run_task._run_code_execution(
         "execution-1",
@@ -665,6 +722,8 @@ def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypa
     assert continuations[0]["async_task_id"] == "execution-1"
     completed = continuations[0]["completed_results"][0]
     assert completed["status"] == "finished"
+    assert completed["output"] == "hello from run\n"
+    assert completed["output_safety_receipt"]["scan_status"] == "scanned"
     assert completed["artifacts"] == [
         {
             "path": "outputs/chart.png",
@@ -679,6 +738,7 @@ def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypa
         }
     ]
     assert "download_url" not in json.dumps(completed)
+    assert "\x1b" not in json.dumps(stored)
 
 
 @pytest.mark.anyio
@@ -703,7 +763,13 @@ async def test_collect_code_files_uses_vault_encrypted_recent_cache() -> None:
 
 
 @pytest.mark.anyio
-async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload() -> None:
+async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def safe_classifier(units, **_kwargs):
+        return {unit["id"]: TextDecision("safe") for unit in units}
+
+    monkeypatch.setattr(terminal_output_safety, "classify_text_units", safe_classifier)
     cache = FakeCache([TARGET_EMBED_ID], {})
     manager = FakeManager()
 
@@ -740,7 +806,56 @@ async def test_code_run_output_upsert_caches_vault_encrypted_inference_payload()
 
     assert '"type": "code_run_output"' in decrypted or "type: code_run_output" in decrypted
     assert "hello from code" in decrypted
+    assert cached["output_safety_receipt"]["scan_status"] == "scanned"
     assert manager.broadcasts[0]["type"] == "code_run_output_synced"
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.output.cached-inference-guard
+@pytest.mark.anyio
+async def test_code_run_output_upsert_preserves_encrypted_log_but_withholds_unscanned_inference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def unavailable(*_args, **_kwargs):
+        raise StructuredScanError("OUTPUT_SAFETY_UNAVAILABLE")
+
+    monkeypatch.setattr(terminal_output_safety, "classify_text_units", unavailable)
+    cache = FakeCache([TARGET_EMBED_ID], {})
+    manager = FakeManager()
+    directus = FakeCodeRunDirectus({})
+
+    await _impl_upsert(
+        manager,
+        cache,
+        directus,
+        FakeEncryption(),
+        USER_ID,
+        "vault-key",
+        "device-1",
+        {
+            "chat_id": CHAT_ID,
+            "embed_id": TARGET_EMBED_ID,
+            "id": "output-1",
+            "key_version": 1,
+            "encrypted_payload": "client-ciphertext",
+            "inference_payload": {
+                "output": "unreviewed",
+                "status": "exited",
+                "saved_at": 123,
+                "output_safety_receipt": _scanned_output_receipt("unreviewed"),
+                "scan_status": "scanned",
+            },
+            "created_at": 120,
+            "updated_at": 123,
+        },
+    )
+
+    client = await cache.client
+    cached = json.loads((await client.get(code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID))).decode())
+    assert directus.items["output-1"]["encrypted_payload"] == "client-ciphertext"
+    assert cached["encrypted_content"] is None
+    assert cached["output_safety_receipt"]["scan_status"] == "unscanned"
+    assert cached["output_safety_receipt"]["scan_reason"] == "OUTPUT_SAFETY_UNAVAILABLE"
+    assert manager.broadcasts[0]["payload"]["encrypted_payload"] == "client-ciphertext"
 
 
 @pytest.mark.anyio
@@ -800,7 +915,43 @@ async def test_code_run_output_upsert_rejects_unowned_chat() -> None:
 @pytest.mark.anyio
 async def test_resolve_code_embed_references_appends_cached_code_run_output() -> None:
     code_toon = encode({"type": "code", "code": "print('ok')", "language": "python", "filename": "main.py"})
-    output_toon = encode({"type": "code_run_output", "status": "exited", "output": "ok\n", "files": ["main.py"], "saved_at": 123})
+    output_toon = encode({
+        "type": "code_run_output",
+        "status": "exited",
+        "output": "ok\n",
+        "files": ["main.py"],
+        "saved_at": 123,
+        "output_safety_receipt_id": "server-receipt-1",
+    })
+    decoded_output = decode(output_toon)["output"]
+    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
+    client = await cache.client
+    await client.set(
+        code_run_output_cache_key(USER_HASH, CHAT_HASH, TARGET_EMBED_ID),
+        json.dumps({
+            "encrypted_content": f"vault:{output_toon}",
+            "chat_id": CHAT_ID,
+            "embed_id": TARGET_EMBED_ID,
+            "output_safety_receipt": _scanned_output_receipt(decoded_output),
+        }),
+    )
+    service = EmbedService(cache, FakeDirectus({}), FakeEncryption())
+
+    resolved, _ = await service.resolve_embed_references_in_content(
+        f'```json\n{{"type":"code","embed_id":"{TARGET_EMBED_ID}"}}\n```',
+        "vault-key",
+    )
+
+    assert '"type": "code"' in resolved or "type: code" in resolved
+    assert '"type": "code_run_output"' in resolved or "type: code_run_output" in resolved
+    assert "ok" in resolved
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.output.cached-inference-guard
+@pytest.mark.anyio
+async def test_resolve_code_embed_references_withholds_legacy_unreviewed_code_run_output() -> None:
+    code_toon = encode({"type": "code", "code": "print('source')", "language": "python", "filename": "main.py"})
+    output_toon = encode({"type": "code_run_output", "status": "exited", "output": "unreviewed\n", "saved_at": 123})
     cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
     client = await cache.client
     await client.set(
@@ -814,9 +965,8 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
         "vault-key",
     )
 
-    assert '"type": "code"' in resolved or "type: code" in resolved
-    assert '"type": "code_run_output"' in resolved or "type: code_run_output" in resolved
-    assert "ok" in resolved
+    assert "code_run_output" not in resolved
+    assert "unreviewed" not in resolved
 
 
 @pytest.mark.anyio

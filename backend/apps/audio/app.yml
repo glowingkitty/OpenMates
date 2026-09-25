@@ -111,6 +111,7 @@ embed_types:
         type: string
 skills:
   - id: transcribe
+    anonymous_access: authenticated
     name_translation_key: app_skills.audio.transcribe
     description_translation_key: app_skills.audio.transcribe.description
     preprocessor_hint: >
@@ -176,6 +177,7 @@ skills:
       required:
         - requests
   - id: generate
+    anonymous_access: authenticated
     name_translation_key: app_skills.audio.generate
     description_translation_key: app_skills.audio.generate.description
     icon_image: audio.svg
@@ -197,6 +199,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           minItems: 1
           maxItems: 5
@@ -205,35 +209,51 @@ skills:
             type: object
             properties:
               id:
+                x-ui:
+                  basic: false
                 description: Optional caller-supplied ID preserved in the result.
               prompt:
+                x-ui:
+                  basic: true
                 type: string
                 minLength: 1
                 maxLength: 400
                 description: Non-speech sound effect prompt.
               provider:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [elevenlabs]
                 default: elevenlabs
                 description: Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion.
               duration_seconds:
+                x-ui:
+                  basic: true
                 type: number
                 minimum: 0.5
                 maximum: 2.0
                 default: 1.0
               prompt_influence:
+                x-ui:
+                  basic: false
                 type: number
                 minimum: 0
                 maximum: 1
                 default: 0.3
               loop:
+                x-ui:
+                  basic: true
                 type: boolean
                 default: false
               output_format:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
                 default: mp3_44100_128
               model:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [eleven_text_to_sound_v2]
                 default: eleven_text_to_sound_v2
@@ -249,6 +269,7 @@ skills:
       - vault_wrapped_aes_key
       - raw_provider_diagnostics
   - id: speak
+    anonymous_access: authenticated
     name_translation_key: app_skills.audio.speak
     description_translation_key: app_skills.audio.speak.description
     icon_image: audio.svg
@@ -270,6 +291,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           minItems: 1
           maxItems: 3
@@ -278,40 +301,58 @@ skills:
             type: object
             properties:
               id:
+                x-ui:
+                  basic: false
                 description: Optional caller-supplied ID preserved in the result.
               text:
+                x-ui:
+                  basic: true
                 type: string
                 minLength: 1
                 maxLength: 2000
                 description: Text to synthesize after safety approval.
               provider:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [elevenlabs]
                 default: elevenlabs
                 description: Audio provider. v1 supports ElevenLabs only; keep explicit for future provider expansion.
               voice:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [warm_neutral, bright_neutral, calm_narrator]
                 default: warm_neutral
                 description: OpenMates voice preset; raw provider voice IDs are not accepted.
               accent:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [en_us, en_gb, de_de, es_es, fr_fr]
                 default: en_us
               style:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [natural, calm, friendly, energetic]
                 default: natural
               speed:
+                x-ui:
+                  basic: true
                 type: number
                 minimum: 0.7
                 maximum: 1.2
                 default: 1.0
               output_format:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
                 default: mp3_44100_128
               model:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [eleven_v3, eleven_multilingual_v2, eleven_flash_v2_5]
                 default: eleven_v3

@@ -40,6 +40,12 @@ import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionReco
 import { generateUUID } from "../message_parsing/utils";
 import { isTeamAIInvocation } from "./teamService";
 import type { EmbedType } from "../message_parsing/types";
+import {
+	activateProjectFocusForSend,
+	isProjectFocusId,
+	type ProjectFocusSendIntent,
+} from "./projectFocusSendPreflight";
+import { deactivateProjectFocus } from "./projectService";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_KEY_VERSION = 1;
@@ -297,7 +303,8 @@ export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
 	encryptedSuggestionToDelete?: string | null,
-	connectedAccountContext?: PreparedConnectedAccountSendContext
+	connectedAccountContext?: PreparedConnectedAccountSendContext,
+	projectFocusIntent?: ProjectFocusSendIntent,
 ): Promise<void> {
 	const testMockMarker = ((message as unknown) as { testMockMarker?: unknown }).testMockMarker;
 	// Check WebSocket connection status using public getter
@@ -394,6 +401,7 @@ export async function sendNewMessageImpl(
 	// Also check if this is an incognito chat
 	let chat: Chat | null = null;
 	let isIncognitoChat = false;
+	let durablePreflightId: string | null = null;
 
 	// First check if it's an incognito chat
 	const { incognitoChatService } = await import("./incognitoChatService");
@@ -956,7 +964,16 @@ export async function sendNewMessageImpl(
 	}
 	keyMgmtSpan.end();
 	let autoSpeakResponseForRequest = false;
-	if (!isIncognitoChat && chat && hasAssistantSpeechPreferenceIntent(message.chat_id) && !chat.encrypted_auto_speak_response) {
+	if (
+		!isIncognitoChat &&
+		chat &&
+		hasAssistantSpeechPreferenceIntent(message.chat_id) &&
+		!chat.encrypted_auto_speak_response &&
+		// New-chat preflight atomically creates the first server metadata. Persisting
+		// this preference first would make the preflight fail as existing metadata.
+		// chat_message_confirmed persists the retained local intent afterward.
+		!includePreflightChatMetadata
+	) {
 		await setAssistantSpeechPreference(message.chat_id, true);
 	}
 	if (!isIncognitoChat && (chat?.encrypted_auto_speak_response || hasAssistantSpeechPreferenceIntent(message.chat_id))) {
@@ -991,7 +1008,8 @@ export async function sendNewMessageImpl(
 			current_chat_summary_v?: number;
 			current_chat_title_v?: number;
 			current_chat_metadata_v?: number;
-			auto_speak_response?: boolean;
+            auto_speak_response?: boolean;
+            assistant_speech_lazy_dispatch?: boolean;
 			assistant_response_source_revision?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
@@ -1031,6 +1049,7 @@ export async function sendNewMessageImpl(
 			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0,
 			...(autoSpeakResponseForRequest ? {
 				auto_speak_response: true,
+				assistant_speech_lazy_dispatch: true,
 				assistant_response_source_revision: 1,
 			} : {})
 			// NO category or encrypted fields - those go to Phase 2
@@ -1094,7 +1113,7 @@ export async function sendNewMessageImpl(
 					chat.encrypted_active_focus_id,
 					chatKey
 				);
-				if (activeFocusId) {
+				if (activeFocusId && !isProjectFocusId(activeFocusId)) {
 					payload.active_focus_id = activeFocusId;
 					console.debug(
 						"[ChatSyncService:Senders] Including active_focus_id for AI processing:",
@@ -1614,6 +1633,7 @@ export async function sendNewMessageImpl(
 			});
 			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
 			payload.preflight_id = preflight_id;
+			durablePreflightId = preflight_id;
 		} catch (error) {
 			if (isPreflightAcknowledgementTimeout(error)) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
@@ -1621,6 +1641,34 @@ export async function sendNewMessageImpl(
 			} else {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 			}
+			throw error;
+		}
+	}
+
+	if (projectFocusIntent) {
+		if (isIncognitoChat || !durablePreflightId) {
+			await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
+			throw new Error("Project focus requires a durable chat.");
+		}
+		try {
+			const activation = await activateProjectFocusForSend(projectFocusIntent, {
+				chatId: message.chat_id,
+				preflightId: durablePreflightId,
+				teamId: chat?.team_id ?? null,
+			});
+			delete payload.active_focus_id;
+			try {
+				await serviceInstance.applyConfirmedFocusActivation(
+					message.chat_id,
+					activation.focus_id,
+					activation.project_name,
+				);
+			} catch (error) {
+				await deactivateProjectFocus(message.chat_id).catch(() => undefined);
+				throw error;
+			}
+		} catch (error) {
+			await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 			throw error;
 		}
 	}

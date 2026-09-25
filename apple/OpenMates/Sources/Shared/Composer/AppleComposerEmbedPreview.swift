@@ -3,11 +3,17 @@
 // Finished supported records reuse existing native read renderers inside web-parity chrome.
 // Pending and summary-only families use deterministic lifecycle presentation.
 // Required callbacks keep host behavior explicit across iOS and macOS.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
 // CSS:     UnifiedEmbedPreview.svelte — .unified-embed-preview, .desktop-layout
+//          ImageEmbedPreview.svelte — .image-content, .preview-image
+//          RecordingEmbedPreview.svelte — .recording-preview, .waveform-strip
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -75,6 +81,12 @@ struct AppleComposerEmbedPreview: View {
                     title: title,
                     lifecycleLabel: lifecycle == .finished ? nil : lifecycleLabel
                 )
+                .contentShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+                .onTapGesture {
+                    if lifecycle == .finished {
+                        actions.onOpen(node.id)
+                    }
+                }
             } else if case .recording = descriptor.family {
                 ComposerAudioPreview(
                     title: title,
@@ -83,6 +95,12 @@ struct AppleComposerEmbedPreview: View {
                     data: embedRecord?.rawData,
                     localAudioData: localPreviewData
                 )
+                .contentShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+                .onTapGesture {
+                    if lifecycle == .finished {
+                        actions.onOpen(node.id)
+                    }
+                }
             } else if case .map = descriptor.family {
                 ComposerLocationPreview(
                     title: title,
@@ -107,7 +125,7 @@ struct AppleComposerEmbedPreview: View {
             } else {
                 composerSummaryPreview
             }
-            if showsActions {
+            if showsActions && !isImagePreview {
                 actionBar
                     .padding(.spacing4)
             }
@@ -115,6 +133,7 @@ struct AppleComposerEmbedPreview: View {
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
+        .accessibilityValue(node.contentRef == nil ? "local-preview-no-durable-id" : "durable-preview")
     }
 
     private static func makeLocalPreviewImage(data: Data?) -> Image? {
@@ -188,6 +207,11 @@ struct AppleComposerEmbedPreview: View {
         }
     }
 
+    private var isImagePreview: Bool {
+        if case .image = descriptor.family { return true }
+        return false
+    }
+
     private func previewAction(
         icon: String,
         label: String,
@@ -202,6 +226,7 @@ struct AppleComposerEmbedPreview: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityIdentifier("native-composer-preview-action-\(icon)")
     }
 
     private var title: String {
@@ -222,6 +247,7 @@ struct AppleComposerEmbedPreview: View {
         case .uploading: AppStrings.uploadProgressUploading(percent: "0")
         case .processing: AppStrings.uploadProgressProcessing
         case .transcribing: AppStrings.uploadProgressTranscribing
+        case .correcting: AppStrings.uploadProgressProcessing
         case .finished: openLabel
         case .error: AppStrings.uploadProgressError
         case .cancelled: AppStrings.cancel
@@ -306,27 +332,72 @@ private struct ComposerLocalImagePreview: View {
     let lifecycleLabel: String?
 
     var body: some View {
-        AppleComposerUnifiedCard(
-            appId: "images",
-            title: title,
-            subtitle: lifecycleLabel
-        ) {
+        ZStack(alignment: .bottom) {
             image
                 .resizable()
                 .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(
+                    width: AppleComposerPreviewMetrics.width,
+                    height: AppleComposerPreviewMetrics.height
+                )
                 .clipped()
                 .accessibilityElement()
                 .accessibilityIdentifier("native-composer-image-content")
+
+            // Web's `.details-section.full-width-image` extends the image below
+            // this 61pt bar. Overlaying the bar keeps the fixed 300x200 card
+            // intact inside TextKit instead of letting the details view consume
+            // the metadata row and appear vertically clipped.
+            EmbedBasicInfoBar(
+                appId: "images",
+                skillIconName: AppIconView.iconName(forAppId: "images"),
+                // Match ImageEmbedPreview.svelte: keep the extension visible and
+                // bound the title before it reaches the single-line metadata row.
+                title: ComposerAttachmentFilename.displayName(for: title),
+                subtitle: lifecycleLabel,
+                faviconURL: nil,
+                showSkillIcon: false,
+                titleLineLimit: 1,
+                titleTruncationMode: .middle
+            )
+            .accessibilityIdentifier("native-composer-image-info-bar")
         }
+        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+        .background(Color.grey25)
+        .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+    }
+}
+
+/// Web `ImageEmbedPreview.svelte` bounds image titles to 30 characters while
+/// retaining the extension. The ellipsis therefore sits between the shortened
+/// stem and suffix instead of hiding the file type.
+enum ComposerAttachmentFilename {
+    static let maximumDisplayLength = 30
+
+    static func displayName(for filename: String) -> String {
+        guard filename.count > maximumDisplayLength else { return filename }
+
+        guard let dot = filename.lastIndex(of: "."), dot != filename.startIndex else {
+            return String(filename.prefix(maximumDisplayLength - 1)) + "…"
+        }
+
+        let fileExtension = String(filename[dot...])
+        let stem = filename[..<dot]
+        let allowedStemLength = maximumDisplayLength - fileExtension.count - 1
+        guard allowedStemLength > 0 else {
+            return String(filename.prefix(maximumDisplayLength - 1)) + "…"
+        }
+        return String(stem.prefix(allowedStemLength)) + "…" + fileExtension
     }
 }
 
 private struct ComposerAudioPreview: View {
-    let title: String
     let lifecycle: AppleComposerEmbedLifecycleState
     let lifecycleLabel: String
-    let data: [String: AnyCodable]?
+    let content: ComposerAudioPreviewContent
+    let localAudioData: Data?
     @StateObject private var player: ComposerAudioPreviewPlayer
 
     init(
@@ -336,77 +407,282 @@ private struct ComposerAudioPreview: View {
         data: [String: AnyCodable]?,
         localAudioData: Data?
     ) {
-        self.title = title
         self.lifecycle = lifecycle
         self.lifecycleLabel = lifecycleLabel
-        self.data = data
+        self.localAudioData = localAudioData
+        let fallbackTitle: String? = switch lifecycle {
+        case .transcribing, .correcting, .finished: title
+        case .draft, .uploading, .processing, .error, .cancelled: nil
+        }
+        self.content = ComposerAudioPreviewContent(
+            data: data,
+            // Resolution can mark the same atom finished before its encrypted
+            // record hydrates. Keep the corrected title as a bounded fallback.
+            provisionalTranscript: fallbackTitle
+        )
         _player = StateObject(wrappedValue: ComposerAudioPreviewPlayer(data: localAudioData))
     }
 
     var body: some View {
         AppleComposerUnifiedCard(
             appId: "audio",
-            title: AppStrings.voiceRecording,
-            subtitle: lifecycleLabel
+            title: content.title ?? AppStrings.audioRecording,
+            subtitle: subtitle,
+            trailingAction: player.isAvailable && lifecycle == .finished
+                ? AnyView(audioPlayButton)
+                : nil
         ) {
             VStack(alignment: .leading, spacing: .spacing4) {
-                HStack(spacing: .spacing4) {
-                    if player.isAvailable, lifecycle == .finished {
-                        Button(action: player.togglePlayback) {
-                            Icon(player.isPlaying ? "pause" : "play", size: 18)
-                                .foregroundStyle(Color.fontButton)
-                                .frame(width: 38, height: 38)
-                                .background(Color.buttonPrimary)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(player.isPlaying ? AppStrings.pause : AppStrings.play)
-                        .accessibilityIdentifier("native-composer-audio-play-button")
-                    } else {
-                        Icon("microphone", size: 26)
-                            .foregroundStyle(Color.buttonPrimary)
-                    }
-                    Text(title)
-                        .font(.omSmall.weight(.semibold))
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(1)
+                if let samples = content.waveformSamples {
+                    ComposerAudioWaveform(samples: samples, progress: player.progress)
                 }
 
-                if let transcript {
+                if lifecycle == .finished,
+                   let modelName = content.modelDisplayName,
+                   content.transcript != nil {
+                    Text(AppStrings.audioTranscribedBy(model: modelName))
+                        .font(.omMicro)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(1)
+                        .accessibilityIdentifier("native-composer-audio-attribution")
+                }
+
+                if let transcript = content.transcript {
                     Text(transcript)
                         .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
+                        .foregroundStyle(Color.fontPrimary)
                         .lineLimit(3)
-                } else if lifecycle == .uploading || lifecycle == .processing || lifecycle == .transcribing {
-                    ProgressView()
-                        .tint(Color.buttonPrimary)
+                        .accessibilityIdentifier("native-composer-audio-transcript")
+                    if let processingStatus {
+                        processingStatusLabel(processingStatus)
+                    }
+                } else if let processingStatus {
+                    HStack(spacing: .spacing3) {
+                        ProgressView()
+                            .tint(Color.buttonPrimary)
+                        processingStatusLabel(processingStatus)
+                    }
                 } else {
-                    Text(AppStrings.transcription)
+                    Text(AppStrings.audioTranscriptUnavailable)
                         .font(.omXs)
                         .foregroundStyle(Color.fontSecondary)
                 }
             }
             .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("native-composer-audio-content")
         }
+        .onChange(of: localAudioData) { _, data in
+            player.replace(data: data)
+        }
     }
 
-    private var transcript: String? {
-        for key in ["transcript_preview", "transcript", "text", "corrected_transcript"] {
-            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+    private var audioPlayButton: some View {
+        Button(action: player.togglePlayback) {
+            Icon(player.isPlaying ? "pause" : "play", size: 16)
+                .foregroundStyle(Color.fontButton)
+                .frame(width: 36, height: 36)
+                .background(LinearGradient.appAudio)
+                .clipShape(Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(player.isPlaying ? AppStrings.pause : AppStrings.play)
+        .accessibilityIdentifier("native-composer-audio-play-button")
+    }
+
+    private var subtitle: String {
+        if let processingStatus { return processingStatus }
+        guard lifecycle == .finished else { return lifecycleLabel }
+        return content.formattedDuration ?? AppStrings.audioRecordingDescription
+    }
+
+    private var processingStatus: String? {
+        switch lifecycle {
+        case .uploading, .processing:
+            return lifecycleLabel
+        case .transcribing:
+            guard let modelName = content.modelDisplayName else { return lifecycleLabel }
+            return AppStrings.localized("app_skills.audio.transcribe.transcribing_via")
+                .replacingOccurrences(of: "{model}", with: modelName)
+        case .correcting:
+            return AppStrings.audioAutoCorrecting
+        case .draft, .finished, .error, .cancelled:
+            return nil
+        }
+    }
+
+    private func processingStatusLabel(_ value: String) -> some View {
+        Text(value)
+            .font(.omMicro)
+            .foregroundStyle(Color.fontSecondary)
+            .lineLimit(1)
+            .accessibilityIdentifier("native-composer-audio-status")
+    }
+}
+
+struct ComposerAudioPreviewContent: Equatable {
+    let title: String?
+    let transcript: String?
+    let model: String?
+    let durationSeconds: Double?
+    let waveformSamples: [Double]?
+
+    @MainActor
+    init(data: [String: AnyCodable]?, provisionalTranscript: String? = nil) {
+        title = Self.nonemptyString(data, key: "title")
+        model = Self.nonemptyString(data, key: "model")
+        durationSeconds = Self.number(data?["duration"]?.value)
+            ?? Self.number(data?["duration_seconds"]?.value)
+
+        let useCorrected = data?["use_corrected"]?.value as? Bool ?? true
+        let original = Self.nonemptyString(data, key: "transcript_original")
+        let corrected = Self.nonemptyString(data, key: "transcript_corrected")
+        let fallback = Self.firstNonemptyString(
+            data,
+            keys: ["transcription", "transcript", "transcript_preview", "text", "corrected_transcript"]
+        )
+        if useCorrected, let corrected {
+            transcript = corrected
+        } else if !useCorrected, let original {
+            transcript = original
+        } else {
+            transcript = fallback ?? corrected ?? original ?? Self.provisionalTranscript(provisionalTranscript)
+        }
+
+        if let waveform = data?["waveform"]?.value as? [String: Any],
+           let rawSamples = waveform["samples"] as? [Any] {
+            let normalized = rawSamples.compactMap(Self.number).map { min(1, max(0.06, $0 / 100)) }
+            waveformSamples = normalized.isEmpty ? nil : normalized
+        } else {
+            waveformSamples = nil
+        }
+    }
+
+    var formattedDuration: String? {
+        guard let durationSeconds, durationSeconds.isFinite, durationSeconds >= 0 else { return nil }
+        let total = Int(durationSeconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    var modelDisplayName: String? {
+        guard let model else { return nil }
+        if let bundledName = Self.bundledModelDisplayNames[model] {
+            return bundledName
+        }
+        // Keep internal routing IDs out of the user-facing card when metadata is
+        // absent. These two IDs are also the offline recording defaults.
+        switch model {
+        case "voxtral-mini-2602":
+            return "Voxtral Mini"
+        case "voxtral-mini-transcribe-realtime-2602":
+            return "Voxtral Mini Realtime"
+        default:
+            return nil
+        }
+    }
+
+    private static let bundledModelDisplayNames: [String: String] = {
+        guard let catalog = try? NativeModelCatalog.load(bundle: .main) else { return [:] }
+        return Dictionary(uniqueKeysWithValues: catalog.models.map { ($0.id, $0.name) })
+    }()
+
+    private static func nonemptyString(_ data: [String: AnyCodable]?, key: String) -> String? {
+        guard let value = data?[key]?.value as? String,
+              !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return value
+    }
+
+    private static func firstNonemptyString(_ data: [String: AnyCodable]?, keys: [String]) -> String? {
+        keys.lazy.compactMap { nonemptyString(data, key: $0) }.first
+    }
+
+    private static func nonemptyString(_ value: String?) -> String? {
+        guard let value,
+              !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return value
+    }
+
+    @MainActor
+    private static func provisionalTranscript(_ value: String?) -> String? {
+        guard let value = nonemptyString(value) else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.caseInsensitiveCompare(AppStrings.audioRecording) != .orderedSame else { return nil }
+
+        let fileExtension = (trimmed as NSString).pathExtension.lowercased()
+        let audioExtensions: Set<String> = ["aac", "flac", "m4a", "mp3", "ogg", "wav", "webm"]
+        guard !audioExtensions.contains(fileExtension) else { return nil }
+        return trimmed
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        if let value = value as? NSNumber { return value.doubleValue }
         return nil
+    }
+}
+
+private struct ComposerAudioWaveform: View {
+    let samples: [Double]
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = ComposerAudioWaveformGeometry.barWidth(
+                containerWidth: proxy.size.width,
+                sampleCount: samples.count
+            )
+            ZStack(alignment: .leading) {
+                HStack(spacing: ComposerAudioWaveformGeometry.gap) {
+                    ForEach(Array(samples.enumerated()), id: \.offset) { _, sample in
+                        Capsule()
+                            .fill(LinearGradient.appAudio)
+                            .frame(width: width, height: max(2, proxy.size.height * sample))
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                Capsule()
+                    .fill(Color.fontPrimary)
+                    .frame(width: 2, height: proxy.size.height)
+                    .offset(x: max(0, (proxy.size.width - 2) * progress))
+            }
+        }
+        .frame(height: 30)
+        .opacity(0.78)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(AppStrings.audioRecording)
+        .accessibilityIdentifier("native-composer-audio-waveform")
+        .accessibilityValue("\(Int((progress * 100).rounded()))%")
+    }
+}
+
+enum ComposerAudioWaveformGeometry {
+    static let gap: CGFloat = 1
+
+    static func barWidth(containerWidth: CGFloat, sampleCount: Int) -> CGFloat {
+        let count = max(1, sampleCount)
+        let totalGap = CGFloat(count - 1) * gap
+        return max(0, (containerWidth - totalGap) / CGFloat(count))
+    }
+}
+
+enum ComposerAudioPlaybackProgress {
+    static func normalized(currentTime: TimeInterval, duration: TimeInterval) -> Double {
+        guard currentTime.isFinite, duration.isFinite, duration > 0 else { return 0 }
+        return min(1, max(0, currentTime / duration))
     }
 }
 
 @MainActor
 private final class ComposerAudioPreviewPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published private(set) var isPlaying = false
+    @Published private(set) var progress = 0.0
+    @Published private(set) var isAvailable = false
     private var player: AVAudioPlayer?
-
-    var isAvailable: Bool { player != nil }
+    private var progressTask: Task<Void, Never>?
 
     init(data: Data?) {
         if let data {
@@ -415,6 +691,18 @@ private final class ComposerAudioPreviewPlayer: NSObject, ObservableObject, AVAu
         }
         super.init()
         player?.delegate = self
+        isAvailable = player != nil
+    }
+
+    func replace(data: Data?) {
+        stopProgressUpdates()
+        player?.stop()
+        player = data.flatMap { try? AVAudioPlayer(data: $0) }
+        player?.delegate = self
+        player?.prepareToPlay()
+        isPlaying = false
+        progress = 0
+        isAvailable = player != nil
     }
 
     func togglePlayback() {
@@ -422,14 +710,47 @@ private final class ComposerAudioPreviewPlayer: NSObject, ObservableObject, AVAu
         if player.isPlaying {
             player.pause()
             isPlaying = false
+            refreshProgress()
+            stopProgressUpdates()
         } else {
             player.play()
             isPlaying = true
+            startProgressUpdates()
         }
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in isPlaying = false }
+        Task { @MainActor in
+            isPlaying = false
+            progress = 0
+            stopProgressUpdates()
+        }
+    }
+
+    private func startProgressUpdates() {
+        stopProgressUpdates()
+        progressTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                self?.refreshProgress()
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
+    private func stopProgressUpdates() {
+        progressTask?.cancel()
+        progressTask = nil
+    }
+
+    private func refreshProgress() {
+        guard let player else {
+            progress = 0
+            return
+        }
+        progress = ComposerAudioPlaybackProgress.normalized(
+            currentTime: player.currentTime,
+            duration: player.duration
+        )
     }
 }
 
@@ -461,7 +782,22 @@ private struct AppleComposerUnifiedCard<Details: View>: View {
     let appId: String
     let title: String
     let subtitle: String?
+    let trailingAction: AnyView?
     @ViewBuilder let details: () -> Details
+
+    init(
+        appId: String,
+        title: String,
+        subtitle: String?,
+        trailingAction: AnyView? = nil,
+        @ViewBuilder details: @escaping () -> Details
+    ) {
+        self.appId = appId
+        self.title = title
+        self.subtitle = subtitle
+        self.trailingAction = trailingAction
+        self.details = details
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -474,7 +810,8 @@ private struct AppleComposerUnifiedCard<Details: View>: View {
                 title: title,
                 subtitle: subtitle,
                 faviconURL: nil,
-                showSkillIcon: false
+                showSkillIcon: false,
+                trailingAction: trailingAction
             )
         }
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
@@ -662,7 +999,7 @@ private struct AppleComposerSummaryCard: View {
     @ViewBuilder
     private var lifecycleContent: some View {
         switch lifecycle {
-        case .draft, .uploading, .processing, .transcribing:
+        case .draft, .uploading, .processing, .transcribing, .correcting:
             ProgressView()
                 .tint(Color.buttonPrimary)
         case .finished:

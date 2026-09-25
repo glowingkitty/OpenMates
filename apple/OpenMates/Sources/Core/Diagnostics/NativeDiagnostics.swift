@@ -4,6 +4,9 @@
 // request/response bodies, private file paths, or raw typed text.
 // Mirrors the web log collector/action tracker shape with native-only signals.
 
+// Specification: specifications/features/issue-reporting/specification.yml
+// Assertions: issue-reporting.logs.authenticated-capture
+
 import Foundation
 import OSLog
 #if os(iOS)
@@ -65,6 +68,45 @@ enum NativeDiagnostics {
 
     static func error(_ message: String, category: String = "app") {
         record(level: .error, category: category, message: message)
+    }
+
+    /// Records a structured event with scalar-only fields. This API cannot
+    /// accept strings, URLs, paths, response bodies, or user-provided text.
+    static func event(
+        _ name: String,
+        category: String,
+        level: NativeClientLogLevel = .info,
+        flags: [String: Bool] = [:],
+        counts: [String: Int] = [:]
+    ) {
+        let safeName = NativeClientLogCollector.sanitize(name)
+        let safeFlags = flags
+            .sorted { $0.key < $1.key }
+            .map { key, value in
+                let safeKey = NativeClientLogCollector.sanitize(key)
+                return "\(safeKey)=\(value)"
+            }
+        let safeCounts = counts
+            .sorted { $0.key < $1.key }
+            .map { key, value in
+                let safeKey = NativeClientLogCollector.sanitize(key)
+                return "\(safeKey)=\(value)"
+            }
+        let safeFields = (safeFlags + safeCounts).joined(separator: " ")
+        let message = safeFields.isEmpty ? "event=\(safeName)" : "event=\(safeName) \(safeFields)"
+        record(level: level, category: category, message: message)
+    }
+
+    /// Records only the static Swift error type and numeric code, never its
+    /// localized description or associated values.
+    static func failure(_ name: String, category: String, level: NativeClientLogLevel, error: Error) {
+        let nsError = error as NSError
+        let typeName = NativeClientLogCollector.sanitize(String(reflecting: type(of: error)))
+        record(
+            level: level,
+            category: category,
+            message: "event=\(NativeClientLogCollector.sanitize(name)) error_type=\(typeName) error_code=\(nsError.code)"
+        )
     }
 
     static func record(level: NativeClientLogLevel, category: String, message: String) {
@@ -264,7 +306,10 @@ final class NativeClientLogCollector: @unchecked Sendable {
         var sanitized = value
         let replacements: [(String, String)] = [
             (#"#[A-Za-z0-9_-]*key=[^\s\]]+"#, "#key=<redacted>"),
+            (#"https?://[^\s\]]+"#, "<url>"),
             (#"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#, "<email>"),
+            (#"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b"#, "<ip-address>"),
+            (#"\b[A-Za-z0-9._-]+@[A-Za-z0-9._-]+\b"#, "<user-at-host>"),
             (#"(?i)(authorization|password|token|secret|api[_-]?key)=([^\s&]+)"#, "$1=<redacted>"),
             (#"(?i)bearer\s+[A-Za-z0-9._~+/=-]+"#, "Bearer <redacted>"),
             (#"file://[^\s\]]+"#, "file://<redacted>"),
@@ -397,11 +442,23 @@ final class NativeIssueContextProvider: @unchecked Sendable {
     private init() {}
 
     @MainActor
-    func context() -> NativeIssueContext {
+    func context(includeDiagnostics: Bool) -> NativeIssueContext {
+        guard includeDiagnostics else {
+            return NativeIssueContext(
+                consoleLogs: "",
+                runtimeDebugState: [
+                    "platform": "apple_native",
+                    "diagnostics_consent": "not_granted",
+                ],
+                actionHistory: "native:settings/report_issue"
+            )
+        }
         let actions = NativeActionTracker.shared.actionsAsText(limit: 50)
+        var runtimeDebugState = NativeRuntimeSnapshotProvider.snapshot()
+        runtimeDebugState["diagnostics_consent"] = "granted_for_issue"
         return NativeIssueContext(
             consoleLogs: NativeClientLogCollector.shared.logsAsText(limit: 150),
-            runtimeDebugState: NativeRuntimeSnapshotProvider.snapshot(),
+            runtimeDebugState: runtimeDebugState,
             actionHistory: actions.isEmpty ? "native:settings/report_issue" : actions
         )
     }

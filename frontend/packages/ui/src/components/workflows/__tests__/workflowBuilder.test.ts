@@ -11,16 +11,16 @@ import {
   normalizeSchema,
   schemaDefault,
   type Capability,
-} from "../workflowBuilder.ts";
+} from "../workflowBuilder";
 import {
   dailyWeatherNewsGraph,
   weeklyEventsGraph,
   hourlyApartmentsGraph,
-} from "../workflowExamples.ts";
+} from "../workflowExamples";
 import type {
   WorkflowGraph,
   WorkflowNode,
-} from "../../../stores/workflowWorkspaceStore.ts";
+} from "../../../stores/workflowWorkspaceStore";
 const capabilities: Capability[] = [
   {
     id: "news.search",
@@ -75,6 +75,93 @@ test("new true-branch action cannot bind future or sibling-branch results", () =
     outputs.find((output) => output.nodeId === "check")?.schema.type,
     "boolean",
   );
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows.control.typed-data,workflows-ui.mvp.authoring
+test("declared result fields are available as list-preserving variables", () => {
+  const eventCapability: Capability = {
+    ...capabilities[0],
+    metadata: {
+      app_id: "news",
+      skill_id: "search",
+      output_schema: {
+        properties: {
+          events: {
+            type: "array",
+            title: "Events",
+            items: {
+              properties: {
+                title: {
+                  type: "string",
+                  title: "Title",
+                  "x-ui": { basic: true },
+                },
+                start_time: { type: "string", format: "date-time" },
+                venue: {
+                  title: "Venue",
+                  properties: {
+                    name: { type: "string", title: "Name" },
+                  },
+                },
+                provider_metadata: { type: "object" },
+                private_note: {
+                  type: "string",
+                  "x-ui": { hidden: true },
+                },
+              },
+            },
+          },
+          status: { type: "string" },
+        },
+      },
+    },
+  };
+  const eventGraph: WorkflowGraph = {
+    ...graph,
+    nodes: graph.nodes.map((item) =>
+      item.id === "news" ? { ...item, title: "Search events" } : item,
+    ),
+  };
+
+  const outputs = outputsBefore(eventGraph, "check", [eventCapability]);
+  assert.deepEqual(
+    outputs.map(({ reference, label }) => ({ reference, label })),
+    [
+      {
+        reference: "$nodes.news.output.events",
+        label: "Search events · Events",
+      },
+      {
+        reference: "$nodes.news.output.events.title",
+        label: "Search events · Events · Title",
+      },
+      {
+        reference: "$nodes.news.output.events.start_time",
+        label: "Search events · Events · Start Time",
+      },
+      {
+        reference: "$nodes.news.output.events.venue",
+        label: "Search events · Events · Venue",
+      },
+      {
+        reference: "$nodes.news.output.events.venue.name",
+        label: "Search events · Events · Venue · Name",
+      },
+    ],
+  );
+  assert.deepEqual(outputs[1].schema, {
+    type: "array",
+    items: {
+      type: "string",
+      title: "Title",
+      "x-ui": { basic: true },
+    },
+    "x-ui": { basic: true },
+  });
+  assert.deepEqual(outputs[4].schema, {
+    type: "array",
+    items: { type: "string", title: "Name" },
+  });
 });
 // contract-test: supporting surface=gui.web assertions=workflows.control.check,workflows-ui.mvp.authoring
 test("inserting a true-branch action preserves the else and continuation paths", () => {

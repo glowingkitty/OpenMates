@@ -1,7 +1,7 @@
 <!--
   TaskDetailContent.svelte
   Shared editable Task detail presentation used by the board fullscreen and
-  stable /tasks/:task_id route. It resolves linked encrypted workspace names
+  stable /#task-id=:task_id route. It resolves linked encrypted workspace names
   client-side while dependency status remains safe server-visible metadata.
   Design reference: Figma Website node 5754:76027.
 -->
@@ -323,7 +323,7 @@
       {#if resolvedRelated.projects.length > 0}
         <div class="workspace-cards">
           {#each resolvedRelated.projects as project (project.id)}
-            <WorkspaceContinueCard title={project.title} summary={project.description || null} badge="Project" category="productivity" appId="projects" icon="folder" testId="task-detail-project-card" href={`/projects/${encodeURIComponent(project.id)}`} source={null} fluid={false} onActivate={null} />
+            <WorkspaceContinueCard title={project.title} summary={project.description || null} badge="Project" category="productivity" appId="projects" icon="folder" testId="task-detail-project-card" href={`/#project-id=${encodeURIComponent(project.id)}`} source={null} fluid={false} onActivate={null} />
           {/each}
         </div>
       {:else}<p class="empty">No connected project.</p>{/if}
@@ -333,7 +333,7 @@
       <SettingsSectionHeading title="Connected plan" icon="document" />
       {#if resolvedRelated.plan}
         <div class="workspace-cards">
-          <WorkspaceContinueCard title={resolvedRelated.plan.title} summary={resolvedRelated.plan.description || null} badge="Plan" category="productivity" appId="plans" icon="clipboard-list" testId="task-detail-plan-card" href={`/plans/${encodeURIComponent(resolvedRelated.plan.id)}`} source={null} fluid={false} onActivate={null} />
+          <WorkspaceContinueCard title={resolvedRelated.plan.title} summary={resolvedRelated.plan.description || null} badge="Plan" category="productivity" appId="plans" icon="clipboard-list" testId="task-detail-plan-card" href={`/#plan-id=${encodeURIComponent(resolvedRelated.plan.id)}`} source={null} fluid={false} onActivate={null} />
         </div>
       {:else}<p class="empty">No connected plan.</p>{/if}
     </section>
@@ -344,7 +344,9 @@
         <p>These plans and tasks must be completed before this task can start.</p>
         <div class="dependency-list">
           {#each resolvedRelated.dependencies as dependency (dependency.edgeId)}
-            <a href={`/${dependency.targetKind === 'task' ? 'tasks' : 'plans'}/${encodeURIComponent(dependency.targetId)}`}>
+            <a href={dependency.targetKind === 'task'
+              ? `/#task-id=${encodeURIComponent(dependency.targetId)}`
+              : `/#plan-id=${encodeURIComponent(dependency.targetId)}`}>
               <strong>{dependency.title}</strong>
               <span>{statusLabel(dependency.targetStatus as UserTaskViewModel['status'])}{dependency.satisfied ? ' - complete' : ' - blocking'}</span>
             </a>

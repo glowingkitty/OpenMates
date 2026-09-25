@@ -71,6 +71,8 @@ test.describe('Workflows editor', () => {
 				.click();
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflow.title);
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-version-history')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-version-selector')).toHaveCount(0);
 			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
 			await expect(page.getByTestId('run-workflow')).toBeEnabled();
 			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
@@ -181,6 +183,8 @@ test.describe('Workflows editor', () => {
 			).toContainText('Hamburg');
 			await page.getByTestId('workflow-more-options').locator('summary').click();
 			await expect(page.getByTestId('workflow-version-history')).toBeVisible();
+			await expect(page.getByTestId('workflow-version-selector')).toHaveCSS('font-size', '14px');
+			await page.getByTestId('workflow-version-selector').click();
 			await page
 				.locator('[data-testid="workflow-version-row"][data-current="false"]')
 				.first()
@@ -189,6 +193,14 @@ test.describe('Workflows editor', () => {
 				'data-read-only',
 				'true'
 			);
+			await page.getByTestId('workflow-version-restore').click();
+			await page.getByTestId('workflow-version-restore-confirm').click();
+			const restoreNotification = page.getByTestId('notification').filter({
+				hasText: /Restored version \d+ as a new current version\./
+			});
+			await expect(restoreNotification).toBeVisible();
+			await expect(page.getByTestId('workflow-version-restored')).toHaveCount(0);
+			await expect(restoreNotification).toHaveCount(0, { timeout: 8_000 });
 		} finally {
 			await page.request.delete(`${apiUrl()}/v1/workflows/${workflow.id}`);
 		}

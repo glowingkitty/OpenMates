@@ -1,5 +1,7 @@
 // Data convenience extensions for hex string conversion and base64url encoding.
 // Used throughout the crypto and passkey flows.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.layout.responsive-parity
 
 import Foundation
 import SwiftUI
@@ -51,9 +53,20 @@ extension Color {
         let b = Double(hex & 0xFF) / 255.0
         self.init(red: r, green: g, blue: b)
     }
+
+    /// Fixed timer red from RecordAudio.svelte, independent of the theme error color.
+    static let recordingTimer = Color(hex: 0xFF4444)
 }
 
 extension LinearGradient {
+    /// Recording overlay in RecordAudio.svelte uses a fixed purple gradient
+    /// distinct from the app's primary action gradient.
+    static let recordingOverlay = LinearGradient(
+        colors: [Color(hex: 0x667EEA), Color(hex: 0x764BA2)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     /// Dark incognito gradient — matches ChatHeader.svelte's fixed incognito state:
     /// `linear-gradient(135deg, #1a1a2e 0%, #2d2d44 50%, #1e1e35 100%)`
     static let incognito = LinearGradient(

@@ -1,0 +1,128 @@
+schema_version: 1
+id: feature.app-skill.news-search
+version: 1
+status: draft
+title: News Search
+summary: >
+  Search recent public news coverage and return sanitized, attributable result
+  groups whose optional relevance ranking favors useful evidence over padding.
+
+inherits:
+  - architecture.app-skill-execution@1
+  - architecture.platform-parity@1
+
+scope:
+  includes:
+    - One to five independent public-news searches per invocation
+    - Country, language, safe-search, freshness, count, and tabloid filters
+    - Optional Jev relevance ranking over a bounded forty-candidate pool
+    - Sanitized grouped article results and explicit empty or provider-error behavior
+  excludes:
+    - Reading the complete contents of a known article
+    - Private, paywalled, or authenticated publisher access
+    - General web search when recent news coverage is not requested
+
+models:
+  NewsSearchRequest:
+    requests:
+      type: array
+      required: true
+      items: NewsSearchRequestItem
+      constraints: {min_items: 1, max_items: 5}
+
+  NewsSearchRequestItem:
+    id: {type: string_or_integer, nullable: true, constraints: {auto_generate_when_missing: sequential_integer}}
+    query: {type: string, required: true, constraints: {trim: true, blank: false}}
+    count: {type: integer, default: 10, constraints: {minimum: 1, maximum: 20}}
+    relevance_criteria: {type: string, nullable: true, constraints: {trim: true, blank: treat_as_omitted, max_length: 1000}}
+    country: {type: string, default: US}
+    search_lang: {type: string, default: en, constraints: {format: iso_639_1}}
+    safesearch: {type: enum, default: moderate, values: [off, moderate, strict]}
+    freshness: {type: enum_or_date_range, default: pw, values: [pd, pw, pm, py]}
+    filter_tabloids: {type: boolean, default: true}
+
+  NewsSearchResult:
+    title: {type: string, required: true, constraints: {html: stripped, blank: false}}
+    url: {type: string, required: true, constraints: {format: absolute_http_or_https_url}}
+    description: {type: string, required: true, constraints: {html: stripped}}
+    extra_snippets: {type: array, items: string, constraints: {html: stripped}}
+    page_age: {type: string, nullable: true}
+    publisher: {type: string, nullable: true}
+
+  NewsSearchResultGroup:
+    id: {type: string_or_integer, required: true}
+    results: {type: array, required: true, items: NewsSearchResult, constraints: {min_items: 0, max_items: 20}}
+    error: {type: string, nullable: true, constraints: {safe: true, raw_provider_diagnostics: forbidden}}
+
+  NewsSearchRelevanceRanking:
+    candidate_retrieval:
+      type: bounded_news_pool
+      required: true
+      constraints: {when_criteria_present_maximum_candidates: 40, deduplicate_urls_before_ranking: true, when_criteria_absent: existing_provider_behavior}
+    decision:
+      type: typesafe_jev_scores
+      required: true
+      constraints: {topic_and_decision_relevance_weight: 65_percent, publisher_and_source_quality_weight: 35_percent, keyword_overlap_alone: insufficient, minimum_retained_score: relevant_coverage, below_minimum_omitted: true, candidate_text: untrusted_data}
+    fallback:
+      type: deterministic
+      required: true
+      constraints: {ranking_failure: existing_provider_order, quality_omission_disabled: true, final_count: requested_count, output_safety_after_selection: required}
+
+assertions:
+  - id: news-search.request.validated
+    type: validation
+    must: One to five requests require a nonblank query and valid count, safe-search, freshness, language, and filter fields; one invalid request does not discard independent valid groups.
+    depends_on: [models.NewsSearchRequest, models.NewsSearchRequestItem]
+  - id: news-search.request.ids-correlated
+    type: invariant
+    must: Each result group preserves its caller ID or receives a unique sequential ID when none was supplied.
+    depends_on: [models.NewsSearchRequestItem.id, models.NewsSearchResultGroup.id]
+  - id: news-search.results.safe-and-bounded
+    type: security
+    must: Each group returns no more than its requested count, article URLs remain attributable, and selected external title, description, and snippet text receives inherited output-safety processing before exposure or inference.
+    depends_on: [models.NewsSearchResult, models.NewsSearchResultGroup]
+  - id: news-search.relevance.activation
+    type: behavior
+    must: relevance_criteria is optional and blank values are treated as omitted. A material coverage goal stated in ordinary conversation is faithfully populated without requiring the user to name the field, while a neutral news query gains no invented preference and makes no Jev ranking call.
+    depends_on: [models.NewsSearchRequestItem.relevance_criteria]
+  - id: news-search.relevance.bounded-ranking
+    type: behavior
+    must: With nonblank relevance_criteria, News Search deduplicates URLs, scores at most forty candidates once, and weighs substantive topic and decision relevance at sixty-five percent and publisher or source quality at thirty-five percent. Keyword overlap without supporting detail is insufficient.
+    depends_on: [models.NewsSearchRelevanceRanking.candidate_retrieval, models.NewsSearchRelevanceRanking.decision]
+  - id: news-search.relevance.quality-floor
+    type: behavior
+    must: After a complete valid Jev decision, only candidates scored as relevant coverage or better remain. Peripheral mentions, generic adjacent-topic articles, and unsupported keyword matches are omitted, and the group returns fewer than count rather than padding with them.
+    depends_on: [models.NewsSearchRelevanceRanking.decision]
+  - id: news-search.relevance.safe-fallback
+    type: failure
+    must: Candidate text is untrusted and scores cannot bypass structured or safety filters. Missing credentials, rejection, malformed or incomplete scores, or timeout preserves existing provider order without relevance omission, fails no otherwise successful search, and exposes no raw diagnostics.
+    depends_on: [models.NewsSearchRelevanceRanking.fallback]
+  - id: news-search.empty-and-provider-error.explicit
+    type: failure
+    must: A successful zero-hit request returns an empty finished group, while a provider failure returns a safe visible error and is never represented as a successful empty search.
+    depends_on: [models.NewsSearchResultGroup]
+  - id: news-search.surface-parity
+    type: parity
+    must: REST API, CLI, npm and pip SDKs, web, and Apple preserve the same grouped request, result, filter, error, privacy, optional relevance-ranking, quality-floor, fallback, and final-count semantics.
+    depends_on: [models, applies_to]
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [requests, results, relevance_ranking, failures, surface_parity]

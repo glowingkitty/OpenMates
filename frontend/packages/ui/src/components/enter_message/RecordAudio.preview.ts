@@ -8,6 +8,11 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+    liveRecorder: {
+        ...defaultProps,
+        enableRealtime: false,
+        previewTranscript: null,
+    },
     waiting: {
         ...defaultProps,
         previewTranscript: '',

@@ -8,12 +8,16 @@
 import asyncio
 import copy
 import importlib
+import importlib.util
 import ast
 import inspect
 import json
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 
 _INSTALLED_STUB_MODULES: dict[str, types.ModuleType] = {}
@@ -215,6 +219,7 @@ INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
 INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
 _get_skill_execution_args = main_processor._get_skill_execution_args
+_limit_news_search_batch_to_budget = main_processor._limit_news_search_batch_to_budget
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
@@ -235,6 +240,308 @@ if sys.modules.get("backend.apps.ai.processing.main_processor") is main_processo
 processing_package = sys.modules.get("backend.apps.ai.processing")
 if getattr(processing_package, "main_processor", None) is main_processor:
     delattr(processing_package, "main_processor")
+
+
+async def _run_mocked_protocol_guard_main_processor(
+    monkeypatch,
+    streams,
+    *,
+    truncate_history=None,
+    generated_tools=None,
+):
+    """Run the real main processor loop with only external integrations mocked."""
+    for name in (
+        "MistralUsage",
+        "GoogleUsageMetadata",
+        "AnthropicUsageMetadata",
+        "BedrockUsageMetadata",
+        "OpenAIUsageMetadata",
+        "ParsedMistralToolCall",
+        "ParsedGoogleToolCall",
+        "ParsedAnthropicToolCall",
+        "ParsedBedrockToolCall",
+        "ParsedOpenAIToolCall",
+        "UnifiedStreamChunk",
+    ):
+        monkeypatch.setattr(main_processor, name, type(name, (), {}))
+    monkeypatch.setattr(
+        main_processor,
+        "StreamChunkType",
+        SimpleNamespace(THINKING="thinking", THINKING_SIGNATURE="signature", TEXT="text"),
+    )
+
+    calls = []
+
+    def call_main_llm_stream(**kwargs):
+        calls.append(kwargs)
+        chunks = streams[len(calls) - 1]
+
+        async def provider_stream():
+            for chunk in chunks:
+                if isinstance(chunk, dict) and "fake_google_tool_call" in chunk:
+                    tool_call = main_processor.ParsedGoogleToolCall()
+                    tool_call.function_name = chunk["fake_google_tool_call"]
+                    yield tool_call
+                    continue
+                yield chunk
+
+        return provider_stream()
+
+    async def no_task_queue_retry(*_args, **_kwargs):
+        return None
+
+    from backend.apps.ai.utils import tool_protocol_guard
+
+    stream_utils_path = Path(__file__).parents[1] / "apps/ai/utils/stream_utils.py"
+    stream_utils_spec = importlib.util.spec_from_file_location(
+        "_main_processor_protocol_stream_utils", stream_utils_path
+    )
+    stream_utils = importlib.util.module_from_spec(stream_utils_spec)
+    stream_utils_spec.loader.exec_module(stream_utils)
+    monkeypatch.setattr(tool_protocol_guard, "aggregate_paragraphs", stream_utils.aggregate_paragraphs)
+    monkeypatch.setattr(tool_protocol_guard, "UnifiedStreamChunk", type("ProtocolStreamChunk", (), {}))
+    monkeypatch.setattr(tool_protocol_guard, "StreamChunkType", SimpleNamespace(TEXT="text"))
+    monkeypatch.setattr(main_processor, "ToolProtocolGuard", tool_protocol_guard.ToolProtocolGuard)
+    monkeypatch.setattr(main_processor, "call_main_llm_stream", call_main_llm_stream)
+    monkeypatch.setattr(main_processor, "observe_ai_stream", lambda stream, *_args, **_kwargs: stream)
+    monkeypatch.setattr(
+        main_processor,
+        "truncate_message_history_to_token_budget",
+        truncate_history or (lambda history, **_kwargs: history),
+    )
+    monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: 100_000)
+    monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
+    monkeypatch.setattr(main_processor, "evaluate_task_queue_post_turn", no_task_queue_retry)
+    monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: 0)
+    monkeypatch.setattr(main_processor, "has_transcribed_web_audio_recording", lambda _history: False)
+    monkeypatch.setattr(
+        main_processor,
+        "should_include_embeds_results_view_instruction",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(main_processor, "normalize_wikipedia_language", lambda _language: "en")
+    monkeypatch.setattr(
+        main_processor,
+        "TranslationService",
+        lambda: SimpleNamespace(get_nested_translation=lambda *_args, **_kwargs: None),
+    )
+
+    request_data = SimpleNamespace(
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="user-hash-1",
+        user_preferences={},
+        mentioned_settings_memories_cleartext=None,
+        historical_artifact_context=None,
+        current_user_content="Compare the options.",
+        active_focus_id=None,
+        is_incognito=False,
+        message_history=[{"role": "user", "content": "Compare the options."}],
+        orchestration_id=None,
+        is_sub_chat=False,
+        is_sub_chat_continuation=False,
+        mate_id="mate-1",
+        chat_has_title=True,
+        chat_key_version=1,
+        parent_id=None,
+        root_chat_id=None,
+        root_turn_id=None,
+        sub_chat_depth=0,
+        orchestration_dispatch_token=None,
+        orchestration_descendant_limit=None,
+        orchestration_credit_limit=None,
+        orchestration_approved=False,
+        budget_limit=None,
+        budget_spent=0,
+        team_id=None,
+        team_id_hash=None,
+        team_workspace_type=None,
+        team_object_id_hash=None,
+        recovery_preflight_id=None,
+        recovery_turn_id=None,
+        recovery_public_key=None,
+        learning_mode=None,
+        client_capabilities=[],
+        is_anonymous=False,
+        has_image_upload_embed=False,
+        embed_file_path_index=None,
+    )
+    request_data.resolved_recovery_inference_task_id = lambda: None
+    request_data.model_dump = lambda **_kwargs: request_data.__dict__.copy()
+    preprocessing_results = SimpleNamespace(
+        load_app_settings_and_memories=[],
+        rejection_reason=None,
+        relevant_app_skills=[],
+        selected_main_llm_model_id="google/test-model",
+        selected_main_llm_model_name="Test model",
+        selected_secondary_model_id=None,
+        selected_fallback_model_id=None,
+        selected_mate_id="mate-1",
+        category="general",
+        output_language="en",
+        relevant_embedded_previews=[],
+        relevant_focus_modes=[],
+        enable_subchats=False,
+        llm_response_temp=0.1,
+        user_requested_skills_only=False,
+        user_requested_focus_only=False,
+    )
+
+    output = [
+        chunk
+        async for chunk in main_processor.handle_main_processing(
+            "task-1",
+            request_data,
+            preprocessing_results,
+            {},
+            None,
+            None,
+            None,
+            [],
+            discovered_apps_metadata={},
+            user_overrides=SimpleNamespace(skills=None, wikipedia_references=[]),
+        )
+    ]
+    return output, calls
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("recovery_succeeds", [True, False])
+async def test_final_no_tools_turn_recovers_from_provider_tool_call_without_executing_it(
+    monkeypatch, recovery_succeeds: bool
+) -> None:
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    answer = "Here is the answer from the results already gathered."
+    recovery_chunk = answer if recovery_succeeds else {"fake_google_tool_call": "web-search"}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search"}], [recovery_chunk]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search the web."}}],
+    )
+
+    assert len(calls) == 2
+    assert all(call["tool_choice"] == "none" and call["tools"] is None for call in calls)
+    assert "previous answer-only attempt" in calls[1]["system_prompt"]
+    if recovery_succeeds:
+        assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+        assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
+    else:
+        assert {"__main_processing_failure__": True, "reason": "empty_post_tool_response"} in output
+    assert not any(isinstance(chunk, dict) and "embed_id" in chunk for chunk in output)
+    assert not any(isinstance(chunk, dict) and "__tool_calls_info__" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_call(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    answer = "Here is the answer from the results already gathered."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search"}, answer]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search the web."}}],
+    )
+
+    assert len(calls) == 1
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_main_processor_continues_safe_text_after_fabricated_protocol(monkeypatch) -> None:
+    safe_prefix = "## Practical comparison\n\nThe first option is easier to operate.\n\n"
+    continuation = "The second option offers finer control."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [
+            [
+                safe_prefix
+                + "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```\n"
+                + "Invented result prose."
+            ],
+            [continuation],
+        ],
+    )
+
+    published_text = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert published_text == safe_prefix + continuation
+    assert "app_id:" not in published_text
+    assert "Invented result prose" not in published_text
+    assert len(calls) == 2
+    assert calls[0]["tool_choice"] == "auto"
+    assert calls[1]["tool_choice"] == "none"
+    assert calls[1]["tools"] is None
+    assert calls[1]["message_history"][-2]["content"] == safe_prefix
+    assert "Do not repeat" in calls[1]["message_history"][-1]["content"]
+    assert "Do not invent" in calls[1]["message_history"][-1]["content"]
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_main_processor_recovers_when_protocol_was_the_first_output(monkeypatch) -> None:
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    answer = "I cannot verify current results from the available conversation."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[protocol[i:i + 7] for i in range(0, len(protocol), 7)] + ["\nInvented result prose."], [answer]],
+    )
+
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert len(calls) == 2
+    assert calls[0]["tool_choice"] == "auto"
+    assert calls[1]["tool_choice"] == "none"
+    assert calls[1]["tools"] is None
+    assert calls[1]["message_history"][-1]["role"] == "user"
+    assert "previous assistant output was suppressed" in calls[1]["message_history"][-1]["content"]
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_main_processor_bounds_repeated_protocol_and_marks_failure(monkeypatch) -> None:
+    safe_prefix = "A safe paragraph was already published.\n\n"
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[safe_prefix + protocol], [protocol]],
+    )
+
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == safe_prefix
+    assert len(calls) == 2
+    assert calls[1]["tool_choice"] == "none"
+    assert output[-1] == {
+        "__main_processing_failure__": True,
+        "reason": "protocol_guard",
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_main_processor_rejects_orphaned_protocol_recovery_instruction(monkeypatch) -> None:
+    safe_prefix = "A safe paragraph was already published.\n\n"
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+
+    def drop_recovery_assistant_prefix(history, **_kwargs):
+        if history and history[-1].get("content", "").startswith("Continue the preceding"):
+            return history[:-2] + history[-1:]
+        return history
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[safe_prefix + protocol]],
+        truncate_history=drop_recovery_assistant_prefix,
+    )
+
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == safe_prefix
+    assert len(calls) == 1
+    assert output[-1] == {
+        "__main_processing_failure__": True,
+        "reason": "protocol_guard",
+    }
 
 
 def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
@@ -285,7 +592,7 @@ def test_empty_post_tool_turn_requires_answer_recovery() -> None:
     source = inspect.getsource(main_processor.handle_main_processing)
     assert "[POST_TOOL_RECOVERY] Tool continuation produced no answer" in source
     assert "empty_post_tool_recovery_attempted" in source
-    assert "yield STANDARDIZED_USER_ERROR_MESSAGE" in source
+    assert 'yield main_processing_failure("empty_post_tool_response")' in source
 
 
 def test_skill_dedup_does_not_cache_explicit_error_wrappers() -> None:
@@ -545,6 +852,18 @@ def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> 
     parsed_args = {"requests": [{"id": "search_aethos", "query": "aethos"}]}
 
     assert _get_skill_execution_args(parsed_args, {"multiple": True}) is parsed_args
+
+
+def test_news_search_batch_uses_remaining_budget_without_mutating_original_args() -> None:
+    args = {"requests": [{"query": f"topic {index}"} for index in range(6)], "other": "kept"}
+
+    limited, omitted = _limit_news_search_batch_to_budget(args, 5)
+
+    assert [request["query"] for request in limited["requests"]] == [f"topic {index}" for index in range(5)]
+    assert [request["query"] for request in omitted] == ["topic 5"]
+    assert limited["other"] == "kept"
+    assert len(args["requests"]) == 6
+    assert _limit_news_search_batch_to_budget(args, 0) == (args, [])
 
 
 def test_diff_prompt_uses_resolved_embed_file_path_index() -> None:

@@ -1,9 +1,9 @@
 """
 backend/tests/test_anonymous_skill_access.py
 
-Contract tests for anonymous execution gating. Anonymous callers may use skills
-classified as not requiring connected accounts, but file/upload payloads and
-connected-account skills must be rejected before inference or provider work.
+Contract tests for anonymous execution gating. Anonymous callers may use only
+explicitly reviewed inline skills; file, background, durable-write, and
+connected-account skills are rejected before inference or provider work.
 """
 
 from __future__ import annotations
@@ -11,9 +11,12 @@ from __future__ import annotations
 import sys
 import json
 import asyncio
-from types import ModuleType
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
+import yaml
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
 from starlette.requests import Request
@@ -21,11 +24,15 @@ from starlette.requests import Request
 import backend.core.api.app.routes.anonymous as anonymous_routes
 from backend.core.api.app.routes.anonymous import (
     AnonymousChatStreamRequest,
+    anonymous_app_skill,
     anonymous_chat_stream,
     reject_anonymous_file_payloads,
     validate_anonymous_skill_allowed,
 )
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService, AnonymousReservationResult
+from backend.shared.python_schemas.app_metadata_schemas import AppSkillDefinition
+from backend.shared.python_utils.anonymous_skill_policy import filter_anonymous_tools, is_anonymous_inline_skill
+from backend.shared.python_utils.anonymous_skill_policy import has_single_anonymous_provider_request
 from backend.tests.test_anonymous_free_usage_budget import FakeCache, FakeDirectus
 
 
@@ -46,17 +53,16 @@ def use_in_process_anonymous_meter(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_skill_without_connected_account_requirement_is_allowed() -> None:
     skill = {
         "id": "search",
-        "connected_account_required": False,
+        "anonymous_access": "inline",
     }
-
-    validate_anonymous_skill_allowed("web", skill)
+    validate_anonymous_skill_allowed("events", skill)
 
 
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 def test_connected_account_skill_is_rejected_for_anonymous_callers() -> None:
     skill = {
         "id": "get-events",
-        "connected_account_required": True,
+        "anonymous_access": "inline",
     }
 
     with pytest.raises(HTTPException) as exc_info:
@@ -75,6 +81,168 @@ def test_missing_connected_account_classification_fails_closed() -> None:
 
     assert exc_info.value.status_code == 500
     assert exc_info.value.detail["code"] == "skill_metadata_missing"
+
+
+@pytest.mark.parametrize("app_id, skill_id", [
+    ("images", "generate"), ("music", "generate"), ("videos", "create"),
+    ("social_media", "search"), ("weather", "rain_radar"),
+    ("web", "read"), ("videos", "get_transcript"),
+    ("tasks", "search"),
+])
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_file_background_and_account_state_skills_are_rejected_even_if_misclassified(app_id: str, skill_id: str) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        validate_anonymous_skill_allowed(app_id, {"id": skill_id, "anonymous_access": "inline"})
+    assert exc_info.value.status_code == 403
+
+
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_every_app_skill_has_reviewed_anonymous_classification() -> None:
+    apps_dir = Path(__file__).resolve().parents[1] / "apps"
+    inline = set()
+    for app_yml in sorted(apps_dir.glob("*/app.yml")):
+        app_id = app_yml.parent.name
+        metadata = yaml.safe_load(app_yml.read_text()) or {}
+        for raw_skill in metadata.get("skills", []):
+            assert raw_skill.get("anonymous_access") in {"inline", "authenticated"}, (app_id, raw_skill.get("id"))
+            skill = AppSkillDefinition.model_validate(raw_skill)
+            if skill.anonymous_access == "inline":
+                assert is_anonymous_inline_skill(app_id, skill), (app_id, skill.id)
+                inline.add((app_id, skill.id))
+    assert {("events", "search"), ("web", "search"), ("math", "calculate")} <= inline
+    assert not {
+        ("images", "generate"), ("social_media", "search"), ("tasks", "create"),
+        ("web", "read"), ("videos", "get_transcript"),
+    } & inline
+
+
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_chat_offers_inline_search_but_no_file_or_system_tools() -> None:
+    apps_metadata = {
+        "events": SimpleNamespace(skills=[SimpleNamespace(id="search", anonymous_access="inline", internal=False)]),
+        "images": SimpleNamespace(skills=[SimpleNamespace(id="generate", anonymous_access="authenticated", internal=False)]),
+    }
+    tools = [
+        {"function": {"name": name}}
+        for name in ("events-search", "images-generate", "start_sub_chats")
+    ]
+    assert filter_anonymous_tools(tools, apps_metadata, lambda name: name.replace("_", "-")) == tools[:1]
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content
+async def test_anonymous_direct_skill_uses_shared_cap_without_content_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.shared.python_utils import app_skill_output_safety
+
+    directus = FakeDirectus()
+    service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
+    await service.save_budget(
+        enabled=True, monthly_budget_credits=100, daily_hard_cap_percent=10,
+        weekly_cap_percent=50, per_identity_daily_cap_credits=100,
+        admin_user_id="admin-1",
+    )
+    skill = SimpleNamespace(
+        id="search", internal=False, anonymous_access="inline", api_config=None,
+        pricing=SimpleNamespace(model_dump=lambda **_kwargs: {"per_unit": {"credits": 6}}),
+        providers=[], full_model_reference=None,
+        model_dump=lambda: {"id": "search", "anonymous_access": "inline", "internal": False},
+    )
+    metadata = SimpleNamespace(skills=[skill])
+    dispatched: list[dict] = []
+
+    class FakeRegistry:
+        def get_metadata(self, app_id: str):
+            assert app_id == "web"
+            return metadata
+
+        def is_skill_available(self, app_id: str, skill_id: str) -> bool:
+            return (app_id, skill_id) == ("web", "search")
+
+        async def dispatch_skill(self, app_id: str, skill_id: str, body: dict) -> dict:
+            dispatched.append(body)
+            return {"success": True, "data": {"results": [{"title": "Example"}]}}
+
+    fake_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_registry_module)
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_app_skill_output", lambda result, _context: asyncio.sleep(0, result=result))
+    request = Request({
+        "type": "http", "method": "POST", "path": "/v1/anonymous/apps/web/skills/search",
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"x-openmates-anonymous-id", b"guest-1")],
+        "client": ("198.51.100.7", 443),
+        "app": SimpleNamespace(state=SimpleNamespace(secrets_manager=None)),
+    })
+    body = {"requests": [{"query": "test query"}]}
+    first = await anonymous_app_skill(request, "web", "search", body, directus, FakeCache())
+    assert first["credits_charged"] == 6
+    assert len(dispatched) == 1
+    assert dispatched[0] == body
+    assert (await service.get_budget_status()).daily_used_credits == 6
+    assert {collection for collection, _ in directus.created_payloads} <= {
+        "anonymous_free_usage_budget", "anonymous_free_usage_identity_daily", "anonymous_free_usage_reservations",
+    }
+    with pytest.raises(HTTPException) as exc_info:
+        await anonymous_app_skill(request, "web", "search", body, directus, FakeCache())
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.detail["code"] == "budget_exhausted"
+    assert len(dispatched) == 1
+
+
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_direct_skill_rejects_private_references() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        anonymous_routes._reject_anonymous_skill_references({"requests": [{"embed_id": "private-embed"}]})
+    assert exc_info.value.status_code == 403
+
+
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_input_cannot_multiply_a_single_provider_quote() -> None:
+    assert has_single_anonymous_provider_request("web", "search", {"requests": [{"query": "one"}]})
+    assert not has_single_anonymous_provider_request("web", "search", {"requests": []})
+    assert not has_single_anonymous_provider_request("web", "search", {"requests": [{"query": "one"}, {"query": "two"}]})
+    assert has_single_anonymous_provider_request("business", "company_financials", {"companies": [{"query": "AAPL"}]})
+    assert not has_single_anonymous_provider_request(
+        "business", "company_financials", {"companies": [{"query": "AAPL"}, {"query": "MSFT"}]}
+    )
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_rate_limit_rejects_before_background_queue(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.ai.processing import rate_limiting
+    from backend.apps.ai.processing.skill_executor import execute_skill
+
+    async def denied(**_kwargs: Any) -> tuple[bool, float]:
+        return False, 10.0
+
+    class NoQueueProducer:
+        def signature(self, *_args: Any, **_kwargs: Any) -> None:
+            raise AssertionError("anonymous work was queued")
+
+    class RateLimitedRegistry:
+        def has_app(self, _app_id: str) -> bool:
+            return True
+
+        def is_skill_available(self, _app_id: str, _skill_id: str) -> bool:
+            return True
+
+        async def dispatch_skill(self, _app_id: str, _skill_id: str, _body: dict) -> dict:
+            await rate_limiting.wait_for_rate_limit(
+                provider_id="brave", skill_id="search",
+                celery_producer=NoQueueProducer(),
+                celery_task_context={"app_id": "web", "skill_id": "search", "arguments": {"query": "test"}},
+            )
+            return {"success": True}
+
+    monkeypatch.setattr(rate_limiting, "check_rate_limit", denied)
+    fake_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_registry_module.get_global_registry = lambda: RateLimitedRegistry()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_registry_module)
+    with pytest.raises(HTTPException) as exc_info:
+        await execute_skill("web", "search", {"requests": [{"query": "test"}]}, is_anonymous=True)
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.detail["code"] == "provider_rate_limited"
 
 
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
@@ -158,7 +326,7 @@ def test_anonymous_follow_up_still_rejects_attachment_or_forged_history(role: st
         'Earlier plain answer.\n',
     ),
 ])
-# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content
 async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
     monkeypatch: pytest.MonkeyPatch, history_content: str | None, expected_content: str | None,
 ) -> None:
@@ -179,6 +347,7 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
             assert skill_id == "ask"
             assert request_body["stream"] is True
             assert request_body["is_anonymous"] is True
+            assert request_body["is_incognito"] is True
             assert request_body["apps_enabled"] is True
             assert request_body["messages"][-1]["content"] == "Reply with exactly: anonymous inference ok"
             if history_content is not None:
@@ -249,6 +418,9 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(
     status = await service.get_budget_status()
     assert status.daily_used_credits == 0
     assert any(row.get("status") == "request_open" for row in directus.reservations.values())
+    assert {collection for collection, _ in directus.created_payloads} <= {
+        "anonymous_free_usage_budget", "anonymous_free_usage_identity_daily", "anonymous_free_usage_reservations",
+    }
 
 
 @pytest.mark.asyncio

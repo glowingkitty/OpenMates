@@ -6,6 +6,7 @@ import XCTest
 @testable import OpenMates
 
 final class WatchEmbedPreviewTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testWatchPairLoginUIContractIdentifiersAreStable() {
         XCTAssertEqual(Set(WatchUIContract.pairLoginIdentifiers), [
             "watch-pair-login",
@@ -14,10 +15,6 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-pair-manual-fallback",
             "watch-pair-token",
             "watch-pair-url",
-            "watch-pair-show-qr-button",
-            "watch-pair-qr-code",
-            "watch-pair-qr-fullscreen",
-            "watch-pair-qr-close-button",
             "watch-pair-waiting-label",
             "watch-pair-pin-input",
             "watch-pair-refresh-button",
@@ -34,6 +31,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-selector"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,apple-watch.chats.audio-reply
     func testWatchChatAndAudioComposerUIContractIdentifiersAreStable() {
         XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-chat-shell"))
         XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-chat-list"))
@@ -54,6 +52,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertNoDuplicates(WatchUIContract.audioComposerIdentifiers)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchEmbedPreviewUIContractIdentifiersAreStable() {
         XCTAssertEqual(Set(WatchUIContract.embedPreviewIdentifiers), [
             "watch-embed-preview",
@@ -65,6 +64,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertNoDuplicates(WatchUIContract.embedPreviewIdentifiers)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.hub.compact-navigation
     func testWatchDesignReviewContractRejectsStockProductChrome() {
         XCTAssertEqual(Set(WatchUIContract.forbiddenProductChrome), [
             "List",
@@ -79,6 +79,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("pending audio-recording embed") })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchChatThreadClaimsFullDisplayWithoutPagedTabChrome() throws {
         let source = try watchSource(named: "WatchChatViews.swift")
 
@@ -88,14 +89,31 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertTrue(source.contains(".ignoresSafeArea(edges: .bottom)"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchEmbedPreviewUsesFixedWatchCardWidth() throws {
         let source = try watchSource(named: "WatchEmbedViews.swift")
 
         XCTAssertEqual(WatchEmbedPreviewModel.cardWidth, 156)
         XCTAssertTrue(source.contains("width: CGFloat(WatchEmbedPreviewModel.cardWidth)"))
         XCTAssertTrue(source.contains("gradient(forAppId: model.appId)"))
+        XCTAssertTrue(source.contains("model.family == .code && model.state == .ready"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testCodePreviewUsesEmbedTitleAndLineCount() {
+        let embed = Self.embed(
+            type: EmbedType.codeCode.rawValue,
+            raw: ["title": AnyCodable("Write"), "line_count": AnyCodable(28)]
+        )
+
+        let model = WatchEmbedPreviewMapper.makeModel(for: embed, chatId: "chat-123")
+
+        XCTAssertEqual(model.family, .code)
+        XCTAssertEqual(model.title, "Write")
+        XCTAssertEqual(model.detail, "28 lines")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testMapsSupportedV1EmbedFamiliesToCompactPreviewModels() throws {
         let cases: [(EmbedType, WatchEmbedPreviewFamily, [String: AnyCodable])] = [
             (.webWebsite, .website, ["title": AnyCodable("Example article"), "url": AnyCodable("https://example.com/post")]),
@@ -132,6 +150,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testPreviewStateReflectsProcessingErrorsAndUnsupportedTypes() throws {
         let processing = Self.embed(type: EmbedType.webWebsite.rawValue, status: .processing, raw: ["title": AnyCodable("Loading")])
         let failed = Self.embed(type: EmbedType.webWebsite.rawValue, status: .error, raw: ["title": AnyCodable("Private title")])
@@ -149,6 +168,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertFalse(unsupportedModel.title.contains("never display this"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testContinuationPayloadDoesNotIncludePrivatePreviewContent() throws {
         let embed = Self.embed(
             type: EmbedType.recording.rawValue,
@@ -167,6 +187,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(model.continuation.qrPayload, model.continuation.universalLink)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchEmbedOpenRequestPayloadContainsOnlyRoutingIds() throws {
         let request = try XCTUnwrap(WatchEmbedOpenRequest(chatId: "chat-secure", embedId: "embed-secure"))
 
@@ -182,6 +203,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertFalse(payload.keys.contains("content"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchMessageDisplayTextRemovesEmbedOnlyBlocks() throws {
         let refs = [WatchEmbedRef(id: "embed-a", type: EmbedType.webWebsite.rawValue, status: "finished", data: nil)]
         let content = """
@@ -197,6 +219,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(displayText, "Here is the result.")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchExtractsInlineEmbedMarkersWhenApiOmitsRefs() throws {
         let content = """
         [[embed:embed-inline]]
@@ -219,6 +242,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertNil(WatchMessageContentSanitizer.displayText(content: content, embedRefs: refs))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchRendersMarkdownEmbedReferencesWithoutLeakingSyntax() throws {
         let content = "See [CSD Magdeburg](embed:csd-deutschland.de-NXT) for details."
 
@@ -229,6 +253,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(displayText, "See CSD Magdeburg for details.")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchDerivesReadableTravelEmbedReferenceLabels() {
         XCTAssertEqual(
             WatchMessageContentSanitizer.displayText(
@@ -246,6 +271,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchReplacesMultipleUnicodeEmbedReferenceLabels() {
         let content = "[Café Köln](embed:cafe.example-AbC) and [Zürich HB](embed:ice-1730-XyZ)"
 
@@ -255,6 +281,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
     func testWatchDoesNotRenderApiEmbedRecordAsCardWhenConsumedByInlineReference() {
         let ref = WatchEmbedRef(
             id: "embed-uuid",

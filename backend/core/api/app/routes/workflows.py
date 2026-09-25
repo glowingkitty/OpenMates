@@ -48,6 +48,10 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowVersionCurrentError,
 )
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
+from backend.core.api.app.services.workflow_ai_service import (
+    WorkflowAiService,
+    WorkflowReferenceHint,
+)
 from backend.core.api.app.services.workflow_assistant_service import (
     DirectusWorkflowAssistantProposalRepository,
     WorkflowAssistantService,
@@ -131,6 +135,22 @@ class WorkflowYamlRequest(BaseModel):
     """CLI YAML authoring request; the server remains the authoritative compiler."""
 
     source: str = Field(min_length=1, max_length=65_536)
+
+
+class WorkflowAiAuthoringReferenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reference: str = Field(min_length=1, max_length=250)
+    label: str = Field(min_length=1, max_length=120)
+    value_type: str = Field(min_length=1, max_length=24)
+    inserted: bool = False
+
+
+class WorkflowAiAuthoringRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    instruction: str = Field(max_length=4_000)
+    references: list[WorkflowAiAuthoringReferenceRequest] = Field(default_factory=list, max_length=24)
 
 
 def _yaml_validation_payload(source: str) -> dict[str, Any]:
@@ -244,6 +264,136 @@ def get_workflow_identity_service(request: Request) -> WorkflowIdentityService:
     secrets_manager = getattr(request.app.state, "secrets_manager", None)
     classifier = build_preprocessing_workflow_classifier(secrets_manager) if secrets_manager is not None else None
     return WorkflowIdentityService(classifier=classifier)
+
+
+def get_workflow_ai_service(request: Request) -> WorkflowAiService:
+    return WorkflowAiService(
+        secrets_manager=getattr(request.app.state, "secrets_manager", None),
+        cache_service=getattr(request.app.state, "cache_service", None),
+    )
+
+
+def _is_ask_ai_node(node: WorkflowNode) -> bool:
+    return (
+        node.type == WorkflowNodeType.APP_SKILL_ACTION
+        and node.config.get("app_id") == "ai"
+        and node.config.get("skill_id") == "ask"
+    )
+
+
+def _workflow_ancestors(graph: WorkflowGraph, node_id: str) -> set[str]:
+    incoming: dict[str, list[str]] = {}
+    for edge in graph.edges:
+        incoming.setdefault(edge.to_node, []).append(edge.from_node)
+    ancestors: set[str] = set()
+    pending = list(incoming.get(node_id, ()))
+    while pending:
+        ancestor = pending.pop()
+        if ancestor in ancestors:
+            continue
+        ancestors.add(ancestor)
+        pending.extend(incoming.get(ancestor, ()))
+    return ancestors
+
+
+def _coarse_schema_type(schema: Any) -> str:
+    if not isinstance(schema, dict):
+        return "unknown"
+    declared = schema.get("type")
+    if isinstance(declared, str):
+        return declared
+    if isinstance(declared, list):
+        non_null = [str(item) for item in declared if item != "null"]
+        return non_null[0] if len(non_null) == 1 else "mixed"
+    return "unknown"
+
+
+def _ask_ai_reference_hints(graph: WorkflowGraph, node: WorkflowNode) -> list[WorkflowReferenceHint]:
+    from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+
+    prompt = str((node.config.get("input") or {}).get("prompt") or "")
+    ancestors = _workflow_ancestors(graph, node.id)
+    registry = WorkflowCapabilityRegistry()
+    hints: list[WorkflowReferenceHint] = []
+    for source in graph.nodes:
+        if source.id not in ancestors:
+            continue
+        output_schema: dict[str, Any] | None = None
+        if source.type == WorkflowNodeType.APP_SKILL_ACTION:
+            capability = registry.get_capability(f"{source.config.get('app_id')}.{source.config.get('skill_id')}")
+            candidate = capability.metadata.get("output_schema")
+            output_schema = candidate if isinstance(candidate, dict) else None
+        elif source.type == WorkflowNodeType.CHECK:
+            matched_type: str | list[str] = ["boolean", "null"] if source.config.get("mode", "exact") == "ai" else "boolean"
+            output_schema = {
+                "type": "object",
+                "properties": {"matched": {"type": matched_type}, "branch": {"type": "string"}},
+            }
+        elif source.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER}:
+            output_schema = {
+                "type": "object",
+                "properties": {"triggered": {"type": "boolean"}, "trigger": {"type": "string"}},
+            }
+        elif source.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
+            output_schema = {
+                "type": "object",
+                "properties": {"chat_id": {"type": "string"}, "message": {"type": "string"}},
+            }
+        properties = output_schema.get("properties") if output_schema else None
+        if not isinstance(properties, dict):
+            continue
+        for field, field_schema in properties.items():
+            reference = f"$nodes.{source.id}.output.{field}"
+            template_reference = "{{" + reference.replace("$nodes.", "steps.").replace(".output.", ".") + "}}"
+            field_title = field_schema.get("title") if isinstance(field_schema, dict) else None
+            label = f"{source.title or source.id} · {field_title or str(field).replace('_', ' ').title()}"
+            hints.append(
+                WorkflowReferenceHint(
+                    reference=reference,
+                    label=label,
+                    value_type=_coarse_schema_type(field_schema),
+                    inserted=template_reference in prompt,
+                )
+            )
+    return hints[:24]
+
+
+async def _validate_workflow_ask_ai_nodes(
+    request: Request,
+    graph: WorkflowGraph,
+    owner_id: str,
+) -> list[dict[str, str]]:
+    service = get_workflow_ai_service(request)
+    warnings: list[dict[str, str]] = []
+    for node in graph.nodes:
+        if not _is_ask_ai_node(node):
+            continue
+        instruction = str((node.config.get("input") or {}).get("prompt") or "")
+        result = await service.authoring_hints(
+            owner_id=owner_id,
+            instruction=instruction,
+            references=_ask_ai_reference_hints(graph, node),
+            allow_generative_fallback=True,
+        )
+        if result.verdict == "asks_to_invoke_app_skill":
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "WORKFLOW_AI_ASK_REQUIRES_APP_ACTION",
+                    "node_id": node.id,
+                    "message": "You can't ask for using app skills here. Instead add a 'Use app' action to trigger an app skill.",
+                },
+            )
+        if result.verdict == "unverified":
+            warnings.append(
+                {
+                    "code": "WORKFLOW_AI_ASK_VALIDATION_UNVERIFIED",
+                    "node_id": node.id,
+                    "message": result.reminder
+                    or "AI validation could not be completed. Ask AI cannot use app skills.",
+                }
+            )
+    return warnings
 
 
 async def _resolve_create_identity(body: WorkflowCreateRequest, identity_service: WorkflowIdentityService) -> WorkflowIdentity:
@@ -551,6 +701,7 @@ async def create_workflow(
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        warnings = await _validate_workflow_ask_ai_nodes(request, body.graph, current_user.id)
         identity = await _resolve_create_identity(body, identity_service)
         workflow = await run_in_threadpool(
             service.create_workflow,
@@ -584,7 +735,7 @@ async def create_workflow(
             }],
             redacted_summary="Created 1 workflow",
         )
-        return {"workflow": after, "history": history}
+        return {"workflow": after, "history": history, "warnings": warnings}
     except Exception as exc:
         _handle_workflow_error(exc)
 
@@ -675,6 +826,11 @@ async def ask_workflows(
         try:
             before = await run_in_threadpool(service.get_workflow, body.exact_update.workflow_id, current_user.id, current_user.vault_key_id)
             patch = body.exact_update.patch
+            warnings = (
+                await _validate_workflow_ask_ai_nodes(request, patch.graph, current_user.id)
+                if patch.graph is not None
+                else []
+            )
             workflow = await run_in_threadpool(
                 service.update_workflow,
                 body.exact_update.workflow_id,
@@ -708,7 +864,11 @@ async def ask_workflows(
                 entries=[entry],
                 redacted_summary="Updated 1 workflow from ask",
             )
-            return _workflow_ask_applied_response(summary="Updated 1 workflow.", history=history, extra={"workflow": after})
+            return _workflow_ask_applied_response(
+                summary="Updated 1 workflow.",
+                history=history,
+                extra={"workflow": after, "warnings": warnings},
+            )
         except Exception as exc:
             _handle_workflow_error(exc)
     create = body.create
@@ -745,6 +905,7 @@ async def ask_workflows(
     if create is None:
         return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
     try:
+        warnings = await _validate_workflow_ask_ai_nodes(request, create.graph, current_user.id)
         identity = await _resolve_create_identity(create, identity_service)
         workflow = await run_in_threadpool(
             service.create_workflow,
@@ -782,7 +943,7 @@ async def ask_workflows(
         return _workflow_ask_applied_response(
             summary="Created 1 workflow.",
             history=history,
-            extra={"workflow": after, "processing": processing},
+            extra={"workflow": after, "processing": processing, "warnings": warnings},
         )
     except Exception as exc:
         _handle_workflow_error(exc)
@@ -817,6 +978,36 @@ async def validate_yaml_workflow(
     return {"validation": _yaml_validation_payload(body.source)}
 
 
+@router.post("/ai-authoring/hints")
+@limiter.limit("20/minute")
+async def workflow_ai_authoring_hints(
+    request: Request,
+    body: WorkflowAiAuthoringRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+) -> dict[str, Any]:
+    """Return free, bounded Jev-only authoring guidance for the web editor."""
+    result = await get_workflow_ai_service(request).authoring_hints(
+        owner_id=current_user.id,
+        instruction=body.instruction,
+        references=[
+            WorkflowReferenceHint(
+                reference=item.reference,
+                label=item.label,
+                value_type=item.value_type,
+                inserted=item.inserted,
+            )
+            for item in body.references
+        ],
+        allow_generative_fallback=False,
+    )
+    return {
+        "verdict": result.verdict,
+        "validation_path": result.validation_path,
+        "suggested_references": list(result.suggested_references),
+        "reminder": result.reminder,
+    }
+
+
 @router.post("/yaml")
 @limiter.limit("30/minute")
 async def create_yaml_workflow(
@@ -831,6 +1022,7 @@ async def create_yaml_workflow(
         raise HTTPException(status_code=400, detail={"code": "WORKFLOW_YAML_INVALID", **validation})
     try:
         compilation = compile_workflow_yaml(body.source)
+        warnings = await _validate_workflow_ask_ai_nodes(request, compilation.graph, current_user.id)
         workflow = await run_in_threadpool(
             service.create_workflow,
             current_user.id,
@@ -848,7 +1040,11 @@ async def create_yaml_workflow(
             None,
             None,
         )
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True), "validation": validation}
+        return {
+            "workflow": workflow.model_dump(mode="json", by_alias=True),
+            "validation": validation,
+            "warnings": warnings,
+        }
     except WorkflowYamlCompilationError as exc:
         raise HTTPException(status_code=400, detail={"code": "WORKFLOW_YAML_INVALID", **validation}) from exc
     except Exception as exc:
@@ -873,6 +1069,7 @@ async def update_yaml_workflow(
         if existing.enabled and not validation["enable_ready"]:
             raise HTTPException(status_code=409, detail={"code": "WORKFLOW_YAML_NOT_ENABLE_READY", **validation})
         compilation = compile_workflow_yaml(body.source)
+        warnings = await _validate_workflow_ask_ai_nodes(request, compilation.graph, current_user.id)
         workflow = await run_in_threadpool(
             service.update_workflow,
             workflow_id,
@@ -884,7 +1081,11 @@ async def update_yaml_workflow(
             run_content_retention=WorkflowRunContentRetention(compilation.run_content_retention),
             vault_key_id=current_user.vault_key_id,
         )
-        return {"workflow": workflow.model_dump(mode="json", by_alias=True), "validation": validation}
+        return {
+            "workflow": workflow.model_dump(mode="json", by_alias=True),
+            "validation": validation,
+            "warnings": warnings,
+        }
     except HTTPException:
         raise
     except WorkflowYamlCompilationError as exc:
@@ -1456,6 +1657,11 @@ async def update_workflow(
 ) -> dict[str, Any]:
     try:
         before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        warnings = (
+            await _validate_workflow_ask_ai_nodes(request, body.graph, current_user.id)
+            if body.graph is not None
+            else []
+        )
         identity = (
             normalize_workflow_identity(body.category or before.category, body.icon or before.icon)
             if body.category is not None or body.icon is not None
@@ -1495,7 +1701,7 @@ async def update_workflow(
             entries=[history_entry],
             redacted_summary="Updated 1 workflow",
         )
-        return {"workflow": after, "history": history}
+        return {"workflow": after, "history": history, "warnings": warnings}
     except Exception as exc:
         _handle_workflow_error(exc)
 
@@ -1642,12 +1848,13 @@ async def test_workflow_step(
     try:
         workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         node = _workflow_editor_node(workflow.graph, step_id, body)
-        if node.type != WorkflowNodeType.APP_SKILL_ACTION:
-            raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_APP_SKILL_ONLY")
-        from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
-        capability = WorkflowCapabilityRegistry().get_capability(f"{node.config['app_id']}.{node.config['skill_id']}")
-        metadata = capability.metadata.get("workflow") or {}
-        if not capability.enabled or not metadata.get("test_allowed") or metadata.get("effect") != "read":
+        if node.type == WorkflowNodeType.APP_SKILL_ACTION:
+            from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+            capability = WorkflowCapabilityRegistry().get_capability(f"{node.config['app_id']}.{node.config['skill_id']}")
+            metadata = capability.metadata.get("workflow") or {}
+            if not capability.enabled or not metadata.get("test_allowed") or metadata.get("effect") != "read":
+                raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_UNAVAILABLE")
+        elif node.type != WorkflowNodeType.CHECK:
             raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_UNAVAILABLE")
         draft_nodes = [item for item in workflow.graph.nodes if item.id != step_id] + [node]
         draft = workflow.model_copy(update={"graph": workflow.graph.model_copy(update={"nodes": draft_nodes})})

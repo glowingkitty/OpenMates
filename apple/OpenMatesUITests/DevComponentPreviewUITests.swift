@@ -47,6 +47,26 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Composer local attachment removed")
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility
+    func testComposerAttachmentMenuOpensAndSelectsLocalFileFixture() throws {
+        let app = launch(component: "composer", variant: "focused")
+        let toggle = app.buttons["composer-attachment-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        XCTAssertTrue(toggle.isHittable)
+        toggle.tap()
+
+        for identifier in ["composer-attachment-drawing", "composer-attachment-location", "composer-attachment-camera", "composer-attachment-files"] {
+            let action = app.buttons[identifier]
+            XCTAssertTrue(action.waitForExistence(timeout: 5), "Missing menu action: \(identifier)")
+            XCTAssertTrue(action.isHittable, "Menu action is covered: \(identifier)")
+        }
+        attachScreenshot("Isolated composer attachment menu open")
+
+        app.buttons["composer-attachment-files"].tap()
+        assertAction("attachment-added", in: app)
+        XCTAssertFalse(app.buttons["composer-attachment-files"].exists)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMessageThinkingExpandsAndCollapses() {
         let app = launch(component: "message", variant: "thinking")
@@ -60,6 +80,33 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Production message thinking expanded")
         collapse.tap()
         XCTAssertTrue(expand.waitForExistence(timeout: 3))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,chats.surface.semantic-parity
+    func testFollowUpSuggestionsRenderAsRightAlignedQuickSendActions() {
+        let app = launch(component: "follow-up-suggestions", variant: "legacy-markup")
+        let wrapper = element(app, "suggestions-wrapper")
+        XCTAssertTrue(wrapper.waitForExistence(timeout: 10))
+
+        let actions = app.buttons.matching(identifier: "follow-up-suggestion-item")
+        XCTAssertEqual(actions.count, 4, "Web limits the visible quick-send list to four unique actions")
+        let first = actions.element(boundBy: 0)
+        XCTAssertEqual(first.label, "Compare the sources")
+        XCTAssertFalse(first.label.contains("[web-search]"))
+        XCTAssertFalse(first.label.contains("<strong>"))
+
+        let rightEdges = (0..<actions.count).map { actions.element(boundBy: $0).frame.maxX }
+        XCTAssertLessThanOrEqual(
+            (rightEdges.max() ?? 0) - (rightEdges.min() ?? 0),
+            2,
+            "Quick-send actions should share the web list's trailing alignment"
+        )
+        attachScreenshot("Follow-up quick-send actions")
+
+        XCTAssertTrue(first.isHittable)
+        first.tap()
+        assertAction("quick-sent-Compare the sources", in: app)
+        XCTAssertTrue(first.waitForNonExistence(timeout: 2), "The selected list should fade out immediately")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

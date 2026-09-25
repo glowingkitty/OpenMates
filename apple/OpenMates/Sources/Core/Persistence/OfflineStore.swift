@@ -1,6 +1,8 @@
 // Offline persistence layer — stores chats, messages, and embeds locally using SwiftData.
 // Enables full offline access to previously loaded conversations.
 // Syncs with the in-memory ChatStore and resolves conflicts on reconnection.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
 import CryptoKit
 import Foundation
@@ -16,6 +18,7 @@ final class PersistedChat {
     var encryptedCategory: String?
     var encryptedIcon: String?
     var encryptedChatSummary: String?
+    var encryptedFollowUpRequestSuggestions: String?
     var encryptedAutoSpeakResponse: String?
     var encryptedChatKey: String?
     var icon: String?
@@ -48,11 +51,14 @@ final class PersistedChat {
 
     init(from chat: Chat) {
         self.id = chat.id
-        self.title = chat.title
+        // A prompt-derived title is presentation state until the server accepts
+        // a versioned encrypted title. Do not make it survive a cold launch.
+        self.title = (chat.titleV ?? 0) > 0 ? chat.title : nil
         self.encryptedTitle = chat.encryptedTitle
         self.encryptedCategory = chat.encryptedCategory
         self.encryptedIcon = chat.encryptedIcon
         self.encryptedChatSummary = chat.encryptedChatSummary
+        self.encryptedFollowUpRequestSuggestions = chat.encryptedFollowUpRequestSuggestions
         self.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse
         self.encryptedChatKey = chat.encryptedChatKey
         self.icon = chat.icon
@@ -91,6 +97,7 @@ final class PersistedChat {
             encryptedCategory: encryptedCategory,
             encryptedIcon: encryptedIcon,
             encryptedChatSummary: encryptedChatSummary,
+            encryptedFollowUpRequestSuggestions: encryptedFollowUpRequestSuggestions,
             encryptedAutoSpeakResponse: encryptedAutoSpeakResponse,
             encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
@@ -426,16 +433,42 @@ final class OfflineStore: ObservableObject {
                 predicate: #Predicate { $0.id == targetId }
             )
             if let existing = try? context.fetch(descriptor).first {
-                existing.title = chat.title
-                existing.encryptedTitle = chat.encryptedTitle
+                let acceptsIncomingMetadata = (chat.metadataV ?? 0) >= (existing.metadataV ?? 0)
+                let acceptsIncomingSummary = (chat.metadataV ?? 0) > (existing.metadataV ?? 0)
+                    || ((chat.metadataV ?? 0) == (existing.metadataV ?? 0)
+                        && existing.chatSummary == nil && existing.encryptedChatSummary == nil)
+                let incomingTitleVersion = chat.titleV ?? 0
+                let storedTitleVersion = existing.titleV ?? 0
+                if incomingTitleVersion > storedTitleVersion {
+                    existing.title = chat.title
+                    existing.encryptedTitle = chat.encryptedTitle
+                } else if incomingTitleVersion == storedTitleVersion && storedTitleVersion > 0 {
+                    // Persist same-revision plaintext hydration only when it is
+                    // tied to the stored ciphertext (or the stored row is an
+                    // incomplete snapshot with no ciphertext yet).
+                    if existing.title == nil,
+                       existing.encryptedTitle == nil || existing.encryptedTitle == chat.encryptedTitle {
+                        existing.title = chat.title
+                    }
+                    if existing.encryptedTitle == nil { existing.encryptedTitle = chat.encryptedTitle }
+                } else if storedTitleVersion == 0 {
+                    existing.title = nil
+                    existing.encryptedTitle = chat.encryptedTitle ?? existing.encryptedTitle
+                }
                 existing.encryptedCategory = chat.encryptedCategory
                 existing.encryptedIcon = chat.encryptedIcon
-                existing.encryptedChatSummary = chat.encryptedChatSummary
+                if acceptsIncomingSummary {
+                    existing.encryptedChatSummary = chat.encryptedChatSummary ?? existing.encryptedChatSummary
+                    existing.chatSummary = chat.chatSummary ?? existing.chatSummary
+                }
+                if acceptsIncomingMetadata {
+                    existing.encryptedFollowUpRequestSuggestions = chat.encryptedFollowUpRequestSuggestions
+                        ?? existing.encryptedFollowUpRequestSuggestions
+                }
                 existing.encryptedAutoSpeakResponse = chat.encryptedAutoSpeakResponse ?? existing.encryptedAutoSpeakResponse
                 existing.encryptedChatKey = chat.encryptedChatKey
                 existing.icon = chat.icon
                 existing.category = chat.category
-                existing.chatSummary = chat.chatSummary
                 existing.appId = chat.appId
                 existing.isPinned = chat.isPinned ?? false
                 existing.isArchived = chat.isArchived ?? false
@@ -443,9 +476,10 @@ final class OfflineStore: ObservableObject {
                 existing.updatedAt = chat.updatedAt
                 existing.lastVisibleMessageId = chat.lastVisibleMessageId
                 existing.messagesV = chat.messagesV
-                existing.titleV = chat.titleV
+                existing.titleV = max(storedTitleVersion, incomingTitleVersion)
                 existing.draftV = chat.draftV
                 existing.clearedDraftV = chat.clearedDraftV
+                existing.metadataV = max(existing.metadataV ?? 0, chat.metadataV ?? 0)
                 existing.hasNonEmptyDraft = chat.hasNonEmptyDraft ?? (chat.draftV == 0 ? false : existing.hasNonEmptyDraft)
                 existing.parentId = chat.parentId
                 existing.isSubChat = chat.isSubChat

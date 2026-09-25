@@ -30,7 +30,16 @@ from backend.apps.base_skill import BaseSkill
 from backend.apps.home.providers.immoscout24 import search_listings as is24_search
 from backend.apps.home.providers.kleinanzeigen import search_listings as ka_search
 from backend.apps.home.providers.wg_gesucht import search_listings as wg_search
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_utils.geo_utils import geocode_address
+from backend.shared.python_utils.search_relevance import (
+    MAX_RELEVANCE_CRITERIA_CHARS,
+    normalize_relevance_criteria,
+    normalize_url_for_deduplication,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +97,19 @@ class SearchRequestItem(BaseModel):
     )
     max_results: int = Field(
         default=10,
+        ge=1,
+        le=MAX_RESULTS_HARD_LIMIT,
         description="Maximum number of listings to return (1-20, default 10).",
+    )
+    relevance_criteria: Optional[str] = Field(
+        default=None,
+        max_length=MAX_RELEVANCE_CRITERIA_CHARS,
+        description=(
+            "Optional concise natural-language housing preference used to rank a larger "
+            "candidate pool. Populate it when the user states a material preference not fully "
+            "expressed by structured filters; omit it for a plain search and never infer "
+            "unstated amenities, commute, lease, accessibility, or neighborhood qualities."
+        ),
     )
 
 
@@ -159,6 +180,7 @@ class SearchSkill(BaseSkill):
     async def execute(
         self,
         requests: List[Dict[str, Any]],
+        secrets_manager: Optional[SecretsManager] = None,
         **kwargs: Any,
     ) -> SearchResponse:
         """
@@ -171,6 +193,7 @@ class SearchSkill(BaseSkill):
 
         Args:
             requests: Array of search request dicts, each requiring 'query'.
+            secrets_manager: Optional injected secrets manager for Jev relevance ranking.
             **kwargs: Additional kwargs (passed through to BaseSkill helpers).
 
         Returns:
@@ -202,6 +225,7 @@ class SearchSkill(BaseSkill):
             requests=validated_requests,
             process_single_request_func=self._process_single_request,
             logger=logger,
+            secrets_manager=secrets_manager,
         )
 
         warnings: List[str] = []
@@ -286,9 +310,9 @@ class SearchSkill(BaseSkill):
 
         Args:
             req: Request dict with 'query' (city), optional 'listing_type',
-                 'providers', 'max_results'.
+                 'providers', 'max_results', and 'relevance_criteria'.
             request_id: Unique ID for this request (for result grouping).
-            **kwargs: Additional kwargs (unused).
+            **kwargs: Additional kwargs, including the optional secrets manager.
 
         Returns:
             Tuple of (request_id, results_list, error_string_or_none).
@@ -302,12 +326,14 @@ class SearchSkill(BaseSkill):
         listing_type: str = req.get("listing_type", "rent").strip().lower()
         providers_requested: Optional[List[str]] = req.get("providers")
         max_results: int = int(req.get("max_results", 10))
+        relevance_criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
 
         if not query:
             return (request_id, [], "Missing 'query' in request")
 
         # Clamp max_results
         max_results = max(1, min(MAX_RESULTS_HARD_LIMIT, max_results))
+        candidate_target = relevance_candidate_target(max_results) if relevance_criteria else max_results
 
         # Validate listing_type
         if listing_type not in ("rent", "buy"):
@@ -338,9 +364,16 @@ class SearchSkill(BaseSkill):
             query, listing_type, list(selected_providers.keys()), max_results,
         )
 
-        discovery_limit = MAX_RESULTS_HARD_LIMIT if sort == "newest" or any(
-            req.get(key) is not None for key in ("max_price_eur", "min_rooms", "min_size_sqm")
-        ) else max_results
+        if relevance_criteria:
+            provider_count = max(1, len(selected_providers))
+            discovery_limit = min(
+                MAX_RESULTS_HARD_LIMIT,
+                max(max_results, (candidate_target + provider_count - 1) // provider_count),
+            )
+        else:
+            discovery_limit = MAX_RESULTS_HARD_LIMIT if sort == "newest" or any(
+                req.get(key) is not None for key in ("max_price_eur", "min_rooms", "min_size_sqm")
+            ) else max_results
 
         # Call all selected providers in parallel
         try:
@@ -389,7 +422,57 @@ class SearchSkill(BaseSkill):
         else:
             merged.sort(key=lambda x: (x.get("price") is None, x.get("price") or 0))
 
-        # Truncate to max_results
+        if relevance_criteria:
+            def listing_identity(listing: Dict[str, Any]) -> str:
+                title = " ".join(str(listing.get("title") or "").lower().split())
+                address = " ".join(str(listing.get("address") or "").lower().split())
+                price = listing.get("price")
+                if title and address:
+                    return f"listing:{title}|{address}|{price}"
+                url = normalize_url_for_deduplication(listing.get("url"))
+                if url:
+                    return f"url:{url}"
+                provider = str(listing.get("provider") or "").lower()
+                listing_id = str(listing.get("id") or "").lower()
+                return f"provider:{provider}|{listing_id}" if provider or listing_id else ""
+
+            merged = stable_deduplicate_candidates(
+                merged,
+                key=listing_identity,
+            )[:candidate_target]
+            projections = [{
+                "title": listing.get("title"),
+                "description": listing.get("description"),
+                "address": listing.get("address"),
+                "price": listing.get("price"),
+                "price_type": listing.get("price_type"),
+                "size_sqm": listing.get("size_sqm"),
+                "rooms": listing.get("rooms"),
+                "property_type": listing.get("property_type"),
+                "provider": listing.get("provider"),
+                "url": listing.get("url"),
+            } for listing in merged]
+            ranking = await rank_search_candidates(
+                candidates=merged,
+                candidate_projections=projections,
+                relevance_criteria=relevance_criteria,
+                search_parameters={
+                    "query": query,
+                    "listing_type": listing_type,
+                    "property_type": property_type,
+                    "sort": sort,
+                    "max_price_eur": req.get("max_price_eur"),
+                    "min_rooms": req.get("min_rooms"),
+                    "min_size_sqm": req.get("min_size_sqm"),
+                    "providers": list(selected_providers),
+                },
+                profile="home",
+                secrets_manager=kwargs.get("secrets_manager"),
+            )
+            merged = ranking.candidates
+
+        # Only the requested final result count is enriched and returned. The
+        # internal candidate pool never becomes extra embeds or AI context.
         merged = merged[:max_results]
 
         # Geocode listing addresses for map display.

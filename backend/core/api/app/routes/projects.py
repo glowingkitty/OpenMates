@@ -6,6 +6,7 @@
 import hashlib
 import logging
 import time
+import uuid
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -23,6 +24,11 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
+    WRITE_OPERATIONS,
+)
+from backend.core.api.app.services.project_write_authorization_service import (
+    ProjectWriteAuthorizationError,
+    ProjectWriteAuthorizationService,
 )
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
@@ -35,7 +41,6 @@ router = APIRouter(prefix="/v1/projects", tags=["Projects"], dependencies=[Depen
 PROJECT_SOURCE_ID_MAX_LENGTH = 128
 PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH = 128_000
 PROJECT_SOURCE_CAPABILITIES_MAX_COUNT = 8
-PROJECT_SETTINGS_DEFAULT_WRITE_MODE = "always_ask"
 TEAM_READ_ROLES = {"owner", "admin", "member", "viewer"}
 TEAM_MUTATE_ROLES = {"owner", "admin", "member"}
 TEAM_ADMIN_ROLES = {"owner", "admin"}
@@ -216,11 +221,18 @@ class ProjectCreateRequest(BaseModel):
     updated_at: int
     last_opened_at: int
     key_wrappers: List[ProjectKeyWrapperRequest] = Field(default_factory=list)
+    write_mode: Literal["apply_and_show", "always_ask"]
+    default_focus_id: str = Field(min_length=36, max_length=36)
+    encrypted_settings: str = Field(min_length=1, max_length=350_000)
 
     @model_validator(mode="after")
     def require_encrypted_project_key(self) -> "ProjectCreateRequest":
         if not self.encrypted_project_key and not self.key_wrappers:
             raise ValueError("encrypted_project_key or key_wrappers is required")
+        try:
+            uuid.UUID(self.default_focus_id)
+        except ValueError as exc:
+            raise ValueError("default_focus_id must be a UUID") from exc
         return self
 
 
@@ -336,7 +348,7 @@ class ProjectSourceCreateRequest(BaseModel):
     ]
     encrypted_display_name: str = Field(max_length=PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH)
     encrypted_metadata: str = Field(max_length=PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH)
-    capabilities: List[Literal["read", "search", "import", "write_request"]] = Field(
+    capabilities: List[Literal["read", "search", "import", "write_request", "run_command"]] = Field(
         default_factory=list,
         max_length=PROJECT_SOURCE_CAPABILITIES_MAX_COUNT,
     )
@@ -346,14 +358,42 @@ class ProjectSourceCreateRequest(BaseModel):
     last_indexed_at: Optional[int] = None
 
 
+class ProjectSourceCapabilitiesUpdateRequest(BaseModel):
+    capabilities: List[Literal["read", "search", "import", "write_request", "run_command"]] = Field(
+        min_length=1,
+        max_length=PROJECT_SOURCE_CAPABILITIES_MAX_COUNT,
+    )
+    updated_at: int
+
+    @model_validator(mode="after")
+    def validate_unique_capabilities(self) -> "ProjectSourceCapabilitiesUpdateRequest":
+        if len(self.capabilities) != len(set(self.capabilities)):
+            raise ValueError("Project source capabilities must be unique")
+        return self
+
+
 class ProjectRemoteAccessRequestCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     request_id: str = Field(min_length=1, max_length=128)
     requesting_client_id: str = Field(min_length=1, max_length=128)
-    operation: Literal["list", "search", "read_text"]
+    operation: Literal["list", "search", "read_text", "create_file", "update_file"]
     key_epoch: int = Field(ge=1)
     encrypted_envelope: str = Field(min_length=1, max_length=350_000)
+    chat_id: str | None = Field(default=None, min_length=1, max_length=128)
+    operation_id: str | None = Field(default=None, min_length=1, max_length=128)
+    proposal_digest: str | None = Field(default=None, pattern="^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def require_write_context(self):
+        if self.operation in WRITE_OPERATIONS and not (self.chat_id and self.operation_id and self.proposal_digest):
+            raise ValueError("Project writes require an originating chat and committed proposal")
+        return self
+
+
+class ProjectRemoteWriteAuthorizeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source_session_id: str = Field(min_length=1, max_length=128)
 
 
 class DeletePrecheckRequest(BaseModel):
@@ -367,23 +407,86 @@ class DeletePrecheckResponse(BaseModel):
 
 
 class ProjectSettingsUpdateRequest(BaseModel):
-    write_mode: Literal["always_ask", "auto_approve_safe_writes"]
-    encrypted_settings: Optional[str] = None
-    updated_at: int
+    model_config = ConfigDict(extra="forbid")
+
+    write_mode: Optional[Literal["apply_and_show", "always_ask"]] = None
+    default_focus_id: Optional[str] = Field(default=None, min_length=36, max_length=36)
+    encrypted_settings: Optional[str] = Field(default=None, min_length=1, max_length=350_000)
+    updated_at: Optional[int] = None
+
+    @model_validator(mode="after")
+    def validate_update(self):
+        supplied = self.model_fields_set - {"updated_at"}
+        if not supplied:
+            raise ValueError("At least one Project setting must be supplied")
+        if "encrypted_settings" in self.model_fields_set and self.encrypted_settings is None:
+            raise ValueError("encrypted_settings cannot be cleared")
+        if self.default_focus_id is not None and "encrypted_settings" not in self.model_fields_set:
+            raise ValueError("Changing the default focus requires encrypted_settings")
+        if self.default_focus_id is not None:
+            try:
+                uuid.UUID(self.default_focus_id)
+            except ValueError as exc:
+                raise ValueError("default_focus_id must be a UUID") from exc
+        return self
+
+
+class ProjectFocusActivateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chat_id: str = Field(min_length=1, max_length=128)
+    focus_id: str = Field(min_length=36, max_length=36)
+    instruction: str = Field(min_length=1, max_length=128_000)
+
+
+class ProjectFocusDeactivateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chat_id: str = Field(min_length=1, max_length=128)
+
+
+class ProjectWriteApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chat_id: str = Field(min_length=1, max_length=128)
+    operation_id: str = Field(min_length=1, max_length=128)
+    proposal_digest: str = Field(pattern="^[a-f0-9]{64}$")
 
 
 def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not settings:
         return {
-            "write_mode": PROJECT_SETTINGS_DEFAULT_WRITE_MODE,
+            "write_mode": "apply_and_show",
+            "selection_required": False,
+            "default_focus_id_hash": None,
             "encrypted_settings": None,
             "updated_at": None,
         }
+    stored_mode = settings.get("write_mode")
+    write_mode = "apply_and_show" if stored_mode == "auto_approve_safe_writes" else stored_mode
+    if write_mode not in {"apply_and_show", "always_ask"}:
+        write_mode = "apply_and_show"
     return {
-        "write_mode": settings.get("write_mode") or PROJECT_SETTINGS_DEFAULT_WRITE_MODE,
+        "write_mode": write_mode,
+        "selection_required": write_mode is None,
+        "default_focus_id_hash": settings.get("default_focus_id_hash"),
         "encrypted_settings": settings.get("encrypted_settings"),
         "updated_at": settings.get("updated_at"),
     }
+
+
+def _safe_project_focus_projection(binding: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "active": True,
+        "project_id": binding["project_id"],
+        "focus_id": binding["focus_id"],
+        "team_id": binding.get("team_id"),
+        "activated_at": binding["activated_at"],
+    }
+
+
+def _raise_project_authorization_error(exc: ProjectWriteAuthorizationError) -> None:
+    raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
 
 
 @router.get("")
@@ -418,6 +521,12 @@ async def create_project(
 ) -> Dict[str, Any]:
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     payload = body.model_dump()
+    settings_payload = {
+        "write_mode": payload.pop("write_mode"),
+        "default_focus_id": payload.pop("default_focus_id"),
+        "encrypted_settings": payload.pop("encrypted_settings"),
+        "updated_at": body.updated_at,
+    }
     _require_team_project_wrapper(payload, team_id)
     try:
         created = await directus_service.project.create_project(current_user.id, payload, team_id=team_id)
@@ -425,6 +534,21 @@ async def create_project(
         raise HTTPException(status_code=409, detail="PROJECT_SLUG_CONFLICT") from exc
     if not created:
         raise HTTPException(status_code=500, detail="Failed to create project")
+    settings = await directus_service.project.upsert_project_settings(
+        created["project_id"],
+        current_user.id,
+        settings_payload,
+        team_id=team_id,
+    )
+    if not settings:
+        rolled_back = await directus_service.project.delete_project(
+            created["project_id"],
+            current_user.id,
+            team_id=team_id,
+        )
+        if not rolled_back:
+            logger.error("Project settings setup failed and Project rollback was incomplete")
+        raise HTTPException(status_code=500, detail="Failed to create Project settings")
     history = await _record_project_history(
         history_service,
         current_user.id,
@@ -432,7 +556,7 @@ async def create_project(
         entries=[{"object_type": "project", "object_id": created["project_id"], "operation": "create", "after": created}],
         redacted_summary="Created 1 project",
     )
-    return {"project": created, "history": history}
+    return {"project": created, "settings": serialize_project_settings(settings), "history": history}
 
 
 @router.post("/ask/plan")
@@ -745,6 +869,13 @@ async def create_project_source(
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    settings = await directus_service.project.get_project_settings(project_id, current_user.id, team_id=team_id)
+    if not settings or settings.get("write_mode") not in {
+        "apply_and_show",
+        "always_ask",
+        "auto_approve_safe_writes",
+    }:
+        raise HTTPException(status_code=409, detail="PROJECT_WRITE_MODE_REQUIRED")
     source = await directus_service.project.create_source(
         project_id,
         current_user.id,
@@ -801,6 +932,48 @@ async def delete_project_source(
     return {"deleted": True}
 
 
+@router.patch("/{project_id}/sources/{source_id}")
+@limiter.limit("30/minute")
+async def update_project_source_capabilities(
+    request: Request,
+    project_id: str,
+    source_id: str,
+    body: ProjectSourceCapabilitiesUpdateRequest,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    del request
+    membership = await _require_project_role(
+        directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES
+    )
+    project = await directus_service.project.get_project(
+        project_id, current_user.id, team_id=team_id
+    )
+    source = await directus_service.project.get_source(
+        project_id, current_user.id, source_id, team_id=team_id
+    )
+    if not project or not source or source.get("status") == "revoked":
+        raise HTTPException(status_code=404, detail="Source not found")
+    if (
+        membership
+        and membership.get("role") == "member"
+        and source.get("attached_by_user_hash") != hash_id(current_user.id)
+    ):
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
+    updated = await directus_service.project.update_source_capabilities(
+        project_id,
+        current_user.id,
+        source_id,
+        capabilities=body.capabilities,
+        updated_at=body.updated_at,
+        team_id=team_id,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Source not found")
+    return {"source": updated}
+
+
 @router.post("/{project_id}/sources/{source_id}/requests", status_code=202)
 @limiter.limit("60/minute")
 async def create_project_remote_access_request(
@@ -814,7 +987,10 @@ async def create_project_remote_access_request(
 ) -> Dict[str, Any]:
     """Create an opaque request on the first-party encrypted bridge."""
 
-    await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
+    await _require_project_role(
+        directus_service, team_id, current_user.id,
+        TEAM_MUTATE_ROLES if body.operation in WRITE_OPERATIONS else TEAM_READ_ROLES,
+    )
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     source = await directus_service.project.get_source(
         project_id, current_user.id, source_id, team_id=team_id
@@ -825,6 +1001,17 @@ async def create_project_remote_access_request(
         raise HTTPException(status_code=409, detail="SOURCE_REVOKED")
     service = ProjectRemoteAccessService(request.app.state.cache_service)
     requester_device_hash = await _authenticated_request_device_hash(request, current_user.id)
+    if body.operation in WRITE_OPERATIONS:
+        try:
+            await ProjectWriteAuthorizationService(
+                directus_service, request.app.state.cache_service,
+            ).require_write_authorization(
+                requester_user_id=current_user.id, chat_id=body.chat_id,
+                project_id=project_id, operation_id=body.operation_id,
+                proposal_digest=body.proposal_digest, team_id=team_id,
+            )
+        except ProjectWriteAuthorizationError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
 
     async def validate_team_host(host_user_id: str) -> bool:
         try:
@@ -855,9 +1042,52 @@ async def create_project_remote_access_request(
             now=int(time.time()),
             validate_team_host=validate_team_host if team_id else None,
             mark_team_host_offline=mark_team_host_offline if team_id else None,
+            chat_id=body.chat_id,
+            operation_id=body.operation_id,
+            proposal_digest=body.proposal_digest,
         )
     except ProjectRemoteAccessError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+
+@router.post("/{project_id}/sources/{source_id}/requests/{request_id}/authorize-write")
+@limiter.limit("60/minute")
+async def authorize_project_remote_write(
+    project_id: str, source_id: str, request_id: str,
+    body: ProjectRemoteWriteAuthorizeRequest, request: Request,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party source-host precommit check; no new public/developer surface.
+
+    Authenticated device/session routing resolves the original requester. Only
+    opaque operation commitments are handled here, never filesystem plaintext.
+    This guard does no inference and incurs no model credits.
+    """
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    device_hash = await _authenticated_request_device_hash(request, current_user.id)
+    try:
+        delivery = await service.require_remote_write_request(
+            host_user_id=current_user.id, project_id=project_id, source_id=source_id,
+            source_session_id=body.source_session_id, request_id=request_id,
+            device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
+        )
+        await ProjectWriteAuthorizationService(
+            directus_service, request.app.state.cache_service,
+        ).require_write_authorization(
+            requester_user_id=delivery["requester_user_id"], chat_id=delivery["chat_id"],
+            project_id=project_id, operation_id=delivery["operation_id"],
+            proposal_digest=delivery["proposal_digest"], team_id=team_id,
+            consume_approval=True,
+        )
+    except (ProjectRemoteAccessError, ProjectWriteAuthorizationError) as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+    scope = hashlib.sha256(
+        f"{delivery['context_type']}:{delivery['context_id_hash']}:{delivery['requester_user_id']}:{delivery['chat_id']}".encode()
+    ).hexdigest()
+    return {"authorized": True, "operation_id": delivery["operation_id"], "authorization_scope": scope}
 
 
 @router.get("/{project_id}/sources/{source_id}/requests/{request_id}")
@@ -929,6 +1159,7 @@ async def get_project_settings(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
+    """First-party session read of owner/Team-scoped encrypted settings."""
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
@@ -948,20 +1179,136 @@ async def update_project_settings(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
+    """First-party session mutation; no inference or credit-bearing work."""
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_ADMIN_ROLES)
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    existing = await directus_service.project.get_project_settings(
+        project_id,
+        current_user.id,
+        team_id=team_id,
+    )
+    payload = body.model_dump(exclude_unset=True)
+    payload.pop("updated_at", None)
+    if not existing:
+        missing = {
+            field
+            for field in ("write_mode", "default_focus_id", "encrypted_settings")
+            if not payload.get(field)
+        }
+        if missing:
+            raise HTTPException(status_code=409, detail="PROJECT_SETTINGS_SETUP_REQUIRED")
+    payload["updated_at"] = int(time.time())
+
     settings = await directus_service.project.upsert_project_settings(
         project_id,
         current_user.id,
-        body.model_dump(),
+        payload,
         team_id=team_id,
     )
     if not settings:
         raise HTTPException(status_code=500, detail="Failed to update project settings")
     return {"settings": serialize_project_settings(settings)}
+
+
+@router.post("/{project_id}/focus/activate")
+@limiter.limit("30/minute")
+async def activate_project_focus(
+    request: Request,
+    project_id: str,
+    body: ProjectFocusActivateRequest,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party session activation after DB chat and Project checks."""
+    try:
+        binding = await ProjectWriteAuthorizationService(
+            directus_service,
+            request.app.state.cache_service,
+        ).activate_focus(
+            user_id=current_user.id,
+            chat_id=body.chat_id,
+            project_id=project_id,
+            focus_id=body.focus_id,
+            instruction=body.instruction,
+            team_id=team_id,
+        )
+    except ProjectWriteAuthorizationError as exc:
+        _raise_project_authorization_error(exc)
+    return {"focus": _safe_project_focus_projection(binding)}
+
+
+@router.get("/focus/current")
+@limiter.limit("60/minute")
+async def get_current_project_focus(
+    request: Request,
+    chat_id: str = Query(..., min_length=1, max_length=128),
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Return safe focus metadata after fresh DB access revalidation."""
+    binding = await ProjectWriteAuthorizationService(
+        directus_service,
+        request.app.state.cache_service,
+    ).get_active_focus(user_id=current_user.id, chat_id=chat_id)
+    return {"focus": _safe_project_focus_projection(binding) if binding else None}
+
+
+@router.post("/focus/deactivate")
+@limiter.limit("30/minute")
+async def deactivate_project_focus(
+    request: Request,
+    body: ProjectFocusDeactivateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Clear this authenticated user's current-chat focus authority."""
+    try:
+        await ProjectWriteAuthorizationService(
+            directus_service,
+            request.app.state.cache_service,
+        ).deactivate_focus(user_id=current_user.id, chat_id=body.chat_id)
+    except ProjectWriteAuthorizationError as exc:
+        _raise_project_authorization_error(exc)
+    return {"deactivated": True}
+
+
+@router.post("/{project_id}/write-approvals")
+@limiter.limit("30/minute")
+async def approve_project_write(
+    request: Request,
+    project_id: str,
+    body: ProjectWriteApprovalRequest,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Bind first-party explicit approval to one immutable proposal."""
+    try:
+        approval = await ProjectWriteAuthorizationService(
+            directus_service,
+            request.app.state.cache_service,
+        ).approve_write(
+            user_id=current_user.id,
+            chat_id=body.chat_id,
+            project_id=project_id,
+            operation_id=body.operation_id,
+            proposal_digest=body.proposal_digest,
+            team_id=team_id,
+        )
+    except ProjectWriteAuthorizationError as exc:
+        _raise_project_authorization_error(exc)
+    return {
+        "approval": {
+            "approved": True,
+            "operation_id": approval["operation_id"],
+            "proposal_digest": approval["proposal_digest"],
+            "approved_at": approval["approved_at"],
+        }
+    }
 
 
 @router.delete("/{project_id}")

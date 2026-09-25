@@ -89,7 +89,7 @@ export function buildPrivacyPolicyContent(
   // ──────────────────────────────────────────────────────────────
   // Helper: render a provider entry with a heading and privacy link
   // ──────────────────────────────────────────────────────────────
-  const providerLinkLabel = t("legal.privacy.provider_link_label");
+  const providerLinkLabel = t("legal.privacy.provider_link_label_v2");
   const renderProvider = (keyBase: string, url: string) => {
     lines.push(`### ${t(`${keyBase}.heading`)}`);
     lines.push("");
@@ -117,7 +117,8 @@ export function buildPrivacyPolicyContent(
     "device_only_encryption",
     "recent_context_cache",
     "storage_protection",
-    "third_party_providers",
+    "third_party_providers_v2",
+    "voice_recordings",
     "model_training",
     "placeholder_protection",
     "logs_diagnostics",
@@ -232,7 +233,8 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   lines.push(`- ${t("legal.privacy.data_categories.account")}`);
   lines.push(`- ${t("legal.privacy.data_categories.usage")}`);
-  lines.push(`- ${t("legal.privacy.data_categories.content")}`);
+  lines.push(`- ${t("legal.privacy.data_categories.content_v2")}`);
+  lines.push(`- ${t("legal.privacy.data_categories.connected_accounts")}`);
   lines.push(`- ${t("legal.privacy.data_categories.payments")}`);
   lines.push(`- ${t("legal.privacy.data_categories.newsletter")}`);
   lines.push("");
@@ -251,7 +253,7 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.always_active.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.always_active.vercel", privacyPolicyLinks.vercel);
-  renderProvider("legal.privacy.providers.always_active.hetzner", privacyPolicyLinks.hetzner);
+  renderProvider("legal.privacy.providers.always_active.hetzner_v2", privacyPolicyLinks.hetzner);
   renderProvider("legal.privacy.providers.always_active.brevo", privacyPolicyLinks.brevo);
   renderProvider("legal.privacy.providers.always_active.ip_api", privacyPolicyLinks.ipApi);
   renderProvider("legal.privacy.providers.always_active.sightengine", privacyPolicyLinks.sightengine);
@@ -268,16 +270,16 @@ export function buildPrivacyPolicyContent(
   // Group C — AI models
   lines.push(`### ${t("legal.privacy.providers.ai_models.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.ai_models.description"));
+  lines.push(t("legal.privacy.providers.ai_models.description_v2"));
   lines.push("");
-  renderProvider("legal.privacy.providers.ai_models.mistral", privacyPolicyLinks.mistral);
+  renderProvider("legal.privacy.providers.ai_models.mistral_v2", privacyPolicyLinks.mistral);
   renderProvider("legal.privacy.providers.ai_models.aws_bedrock", privacyPolicyLinks.aws);
   renderProvider("legal.privacy.providers.ai_models.anthropic", privacyPolicyLinks.anthropic);
-  renderProvider("legal.privacy.providers.ai_models.openai", privacyPolicyLinks.openai);
+  renderProvider("legal.privacy.providers.ai_models.openai_v2", privacyPolicyLinks.openai);
   renderProvider("legal.privacy.providers.ai_models.openrouter", privacyPolicyLinks.openrouter);
   renderProvider("legal.privacy.providers.ai_models.typesafe", privacyPolicyLinks.typesafe);
   renderProvider("legal.privacy.providers.ai_models.cerebras", privacyPolicyLinks.cerebras);
-  renderProvider("legal.privacy.providers.ai_models.google_gemini", privacyPolicyLinks.google);
+  renderProvider("legal.privacy.providers.ai_models.google_gemini_v2", privacyPolicyLinks.googleGemini);
   renderProvider("legal.privacy.providers.ai_models.google_vertex_maas", privacyPolicyLinks.googleVertexMaas);
   renderProvider("legal.privacy.providers.ai_models.together", privacyPolicyLinks.together);
   renderProvider("legal.privacy.providers.ai_models.groq", privacyPolicyLinks.groq);
@@ -303,10 +305,11 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.audio_generation.elevenlabs", privacyPolicyLinks.elevenLabs);
 
   // Group E — 3D model generation
-  lines.push(`### ${t("legal.privacy.providers.model_generation.heading")}`);
+  lines.push(`### ${t("legal.privacy.providers.model_generation_v2.heading")}`);
   lines.push("");
-  lines.push(t("legal.privacy.providers.model_generation.description"));
+  lines.push(t("legal.privacy.providers.model_generation_v2.description"));
   lines.push("");
+  renderProvider("legal.privacy.providers.model_generation_v2.printables", privacyPolicyLinks.printables);
   renderProvider("legal.privacy.providers.model_generation.hi3d", privacyPolicyLinks.hi3d);
 
   // Group F — Music generation
@@ -338,16 +341,18 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.web_and_search.geoapify", privacyPolicyLinks.geoapify);
   renderProvider("legal.privacy.providers.web_and_search.wikimedia", privacyPolicyLinks.wikimedia);
   renderProvider("legal.privacy.providers.web_and_search.youtube", privacyPolicyLinks.youtube);
+  renderProvider("legal.privacy.providers.web_and_search.google_lens", privacyPolicyLinks.googleLens);
 
   // Group F — Travel
   lines.push(`### ${t("legal.privacy.providers.travel.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.travel.description"));
   lines.push("");
-  renderProvider("legal.privacy.providers.travel.serpapi", privacyPolicyLinks.serpapi);
+  renderProvider("legal.privacy.providers.travel.serpapi_v2", privacyPolicyLinks.serpapi);
   renderProvider("legal.privacy.providers.travel.flightradar24", privacyPolicyLinks.flightradar24);
   renderProvider("legal.privacy.providers.travel.deutsche_bahn", privacyPolicyLinks.deutscheBahn);
   renderProvider("legal.privacy.providers.travel.flix", privacyPolicyLinks.flix);
+  renderProvider("legal.privacy.providers.travel.transitous", privacyPolicyLinks.transitous);
 
   // Group G — Events
   lines.push(`### ${t("legal.privacy.providers.events.heading")}`);
@@ -357,6 +362,9 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.events.meetup", privacyPolicyLinks.meetup);
   renderProvider("legal.privacy.providers.events.luma", privacyPolicyLinks.luma);
   renderProvider("legal.privacy.providers.events.resident_advisor", privacyPolicyLinks.residentAdvisor);
+  renderProvider("legal.privacy.providers.events.eventbrite", privacyPolicyLinks.eventbrite);
+  renderProvider("legal.privacy.providers.events.siegessaeule", privacyPolicyLinks.siegessaeule);
+  renderProvider("legal.privacy.providers.events.berlin_philharmonic", privacyPolicyLinks.berlinPhilharmonic);
 
   // Group H — Health
   lines.push(`### ${t("legal.privacy.providers.health.heading")}`);
@@ -380,6 +388,29 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.shopping.rewe", privacyPolicyLinks.rewe);
   renderProvider("legal.privacy.providers.shopping.amazon", privacyPolicyLinks.amazon);
+  renderProvider("legal.privacy.providers.shopping.stoffe", privacyPolicyLinks.stoffe);
+
+  // Group J2 — Connected services
+  lines.push(`### ${t("legal.privacy.providers.connected_services.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.connected_services.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.connected_services.google_calendar", privacyPolicyLinks.googleCalendar);
+
+  // Group J3 — Public company data
+  lines.push(`### ${t("legal.privacy.providers.business_data.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.business_data.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.business_data.sec_edgar", privacyPolicyLinks.secEdgar);
+
+  // Group J4 — Weather
+  lines.push(`### ${t("legal.privacy.providers.weather.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.weather.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.weather.open_meteo", privacyPolicyLinks.openMeteo);
+  renderProvider("legal.privacy.providers.weather.bright_sky", privacyPolicyLinks.brightSky);
 
   // Group K — Nutrition
   lines.push(`### ${t("legal.privacy.providers.nutrition.heading")}`);
@@ -473,7 +504,7 @@ export function buildPrivacyPolicyContent(
   const limitationItems = [
     "financial_records",
     "audit_logs",
-    "third_party_ai_logs",
+    "third_party_ai_logs_v2",
     "observability_traces",
     "user_data_backups",
   ];

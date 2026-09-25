@@ -14,13 +14,15 @@ scope:
     - Equivalent request, result, error, billing, and safety semantics across supported surfaces
     - Explicitly opted-in concurrent assistant execution for independent read-only skill calls
     - Single-pass structured external-text safety decisions with bounded failure latency
+    - Optional Jev relevance ranking for explicitly supported read-only search skills
     - Truthful CLI app-skill status messages without session-save decryption notices
     - Owner-authorized asynchronous result polling without changing existing authentication, rate limits, budgets, or encryption boundaries.
   excludes:
-    - Provider-specific request and result fields
+    - Provider-specific request and result fields outside the declared shared relevance-ranking profiles
     - Client-specific visual layout
     - Internal provider wrapper implementation
     - Automatic parallelization of undeclared, dependent, or mutating calls
+    - Jev relevance ranking for health appointment search or clinical suitability decisions
 
 models:
   AppSkillInvocation:
@@ -96,6 +98,90 @@ models:
       required: true
       constraints: {undeclared_dependent_mutating_payment_account_workspace_calls: true}
 
+  OptionalSearchRelevanceRanking:
+    eligible_skills:
+      type: enum_set
+      required: true
+      values:
+        - web.search
+        - news.search
+        - events.search
+        - home.search
+        - maps.search
+        - shopping.search_products
+        - travel.search_stays
+        - videos.search
+        - fitness.search_locations
+        - fitness.search_classes
+        - code.search_repos
+        - models3d.search
+      constraints: {health.search_appointments: excluded}
+    relevance_criteria:
+      type: string
+      nullable: true
+      constraints: {trim: true, blank: treat_as_omitted, max_length: 1000}
+    assistant_population:
+      type: faithful_goal_extraction
+      required: true
+      constraints: {material_ranking_goal: populate, plain_search: may_omit, invented_preferences: forbidden}
+    result_limit:
+      type: existing_public_field
+      required: true
+      constraints:
+        web_news_events_videos: count
+        home_shopping_travel_stays: max_results
+        maps: pageSize
+        fitness: limit
+        code_models3d: count
+        code_search_repos_default: 10
+        other_existing_defaults_preserved: true
+        existing_maxima_preserved: true
+    candidate_pool:
+      type: bounded_skill_profile
+      required: true
+      constraints:
+        when_criteria_present_target: max_40_or_requested_result_limit
+        when_criteria_absent: existing_provider_fetch_behavior
+        web_search: two_Brave_pages_of_at_most_20_each
+        news_search: one_Brave_News_call_of_up_to_40
+        events_search: bounded_deduplicated_merged_provider_pool
+        home_search: bounded_deduplicated_merged_provider_pool
+        maps_search: one_Google_Places_request_of_up_to_20
+        shopping_search_products: one_provider_request_of_up_to_20
+        travel_search_stays: one_SerpAPI_Google_Hotels_page_of_up_to_20
+        videos_search: one_Brave_Videos_request_of_up_to_40_with_batched_metadata
+        fitness_search_locations: up_to_40_from_existing_provider_page_retrieval
+        fitness_search_classes: up_to_40_from_existing_date_page_retrieval
+        code_search_repos: one_GitHub_request_of_up_to_40_before_license_and_normalization_filters
+        models3d_search: one_Printables_GraphQL_request_of_up_to_40
+        extra_billable_page_for_ranking_only: forbidden
+        provider_shortfall: return_smaller_pool
+        fabricated_candidates: forbidden
+        unbounded_retries: forbidden
+    decision:
+      type: typesafe_jev_ranking
+      required: true
+      constraints:
+        candidate_text: untrusted_data
+        structured_filters: authoritative
+        unsupported_facts: unknown
+        web_rubric: intent_fit_72_percent_and_source_evidence_quality_28_percent
+        news_rubric: material_relevance_65_percent_and_source_quality_35_percent
+        events_rubric: stated_event_goal_fit_after_hard_filters_and_deduplication
+        home_rubric: stated_listing_facts_only_without_inferred_amenities_commute_lease_or_neighborhood_quality
+        maps_rubric: stated_place_goal_fit_from_explicit_place_fields_without_inferred_ambience_accessibility_or_suitability
+        shopping_rubric: stated_product_goal_fit_from_explicit_product_price_rating_review_delivery_and_category_evidence
+        travel_stays_rubric: stated_stay_goal_fit_from_explicit_property_amenity_location_price_rating_and_cancellation_evidence
+        videos_rubric: stated_learning_or_viewing_goal_fit_plus_explicit_depth_authority_freshness_and_engagement_evidence
+        fitness_rubric: stated_activity_goal_fit_from_explicit_discipline_class_schedule_distance_rating_spot_and_plan_evidence
+        code_repositories_rubric: stated_software_selection_goal_fit_from_explicit_repository_technology_license_popularity_issue_and_date_evidence
+        models3d_rubric: stated_model_selection_goal_fit_from_explicit_listing_feature_license_file_price_date_and_engagement_evidence
+        user_or_chat_identifiers: forbidden
+    finalization:
+      type: deterministic
+      required: true
+      constraints: {successful_ranking: score_then_existing_tie_break, ranking_failure: existing_order, final_results: at_most_requested_limit, output_safety_after_selection: required}
+
 assertions:
   - id: app-skills.execution.registered-validated
     type: security
@@ -134,6 +220,21 @@ assertions:
     must: Assistant tool calls run concurrently only when every call in the same model-emitted batch has explicit static parallel_safe true metadata; concurrency is bounded to three, result messages retain original call order, cancellation reaches unfinished calls, per-call billing and normalized failures remain visible, and every undeclared, dependent, mutating, payment, account, or workspace batch remains serial.
     depends_on: [models.ParallelSafeSkillBatch, examples.parallel_execution]
 
+  - id: app-skills.search-relevance.optional-and-inferred
+    type: behavior
+    must: Web, news, events, home, maps, shopping-product, travel-stay, video, fitness location/class, public GitHub repository, and public 3D-model catalog search accept an optional relevance_criteria value through assistant, REST API, CLI, and npm/pip SDK calls. When an ordinary assistant request states a material purpose or preference that should change result ordering, the assistant supplies a concise faithful relevance_criteria value without requiring the user to name the field. A plain search may omit it, direct callers may omit it, and no preference may be invented.
+    depends_on: [models.OptionalSearchRelevanceRanking]
+
+  - id: app-skills.search-relevance.bounded-and-conditional
+    type: invariant
+    must: A nonblank relevance_criteria value activates bounded candidate retrieval and one Jev ranking decision using the declared skill profile. Web, news, events, home, videos, fitness, public GitHub repositories, and public 3D-model catalogs target forty candidates or the larger explicitly requested final limit; maps, shopping products, and travel stays target twenty because forty would require an extra billable or rate-limited provider page. Repository and 3D-model ranking increase only the result limit of their existing single provider request. Repository license and normalization filtering may leave fewer than forty rankable candidates. Retrieval remains within each declared request profile, and no extra provider request or billable provider page is fetched solely for ranking. Missing criteria preserves existing fetch and ordering behavior and makes no relevance-ranking call. Provider shortfalls or duplicates yield a smaller pool without fabricated results or unbounded retries.
+    depends_on: [models.OptionalSearchRelevanceRanking.candidate_pool]
+
+  - id: app-skills.search-relevance.safe-finalization
+    type: security
+    must: Jev receives only the bounded relevance goal, ranking-relevant search parameters, and minimized candidate projections labeled as untrusted data. Each skill applies its declared evidence rubric; structured filters run before ranking and cannot be reversed by a score, popularity alone cannot replace goal fit, and unsupported candidate facts remain unknown. Malformed, incomplete, unavailable, rejected, or timed-out ranking falls back to existing deterministic order without failing an otherwise successful search. Public repository search defaults to ten results; every other public result-limit default and every existing maximum remain unchanged. The final result count never exceeds the requested limit, and selected external output still passes the inherited output-safety boundary. Health appointment search remains eligibility- and earliest-availability-based and does not use this Jev ranking path.
+    depends_on: [models.OptionalSearchRelevanceRanking]
+
   - id: app-skills.execution.async-owner-bound
     type: security
     must: Completed asynchronous app-skill jobs, including image, video, music, audio, document, 3D, and code-generated file jobs, carry trusted owner metadata so the submitting authenticated session or authorized API key can retrieve its own result. Other users cannot retrieve results, and unverified ownership remains denied. Provider failures and safety rejections remain visible without leaking private result data or automatically resubmitting generation.
@@ -159,4 +260,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, async_polling]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling]

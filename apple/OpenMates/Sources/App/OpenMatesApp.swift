@@ -1,6 +1,12 @@
 // OpenMates native Apple app entry point.
 // Universal app targeting iOS, iPadOS, and macOS via SwiftUI multiplatform.
 // Wires up auth, push notifications, font registration, and WebSocket lifecycle.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.open.local-first-coherent
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.focus.parent-state
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -147,6 +153,27 @@ final class AppQuickActionCenter {
     }
 }
 
+struct SharedSocketWindowOwnership {
+    private(set) var windowIDs: [UUID] = []
+    private(set) var reconnectWorkCount = 0
+
+    mutating func register(_ id: UUID) {
+        if !windowIDs.contains(id) { windowIDs.append(id) }
+    }
+
+    mutating func unregister(_ id: UUID) {
+        windowIDs.removeAll { $0 == id }
+    }
+
+    func ownsSharedSync(_ id: UUID) -> Bool { windowIDs.first == id }
+
+    mutating func claimReconnectWork(_ id: UUID) -> Bool {
+        guard ownsSharedSync(id) else { return false }
+        reconnectWorkCount += 1
+        return true
+    }
+}
+
 @MainActor
 final class AppSessionCoordinator: ObservableObject {
     static let shared = AppSessionCoordinator()
@@ -161,9 +188,37 @@ final class AppSessionCoordinator: ObservableObject {
     private var offlineBridgeStorage: OfflineSyncBridge?
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
+    private var didConfigureDraftSync = false
+    private var windowOwnership = SharedSocketWindowOwnership()
+    @Published var isInitialSyncComplete = false
+    #if DEBUG
+    @Published var debugLastAnnouncedActiveChat = "unannounced"
+    #endif
+
+    var hasLoadedAuthenticatedRuntime: Bool { didLoadFromDisk }
+
+    func registerWindow(_ id: UUID) {
+        windowOwnership.register(id)
+    }
+
+    func unregisterWindow(_ id: UUID) {
+        windowOwnership.unregister(id)
+    }
+
+    func ownsSharedSync(_ id: UUID) -> Bool {
+        windowOwnership.ownsSharedSync(id)
+    }
+
+    func claimSharedReconnectWork(_ id: UUID) -> Bool {
+        windowOwnership.claimReconnectWork(id)
+    }
 
     private init() {
         webSocketManager.configureRecoveryCoordinator(ChatCompletionRecoveryCoordinator(
+            transport: webSocketManager,
+            chatStore: chatStore
+        ))
+        webSocketManager.configureEmbedStreamCoordinator(ChatEmbedStreamCoordinator(
             transport: webSocketManager,
             chatStore: chatStore
         ))
@@ -187,6 +242,12 @@ final class AppSessionCoordinator: ObservableObject {
         return bridge
     }
 
+    func configureDraftSyncIfNeeded() {
+        guard !didConfigureDraftSync, let bridge = offlineBridgeStorage else { return }
+        DraftService.shared.configureSync(chatStore: chatStore, transport: webSocketManager, offlineActions: bridge)
+        didConfigureDraftSync = true
+    }
+
     func resetTransientRuntime() {
         AssistantSpeechAppRuntime.shared.reset()
         // Invalidate stream readers/producers before clearing or replacing the
@@ -200,6 +261,9 @@ final class AppSessionCoordinator: ObservableObject {
         webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()
         didLoadFromDisk = false
+        didConfigureDraftSync = false
+        isInitialSyncComplete = false
+        windowOwnership = SharedSocketWindowOwnership()
     }
 
     func markRecoveryInitialSyncReady() async {
@@ -231,7 +295,6 @@ struct OpenMatesApp: App {
     #elseif os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) private var openWindow
-    @FocusedValue(\.newChatCommand) private var focusedNewChatCommand
     #endif
 
     init() {
@@ -248,13 +311,7 @@ struct OpenMatesApp: App {
         mainWindowScene
 
         #if os(macOS)
-        #if DEBUG
-        if DevPreviewLaunchConfiguration.current == nil {
-            quickCaptureMenuBarScene
-        }
-        #else
         quickCaptureMenuBarScene
-        #endif
         #endif
     }
 
@@ -334,11 +391,7 @@ struct OpenMatesApp: App {
                 .keyboardShortcut("n", modifiers: .command)
 
                 Button(AppStrings.newChat) {
-                    if let focusedNewChatCommand {
-                        focusedNewChatCommand()
-                    } else {
-                        AppWindowCommandCenter.shared.openNewChatWindow()
-                    }
+                    AppWindowCommandCenter.shared.openNewChatWindow()
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
             }
@@ -414,17 +467,6 @@ private struct AppWindowCommandInstaller: ViewModifier {
         content.onAppear {
             AppWindowCommandCenter.shared.openMainWindow = openMainWindow
         }
-    }
-}
-
-private struct NewChatCommandKey: FocusedValueKey {
-    typealias Value = @MainActor () -> Void
-}
-
-extension FocusedValues {
-    var newChatCommand: (@MainActor () -> Void)? {
-        get { self[NewChatCommandKey.self] }
-        set { self[NewChatCommandKey.self] = newValue }
     }
 }
 
@@ -1168,6 +1210,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         PushNotificationManager.shared.configureForLaunch()
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        // Application activation belongs to AppKit, not an individual SwiftUI
+        // window. Report it through the shared socket even if no chat view is
+        // receiving scene-phase changes while the app is behind another app.
+        Task { @MainActor in
+            await AppSessionCoordinator.shared.webSocketManager.announceMacBackgroundStateIfConnected()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

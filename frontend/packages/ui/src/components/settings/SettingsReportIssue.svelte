@@ -27,7 +27,7 @@
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { userProfile } from '../../stores/userProfile';
-    import { ensureIssueReportContextIsShared, generateCurrentContextUrl } from '../../services/issueReportSubmission';
+    import { generateCurrentContextUrl, prepareIssueReportContextUrl } from '../../services/issueReportSubmission';
 
     const dispatch = createEventDispatcher();
 
@@ -525,10 +525,8 @@
                 ? descriptionParts.join('\n\n')
                 : null;
             // Only include the share URL if the toggle is enabled and a URL was generated
-            const sanitizedUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
-            if (sanitizedUrl) {
-                await ensureIssueReportContextIsShared(sanitizedUrl);
-            }
+            const requestedContextUrl = (shareChatEnabled && chatOrEmbedUrl.trim()) ? chatOrEmbedUrl.trim() : null;
+            const sanitizedUrl = await prepareIssueReportContextUrl(requestedContextUrl);
             // For authenticated users: always include their account email so admins can follow up.
             // For guest users: use the manually entered email (optional input field).
             const sanitizedEmail = $authStore.isAuthenticated

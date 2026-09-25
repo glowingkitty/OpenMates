@@ -2242,6 +2242,21 @@ async def _async_persist_encrypted_chat_metadata(
                     f"Cannot create chat {chat_id} without hashed_user_id (task_id: {task_id})"
                 )
                 return False
+
+            is_key_only_new_chat_shell = (
+                bool(encrypted_metadata.get("encrypted_chat_key"))
+                and encrypted_metadata.get("messages_v") == 0
+                and encrypted_metadata.get("title_v") == 0
+                and encrypted_metadata.get("metadata_v") == 0
+                and "last_message_timestamp" in encrypted_metadata
+                and encrypted_metadata.get("last_message_timestamp") is None
+                and "encrypted_title" not in encrypted_metadata
+            )
+            encrypted_title_value = (
+                encrypted_metadata.get("encrypted_title")
+                if is_key_only_new_chat_shell
+                else encrypted_metadata.get("encrypted_title", "")
+            )
             
             # CRITICAL: Create chat metadata in sync cache FIRST (before Directus)
             # This ensures cache-first strategy as per requirements
@@ -2252,16 +2267,18 @@ async def _async_persist_encrypted_chat_metadata(
                     # Build chat creation payload with encrypted metadata
                     now_ts = int(datetime.now(timezone.utc).timestamp())
                     
-                    # Get version values - use sensible defaults, NEVER 0
-                    messages_v = encrypted_metadata.get("messages_v", 1)  # At least 1 message exists when creating chat
-                    title_v = encrypted_metadata.get("title_v", 1)  # Title exists if we're creating the chat
+                    # Explicit zero versions describe an owned key-only shell used
+                    # before the first recovery preflight. Legacy callers that omit
+                    # versions retain the existing non-empty creation defaults.
+                    messages_v = encrypted_metadata.get("messages_v", 1)
+                    title_v = encrypted_metadata.get("title_v", 1)
                     metadata_v = encrypted_metadata.get("metadata_v", title_v)
                     last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
                     last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
                     
                     # Create cache data FIRST with client-encrypted metadata
                     cache_data = CachedChatListItemData(
-                        title=encrypted_metadata.get("encrypted_title", ""),  # Note: cache uses 'title' field for encrypted_title
+                        title=encrypted_title_value,  # Note: cache uses 'title' field for encrypted_title
                         unread_count=0,
                         created_at=encrypted_metadata.get("created_at") or now_ts,
                         updated_at=now_ts,
@@ -2336,7 +2353,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "hashed_team_id": hashed_team_id,
                 "created_at": encrypted_metadata.get("created_at") or now_ts,
                 "updated_at": encrypted_metadata.get("updated_at", now_ts),
-                # Version tracking - use actual values, never 0
+                # Version tracking preserves explicit zeroes for a key-only shell.
                 "messages_v": messages_v,
                 "title_v": title_v,
                 "metadata_v": metadata_v,
@@ -2344,7 +2361,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "last_message_timestamp": last_message,
                 "unread_count": 0,
                 # Encrypted metadata from preprocessing
-                "encrypted_title": encrypted_metadata.get("encrypted_title", ""),
+                "encrypted_title": encrypted_title_value,
                 "encrypted_icon": encrypted_metadata.get("encrypted_icon"),  # Add missing encrypted_icon field
                 "encrypted_category": encrypted_metadata.get("encrypted_category"),  # Add missing encrypted_category field
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
@@ -2363,9 +2380,9 @@ async def _async_persist_encrypted_chat_metadata(
             if encrypted_chat_key_value:
                 chat_creation_payload["encrypted_chat_key"] = encrypted_chat_key_value
 
-            # CRITICAL FIX: Keep all encrypted metadata fields even if empty strings
-            # Only remove None values, but keep empty strings for encrypted fields (they might be valid)
-            # Exception: encrypted_title must exist (can be empty string for new chats)
+            # Keep intentional empty ciphertext strings, but omit absent nullable
+            # fields. In particular, a key-only shell has neither a title nor a
+            # last-message timestamp until its first durable preflight.
             chat_creation_payload = {k: v for k, v in chat_creation_payload.items() if v is not None}
             
             logger.info(
@@ -2891,6 +2908,14 @@ async def _async_cleanup_uncompleted_signups_task(task_id: str):
 # This means fallback-persisted embeds are fully functional on all devices.
 # ==============================================================================
 
+def _persisted_embed_snapshot_is_current(existing: dict, cached: dict) -> bool:
+    """Return whether Directus already has this cached embed version or newer."""
+    try:
+        return int(existing.get("version_number") or 1) >= int(cached.get("version_number") or 1)
+    except (TypeError, ValueError):
+        return False
+
+
 async def _async_persist_embed_fallback(
     embed_id: str,
     task_id: str
@@ -2926,15 +2951,11 @@ async def _async_persist_embed_fallback(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
-    # Step 1: Check if the embed already exists in Directus (client persisted it via store_embed)
+    # Step 1: Read any persisted snapshot. Version comparison happens after the
+    # cached snapshot is loaded so later server-published versions are not skipped.
+    existing = None
     try:
         existing = await directus_service.embed.get_embed_by_id(embed_id)
-        if existing:
-            logger.info(
-                f"[EMBED_FALLBACK] Embed {embed_id} already persisted to Directus "
-                f"(client handled it). Skipping fallback. (task_id: {task_id})"
-            )
-            return
     except Exception as check_error:
         logger.warning(
             f"[EMBED_FALLBACK] Could not check Directus for embed {embed_id}: {check_error}. "
@@ -2968,6 +2989,14 @@ async def _async_persist_embed_fallback(
         logger.error(
             f"[EMBED_FALLBACK] Failed to parse cached embed {embed_id}: {e}. "
             f"(task_id: {task_id})"
+        )
+        await cache_service.close()
+        return
+
+    if existing and _persisted_embed_snapshot_is_current(existing, embed_data):
+        logger.info(
+            f"[EMBED_FALLBACK] Embed {embed_id} version {embed_data.get('version_number') or 1} "
+            f"already persisted to Directus. Skipping fallback. (task_id: {task_id})"
         )
         await cache_service.close()
         return
@@ -3078,6 +3107,10 @@ async def _async_persist_embed_fallback(
     embed_ids = embed_data.get("embed_ids")
     if embed_ids is not None:
         payload["payload"]["embed_ids"] = embed_ids
+
+    version_number = embed_data.get("version_number")
+    if isinstance(version_number, int):
+        payload["payload"]["version_number"] = version_number
 
     parent_embed_id = embed_data.get("parent_embed_id")
     if parent_embed_id is not None:

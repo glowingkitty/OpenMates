@@ -1,6 +1,8 @@
 // OpenMates custom design primitives — replacements for native iOS controls.
 // These match the web app's Svelte components and CSS custom properties exactly.
 // Never use Form, List, Toggle, Picker, NavigationStack, etc. in product UI — use these instead.
+// Specification: specifications/features/message-input/specification.yml
+// Assertion: message-input.layout.responsive-parity
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
@@ -10,6 +12,8 @@
 //          frontend/packages/ui/src/components/settings/elements/SettingsConfirmBlock.svelte
 //          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
 //          frontend/packages/ui/src/components/Toggle.svelte
+//          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+// CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
 // CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary gradient on
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -49,6 +53,7 @@ extension EnvironmentValues {
 
 struct OMMessageInputField<ActionButtons: View>: View {
     @ObservedObject var session: NativeComposerSession
+    @State private var measuredEditorHeight: CGFloat = 0
     let isFocused: Binding<Bool>
     let compact: Bool
     let placeholder: String
@@ -61,20 +66,29 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var piiDecorations: [NativeComposerPIIDecoration] = []
     var onExcludePII: (String) -> Void = { _ in }
     var inlineFieldContent: AnyView? = nil
+    var idleFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
     @ViewBuilder var actionButtons: () -> ActionButtons
 
     private let expandedHorizontalPadding: CGFloat = 16
     private let expandedTopPadding: CGFloat = 16
-    private let expandedBottomPadding: CGFloat = 60
+    private let expandedBottomPadding = MessageComposerMetric.expandedBottomReservedHeight
 
     private var fieldHeight: CGFloat {
         compact ? compactHeight : expandedMinHeight
     }
 
     private var fieldMaxHeight: CGFloat {
-        compact ? compactHeight : max(expandedMinHeight, MessageComposerMetric.expandedMaxHeight)
+        guard !compact else { return compactHeight }
+        let contentMaximum = containsEmbed
+            ? MessageComposerMetric.embedTextFieldMaxHeight
+            : MessageComposerMetric.expandedMaxHeight
+        return max(expandedMinHeight, contentMaximum)
+    }
+
+    private var containsEmbed: Bool {
+        session.controller.document.nodes.contains(where: { $0.kind == "embed" })
     }
 
     private var resolvedFieldHeight: CGFloat {
@@ -82,10 +96,16 @@ struct OMMessageInputField<ActionButtons: View>: View {
         if expandedMinHeight > MessageComposerMetric.focusedEmptyHeight {
             return expandedMinHeight
         }
-        if session.controller.document.nodes.contains(where: { $0.kind == "embed" }) {
+        if containsEmbed {
             return fieldMaxHeight
         }
-        return MessageComposerMetric.focusedEmptyHeight
+        return min(
+            MessageComposerMetric.collapsedTextFieldMaxHeight,
+            max(
+                MessageComposerMetric.focusedEmptyHeight,
+                measuredEditorHeight + expandedBottomPadding
+            )
+        )
     }
 
     private var cornerRadius: CGFloat {
@@ -97,7 +117,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
     }
 
     private var textEditorMinHeight: CGFloat {
-        inlineFieldContent == nil ? fieldHeight : 40
+        guard inlineFieldContent == nil else { return 40 }
+        return compact ? fieldHeight : max(0, fieldHeight - expandedBottomPadding)
     }
 
     var body: some View {
@@ -122,6 +143,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     isFocused: isFocused,
                     isEditable: isComposerEditable,
                     accessibilityHint: accessibilityHint,
+                    measuredHeight: $measuredEditorHeight,
                     piiDecorations: piiDecorations,
                     onExcludePII: onExcludePII,
                     onSubmit: onSubmit
@@ -136,7 +158,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
                         Text(placeholder)
                             .font(.omP)
                             .foregroundStyle(Color.fontSecondary)
-                            .padding(.horizontal, .spacing4)
+                            .lineLimit(1)
+                            .padding(.horizontal, compact && idleFieldContent != nil ? 56 : .spacing4)
                             .padding(.vertical, compact ? 0 : .spacing6)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
@@ -151,6 +174,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
             if shouldShowActionButtons {
                 actionButtons()
+                    .zIndex(2)
+            } else if compact, let idleFieldContent {
+                idleFieldContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .zIndex(2)
             }
 
@@ -169,7 +196,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
         )
         .background(Color.greyBlue, in: RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+        // The attachment menu extends above this field; a parent contentShape
+        // would make its visible menu rows impossible to tap.
         .onTapGesture {
             isFocused.wrappedValue = true
         }

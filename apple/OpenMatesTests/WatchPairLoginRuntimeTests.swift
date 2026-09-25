@@ -10,11 +10,13 @@ import XCTest
 
 @MainActor
 final class WatchPairLoginRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testNormalizedPINUppercasesFiltersAndTruncatesToSixCharacters() {
         XCTAssertEqual(PairLoginRuntime.normalizedPIN(" ab-cd 12 xyz "), "ABCD12")
         XCTAssertEqual(PairLoginRuntime.normalizedPIN("åb😀c d"), "ÅBCD")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testBuildPairURLUsesHashPairTokenForWebAppHost() throws {
         let url = try XCTUnwrap(URL(string: "https://app.dev.openmates.org/some/path"))
 
@@ -24,6 +26,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testServerProfileDerivesProductionDevelopmentAndCustomEndpoints() {
         let production = ServerProfile.production
         XCTAssertEqual(production.id, "production")
@@ -47,6 +50,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(custom.webSocketBaseURL.absoluteString, "wss://api.selfhosted.example/v1/ws")
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testSelfHostedURLValidationAcceptsHTTPSAndRejectsInsecureURLs() throws {
         XCTAssertEqual(
             try ServerProfile.validatedSelfHostedURL("app.dev.openmates.org"),
@@ -62,6 +66,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL(""))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
     func testPairCompleteFailureNormalizesBackendMessages() {
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "too_many_attempts"), .tooManyAttempts)
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "invalid_pin:2"), .invalidPIN(attemptsRemaining: "2"))
@@ -69,6 +74,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(PairLoginRuntime.failureKind(for: nil), .generic)
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.private-session
     func testWatchConnectivityLoginRequestPayloadContainsNoSecrets() {
         let request = WatchPairLoginRequest(
             token: "abc123",
@@ -97,6 +103,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertNil(message["cookie"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
     func testWatchConnectivityLoginRequestSupportsCustomServerProfile() {
         let customProfile = ServerProfile.custom(domain: "https://app.selfhosted.example")
         let request = WatchPairLoginRequest(
@@ -117,6 +124,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(message))
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.private-session
     func testWatchConnectivityLoginRequestDetectsServerMismatchBeforeAuthorization() {
         let request = WatchPairLoginRequest(
             token: "abc123",
@@ -142,6 +150,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         ))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testWatchPairAttemptDefaultsToOneImmutableProductionAttempt() throws {
         var state = WatchPairAttemptState()
 
@@ -160,6 +169,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(state.pairURLString, "https://openmates.org/#pair=ABC123")
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testWatchPairAttemptRejectsStaleCallbacksAfterSelfHostedReplacement() {
         var state = WatchPairAttemptState()
         let productionGeneration = state.begin(serverProfile: .production)
@@ -180,6 +190,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(state.token, "NEW222")
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.private-session
     func testWatchServerProfileStorePersistsOnlyExplicitSuccessfulLogin() throws {
         let suiteName = "WatchPairLoginRuntimeTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
@@ -197,6 +208,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(store.currentProfile(), .production)
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.private-session
     func testIPhoneApprovalEligibilityRequiresAuthenticationAndExactServer() {
         let request = WatchPairLoginRequest(
             token: "abc123",
@@ -232,6 +244,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         ))
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.private-session
     func testWatchConnectivityApprovalPayloadContainsOnlyPinAndToken() {
         let approval = WatchPairLoginApproval(token: "abc123", pin: "A3F8Q6")
 
@@ -245,6 +258,47 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertNil(message["master_key"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
+    func testWatchLoginAcknowledgmentsAreTokenScopedAndContainNoSecrets() {
+        for kind in [
+            WatchPairLoginAcknowledgment.Kind.offered,
+            .approvalStarted,
+            .denied,
+            .approvalFailed,
+        ] {
+            let acknowledgment = WatchPairLoginAcknowledgment(token: "abc123", kind: kind)
+            let message = WatchPairLoginConnectivityPayload.acknowledgmentMessage(acknowledgment)
+            XCTAssertEqual(
+                WatchPairLoginConnectivityPayload.parseAcknowledgment(message),
+                WatchPairLoginAcknowledgment(token: "ABC123", kind: kind)
+            )
+            XCTAssertEqual(message["token"] as? String, "ABC123")
+            XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(message))
+            XCTAssertNil(message["pin"])
+            XCTAssertNil(message["pair_url"])
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testWatchLoginAcknowledgmentRejectsMalformedOrUnrecognizedEvents() {
+        let valid = WatchPairLoginConnectivityPayload.acknowledgmentMessage(
+            WatchPairLoginAcknowledgment(token: "ABC123", kind: .offered)
+        )
+        var missingToken = valid
+        missingToken.removeValue(forKey: "token")
+        XCTAssertNil(WatchPairLoginConnectivityPayload.parseAcknowledgment(missingToken))
+
+        var unknownKind = valid
+        unknownKind["acknowledgment"] = "approved"
+        XCTAssertNil(WatchPairLoginConnectivityPayload.parseAcknowledgment(unknownKind))
+        XCTAssertNil(WatchPairLoginConnectivityPayload.parseAcknowledgment(
+            WatchPairLoginConnectivityPayload.approvalMessage(
+                WatchPairLoginApproval(token: "ABC123", pin: "A3F8Q6")
+            )
+        ))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler() throws {
         let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         let runtimeURL = appleRoot.appendingPathComponent(
@@ -269,8 +323,11 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         let delegateSource = source[delegateStart.lowerBound..<watchSectionEnd.lowerBound]
         XCTAssertTrue(delegateSource.contains("WatchPairLoginConnectivityPayload.parseApproval(message)"))
         XCTAssertTrue(delegateSource.contains("bridge.approvalHandler?(approval)"))
+        XCTAssertTrue(delegateSource.contains("WatchPairLoginConnectivityPayload.parseAcknowledgment(message)"))
+        XCTAssertTrue(delegateSource.contains("bridge.acknowledgmentHandler?(acknowledgment)"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
     func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {
         let token = "ABC123"
         let pin = "9Z8Y7X"
@@ -308,6 +365,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(rawData(from: masterKey), masterKeyData)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
     func testMasterKeyPersistsLocallyThroughKeychain() async throws {
         let userId = "watch-pair-login-runtime-tests-\(UUID().uuidString)"
         let masterKeyData = Data((32..<64).map(UInt8.init))

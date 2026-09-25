@@ -8,15 +8,27 @@ import XCTest
 
 @MainActor
 final class SettingsMemoriesMatesParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chat-processing-feedback.selected-mate-identity,settings-ui.parity.web-apple-shell,focus-modes.retired-welcome-and-suki
     func testCanonicalMateCatalogAndMentionSyntax() {
-        XCTAssertEqual(CanonicalSettingsMateCatalog.all.count, 17)
+        XCTAssertEqual(CanonicalSettingsMateCatalog.all.count, 16)
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.id, "software_development")
-        XCTAssertEqual(CanonicalSettingsMateCatalog.all.last?.id, "onboarding_support")
+        XCTAssertEqual(CanonicalSettingsMateCatalog.all.last?.id, "general_knowledge")
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.mentionSyntax, "@mate:software_development")
         XCTAssertTrue(CanonicalSettingsMateCatalog.all.allSatisfy { !$0.artworkName.isEmpty })
         XCTAssertTrue(CanonicalSettingsMateCatalog.all.allSatisfy(\.isAvailable))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testMessageMateSettingsTargetResolvesCanonicalDetail() {
+        XCTAssertEqual(
+            CanonicalSettingsMateCatalog.mate(id: "electrical_engineering")?.id,
+            "electrical_engineering"
+        )
+        XCTAssertNil(CanonicalSettingsMateCatalog.mate(id: "openmates_official"))
+        XCTAssertNil(CanonicalSettingsMateCatalog.mate(id: "unknown"))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-processing-feedback.selected-mate-identity,settings-ui.parity.web-apple-shell
     func testSettingsComposerHandoffIsNativeAndSingleUse() {
         SettingsComposerHandoff.request(mention: "@mate:finance")
 
@@ -26,6 +38,7 @@ final class SettingsMemoriesMatesParityTests: XCTestCase {
         XCTAssertNil(SettingsComposerHandoff.consume())
     }
 
+    // contract-test: supporting surface=gui.apple assertions=app-memories.surface.semantic-parity
     func testMemoryEntryUsesCanonicalEntryMentionSyntax() {
         let entry = SettingsMemoryEntry(
             id: "entry-1",

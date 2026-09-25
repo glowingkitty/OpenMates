@@ -1,0 +1,158 @@
+schema_version: 2
+id: event-search-routing-latency
+title: Optimize event search routing and latency
+status: implementing
+
+goal: >
+  Select relevant event providers for each auto query, defer expensive event
+  detail and geocoding work until after ranking, and shorten stalled searches;
+  compare real event skill uses before and after without reducing the number
+  of candidates requested from each selected provider.
+
+scope:
+  in: [Auto provider routing, deferred finalist enrichment, bounded provider completion, nonblocking location resolution, focused coverage, real before and after search comparison.]
+  out: [Reducing per-provider candidate counts, adding event sources, changing pricing or output safety.]
+
+scenarios:
+  - id: S-1
+    title: Relevant auto sources
+    given: [A request uses auto and several general and specialist providers are available.]
+    when: [The skill applies hard eligibility and specialist relevance routing.]
+    then: [General sources and relevant specialists run, with a deterministic fallback if Jev fails.]
+  - id: S-2
+    title: Fast complete and partial results
+    given: [Providers return many candidates or one provider stalls.]
+    when: [The skill filters, ranks, enriches, and finalizes results.]
+    then: [Only finalists receive optional enrichment and completed providers survive a stalled peer.]
+  - id: S-3
+    title: Measured improvement
+    given: [Comparable real public event searches run before and after implementation.]
+    when: [Their latency, provider attribution, result counts, and quality are compared.]
+    then: [The report shows the observed effect and any provider or measurement limitations.]
+
+specifications:
+  - id: feature.app-skill.events-search
+    fingerprint: 70ee6809e34d2cf4894c9c410a3eea6db2fc5726c802c7332afb68263a378cb2
+    assertions:
+      - events-search.providers.explicit
+      - events-search.providers.auto-relevance
+      - events-search.enrichment.deferred
+      - events-search.performance.bounded
+      - events-search.relevance.bounded-candidates
+      - events-search.relevance.safe-fallback
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Run semantic provider routing only for auto, over eligible specialists, with a deterministic fallback.
+    reason: Explicit selection is user intent, and Jev must not override hard eligibility.
+    decided_at: '2026-09-24'
+  - id: D-2
+    status: active
+    decision: Keep the existing per-provider candidate count formula unchanged.
+    reason: The user explicitly requested this boundary.
+    decided_at: '2026-09-24'
+  - id: D-3
+    status: active
+    decision: Use the same real public event queries and controlled environment for before and after measurements.
+    reason: This provides a useful direct comparison despite live provider variability.
+    decided_at: '2026-09-24'
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Explicit provider and provider-list requests bypass semantic routing; auto excludes unrelated specialists and can select ambiguous specialists through bounded Jev.
+    required: true
+    status: blocked
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-UNIT, T-E2E]
+  - id: AC-2
+    scenario: S-2
+    text: Nonessential event details and venue coordinates are enriched only for finalists after filtering and ranking, while results remain actionable and safe.
+    required: true
+    status: blocked
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-UNIT, T-E2E]
+  - id: AC-3
+    scenario: S-2
+    text: Slow providers cannot cause the whole successful auto batch to time out or repeat, and location resolution does not block independent provider work.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-UNIT]
+  - id: AC-4
+    scenario: S-3
+    text: Real skill uses report comparable before and after latency, searched providers, result counts, and limitations for representative public event queries.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-LIVE]
+  - id: AC-5
+    scenario: S-2
+    text: Existing per-provider candidate counts remain unchanged, with focused backend and relevant E2E coverage verified.
+    required: true
+    status: blocked
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-UNIT, T-E2E]
+
+tests:
+  - id: T-UNIT
+    type: pytest
+    file: backend/tests/test_events_auto_optimization.py
+    command: PYTHONPATH=. pytest -q backend/tests/test_events_auto_optimization.py backend/tests/test_events_provider_routing.py backend/tests/test_search_relevance.py backend/tests/test_events_provider_quality.py backend/tests/test_app_skill_processing_quality.py
+    covers: [AC-1, AC-2, AC-3, AC-5]
+    assertions: [Auto and explicit routing, finalist enrichment, timeout behavior, candidate sizing, safe fallback.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'PYTHONPATH=. pytest -q backend/tests/test_events_auto_optimization.py backend/tests/test_events_provider_routing.py backend/tests/test_search_relevance.py backend/tests/test_events_provider_quality.py backend/tests/test_app_skill_processing_quality.py', run_id: '36013695877', subject_commit: '2a598990ccc91a4db9dbf062e62b89ac3f705465', timestamp: '2026-09-24T14:45:00Z', summary: '64 focused local backend tests passed; exact updated candidate also passed isolated pytest CI.'}}
+  - id: T-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-events-search.spec.ts
+    command: Submit the existing events search spec to isolated GitHub CI with the scoped candidate source.
+    target: skill-events-search.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-1, AC-2, AC-5]
+    assertions: [Direct CLI and browser event search preserve provider attribution and actionable results.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: blocked, actor: 'isolated CI admission guard', reason: 'The original direct CLI phase requires isolated SerpAPI credentials and hard request/spending caps.', next_action: 'Authorize dedicated isolated provider credentials and caps, then rerun unchanged E2E.', run_id: 'ci-admission-2026-09-24', subject_commit: '2a598990ccc91a4db9dbf062e62b89ac3f705465', timestamp: '2026-09-24T14:45:00Z', summary: 'Isolated E2E admission refused before execution; no browser pass claimed.'}}
+  - id: T-LIVE
+    type: manual
+    file: openmates apps events search
+    command: Compare the same real public search requests before and after scoped dev deployment.
+    covers: [AC-4]
+    assertions: [Comparable latency, providers searched, result counts, and material quality limitations are reported.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, reason: 'Comparable real public skill calls were run before and after the scoped dev deployment and checked for counts, providers, and detail presence.', run_id: 'dev-cli-2026-09-24', subject_commit: '2a598990ccc91a4db9dbf062e62b89ac3f705465', timestamp: '2026-09-24T14:47:00Z', summary: 'AI plain 5.67s vs 5.13-8.52s after (three runs); AI relevance 7.14s vs 6.19s; piano 7.39s vs 5.81s; dance 6.72s vs 5.72s; explicit Eventbrite 5.71s vs 4.77s. Result counts remained 10, 10, 10, 10, and 7 respectively; provider attribution and finalist details checked.'}}
+
+implementation_state: {subject_commit: '2a598990ccc91a4db9dbf062e62b89ac3f705465'}
+approvals:
+  specification: {status: approved, fingerprint: 70ee6809e34d2cf4894c9c410a3eea6db2fc5726c802c7332afb68263a378cb2, approved_at: '2026-09-24'}
+  plan: {status: approved, source: User explicitly requested implementation and before and after comparison, approved_at: '2026-09-24'}
+tasks:
+  - id: TASK-1
+    title: OpenMates Task 7489cdb2-982b-49e3-a872-2a9fa02200e1 owns execution status.
+    status: blocked
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]}
+    expected_files: [backend/apps/events, backend/tests, frontend/apps/web_app/tests/skill-events-search.spec.ts]
+    verification_ids: [T-UNIT, T-E2E, T-LIVE]
+    dependencies: []
+    blockers: [Isolated browser E2E requires dedicated provider credentials and hard request/spending caps.]
+    follow_up_tasks: []
+    ownership: {owner: 3e3e, files: [backend/apps/events, backend/tests, frontend/apps/web_app/tests/skill-events-search.spec.ts], shared_files: [specifications/features/app-skills/events-search]}
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Capture live baseline, implement the approved change, verify and deploy, then repeat the same real searches.
+    recorded_at: '2026-09-24'
+handoff:
+  current_task_id: TASK-1
+  next_action: Authorize isolated provider credentials and request/spending caps, then rerun the unchanged event-search browser E2E.
+  command: python3 scripts/ci_coordinator.py submit --session 3e3e --source d010e950fd67a9184c1483d25dd6ba1de2c03c64 --mode e2e --spec skill-events-search.spec.ts
+  expected_outcome: Browser and direct CLI E2E passes without changing its provider assertions.
+  last_verified_commit: '2a598990ccc91a4db9dbf062e62b89ac3f705465'

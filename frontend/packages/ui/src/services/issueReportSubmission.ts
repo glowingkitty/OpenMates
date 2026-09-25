@@ -177,6 +177,31 @@ export async function ensureIssueReportContextIsShared(
   }
 }
 
+/**
+ * Best-effort context sharing for issue reports.
+ *
+ * A report is more important than its optional chat/embed attachment. If the
+ * share metadata endpoint cannot resolve or update that context, callers must
+ * drop the unusable URL and continue submitting diagnostics.
+ */
+export async function prepareIssueReportContextUrl(
+  shareUrl: string | null,
+): Promise<string | null> {
+  if (!shareUrl) return null;
+
+  try {
+    await ensureIssueReportContextIsShared(shareUrl);
+    return shareUrl;
+  } catch {
+    // Do not log the caught error: browser/network errors can include the full
+    // share URL, whose fragment contains the decryption key.
+    console.warn(
+      "[IssueReportSubmission] Continuing without shared context because sharing failed",
+    );
+    return null;
+  }
+}
+
 export async function submitIssueReport(options: SubmitIssueReportOptions): Promise<SubmitIssueReportResult> {
   const activeChatId = get(activeChatStore);
   const visibleChatMessages = collectVisibleChatMessageTexts();
@@ -191,10 +216,8 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
     recentTraceIds = [];
   }
 
-  const chatOrEmbedUrl = options.shareCurrentChat ? await generateCurrentContextUrl() : null;
-  if (chatOrEmbedUrl) {
-    await ensureIssueReportContextIsShared(chatOrEmbedUrl);
-  }
+  const generatedContextUrl = options.shareCurrentChat ? await generateCurrentContextUrl() : null;
+  const chatOrEmbedUrl = await prepareIssueReportContextUrl(generatedContextUrl);
   const response = await fetch(getApiEndpoint("/v1/settings/issues"), {
     method: "POST",
     headers: {

@@ -60,7 +60,15 @@ export type WorkflowSummary = {
   version?: number;
 };
 
-export type WorkflowDetail = WorkflowSummary & { graph: WorkflowGraph };
+export type WorkflowAuthoringWarning = {
+  code: string;
+  message: string;
+};
+
+export type WorkflowDetail = WorkflowSummary & {
+  graph: WorkflowGraph;
+  authoring_warnings?: WorkflowAuthoringWarning[];
+};
 
 export type WorkflowVersionSummary = {
   version_id: string;
@@ -384,7 +392,7 @@ export const workflowWorkspaceStore = {
     runContentRetention: "last_5" | "none";
   }): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
-    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>("/v1/workflows", {
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>("/v1/workflows", {
       method: "POST",
       body: JSON.stringify({
         title: input.title,
@@ -394,20 +402,22 @@ export const workflowWorkspaceStore = {
       }),
     });
     assertCurrentGeneration(requestGeneration);
-    this.upsertWorkflow(data.workflow);
-    setSelectedFromCaches(data.workflow.id);
-    return data.workflow;
+    const workflow = { ...data.workflow, authoring_warnings: data.warnings ?? [] };
+    this.upsertWorkflow(workflow);
+    setSelectedFromCaches(workflow.id);
+    return workflow;
   },
 
   async patchWorkflow(workflowId: string, payload: Record<string, unknown>): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
-    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}`, {
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>(`/v1/workflows/${encodeURIComponent(workflowId)}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
     assertCurrentGeneration(requestGeneration);
-    this.upsertWorkflow(data.workflow);
-    return data.workflow;
+    const workflow = { ...data.workflow, authoring_warnings: data.warnings ?? [] };
+    this.upsertWorkflow(workflow);
+    return workflow;
   },
 
   async getWorkflowVersions(workflowId: string): Promise<WorkflowVersionHistory> {

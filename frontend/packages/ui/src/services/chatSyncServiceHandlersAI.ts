@@ -119,7 +119,6 @@ function getFallbackIconForCategory(category: string): string {
     cooking_food: "utensils",
     activism: "trending-up",
     general_knowledge: "help-circle",
-    onboarding_support: "compass",
   };
 
   return categoryIcons[category] || "help-circle";
@@ -2786,7 +2785,7 @@ export async function handleRequestChatHistoryImpl(
 
     // Decrypt active_focus_id so the AI uses the correct focus mode system prompt on resend.
     // Without this, the onboarding chat (and any other focus-mode chat) would receive the
-    // default Suki system prompt instead of the focus-mode-specific one (e.g. openmates-welcome).
+    // default mate system prompt instead of the focus-mode-specific one.
     let activeFocusId: string | null = null;
     if (chat?.encrypted_active_focus_id) {
       try {

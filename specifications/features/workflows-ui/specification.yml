@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 3
+version: 4
 status: approved
 title: Workflows Web UI
 summary: >
@@ -53,6 +53,7 @@ models:
       constraints:
         asset_root: frontend/packages/ui/static/icons
         add_action: app.svg
+        ask_ai: ai.svg
         workflow_tab_and_add_trigger: workflow.svg
         runs_tab: projectmanagement.svg
         send_message: chat.svg
@@ -66,9 +67,47 @@ models:
         surfaces: [continuation, empty_branch]
         placeholder: "Do nothing.\nOr click here to add a step."
         selector_heading: What should happen next?
-        valid_choices: [use_app, send_message, add_check]
+        valid_choices: [use_app, ask_ai, add_check, send_message]
         check_requires_available_upstream_output: true
         duplicate_separate_add_action_or_add_check_controls: forbidden
+
+  WorkflowCheckAuthoring:
+    mode_choice:
+      type: progressive_disclosure
+      required: true
+      constraints: {default: exact_rule, choices: [exact_rule, use_ai_judgment], separate_top_level_ai_check_step: false}
+    exact_rule:
+      type: typed_comparison_builder
+      required: true
+      constraints: {plain_language_preview: true, model_call: forbidden}
+    ai_judgment:
+      type: bounded_boolean_question_builder
+      required: true
+      constraints:
+        visible_fields: [decision_question, selected_earlier_values]
+        selected_value_preview: required
+        advanced_provider_or_prompt_controls: forbidden
+        outcomes: [if_true, if_false, unsure]
+        unsure_branch: user_configurable_with_supported_steps_or_empty
+        test_before_save: optional
+    guidance:
+      type: contextual_authoring_help
+      required: true
+      constraints: {exact_threshold_examples_recommend_exact_rule: true, subjective_or_multi_factor_examples_recommend_ai_judgment: true}
+
+  WorkflowAskAiAuthoring:
+    instruction_editor:
+      type: multiline_text_with_insertable_earlier_value_references
+      required: true
+      constraints: {single_text_answer: true, app_skill_execution_controls: forbidden, whole_run_context: forbidden}
+    suggested_references:
+      type: non_interrupting_ranked_chips
+      required: true
+      constraints: {position: above_instruction, auto_insert: false, reorder_full_reference_list: false, stale_results_ignored: true, idle_delay_ms: 1000}
+    app_skill_request_warning:
+      type: inline_validation
+      required: true
+      constraints: {position: below_instruction, reliable_illicit_request_blocks_save: true, uncertain_or_unavailable_verdict_allows_save_with_neutral_reminder: true}
 
   WorkflowValuePresentation:
     readable_values:
@@ -220,7 +259,7 @@ models:
       constraints:
         flow_direction: top_to_bottom
         cards_centered: true
-        connectors_use_plain_language: [then, if_true, if_false]
+        connectors_use_plain_language: [then, if_true, if_false, unsure]
         branching_visually_indented: true
         do_nothing_branch_visible: true
     node_cards:
@@ -404,8 +443,8 @@ assertions:
     depends_on: [models.WorkflowVisualLanguage.motion, examples.route_motion_contract]
   - id: workflows-ui.template.centered-in-place-editor
     type: behavior
-    must: Template renders a white centered vertical graph canvas inside a subtle grey rounded panel; compact rounded cards, plain-language connectors, branches, app gradients, and add controls form the graph, and activating a node expands editable detail inside that same card rather than opening a sibling panel. Expanded nodes and step pickers reuse one Workflow editor header for title, app identity, back, collapse and close behavior. Each continuation and empty branch uses the exact two-line placeholder 'Do nothing.\nOr click here to add a step.'; clicking it opens one 'What should happen next?' selector with valid Use App, Send message and Add check choices. Do not show separate duplicate Add action/Add check controls alongside it. App-skill cards use the exact display-name pattern '{app name} | {skill name}' and the actual app icon from the shared catalog, consistently in the editor and historical views.
-    depends_on: [models.WorkflowTemplateCanvas, models.WorkflowCanonicalControls, models.WorkflowValuePresentation.app_skill_identity, examples.template_editing]
+    must: Template renders a white centered vertical graph canvas inside a subtle grey rounded panel; compact rounded cards, plain-language connectors, branches, app gradients, and add controls form the graph, and activating a node expands editable detail inside that same card rather than opening a sibling panel. Expanded nodes and step pickers reuse one Workflow editor header for title, app identity, back, collapse and close behavior. Each continuation and empty branch uses the exact two-line placeholder 'Do nothing.\nOr click here to add a step.'; clicking it opens one 'What should happen next?' selector with valid Use app, Ask AI, Add check and Send message choices. Do not show separate duplicate Add action/Add check controls alongside it. App-skill cards use the exact display-name pattern '{app name} | {skill name}' and the actual app icon from the shared catalog, consistently in the editor and historical views.
+    depends_on: [models.WorkflowTemplateCanvas, models.WorkflowCanonicalControls, models.WorkflowValuePresentation.app_skill_identity, examples.template_step_selector]
   - id: workflows-ui.template.node-scale-and-chevron
     type: behavior
     must: Workflow graph nodes are slightly larger than compact preview cards and retain a clearly visible expand chevron at the bottom of each expandable node. The bare primary calendar or app icon is exactly 33 by 33 pixels in both collapsed and expanded cards with no icon tile; toolbar, dropdown and status icons keep their established component sizes.
@@ -429,9 +468,14 @@ assertions:
 
   - id: workflows-ui.mvp.authoring
     type: behavior
-    must: The supplied new-workflow PDF/Figma is the visual source of truth. Title entry opens an empty progressive builder with optional time/date trigger and Use app skill, Check and Send message choices. Shared app/skill cards expose typed inputs, examples and upstream references; frequently used and required fields appear first, advanced fields stay behind Show all fields, and enum, boolean, schedule and reference choices reuse SettingsDropdown. Weather uses the shared date-range calendar with Today as both default inclusive endpoints and disables dates outside Today through Today plus 13; its hidden legacy days field is never shown. Weather, Events and Home reuse the shared map picker, mapping the selected place and coordinates to supported skill inputs; Home requires a resolved municipality and makes its city-wide search scope visible. Test uses unsaved inputs and shows progress/results as structured labeled values and shared result cards without saving or exposing raw JSON/debug schemas. Check renders true/false branches and Do nothing for empty branches followed by continuation; removing it either preserves an equivalent earlier boolean dependency or reports the dependent steps and leaves the graph unchanged. Filters, AI, webhooks and app-use triggers are deferred.
+    must: The supplied new-workflow PDF/Figma is the visual source of truth. Title entry opens an empty progressive builder with optional time/date trigger and Use app skill, Ask AI, Check and Send message choices. Shared app/skill cards expose typed inputs, examples and upstream references; frequently used and required fields appear first, advanced fields stay behind Show all fields, and enum, boolean, schedule and reference choices reuse SettingsDropdown. Weather uses the shared date-range calendar with Today as both default inclusive endpoints and disables dates outside Today through Today plus 13; its hidden legacy days field is never shown. Weather, Events and Home reuse the shared map picker, mapping the selected place and coordinates to supported skill inputs; Home requires a resolved municipality and makes its city-wide search scope visible. Test uses unsaved inputs and shows progress/results as structured labeled values and shared result cards without saving or exposing raw JSON/debug schemas. Check defaults to Exact rule and progressively offers Use AI judgment inside the same node rather than adding another AI Check step. Exact numeric or text conditions are recommended back to Exact rule; AI judgment asks one plain-language boolean question, requires explicit earlier-value selection and previews exactly what will be evaluated. Both Check methods show If true and If false; AI judgment additionally shows an Unsure branch that the author can populate with supported steps or leave empty. Run detail distinguishes an uncertain judgment from an evaluator failure. Provider names, prompt syntax and confidence thresholds stay out of the basic editor. Removing a Check either preserves an equivalent earlier boolean dependency or reports the dependent steps and leaves the graph unchanged. General filters, AI-authored Workflow construction, webhooks and app-use triggers are deferred.
     depends_on:
-    - examples.mvp_authoring
+    - models.WorkflowCheckAuthoring
+  - id: workflows-ui.mvp.ask-ai
+    type: behavior
+    must: >
+      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, insertable chips for accessible earlier outputs including app-result lists, a preview of bounded selected values, an optional unsaved Test, and one text Answer available to later steps. After one second without an instruction change, web authoring automatically requests Jev-powered suggestion and app-skill-intent hints; suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. A reliable request to invoke an app skill shows the warning "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill" below the field and blocks Save; processing an existing app output remains allowed. An unavailable or uncertain hint shows a neutral reminder and allows Save, while server-side save validation still uses Jev and Gemini 3.8 Flash fallback. Stale hint responses cannot change the current instruction's warning or suggestions. Provider controls stay out of the basic editor, and CLI/SDK authoring does not run this typing-time hint flow.
+    depends_on: [models.WorkflowAskAiAuthoring, examples.ask_ai_authoring]
   - id: workflows-ui.schedule.preview
     type: behavior
     must: Date/time controls offer once, hourly, daily and weekly with time, timezone and readable schedule summary. Automatic activation requires a valid schedule; a complete graph offers Run now while disabled or unscheduled. Advanced recurrence and new budget UI are deferred.
@@ -478,7 +522,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, schedule_preview, message_budget, run_deletion]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

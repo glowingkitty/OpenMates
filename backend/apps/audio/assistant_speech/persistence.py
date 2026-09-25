@@ -71,6 +71,8 @@ async def create_manifest_and_segments(
         "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
         "sealed": False,
         "billing_status": "pending",
+        "billing_settled_segment_ids": [],
+        "billing_settled_characters": 0,
         "execution_version": 0,
     }
     existing_manifest = await _items(
@@ -151,7 +153,10 @@ async def create_manifest_and_segments(
             "source_hash": str(segment["source_hash"]),
             "voice_profile_key": voice_key,
             "voice_profile_version": voice_version,
-            "status": "queued",
+            "live_mock_mode": segment.get("live_mock_mode"),
+            "live_mock_group": segment.get("live_mock_group"),
+            "live_mock_required": segment.get("live_mock_required"),
+            "status": str(segment.get("dispatch_status") or "queued"),
             "execution_version": 0,
             "lease_id": None,
             "lease_expires_at": None,
@@ -237,6 +242,117 @@ async def prepare_manifest_billing(directus: Any, manifest_id: str) -> dict[str,
 async def complete_manifest_billing(directus: Any, manifest_row_id: str, *, usage_id: str | None) -> None:
     status = "committed" if usage_id else "not_billable"
     await directus.update_item(MANIFEST_COLLECTION, manifest_row_id, {"billing_status": status, "billing_usage_id": usage_id})
+
+
+async def prepare_next_segment_billing(directus: Any, manifest_id: str) -> dict[str, object] | None:
+    """Claim one ready, unsettled segment; plaintext and audio never enter the ledger."""
+    for _attempt in range(MANIFEST_UPDATE_RETRIES):
+        manifests = await _items(directus, MANIFEST_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": 1})
+        if not manifests:
+            return None
+        manifest = manifests[0]
+        rows = await _items(directus, SEGMENT_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": -1})
+        ready = sorted((row for row in rows if row.get("status") == "ready"), key=lambda row: (int(row.get("sequence") or 0), str(row.get("segment_id"))))
+        if any(not isinstance(row.get("billable_character_count"), int) or int(row["billable_character_count"]) <= 0 for row in ready):
+            raise RuntimeError("Ready assistant speech segment is missing billable character metadata")
+        row_id = str(manifest.get("id") or manifest_id)
+        version = int(manifest.get("execution_version") or 0)
+        update_if_version = getattr(directus, "update_item_if_version", None)
+        if not callable(update_if_version):
+            raise RuntimeError("Assistant speech billing requires conditional updates")
+        settled_ids = [str(value) for value in (manifest.get("billing_settled_segment_ids") or [])]
+        settled_characters = int(manifest.get("billing_settled_characters") or 0)
+        if (manifest.get("billing_status") == "committed" and not settled_ids and not settled_characters):
+            # Old aggregate usage already covered every ready segment at cutover.
+            migrated_ids = [str(row["segment_id"]) for row in ready]
+            migrated_count = sum(int(row["billable_character_count"]) for row in ready)
+            migrated = await update_if_version(
+                MANIFEST_COLLECTION, row_id,
+                {"billing_settled_segment_ids": migrated_ids, "billing_settled_characters": migrated_count,
+                 "execution_version": version + 1},
+                version, version_field="execution_version",
+            )
+            if migrated:
+                for row in ready:
+                    await directus.update_item(
+                        SEGMENT_COLLECTION, str(row.get("id") or row["segment_id"]),
+                        {"billing_usage_id": str(manifest.get("billing_usage_id") or "settled-legacy")},
+                    )
+                return None
+            continue
+        unsettled = [row for row in ready if str(row["segment_id"]) not in settled_ids]
+        if not unsettled:
+            for row in ready:
+                if not row.get("billing_usage_id"):
+                    await directus.update_item(
+                        SEGMENT_COLLECTION, str(row.get("id") or row["segment_id"]),
+                        {"billing_usage_id": str(manifest.get("billing_usage_id") or "settled-no-credit")},
+                    )
+            return None
+        claim_id = str(manifest.get("billing_claim_segment_id") or "")
+        segment = next((row for row in unsettled if str(row["segment_id"]) == claim_id), None) if claim_id else None
+        if segment is None:
+            segment = unsettled[0]
+            claim_id = str(segment["segment_id"])
+            claimed = await update_if_version(
+                MANIFEST_COLLECTION, row_id,
+                {"billing_claim_segment_id": claim_id,
+                 "billing_claim_expires_at": (datetime.now(timezone.utc) + timedelta(seconds=LEASE_TTL_SECONDS)).isoformat(),
+                 "execution_version": version + 1},
+                version, version_field="execution_version",
+            )
+            if not claimed:
+                continue
+            version += 1
+        else:
+            # A redelivery may safely retry the same stable charge key. The
+            # internal billing endpoint deduplicates even after a worker crash.
+            expires = _parse_timestamp(manifest.get("billing_claim_expires_at"))
+            if expires and expires < datetime.now(timezone.utc):
+                refreshed = await update_if_version(
+                    MANIFEST_COLLECTION, row_id,
+                    {"billing_claim_expires_at": (datetime.now(timezone.utc) + timedelta(seconds=LEASE_TTL_SECONDS)).isoformat(),
+                     "execution_version": version + 1},
+                    version, version_field="execution_version",
+                )
+                if not refreshed:
+                    continue
+                version += 1
+        return {
+            "manifest_row_id": row_id, "manifest_id": manifest_id, "segment_id": claim_id,
+            "segment_row_id": str(segment.get("id") or claim_id), "execution_version": version,
+            "user_id": str(manifest["user_id"]), "chat_id": str(manifest["chat_id"]),
+            "assistant_message_id": str(manifest["assistant_message_id"]),
+            "model": str(manifest.get("model") or ""), "settled_characters": settled_characters,
+            "submitted_characters": int(segment["billable_character_count"]),
+            "duration_seconds": float(segment.get("duration_seconds") or 0),
+            "settled_segment_ids": settled_ids,
+        }
+    raise RuntimeError("Assistant speech billing claim conflicted repeatedly")
+
+
+async def complete_segment_billing(directus: Any, billing: Mapping[str, object], *, usage_id: str | None) -> bool:
+    """Atomically advance cumulative characters and the settled segment ledger."""
+    segment_id = str(billing["segment_id"])
+    row_id = str(billing["manifest_row_id"])
+    version = int(billing["execution_version"])
+    settled_ids = [str(value) for value in billing["settled_segment_ids"]]
+    characters = int(billing["settled_characters"]) + int(billing["submitted_characters"])
+    updated = await directus.update_item_if_version(
+        MANIFEST_COLLECTION, row_id,
+        {"billing_settled_segment_ids": [*settled_ids, segment_id],
+         "billing_settled_characters": characters, "billing_claim_segment_id": None,
+         "billing_claim_expires_at": None, "billing_status": "incremental",
+         "execution_version": version + 1},
+        version, version_field="execution_version", extra_filters={"billing_claim_segment_id": segment_id},
+    )
+    if updated:
+        await directus.update_item(SEGMENT_COLLECTION, str(billing["segment_row_id"]), {"billing_usage_id": usage_id or "settled-no-credit"})
+        return True
+    manifests = await _items(directus, MANIFEST_COLLECTION, {"filter[manifest_id][_eq]": billing["manifest_id"], "limit": 1})
+    if manifests and segment_id in (manifests[0].get("billing_settled_segment_ids") or []):
+        return False
+    raise RuntimeError("Assistant speech billing completion conflicted")
 
 
 async def update_segment_status(directus: Any, segment_id: str, result: Mapping[str, object]) -> None:

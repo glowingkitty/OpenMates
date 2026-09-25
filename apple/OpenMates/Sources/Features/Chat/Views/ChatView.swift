@@ -2,6 +2,10 @@
 // Supports block-level markdown rendering (code blocks, tables, blockquotes),
 // inline embed previews, and fullscreen embed sheets. Advertises the current
 // chat for Handoff so users can continue on another Apple device.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send, message-input.send.ownership, message-input.privacy-context
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.surface.semantic-parity
 
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
@@ -30,6 +34,9 @@
 //
 // messageList:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
+//            frontend/packages/ui/src/components/ActiveChat.svelte
+//            frontend/packages/ui/src/components/HeaderActionMenu.svelte
+//   Action:  frontend/packages/ui/src/actions/headerOverlayControls.ts
 //   CSS:     frontend/packages/ui/src/styles/chat.css
 //            .chat-history-container { padding:10px; overflow-y:auto }
 //            .chat-history-content { max-width:1000px; margin:0 auto }
@@ -40,6 +47,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import CryptoKit
+import Foundation
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -93,13 +101,28 @@ private enum ComposerOverlay: Equatable {
     case recording
 }
 
+struct ComposerDeferredEmbedSnapshot {
+    let embeds: [ComposerPendingEmbed]
+
+    init?(document: ComposerDocumentV1, resolvedEmbeds: [String: ComposerPendingEmbed]) {
+        let nodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
+        let embeds = nodeIDs.compactMap { resolvedEmbeds[$0] }
+        guard embeds.count == nodeIDs.count else { return nil }
+        self.embeds = embeds
+    }
+}
+
 private struct ComposerDeferredSendContext {
     let excludedPIIIds: Set<String>
     let broadcastToSiblings: Bool
+    let owner: ComposerModelSendOwnership
+    var embedSnapshot: ComposerDeferredEmbedSnapshot?
 }
 
 private enum ComposerDeferredSendError: Error {
     case missingContext
+    case missingEmbed
+    case transportUnavailable
     case sendFailed
 }
 
@@ -109,6 +132,16 @@ private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     static func reduce(value: inout [ChatScrollSentinelEdge: CGFloat], nextValue: () -> [ChatScrollSentinelEdge: CGFloat]) {
         value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
+}
+
+private enum ChatMoreLeadingAlignment: AlignmentID {
+    static func defaultValue(in dimensions: ViewDimensions) -> CGFloat {
+        dimensions[.leading]
+    }
+}
+
+private extension HorizontalAlignment {
+    static let chatMoreLeading = HorizontalAlignment(ChatMoreLeadingAlignment.self)
 }
 
 private struct ChatVisibleMessagePreferenceKey: PreferenceKey {
@@ -122,6 +155,7 @@ private struct ChatVisibleMessagePreferenceKey: PreferenceKey {
 private struct ChatScrollBoundaries: Equatable {
     let isAtTop: Bool
     let isAtBottom: Bool
+    let contentOffsetY: CGFloat
 }
 
 /// Current systems report scroll visibility directly; older systems project row
@@ -161,10 +195,12 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
                     if phase == .interacting || phase == .decelerating { onUserScroll() }
                 }
                 .onScrollGeometryChange(for: ChatScrollBoundaries.self) { geometry in
-                    ChatScrollBoundaries(
-                        isAtTop: geometry.contentOffset.y + geometry.contentInsets.top <= 8,
+                    let contentOffsetY = max(0, geometry.contentOffset.y + geometry.contentInsets.top)
+                    return ChatScrollBoundaries(
+                        isAtTop: contentOffsetY <= 8,
                         isAtBottom: geometry.contentSize.height + geometry.contentInsets.bottom
-                            - geometry.contentOffset.y <= geometry.containerSize.height + 8)
+                            - geometry.contentOffset.y <= geometry.containerSize.height + 8,
+                        contentOffsetY: contentOffsetY)
                 } action: { _, boundaries in
                     onBoundariesChanged(boundaries)
                 }
@@ -176,9 +212,11 @@ private struct ChatTranscriptScrollTracking: ViewModifier {
         } else {
             content
                 .onPreferenceChange(ChatScrollSentinelPreferenceKey.self) { values in
+                    let contentOffsetY = max(0, -(values[.top] ?? 0))
                     onBoundariesChanged(ChatScrollBoundaries(
-                        isAtTop: (values[.top] ?? 0) >= -8,
-                        isAtBottom: values[.bottom].map { $0 <= viewportHeight + 8 } ?? false))
+                        isAtTop: contentOffsetY <= 8,
+                        isAtBottom: values[.bottom].map { $0 <= viewportHeight + 8 } ?? false,
+                        contentOffsetY: contentOffsetY))
                 }
                 .onPreferenceChange(ChatVisibleMessagePreferenceKey.self, perform: onVisibleMessagesChanged)
         }
@@ -219,6 +257,113 @@ private enum ChatMessageLayoutMetric {
     static let assistantDesktopReserve: CGFloat = 70
 }
 
+enum ChatFollowUpTapPolicy {
+    enum Action: Equatable {
+        case requestAuthentication
+        case continueInNewChat
+        case sendInCurrentChat
+    }
+
+    static func action(isPublic: Bool, isAuthenticated: Bool) -> Action {
+        guard isPublic else { return .sendInCurrentChat }
+        return isAuthenticated ? .continueInNewChat : .requestAuthentication
+    }
+}
+
+enum ChatGeneratedHeaderPolicy {
+    static func shouldShowLoading(
+        title: String?,
+        titleVersion: Int?,
+        hasMessages: Bool,
+        isStreaming: Bool
+    ) -> Bool {
+        let normalizedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return normalizedTitle.isEmpty && (titleVersion ?? 0) == 0 && hasMessages && isStreaming
+    }
+}
+
+enum ChatAssistantIdentityPolicy {
+    static func explicitDisplayName(_ senderName: String?) -> String? {
+        guard let name = senderName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty,
+              !["assistant", "ai"].contains(name.lowercased()) else { return nil }
+        return name
+    }
+}
+
+/// Mirrors the web processing-text gradient sweep while preserving a static
+/// readable color when Reduce Motion is enabled.
+private struct ProcessingTextShimmer: ViewModifier {
+    @State private var phase: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(
+                reduceMotion
+                    ? AnyShapeStyle(Color.grey60)
+                    : AnyShapeStyle(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.grey60, location: 0),
+                                .init(color: Color.grey60, location: 0.4),
+                                .init(color: Color.grey40, location: 0.5),
+                                .init(color: Color.grey60, location: 0.6),
+                                .init(color: Color.grey60, location: 1)
+                            ],
+                            startPoint: UnitPoint(x: phase - 1, y: 0.5),
+                            endPoint: UnitPoint(x: phase, y: 0.5)
+                        )
+                    )
+            )
+            .onAppear {
+                guard !reduceMotion else { return }
+                phase = 0
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    phase = 2
+                }
+            }
+    }
+}
+
+/// Composer status follows the web's current-turn mate selection. A chat's
+/// stored category can describe an earlier turn, so it is never used here.
+@MainActor
+enum ChatTypingPresentation {
+    static func stageText(for lifecycle: ChatStreamingLifecycleState) -> String {
+        switch lifecycle.phase {
+        case .sending:
+            return AppStrings.sendingMessage
+        case .processing:
+            if lifecycle.preprocessingStep == "model_selected" {
+                if let mateName = lifecycle.selectedMateName, !mateName.isEmpty {
+                    return AppStrings.mateIsTyping(mateName)
+                }
+                if let mate = CanonicalSettingsMateCatalog.mate(id: lifecycle.selectedMateCategory) {
+                    return AppStrings.mateIsTyping(mate.name)
+                }
+            }
+            return lifecycle.preprocessingStep
+                .map(ProcessingDetailsView.ProcessingStep.stageLabel(for:))
+                ?? AppStrings.selectingMateAndModel
+        case .thinking:
+            guard let mate = CanonicalSettingsMateCatalog.mate(id: lifecycle.selectedMateCategory) else {
+                return AppStrings.thinkingHeaderStreaming
+            }
+            return AppStrings.mateIsThinking(mate.name)
+        case .typing, .streaming:
+            guard let mate = CanonicalSettingsMateCatalog.mate(id: lifecycle.selectedMateCategory) else {
+                return AppStrings.selectingMateAndModel
+            }
+            return AppStrings.mateIsTyping(mate.name)
+        case .queued:
+            return lifecycle.queuedMessageText ?? AppStrings.messageQueued
+        case .cancelling, .idle, .completed, .error:
+            return AppStrings.aiResponding
+        }
+    }
+}
+
 struct ChatView: View {
     #if DEBUG
     var isolatedHistory = false
@@ -244,6 +389,8 @@ struct ChatView: View {
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
     var onShareChat: (() -> Void)? = nil
+    var onOpenChatSettings: (() -> Void)? = nil
+    var onCloseChat: (() -> Void)? = nil
     /// Navigation callbacks for prev/next chat arrows on the banner.
     var onPreviousChat: (() -> Void)? = nil
     var onNextChat: (() -> Void)? = nil
@@ -256,6 +403,9 @@ struct ChatView: View {
     var onNewChat: (() -> Void)? = nil
     /// Opens the app-owned issue report settings pane with an optional prefill.
     var onReportIssue: ((ReportIssuePrefill) -> Void)? = nil
+    /// Opens the selected mate/model detail in the app-owned settings panel.
+    var onOpenMateSettings: ((String) -> Void)? = nil
+    var onOpenModelSettings: ((String) -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
     var onScrollPositionChanged: ((String) -> Void)? = nil
     /// Called after an external chat/embed deep link has opened the fullscreen embed route.
@@ -268,6 +418,7 @@ struct ChatView: View {
     @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @StateObject private var composerSession = NativeComposerSession()
     @ObservedObject private var draftService = DraftService.shared
+    @EnvironmentObject private var authManager: AuthManager
     @Environment(\.workspacePaneIsVisible) private var parentPaneVisible
     private var transcriptIsVisible: Bool { parentPaneVisible && (!showEmbedFullscreen || (chatWorkspaceWidth >= 1024 && !hideSplitChat)) }
     @State private var chatWorkspaceWidth: CGFloat = 0
@@ -277,6 +428,10 @@ struct ChatView: View {
     @State private var showEmbedFullscreen = false
     @State private var openedInitialEmbedId: String?
     @State private var showReminder = false
+    @State private var chatHeaderMoreOpen = false
+    @State private var chatHeaderActionsOverlapBanner = true
+    @State private var chatBannerHeight: CGFloat = 0
+    @State private var chatTranscriptContentOffsetY: CGFloat = 0
     @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
@@ -289,6 +444,8 @@ struct ChatView: View {
     @State private var recordStartedFromKeyboard = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
+    @State private var recordingUploadTasks: [String: Task<Void, Never>] = [:]
+    @State private var recordingTemporaryFiles: [String: URL] = [:]
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions: Set<String> = []
     @State private var enhancedPIIDetectionTask: Task<Void, Never>?
@@ -318,6 +475,9 @@ struct ChatView: View {
     @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
+    @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
+    @State private var recordingLiveTranscript = ""
+    @State private var recordingRealtimeConnecting = false
     @StateObject private var pendingUploads = PendingUploadStore.shared
     @State private var composerEmbedLifecycle = ComposerEmbedLifecycle()
     @State private var composerPendingSendCoordinator = ComposerPendingSendCoordinator()
@@ -325,6 +485,8 @@ struct ChatView: View {
     @State private var deferredComposerSendNodeIDs: [String: Set<String>] = [:]
     @State private var resolvedComposerEmbeds: [String: ComposerPendingEmbed] = [:]
     @State private var deferredComposerSendRevisions: Set<Int> = []
+    @State private var stopButtonPulsing = false
+    @State private var deferredSocketConnectedEpoch = 0
     @State private var isInputFocused = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -361,12 +523,12 @@ struct ChatView: View {
         latestAssistantMessageId != nil && !viewModel.isStreaming
     }
 
-    private var activeProcessingSteps: [ProcessingDetailsView.ProcessingStep] {
-        guard viewModel.streamingLifecycle.shouldShowProcessingDetails,
-              let step = viewModel.streamingLifecycle.preprocessingStep else {
-            return []
-        }
-        return [.fromPreprocessing(step)]
+    private var isStreamingPresentationActive: Bool {
+        viewModel.isStreaming || isUITestStreamingPresentationEnabled
+    }
+
+    private var streamingStageText: String {
+        ChatTypingPresentation.stageText(for: viewModel.streamingLifecycle)
     }
 
     var body: some View {
@@ -408,7 +570,11 @@ struct ChatView: View {
             #if DEBUG
             .overlay(alignment: .topLeading) {
                 if ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids"), let chatStore {
-                    ChatRecoveryStateProbe(store: chatStore, chatId: chatId)
+                    ChatRecoveryStateProbe(
+                        store: chatStore, chatId: chatId,
+                        renderedMessages: viewModel.messages,
+                        renderedEmbeds: viewModel.embedRecords
+                    )
                 }
             }
             #endif
@@ -454,7 +620,7 @@ struct ChatView: View {
                         Task { await viewModel.deactivateActiveFocusMode() }
                     }
 
-                    if viewModel.isStreaming {
+                    if isStreamingPresentationActive {
                         streamingBanner
                     }
 
@@ -613,6 +779,11 @@ struct ChatView: View {
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
         }
+        .onReceive((wsManager ?? AppSessionCoordinator.shared.webSocketManager).$connectionState) { state in
+            guard state == .connected else { return }
+            deferredSocketConnectedEpoch += 1
+            Task { @MainActor in await retryDeferredComposerSendsAfterReconnect() }
+        }
     }
 
     private var initialMessageSyncSignature: String {
@@ -629,11 +800,7 @@ struct ChatView: View {
     }
 
     private var initialEmbedSyncSignature: String {
-        [
-            initialChat?.id ?? "",
-            String(initialEmbeds.count),
-            initialEmbeds.map(\.id).max() ?? ""
-        ].joined(separator: "|")
+        ChatEmbedSyncSignature.make(chatId: initialChat?.id, embeds: initialEmbeds)
     }
 
     private var embedRecordIdsSignature: String {
@@ -664,6 +831,9 @@ struct ChatView: View {
     }
 
     private func handleChatTask() async {
+        if let loadedChatID = viewModel.chat?.id, loadedChatID != chatId {
+            cancelRecordAttempt()
+        }
         draftSaveTask?.cancel()
         await invalidateDeferredComposerSends()
         resetComposerForChatLoad()
@@ -679,10 +849,16 @@ struct ChatView: View {
                 insertResolvedUITestEmbed(embed)
             }
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-recording-raw-pending") {
+            seedUITestRecordingRawPending()
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
             micPermissionState = .granted
             composerOverlay = .recording
-            isInputFocused = true
+            isInputFocused = false
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-chat-mic-granted") {
+            micPermissionState = .granted
         }
         #endif
         handoffManager.advertiseChatViewing(
@@ -691,6 +867,53 @@ struct ChatView: View {
         )
         PushNotificationManager.shared.clearBadge()
     }
+
+    #if DEBUG
+    private func seedUITestRecordingRawPending() {
+        let nodeID = "composer:embed:ui-test-recording-raw"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "recording",
+                title: "recording-ui-test.m4a"
+            )
+            try composerSession.updateEmbed(
+                nodeID: nodeID,
+                status: AppleComposerEmbedLifecycleState.transcribing.rawValue
+            )
+            try composerSession.updatePendingEmbedTitle(
+                nodeID: nodeID,
+                title: "Raw realtime transcript"
+            )
+            try composerSession.updateEmbed(
+                nodeID: nodeID,
+                status: AppleComposerEmbedLifecycleState.correcting.rawValue
+            )
+            isInputFocused = true
+            Task { @MainActor in
+                // Leave the realtime transcript visible long enough for the UI test
+                // process to attach after app launch, then model correction in place.
+                try? await Task.sleep(for: .seconds(8))
+                guard composerSession.controller.document.nodes.contains(where: { $0.id == nodeID }) else { return }
+                try? composerSession.updatePendingEmbedTitle(
+                    nodeID: nodeID,
+                    title: "Corrected realtime transcript"
+                )
+                try? composerSession.resolveEmbed(
+                    nodeID: nodeID,
+                    durableEmbedID: "ui-test-recording-server",
+                    referenceType: "audio-recording",
+                    status: AppleComposerEmbedLifecycleState.finished.rawValue
+                )
+            }
+        } catch {
+            NativeDiagnostics.error(
+                "Recording pending transcript fixture failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+        }
+    }
+    #endif
 
     private func resetComposerForChatLoad() {
         guard !composerSession.canonicalMarkdown.isEmpty || !composerSession.controller.document.nodes.isEmpty else {
@@ -701,6 +924,13 @@ struct ChatView: View {
     }
 
     private func handleChatLifecycleDisappear() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+        composerRecorder.cancelRecording()
+        cancelRealtimeRecording()
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordStartedFromKeyboard = false
         modelHost.deactivate()
         scrollPositionDebounceTask?.cancel()
         handoffManager.stopAdvertising()
@@ -736,12 +966,29 @@ struct ChatView: View {
            isDraftOnlyChat(chat) {
             return .draftOnly(preview: draftOnlyPreview(for: chat))
         }
-        guard let chat = viewModel.chat,
-              let title = chat.title,
-              let category = chat.category,
-              !title.isEmpty,
-              !category.isEmpty else { return nil }
-        return .loaded(title: title, appId: category, summary: chat.chatSummary)
+        guard let chat = viewModel.chat else { return nil }
+        return ChatBannerPresentation.generatedOrProvisionalState(
+            title: chat.title,
+            provisionalTitle: chat.title?.isEmpty == false ? nil : firstUserMessageProvisionalTitle,
+            category: chat.category,
+            summary: chat.chatSummary,
+            shouldShowLoading: ChatGeneratedHeaderPolicy.shouldShowLoading(
+                title: chat.title,
+                titleVersion: chat.titleV,
+                hasMessages: !viewModel.messages.isEmpty,
+                isStreaming: viewModel.isStreaming
+            )
+        )
+    }
+
+    private var firstUserMessageProvisionalTitle: String? {
+        guard let content = viewModel.messages.first(where: { $0.role == .user })?.content,
+              let text = ChatSendPipeline.provisionalTitleSource(content: content, composerEmbeds: []) else {
+            return nil
+        }
+        // Audio-only and file-only messages await generated metadata; an embed
+        // reference or filename is not a meaningful chat title.
+        return ChatHeaderPresentation.provisionalTitle(from: text)
     }
 
     private var effectiveBannerCreatedAt: Date? {
@@ -755,13 +1002,6 @@ struct ChatView: View {
         }
         #endif
         return viewModel.messages
-    }
-
-    private var followUpSuggestionCategory: String? {
-        if case .loaded(_, let appId, _) = effectiveBannerState {
-            return appId
-        }
-        return viewModel.chat?.category ?? viewModel.chat?.appId
     }
 
     private func isDraftOnlyChat(_ chat: Chat) -> Bool {
@@ -781,10 +1021,6 @@ struct ChatView: View {
         return preview
     }
 
-    private var followUpSuggestionIcon: String? {
-        publicChatIconName(for: chatId) ?? viewModel.chat?.icon
-    }
-
     // MARK: - Embed fullscreen helper
 
     private var chatTopBar: some View {
@@ -792,6 +1028,7 @@ struct ChatView: View {
             ChatHeaderView(
                 chat: viewModel.chat,
                 titleOverride: viewModel.chat.flatMap { isDraftOnlyChat($0) ? draftOnlyPreview(for: $0) : nil },
+                provisionalTitle: viewModel.chat?.title?.isEmpty == false ? nil : firstUserMessageProvisionalTitle,
                 isLoading: viewModel.isLoading
             )
 
@@ -931,6 +1168,7 @@ struct ChatView: View {
                 closeEmbedFullscreenRoute()
             },
             isSidePanel: chatWorkspaceWidth >= 1024,
+            responsiveViewportWidth: chatWorkspaceWidth > 0 ? chatWorkspaceWidth : nil,
             showChat: chatWorkspaceWidth >= 1024 && hideSplitChat,
             onShowChat: { hideSplitChat = false }
         )
@@ -948,6 +1186,14 @@ struct ChatView: View {
         fullscreenPreviousEmbeds = []
         selectedEmbed = embed
         showEmbedFullscreen = true
+        // Search parents can finish before their encrypted result children are
+        // decoded locally. Retry the scoped graph load when the user opens the
+        // result so fullscreen does not remain on a stale empty snapshot.
+        Task { @MainActor in
+            await viewModel.loadEmbeds(for: viewModel.messages.map(\.id))
+            guard showEmbedFullscreen, selectedEmbed?.id == embed.id else { return }
+            selectedEmbed = viewModel.embedRecords[embed.id] ?? embed
+        }
     }
 
     private func openInitialEmbedIfReady() {
@@ -981,6 +1227,19 @@ struct ChatView: View {
 
     // MARK: - Message list
 
+    private func updateChatHeaderBannerOverlap(contentOffsetY: CGFloat, bannerHeight: CGFloat) {
+        guard bannerHeight > 0 else { return }
+        let overlaps = contentOffsetY < max(0, bannerHeight - 64)
+        guard overlaps != chatHeaderActionsOverlapBanner else { return }
+        if reduceMotion {
+            chatHeaderActionsOverlapBanner = overlaps
+        } else {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                chatHeaderActionsOverlapBanner = overlaps
+            }
+        }
+    }
+
     private var messageList: some View {
         GeometryReader { scrollGeo in
             let displayProjection = ChatTranscriptDisplayProjection(
@@ -1008,6 +1267,16 @@ struct ChatView: View {
                                     onNext: onNextChat
                                 )
                                     .id("banner")
+                                    .onGeometryChange(for: CGFloat.self) { geometry in
+                                        geometry.size.height
+                                    } action: { height in
+                                        guard height != chatBannerHeight else { return }
+                                        chatBannerHeight = height
+                                        updateChatHeaderBannerOverlap(
+                                            contentOffsetY: chatTranscriptContentOffsetY,
+                                            bannerHeight: height
+                                        )
+                                    }
                             }
 
                             // The initial history window is capped by the model.
@@ -1055,11 +1324,8 @@ struct ChatView: View {
                                         embeds: displayProjection.embeds(for: message),
                                         allEmbedRecords: displayProjection.embedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
-                                        thinkingContent: message.id == viewModel.streamingLifecycle.messageId
-                                            ? viewModel.streamingLifecycle.thinkingContent
-                                            : message.thinkingContent,
-                                        isThinkingStreaming: message.id == viewModel.streamingLifecycle.messageId
-                                            && viewModel.streamingLifecycle.isThinkingStreaming,
+                                        thinkingContent: thinkingContent(for: message),
+                                        isThinkingStreaming: isThinkingStreaming(for: message),
                                         piiMappings: displayProjection.piiMappings,
                                         isPIIRevealed: isPIIRevealed,
                                         containerWidth: scrollGeo.size.width,
@@ -1072,6 +1338,8 @@ struct ChatView: View {
                                         onInteractiveQuestionSubmit: { content in
                                             Task { await viewModel.sendMessage(content) }
                                         },
+                                        onOpenMateSettings: onOpenMateSettings,
+                                        onOpenModelSettings: onOpenModelSettings,
                                         onShowActions: {
                                             actionMessage = message
                                         },
@@ -1111,13 +1379,6 @@ struct ChatView: View {
                                     .id("load-newer")
                                 }
 
-                                if !viewModel.hasNewerMessages && !activeProcessingSteps.isEmpty {
-                                    ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
-                                        .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 86)
-                                        .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 12)
-                                        .id("processing-details")
-                                }
-
                                 if !viewModel.hasNewerMessages && showAssistantFeedback {
                                     AssistantResponseFeedbackView(
                                         selectedRating: $selectedAssistantRating,
@@ -1135,13 +1396,11 @@ struct ChatView: View {
                                 if !viewModel.hasNewerMessages && !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,
-                                        category: followUpSuggestionCategory,
-                                        icon: followUpSuggestionIcon
+                                        compact: scrollGeo.size.width <= 500
                                     ) { suggestion in
-                                        messageText = suggestion
+                                        handleFollowUpSuggestionTap(suggestion)
                                     }
-                                    .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 75)
-                                    .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 20)
+                                    .accessibilityIdentifier("follow-up-suggestions")
                                     .id("follow-up-suggestions")
                                 }
                             }
@@ -1189,6 +1448,11 @@ struct ChatView: View {
                         onBoundariesChanged: { boundaries in
                             let reachedTop = !isAtTop && boundaries.isAtTop
                             let reachedBottom = !isAtBottom && boundaries.isAtBottom
+                            chatTranscriptContentOffsetY = boundaries.contentOffsetY
+                            updateChatHeaderBannerOverlap(
+                                contentOffsetY: boundaries.contentOffsetY,
+                                bannerHeight: chatBannerHeight
+                            )
                             if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
                             if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
                             if reachedTop { pageHistoryAtBoundary(isTop: true, proxy: proxy) }
@@ -1233,6 +1497,10 @@ struct ChatView: View {
                     proxy.scrollTo("scroll-top", anchor: .top)
                 }
                 .onChange(of: chatId) { _, _ in
+                    chatHeaderMoreOpen = false
+                    chatHeaderActionsOverlapBanner = true
+                    chatBannerHeight = 0
+                    chatTranscriptContentOffsetY = 0
                     resetScrollRestoration()
                     proxy.scrollTo("scroll-top", anchor: .top)
                 }
@@ -1293,6 +1561,11 @@ struct ChatView: View {
             || ProcessInfo.processInfo.environment["UI_TEST_CHAT_HISTORY_AUDIO_PARITY"] == "1"
     }
 
+    private var isUITestStreamingPresentationEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-streaming-presentation")
+            || ProcessInfo.processInfo.environment["UI_TEST_STREAMING_PRESENTATION"] == "1"
+    }
+
     private func chatHistoryLayoutMetricsProbe(containerSize: CGSize) -> some View {
         let transcriptWidth = min(containerSize.width, ChatResponsiveLayoutPolicy.contentMaximumWidth)
         let mobileBanner = containerSize.width <= 730
@@ -1337,7 +1610,17 @@ struct ChatView: View {
             id: "ui-test-history-assistant",
             chatId: "ui-test-chat-history",
             role: .assistant,
-            content: "Synthetic assistant history fixture with an independently readable link: https://example.invalid/history",
+            content: """
+            Synthetic assistant history fixture with an independently readable link: https://example.invalid/history
+
+            This public fixture intentionally includes enough deterministic transcript content to scroll the banner fully past the fixed header actions. That lets the UI contract exercise both the banner-overlay and standard control styles instead of stopping at a non-scrollable initial layout.
+
+            The additional paragraph also keeps the final composer-clearance and keyboard-dismissal checks representative of a normal conversation whose history extends beyond one viewport.
+
+            A longer answer is common when a mate explains its sources, summarizes several findings, and gives the reader useful next steps. Keeping that shape in the fixture makes a swipe move through actual message content while the header controls remain fixed over the transcript viewport.
+
+            Once the gradient banner has moved above those controls, their translucent white treatment should switch to the standard gradient icon and neutral background. Scrolling back to the beginning should restore the overlay treatment because the controls again intersect the banner.
+            """,
             encryptedContent: nil,
             createdAt: "2026-01-01T00:00:01Z",
             updatedAt: nil,
@@ -1500,6 +1783,34 @@ struct ChatView: View {
         )
     }
     #endif
+
+    #if !DEBUG
+    private var isUITestStreamingPresentationEnabled: Bool { false }
+    #endif
+
+    private func thinkingContent(for message: Message) -> String? {
+        #if DEBUG
+        if isUITestStreamingPresentationEnabled,
+           message.id == "ui-test-history-assistant" {
+            return Array(repeating: "**Bounded thinking detail**", count: 24)
+                .joined(separator: "\n\n")
+        }
+        #endif
+        return message.id == viewModel.streamingLifecycle.messageId
+            ? viewModel.streamingLifecycle.thinkingContent
+            : message.thinkingContent
+    }
+
+    private func isThinkingStreaming(for message: Message) -> Bool {
+        #if DEBUG
+        if isUITestStreamingPresentationEnabled,
+           message.id == "ui-test-history-assistant" {
+            return true
+        }
+        #endif
+        return message.id == viewModel.streamingLifecycle.messageId
+            && viewModel.streamingLifecycle.isThinkingStreaming
+    }
 
     private func chatHistoryFixtureIdentifier(for message: Message) -> String? {
         #if DEBUG
@@ -1737,27 +2048,74 @@ struct ChatView: View {
     }
 
     private var chatFloatingActions: some View {
-        HStack(spacing: .spacing2) {
+        ZStack(alignment: Alignment(horizontal: .chatMoreLeading, vertical: .top)) {
             HStack(spacing: .spacing2) {
-                chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
-                    onShareChat?()
-                }
-                chatFloatingAction(icon: "bug", label: AppStrings.settingsReportIssue) {
+                chatFloatingAction(
+                    icon: "bug",
+                    label: AppStrings.settingsReportIssue,
+                    accessibilityIdentifier: "report-issue-button",
+                    showsLabel: chatContainerWidth >= 640
+                ) {
                     onReportIssue?(.assistantResponseQuality())
                 }
+
+                if chatContainerWidth >= 460, onShareChat != nil {
+                    chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
+                        onShareChat?()
+                    }
+                }
+
+                chatMoreTrigger
+                    .alignmentGuide(.chatMoreLeading) { dimensions in dimensions[.leading] }
+                    .zIndex(chatHeaderMoreOpen ? 2 : 0)
+
+                Spacer(minLength: .spacing6)
+
+                if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
+                    splitChatHideAction
+                } else {
+                    chatFloatingAction(icon: "close", label: AppStrings.close, accessibilityIdentifier: "chat-close-button") {
+                        onCloseChat?()
+                    }
+                }
             }
 
-            Spacer(minLength: .spacing6)
-
-            if showEmbedFullscreen && chatWorkspaceWidth >= 1024 {
-                splitChatHideAction
-            } else {
-            chatFloatingAction(icon: "reminder", label: AppStrings.setReminder) {
-                showReminder = true
-            }
+            if chatHeaderMoreOpen {
+                chatHeaderMoreActions
+                    .alignmentGuide(.chatMoreLeading) { dimensions in dimensions[.leading] }
+                    .offset(y: 52)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
+                    .zIndex(3)
             }
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat-top-actions")
+        .accessibilityValue(chatHeaderActionsOverlapBanner ? "banner-overlay" : "standard")
+    }
+
+    private var chatHeaderMoreActions: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            if chatContainerWidth < 460, onShareChat != nil {
+                chatFloatingMenuAction(icon: "share", label: AppStrings.share, identifier: "chat-more-share-button") {
+                    chatHeaderMoreOpen = false
+                    onShareChat?()
+                }
+            }
+            if let onOpenChatSettings {
+                chatFloatingMenuAction(icon: "settings", label: AppStrings.settings, identifier: "chat-details-button") {
+                    chatHeaderMoreOpen = false
+                    onOpenChatSettings()
+                }
+            }
+            chatFloatingMenuAction(icon: "reminder", label: AppStrings.setReminder, identifier: "chat-reminders-button") {
+                chatHeaderMoreOpen = false
+                showReminder = true
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat-more-actions")
     }
 
     private var splitChatHideAction: some View {
@@ -1766,26 +2124,86 @@ struct ChatView: View {
         }
     }
 
+    private var chatMoreTrigger: some View {
+        let label = LocalizationManager.shared.text("common.more_actions")
+        return ZStack {
+            Icon("more", size: 22).foregroundStyle(LinearGradient.primary)
+                .opacity(chatHeaderActionsOverlapBanner ? 0 : 1)
+                .accessibilityHidden(true)
+            Icon("more", size: 22).foregroundStyle(.white)
+                .opacity(chatHeaderActionsOverlapBanner ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+        .frame(width: 44, height: 44)
+        .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
+        .clipShape(Circle())
+        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+        .contentShape(Circle())
+        .onTapGesture { chatHeaderMoreOpen.toggle() }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityIdentifier("chat-more-button")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { chatHeaderMoreOpen.toggle() }
+    }
+
     private func chatFloatingAction(
         icon: String,
         label: String,
         accessibilityIdentifier: String? = nil,
+        showsLabel: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Icon(icon, size: 22)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 44, height: 44)
-                .background(Color.grey0.opacity(0.92))
-                .clipShape(Circle())
-                .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+            HStack(spacing: .spacing2) {
+                ZStack {
+                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
+                        .opacity(chatHeaderActionsOverlapBanner ? 0 : 1)
+                    Icon(icon, size: 22).foregroundStyle(.white)
+                        .opacity(chatHeaderActionsOverlapBanner ? 1 : 0)
+                }
+                if showsLabel {
+                    Text(label).font(.omSmall.weight(.semibold))
+                        .foregroundStyle(chatHeaderActionsOverlapBanner ? Color.white : Color.grey100)
+                }
+            }
+            .padding(.horizontal, showsLabel ? .spacing4 : 0)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(chatHeaderActionsOverlapBanner ? Color.white.opacity(0.2) : Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+            .accessibilityHidden(true)
         }
         .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
         .help(Text(label))
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
-        .accessibilityAddTraits(.isButton)
+    }
+
+    private func chatFloatingMenuAction(
+        icon: String,
+        label: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                Icon(icon, size: 20).foregroundStyle(LinearGradient.primary)
+                Text(label)
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.grey100)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(.horizontal, .spacing4)
+            .frame(minHeight: 40, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
     // MARK: - Streaming banner
@@ -1870,26 +2288,48 @@ struct ChatView: View {
     }
 
     private var streamingBanner: some View {
-        HStack(spacing: .spacing3) {
-            ProgressView()
-                .scaleEffect(0.8)
-            Text(AppStrings.aiResponding)
-                .font(.omXs)
-                .foregroundStyle(Color.fontSecondary)
-            Spacer()
-            Button(AppStrings.stop) {
-                viewModel.stopStreaming()
-            }
-            .font(.omXs)
-            .foregroundStyle(Color.error)
-            .help(Text(AppStrings.stopResponse))
-            .accessibilityLabel(AppStrings.stopResponse)
+        Text(streamingStageText)
+            .font(.omP)
+            .fontWeight(.medium)
+            .italic()
+            .modifier(ProcessingTextShimmer())
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, .spacing8)
+            .padding(.bottom, .spacing3)
+            .background(
+                LinearGradient(
+                    colors: [.clear, Color.grey20, Color.grey20],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(streamingStageText)
+            .accessibilityIdentifier("streaming-banner")
+    }
+
+    private var composerStopButton: some View {
+        Button {
+            viewModel.stopStreaming()
+        } label: {
+            Icon("stop_processing", size: 28)
+                .foregroundStyle(Color.error)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .opacity(stopButtonPulsing ? 0.55 : 1)
         }
-        .padding(.horizontal, .spacing4)
-        .padding(.vertical, .spacing2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(AppStrings.aiResponding)
-        .accessibilityIdentifier("streaming-banner")
+        .buttonStyle(.plain)
+        .help(Text(AppStrings.stopResponse))
+        .accessibilityLabel(AppStrings.stopResponse)
+        .accessibilityIdentifier("stop-processing-button")
+        .onAppear {
+            guard !reduceMotion else { return }
+            stopButtonPulsing = false
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                stopButtonPulsing = true
+            }
+        }
+        .onDisappear { stopButtonPulsing = false }
     }
 
     // MARK: - New chat CTA (replaces input for demo/intro/legal chats)
@@ -2140,7 +2580,10 @@ struct ChatView: View {
         let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
         let maximumViewportFieldHeight = max(expandedMinHeight, chatViewportHeight - .spacing20)
-        let overlayHeight = min(400, maximumViewportFieldHeight)
+        let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
+        let overlayHeight = recordingOverlayActive
+            ? ComposerRecordingOverlay.recordingPanelHeight
+            : min(400, maximumViewportFieldHeight)
         return VStack(spacing: .spacing2) {
             MessageComposerView(
                 session: composerSession,
@@ -2159,7 +2602,8 @@ struct ChatView: View {
                 ),
                 onExcludePII: { piiExclusions.insert($0) },
                 onSubmit: sendMessage,
-                inlineFieldContent: nil
+                inlineFieldContent: nil,
+                idleFieldContent: compact && !overlayActive ? idleFieldControls : nil
             ) {
                 PIIWarningBanner(matches: activePIIMatches) {
                     piiExclusions.formUnion(detectedPIIMatches.map(\.id))
@@ -2214,7 +2658,9 @@ struct ChatView: View {
                             #endif
                         }, onFiles: { showAttachmentMenu = true },
                         model: { NativeComposerModelHostView(host: modelHost, viewportWidth: actionGeometry.size.width) }, speech: { ComposerSpeechHostView(chatID: chatId, supported: !IncognitoChatSession.isIncognitoChatId(chatId)) }, record: { EmptyView() }, submit: {
-                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed && !viewModel.isStreaming {
+                if isStreamingPresentationActive {
+                    composerStopButton
+                } else if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed {
                     recordActionControls
                 } else {
                     MessageComposerSendButton(
@@ -2327,21 +2773,42 @@ struct ChatView: View {
                 recorder: composerRecorder,
                 dragOffsetX: recordDragOffsetX,
                 startedFromKeyboard: recordStartedFromKeyboard,
+                liveTranscript: recordingLiveTranscript,
+                isRealtimeConnecting: recordingRealtimeConnecting,
                 onStop: { url in
+                    let duration = composerRecorder.duration
+                    let uploadContext = finishRealtimeRecording(duration: duration)
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
-                    Task {
-                        await enqueueRecordingUpload(url: url, duration: composerRecorder.duration)
-                    }
+                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
+                    enqueueRecordingUpload(
+                        url: url,
+                        duration: duration,
+                        waveform: uploadContext.waveform,
+                        realtimeResult: uploadContext.realtimeResult,
+                        realtimeSession: uploadContext.realtimeSession
+                    )
                 },
                 onCancel: {
                     composerRecorder.cancelRecording()
+                    cancelRealtimeRecording()
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
+                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
+                },
+                onFailure: {
+                    composerRecorder.cancelRecording()
+                    cancelRealtimeRecording()
+                    self.composerOverlay = nil
+                    self.recordAttemptActive = false
+                    self.recordStartedFromKeyboard = false
+                    self.recordDragOffsetX = 0
+                    dismissChatKeyboardForRecording(afterCurrentGesture: true)
+                    showRecordHint(duration: 0)
                 }
             )
         )
@@ -2373,7 +2840,7 @@ struct ChatView: View {
         micPermissionState = .granted
         recordStartedFromKeyboard = isUITestKeyboardRecordingOverlayForced
         composerOverlay = .recording
-        isInputFocused = true
+        isInputFocused = false
         #endif
     }
 
@@ -2433,7 +2900,11 @@ struct ChatView: View {
 
         guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else { return }
         Task { @MainActor in
-            guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
+            guard let embed = await viewModel.uploadAttachment(
+                data: data,
+                filename: filename,
+                trackingId: nodeID
+            ) else {
                 _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
                 return
             }
@@ -2476,7 +2947,11 @@ struct ChatView: View {
     private func retryAttachmentUpload(nodeID: String, data: Data, filename: String) {
         guard let generation = retryComposerEmbed(nodeID: nodeID, to: .uploading) else { return }
         Task { @MainActor in
-            guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
+            guard let embed = await viewModel.uploadAttachment(
+                data: data,
+                filename: filename,
+                trackingId: nodeID
+            ) else {
                 _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
                 return
             }
@@ -2484,8 +2959,15 @@ struct ChatView: View {
         }
     }
 
-    private func enqueueRecordingUpload(url: URL, duration: TimeInterval) async {
+    private func enqueueRecordingUpload(
+        url: URL,
+        duration: TimeInterval,
+        waveform: AudioRecordingWaveform? = nil,
+        realtimeResult: AudioRecordingRealtimeResultProvider? = nil,
+        realtimeSession: AudioRecordingRealtimeSession? = nil
+    ) {
         let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        recordingTemporaryFiles[nodeID] = url
         do {
             try composerSession.insertPendingEmbed(
                 nodeID: nodeID,
@@ -2510,27 +2992,67 @@ struct ChatView: View {
                 nodeID: nodeID,
                 generation: record.generation,
                 to: .transcribing
-            ) != nil else { return }
+            ) != nil else {
+                removeRecordingTemporaryFile(nodeID: nodeID)
+                return
+            }
         } catch {
+            removeRecordingTemporaryFile(nodeID: nodeID)
             NativeDiagnostics.error("Composer recording insertion failed: \(type(of: error))", category: "apple_composer")
             return
         }
 
-        guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else { return }
-        guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
-            _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
+        guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else {
+            removeRecordingTemporaryFile(nodeID: nodeID)
             return
         }
-        resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+        realtimeSession?.observeRawTranscript { transcript in
+            guard transitionComposerEmbed(
+                nodeID: nodeID,
+                generation: generation,
+                to: .correcting
+            ) != nil else { return }
+            try? composerSession.updatePendingEmbedTitle(nodeID: nodeID, title: transcript)
+        }
+        recordingUploadTasks[nodeID] = Task { @MainActor in
+            let embed = await viewModel.uploadRecording(
+                url: url,
+                duration: duration,
+                waveform: waveform,
+                realtimeResult: realtimeResult,
+                trackingId: nodeID
+            )
+            recordingUploadTasks[nodeID] = nil
+            guard !Task.isCancelled else {
+                if let embed { viewModel.removePendingComposerEmbed(id: embed.id) }
+                removeRecordingTemporaryFile(nodeID: nodeID)
+                return
+            }
+            guard let embed else {
+                _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
+                return
+            }
+            try? composerSession.updatePendingEmbedTitle(
+                nodeID: nodeID,
+                title: embed.textPreview.flatMap { $0.isEmpty ? nil : $0 } ?? url.lastPathComponent
+            )
+            resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+            removeRecordingTemporaryFile(nodeID: nodeID)
+        }
     }
 
     private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval) async {
         guard let generation = retryComposerEmbed(nodeID: nodeID, to: .transcribing) else { return }
-        guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
+        guard let embed = await viewModel.uploadRecording(
+            url: url,
+            duration: duration,
+            trackingId: nodeID
+        ) else {
             _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
             return
         }
         resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+        removeRecordingTemporaryFile(nodeID: nodeID)
     }
 
     private func resolveComposerEmbed(nodeID: String, generation: Int, embed: ComposerPendingEmbed) {
@@ -2622,6 +3144,9 @@ struct ChatView: View {
     }
 
     private func handleComposerEmbedRemoval(nodeID: String, durableID: String) {
+        recordingUploadTasks.removeValue(forKey: nodeID)?.cancel()
+        removeRecordingTemporaryFile(nodeID: nodeID)
+        PendingUploadStore.shared.cancelUpload(id: nodeID)
         if let current = composerEmbedLifecycle.record(nodeId: nodeID),
            case .applied(let record) = composerEmbedLifecycle.remove(
                nodeId: nodeID,
@@ -2631,6 +3156,11 @@ struct ChatView: View {
         }
         viewModel.removePendingComposerEmbed(id: durableID)
         Task { await invalidateDeferredComposerSends() }
+    }
+
+    private func removeRecordingTemporaryFile(nodeID: String) {
+        guard let url = recordingTemporaryFiles.removeValue(forKey: nodeID) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
     private func reportComposerEmbedState(_ record: ComposerEmbedLifecycleRecord) {
@@ -2666,7 +3196,12 @@ struct ChatView: View {
         deferredComposerSendRevisions.insert(snapshot.documentRevision)
         deferredComposerSendContexts[requestID] = ComposerDeferredSendContext(
             excludedPIIIds: piiExclusions,
-            broadcastToSiblings: broadcastToSiblingSubChats
+            broadcastToSiblings: broadcastToSiblingSubChats,
+            owner: ComposerModelSendOwnership(
+                server: ServerProfile.current().apiBaseURL.absoluteString,
+                accountGeneration: OfflineStore.shared.scopeGeneration,
+                chatID: destinationID
+            )
         )
         deferredComposerSendNodeIDs[requestID] = Set(document.nodes.map(\.id))
         viewModel.error = nil
@@ -2675,6 +3210,7 @@ struct ChatView: View {
             guard await composerPendingSendCoordinator.enqueue(snapshot) else {
                 deferredComposerSendRevisions.remove(snapshot.documentRevision)
                 deferredComposerSendContexts.removeValue(forKey: requestID)
+                deferredComposerSendNodeIDs.removeValue(forKey: requestID)
                 return
             }
             await resumeDeferredComposerSends()
@@ -2695,31 +3231,61 @@ struct ChatView: View {
     }
 
     private func resumeDeferredComposerSends() async {
+        let connectedEpoch = deferredSocketConnectedEpoch
         await composerPendingSendCoordinator.resumeReady { snapshot in
             try await dispatchDeferredComposerSend(snapshot)
+        }
+        // A reconnect can finish while the coordinator still marks a send as
+        // dispatching. Its retry call then sees no failed entry yet. Once that
+        // in-flight dispatch settles, retry any failure from this transition.
+        if deferredSocketConnectedEpoch != connectedEpoch, viewModel.isSendTransportReady {
+            for requestID in Array(deferredComposerSendContexts.keys) {
+                _ = await composerPendingSendCoordinator.retryFailed(requestId: requestID)
+            }
+            await composerPendingSendCoordinator.resumeReady { snapshot in
+                try await dispatchDeferredComposerSend(snapshot)
+            }
         }
     }
 
     private func retryDeferredComposerSendIfNeeded() -> Bool {
         guard !deferredComposerSendContexts.isEmpty else { return false }
         Task { @MainActor in
-            for requestID in deferredComposerSendContexts.keys {
-                if await composerPendingSendCoordinator.retryFailed(requestId: requestID) {
-                    await resumeDeferredComposerSends()
-                    return
-                }
-            }
+            await retryDeferredComposerSendsAfterReconnect()
         }
         return true
     }
 
     @MainActor
+    private func retryDeferredComposerSendsAfterReconnect() async {
+        guard viewModel.isSendTransportReady else { return }
+        for requestID in Array(deferredComposerSendContexts.keys) {
+            _ = await composerPendingSendCoordinator.retryFailed(requestId: requestID)
+        }
+        await resumeDeferredComposerSends()
+    }
+
+    @MainActor
     private func dispatchDeferredComposerSend(_ snapshot: ComposerSendSnapshot) async throws {
-        guard let context = deferredComposerSendContexts[snapshot.requestId] else {
+        guard var context = deferredComposerSendContexts[snapshot.requestId] else {
             throw ComposerDeferredSendError.missingContext
         }
+        guard context.owner.matches(
+            server: ServerProfile.current().apiBaseURL.absoluteString,
+            accountGeneration: OfflineStore.shared.scopeGeneration,
+            chatID: viewModel.chat?.id
+        ) else { throw ComposerDeferredSendError.missingContext }
+        guard viewModel.isSendTransportReady else { throw ComposerDeferredSendError.transportUnavailable }
         let snapshotNodeIDs = deferredComposerSendNodeIDs[snapshot.requestId] ?? []
-        let embeds = snapshotNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
+        if context.embedSnapshot == nil {
+            guard let embedSnapshot = ComposerDeferredEmbedSnapshot(
+                document: snapshot.document,
+                resolvedEmbeds: resolvedComposerEmbeds
+            ) else { throw ComposerDeferredSendError.missingEmbed }
+            context.embedSnapshot = embedSnapshot
+            deferredComposerSendContexts[snapshot.requestId] = context
+        }
+        let embeds = context.embedSnapshot?.embeds ?? []
         let excludedOriginals = excludedPIIOriginals(in: snapshot.document, excludedIds: context.excludedPIIIds)
         let rewriteMappings = PIIDetector.mergePIIMappings(cumulativePIIMappings + embeds.flatMap(\.piiMappings))
         let rewrite = ComposerPIIDecorations.rewriteKnownPIIPlaceholders(
@@ -2740,11 +3306,18 @@ struct ChatView: View {
             piiMappings: piiMappings,
             excludedPIIOriginals: excludedOriginals,
             broadcastToSiblings: context.broadcastToSiblings,
-            composerEmbeds: embeds
+            composerEmbeds: embeds,
+            messageId: snapshot.messageId
         )
         guard viewModel.error == nil else { throw ComposerDeferredSendError.sendFailed }
 
-        try composerSession.removeSentSnapshotNodes(snapshot.document)
+        // Delivery has already succeeded. A local editor cleanup failure must not
+        // turn this into a network retry with the same accepted message.
+        do {
+            try composerSession.removeSentSnapshotNodes(snapshot.document)
+        } catch {
+            NativeDiagnostics.error("Composer sent snapshot cleanup failed: \(type(of: error))", category: "apple_composer")
+        }
         detectedPIIMatches = []
         piiExclusions = []
         mentionQuery = nil
@@ -2848,7 +3421,7 @@ struct ChatView: View {
     }
 
     private var recordGestureButton: some View {
-        Button(action: {}) {
+        Button(action: { startRecordFromControlIfNeeded() }) {
             Icon("recordaudio", size: 25)
                 .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
                 .frame(width: 25, height: 25)
@@ -2860,13 +3433,31 @@ struct ChatView: View {
                     .onChanged { value in
                         handleRecordGestureChanged(value)
                     }
-                    .onEnded { _ in
-                        finishRecordAttempt()
-                    }
+                    .onEnded { _ in }
             )
             .help(Text(AppStrings.recordAudio))
             .accessibilityLabel(AppStrings.recordAudio)
             .accessibilityIdentifier("record-audio-button")
+    }
+
+    // Match the web example-chat composer before the field is focused.
+    // Spec: specifications/features/message-input/specification.yml (message-input.actions.visibility).
+    private var idleFieldControls: AnyView {
+        AnyView(
+            HStack(spacing: 0) {
+                Icon("ai", size: 24)
+                    .foregroundStyle(LinearGradient.primary)
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+                Spacer(minLength: 0)
+                recordGestureButton
+                    .frame(width: 44, height: 44)
+            }
+            .padding(.leading, 22)
+            .padding(.trailing, 14)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("message-input-idle-actions")
+        )
     }
 
     private var recordPermissionHintText: String? {
@@ -2886,19 +3477,67 @@ struct ChatView: View {
     }
 
     private func handleRecordGestureChanged(_ value: DragGesture.Value) {
-        if !recordAttemptActive {
-            beginRecordAttempt(startLocation: value.startLocation)
-        }
+        startRecordFromControlIfNeeded(startLocation: value.startLocation)
+    }
 
-        guard composerOverlay == .recording else { return }
-        recordDragOffsetX = min(0, value.translation.width)
-        let distance = hypot(value.translation.width, value.translation.height)
-        if distance > 100 && value.translation.width < -60 {
-            cancelRecordAttempt()
+    private func startRecordFromControlIfNeeded(startLocation: CGPoint = .zero) {
+        guard !recordAttemptActive, composerOverlay != .recording else { return }
+        beginRecordAttempt(startLocation: startLocation)
+    }
+
+    private func prepareRealtimeRecording() {
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        composerRecorder.setPCMHandler(nil)
+        guard authManager.state == .authenticated else {
+            activeRecordingRealtimeSession = nil
+            return
+        }
+        let session = AudioRecordingRealtimeSession()
+        activeRecordingRealtimeSession = session
+        session.begin(authManager: authManager, chatID: chatId) { transcript, isConnecting in
+            guard activeRecordingRealtimeSession === session else { return }
+            recordingLiveTranscript = transcript
+            recordingRealtimeConnecting = isConnecting
+        }
+        composerRecorder.setPCMHandler { [weak session] samples, sampleRate in
+            session?.append(samples: samples, sampleRate: sampleRate)
         }
     }
 
+    private func finishRealtimeRecording(
+        duration: TimeInterval
+    ) -> (
+        waveform: AudioRecordingWaveform?,
+        realtimeResult: AudioRecordingRealtimeResultProvider?,
+        realtimeSession: AudioRecordingRealtimeSession?
+    ) {
+        let waveform = composerRecorder.recordingWaveform(duration: duration)
+        composerRecorder.setPCMHandler(nil)
+        guard let session = activeRecordingRealtimeSession else {
+            return (waveform, nil, nil)
+        }
+        session.finish()
+        activeRecordingRealtimeSession = nil
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        let provider: AudioRecordingRealtimeResultProvider = { [session] in
+            await session.awaitResult()
+        }
+        return (waveform, provider, session)
+    }
+
+    private func cancelRealtimeRecording() {
+        composerRecorder.setPCMHandler(nil)
+        guard let session = activeRecordingRealtimeSession else { return }
+        activeRecordingRealtimeSession = nil
+        recordingLiveTranscript = ""
+        recordingRealtimeConnecting = false
+        Task { await session.cancel() }
+    }
+
     private func beginRecordAttempt(startLocation _: CGPoint) {
+        dismissChatKeyboardForRecording()
         recordStartedFromKeyboard = false
         recordAttemptActive = true
         recordDragOffsetX = 0
@@ -2913,27 +3552,30 @@ struct ChatView: View {
             Task { @MainActor in
                 let granted = await composerRecorder.requestPermission()
                 micPermissionState = granted ? .granted : .denied
-                recordAttemptActive = false
-                showRecordHint(duration: granted ? 2500 : 0)
+                if granted && recordAttemptActive {
+                    beginRecordAttempt(startLocation: .zero)
+                } else {
+                    recordAttemptActive = false
+                    showRecordHint(duration: granted ? 2500 : 0)
+                }
             }
             return
         }
 
-        recordStartTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled, recordAttemptActive, micPermissionState == .granted else { return }
-            composerRecorder.startRecording()
-            guard composerRecorder.error == nil else {
-                micPermissionState = .denied
-                recordAttemptActive = false
-                showRecordHint(duration: 0)
-                return
-            }
-            withAnimation(.easeInOut(duration: 0.15)) {
-                composerOverlay = .recording
-                isInputFocused = true
-            }
+        prepareRealtimeRecording()
+        composerRecorder.startRecording()
+        guard composerRecorder.error == nil else {
+            cancelRealtimeRecording()
+            micPermissionState = .denied
+            recordAttemptActive = false
+            showRecordHint(duration: 0)
+            return
         }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            composerOverlay = .recording
+            isInputFocused = false
+        }
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func finishRecordAttempt() {
@@ -2941,13 +3583,20 @@ struct ChatView: View {
         recordStartTask = nil
 
         if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
+            let duration = composerRecorder.duration
+            let uploadContext = finishRealtimeRecording(duration: duration)
             composerOverlay = nil
             recordAttemptActive = false
             recordStartedFromKeyboard = false
             recordDragOffsetX = 0
-            Task {
-                await enqueueRecordingUpload(url: url, duration: composerRecorder.duration)
-            }
+            dismissChatKeyboardForRecording(afterCurrentGesture: true)
+            enqueueRecordingUpload(
+                url: url,
+                duration: duration,
+                waveform: uploadContext.waveform,
+                realtimeResult: uploadContext.realtimeResult,
+                realtimeSession: uploadContext.realtimeSession
+            )
             return
         }
 
@@ -2957,19 +3606,23 @@ struct ChatView: View {
         recordAttemptActive = false
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func cancelRecordAttempt() {
         recordStartTask?.cancel()
         recordStartTask = nil
         composerRecorder.cancelRecording()
+        cancelRealtimeRecording()
         composerOverlay = nil
         recordAttemptActive = false
         recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
     }
 
     private func beginKeyboardRecordAttempt() {
+        dismissChatKeyboardForRecording()
         recordStartedFromKeyboard = true
         recordAttemptActive = true
         recordDragOffsetX = 0
@@ -2984,28 +3637,55 @@ struct ChatView: View {
             Task { @MainActor in
                 let granted = await composerRecorder.requestPermission()
                 micPermissionState = granted ? .granted : .denied
-                recordAttemptActive = false
-                recordStartedFromKeyboard = false
-                showRecordHint(duration: granted ? 2500 : 0)
+                if granted && recordAttemptActive {
+                    beginKeyboardRecordAttempt()
+                } else {
+                    recordAttemptActive = false
+                    recordStartedFromKeyboard = false
+                    showRecordHint(duration: granted ? 2500 : 0)
+                }
             }
             return
         }
 
-        recordStartTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled, recordAttemptActive, recordStartedFromKeyboard, micPermissionState == .granted else { return }
-            composerRecorder.startRecording()
-            guard composerRecorder.error == nil else {
-                micPermissionState = .denied
-                recordAttemptActive = false
-                recordStartedFromKeyboard = false
-                showRecordHint(duration: 0)
-                return
-            }
-            withAnimation(.easeInOut(duration: 0.15)) {
-                composerOverlay = .recording
-                isInputFocused = true
-            }
+        prepareRealtimeRecording()
+        composerRecorder.startRecording()
+        guard composerRecorder.error == nil else {
+            micPermissionState = .denied
+            recordAttemptActive = false
+            recordStartedFromKeyboard = false
+            showRecordHint(duration: 0)
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            composerOverlay = .recording
+            isInputFocused = false
+        }
+        dismissChatKeyboardForRecording(afterCurrentGesture: true)
+    }
+
+    private func dismissChatKeyboardForRecording(afterCurrentGesture: Bool = false) {
+        isInputFocused = false
+        #if os(iOS)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+        #endif
+        guard afterCurrentGesture else { return }
+        Task { @MainActor in
+            await Task.yield()
+            isInputFocused = false
+            #if os(iOS)
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+            #endif
         }
     }
 
@@ -3132,6 +3812,58 @@ struct ChatView: View {
                     resolvedComposerEmbeds.removeValue(forKey: nodeID)
                 }
                 if composerSession.revision == clearedRevision { try? await DraftService.shared.clearDraft(chatId: sendingOwner.chatID) }
+            }
+        }
+    }
+
+    private func handleFollowUpSuggestionTap(_ suggestion: String) {
+        let isPublic = isDemoOrLegalChat || isExampleChat
+        switch ChatFollowUpTapPolicy.action(
+            isPublic: isPublic,
+            isAuthenticated: authManager.state == .authenticated
+        ) {
+        case .requestAuthentication:
+            NotificationCenter.default.post(name: .openAuth, object: nil)
+        case .continueInNewChat:
+            continuePublicChat(with: suggestion)
+        case .sendInCurrentChat:
+            messageText = suggestion
+            sendMessage()
+        }
+    }
+
+    private func continuePublicChat(with content: String) {
+        guard let wsManager, let chatStore else { return }
+        let now = ChatSendPipeline.isoString(from: Date())
+        let chat = Chat(
+            id: UUID().uuidString.lowercased(),
+            title: nil,
+            lastMessageAt: nil,
+            createdAt: now,
+            updatedAt: now,
+            isArchived: false,
+            isPinned: false,
+            appId: nil,
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: 0,
+            titleV: 0,
+            draftV: 0
+        )
+
+        Task { @MainActor in
+            do {
+                let result = try await ChatSendPipeline().sendUserMessage(
+                    content: content,
+                    in: chat,
+                    existingMessages: [],
+                    wsManager: wsManager,
+                    chatStore: chatStore,
+                    waitForRemoteSend: false
+                )
+                onOpenChat?(result.chat.id)
+            } catch {
+                viewModel.error = error.localizedDescription
             }
         }
     }
@@ -3339,6 +4071,43 @@ struct ChatView: View {
         default:
             return nil
         }
+    }
+}
+
+/// Same-ID embed transitions are ordinary during app-skill streaming. Hash the
+/// complete render/persistence revision so SwiftUI observes processing→finished
+/// and version refreshes without retaining plaintext in view state.
+enum ChatEmbedSyncSignature {
+    static func make(chatId: String?, embeds: [EmbedRecord]) -> String {
+        var hasher = SHA256()
+        update(&hasher, chatId ?? "")
+        for embed in embeds.sorted(by: { $0.id < $1.id }) {
+            for value in [
+                embed.id, embed.type, embed.status.rawValue,
+                embed.parentEmbedId ?? "", embed.appId ?? "", embed.skillId ?? "",
+                embed.embedIds ?? "", embed.hashedChatId ?? "", embed.hashedMessageId ?? "",
+                embed.hashedUserId ?? "", embed.versionNumber.map(String.init) ?? "",
+                embed.contentHash ?? "", embed.createdAt ?? "",
+                embed.encryptedContent ?? "", embed.encryptedType ?? "",
+                embed.encryptedTextPreview ?? "",
+            ] {
+                update(&hasher, value)
+            }
+            if let rawData = embed.rawData,
+               JSONSerialization.isValidJSONObject(rawData.mapValues(\.value)),
+               let data = try? JSONSerialization.data(
+                   withJSONObject: rawData.mapValues(\.value),
+                   options: [.sortedKeys]
+               ) {
+                hasher.update(data: data)
+            }
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func update(_ hasher: inout SHA256, _ value: String) {
+        hasher.update(data: Data(value.utf8))
+        hasher.update(data: Data([0]))
     }
 }
 
@@ -3581,6 +4350,8 @@ struct MessageBubble: View {
     let onEmbedTap: (EmbedRecord) -> Void
     let onOpenPublicChat: ((String) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
+    var onOpenMateSettings: ((String) -> Void)? = nil
+    var onOpenModelSettings: ((String) -> Void)? = nil
     let onShowActions: (() -> Void)?
     var accessibilityIdentifier: String? = nil
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -3872,8 +4643,7 @@ struct MessageBubble: View {
     }
 
     private var assistantDisplayName: String {
-        if let senderName = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !senderName.isEmpty {
+        if let senderName = ChatAssistantIdentityPolicy.explicitDisplayName(message.senderName) {
             return senderName
         }
         if isOpenMatesOfficial {
@@ -3888,6 +4658,17 @@ struct MessageBubble: View {
         let key = "mates.\(assistantCategory)"
         let localized = AppStrings.localized(key)
         return localized == key ? AppStrings.openMatesName : localized
+    }
+
+    private func assistantIdentity(_ placement: AssistantMessageIdentityView.Placement) -> AssistantMessageIdentityView {
+        AssistantMessageIdentityView(
+            placement: placement,
+            displayName: assistantDisplayName,
+            category: assistantCategory,
+            modelName: message.modelName,
+            onOpenMateSettings: onOpenMateSettings,
+            onOpenModelSettings: onOpenModelSettings
+        )
     }
 
     private var userBubble: some View {
@@ -3941,12 +4722,7 @@ struct MessageBubble: View {
             if !displayContent.isEmpty || thinkingContent?.isEmpty == false || !topLevelAppSkillEmbeds.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: .spacing3) {
-                        Text(assistantDisplayName)
-                            .font(.omP)
-                            .fontWeight(.medium)
-                            .foregroundStyle(LinearGradient.primary)
-                            .padding(.bottom, .spacing1)
-                            .accessibilityIdentifier("message-sender-name")
+                        assistantIdentity(.mateName)
 
                         if let thinkingContent, !thinkingContent.isEmpty {
                             ThinkingSectionView(
@@ -3998,9 +4774,7 @@ struct MessageBubble: View {
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("assistant-message-content")
 
-                    if let modelName = message.modelName, !modelName.isEmpty {
-                        generatedByContainer(modelName: modelName)
-                    }
+                    assistantIdentity(.modelAttribution)
                 }
             }
         }
@@ -4036,17 +4810,6 @@ struct MessageBubble: View {
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
         .searchTargetOutline(isSearchTarget)
         .accessibilityIdentifier("chat-history-system-message")
-    }
-
-    private func generatedByContainer(modelName: String) -> some View {
-        Text(AppStrings.generatedBy(modelName))
-            .font(.omSmall)
-            .fontWeight(.medium)
-            .foregroundStyle(Color.grey60)
-            .padding(.top, .spacing3)
-            .padding(.leading, .spacing6)
-            .padding(.bottom, .spacing5)
-            .accessibilityIdentifier("message-model-attribution")
     }
 
     var body: some View {
@@ -4186,6 +4949,8 @@ private struct SpeechTailView: View {
 private struct ChatRecoveryStateProbe: View {
     @ObservedObject var store: ChatStore
     let chatId: String
+    let renderedMessages: [Message]
+    let renderedEmbeds: [String: EmbedRecord]
 
     var body: some View {
         let pending = store.pendingAssistantRecoveryMessageIds(in: chatId).count
@@ -4193,11 +4958,23 @@ private struct ChatRecoveryStateProbe: View {
         let encrypted = store.messages(for: chatId).filter {
             $0.role == .assistant && !($0.encryptedContent?.isEmpty ?? true)
         }.count
+        let storeRefs = store.messages(for: chatId).flatMap { $0.embedRefs ?? [] }.count
+        let renderedRefs = renderedMessages.flatMap { $0.embedRefs ?? [] }
+        let viewRefs = renderedRefs.count
+        let matchingRefs = renderedRefs.filter { renderedEmbeds[$0.id] != nil }.count
+        let audioEmbeds = renderedEmbeds.values.filter { $0.type.contains("audio") }.count
+        let hydratedEmbeds = renderedEmbeds.values.filter { $0.rawData != nil }.count
+        let storeEmbeds = store.embeds(for: chatId).count
         Color.clear
             .frame(width: 1, height: 1)
             .accessibilityElement()
             .accessibilityLabel("Chat recovery state")
-            .accessibilityValue("pending=\(pending);version=\(version);encrypted=\(encrypted)")
+            .accessibilityValue(
+                "pending=\(pending);version=\(version);encrypted=\(encrypted);" +
+                "storeRefs=\(storeRefs);viewRefs=\(viewRefs);matchedRefs=\(matchingRefs);" +
+                "storeEmbeds=\(storeEmbeds);viewEmbeds=\(renderedEmbeds.count);" +
+                "audioEmbeds=\(audioEmbeds);hydratedEmbeds=\(hydratedEmbeds)"
+            )
             .accessibilityIdentifier("chat-recovery-state")
             .allowsHitTesting(false)
     }

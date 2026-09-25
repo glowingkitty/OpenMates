@@ -178,6 +178,7 @@ async def test_realtime_audio_billing_rounds_started_minutes_once(
         "provider_cost_usd_per_minute": 0.006,
         "price_markup_percent": 20,
         "credits_per_started_minute": 8,
+        "usage_type": audio_realtime.REALTIME_USAGE_TYPE,
         "chat_id": "chat-1",
     }
 
@@ -323,6 +324,127 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     ]
     assert billed["request_id"] == "provider-1"
     assert billed["audio_seconds"] == 1.25
+    assert released == [(None, "lock", "token")]
+
+
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,message-input.recording.lifecycle
+@pytest.mark.asyncio
+@pytest.mark.parametrize("interruption", ["cancel", "disconnect"])
+async def test_realtime_audio_bills_accepted_audio_when_recording_is_interrupted(
+    monkeypatch: pytest.MonkeyPatch,
+    interruption: str,
+) -> None:
+    provider_messages: list[dict[str, object]] = []
+    billed_calls: list[dict[str, object]] = []
+    released: list[tuple[object, str, str]] = []
+    audio_bytes = b"\x00\x01" * 800
+
+    class FakeProvider:
+        def __init__(self) -> None:
+            self.handshakes = [
+                {
+                    "type": "session.created",
+                    "session": {"request_id": "provider-interrupted-1"},
+                },
+                {"type": "session.updated"},
+            ]
+
+        async def receive_json(self) -> dict[str, object]:
+            return self.handshakes.pop(0)
+
+        async def send_json(self, message: dict[str, object]) -> None:
+            provider_messages.append(message)
+
+        async def receive(self) -> SimpleNamespace:
+            await asyncio.Future()
+            raise AssertionError("unreachable")
+
+    provider = FakeProvider()
+
+    class ProviderContext:
+        async def __aenter__(self) -> FakeProvider:
+            return provider
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    class FakeSession:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeSession":
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        def ws_connect(self, *_args: object, **_kwargs: object) -> ProviderContext:
+            return ProviderContext()
+
+    class BrowserSocket(_FakeWebSocket):
+        def __init__(self) -> None:
+            super().__init__()
+            self.query_params: dict[str, str] = {}
+            self.inputs = [
+                json.dumps(
+                    {
+                        "type": "input_audio.append",
+                        "audio": base64.b64encode(audio_bytes).decode(),
+                    }
+                )
+            ]
+            self.app.state.secrets_manager = SimpleNamespace(
+                get_secret=self._get_secret
+            )
+
+        async def _get_secret(self, *_args: object) -> str:
+            return "test-provider-key"
+
+        async def accept(self) -> None:
+            return None
+
+        async def receive_text(self) -> str:
+            await asyncio.sleep(0)
+            if self.inputs:
+                return self.inputs.pop(0)
+            if interruption == "cancel":
+                return json.dumps({"type": "session.cancel"})
+            raise audio_realtime.WebSocketDisconnect()
+
+        async def send_json(self, _message: dict[str, object]) -> None:
+            return None
+
+    async def fake_billing(_websocket: BrowserSocket, **kwargs: object) -> None:
+        billed_calls.append(dict(kwargs))
+
+    async def fake_release(client: object, key: str, token: str) -> None:
+        released.append((client, key, token))
+
+    monkeypatch.setattr(audio_realtime.aiohttp, "ClientSession", FakeSession)
+    monkeypatch.setattr(
+        audio_realtime,
+        "_acquire_stream_lock",
+        lambda *_args: asyncio.sleep(0, result=(None, "lock", "token")),
+    )
+    monkeypatch.setattr(audio_realtime, "_release_stream_lock", fake_release)
+    monkeypatch.setattr(audio_realtime, "_bill_realtime_usage", fake_billing)
+
+    socket = BrowserSocket()
+    await audio_realtime.realtime_transcription(
+        socket,
+        auth_data={"user_id": "user-1", "user_data": {"credits": 100}},
+    )
+
+    assert [message["type"] for message in provider_messages] == [
+        "session.update",
+        "input_audio.append",
+    ]
+    assert len(billed_calls) == 1
+    assert billed_calls[0]["request_id"] == "provider-interrupted-1"
+    assert billed_calls[0]["audio_seconds"] == (
+        len(audio_bytes) / audio_realtime.PCM_BYTES_PER_SECOND
+    )
+    assert billed_calls[0]["interrupted"] is True
     assert released == [(None, "lock", "token")]
 
 

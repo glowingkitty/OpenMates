@@ -9,7 +9,7 @@ import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_plan_ask_pipeline
 from backend.core.api.app.models.user import User
@@ -32,7 +32,12 @@ from backend.core.api.app.services.user_work_control_service import (
     validate_assumption_resolution_evidence,
     validate_browser_approval,
 )
-from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
+from backend.core.api.app.services.workspace_change_history_service import (
+    WorkspaceChangeHistoryService,
+    WorkspaceHistoryRestoreError,
+    build_history_commands,
+    s3_workspace_history_archive_io,
+)
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
 
@@ -75,7 +80,7 @@ class UserPlanCreateRequest(BaseModel):
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
     encrypted_user_flows: str | None = None
-    encrypted_linked_project_ids: str | None = None
+    encrypted_linked_project_ids: str = Field(min_length=1)
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
     encrypted_constraints: str | None = None
@@ -86,12 +91,26 @@ class UserPlanCreateRequest(BaseModel):
     encrypted_continuation_policy: str | None = None
     status: PlanStatus = "draft"
     primary_chat_id: str | None = None
-    linked_project_ids: list[str] = Field(default_factory=list)
+    linked_project_ids: list[str] = Field(min_length=1)
     continuation_state: str | None = None
     planner_focus_id: str | None = None
     created_at: int
     updated_at: int
     key_wrappers: list[UserPlanKeyWrapperRequest] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_project_links(self) -> "UserPlanCreateRequest":
+        if any(not project_id.strip() for project_id in self.linked_project_ids):
+            raise ValueError("Plans require non-empty linked Project IDs")
+        linked_project_hashes = {hash_id(project_id) for project_id in self.linked_project_ids}
+        wrapper_project_hashes = {
+            wrapper.hashed_project_id
+            for wrapper in self.key_wrappers
+            if wrapper.key_type == "project" and wrapper.hashed_project_id is not None
+        }
+        if linked_project_hashes != wrapper_project_hashes:
+            raise ValueError("Plan Project key wrappers must match linked Projects")
+        return self
 
 
 class UserPlanUpdateRequest(BaseModel):
@@ -425,7 +444,11 @@ class UserPlanAskRequest(BaseModel):
 
 def get_user_plan_service(request: Request) -> UserPlanService:
     task_service = UserTaskService(request.app.state.directus_service.user_task, cache_service=request.app.state.cache_service)
-    return UserPlanService(request.app.state.directus_service.user_plan, task_service=task_service)
+    return UserPlanService(
+        request.app.state.directus_service.user_plan,
+        task_service=task_service,
+        project_methods=request.app.state.directus_service.project,
+    )
 
 
 def get_workspace_history_service(request: Request) -> WorkspaceChangeHistoryService:
@@ -718,6 +741,8 @@ async def restore_user_plan_from_history(
                 user_id=current_user.id, object_type="plan", object_id=plan_id, entry_id=body.entry_id, state=body.state, source="cli"
             )
         return {"plan": result.get("object"), "history": result}
+    except WorkspaceHistoryRestoreError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

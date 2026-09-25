@@ -64,6 +64,7 @@ from backend.shared.python_utils.app_skill_output_safety import (  # noqa: E402
     is_external_data_skill,
     sanitize_app_skill_output,
 )
+from backend.shared.python_utils.anonymous_inline_execution import anonymous_inline_execution  # noqa: E402
 
 # Re-export helper functions and exceptions for backward compatibility
 # TODO(audit-2026-03-19): Move check_rate_limit, wait_for_rate_limit, sanitize_external_content, execute_skill_via_celery
@@ -188,6 +189,7 @@ async def execute_skill(
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
     encryption_service: Optional[Any] = None,
     secrets_manager: Optional[Any] = None,
+    is_anonymous: bool = False,
 ) -> Dict[str, Any]:
     """
     Execute a skill in-process via the SkillRegistry, with retry logic for
@@ -289,7 +291,7 @@ async def execute_skill(
 
             # In-process dispatch with a hard per-attempt timeout so a hung
             # skill (e.g. external API not responding) can't block forever.
-            with central_app_skill_dispatch():
+            with central_app_skill_dispatch(), anonymous_inline_execution(is_anonymous):
                 result = await asyncio.wait_for(
                     registry.dispatch_skill(app_id, skill_id, request_body),
                     timeout=timeout,
@@ -428,6 +430,7 @@ async def execute_skill_with_multiple_requests(
     max_retries: int = DEFAULT_SKILL_MAX_RETRIES,
     encryption_service: Optional[Any] = None,
     secrets_manager: Optional[Any] = None,
+    is_anonymous: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests and retry logic.
@@ -490,6 +493,7 @@ async def execute_skill_with_multiple_requests(
                 skill_task_id, cache_service, max_retries,
                 encryption_service=encryption_service,
                 secrets_manager=secrets_manager,
+                is_anonymous=is_anonymous,
             )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
@@ -501,6 +505,7 @@ async def execute_skill_with_multiple_requests(
                 skill_task_id, cache_service, max_retries,
                 encryption_service=encryption_service,
                 secrets_manager=secrets_manager,
+                is_anonymous=is_anonymous,
             )
             return [result]
         else:
@@ -514,6 +519,7 @@ async def execute_skill_with_multiple_requests(
             skill_task_id, cache_service, max_retries,
             encryption_service=encryption_service,
             secrets_manager=secrets_manager,
+            is_anonymous=is_anonymous,
         )
         return [result]
 
@@ -542,6 +548,7 @@ async def execute_skill_with_multiple_requests(
             skill_task_id, cache_service, max_retries,
             encryption_service=encryption_service,
             secrets_manager=secrets_manager,
+            is_anonymous=is_anonymous,
         )
         return [result]
     
@@ -552,6 +559,7 @@ async def execute_skill_with_multiple_requests(
         skill_task_id, cache_service, max_retries,
         encryption_service=encryption_service,
         secrets_manager=secrets_manager,
+        is_anonymous=is_anonymous,
     )
     return [result]
 

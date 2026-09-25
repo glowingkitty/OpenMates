@@ -11,9 +11,19 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/issue-reporting/specification.yml
+// Assertions: issue-reporting.entry.device-shake,
+//             issue-reporting.form.role-aware-controls,
+//             issue-reporting.input.long-title-preserved,
+//             issue-reporting.submission.confirmed-and-durable,
+//             issue-reporting.logs.authenticated-capture
+
 import Foundation
+import CoreGraphics
+import ImageIO
 import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -21,16 +31,53 @@ import AppKit
 #endif
 
 struct ReportIssuePrefill: Equatable {
+    enum Origin: String {
+        case settings
+        case assistantResponse
+        case featureRequest
+        case deviceShake
+    }
+
     let id = UUID()
     let title: String
     let category: String
+    let origin: Origin
+
+    init(title: String, category: String, origin: Origin = .settings) {
+        self.title = title
+        self.category = category
+        self.origin = origin
+    }
 
     @MainActor static func assistantResponseQuality() -> ReportIssuePrefill {
-        ReportIssuePrefill(title: AppStrings.assistantFeedbackReportTitle, category: "bug")
+        ReportIssuePrefill(
+            title: AppStrings.assistantFeedbackReportTitle,
+            category: "bug",
+            origin: .assistantResponse
+        )
     }
 
     @MainActor static func featureRequest() -> ReportIssuePrefill {
-        ReportIssuePrefill(title: AppStrings.requestFeaturePrefill, category: "feature")
+        ReportIssuePrefill(
+            title: AppStrings.requestFeaturePrefill,
+            category: "feature",
+            origin: .featureRequest
+        )
+    }
+
+    static func deviceShake() -> ReportIssuePrefill {
+        ReportIssuePrefill(title: "", category: "bug", origin: .deviceShake)
+    }
+}
+
+private extension ReportIssuePrefill.Origin {
+    var diagnosticEventName: String {
+        switch self {
+        case .settings: return "form_opened_settings"
+        case .assistantResponse: return "form_opened_assistant_response"
+        case .featureRequest: return "form_opened_feature_request"
+        case .deviceShake: return "form_opened_device_shake"
+        }
     }
 }
 
@@ -40,13 +87,15 @@ struct ReportIssueView: View {
     @State private var expectedBehaviour = ""
     @State private var actualBehaviour = ""
     @State private var issueType: IssueReportPayloadBuilder.IssueType = .bugReport
-    @State private var screenshotItem: PhotosPickerItem?
-    @State private var screenshotData: Data?
-    @State private var screenshotPreview: Image?
+    @State private var screenshotItems: [PhotosPickerItem] = []
+    @State private var screenshotAttachments: [ReportIssueScreenshotAttachment] = []
+    @State private var screenshotError: String?
+    @State private var includeDiagnostics = false
     @State private var isSubmitting = false
     @State private var submittedIssueReference: String?
     @State private var error: String?
     @State private var uiTestIssueLogPayloadText: String?
+    private let entryOrigin: ReportIssuePrefill.Origin
 
     private var titleValidationError: String? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,6 +111,12 @@ struct ReportIssueView: View {
     init(prefill: ReportIssuePrefill? = nil) {
         _title = State(initialValue: prefill?.title ?? "")
         _issueType = State(initialValue: prefill?.category == "feature" ? .featureRequest : .bugReport)
+        #if DEBUG
+        _includeDiagnostics = State(
+            initialValue: ProcessInfo.processInfo.arguments.contains("--ui-test-seed-report-logs")
+        )
+        #endif
+        entryOrigin = prefill?.origin ?? .settings
     }
 
     var body: some View {
@@ -87,12 +142,23 @@ struct ReportIssueView: View {
             #endif
         }
         .onAppear {
+            NativeDiagnostics.event(
+                entryOrigin.diagnosticEventName,
+                category: "report_issue"
+            )
             #if DEBUG
             seedUITestReportIssueLogsIfNeeded()
             #endif
         }
-        .onChange(of: screenshotItem) { _, newItem in
-            loadScreenshot(newItem)
+        .onChange(of: screenshotItems) { _, newItems in
+            loadScreenshots(newItems)
+        }
+        .onChange(of: includeDiagnostics) { _, included in
+            NativeDiagnostics.event(
+                "diagnostic_consent_changed",
+                category: "report_issue",
+                flags: ["included": included]
+            )
         }
     }
 
@@ -145,6 +211,8 @@ struct ReportIssueView: View {
 
             screenshotSection
 
+            diagnosticsSection
+
             if let error {
                 Text(error)
                     .font(.omSmall)
@@ -172,6 +240,19 @@ struct ReportIssueView: View {
         }
     }
 
+    private var diagnosticsSection: some View {
+        OMSettingsSection(AppStrings.privacyShareDebugLogs, icon: "privacy") {
+            OMSettingsToggleRow(
+                title: AppStrings.privacyShareDebugLogs,
+                subtitle: AppStrings.privacyStabilityLogsDescription,
+                icon: "bug",
+                isOn: $includeDiagnostics
+            )
+            .accessibilityIdentifier("report-issue-include-diagnostics")
+            .accessibilityValue(includeDiagnostics ? "On" : "Off")
+        }
+    }
+
     private var screenshotSection: some View {
         OMSettingsSection(AppStrings.reportIssueScreenshotLabel, icon: "image") {
             VStack(alignment: .leading, spacing: .spacing4) {
@@ -179,29 +260,50 @@ struct ReportIssueView: View {
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
 
-                if let screenshotPreview {
-                    screenshotPreview
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
-                        .accessibilityIdentifier("report-issue-screenshot-preview")
+                Text("\(screenshotAttachments.count)/\(IssueReportScreenshotBundle.maximumAttachments)")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("report-issue-screenshot-count")
 
-                    Button {
-                        screenshotData = nil
-                        self.screenshotPreview = nil
-                        screenshotItem = nil
-                    } label: {
-                        Label {
-                            Text(AppStrings.reportIssueScreenshotRemove)
-                        } icon: {
-                            Icon("close", size: 16)
+                ForEach(Array(screenshotAttachments.enumerated()), id: \.element.id) { index, attachment in
+                    if let preview = screenshotPreview(for: attachment.data) {
+                        VStack(alignment: .leading, spacing: .spacing3) {
+                            preview
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                                .accessibilityIdentifier(
+                                    index == 0
+                                        ? "report-issue-screenshot-preview"
+                                        : "report-issue-screenshot-preview-\(index)"
+                                )
+
+                            Button {
+                                removeScreenshot(id: attachment.id)
+                            } label: {
+                                Label {
+                                    Text(AppStrings.reportIssueScreenshotRemove)
+                                } icon: {
+                                    Icon("close", size: 16)
+                                }
+                            }
+                            .buttonStyle(OMSecondaryButtonStyle())
+                            .accessibilityIdentifier(
+                                index == 0
+                                    ? "report-issue-remove-screenshot"
+                                    : "report-issue-remove-screenshot-\(index)"
+                            )
                         }
                     }
-                    .buttonStyle(OMSecondaryButtonStyle())
-                    .accessibilityIdentifier("report-issue-remove-screenshot")
-                } else {
-                    PhotosPicker(selection: $screenshotItem, matching: .images) {
+                }
+
+                if screenshotAttachments.count < IssueReportScreenshotBundle.maximumAttachments {
+                    PhotosPicker(
+                        selection: $screenshotItems,
+                        maxSelectionCount: IssueReportScreenshotBundle.maximumAttachments - screenshotAttachments.count,
+                        matching: .images
+                    ) {
                         HStack(spacing: .spacing3) {
                             Icon("image", size: 18)
                             Text(AppStrings.reportIssueScreenshotUploadButton)
@@ -209,6 +311,13 @@ struct ReportIssueView: View {
                     }
                     .buttonStyle(OMSecondaryButtonStyle())
                     .accessibilityIdentifier("report-issue-attach-screenshot")
+                }
+
+                if let screenshotError {
+                    Text(screenshotError)
+                        .font(.omXs)
+                        .foregroundStyle(Color.error)
+                        .accessibilityIdentifier("report-issue-screenshot-error")
                 }
             }
             .padding(.horizontal, .spacing5)
@@ -249,22 +358,59 @@ struct ReportIssueView: View {
         }
     }
 
-    private func loadScreenshot(_ item: PhotosPickerItem?) {
-        guard let item else { return }
+    private func loadScreenshots(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self) {
-                screenshotData = data
-                #if os(iOS)
-                if let uiImage = UIImage(data: data) {
-                    screenshotPreview = Image(uiImage: uiImage)
+            var loaded: [ReportIssueScreenshotAttachment] = []
+            var rejectedForSize = false
+            var failedToLoad = false
+            for item in items.prefix(IssueReportScreenshotBundle.maximumAttachments - screenshotAttachments.count) {
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      IssueReportScreenshotBundle.isDecodableImage(data) else {
+                    failedToLoad = true
+                    continue
                 }
-                #elseif os(macOS)
-                if let nsImage = NSImage(data: data) {
-                    screenshotPreview = Image(nsImage: nsImage)
+                guard data.count <= IssueReportScreenshotBundle.maximumSourceBytes else {
+                    rejectedForSize = true
+                    continue
                 }
-                #endif
+                loaded.append(ReportIssueScreenshotAttachment(data: data))
             }
+            screenshotAttachments.append(contentsOf: loaded)
+            screenshotItems = []
+            if rejectedForSize {
+                screenshotError = AppStrings.reportIssueScreenshotSizeTooLarge
+            } else if failedToLoad {
+                screenshotError = AppStrings.reportIssueScreenshotUploadFailed
+            } else {
+                screenshotError = nil
+            }
+            NativeDiagnostics.event(
+                "screenshots_attached",
+                category: "report_issue",
+                counts: [
+                    "attachment_count": loaded.count,
+                    "byte_count": loaded.reduce(0) { $0 + $1.data.count },
+                ]
+            )
         }
+    }
+
+    private func removeScreenshot(id: UUID) {
+        screenshotAttachments.removeAll { $0.id == id }
+        screenshotError = nil
+    }
+
+    private func screenshotPreview(for data: Data) -> Image? {
+        #if os(iOS)
+        guard let image = UIImage(data: data) else { return nil }
+        return Image(uiImage: image)
+        #elseif os(macOS)
+        guard let image = NSImage(data: data) else { return nil }
+        return Image(nsImage: image)
+        #else
+        return nil
+        #endif
     }
 
     private func submitReport() {
@@ -272,10 +418,21 @@ struct ReportIssueView: View {
         isSubmitting = true
         error = nil
         NativeDiagnostics.info("Submitting native issue report", category: "report_issue")
+        NativeDiagnostics.event(
+            "submission_started",
+            category: "report_issue",
+            flags: [
+                "diagnostics_included": includeDiagnostics,
+                "screenshot_included": !screenshotAttachments.isEmpty,
+            ]
+        )
 
         Task {
             do {
-                let context = NativeIssueContextProvider.shared.context()
+                let screenshotData = try IssueReportScreenshotBundle.makePNG(
+                    from: screenshotAttachments.map(\.data)
+                )
+                let context = NativeIssueContextProvider.shared.context(includeDiagnostics: includeDiagnostics)
                 let payload = IssueReportPayloadBuilder.makePayload(
                     title: title,
                     issueType: issueType,
@@ -297,15 +454,29 @@ struct ReportIssueView: View {
 
                 let reference = response.shortIssueId ?? response.issueId ?? ""
                 submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
-                NativeDiagnostics.info("Native issue report submitted", category: "report_issue")
-                if let issueId = response.issueId {
+                NativeDiagnostics.event(
+                    "submission_succeeded",
+                    category: "report_issue",
+                    flags: ["diagnostics_included": includeDiagnostics]
+                )
+                if includeDiagnostics, let issueId = response.issueId {
                     await NativeLogForwarder.shared.flushForIssueReport()
                     await sendIssueLogs(issueId: issueId)
                 }
             } catch {
-                NativeDiagnostics.error(error.localizedDescription, category: "report_issue")
-                self.error = error.localizedDescription
-                AccessibilityAnnouncement.announce(error.localizedDescription)
+                if error is IssueReportScreenshotBundleError {
+                    screenshotError = AppStrings.reportIssueScreenshotSizeTooLarge
+                    AccessibilityAnnouncement.announce(AppStrings.reportIssueScreenshotSizeTooLarge)
+                } else {
+                    NativeDiagnostics.failure(
+                        "submission_failed",
+                        category: "report_issue",
+                        level: .error,
+                        error: error
+                    )
+                    self.error = error.localizedDescription
+                    AccessibilityAnnouncement.announce(error.localizedDescription)
+                }
             }
             isSubmitting = false
         }
@@ -323,7 +494,12 @@ struct ReportIssueView: View {
         do {
             payloadData = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            NativeDiagnostics.error("Issue log serialization failed: \(error.localizedDescription)", category: "report_issue")
+            NativeDiagnostics.failure(
+                "log_serialization_failed",
+                category: "report_issue",
+                level: .error,
+                error: error
+            )
             return
         }
 
@@ -334,7 +510,12 @@ struct ReportIssueView: View {
                 body: JSONRawBody(data: payloadData)
             )
         } catch {
-            NativeDiagnostics.warning("Issue log upload failed: \(error.localizedDescription)", category: "report_issue")
+            NativeDiagnostics.failure(
+                "log_upload_failed",
+                category: "report_issue",
+                level: .warning,
+                error: error
+            )
         }
     }
 
@@ -360,6 +541,92 @@ struct ReportIssueView: View {
         ].joined(separator: "\n")
     }
     #endif
+}
+
+private struct ReportIssueScreenshotAttachment: Identifiable {
+    let id = UUID()
+    let data: Data
+}
+
+enum IssueReportScreenshotBundleError: Error {
+    case outputTooLarge
+}
+
+enum IssueReportScreenshotBundle {
+    static let maximumAttachments = 5
+    static let maximumSourceBytes = 5 * 1024 * 1024
+    static let maximumOutputBytes = 2 * 1024 * 1024
+    static let maximumOutputWidth = 1_200
+
+    static func isDecodableImage(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil) != nil
+    }
+
+    /// Combines screenshots vertically into the API's existing single-PNG field.
+    /// The 1,200-pixel width keeps phone text legible without silently applying
+    /// progressively smaller fallbacks when the backend's 2 MB limit is exceeded.
+    static func makePNG(from sourceData: [Data]) throws -> Data? {
+        guard !sourceData.isEmpty else { return nil }
+        guard sourceData.count <= maximumAttachments,
+              sourceData.allSatisfy({ $0.count <= maximumSourceBytes }) else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+
+        let images = sourceData.compactMap { data -> CGImage? in
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+            return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        }
+        guard images.count == sourceData.count,
+              let widest = images.map(\.width).max(),
+              widest > 0 else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+
+        let outputWidth = min(widest, maximumOutputWidth)
+        let scaledHeights = images.map { image in
+            max(1, Int((Double(image.height) * Double(outputWidth) / Double(image.width)).rounded()))
+        }
+        let outputHeight = scaledHeights.reduce(0, +)
+        guard outputHeight > 0,
+              let context = CGContext(
+                data: nil,
+                width: outputWidth,
+                height: outputHeight,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+
+        var topOffset = 0
+        for (image, height) in zip(images, scaledHeights) {
+            let y = outputHeight - topOffset - height
+            context.interpolationQuality = .high
+            context.draw(image, in: CGRect(x: 0, y: y, width: outputWidth, height: height))
+            topOffset += height
+        }
+
+        guard let composite = context.makeImage() else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+        CGImageDestinationAddImage(destination, composite, nil)
+        guard CGImageDestinationFinalize(destination), output.length <= maximumOutputBytes else {
+            throw IssueReportScreenshotBundleError.outputTooLarge
+        }
+        return output as Data
+    }
 }
 
 private struct ReportIssueTextArea: View {
@@ -439,7 +706,7 @@ enum IssueReportPayloadBuilder {
         language: String = Locale.current.language.languageCode?.identifier ?? "en"
     ) -> [String: Any] {
         var payload: [String: Any] = [
-            "title": sanitizedText(title),
+            "title": sanitizedTitle(title),
             "issue_type": issueType.rawValue,
             "language": language,
             "device_info": deviceInfo(),
@@ -522,6 +789,14 @@ enum IssueReportPayloadBuilder {
 
     static func sanitizedText(_ value: String) -> String {
         NativeClientLogCollector.sanitize(value)
+            .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// User-authored titles follow the web form and API contract: remove markup
+    /// and surrounding whitespace without applying the diagnostics log limit.
+    static func sanitizedTitle(_ value: String) -> String {
+        value
             .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }

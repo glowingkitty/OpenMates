@@ -26,6 +26,7 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
         connected_account_token_refs=[{"turn_token_ref": "ref-1"}],
         has_image_upload_embed=True,
         auto_speak_response=True,
+        assistant_speech_lazy_dispatch=True,
         assistant_response_source_revision=7,
         current_chat_summary="Previous discussion summary",
         current_chat_summary_v=4,
@@ -39,6 +40,7 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     assert dumped["connected_account_token_refs"] == [{"turn_token_ref": "ref-1"}]
     assert dumped["has_image_upload_embed"] is True
     assert dumped["auto_speak_response"] is True
+    assert dumped["assistant_speech_lazy_dispatch"] is True
     assert dumped["assistant_response_source_revision"] == 7
     assert dumped["current_chat_summary"] == "Previous discussion summary"
     assert dumped["current_chat_summary_v"] == 4

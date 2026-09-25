@@ -4,6 +4,9 @@
 // Undo snapshots restore document, selection, and marked composition atomically.
 // Attachment objects remain cached by stable node id across every transaction.
 
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
+
 import Foundation
 
 #if canImport(UIKit)
@@ -194,7 +197,7 @@ final class NativeComposerController {
         guard let attachment = attachments[id] else {
             throw NativeComposerControllerError.nodeNotFound(id)
         }
-        attachment.embedActions = actions
+        attachment.updateActions(actions)
     }
 
     func configureEmbedPreview(

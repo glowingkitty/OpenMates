@@ -1,5 +1,27 @@
 schema_version: 1
-specification: feature.billing@4
+specification: feature.billing@5
+
+anonymous_free_use:
+  - id: web-and-cli-share-the-same-allowance
+    given: A guest has room under their identity limit and the server's daily, weekly, and monthly free credit limits.
+    when: They ask the web chat to search for events, send a CLI chat, and use the CLI to search the web directly.
+    then: Each request may run after its provider cost is reserved from the same anonymous allowance, and only settled cost remains consumed.
+  - id: any-limit-stops-provider-work
+    given: A guest has used their identity allowance or the server has exhausted its daily, weekly, or monthly free credit limit.
+    when: They request another chat or an account-free CLI search skill.
+    then: The server rejects it before any provider call and offers account signup.
+
+anonymous_paid:
+  - id: account-credits-work-after-free-pool-is-empty
+    given: The server's anonymous monthly allowance is exhausted and a signed-in user has enough account credits.
+    when: A guest and that signed-in user each request a chat.
+    then: The guest request is rejected, and the signed-in user's request can run against their own account credits.
+
+anonymous_storage:
+  - id: guest-chat-and-skill-results-stay-local
+    given: A guest has not signed up and can use chat and account-free search skills.
+    when: They receive a chat skill result displayed as an embed, search the web through the CLI, and attempt to generate an image.
+    then: The image request requires authentication before provider work; Directus holds only anonymous budget and operation records, with no permanent chat, message, embed, or upload-file record for the guest.
 
 credit_charges:
   - id: personal-ai-charge
@@ -139,6 +161,16 @@ usage_receipts:
     user_input_tokens: 80
     app_skill_tokens: 13720
     expect: {sub_items_sum_to_input: true, app_skill_hint_visible: true}
+
+usage_landing:
+  - id: interrupted-recording-without-chat
+    given: A user records eleven seconds of audio, the provider accepts the stream, and the user cancels before any chat is created.
+    when: The user opens the Usage landing page after the eight-credit charge commits.
+    then: Today's list includes one Audio — Get Transcript item described as an interrupted recording billed for one started minute, shows eight credits, contributes eight credits to the day total, and offers no chat link.
+  - id: mixed-context-day-reconciles-once
+    given: One day contains paid chat and incognito turns, a standalone app call, API-key and device calls, a workflow run and test, a benchmark, and one legacy charge whose original context no longer exists.
+    when: The user opens the Usage landing page.
+    then: Every committed charge is represented exactly once in a concise context-labeled row or group, the visible rows sum to the displayed day total, app work already included in a chat is not repeated as standalone app usage, and only rows with real destinations are navigable.
 
 self_host_guards:
   - id: self-host-no-cloud-payments

@@ -1,6 +1,8 @@
 // HTTP API client for the OpenMates backend.
 // Handles auth tokens, cookie-based sessions, and JSON encoding/decoding.
 // Supports both Encodable bodies and raw dictionary bodies.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.embeds.gated-send
 
 import Foundation
 
@@ -16,6 +18,8 @@ struct JSONRawBody: Encodable, Sendable {
 actor APIClient {
     static let shared = APIClient()
 
+    static let uploadTimeout: TimeInterval = 10 * 60
+
     static var nativeClientHeaders: [String: String] {
         [
             "User-Agent": "OpenMates-Apple/\(appVersion)",
@@ -25,17 +29,13 @@ actor APIClient {
     }
 
     private let session: URLSession
+    private let uploadSession: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
     private init() {
-        let config = URLSessionConfiguration.default
-        config.httpCookieAcceptPolicy = .always
-        config.httpShouldSetCookies = true
-        config.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
-        self.session = URLSession(configuration: config)
+        self.session = URLSession(configuration: Self.makeStandardSessionConfiguration())
+        self.uploadSession = URLSession(configuration: Self.makeUploadSessionConfiguration())
 
         self.encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -75,16 +75,28 @@ actor APIClient {
         body.append(chatId.data(using: .utf8)!)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 
-        let uploadURL = uploadBaseURL.appendingPathComponent("v1/upload/file")
-        var request = URLRequest(url: uploadURL)
-        request.httpMethod = HTTPMethod.post.rawValue
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue(webAppURL.absoluteString, forHTTPHeaderField: "Origin")
-        Self.nativeClientHeaders.forEach { key, value in
-            request.setValue(value, forHTTPHeaderField: key)
+        let request = Self.makeUploadRequest(
+            uploadURL: uploadBaseURL.appendingPathComponent("v1/upload/file"),
+            authenticationURL: baseURL,
+            webAppURL: webAppURL,
+            boundary: boundary,
+            body: body
+        )
+        do {
+            return try await execute(request, using: uploadSession)
+        } catch where Self.shouldRetryUpload(after: error) {
+            // Refresh tokens rotate during ordinary authenticated API traffic.
+            // If another request wins that rotation while this upload is in
+            // flight, rebuild once so URLSession resolves the current cookie.
+            let retryRequest = Self.makeUploadRequest(
+                uploadURL: uploadBaseURL.appendingPathComponent("v1/upload/file"),
+                authenticationURL: baseURL,
+                webAppURL: webAppURL,
+                boundary: boundary,
+                body: body
+            )
+            return try await execute(retryRequest, using: uploadSession)
         }
-        request.httpBody = body
-        return try await execute(request)
     }
 
     // MARK: - Encodable body
@@ -188,6 +200,80 @@ actor APIClient {
 
     // MARK: - Private
 
+    static func makeStandardSessionConfiguration() -> URLSessionConfiguration {
+        makeSessionConfiguration(requestTimeout: 30, resourceTimeout: 60)
+    }
+
+    static func makeUploadSessionConfiguration() -> URLSessionConfiguration {
+        makeSessionConfiguration(requestTimeout: uploadTimeout, resourceTimeout: uploadTimeout)
+    }
+
+    static func makeUploadRequest(
+        uploadURL: URL,
+        authenticationURL: URL? = nil,
+        webAppURL: URL,
+        boundary: String,
+        body: Data
+    ) -> URLRequest {
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = HTTPMethod.post.rawValue
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue(webAppURL.absoluteString, forHTTPHeaderField: "Origin")
+        nativeClientHeaders.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        // The upload service is on upload.openmates.org, while native sign-in
+        // terminates at the selected API host. Some URLSession login responses
+        // retain a host-only refresh cookie, so it is not considered eligible
+        // for the upload host even though this is the trusted upload transport.
+        // Forward only the authentication cookie; never copy unrelated API-host
+        // cookies across hosts.
+        let uploadCookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: uploadURL) ?? []
+        let authenticationCookies = authenticationURL.flatMap {
+            OpenMatesSharedEnvironment.cookieStorage.cookies(for: $0)
+        } ?? []
+        let authenticationRefreshCookie = authenticationCookies.first {
+            $0.name == "auth_refresh_token"
+        }
+        let authenticationCookieReachesUpload = authenticationRefreshCookie.map { authenticationCookie in
+            uploadCookies.contains {
+                $0.name == authenticationCookie.name
+                    && $0.value == authenticationCookie.value
+                    && $0.domain == authenticationCookie.domain
+                    && $0.path == authenticationCookie.path
+            }
+        } ?? false
+        // Keep upload-eligible cookies in the shared jar so URLSession resolves
+        // the latest rotated token when the request is sent. A manually frozen
+        // Cookie header can become invalid while another API request rotates the
+        // session. Only bridge a host-only API cookie that cannot reach upload.
+        if let refreshCookie = authenticationRefreshCookie,
+           !authenticationCookieReachesUpload {
+            let cookieHeader = HTTPCookie.requestHeaderFields(with: [refreshCookie])["Cookie"]
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        }
+        request.httpBody = body
+        return request
+    }
+
+    static func shouldRetryUpload(after error: Error) -> Bool {
+        guard case APIError.httpError(status: 401, message: _) = error else { return false }
+        return true
+    }
+
+    private static func makeSessionConfiguration(
+        requestTimeout: TimeInterval,
+        resourceTimeout: TimeInterval
+    ) -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.default
+        configuration.httpCookieAcceptPolicy = .always
+        configuration.httpShouldSetCookies = true
+        configuration.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
+        configuration.timeoutIntervalForRequest = requestTimeout
+        configuration.timeoutIntervalForResource = resourceTimeout
+        return configuration
+    }
+
     private func buildRequest(
         _ method: HTTPMethod,
         path: String,
@@ -248,13 +334,17 @@ actor APIClient {
     }
 
     private func execute(_ request: URLRequest) async throws -> Data {
+        try await execute(request, using: session)
+    }
+
+    private func execute(_ request: URLRequest, using transport: URLSession) async throws -> Data {
         #if DEBUG
         if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
             return stubbedData
         }
         #endif
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await transport.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse

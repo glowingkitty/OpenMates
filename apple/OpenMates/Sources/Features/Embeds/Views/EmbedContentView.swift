@@ -99,6 +99,8 @@ struct EmbedContentView: View {
                     codeRunViewModel: codeRunViewModel,
                     isLargePreview: previewVariant == .large
                 )
+            case .codeNotebook:
+                NotebookEmbedRenderer(data: rawData, mode: mode)
             case .codeGetDocs:
                 CodeGetDocsEmbedRenderer(data: rawData, mode: mode)
 
@@ -275,10 +277,26 @@ struct EmbedContentView: View {
             // Audio
             case .recording:
                 RecordingRenderer(data: rawData, mode: mode)
+            case .audioGenerate:
+                GeneratedAudioEmbedRenderer(data: rawData, status: embed.status, skillId: "generate", mode: mode)
+            case .audioSpeak:
+                GeneratedAudioEmbedRenderer(data: rawData, status: embed.status, skillId: "speak", mode: mode)
+
+            // Calendar
+            case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent,
+                 .calendarUpdateEvent, .calendarDeleteEvent:
+                CalendarActionEmbedRenderer(
+                    embed: embed,
+                    data: rawData ?? [:],
+                    skillId: embed.skillId ?? embed.type.split(separator: ":").last.map(String.init) ?? "list-calendars",
+                    mode: mode
+                )
 
             // PDF
             case .pdf:
                 PDFRenderer(data: rawData, mode: mode)
+            case .fileFile:
+                FileEmbedRenderer(data: rawData, mode: mode)
 
             // Misc
             case .focusModeActivation:

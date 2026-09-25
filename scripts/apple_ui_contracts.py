@@ -34,8 +34,8 @@ REQUIRED_MESSAGE_INPUT_STATES = {
 REQUIRED_MESSAGE_INPUT_IDENTIFIERS = {
     "message-editor",
     "action-buttons",
-    "attach-files-button",
-    "take-photo-button",
+    "composer-attachment-toggle",
+    "composer-attachment-menu",
     "record-audio-button",
     "record-overlay",
     "release-text",
@@ -105,6 +105,9 @@ REQUIRED_EMBED_SHOWCASE_APPS = {
     "weather",
     "web",
     "workflows",
+}
+REQUIRED_EMBED_REGISTRY_DIMENSIONS = {
+    "iphone-light-ltr",
 }
 REQUIRED_APP_SPECIFIC_EMBED_IDENTIFIERS = {
     "models3d-generate-fullscreen",
@@ -268,10 +271,11 @@ def validate_contract(path: Path, *, surface: str | None = None) -> list[str]:
         if viewport != SETTINGS_VIEWPORT:
             errors.append("settings viewport must be 390x844")
 
-    for text in walk_values(contract):
+    for value in walk_values(contract):
         for pattern in PRIVATE_VALUE_PATTERNS:
-            if pattern.search(text):
+            if pattern.search(value):
                 errors.append(f"contract contains private or volatile value matching {pattern.pattern!r}")
+                break
 
     return errors
 
@@ -313,21 +317,64 @@ def validate_embeds_contract(contract: dict[str, Any]) -> list[str]:
         fullscreen = surface_entry.get("fullscreen")
         if not isinstance(fullscreen, dict):
             errors.append(f"embeds contract surface {key or '<unknown>'} must include fullscreen capture")
-        artifacts = surface_entry.get("artifacts")
-        if not isinstance(artifacts, dict) or not isinstance(artifacts.get("section"), str) or not isinstance(artifacts.get("fullscreen"), str):
-            errors.append(f"embeds contract surface {key or '<unknown>'} must include section and fullscreen artifacts")
+        # Legacy per-app surfaces remain useful DOM contracts, but requiring
+        # separate section/fullscreen PNGs duplicates the exhaustive registry
+        # captures below. Keep the complete DOM inventory without hundreds of
+        # redundant screenshots.
 
     registry_surfaces = contract.get("registrySurfaces")
     if not isinstance(registry_surfaces, list):
         errors.append("embeds contract requires registrySurfaces array")
         registry_surfaces = []
-    missing_registry = [
-        entry.get("registryKey")
-        for entry in registry_surfaces
-        if isinstance(entry, dict) and entry.get("exists") is not True
-    ]
-    if missing_registry:
-        errors.append("embeds contract has missing registry surfaces: " + ", ".join(sorted(str(key) for key in missing_registry)))
+
+    if isinstance(dimension, dict) and dimension.get("id") in REQUIRED_EMBED_REGISTRY_DIMENSIONS:
+        registry_source = _read_repo_file("frontend/packages/ui/src/data/embedRegistry.generated.ts")
+        preview_keys = _extract_ts_object_keys(registry_source, "EMBED_PREVIEW_COMPONENTS")
+        fullscreen_keys = _extract_ts_object_keys(registry_source, "EMBED_FULLSCREEN_COMPONENTS")
+        expected = {(key, "preview") for key in preview_keys} | {
+            (key, "fullscreen") for key in fullscreen_keys
+        }
+        actual: set[tuple[str, str]] = set()
+        for entry in registry_surfaces:
+            if not isinstance(entry, dict):
+                errors.append("embeds contract registry surface entries must be objects")
+                continue
+            key, surface = entry.get("registryKey"), entry.get("surface")
+            if not isinstance(key, str) or surface not in {"preview", "fullscreen"}:
+                errors.append("embeds contract registry surface has invalid key or surface")
+                continue
+            identity = (key, surface)
+            if identity in actual:
+                errors.append(f"embeds contract has duplicate registry surface: {key}:{surface}")
+            actual.add(identity)
+            if entry.get("exists") is not True or entry.get("renderError") is True:
+                errors.append(f"embeds contract registry surface did not render: {key}:{surface}")
+            if not isinstance(entry.get("capture"), dict):
+                errors.append(f"embeds contract registry surface missing rendered capture: {key}:{surface}")
+            screenshot = entry.get("screenshotPath")
+            if not isinstance(screenshot, str) or not screenshot.strip():
+                errors.append(f"embeds contract registry surface missing screenshot: {key}:{surface}")
+            elif screenshot.startswith(("/", "~")) or re.match(r"^[A-Za-z]:[/\\]", screenshot):
+                errors.append(f"embeds contract registry screenshot must be relative: {key}:{surface}")
+
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        if missing:
+            errors.append(
+                f"embeds contract missing {len(missing)} registry surfaces: "
+                + ", ".join(f"{key}:{surface}" for key, surface in missing[:8])
+            )
+        if extra:
+            errors.append(
+                f"embeds contract has {len(extra)} unknown registry surfaces: "
+                + ", ".join(f"{key}:{surface}" for key, surface in extra[:8])
+            )
+
+    for value in walk_values(contract):
+        for pattern in PRIVATE_VALUE_PATTERNS:
+            if pattern.search(value):
+                errors.append(f"contract contains private or volatile value matching {pattern.pattern!r}")
+                break
 
     return errors
 
@@ -348,7 +395,7 @@ def _extract_ts_object_keys(source: str, const_name: str) -> set[str]:
 
 
 def _extract_showcase_apps(source: str) -> set[str]:
-    match = re.search(r"const ALL_APPS = \[(?P<body>.*?)\];", source, flags=re.DOTALL)
+    match = re.search(r"export const EMBED_APP_SLUGS = \[(?P<body>.*?)\] as const;", source, flags=re.DOTALL)
     if not match:
         return set()
     return set(re.findall(r"'([^']+)'", match.group("body")))
@@ -458,7 +505,8 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     warnings: list[str] = []
 
     registry_source = _read_repo_file("frontend/packages/ui/src/data/embedRegistry.generated.ts")
-    showcase_source = _read_repo_file("frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte")
+    showcase_source = _read_repo_file("frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte")
+    showcase_apps_source = _read_repo_file("frontend/apps/web_app/src/lib/devPreviewEmbedApps.ts")
     embed_models_source = _read_repo_file("apple/OpenMates/Sources/Core/Models/EmbedModels.swift")
     fixtures_source = _read_repo_file("apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift")
     content_view_source = _read_repo_file("apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift")
@@ -468,7 +516,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     registry_keys = preview_keys | fullscreen_keys
     apple_types = _extract_swift_enum_raw_values(embed_models_source, "EmbedType")
     apple_type_cases_by_raw_value = _extract_swift_enum_raw_value_to_case(embed_models_source, "EmbedType")
-    showcase_apps = _extract_showcase_apps(showcase_source)
+    showcase_apps = _extract_showcase_apps(showcase_apps_source)
     apple_apps = _extract_swift_enum_raw_values(fixtures_source, "DevEmbedPreviewApp")
     apple_fixture_skill_ids = _extract_apple_fixture_skill_ids(fixtures_source)
     generic_embed_cases = _extract_generic_embed_cases(content_view_source)
@@ -476,7 +524,9 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     if not registry_keys:
         errors.append("could not extract web embed registry keys")
     if not showcase_apps:
-        errors.append("could not extract web embed showcase ALL_APPS")
+        errors.append("could not extract web embed showcase EMBED_APP_SLUGS")
+    if "EMBED_APP_SLUGS" not in showcase_source:
+        errors.append("web embed showcase does not use EMBED_APP_SLUGS")
     if not apple_types:
         errors.append("could not extract Apple EmbedType cases")
     if not apple_apps:
@@ -582,9 +632,14 @@ def swift_files_for_message_input() -> list[Path]:
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Chat" / "Views" / "ChatView.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Chat" / "Views" / "InlinePreviewView.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Chat" / "Views" / "VoiceRecordingView.swift",
+        REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Shared" / "Composer" / "ComposerAttachmentActionRow.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Shared" / "Components" / "MessageComposerView.swift",
         REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Shared" / "Components" / "OMDesignPrimitives.swift",
     ]
+
+
+def missing_attachment_icons(source: str, available_icons: set[str]) -> set[str]:
+    return set(re.findall(r'\b(?:Icon|item)\("([^"]+)"', source)) - available_icons
 
 
 def audit_message_input() -> tuple[list[str], list[str]]:
@@ -595,6 +650,15 @@ def audit_message_input() -> tuple[list[str], list[str]]:
     for identifier in sorted(REQUIRED_MESSAGE_INPUT_IDENTIFIERS):
         if f'"{identifier}"' not in source:
             errors.append(f"missing Apple accessibility identifier: {identifier}")
+
+    attachment_row = (REPO_ROOT / "apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentActionRow.swift").read_text(encoding="utf-8")
+    icon_sources = REPO_ROOT / "frontend/packages/ui/static/icons"
+    available_icons = {path.stem for path in icon_sources.glob("*.svg")}
+    for icon in sorted(missing_attachment_icons(attachment_row, available_icons)):
+        errors.append(f"missing Apple attachment icon source: {icon}.svg")
+    for action in ("drawing", "location", "camera", "files"):
+        if not re.search(rf'item\([^,\n]+,\s*[^,\n]+,\s*"{action}"', attachment_row):
+            errors.append(f"missing Apple attachment menu action: {action}")
 
     forbidden_controls = ["Form {", "List {", "NavigationLink {", ".navigationTitle(", ".toolbar {"]
     for forbidden in forbidden_controls:

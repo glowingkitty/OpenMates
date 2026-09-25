@@ -42,6 +42,7 @@ def assert_preview_only(result: Model3DProviderResult) -> None:
     assert FORBIDDEN_RESULT_KEYS.isdisjoint(payload.get("normalized_provider_metadata", {}))
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_printables_normalization_is_preview_only() -> None:
     result = normalize_printables_print(
         {
@@ -79,6 +80,7 @@ def test_printables_normalization_is_preview_only() -> None:
     assert result.source_page_url == "https://www.printables.com/model/3161-3dbenchy"
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 def test_printables_missing_price_is_free_public_catalog_result() -> None:
     result = normalize_printables_print(
         {
@@ -92,6 +94,7 @@ def test_printables_missing_price_is_free_public_catalog_result() -> None:
     assert result.is_free is True
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_collect_provider_search_results_returns_partial_warnings() -> None:
     class SuccessfulProvider:
@@ -133,6 +136,7 @@ async def test_collect_provider_search_results_returns_partial_warnings() -> Non
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_collect_provider_search_results_raises_when_all_providers_fail() -> None:
     class FailingProvider:
@@ -151,6 +155,7 @@ async def test_collect_provider_search_results_raises_when_all_providers_fail() 
     assert exc_info.value.code == "all_providers_failed"
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional
 @pytest.mark.asyncio
 async def test_printables_search_uses_live_mock_cache_transport(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
@@ -190,3 +195,38 @@ async def test_printables_search_uses_live_mock_cache_transport(monkeypatch: pyt
     assert captured["timeout"] == 15.0
     assert captured["url"] == "https://api.printables.com/graphql/"
     assert captured["json"]["variables"] == {"query": "benchy", "limit": 3}
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.bounded-and-conditional
+@pytest.mark.asyncio
+async def test_printables_search_caps_one_graphql_request_at_forty_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_requests: list[dict[str, object]] = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self) -> dict[str, object]:
+            return {"data": {"searchPrints2": {"items": []}}}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, url: str, *, json: dict[str, object]):
+            captured_requests.append({"url": url, "json": json})
+            return FakeResponse()
+
+    monkeypatch.setattr(
+        "backend.shared.providers.models3d_catalogs.create_http_client",
+        lambda *_args, **_kwargs: FakeClient(),
+    )
+
+    await PrintablesSearchProvider().search("benchy", count=100)
+
+    assert len(captured_requests) == 1
+    assert captured_requests[0]["json"]["variables"] == {"query": "benchy", "limit": 40}

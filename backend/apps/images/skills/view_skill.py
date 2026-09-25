@@ -37,9 +37,49 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.image_mime import detect_image_mime_type
-from backend.shared.python_utils.media_encryption import decrypt_media_payload
+from backend.shared.python_utils.media_encryption import (
+    MEDIA_ENCRYPTION_V2,
+    decrypt_media_payload,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _decode_embed_content(value: str) -> Dict[str, Any]:
+    """Decode client embed content without assuming one serialization format."""
+    if not isinstance(value, str) or not value.strip():
+        raise RuntimeError("Decrypted embed content is empty")
+
+    # Apple composer embeds are canonical JSON. Web and generated embeds are
+    # normally TOON. Prefer the format indicated by the first non-whitespace
+    # character, then try the other decoder for legacy/mixed client records.
+    json_first = value.lstrip().startswith("{")
+    if json_first:
+        try:
+            decoded = json_lib.loads(value)
+        except Exception:
+            decoded = None
+        if isinstance(decoded, dict):
+            return decoded
+
+    from toon_format import decode as toon_decode
+
+    try:
+        decoded = toon_decode(value)
+    except Exception:
+        decoded = None
+    if isinstance(decoded, dict):
+        return decoded
+
+    if not json_first:
+        try:
+            decoded = json_lib.loads(value)
+        except Exception:
+            decoded = None
+        if isinstance(decoded, dict):
+            return decoded
+
+    raise RuntimeError("Decrypted embed content is neither a TOON nor JSON object")
 
 
 # ---------------------------------------------------------------------------
@@ -110,8 +150,8 @@ class ViewSkill(BaseSkill):
 
         The embed is stored in Redis at key ``embed:{embed_id}`` as a JSON dict
         with an ``encrypted_content`` field that holds a Vault Transit-encrypted
-        TOON string. This method decrypts the content using the user's Vault key
-        and decodes the TOON to return the raw content dict.
+        TOON or JSON string. This method decrypts the content using the user's
+        Vault key and decodes it to return the raw content dict.
 
         Args:
             embed_id: The embed ID to look up.
@@ -181,17 +221,8 @@ class ViewSkill(BaseSkill):
                 )
 
             plaintext_b64 = resp.json()["data"]["plaintext"]
-            plaintext_toon = base64.b64decode(plaintext_b64).decode("utf-8")
-
-            # Decode TOON to get the content dict
-            from toon_format import decode as toon_decode
-
-            decoded = toon_decode(plaintext_toon)
-            if not isinstance(decoded, dict):
-                raise RuntimeError(
-                    f"Embed {embed_id} TOON content decoded to "
-                    f"{type(decoded).__name__}, expected dict"
-                )
+            plaintext_content = base64.b64decode(plaintext_b64).decode("utf-8")
+            decoded = _decode_embed_content(plaintext_content)
 
             logger.info(
                 f"{log_prefix} Successfully looked up embed from cache "
@@ -322,8 +353,12 @@ class ViewSkill(BaseSkill):
             **kwargs: Context injected by the pipeline (user_vault_key_id, _file_path_index, etc.).
 
         Returns:
-            List of content blocks for multimodal tool result, or a text error
-            block on failure (for graceful degradation).
+            List of content blocks for a successful multimodal tool result.
+
+        Raises:
+            RuntimeError: If the image reference, encrypted metadata, download,
+                or decryption cannot produce an actual image result. The AI
+                processor records this as a failed skill execution.
         """
         log_prefix = f"[images.view] [file:{file_path}]"
 
@@ -331,7 +366,7 @@ class ViewSkill(BaseSkill):
         user_vault_key_id = kwargs.get("user_vault_key_id")
         if not user_vault_key_id:
             logger.error(f"{log_prefix} user_vault_key_id not available — cannot look up embed")
-            return [{"type": "text", "text": f"Error: Cannot view image '{file_path}' — vault key ID not available."}]
+            raise RuntimeError("Image vault key ID is not available")
 
         # Resolve the human-readable file_path (embed_ref) → internal embed_id UUID.
         # The index is built during message history resolution in the WebSocket handler
@@ -343,7 +378,7 @@ class ViewSkill(BaseSkill):
                 f"{log_prefix} file_path '{file_path}' not found in file_path_index "
                 f"(available keys: {list(file_path_index.keys())})"
             )
-            return [{"type": "text", "text": f"Error: Cannot view image '{file_path}' — embed reference not found. Please re-upload the image."}]
+            raise RuntimeError("Image embed reference was not found; please re-upload the image")
 
         embed_log_prefix = f"[images.view] [file:{file_path}] [embed:{embed_id[:8]}...]"
 
@@ -357,7 +392,12 @@ class ViewSkill(BaseSkill):
             s3_base_url = embed_content.get("s3_base_url") or ""
             aes_nonce = embed_content.get("aes_nonce")
             files = embed_content.get("files", {})
-            filename = embed_content.get("filename") or embed_id
+            filename = (
+                embed_content.get("filename")
+                or embed_content.get("original_filename")
+                or file_path
+                or embed_id
+            )
 
             if not vault_wrapped_aes_key:
                 raise RuntimeError("Embed content missing vault_wrapped_aes_key")
@@ -381,6 +421,23 @@ class ViewSkill(BaseSkill):
                     f"Embed content has no file variants with s3_key "
                     f"(available: {list(files.keys())})"
                 )
+
+            # Apple builds that decoded an upload before preserving per-variant
+            # encryption markers stored an explicit empty legacy nonce together
+            # with the client AES key. Those bytes are still v2 nonce-prefixed
+            # media. Repair only that exact historical shape; records with truly
+            # absent crypto metadata continue to fail closed in the shared reader.
+            if (
+                selected_variant is not None
+                and not selected_variant.get("encryption")
+                and aes_nonce == ""
+                and isinstance(embed_content.get("aes_key"), str)
+                and embed_content["aes_key"]
+            ):
+                selected_variant = {
+                    **selected_variant,
+                    "encryption": MEDIA_ENCRYPTION_V2,
+                }
 
             # --- Step 5: Unwrap AES key via Vault Transit ---
             logger.info(f"{embed_log_prefix} Unwrapping AES key via Vault transit key {user_vault_key_id}")
@@ -420,7 +477,7 @@ class ViewSkill(BaseSkill):
 
         except RuntimeError as e:
             logger.error(f"{embed_log_prefix} Failed to load image: {e}", exc_info=True)
-            return [{"type": "text", "text": f"Error: Failed to access image '{file_path}' — {e}"}]
+            raise
         except Exception as e:
             logger.error(f"{embed_log_prefix} Unexpected error during image load: {e}", exc_info=True)
-            return [{"type": "text", "text": f"Error: Image loading failed for '{file_path}' — {e}"}]
+            raise RuntimeError("Image loading failed") from e

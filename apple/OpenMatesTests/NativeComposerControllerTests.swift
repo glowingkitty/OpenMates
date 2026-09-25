@@ -5,6 +5,7 @@
 // TextKit attachment atoms remain one UTF-16 unit in the editable surface.
 
 import Foundation
+import Combine
 import XCTest
 @testable import OpenMates
 
@@ -16,6 +17,7 @@ import AppKit
 
 @MainActor
 final class NativeComposerControllerTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testInsertEmbedCreatesFollowingEditableLineAndPlacesSelectionThere() throws {
         let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("BeforeAfter"),
@@ -38,6 +40,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(controller.document.nodes.compactMap(\.source), ["Before", "After"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testEmbedUpdatePreservesAttachmentIdentityAndSelection() throws {
         let controller = try makeEmbeddedController()
         let selection = controller.selection
@@ -65,6 +68,36 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(controller.selection, selection)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testResolvedRecordingNotifiesHostedPreviewWithoutReplacingAttachment() throws {
+        let session = NativeComposerSession()
+        let nodeID = "composer:embed:recording-update"
+        try session.insertPendingEmbed(nodeID: nodeID, embedType: "recording", title: "recording.m4a")
+        let attachment = try XCTUnwrap(session.controller.attributedString.attribute(
+            .attachment, at: 0, effectiveRange: nil
+        ) as? ComposerTextAttachment)
+        var notifications = 0
+        let observation = attachment.objectWillChange.sink { notifications += 1 }
+        defer { observation.cancel() }
+
+        try session.resolveEmbed(
+            nodeID: nodeID,
+            durableEmbedID: "recording-update",
+            referenceType: "audio-recording",
+            status: "finished",
+            localPreviewData: Data([0, 1, 2])
+        )
+
+        let resolved = try XCTUnwrap(session.controller.attributedString.attribute(
+            .attachment, at: 0, effectiveRange: nil
+        ) as? ComposerTextAttachment)
+        XCTAssertTrue(attachment === resolved)
+        XCTAssertEqual(resolved.nodeSnapshot?.status, "finished")
+        XCTAssertEqual(resolved.localPreviewData, Data([0, 1, 2]))
+        XCTAssertGreaterThanOrEqual(notifications, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testMarkedTextBlocksSubmitUntilCompositionCommits() throws {
         let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("Composing"),
@@ -78,6 +111,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertTrue(controller.canSubmit)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testTextKit2SurfaceContainsOneAttachmentAtom() throws {
         let controller = try makeEmbeddedController()
 
@@ -122,6 +156,7 @@ final class NativeComposerControllerTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testAttachmentSnapshotUpdatesWithoutReplacingStableObject() throws {
         let controller = try makeEmbeddedController()
         let attachment = try XCTUnwrap(
@@ -145,6 +180,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(updated.nodeSnapshot?.status, "processing")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testBoundaryInsertionPreservesOriginalTextNodeID() throws {
         let document = try ComposerMarkdownAdapter.parse("Before")
         let embed = fixtureEmbed(id: "composer:embed:boundary")
@@ -172,6 +208,7 @@ final class NativeComposerControllerTests: XCTestCase {
         ])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testGeneratedTextIDDoesNotCollideWithInsertedEmbedID() throws {
         let controller = try NativeComposerController(
             document: ComposerMarkdownAdapter.parse("BeforeAfter"),
@@ -184,6 +221,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(controller.document.nodes.last?.id, "composer:text:2")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testInvalidAndSurrogateSplittingSelectionsAreRejected() throws {
         let document = try ComposerMarkdownAdapter.parse("A\u{1F44D}B")
 
@@ -197,6 +235,7 @@ final class NativeComposerControllerTests: XCTestCase {
         ))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testDuplicateInitialNodeIDsAreRejected() {
         let document = ComposerDocumentV1(version: 1, nodes: [
             .text(id: "composer:text:0", source: "A"),
@@ -214,6 +253,7 @@ final class NativeComposerControllerTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testSetSelectionUsesUTF16OffsetsAndRejectsSurrogateSplits() throws {
         let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("A\u{1F44D}B"),
@@ -232,6 +272,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(controller.selection, NSRange(location: 1, length: 2))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testRemoveEmbedTargetsStableIDAndAdjustsSelectionAfterRemovedAtom() throws {
         let controller = try makeTwoEmbedController(
             selection: NSRange(location: 7, length: 0)
@@ -252,6 +293,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertTrue(secondAttachment === retainedAttachment)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testDeleteBackwardAndForwardRemoveAtomicEmbedAtTextBoundaries() throws {
         let backward = try makeEmojiEmbedController(
             selection: NSRange(location: 4, length: 0)
@@ -270,6 +312,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertFalse(forward.document.nodes.contains { $0.kind == "embed" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testDeleteBackwardAndForwardNeverSplitEmojiUTF16Pairs() throws {
         let backward = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("A\u{1F44D}B"),
@@ -288,6 +331,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(forward.selection, NSRange(location: 1, length: 0))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testDeleteSelectionSpanningTextAndMultipleEmbedAtomsPreservesRemainderOrder() throws {
         let controller = try makeTwoEmbedController(
             selection: NSRange(location: 1, length: 5)
@@ -301,6 +345,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(controller.selection, NSRange(location: 1, length: 0))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testCutSelectionReturnsTextAndEmbedAtomsInCanonicalDocumentOrder() throws {
         let controller = try makeTwoEmbedController(
             selection: NSRange(location: 1, length: 5)
@@ -323,6 +368,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(controller.selection, NSRange(location: 1, length: 0))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testUndoRedoRestoreDocumentSelectionAndAttachmentIdentity() throws {
         let controller = try makeEmbeddedController()
         try controller.setSelection(NSRange(location: 7, length: 0))
@@ -345,6 +391,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertFalse(controller.document.nodes.contains { $0.kind == "embed" })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testReplaceSelectionKeepsMarkedIMEReplacementAsUnparsedText() throws {
         let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("Draft"),

@@ -9,7 +9,7 @@ import json
 import pytest
 
 from backend.core.api.app.services.workflow_models import WorkflowRunContentStorage
-from backend.core.api.app.services.workflow_runner import WorkflowRunner
+from backend.core.api.app.services.workflow_runner import WorkflowRunner, _resolve_value
 from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository
 from backend.tests.workflow_test_utils import workflow_service
 
@@ -63,6 +63,29 @@ class RejectingBindingAppSkillAdapter(FakeAppSkillAdapter):
     async def revalidate_binding(self, binding_ref, user_id, app_id, skill_id):
         del binding_ref, user_id, app_id, skill_id
         raise PermissionError("Workflow provider binding is revoked")
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data,workflows.message.standard
+def test_direct_runner_reference_projects_nested_list_fields_in_order() -> None:
+    context = {
+        "nodes": {
+            "events": {
+                "output": {
+                    "results": [
+                        {"title": "AI Meetup"},
+                        {"title": "Design Night"},
+                        {"title": "Founders Talk"},
+                    ]
+                }
+            }
+        }
+    }
+
+    assert _resolve_value("$nodes.events.output.results.title", context) == [
+        "AI Meetup",
+        "Design Night",
+        "Founders Talk",
+    ]
 
 
 def rain_graph(rain_probability: int = 70) -> dict:

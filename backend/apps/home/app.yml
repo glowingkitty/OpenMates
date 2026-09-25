@@ -131,6 +131,7 @@ skills:
   # Search — search German housing platforms for apartments and rooms
   # -----------------------------------------------------------------------
   - id: search
+    anonymous_access: inline
     name_translation_key: app_skills.home.search
     description_translation_key: app_skills.home.search.description
     icon_image: home.svg
@@ -139,6 +140,12 @@ skills:
       Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
       Returns listings with prices, sizes, rooms, addresses, and direct links.
       Costs 10 credits per search. Use when user asks about finding housing in Germany.
+      Keep query focused on the location. Whenever the user states an intended use, household need,
+      desired quality, or preference not fully captured by price, room, size, property-type, or sort
+      fields, put it in relevance_criteria even if related words could also be added to query. Example:
+      "Prioritize listings with explicit balcony and quiet-setting evidence." Omit relevance_criteria
+      only for a neutral housing search fully expressed by query and structured fields. Never invent
+      amenities, commute, lease, accessibility, or neighborhood qualities.
     class_path: backend.apps.home.skills.search_skill.SearchSkill
     pricing:
       per_unit:
@@ -163,6 +170,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of housing search requests. Each request searches for
@@ -171,10 +180,14 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   City or location name to search in, e.g. "Berlin", "Munich", "Hamburg".
               listing_type:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Type of listing. "rent" for rentals (default), "buy" for purchases.
@@ -184,6 +197,8 @@ skills:
                   - buy
                 default: rent
               providers:
+                x-ui:
+                  basic: false
                 type: array
                 description: >
                   Optional list of providers to search. Defaults to all three.
@@ -194,6 +209,8 @@ skills:
                     - Kleinanzeigen
                     - WG-Gesucht
               property_type:
+                x-ui:
+                  basic: true
                 type: string
                 enum:
                 - apartment
@@ -201,6 +218,8 @@ skills:
                 default: apartment
                 description: Entire apartments or shared rooms. Shared rooms use WG-Gesucht.
               sort:
+                x-ui:
+                  basic: false
                 type: string
                 enum:
                 - price_asc
@@ -209,21 +228,41 @@ skills:
                 description: Price ascending, or discovery order for monitoring. Newest order is
                   supported by Kleinanzeigen; other providers retain their source order.
               max_price_eur:
+                x-ui:
+                  basic: true
                 type: number
                 minimum: 0
                 description: Maximum advertised monthly rent or purchase price in EUR. Price basis
                   varies by provider.
               min_rooms:
+                x-ui:
+                  basic: false
                 type: number
                 minimum: 0
                 description: Minimum advertised rooms. Results with unknown rooms are excluded when
                   set.
               min_size_sqm:
+                x-ui:
+                  basic: false
                 type: number
                 minimum: 0
                 description: Minimum advertised area in square metres. Unknown area is excluded
                   when set.
+              relevance_criteria:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional concise natural-language housing-ranking goal, separate from the location
+                  query. Set it whenever the user states an intended use, household need, desired
+                  quality, or preference not represented by structured filters. Example: "Prioritize
+                  explicit balcony and quiet-setting evidence." Omit only for a neutral search fully
+                  expressed by query and structured fields. Rank only explicit listing facts and
+                  never infer unstated qualities. Only max_results listings are returned.
               max_results:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Maximum number of listings to return (1-20, default 10).
                 default: 10
@@ -255,65 +294,101 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
             example: Home search completed
           result_count:
+            x-ui:
+              basic: false
             type: integer
             example: 1
           provider:
+            x-ui:
+              basic: false
             type: string
             example: Example housing provider
           results:
+            x-ui:
+              basic: true
             type: array
             items:
               type: object
               properties:
                 id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-listing
                 source_id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-listing
                 title:
+                  x-ui:
+                    basic: true
                   type: string
                   example: Two-room apartment
                 url:
+                  x-ui:
+                    basic: true
                   type: string
                   example: https://example.invalid/apartments/one
                 canonical_url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/apartments/one
                 provider:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Example housing provider
                 price:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 1100
                 price_label:
+                  x-ui:
+                    basic: true
                   type: string
                   example: 1.100 EUR/month
                 size_sqm:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 55
                 rooms:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 2
                 address:
+                  x-ui:
+                    basic: true
                   type: string
                   example: Berlin
                 property_type:
+                  x-ui:
+                    basic: false
                   type: string
                   example: apartment
                 listing_type:
+                  x-ui:
+                    basic: false
                   type: string
                   example: rent
                 available_from:
+                  x-ui:
+                    basic: false
                   type:
                   - string
                   - 'null'
@@ -346,56 +421,86 @@ skills:
               property_type: apartment
               listing_type: rent
           listings:
+            x-ui:
+              basic: false
             type: array
             items:
               type: object
               properties:
                 id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-listing
                 source_id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-listing
                 title:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Two-room apartment
                 url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/apartments/one
                 canonical_url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/apartments/one
                 provider:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Example housing provider
                 price:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 1100
                 price_label:
+                  x-ui:
+                    basic: false
                   type: string
                   example: 1.100 EUR/month
                 size_sqm:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 55
                 rooms:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
                   example: 2
                 address:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Berlin
                 property_type:
+                  x-ui:
+                    basic: false
                   type: string
                   example: apartment
                 listing_type:
+                  x-ui:
+                    basic: false
                   type: string
                   example: rent
                 available_from:
+                  x-ui:
+                    basic: false
                   type:
                   - string
                   - 'null'
@@ -428,11 +533,15 @@ skills:
               property_type: apartment
               listing_type: rent
           warnings:
+            x-ui:
+              basic: false
             type: array
             items:
               type: string
             example: []
           partial:
+            x-ui:
+              basic: false
             type: boolean
             example: false
 

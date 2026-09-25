@@ -1678,3 +1678,63 @@ workflow_app_activity:
   sv: Appaktivitet
   he: פעילות באפליקציה
   verified_by_human: []
+
+request:
+  context: Singular request count label on a billing usage row
+  en: request
+  de: Anfrage
+  verified_by_human: []
+
+requests:
+  context: Plural request count label on a billing usage row
+  en: requests
+  de: Anfragen
+  verified_by_human: []
+
+started_minute:
+  context: Singular started minute billed for audio transcription usage
+  en: started minute
+  de: angefangene Minute
+  verified_by_human: []
+
+started_minutes:
+  context: Plural started minutes billed for audio transcription usage
+  en: started minutes
+  de: angefangene Minuten
+  verified_by_human: []
+
+interrupted_recording:
+  context: Usage description for realtime audio accepted by the provider before recording was cancelled or disconnected
+  en: Interrupted recording
+  de: Unterbrochene Aufnahme
+  verified_by_human: []
+
+standalone_app_activity:
+  context: Usage description for an app skill charge that is not connected to a chat
+  en: Standalone app activity
+  de: Eigenständige App-Aktivität
+  verified_by_human: []
+
+api_key_activity:
+  context: Usage description for a charge made through an API key
+  en: API key activity
+  de: API-Schlüssel-Aktivität
+  verified_by_human: []
+
+device_activity:
+  context: Usage description for a charge made through an authenticated device or CLI
+  en: Device activity
+  de: Geräteaktivität
+  verified_by_human: []
+
+benchmark:
+  context: Usage context label for a charged benchmark run
+  en: Benchmark
+  de: Benchmark
+  verified_by_human: []
+
+context_unavailable:
+  context: Usage description for a legacy charge whose original context is unavailable
+  en: Original context unavailable
+  de: Ursprünglicher Kontext nicht verfügbar
+  verified_by_human: []

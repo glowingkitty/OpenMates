@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@3
+specification: feature.workflows-ui@4
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:
@@ -205,6 +205,11 @@ detail_tabs:
     header_remounted: false
     active_pill_slides: true
     accessible_name: Workflow runs
+template_step_selector:
+- id: ask-ai-in-the-single-step-selector
+  given: Alice has added an Events search and reaches the empty continuation beneath it.
+  when: She clicks "Do nothing. Or click here to add a step."
+  then: One in-place selector offers Use app, Ask AI, Add check and Send message; choosing Ask AI expands its editor in the same graph card, while the Events app card retains its actual icon and name.
 template_editing:
 - id: compact-vertical-graph-composition
   given:
@@ -232,7 +237,7 @@ template_editing:
     click_placeholder: "Do nothing.\nOr click here to add a step."
   expect:
     single_selector_heading: What should happen next?
-    valid_choices: [Use App, Send message, Add check]
+    valid_choices: [Use app, Ask AI, Add check, Send message]
     separate_duplicate_add_action_button: false
     separate_duplicate_add_check_button: false
     add_action_icon: app.svg
@@ -417,6 +422,20 @@ mvp_authoring:
   given: A forecast step exists before any live run and an Events step declares a result list.
   when: Alice adds Check for rain and a Send message result block for events.
   then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
+- id: mvp-authoring-ask-ai-is-separate
+  assertion_ids: [workflows-ui.mvp.authoring]
+  given: Alice has Events results and wants a short explanation before a chat message.
+  when: She opens the add-step selector.
+  then: Use app, Ask AI, Add check and Send message are distinct choices; AI Ask is not inside Use app, while AI judgment remains a mode inside Check.
+- id: exact-rule-remains-the-easy-default
+  given: Alice wants a rain warning only when forecast probability is greater than 60 percent.
+  when: She adds Check and describes or selects that exact threshold.
+  then: The editor recommends Exact rule, shows the readable comparison, uses If true and If false branches, and makes no AI decision call.
+- id: ai-judgment-reveals-only-essential-controls
+  assertion_ids: [workflows-ui.mvp.authoring]
+  given: Bob wants to decide whether an apartment is a strong overall fit using its price, area, commute and description.
+  when: He chooses Use AI judgment in Check.
+  then: He writes one yes-or-no question, selects those earlier values, previews exactly what will be evaluated, and can Test before Save. The graph shows If true, If false and Unsure; he can add a Send message step to Unsure or leave it empty. Provider, prompt and numeric-threshold controls stay out of the basic editor.
 - id: weather-range-and-shared-field-controls
   given: Alice adds a Weather forecast step before the Workflow has run.
   when: The typed skill form opens.
@@ -433,6 +452,17 @@ mvp_authoring:
   when: Alice removes the Check.
   then: The builder rewrites the dependency only for an equivalent equality-to-true earlier boolean; otherwise it
     names the dependent steps, keeps the Check and leaves the saved graph valid.
+ask_ai_authoring:
+- id: ask-ai-editor-suggests-existing-results
+  given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special" in Ask AI.
+  when: She stops editing the instruction for one second.
+  then: Jev suggests an Events results chip above the multiline field without inserting it, moving the cursor or changing the full picker order; Alice inserts it, previews bounded selected values, Tests, and can use Ask AI Answer downstream.
+- id: ask-ai-warning-and-neutral-reminder
+  given: Bob types "Search for new events for me" into Ask AI.
+  when: Jev reliably identifies a request to run an app skill, or Jev cannot give a reliable verdict.
+  then: A reliable request shows a warning below the field to add Use app and blocks Save; an uncertain or unavailable
+    verdict shows only a neutral reminder and allows Save for server-side Jev/Gemini fallback validation. A late
+    response to a previous instruction cannot change the current warning or suggestions.
 schedule_preview:
 - id: schedule_preview-example
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.

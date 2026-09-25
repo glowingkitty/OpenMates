@@ -168,6 +168,46 @@ final class DevPreviewLaunchConfigurationTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history,chats.surface.semantic-parity
+    func testFollowUpSuggestionPreviewAndNormalizationMatchWebContract() throws {
+        let configuration = try XCTUnwrap(DevPreviewLaunchConfiguration.parse(environment: [
+            "DEV_PREVIEW": "follow-up-suggestions",
+            "DEV_PREVIEW_VARIANT": "legacy-markup",
+        ]))
+        XCTAssertEqual(configuration.component, .followUpSuggestions)
+        XCTAssertEqual(configuration.component?.descriptor.webComponentPath, "FollowUpSuggestions")
+        XCTAssertNil(configuration.error)
+
+        let items = FollowUpSuggestionPresentation.visibleItems(from: [
+            "[web-search] <strong>Compare</strong> the sources",
+            "Explain&nbsp;simply",
+            "Plan the next step",
+            "Plan the next step",
+            "   ",
+            "Show an example",
+            "This fifth unique action is hidden",
+        ])
+        XCTAssertEqual(
+            items.map(\.body),
+            ["Compare the sources", "Explain\u{00a0}simply", "Plan the next step", "Show an example"]
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation,chats.surface.semantic-parity
+    @MainActor
+    func testEncryptedWebFollowUpsDecodeAndSurviveOfflineChatRoundTrip() throws {
+        let wire = #"{"id":"web-chat","created_at":"2026-09-23T12:00:00Z","encrypted_follow_up_request_suggestions":"ciphertext-fixture"}"#
+        let decoded = try JSONDecoder().decode(Chat.self, from: try XCTUnwrap(wire.data(using: .utf8)))
+        XCTAssertEqual(decoded.encryptedFollowUpRequestSuggestions, "ciphertext-fixture")
+
+        let restored = PersistedChat(from: decoded).toChat()
+        XCTAssertEqual(restored.encryptedFollowUpRequestSuggestions, "ciphertext-fixture")
+        XCTAssertEqual(
+            ChatViewModel.decodeFollowUpSuggestions(#"["Compare the options","  Show an example  ","",17]"#),
+            ["Compare the options", "Show an example"]
+        )
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
     func testAuthHostsAcceptOnlyImplementedStagesAndResetForDistinctVariants() throws {
         for component in [DevPreviewComponent.login, .signup] {

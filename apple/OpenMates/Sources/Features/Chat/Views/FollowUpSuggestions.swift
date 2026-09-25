@@ -1,272 +1,191 @@
-// Follow-up suggestion chips — AI-generated suggestions shown after responses.
-// Tapping a chip fills the message input with the suggestion text.
-
-// ─── Web source ─────────────────────────────────────────────────────
+// Follow-up quick-send actions rendered below the latest assistant response.
+//
+// ─── Web source ───────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/FollowUpSuggestions.svelte
-// CSS:     frontend/packages/ui/src/styles/chat.css
-//          .follow-up-suggestions-wrapper (padding, alignment with assistant messages)
-// Note:    Web renders a full gradient banner card with animated orbs and
-//          pagination. The Swift version is simplified to horizontal pill chips
-//          appropriate for compact mobile layout.
+//          frontend/packages/ui/src/components/ChatHistory.svelte
+// CSS:     FollowUpSuggestions.svelte .suggestions-wrapper, .suggestion-item,
+//          .suggestion-enter-icon; ChatHistory.svelte .follow-up-suggestions-wrapper
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
-// ────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history, chats.surface.semantic-parity
 
+import Foundation
 import SwiftUI
+
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct FollowUpSuggestions: View {
     let suggestions: [String]
-    var category: String?
-    var icon: String?
+    // Kept at the call-site boundary until the obsolete gradient-card metadata
+    // is removed from ChatView after its concurrent header work lands.
+    var category: String? = nil
+    var icon: String? = nil
     let onSelect: (String) -> Void
-    @State private var page = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let visibleSuggestions: [FollowUpSuggestionPresentation.Item]
+    private let compact: Bool
 
-    private var parsedSuggestions: [ParsedSuggestion] {
-        suggestions.map(ParsedSuggestion.init(raw:))
+    @State private var isDismissing = false
+
+    init(
+        suggestions: [String],
+        category: String? = nil,
+        icon: String? = nil,
+        compact: Bool = false,
+        onSelect: @escaping (String) -> Void
+    ) {
+        self.suggestions = suggestions
+        self.category = category
+        self.icon = icon
+        self.compact = compact
+        self.onSelect = onSelect
+        visibleSuggestions = FollowUpSuggestionPresentation.visibleItems(from: suggestions)
     }
 
-    private var currentSuggestions: [ParsedSuggestion] {
-        let start = min(page * 3, max(parsedSuggestions.count - 1, 0))
-        return Array(parsedSuggestions.dropFirst(start).prefix(3))
-    }
-
-    private var hasMultiplePages: Bool {
-        parsedSuggestions.count > 3
+    private var itemSpacing: CGFloat {
+        #if os(iOS)
+        // Web coarse pointers use 0.8rem. The nearest generated token is 12pt.
+        return .spacing6
+        #else
+        // Web mouse/trackpad layout uses 0.35rem (5.6px).
+        return .spacing3
+        #endif
     }
 
     var body: some View {
-        if !suggestions.isEmpty {
-            GeometryReader { geo in
-                let isMobile = geo.size.width <= 730
-                let cardHeight: CGFloat = isMobile ? 195 : 170
-
-                VStack(spacing: .spacing4) {
-                    VStack(spacing: 2) {
-                        Text(AppStrings.suggestionsExploreNext)
-                            .font(.custom("Lexend Deca", size: 16).weight(.bold))
-                            .foregroundStyle(Color.grey70)
-                            .multilineTextAlignment(.center)
-
-                        Text(AppStrings.suggestionsHeader)
-                            .font(.custom("Lexend Deca", size: 14).weight(.medium))
-                            .foregroundStyle(Color.grey70)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, isMobile ? 15 : 18)
-
-                    ZStack {
-                        FollowUpGradientBackground(
-                            category: category,
-                            icon: icon,
-                            height: cardHeight,
-                            reduceMotion: reduceMotion
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: .radius6))
-                        .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 4)
-
-                        HStack(spacing: 0) {
-                            if hasMultiplePages {
-                                pageButton(icon: "chevron-left", height: cardHeight) {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        page = max(page - 1, 0)
-                                    }
-                                }
-                            }
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(currentSuggestions) { suggestion in
-                                    Button {
-                                        onSelect(suggestion.body)
-                                    } label: {
-                                        HStack(alignment: .center, spacing: 8) {
-                                            suggestionIcon(suggestion)
-
-                                            Text(suggestion.body)
-                                                .font(.custom("Lexend Deca", size: isMobile ? 15 : 16).weight(.semibold))
-                                                .foregroundStyle(Color.fontButton)
-                                                .lineLimit(2)
-                                                .multilineTextAlignment(.leading)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.vertical, isMobile ? 4 : 6)
-                                        .padding(.horizontal, isMobile ? 6 : 8)
-                                        .contentShape(RoundedRectangle(cornerRadius: .radius3))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .frame(maxWidth: 700)
-                            .padding(.vertical, isMobile ? 12 : 16)
-                            .padding(.horizontal, .spacing4)
-
-                            if hasMultiplePages {
-                                pageButton(icon: "chevron-right", height: cardHeight) {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        let maxPage = max(Int(ceil(Double(parsedSuggestions.count) / 3.0)) - 1, 0)
-                                        page = min(page + 1, maxPage)
-                                    }
-                                }
-                            }
+        if !visibleSuggestions.isEmpty {
+            VStack(alignment: .trailing, spacing: itemSpacing) {
+                ForEach(visibleSuggestions) { suggestion in
+                    Button {
+                        guard !isDismissing else { return }
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            isDismissing = true
                         }
+                        onSelect(suggestion.body)
+                    } label: {
+                        HStack(alignment: .center, spacing: .spacing4) {
+                            Text(suggestion.body)
+                                .font(compact ? .omXs : .omSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.grey70)
+                                .multilineTextAlignment(.trailing)
+
+                            FollowUpEnterArrow()
+                                .stroke(
+                                    Color.grey70,
+                                    style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round)
+                                )
+                                .frame(width: 17, height: 17)
+                                .accessibilityHidden(true)
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .frame(height: cardHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius6))
+                    .buttonStyle(.plain)
+                    .disabled(isDismissing)
+                    .accessibilityIdentifier("follow-up-suggestion-item")
                 }
-                .padding(.horizontal, .spacing4)
-                .padding(.vertical, .spacing4)
-                .frame(maxWidth: 700)
-                .frame(maxWidth: .infinity)
             }
-            .frame(height: 255)
-        }
-    }
-
-    private func pageButton(icon: String, height: CGFloat, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            LucideNativeIcon(icon, size: 26)
-                .foregroundStyle(Color.fontButton)
-                .frame(width: 36, height: height)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .opacity(0.9)
-    }
-
-    @ViewBuilder
-    private func suggestionIcon(_ suggestion: ParsedSuggestion) -> some View {
-        if suggestion.iconName == "back" {
-            Icon("back", size: 18)
-                .foregroundStyle(Color.fontButton.opacity(0.9))
-                .scaleEffect(x: -1, y: 1)
-                .frame(width: 18, height: 18)
-        } else {
-            Icon(suggestion.iconName, size: 18)
-                .foregroundStyle(Color.fontButton.opacity(0.9))
-                .frame(width: 18, height: 18)
+            .frame(maxWidth: 780, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.top, .spacing4)
+            // Web ChatHistory.svelte uses an exact 14px bottom inset here.
+            .padding(.bottom, 14)
+            .padding(.horizontal, compact ? .spacing5 : .spacing10)
+            .opacity(isDismissing ? 0 : 1)
+            .allowsHitTesting(!isDismissing)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("suggestions-wrapper")
+            .onChange(of: suggestions) { _, _ in
+                isDismissing = false
+            }
         }
     }
 }
 
-private struct FollowUpGradientBackground: View {
-    let category: String?
-    let icon: String?
-    let height: CGFloat
-    let reduceMotion: Bool
-
-    private var resolvedCategory: String {
-        category ?? "openmates_official"
+/// Pure normalization shared by the production renderer and deterministic tests.
+/// It deliberately follows the web order: deduplicate exact raw inputs, decode
+/// HTML to visible text, remove a legacy `[app-skill]` prefix, then omit blanks.
+enum FollowUpSuggestionPresentation {
+    struct Item: Identifiable, Equatable {
+        let id: Int
+        let body: String
     }
 
-    private var resolvedIcon: String {
-        if let icon, !icon.isEmpty {
-            return icon
-        }
-        return CategoryMapping.lucideIconName(for: resolvedCategory)
-    }
-
-    var body: some View {
-        TimelineView(.animation) { timeline in
-            let time = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
-
-            GeometryReader { geo in
-                ZStack {
-                    CategoryMapping.gradient(for: resolvedCategory)
-
-                    orb(size: CGSize(width: 320, height: 280), opacity: 0.55, time: time, morph: 11, drift: 19)
-                        .position(x: -20, y: 20)
-                    orb(size: CGSize(width: 300, height: 260), opacity: 0.55, time: time + 8, morph: 13, drift: 23)
-                        .position(x: geo.size.width + 20, y: geo.size.height + 10)
-                    orb(size: CGSize(width: 240, height: 200), opacity: 0.38, time: time + 15, morph: 17, drift: 29)
-                        .position(x: geo.size.width * 0.42, y: 40)
-
-                    decoIcon(size: height > 170 ? 64 : 90, rotation: -15, time: time)
-                        .position(x: height > 170 ? 18 : 25, y: geo.size.height / 2)
-                    decoIcon(size: height > 170 ? 64 : 90, rotation: 15, time: time + 8)
-                        .position(x: geo.size.width - (height > 170 ? 18 : 25), y: geo.size.height / 2)
-                }
-            }
-        }
-    }
-
-    private func orb(size: CGSize, opacity: Double, time: Double, morph: Double, drift: Double) -> some View {
-        let color = CategoryMapping.orbColor(for: resolvedCategory)
-        let morphX = 1.0 + 0.15 * sin(time * .pi * 2 / morph)
-        let morphY = 1.0 + 0.15 * cos(time * .pi * 2 / morph + 0.7)
-        let driftX = 18 * sin(time * .pi * 2 / drift)
-        let driftY = 15 * cos(time * .pi * 2 / drift + 1.2)
-
-        return Ellipse()
-            .fill(
-                RadialGradient(
-                    colors: [color, color, color.opacity(0)],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: max(size.width, size.height) * 0.45
-                )
+    static func items(from suggestions: [String]) -> [Item] {
+        var seen = Set<String>()
+        return suggestions.compactMap { raw -> String? in
+            guard seen.insert(raw).inserted else { return nil }
+            let plain = stripHTML(from: raw)
+            let withoutLegacyPrefix = plain.replacingOccurrences(
+                of: #"^\s*\[[^\]]+\]\s*"#,
+                with: "",
+                options: .regularExpression
             )
-            .frame(width: size.width, height: size.height)
-            .scaleEffect(x: morphX, y: morphY)
-            .offset(x: driftX, y: driftY)
-            .blur(radius: 28)
-            .opacity(opacity)
+            let body = withoutLegacyPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+            return body.isEmpty ? nil : body
+        }
+        .enumerated()
+        .map { Item(id: $0.offset, body: $0.element) }
     }
 
-    private func decoIcon(size: CGFloat, rotation: Double, time: Double) -> some View {
-        LucideNativeIcon(resolvedIcon, size: size)
-            .foregroundStyle(Color.fontButton.opacity(0.3))
-            .rotationEffect(.degrees(rotation))
-            .offset(
-                x: reduceMotion ? 0 : 6 * cos(time * .pi * 2 / 16),
-                y: reduceMotion ? 0 : 8 * sin(time * .pi * 2 / 16)
-            )
+    static func visibleItems(from suggestions: [String]) -> [Item] {
+        Array(items(from: suggestions).prefix(4))
+    }
+
+    private static func stripHTML(from value: String) -> String {
+        guard value.contains("<") || value.contains("&") else { return value }
+        guard let data = value.data(using: .utf8),
+              let attributed = try? NSAttributedString(
+                data: data,
+                options: [
+                    .documentType: NSAttributedString.DocumentType.html,
+                    .characterEncoding: String.Encoding.utf8.rawValue,
+                ],
+                documentAttributes: nil
+              ) else {
+            return value.replacingOccurrences(of: #"<[^>]+>"#, with: "", options: .regularExpression)
+        }
+        return attributed.string
     }
 }
 
-private struct ParsedSuggestion: Identifiable {
-    let id: String
-    let raw: String
-    let appId: String?
-    let body: String
-
-    init(raw: String) {
-        self.raw = raw
-        self.id = raw
-
-        let pattern = #"^\[([a-zA-Z0-9_-]+)(?:-[a-zA-Z0-9_-]+)?\]\s*(.+)$"#
-        if let regex = try? NSRegularExpression(pattern: pattern),
-           let match = regex.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)),
-           let appRange = Range(match.range(at: 1), in: raw),
-           let bodyRange = Range(match.range(at: 2), in: raw) {
-            appId = String(raw[appRange])
-            body = String(raw[bodyRange])
-        } else {
-            appId = nil
-            body = raw
+/// The web component owns this 24×24 enter-arrow path inline rather than using
+/// an icon asset. Drawing the same path avoids substituting a platform glyph.
+private struct FollowUpEnterArrow: Shape {
+    func path(in rect: CGRect) -> Path {
+        let scaleX = rect.width / 24
+        let scaleY = rect.height / 24
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: x * scaleX, y: y * scaleY)
         }
-    }
 
-    var iconName: String {
-        switch appId {
-        case nil:
-            return "back"
-        case "audio", "recording":
-            return "mic"
-        case "code":
-            return "code"
-        case "events", "event":
-            return "calendar"
-        case "images", "image":
-            return "image"
-        case "maps", "map":
-            return "map"
-        case "videos", "video":
-            return "video"
-        case "web", "search":
-            return "search"
-        default:
-            return AppIconView.iconName(forAppId: appId ?? "ai")
-        }
+        var path = Path()
+        path.move(to: point(9, 10))
+        path.addLine(to: point(9, 14))
+        path.addLine(to: point(16, 14))
+        path.addCurve(
+            to: point(20, 10),
+            control1: point(18.21, 14),
+            control2: point(20, 12.21)
+        )
+        path.addLine(to: point(20, 4))
+        path.addLine(to: point(18, 4))
+        path.addLine(to: point(18, 10))
+        path.addCurve(
+            to: point(16, 12),
+            control1: point(18, 11.10),
+            control2: point(17.10, 12)
+        )
+        path.addLine(to: point(9, 12))
+        path.addLine(to: point(9, 8))
+        path.addLine(to: point(4, 13))
+        path.addLine(to: point(9, 18))
+        path.addLine(to: point(9, 14))
+        return path
     }
 }

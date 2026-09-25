@@ -18,6 +18,7 @@ import json
 import sys
 import types
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -94,6 +95,7 @@ try:
     from backend.apps.ai.skills.ask_skill import AskSkillRequest
     from backend.apps.ai.tasks import stream_consumer
     from backend.apps.ai.tasks import ask_skill_task
+    from backend.apps.ai.utils.main_processing_failure import main_processing_failure
     from backend.core.api.app.schemas.chat import AIHistoryMessage
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
@@ -236,6 +238,40 @@ def test_focus_continuation_frames_are_marked() -> None:
     )
 
     assert payload["is_focus_mode_continuation"] is True
+
+
+def test_async_skill_continuation_frames_keep_operation_and_original_turn() -> None:
+    request_data = _ask_request()
+    request_data.is_async_skill_continuation = True
+    request_data.original_user_message_id = request_data.message_id
+    request_data.async_skill_task_id = "operation-1"
+
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "continued response",
+        1,
+    )
+
+    assert payload["is_async_skill_continuation"] is True
+    assert payload["original_user_message_id"] == request_data.message_id
+    assert payload["async_skill_task_id"] == "operation-1"
+
+
+def test_interim_async_skill_response_does_not_seal_recovery() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    assert "not request_data.awaiting_async_skill_continuation" in source
+
+    request_data = _ask_request()
+    request_data.awaiting_async_skill_continuation = True
+    payload = stream_consumer._create_redis_payload(
+        "11111111-1111-4111-8111-111111111111",
+        request_data,
+        "waiting for executor",
+        1,
+        is_final=True,
+    )
+    assert payload["awaiting_async_skill_continuation"] is True
 
 
 def test_continuation_stream_payloads_use_continuation_message_id() -> None:
@@ -723,3 +759,94 @@ def test_memory_continuation_seals_under_original_inference_identity():
     assert request.resolved_recovery_inference_task_id() == "original-task-1"
     request.is_app_settings_memories_continuation = False
     assert request.resolved_recovery_inference_task_id() is None
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
+def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch):
+    from backend.shared.python_utils.chat_failure_notifications import terminal_class
+
+    async def failed_stream(**kwargs):
+        yield "A partial answer that must not make the turn look successful."
+        yield stream_consumer.MistralUsage(
+            prompt_tokens=20,
+            completion_tokens=2,
+            total_tokens=22,
+        )
+        yield main_processing_failure("provider_exhausted")
+
+    billing = AsyncMock(return_value={"total_credits": 22})
+    aggregate_log = Mock()
+    publish = AsyncMock()
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", failed_stream)
+    monkeypatch.setattr(stream_consumer, "_handle_normal_billing", billing)
+    monkeypatch.setattr(stream_consumer, "log_main_llm_stream_aggregated_output", aggregate_log)
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", publish)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="hash-1",
+        message_history=[],
+        is_incognito=True,
+    )
+
+    result = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
+    ))
+
+    assert result[0].startswith("A partial answer that must not make the turn look successful.")
+    assert result[0].endswith(stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE)
+    assert result[4]["main_processing_failure_reason"] == "provider_exhausted"
+    billing.assert_not_awaited()
+    assert aggregate_log.call_args.kwargs["error_message"] == "Main processing failed: provider_exhausted."
+    final_payloads = [
+        call.args[2]
+        for call in publish.await_args_list
+        if call.args[2].get("is_final_chunk")
+    ]
+    assert len(final_payloads) == 1
+    assert final_payloads[0]["full_content_so_far"] == result[0]
+    assert final_payloads[0].get("total_credits") is None
+    assert terminal_class(
+        {"main_processing_output": result[0]},
+        stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE,
+    ) == "failed_during_main"
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+def test_normal_text_with_usage_remains_successful_and_billable(monkeypatch):
+    async def successful_stream(**kwargs):
+        yield "Complete answer."
+        yield stream_consumer.MistralUsage(
+            prompt_tokens=20,
+            completion_tokens=2,
+            total_tokens=22,
+        )
+
+    billing = AsyncMock(return_value={"total_credits": 22})
+    aggregate_log = Mock()
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", successful_stream)
+    monkeypatch.setattr(stream_consumer, "_handle_normal_billing", billing)
+    monkeypatch.setattr(stream_consumer, "log_main_llm_stream_aggregated_output", aggregate_log)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="hash-1",
+        message_history=[],
+        is_incognito=True,
+    )
+
+    result = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=None,
+    ))
+
+    assert result[0] == "Complete answer."
+    billing.assert_awaited_once()
+    assert aggregate_log.call_args.kwargs["error_message"] is None

@@ -3,6 +3,10 @@
 // The SwiftData model intentionally has no plaintext or editor-state fields.
 // DraftService owns encryption while repositories own ciphertext persistence.
 // This boundary remains injectable for production-container verification.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.drafts.preview-persistence
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.persistence.local-first-encrypted
 
 import Foundation
 import SwiftData
@@ -11,6 +15,10 @@ struct ComposerDraftRecord: Sendable {
     let chatId: String
     var encryptedMarkdown: String
     var encryptedPreview: String
+    /// Master-key Format D ciphertext for local-only composer embed snapshots.
+    /// The persisted name is retained for migration compatibility.
+    /// This field never participates in the draft sync wire contract.
+    var encryptedRecordingPayload: String? = nil
     let revision: Int
     let draftVersion: Int
     var clearedDraftVersion: Int = 0
@@ -20,8 +28,20 @@ struct ComposerDraftRecord: Sendable {
 struct ComposerDraft: Sendable {
     let canonicalMarkdown: String
     let preview: String
+    let attachments: [ComposerDraftAttachment]
     let revision: Int
     let draftVersion: Int
+
+    var recordings: [EmbedRecord] {
+        attachments.map(\.embedRecord).filter { $0.type == "audio-recording" }
+    }
+}
+
+/// Embed metadata and optional local bytes stored inside the master-key encrypted
+/// draft companion payload. No attachment plaintext is written to SwiftData.
+struct ComposerDraftAttachment: Sendable {
+    let embedRecord: EmbedRecord
+    let localData: Data?
 }
 
 protocol ComposerDraftRepository: Sendable {
@@ -88,6 +108,13 @@ enum ComposerDraftMutation: Sendable {
             else { return unchanged }
             record.clearedDraftVersion = clearedVersion
             record.isDeleted = false
+            // The companion is local-only. Server echoes carry the same markdown
+            // ciphertext and preserve it; a genuine remote replacement clears it.
+            if record.encryptedRecordingPayload == nil,
+               let local,
+               record.encryptedMarkdown == local.encryptedMarkdown {
+                record.encryptedRecordingPayload = local.encryptedRecordingPayload
+            }
             return ComposerDraftApplication(record: record, applied: true)
         case .previewRepair(var record):
             // Preview derivation awaits decryption/encryption. It may only fill
@@ -96,11 +123,13 @@ enum ComposerDraftMutation: Sendable {
                   local.draftVersion == record.draftVersion, local.revision == record.revision,
                   local.encryptedMarkdown == record.encryptedMarkdown else { return unchanged }
             record.clearedDraftVersion = clearedVersion
+            record.encryptedRecordingPayload = local.encryptedRecordingPayload
             return ComposerDraftApplication(record: record, applied: true)
         case .acknowledgement(_, let version):
             guard let local, !local.isDeleted, version >= currentVersion else { return unchanged }
             return ComposerDraftApplication(record: ComposerDraftRecord(chatId: local.chatId,
                 encryptedMarkdown: local.encryptedMarkdown, encryptedPreview: local.encryptedPreview,
+                encryptedRecordingPayload: local.encryptedRecordingPayload,
                 revision: local.revision, draftVersion: version, clearedDraftVersion: clearedVersion), applied: true)
         case .deletion(_, let version):
             guard ComposerDraftVersionPolicy.acceptsDeletion(version: version, currentVersion: currentVersion)
@@ -146,6 +175,10 @@ final class PersistedComposerDraft {
     @Attribute(.unique) var chatId: String
     var encryptedMarkdown: String
     var encryptedPreview: String
+    // Optional so existing SwiftData stores migrate without a mandatory value.
+    // The persisted name is retained while the encrypted payload now also owns
+    // image/file draft snapshots.
+    var encryptedRecordingPayload: String? = nil
     var revision: Int
     var draftVersion: Int
     var clearedDraftVersion: Int?
@@ -156,6 +189,7 @@ final class PersistedComposerDraft {
         self.chatId = record.chatId
         self.encryptedMarkdown = record.encryptedMarkdown
         self.encryptedPreview = record.encryptedPreview
+        self.encryptedRecordingPayload = record.encryptedRecordingPayload
         self.revision = record.revision
         self.draftVersion = record.draftVersion
         self.clearedDraftVersion = record.clearedDraftVersion
@@ -165,6 +199,7 @@ final class PersistedComposerDraft {
     func update(from record: ComposerDraftRecord) {
         encryptedMarkdown = record.encryptedMarkdown
         encryptedPreview = record.encryptedPreview
+        encryptedRecordingPayload = record.encryptedRecordingPayload
         revision = record.revision
         draftVersion = record.draftVersion
         clearedDraftVersion = record.clearedDraftVersion
@@ -176,6 +211,7 @@ final class PersistedComposerDraft {
             chatId: chatId,
             encryptedMarkdown: encryptedMarkdown,
             encryptedPreview: encryptedPreview,
+            encryptedRecordingPayload: encryptedRecordingPayload,
             revision: revision,
             draftVersion: draftVersion,
             clearedDraftVersion: clearedDraftVersion ?? 0,

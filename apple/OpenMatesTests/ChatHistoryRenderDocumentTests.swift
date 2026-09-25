@@ -265,6 +265,43 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(entities.map(\.target), ["Kyoto", "missing-ref"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.inline-entity-interaction,web-search.surface-parity
+    func testInlineEmbedReferenceResolvesSearchChildFromParentFallbackBeforeHydration() throws {
+        let parent = EmbedRecord(
+            id: "search-parent",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "app_id": AnyCodable("web"),
+                "skill_id": AnyCodable("search"),
+                "query": AnyCodable("native citation fallback"),
+                "results_toon": AnyCodable("""
+                    results[1]:
+                      - type: search_result
+                        title: "Hydrating source"
+                        url: "https://example.com/source"
+                    count: 1
+                    """),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: "source-child",
+            createdAt: "2026-09-24T00:00:00Z"
+        )
+
+        let resolved = try XCTUnwrap(MarkdownEmbedResolver.resolve(
+            "source-child",
+            in: [parent.id: parent]
+        ))
+
+        XCTAssertEqual(resolved.id, "source-child")
+        XCTAssertEqual(resolved.parentEmbedId, parent.id)
+        XCTAssertEqual(resolved.rawData?["title"]?.value as? String, "Hydrating source")
+        XCTAssertEqual(resolved.rawData?["url"]?.value as? String, "https://example.com/source")
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testResponsiveChatLayoutMatchesWebBreakpoints() {
         XCTAssertEqual(ChatResponsiveLayoutPolicy.contentMaximumWidth, 1_000)
@@ -495,5 +532,46 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
             ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"answer\":true}\n```"),
             "```json\n{\"answer\":true}\n```"
         )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence
+    func testSameIDEmbedFinalizationChangesSyncSignatureAndRequiresViewModelRefresh() {
+        let processing = EmbedRecord(
+            id: "embed-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .processing,
+            data: .raw([
+                "type": AnyCodable("app_skill_use"),
+                "query": AnyCodable("synthetic query"),
+            ]),
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: nil,
+            createdAt: "1800000000"
+        )
+        let finished = EmbedRecord(
+            id: processing.id,
+            type: processing.type,
+            status: .finished,
+            data: nil,
+            encryptedContent: "synthetic-ciphertext",
+            encryptedType: "synthetic-type-ciphertext",
+            parentEmbedId: nil,
+            appId: "web",
+            skillId: "search",
+            embedIds: "child-a|child-b",
+            versionNumber: 1,
+            contentHash: "synthetic-content-hash",
+            createdAt: processing.createdAt
+        )
+
+        XCTAssertNotEqual(
+            ChatEmbedSyncSignature.make(chatId: "chat", embeds: [processing]),
+            ChatEmbedSyncSignature.make(chatId: "chat", embeds: [finished]),
+            "A same-ID processing→finished transition must trigger ChatView synchronization"
+        )
+        XCTAssertTrue(ChatViewModel.embedRecordNeedsRefresh(existing: processing, incoming: finished))
+        XCTAssertFalse(ChatViewModel.embedRecordNeedsRefresh(existing: finished, incoming: finished))
     }
 }

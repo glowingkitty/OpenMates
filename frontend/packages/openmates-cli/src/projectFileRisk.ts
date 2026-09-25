@@ -9,6 +9,9 @@
  * Tests: frontend/packages/openmates-cli/tests/remoteAccess.test.ts.
  */
 
+import { isProtectedProjectReadPath } from "../../ui/src/utils/projectSearchProtocol.js";
+import { createProjectPathPolicy } from "../../ui/src/utils/projectPathPolicy.js";
+
 export interface ProjectFileRiskResult {
   isHighRisk: boolean;
   reasons: string[];
@@ -67,6 +70,17 @@ const BUILT_IN_PATTERNS: Array<{ reason: string; patterns: string[] }> = [
 
 export const PROJECT_HIGH_RISK_GLOBS = BUILT_IN_PATTERNS.flatMap((group) => group.patterns);
 
+/** Read/search protection is intentionally narrower than mutation risk. */
+export function classifyProjectFileReadRisk(path: string, userProtectedPatterns: string[] = []): ProjectFileRiskResult {
+  const normalizedPath = normalizePath(path);
+  const reasons: string[] = [];
+  if (isProtectedProjectReadPath(normalizedPath)) reasons.push("credential_file");
+  if (matchesAdditionalPrivatePattern(normalizedPath, userProtectedPatterns)) {
+    reasons.push("user_protected_pattern");
+  }
+  return { isHighRisk: reasons.length > 0, reasons: [...new Set(reasons)] };
+}
+
 export function classifyProjectFileRisk(path: string, userProtectedPatterns: string[] = []): ProjectFileRiskResult {
   const normalizedPath = normalizePath(path);
   const reasons: string[] = [];
@@ -77,7 +91,7 @@ export function classifyProjectFileRisk(path: string, userProtectedPatterns: str
     }
   }
 
-  if (userProtectedPatterns.some((pattern) => matchesPattern(normalizedPath, normalizePath(pattern)))) {
+  if (matchesAdditionalPrivatePattern(normalizedPath, userProtectedPatterns)) {
     reasons.push("user_protected_pattern");
   }
 
@@ -86,6 +100,13 @@ export function classifyProjectFileRisk(path: string, userProtectedPatterns: str
 
 function normalizePath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function matchesAdditionalPrivatePattern(path: string, patterns: string[]): boolean {
+  if (patterns.length === 0) return false;
+  const builtIn = createProjectPathPolicy({ ignoreFiles: [], privatePaths: [] });
+  const extended = createProjectPathPolicy({ ignoreFiles: [], privatePaths: patterns });
+  return extended.isPrivate(path) && !builtIn.isPrivate(path);
 }
 
 function matchesPattern(path: string, pattern: string): boolean {

@@ -32,8 +32,10 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
     normalize_string_query_request_items,
+    omit_unstated_generic_repository_criteria,
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.apps.ai.utils.main_processing_failure import main_processing_failure
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
     apply_learning_mode_policy_to_skill_result,
@@ -47,14 +49,17 @@ from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
     AllServersFailedError,
-    STANDARDIZED_USER_ERROR_MESSAGE,
 )
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.tool_protocol_guard import (
+    ToolProtocolGuard,
+    ToolProtocolRecoveryState,
+    build_tool_protocol_recovery_messages,
+)
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
@@ -86,6 +91,12 @@ from backend.core.api.app.services.sub_chat_orchestration_service import SubChat
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 from backend.apps.ai.processing.task_runtime_tools import build_task_runtime_tools, merge_task_runtime_tools
+from backend.apps.ai.processing.project_file_tools import (
+    PROJECT_FILE_TOOL_TO_OPERATION,
+    build_project_file_tools,
+    build_project_focus_prompt,
+    build_project_source_routing_context,
+)
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
     build_task_queue_continuation_event,
@@ -209,6 +220,39 @@ def _iter_user_request_texts(request_data: AskSkillRequest) -> List[str]:
         if content:
             texts.append(content)
     return texts
+
+
+def _apply_repository_relevance_criteria_guard(
+    arguments: Dict[str, Any],
+    app_id: str,
+    skill_id: str,
+    message_history: Optional[List[Dict[str, Any]]],
+    log_prefix: str,
+) -> Dict[str, Any]:
+    if (app_id, skill_id) != ("code", "search_repos"):
+        return arguments
+
+    latest_user_text: Optional[str] = None
+    for message in reversed(message_history or []):
+        if message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            latest_user_text = content.strip()
+            break
+
+    guarded, removed = omit_unstated_generic_repository_criteria(
+        arguments,
+        latest_user_text,
+    )
+    if removed:
+        logger.warning(
+            "%s Removed %d unstated generic relevance_criteria value(s) from "
+            "neutral code.search_repos request",
+            log_prefix,
+            removed,
+        )
+    return guarded
 
 
 def _llm_history_message(message: Any) -> Dict[str, Any]:
@@ -567,8 +611,10 @@ def _build_pending_app_settings_memories_context(
         "chat_key_version": getattr(request_data, "chat_key_version", None),
     }
 
-# Max iterations for tool calling to prevent infinite loops
+# Four tool-enabled passes followed by one answer-only pass. A silent answer-only
+# recovery below may add one more provider call, but can never execute a skill.
 MAX_TOOL_CALL_ITERATIONS = 5
+MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 1
 
 # === SKILL CALL BUDGET LIMITS ===
 # These limits prevent runaway research loops where the AI keeps requesting more and more searches.
@@ -582,6 +628,17 @@ SOFT_LIMIT_SKILL_CALLS = 3
 # Force the LLM to answer with gathered information by setting tool_choice="none".
 # Maximum of 5 request attempts per assistant message to prevent excessive research loops.
 HARD_LIMIT_SKILL_CALLS = 5
+
+
+def _limit_news_search_batch_to_budget(
+    parsed_args: Dict[str, Any], remaining_requests: int
+) -> Tuple[Dict[str, Any], List[Any]]:
+    """Run the news searches that fit instead of discarding an oversized batch."""
+    requests = parsed_args.get("requests") if isinstance(parsed_args, dict) else None
+    if remaining_requests <= 0 or not isinstance(requests, list) or len(requests) <= remaining_requests:
+        return parsed_args, []
+    return {**parsed_args, "requests": requests[:remaining_requests]}, requests[remaining_requests:]
+
 
 INVALID_TOOL_FALLBACK_MESSAGE = (
     "I found relevant information, but I could not complete every requested action automatically. "
@@ -1577,6 +1634,16 @@ async def _resolve_skill_billing_config(
                 pricing_config = {"per_unit": provider_pricing["per_unit"]}
         except Exception as exc:
             logger.warning("%s Failed to resolve provider pricing for %s: %s", log_prefix, provider_id, exc)
+
+    # Account-free inline skills backed only by free/public providers still
+    # consume a minimum credit from the shared anonymous allowance.
+    if (
+        not pricing_config
+        and skill_def.anonymous_access == "inline"
+        and skill_def.providers
+        and all(provider.no_api_key for provider in skill_def.providers)
+    ):
+        pricing_config = {"fixed": MINIMUM_CREDITS_CHARGED}
 
     return skill_def, pricing_config
 
@@ -2952,6 +3019,80 @@ async def handle_main_processing(
     task_tool_context = None
     task_context_prompt = ""
     task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
+    project_capabilities = getattr(request_data, "client_capabilities", None) or []
+    project_file_tools_enabled = (
+        "project_file_jobs" in project_capabilities
+        and not request_data.is_incognito
+        and cache_service is not None
+    )
+    active_project_focus = None
+    active_project_sources: list[dict[str, Any]] = []
+    if project_file_tools_enabled or (
+        "remote_command_jobs" in project_capabilities
+        and not request_data.is_incognito
+        and cache_service is not None
+    ):
+        try:
+            from backend.core.api.app.services.project_write_authorization_service import (
+                ProjectWriteAuthorizationService,
+            )
+
+            active_project_focus = await ProjectWriteAuthorizationService(
+                directus_service, cache_service
+            ).get_active_focus(user_id=request_data.user_id, chat_id=request_data.chat_id)
+        except Exception:
+            logger.warning("%s Project focus authorization failed closed", log_prefix, exc_info=True)
+            active_project_focus = None
+    if active_project_focus:
+        try:
+            from backend.core.api.app.services.project_remote_access_service import (
+                ProjectRemoteAccessError,
+                ProjectRemoteAccessService,
+            )
+
+            source_rows = await directus_service.project.list_sources(
+                active_project_focus["project_id"],
+                request_data.user_id,
+                team_id=active_project_focus.get("team_id"),
+            )
+            connected_source_ids: set[str] = set()
+            remote_access = ProjectRemoteAccessService(cache_service)
+            for source in source_rows:
+                source_id = source.get("source_id")
+                if source.get("status") == "revoked" or not isinstance(source_id, str) or not source_id:
+                    continue
+                try:
+                    await remote_access.get_active_binding(
+                        request_data.user_id,
+                        active_project_focus["project_id"],
+                        source_id,
+                        team_id=active_project_focus.get("team_id"),
+                        now=int(time.time()),
+                    )
+                    connected_source_ids.add(source_id)
+                except ProjectRemoteAccessError:
+                    pass
+            active_project_sources = build_project_source_routing_context(
+                source_rows,
+                connected_source_ids=connected_source_ids,
+            )
+        except Exception:
+            logger.warning("%s Project source discovery failed closed", log_prefix, exc_info=True)
+            active_project_sources = []
+    request_data.active_project_focus = active_project_focus
+    request_data.current_project = (
+        {
+            **{
+                key: active_project_focus.get(key)
+                for key in ("project_id", "project_id_hash", "team_id", "team_id_hash")
+            },
+            "sources": active_project_sources,
+        }
+        if active_project_focus
+        else None
+    )
+    if active_project_focus:
+        prompt_parts.append(build_project_focus_prompt(active_project_focus, active_project_sources))
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
         preselected_skills,
         user_requested_skills_only=user_requested_skills_only,
@@ -3369,6 +3510,12 @@ async def handle_main_processing(
         prompt_parts.append(sub_chats_instruction)
         logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
 
+    if getattr(request_data, "is_anonymous", False):
+        prompt_parts.append(
+            "In this anonymous chat, use only the tools made available for this turn. "
+            "If the user asks for image, audio, music, video, or other file generation, "
+            "or an account-connected action, explain that creating an account is required."
+        )
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     
     # Generate tool definitions from discovered apps using the tool generator
@@ -3414,6 +3561,11 @@ async def handle_main_processing(
             log_prefix,
             len(task_tools),
         )
+
+    if project_file_tools_enabled and active_project_focus:
+        project_tools = build_project_file_tools()
+        available_tools_for_llm.extend(project_tools)
+        logger.info("%s Added %s authorized Project file tool(s)", log_prefix, len(project_tools))
 
     audio_transcribe_blocked_by_recording = has_transcribed_web_audio_recording(request_data.message_history)
     if audio_transcribe_blocked_by_recording:
@@ -3662,13 +3814,22 @@ async def handle_main_processing(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
         )
 
+    if getattr(request_data, "is_anonymous", False):
+        from backend.shared.python_utils.anonymous_skill_policy import filter_anonymous_tools
+
+        available_tools_for_llm = filter_anonymous_tools(
+            available_tools_for_llm,
+            discovered_apps_metadata,
+            _canonicalize_tool_name,
+        )
+
     if not request_data.orchestration_id and any(
         tool.get("function", {}).get("name") == "start_sub_chats"
         for tool in available_tools_for_llm
     ):
         await create_orchestration_root(directus_service, request_data)
     
-    if chat_depth > 0:
+    if chat_depth > 0 and not getattr(request_data, "is_anonymous", False):
         available_tools_for_llm.append(ask_user_input_tool)
         logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
     
@@ -3743,7 +3904,13 @@ async def handle_main_processing(
     # underscored form into "activate-focus-mode" before resolver lookup, so
     # we register BOTH the canonicalized form (post-canonicalize) and the raw
     # snake_case form (pre-canonicalize, defensive) for both tools.
-    for system_skill in ("activate_focus_mode", "deactivate_focus_mode", "start_sub_chats", "ask_user_input"):
+    for system_skill in (
+        "activate_focus_mode",
+        "deactivate_focus_mode",
+        "start_sub_chats",
+        "ask_user_input",
+        *PROJECT_FILE_TOOL_TO_OPERATION.keys(),
+    ):
         # Pre-canonicalize form (raw snake_case as the LLM emits it)
         tool_resolver_map[system_skill] = ("system", system_skill)
         # Post-canonicalize form (underscores → hyphens, what the dispatcher sees)
@@ -4044,9 +4211,13 @@ async def handle_main_processing(
     streaming_skill_count = 0  # Mirrors total_skill_calls during streaming to suppress over-budget placeholders
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
+    protocol_guard_recovery = ToolProtocolRecoveryState()
+    pending_protocol_recovery_messages: Optional[List[Dict[str, str]]] = None
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
     empty_post_tool_recovery_attempted = False
+    answer_only_recovery_attempted = False
+    omitted_news_search_requests = 0
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -4055,18 +4226,15 @@ async def handle_main_processing(
     # duplicate side effects (e.g., multiple reminders for "set me a reminder").
     # Key: hash of (app_id, skill_id, arguments), Value: dict with results and embed_id
     completed_skill_calls: Dict[str, Dict[str, Any]] = {}
+    pending_project_operation_id: Optional[str] = None
     
-    for iteration in range(MAX_TOOL_CALL_ITERATIONS):
-        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
+    max_iterations_with_recovery = MAX_TOOL_CALL_ITERATIONS + MAX_ANSWER_ONLY_RECOVERY_ITERATIONS
+    for iteration in range(max_iterations_with_recovery):
+        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
         
-        # === LAST ITERATION SAFETY CHECK ===
-        # If we're on the last iteration, always force no tools to ensure we get an answer.
-        # This acts as a safety net in case the budget limits weren't reached.
-        if (
-            iteration == MAX_TOOL_CALL_ITERATIONS - 1
-            and not force_no_tools
-            and not force_deep_research_delegation
-        ):
+        # The fifth and optional recovery calls are answer-only, regardless of
+        # remaining skill budget or Deep research routing.
+        if iteration >= MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True
@@ -4086,12 +4254,13 @@ async def handle_main_processing(
         else:
             current_tool_choice = "auto"
 
-        current_tool_choice = resolve_deep_research_tool_choice(
-            current_tool_choice,
-            active_focus_id=request_data.active_focus_id,
-            chat_depth=chat_depth,
-            is_sub_chat_continuation=request_data.is_sub_chat_continuation,
-        )
+        if not force_no_tools:
+            current_tool_choice = resolve_deep_research_tool_choice(
+                current_tool_choice,
+                active_focus_id=request_data.active_focus_id,
+                chat_depth=chat_depth,
+                is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+            )
         if current_tool_choice == "required":
             logger.info(
                 f"{log_prefix} [SUB_CHAT] Requiring start_sub_chats for active Deep research."
@@ -4121,6 +4290,20 @@ async def handle_main_processing(
             )
             iteration_system_prompt = full_system_prompt + budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
+
+        if answer_only_recovery_attempted:
+            iteration_system_prompt += (
+                "\n\nThe previous answer-only attempt did not produce a usable answer. "
+                "Answer the user's request now using the completed results in this conversation. "
+                "Do not request tools or mention this retry."
+            )
+
+        if omitted_news_search_requests:
+            iteration_system_prompt += (
+                "\n\nThe news search budget omitted some requested searches. "
+                "Identify those topics as unsearched, and cite only results actually returned by the news tool. "
+                "Never invent a headline, date, source, or embed reference for an omitted search."
+            )
 
         # Inject embed preview instruction when images-search was executed
         if images_search_executed:
@@ -4161,6 +4344,18 @@ async def handle_main_processing(
                     current_message_history,
                     max_tokens=current_history_budget,
                 )
+                if (
+                    pending_protocol_recovery_messages is not None
+                    and current_message_history[-len(pending_protocol_recovery_messages):]
+                    != pending_protocol_recovery_messages
+                ):
+                    logger.error(
+                        "%s [TOOL_PROTOCOL_GUARD] Model-specific history truncation split "
+                        "the recovery instruction from its context; refusing an orphaned continuation.",
+                        log_prefix,
+                    )
+                    yield main_processing_failure("protocol_guard")
+                    return
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
@@ -4246,6 +4441,7 @@ async def handle_main_processing(
         hallucinated_tool_calls_this_turn: List[Tuple[Any, Dict[str, Any]]] = []
         hallucinated_rejections_this_turn = 0
         llm_turn_had_content = False
+        forbidden_tool_call_seen = False
         
         # Dictionary to store placeholder embeds created for tool calls during stream processing
         # Key: tool_call_id, Value: placeholder_embed_data dict
@@ -4316,6 +4512,17 @@ async def handle_main_processing(
                 )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
+                if force_no_tools:
+                    # The provider may return a function call even after a
+                    # no-tools request. Never create a placeholder or execute
+                    # that call: the remaining budget belongs to the answer.
+                    forbidden_tool_call_seen = True
+                    logger.warning(
+                        "%s [MAX_ITERATIONS] Ignoring provider tool call while tools are disabled: %s",
+                        log_prefix,
+                        chunk.function_name,
+                    )
+                    continue
                 # === STRICT ALLOW-LIST (OPE-399) ===
                 # Reject any tool call whose name is not in the preprocessor-provided
                 # tool list BEFORE it is appended for execution. This prevents
@@ -4471,6 +4678,26 @@ async def handle_main_processing(
                         task_id=task_id,
                         message_history=current_message_history,
                     )
+                    parsed_args = _apply_repository_relevance_criteria_guard(
+                        parsed_args,
+                        app_id,
+                        skill_id,
+                        current_message_history,
+                        log_prefix,
+                    )
+
+                    if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
+                        parsed_args, omitted_inline_news_requests = _limit_news_search_batch_to_budget(
+                            parsed_args, HARD_LIMIT_SKILL_CALLS - streaming_skill_count
+                        )
+                        if omitted_inline_news_requests:
+                            logger.info(
+                                "%s INLINE: [SKILL_BUDGET] Limiting news-search placeholder batch to %s requests; "
+                                "%s omitted.",
+                                log_prefix,
+                                len(parsed_args["requests"]),
+                                len(omitted_inline_news_requests),
+                            )
 
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
@@ -4793,8 +5020,7 @@ async def handle_main_processing(
                     if chunk.content:
                         llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
                         yield chunk.content
-                        if tool_calls_for_this_turn:
-                            current_turn_text_buffer.append(chunk.content)
+                        current_turn_text_buffer.append(chunk.content)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
@@ -4804,9 +5030,9 @@ async def handle_main_processing(
                 if chunk:
                     llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
                     yield chunk
-                    # Also buffer for message history (needed for tool execution context)
-                    if tool_calls_for_this_turn:
-                        current_turn_text_buffer.append(chunk)
+                    # Retain every safe, published chunk. Besides tool history, this
+                    # lets a guarded partial answer continue without replaying it.
+                    current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except AllServersFailedError as asf_err:
@@ -4847,8 +5073,10 @@ async def handle_main_processing(
                     f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models exhausted. "
                     f"Last error: {_stream_all_servers_error}"
                 )
-                yield STANDARDIZED_USER_ERROR_MESSAGE
+                yield main_processing_failure("provider_exhausted")
                 break
+
+        pending_protocol_recovery_messages = None
 
         if iteration_usage is not None:
             usage = iteration_usage
@@ -4863,13 +5091,43 @@ async def handle_main_processing(
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
+        protocol_recovery_action = protocol_guard_recovery.action(
+            detected=protocol_guard.detected,
+            native_call_count=len(tool_calls_for_this_turn),
+            safe_text=final_buffered_text_for_turn,
+            has_retry_iteration=iteration < MAX_TOOL_CALL_ITERATIONS - 1,
+        )
         if protocol_guard.detected:
             logger.warning(
-                "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; native_calls=%s",
-                log_prefix, len(tool_calls_for_this_turn),
+                "%s [TOOL_PROTOCOL_GUARD] Suppressed model-generated tool protocol; "
+                "native_calls=%s safe_text_chars=%s recovery_action=%s",
+                log_prefix,
+                len(tool_calls_for_this_turn),
+                len(final_buffered_text_for_turn),
+                protocol_recovery_action,
             )
-            if not tool_calls_for_this_turn:
-                yield STANDARDIZED_USER_ERROR_MESSAGE
+            if protocol_recovery_action == "retry":
+                pending_protocol_recovery_messages = build_tool_protocol_recovery_messages(
+                    final_buffered_text_for_turn
+                )
+                current_message_history.extend(pending_protocol_recovery_messages)
+                force_no_tools = True
+                logger.info(
+                    "%s [TOOL_PROTOCOL_GUARD] Retrying the guarded answer once "
+                    "with tools disabled.",
+                    log_prefix,
+                )
+                continue
+            if protocol_recovery_action == "failure":
+                logger.error(
+                    "%s [TOOL_PROTOCOL_GUARD] Continuation was unavailable or guarded again; "
+                    "preserving published safe text and marking the response failed.",
+                    log_prefix,
+                )
+                yield main_processing_failure("protocol_guard")
+                break
+            if protocol_recovery_action == "error":
+                yield main_processing_failure("protocol_guard")
                 break
 
         if not tool_calls_for_this_turn:
@@ -4954,7 +5212,20 @@ async def handle_main_processing(
                     TASK_QUEUE_GUARD_MAX_RETRIES,
                 )
                 continue
-            if _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content):
+            if force_no_tools and not llm_turn_had_content and iteration == MAX_TOOL_CALL_ITERATIONS - 1:
+                answer_only_recovery_attempted = True
+                logger.warning(
+                    "%s [ANSWER_ONLY_RECOVERY] Final answer attempt produced no visible text; "
+                    "retrying once without tools in the same assistant turn.",
+                    log_prefix,
+                )
+                continue
+
+            if (
+                (forbidden_tool_call_seen and not llm_turn_had_content)
+                or _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content)
+                or (force_no_tools and not llm_turn_had_content)
+            ):
                 has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
                 if has_retry_iteration and not empty_post_tool_recovery_attempted:
                     empty_post_tool_recovery_attempted = True
@@ -4969,7 +5240,7 @@ async def handle_main_processing(
                     f"{log_prefix} [POST_TOOL_RECOVERY] Forced tool continuation retry produced no answer. "
                     "Emitting the standardized user-facing error."
                 )
-                yield STANDARDIZED_USER_ERROR_MESSAGE
+                yield main_processing_failure("empty_post_tool_response")
                 break
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
             # rejected) and produced no visible text, the user would see zero
@@ -5129,7 +5400,7 @@ async def handle_main_processing(
         # Reservations remain sequential; provider work starts only after every
         # descriptor is fixed from this turn's immutable tool-call snapshot.
         parallel_executions: Dict[str, Dict[str, Any]] = {}
-        if _is_parallel_safe_app_skill_batch(
+        if not getattr(request_data, "is_anonymous", False) and _is_parallel_safe_app_skill_batch(
             tool_calls_for_this_turn,
             tool_resolver_map,
             discovered_apps_metadata,
@@ -5235,6 +5506,13 @@ async def handle_main_processing(
                             task_id=task_id,
                             message_history=current_message_history,
                         )
+                        parallel_arguments = _apply_repository_relevance_criteria_guard(
+                            parallel_arguments,
+                            candidate["app_id"],
+                            candidate["skill_id"],
+                            current_message_history,
+                            log_prefix,
+                        )
                         parallel_placeholder_ids = []
                         if parallel_placeholder.get("multiple"):
                             parallel_placeholder_ids = [
@@ -5313,6 +5591,7 @@ async def handle_main_processing(
                                 encryption_service=encryption_service,
                                 secrets_manager=secrets_manager,
                                 max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                             )
 
                     return execute
@@ -5350,6 +5629,7 @@ async def handle_main_processing(
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
             tool_result_content_str: str
+            omitted_news_requests_for_call: List[Any] = []
 
             try:
                 # Parse function arguments
@@ -5414,6 +5694,29 @@ async def handle_main_processing(
                 if not skill_id or not skill_id.strip():
                     logger.error(f"{log_prefix} Empty skill_id extracted from tool name '{tool_name}'. Cannot proceed with skill execution.")
                     raise ValueError(f"Empty skill_id in tool name '{tool_name}'")
+
+                if getattr(request_data, "is_anonymous", False):
+                    from backend.shared.python_utils.anonymous_skill_policy import (
+                        has_single_anonymous_provider_request,
+                        is_anonymous_inline_skill,
+                    )
+
+                    app_metadata = discovered_apps_metadata.get(app_id)
+                    skill_definition = next(
+                        (skill for skill in (app_metadata.skills or []) if skill.id == skill_id),
+                        None,
+                    ) if app_metadata else None
+                    if not skill_definition or not is_anonymous_inline_skill(app_id, skill_definition):
+                        current_message_history.append({
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": json.dumps({
+                                "status": "signup_required",
+                                "reason": "Create an account to use this skill.",
+                            }),
+                        })
+                        continue
                 
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
@@ -5516,11 +5819,39 @@ async def handle_main_processing(
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
                 # User won't see any indication that the tool call was skipped.
+                if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
+                    parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
+                        parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
+                    )
+                    if omitted_news_requests_for_call:
+                        omitted_news_search_requests += len(omitted_news_requests_for_call)
+                        logger.info(
+                            "%s [SKILL_BUDGET] Limiting news-search execution to %s requests; %s omitted.",
+                            log_prefix,
+                            len(parsed_args["requests"]),
+                            len(omitted_news_requests_for_call),
+                        )
+
                 requests_in_this_call = 1  # Default: single request
                 requests_list_for_budget = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
                 if isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) > 0:
                     requests_in_this_call = len(requests_list_for_budget)
-                
+
+                if getattr(request_data, "is_anonymous", False) and (
+                    requests_in_this_call != 1
+                    or not has_single_anonymous_provider_request(app_id, skill_id, parsed_args)
+                ):
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": "Use one request per anonymous skill call.",
+                        }),
+                    })
+                    continue
+
                 # Skip this tool call if we've already reached or would exceed the hard limit
                 # We don't count system tools (focus mode) against the budget
                 # CRITICAL: Also check if this call WOULD exceed the limit (not just if limit is already reached)
@@ -5650,6 +5981,154 @@ async def handle_main_processing(
                 # System tools are special tools that modify the chat state rather than executing skills
                 # They use app_id="system" to distinguish from regular app skills
                 if app_id == "system":
+                    if skill_id in PROJECT_FILE_TOOL_TO_OPERATION:
+                        operation = PROJECT_FILE_TOOL_TO_OPERATION[skill_id]
+                        if pending_project_operation_id:
+                            project_result = {
+                                "status": "rejected",
+                                "reason": (
+                                    "A Project file operation is already waiting for its authorized client result. "
+                                    "Do not dispatch another operation or poll."
+                                ),
+                                "operation_id": pending_project_operation_id,
+                            }
+                        elif not cache_service:
+                            project_result = {
+                                "status": "rejected",
+                                "reason": "Project file execution is unavailable.",
+                            }
+                        else:
+                            operation_id = str(uuid.uuid4())
+                            try:
+                                from backend.apps.ai.tasks.async_skill_continuation import (
+                                    cache_async_skill_continuation_context,
+                                    async_skill_continuation_key,
+                                )
+                                from backend.core.api.app.services.project_file_operation_service import (
+                                    PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+                                    ProjectFileOperationService,
+                                )
+                                from backend.core.api.app.services.project_write_authorization_service import (
+                                    ProjectWriteAuthorizationService,
+                                )
+                                from backend.core.api.app.tasks.project_file_operation_tasks import (
+                                    schedule_project_file_operation_deadlines,
+                                )
+
+                                current_focus = await ProjectWriteAuthorizationService(
+                                    directus_service, cache_service
+                                ).get_active_focus(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                )
+                                if (
+                                    not current_focus
+                                    or not active_project_focus
+                                    or current_focus.get("project_id") != active_project_focus.get("project_id")
+                                    or current_focus.get("focus_id_hash") != active_project_focus.get("focus_id_hash")
+                                ):
+                                    raise PermissionError("Project focus changed before file operation dispatch")
+
+                                operation_arguments = dict(parsed_args) if isinstance(parsed_args, dict) else {}
+                                requested_source_id = operation_arguments.pop("source_id", None)
+                                dispatch_focus = dict(current_focus)
+                                if requested_source_id is not None:
+                                    source = await directus_service.project.get_source(
+                                        str(current_focus["project_id"]),
+                                        request_data.user_id,
+                                        str(requested_source_id),
+                                        team_id=current_focus.get("team_id"),
+                                    )
+                                    required_source_capability = (
+                                        "write_request"
+                                        if operation in {"create_file", "update_file"}
+                                        else "search" if operation == "search" else "read"
+                                    )
+                                    if (
+                                        not source
+                                        or source.get("status") == "revoked"
+                                        or required_source_capability not in set(source.get("capabilities") or [])
+                                    ):
+                                        raise PermissionError("Project source is unavailable or not authorized")
+                                    dispatch_focus["source_id"] = str(requested_source_id)
+
+                                await cache_async_skill_continuation_context(
+                                    cache_service=cache_service,
+                                    async_task_id=operation_id,
+                                    request_data=request_data,
+                                    skill_config_dict=skill_config_dict,
+                                    app_id="system",
+                                    skill_id=skill_id,
+                                    tool_name=skill_id,
+                                    tool_arguments=operation_arguments,
+                                    ttl_seconds=PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+                                    requires_current_turn=True,
+                                )
+                                operation_service = ProjectFileOperationService(cache_service)
+                                try:
+                                    project_result = await operation_service.create_operation(
+                                        user_id=request_data.user_id,
+                                        chat_id=request_data.chat_id,
+                                        project_focus=dispatch_focus,
+                                        operation=operation,
+                                        arguments=operation_arguments,
+                                        continuation_task_id=operation_id,
+                                        message_id=request_data.message_id,
+                                        operation_id=operation_id,
+                                        publish=False,
+                                    )
+                                except Exception:
+                                    await cache_service.delete(async_skill_continuation_key(operation_id))
+                                    raise
+                                operation_record = await operation_service.get_job(
+                                    user_id=request_data.user_id,
+                                    operation_id=operation_id,
+                                )
+                                schedule_project_file_operation_deadlines(
+                                    user_id=request_data.user_id,
+                                    operation_id=operation_id,
+                                    episode_id=str(operation_record["episode_id"]),
+                                )
+                                await operation_service.publish_available(operation_record)
+                                project_result = {
+                                    **project_result,
+                                    "status": "processing",
+                                    "message": "Waiting for an authorized Project client executor.",
+                                }
+                                pending_project_operation_id = operation_id
+                                request_data.awaiting_async_skill_continuation = True
+                            except Exception as project_error:
+                                logger.warning(
+                                    "%s Project file operation dispatch failed: %s",
+                                    log_prefix,
+                                    project_error,
+                                    exc_info=True,
+                                )
+                                if getattr(project_error, "code", None) == "conflict_recovery_budget_exhausted":
+                                    project_result = {
+                                        "status": "paused_conflict_budget_exhausted",
+                                        "reason": (
+                                            "This file reached the automatic conflict recovery limit for the original "
+                                            "user turn. Explain the blocked edit and any partial work honestly; a new "
+                                            "user request is required before another mutation of this file."
+                                        ),
+                                    }
+                                else:
+                                    project_result = {
+                                        "status": "rejected",
+                                        "reason": "Project file operation authorization or dispatch failed.",
+                                    }
+                        current_message_history.append(
+                            {
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps(project_result),
+                            }
+                        )
+                        completed_skill_calls[call_hash] = project_result
+                        continue
+
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
                         logger.info(f"{log_prefix} [FOCUS_MODE] LLM requested focus mode activation: {focus_id}")
@@ -6453,6 +6932,13 @@ async def handle_main_processing(
                         task_id=task_id,
                         message_history=current_message_history,
                     )
+                    skill_arguments = _apply_repository_relevance_criteria_guard(
+                        skill_arguments,
+                        app_id,
+                        skill_id,
+                        current_message_history,
+                        log_prefix,
+                    )
 
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
                     # so the Celery task can update the existing placeholder instead of creating new embeds.
@@ -6653,6 +7139,7 @@ async def handle_main_processing(
                                     encryption_service=encryption_service,
                                     secrets_manager=secrets_manager,
                                     max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                    is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                                 )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,
@@ -6859,6 +7346,17 @@ async def handle_main_processing(
                         and len(tool_calls_for_this_turn) == 1
                     )
                     inline_wait_deadline = time.time() + ASYNC_SKILL_INLINE_WAIT_SECONDS if should_wait_inline else None
+                    waits_for_remote_command = (
+                        (app_id, skill_id) == ("code", "run")
+                        and isinstance(parsed_args, dict)
+                        and parsed_args.get("target") == "remote_source"
+                        and parsed_args.get("wait_for_completion", True) is True
+                    )
+                    is_remote_command = (
+                        (app_id, skill_id) == ("code", "run")
+                        and isinstance(parsed_args, dict)
+                        and parsed_args.get("target") == "remote_source"
+                    )
                     try:
                         from backend.apps.ai.tasks.async_skill_continuation import (
                             cache_async_skill_continuation_context,
@@ -6876,7 +7374,23 @@ async def handle_main_processing(
                                 tool_name=tool_name,
                                 tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
                                 inline_wait_deadline=inline_wait_deadline,
+                                requires_current_turn=is_remote_command,
+                                defer_until_initial_response_complete=(
+                                    is_remote_command and not waits_for_remote_command
+                                ),
                             )
+                        if (
+                            is_remote_command
+                        ):
+                            from backend.core.api.app.services.remote_command_service import (
+                                RemoteCommandService,
+                            )
+
+                            for async_task_id in async_task_ids:
+                                await RemoteCommandService(cache_service).register_continuation(
+                                    user_id=request_data.user_id,
+                                    execution_id=str(async_task_id),
+                                )
                         if async_task_ids:
                             logger.info(
                                 f"{log_prefix} Cached async skill continuation context for "
@@ -6900,6 +7414,8 @@ async def handle_main_processing(
                                 "passing completed results to LLM"
                             )
                         else:
+                            if waits_for_remote_command and async_task_ids:
+                                request_data.awaiting_async_skill_continuation = True
                             tool_result_content_str = json.dumps(
                                 _build_async_skill_pending_tool_result(
                                     async_result=async_result,
@@ -6977,6 +7493,7 @@ async def handle_main_processing(
                         isinstance(b, dict) and b.get("type") in ("text", "image_url")
                         for b in results[0]
                     )
+                    and any(b.get("type") == "image_url" for b in results[0])
                 )
                 if is_multimodal_result:
                     # Bypass all TOON encoding — set tool_result_content_str to the raw content
@@ -8385,6 +8902,19 @@ async def handle_main_processing(
             # Add tool response to message history
             # Store full results as TOON in content, and include ignore_fields_for_inference metadata
             # This allows follow-up requests to filter tool results correctly when reading from history
+            if omitted_news_requests_for_call:
+                omitted_queries = [
+                    request.get("query") for request in omitted_news_requests_for_call
+                    if isinstance(request, dict) and isinstance(request.get("query"), str)
+                ]
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "research_budget": {
+                        "status": "partial",
+                        "omitted_queries": omitted_queries,
+                        "instruction": "These queries were not searched. Do not cite or invent results for them.",
+                    }
+                })
+
             tool_response_message = {
                 "tool_call_id": tool_call_id,
                 "role": "tool",

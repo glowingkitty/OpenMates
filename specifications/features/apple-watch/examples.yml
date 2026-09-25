@@ -1,0 +1,48 @@
+schema_version: 1
+specification: feature.apple-watch@1
+
+pairing:
+  - id: iphone-offer-and-short-url
+    given: A new Watch is next to an authenticated iPhone on the same OpenMates server.
+    when: The Watch begins pairing and no iPhone approval starts within four seconds.
+    then: The Watch first asks for iPhone approval, then prominently reveals the short pairing URL and code with manual code entry and no QR button; the user can reveal the URL earlier.
+pairing_privacy:
+  - id: old-pair-response-is-ignored
+    given: A Watch pairing attempt is replaced after the user selects a self-hosted server.
+    when: An approval response for the old token arrives.
+    then: The Watch ignores the stale response and unlocks only after a successful pair-login response for the current server and token.
+hub:
+  - id: switch-watch-sections
+    given: A signed-in Watch shows the compact selector.
+    when: The user switches from Chats to Tasks and then Workflows.
+    then: Each section is readable on the Watch display and its visible controls can be activated.
+lists:
+  - id: private-read-only-rows
+    given: The account has encrypted Tasks and Workflow runs.
+    when: The Watch loads the Task and Workflow sections.
+    then: The owner sees readable rows and no native edit or detail screen for either item type.
+handoff:
+  - id: exact-task-on-matching-phone
+    given: A Watch and iPhone use the same self-hosted OpenMates server and a Task with an opaque id is visible.
+    when: The user taps the Task.
+    then: A generic iPhone notification opens that exact Task on the server's HTTPS website; the Watch message contains no title, private text, or URL.
+chats:
+  - id: find-older-chat-offline
+    given: A signed-in Watch has more than twenty saved chats and a cached conversation.
+    when: The user searches for an older chat during a brief network outage and opens it.
+    then: The matching saved chat is findable and readable from available local content without showing a different or private incognito chat.
+replies:
+  - id: new-chat-and-encrypted-text
+    given: A signed-in Watch is showing Chats.
+    when: The user starts a new chat and sends a text question.
+    then: The selected chat shows the client-encrypted user turn and receives a normal inference response; a failed preflight leaves the turn available to retry.
+audio:
+  - id: one-send-audio-embed
+    given: A conversation is open on the Watch and microphone permission is granted.
+    when: The user records audio and taps Send once.
+    then: The recording is processed and transcribed by the server, remains in the original conversation, and appears as a normal audio embed on Watch, iPhone, and web.
+chat_layout:
+  - id: small-watch-conversation
+    given: A conversation with a website embed is open on a small Watch.
+    when: The user views the transcript and reply area.
+    then: The embed fits the viewport and the text and audio reply controls remain reachable.

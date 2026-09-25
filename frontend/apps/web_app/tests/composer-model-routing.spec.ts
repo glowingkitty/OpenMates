@@ -245,6 +245,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
 	await expectComposerFocusPreserved(page, composer);
 	await expect(selectorMenu.getByTestId('composer-model-name')).toHaveText([
+		'GPT-6 Sol',
+		'GPT-6 Luna',
 		'GPT-6 Astra',
 		'GPT-5.6 Sol Max',
 		'GPT-5.6 Sol',

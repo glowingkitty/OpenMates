@@ -35,6 +35,10 @@ ArchiveReader = Callable[[str], Awaitable[bytes | None]]
 WorkflowUndoHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]]
 
 
+class WorkspaceHistoryRestoreError(RuntimeError):
+    """Raised when a history snapshot cannot be safely restored."""
+
+
 def s3_workspace_history_archive_io(s3_service: Any) -> tuple[ArchiveWriter, ArchiveReader]:
     async def writer(object_key: str, payload: bytes) -> str:
         await s3_service.upload_file(
@@ -79,6 +83,14 @@ def _decode_snapshot_ref(ref: str | None) -> Any:
         return json.loads(raw.decode("utf-8"))
     except Exception:
         return None
+
+
+def _history_snapshot(object_type: str, snapshot: Any) -> Any:
+    if object_type != "plan" or not isinstance(snapshot, dict):
+        return snapshot
+    sanitized = dict(snapshot)
+    sanitized.pop("linked_project_ids", None)
+    return sanitized
 
 
 class WorkspaceChangeHistoryService:
@@ -139,20 +151,24 @@ class WorkspaceChangeHistoryService:
         raw_entry: dict[str, Any],
         now: int,
     ) -> dict[str, Any]:
+        object_type = str(raw_entry["object_type"])
+        before = _history_snapshot(object_type, raw_entry.get("before"))
+        after = _history_snapshot(object_type, raw_entry.get("after"))
+        patch = _history_snapshot(object_type, raw_entry.get("patch"))
         entry = {
             "entry_id": raw_entry.get("entry_id") or _new_id("che"),
             "change_set_id": change_set_id,
             "hashed_user_id": owner_hash,
-            "object_type": raw_entry["object_type"],
+            "object_type": object_type,
             "object_id": raw_entry["object_id"],
             "operation": raw_entry["operation"],
             "source": source,
             "namespace": namespace,
-            "version_before": raw_entry.get("version_before") or (raw_entry.get("before") or {}).get("version"),
-            "version_after": raw_entry.get("version_after") or (raw_entry.get("after") or {}).get("version"),
-            "encrypted_before_ref": raw_entry.get("encrypted_before_ref") or _opaque_snapshot_ref(raw_entry.get("before")),
-            "encrypted_after_ref": raw_entry.get("encrypted_after_ref") or _opaque_snapshot_ref(raw_entry.get("after")),
-            "encrypted_patch_ref": raw_entry.get("encrypted_patch_ref") or _opaque_snapshot_ref(raw_entry.get("patch")),
+            "version_before": raw_entry.get("version_before") or (before or {}).get("version"),
+            "version_after": raw_entry.get("version_after") or (after or {}).get("version"),
+            "encrypted_before_ref": raw_entry.get("encrypted_before_ref") or _opaque_snapshot_ref(before),
+            "encrypted_after_ref": raw_entry.get("encrypted_after_ref") or _opaque_snapshot_ref(after),
+            "encrypted_patch_ref": raw_entry.get("encrypted_patch_ref") or _opaque_snapshot_ref(patch),
             "workflow_version_before_id": raw_entry.get("workflow_version_before_id"),
             "workflow_version_after_id": raw_entry.get("workflow_version_after_id"),
             "restored_from_entry_id": raw_entry.get("restored_from_entry_id"),
@@ -505,10 +521,16 @@ class WorkspaceChangeHistoryService:
         payload = self._plan_restore_payload(target)
         if current:
             payload["version"] = int(current.get("version") or 1) + 1
-            return await plan_methods.update_plan(plan_id, user_id, payload)
-        payload["plan_id"] = plan_id
-        payload["version"] = 1
-        return await plan_methods.create_plan(user_id, payload)
+            restored = await plan_methods.update_plan_from_history_snapshot(plan_id, user_id, payload)
+        else:
+            payload["plan_id"] = plan_id
+            payload["version"] = 1
+            restored = await plan_methods.restore_plan_snapshot(user_id, payload)
+        if restored is None:
+            raise WorkspaceHistoryRestoreError(
+                "Plan history restore failed because linked Project access or encrypted restore data is unavailable"
+            )
+        return restored
 
     async def _restore_project(self, user_id: str, project_id: str, target: dict[str, Any] | None) -> dict[str, Any] | None:
         project_methods = getattr(self.directus_service, "project", None)
@@ -537,7 +559,7 @@ class WorkspaceChangeHistoryService:
         return {key: value for key, value in snapshot.items() if key in allowed}
 
     def _plan_restore_payload(self, snapshot: dict[str, Any]) -> dict[str, Any]:
-        blocked = {"id", "plan_id", "hashed_user_id", "hashed_team_id", "hashed_primary_chat_id", "linked_project_hashes"}
+        blocked = {"id", "plan_id", "hashed_user_id", "hashed_team_id", "hashed_primary_chat_id", "linked_project_ids"}
         return {key: value for key, value in snapshot.items() if key not in blocked}
 
     def _project_restore_payload(self, snapshot: dict[str, Any]) -> dict[str, Any]:

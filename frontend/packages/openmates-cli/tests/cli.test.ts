@@ -38,6 +38,11 @@ import {
   shouldRequireTrustedAccountGuard,
   assertTrustedAccountCommandAllowed,
   assertTrustedAccountGuardEnvironment,
+  buildProjectDefaultFocus,
+  extractExplicitProjectMentions,
+  readRootProjectInstructions,
+  renderProjectWriteApprovalRequest,
+  renderRemoteCommandEvent,
 } from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
@@ -1106,11 +1111,23 @@ describe("plans command", () => {
   it("is listed in global help and prints contextual help", () => {
     assert.match(runCli(["help"]), /openmates plans \[--help\]/);
     const output = runCli(["plans", "--help"]);
-    assert.match(output, /openmates plans create --goal <goal>/);
+    assert.match(output, /openmates plans create --goal <goal> --project <id>/);
+    assert.match(output, /Every newly created Plan requires at least one Project link via --project/);
     assert.match(output, /openmates plans <plan-id\|short-id> add-to-project <project-id>/);
     assert.match(output, /openmates plans <plan-id\|short-id> remove-from-project <project-id>/);
     assert.match(output, /openmates plans checks evidence <plan-id\|short-id>/);
     assert.match(output, /openmates chats <chat-id> plans list/);
+  });
+
+  // contract-test: direct surface=cli assertions=plans.project-links.encrypted
+  it("rejects Plan creation without a Project before login or API access", () => {
+    const result = runCliWithoutSessionResult(["plans", "create", "--goal", "Ship it"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Creating a Plan requires --project <id>/);
+
+    const askResult = runCliWithoutSessionResult(["plans", "ask", "Create a launch Plan"]);
+    assert.notEqual(askResult.status, 0);
+    assert.match(askResult.stderr, /Creating a Plan requires --project <id>/);
   });
 });
 
@@ -1126,6 +1143,8 @@ describe("remote-access command", () => {
     assert.doesNotMatch(output, /encrypted-display-name/);
     assert.doesNotMatch(output, /encrypted-metadata/);
     assert.doesNotMatch(output, /--source-id/);
+    assert.match(output, /--project <slug\|id\|new>/);
+    assert.match(output, /--write-policy apply_and_show\|always_ask/);
     assert.match(output, /Repeated --path values replace default discovery/);
   });
 
@@ -1182,7 +1201,125 @@ describe("projects deterministic commands", () => {
     ]) assert.match(output, new RegExp(command.replaceAll(" ", "\\s+")));
     assert.match(output, /--personal\|--team <team>/);
     assert.match(output, /live file requests require an explicit context/i);
+    assert.match(output, /projects settings/);
+    assert.match(output, /focus activate\|deactivate --chat <chat-id>/);
+    assert.match(output, /command-resources enable\|disable writable\|network\|credential/);
+    assert.match(output, /command stop <execution-id> --chat <chat-id>/);
+    assert.match(output, /--write-policy apply_and_show\|always_ask/);
     assert.doesNotMatch(output, /LLM|fallback to chat/i);
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.files.write-policy-setup
+  it("requires an explicit write policy for non-interactive Project creation", () => {
+    const result = runCliWithoutSessionResult(["projects", "create", "Garden notes", "--json"]);
+    assert.notEqual(result.status, 0);
+    assert.deepEqual(JSON.parse(result.stderr.trim()), {
+      error: {
+        code: "write_policy_required",
+        message: "Project creation requires --write-policy apply_and_show|always_ask in non-interactive mode.",
+      },
+    });
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.focus.existing-instructions
+  it("imports root AGENTS.md before CLAUDE.md and supports case variants", () => {
+    const root = mkdtempSync(join(tmpdir(), "openmates-project-instructions-"));
+    try {
+      writeFileSync(join(root, "CLAUDE.md"), "claude instructions\n");
+      writeFileSync(join(root, "agents.MD"), "agents instructions\n");
+      assert.deepEqual(readRootProjectInstructions(root), {
+        instructions: "agents instructions\n",
+        source: "agents.MD",
+      });
+      rmSync(join(root, "agents.MD"));
+      assert.deepEqual(readRootProjectInstructions(root), {
+        instructions: "claude instructions\n",
+        source: "CLAUDE.md",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.focus.default-owned
+  it("builds a private default focus for an empty Project", () => {
+    const focus = buildProjectDefaultFocus("Garden notes");
+    assert.match(focus.focus_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    assert.equal(focus.name, "Work on Garden notes");
+    assert.equal(focus.source, "generated");
+    assert.match(focus.instructions, /Garden notes/);
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.focus.default-owned
+  it("recognizes direct Project mentions without treating case variants as conflicts", () => {
+    assert.deepEqual(
+      extractExplicitProjectMentions("Work in @project:garden and continue @project:Garden."),
+      ["Garden"],
+    );
+    assert.deepEqual(
+      extractExplicitProjectMentions("Compare @project:garden with @project:orchard."),
+      ["garden", "orchard"],
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.files.write-policy-setup
+  it("renders exact Project write proposals without emitting terminal controls", () => {
+    const createOutput = renderProjectWriteApprovalRequest({
+      projectId: "project-1",
+      chatId: "chat-1",
+      mutation: {
+        operation: "create_file",
+        operation_id: "operation-1",
+        path: "notes\u001b[2J.md",
+        expected_base: null,
+        content: "first\n\u001b]0;unsafe\u0007second",
+      },
+    });
+    assert.match(createOutput, /Operation: create_file/);
+    assert.match(createOutput, /Content:\nfirst\n\\u001b\]0;unsafe\\u0007second/);
+    // Security assertion intentionally searches for raw terminal control bytes.
+    // eslint-disable-next-line no-control-regex
+    assert.doesNotMatch(createOutput, /[\u001b\u0007]/);
+
+    const updateOutput = renderProjectWriteApprovalRequest({
+      projectId: "project-1",
+      chatId: "chat-1",
+      mutation: {
+        operation: "update_file",
+        operation_id: "operation-2",
+        path: "notes.md",
+        expected_base: "a".repeat(64),
+        patch: "@@ -1 +1 @@\n-old\n+new",
+      },
+    });
+    assert.match(updateOutput, /Operation: update_file/);
+    assert.match(updateOutput, /Expected base: a{64}/);
+    assert.match(updateOutput, /Patch:\n@@ -1 \+1 @@\n-old\n\+new/);
+  });
+
+  it("labels remote command output as inert and bounds terminal display", () => {
+    const output = renderRemoteCommandEvent({
+      execution_id: "execution-1",
+      sequence: 3,
+      event_kind: "output",
+      status: "running",
+      payload: { text: `start\u001b[2J${"x".repeat(24_100)}` },
+    });
+    assert.match(output, /^Unreviewed command output \(inert\) execution-1 #3:/);
+    assert.match(output, /characters omitted/);
+    // eslint-disable-next-line no-control-regex -- Raw escape bytes must not reach inert terminal output.
+    assert.doesNotMatch(output, /\u001b/);
+
+    const terminal = renderRemoteCommandEvent({
+      execution_id: "execution-1",
+      sequence: 4,
+      event_kind: "terminal",
+      status: "failed",
+      payload: { error_message: "failed\u001b[31m" },
+    });
+    assert.match(terminal, /Command failed/);
+    // eslint-disable-next-line no-control-regex -- Raw escape bytes must not reach terminal status output.
+    assert.doesNotMatch(terminal, /\u001b/);
   });
 
   it("returns JSON-safe confirmation and live-context errors before network access", () => {
@@ -3251,6 +3388,58 @@ describe("apps metadata commands", () => {
     });
   });
 
+  // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+  it("forwards relevance criteria through generated typed app-skill flags", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "fitness", "search_locations",
+        "--query", "yoga",
+        "--city", "Berlin",
+        "--limit", "4",
+        "--relevance-criteria", "beginner-friendly evening venues with explicit class variety",
+        "--json",
+      ]);
+
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/fitness/skills/search_locations",
+        body: {
+          requests: [{
+            query: "yoga",
+            city: "Berlin",
+            limit: 4,
+            relevance_criteria: "beginner-friendly evening venues with explicit class variety",
+          }],
+        },
+      });
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+  it("forwards repository relevance criteria through generated typed input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "code", "search_repos",
+        "--query", "typescript authentication library",
+        "--count", "4",
+        "--relevance-criteria", "permissive license and explicit recent repository activity",
+        "--json",
+      ]);
+
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/code/skills/search_repos",
+        body: {
+          requests: [{
+            query: "typescript authentication library",
+            count: 4,
+            relevance_criteria: "permissive license and explicit recent repository activity",
+          }],
+        },
+      });
+    });
+  });
+
   it("keeps explicit app-skill metadata inspection available", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
@@ -3333,6 +3522,7 @@ describe("apps metadata commands", () => {
         "--providers", "Printables",
         "--sort", "newest",
         "--free-only",
+        "--relevance-criteria", "compact models with explicit print and license evidence",
         "--disable-prompt-injection-protection",
         "--json",
       ]);
@@ -3348,6 +3538,7 @@ describe("apps metadata commands", () => {
             providers: ["Printables"],
             sort: "newest",
             free_only: true,
+            relevance_criteria: "compact models with explicit print and license evidence",
           }],
           security: { prompt_injection_protection: "disabled" },
         },
@@ -3355,6 +3546,30 @@ describe("apps metadata commands", () => {
       assert.equal(parsed.data?.results?.[0]?.result_count, 1);
       assert.doesNotMatch(output, /open_cta_label/);
       assert.match(output, /Creative Tools/);
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=app-skills.surface.semantic-parity,app-skills.search-relevance.optional-and-inferred
+  it("forwards models3d relevance criteria through generated JSON input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const input = {
+        requests: [{
+          query: "phone stand",
+          count: 3,
+          relevance_criteria: "foldable adjustable travel stand with explicit feature evidence",
+        }],
+      };
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "models3d", "search",
+        "--input", JSON.stringify(input),
+        "--json",
+      ]);
+
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/models3d/skills/search",
+        body: input,
+      });
     });
   });
 
@@ -4369,7 +4584,7 @@ describe("workspace ask fallback chat", () => {
       assert.equal(parsed.status, "completed");
       assert.equal(typeof parsed.chatId, "string");
       assert.deepEqual(chatMessages, ["Create a deterministic test chat"]);
-      assert.deepEqual(clientCapabilities, [[]]);
+      assert.deepEqual(clientCapabilities, [["project_file_jobs", "remote_command_jobs"]]);
     });
   });
 
@@ -4399,7 +4614,7 @@ describe("workspace ask fallback chat", () => {
       assert.deepEqual(chatMessages, [instruction]);
       assert.ok(requestPaths.includes("POST /v1/workflows/ask"));
       assert.ok(requestPaths.includes("GET /v1/settings/export-account-data?include_usage=false&include_invoices=false"));
-      assert.deepEqual(clientCapabilities, [[]]);
+      assert.deepEqual(clientCapabilities, [["project_file_jobs", "remote_command_jobs"]]);
       assert.ok(frameTypes.includes("chat_turn_preflight"));
       assert.ok(frameTypes.includes("chat_message_added"));
     });

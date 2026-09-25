@@ -706,14 +706,23 @@ class ChatMethods:
         encrypted_chat_key = chat_metadata.get("encrypted_chat_key")
         chat_id = chat_metadata.get("id")
         hashed_user_id = chat_metadata.get("hashed_user_id")
-        if not chat_id or not hashed_user_id or not encrypted_chat_key:
+        hashed_team_id = chat_metadata.get("hashed_team_id")
+        if not chat_id or not encrypted_chat_key or (not hashed_team_id and not hashed_user_id):
             return
         try:
-            await self.directus_service.chat_key_wrapper.ensure_master_wrapper_for_chat(
-                chat_id=str(chat_id),
-                hashed_user_id=str(hashed_user_id),
-                encrypted_chat_key=str(encrypted_chat_key),
-            )
+            if hashed_team_id:
+                await self.directus_service.chat_key_wrapper.ensure_team_wrapper_for_chat(
+                    chat_id=str(chat_id),
+                    hashed_team_id=str(hashed_team_id),
+                    encrypted_chat_key=str(encrypted_chat_key),
+                    team_key_epoch=int(chat_metadata.get("team_key_epoch") or 1),
+                )
+            else:
+                await self.directus_service.chat_key_wrapper.ensure_master_wrapper_for_chat(
+                    chat_id=str(chat_id),
+                    hashed_user_id=str(hashed_user_id),
+                    encrypted_chat_key=str(encrypted_chat_key),
+                )
         except Exception as wrapper_error:
             logger.warning(
                 "Failed to ensure chat key wrapper for chat %s: %s",

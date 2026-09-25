@@ -73,9 +73,13 @@
     let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
     let isCancelled = false;
-    // Whether stop() has already been called (prevents double-stop from both
-    // document mouseup and parent's onRecordMouseUp after tick()).
-    let stopAlreadyCalled = false;
+    // A stop request and final cleanup are deliberately separate. Some browsers
+    // can accept MediaRecorder.stop() without ever delivering `stop`; cancel must
+    // still be able to escalate a pending finish and release the microphone.
+    let stopIntent = $state<'finish' | 'cancel' | null>(null);
+    let finalized = $state(false);
+    let finalizationCompleted = false;
+    let stopFallbackTimer: ReturnType<typeof setTimeout> | null = null;
     // Guard: ignore pointer-release events until the MediaRecorder has actually
     // started. Without this, a queued/bubbled mouseup from the original press
     // interaction fires before getUserMedia resolves, causing stopInternal to see
@@ -93,6 +97,10 @@
     const WAVEFORM_MIN_DECIBELS = -46;
     const WAVEFORM_MAX_DECIBELS = -18;
     const WAVEFORM_MIN_VISIBLE_LEVEL = 0.04;
+    // A recorder started without a timeslice may not emit its only data chunk
+    // until the asynchronous stop flush. Keep the watchdog conservative so a
+    // slow Safari flush is not mistaken for a missing stop event.
+    const MEDIA_RECORDER_STOP_TIMEOUT_MS = 10_000;
 
     let waveformSamples = $state<number[]>(createEmptyWaveform());
     let recordedWaveformLevels: number[] = [];
@@ -115,6 +123,9 @@
     let realtimeStatus = $state<'connecting' | 'listening' | 'correcting' | 'failed'>('connecting');
     let realtimeHandle: AudioRealtimeTranscriptionHandle | null = null;
     let realtimeHandedOff = false;
+    let realtimeFinishRequested = false;
+    let realtimeCancelled = false;
+    let realtimeFinishFailed = false;
 
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
@@ -148,9 +159,7 @@
         logger.debug('Component destroying.');
         stopWaveform();
         stopTranscriptMeasurement();
-        if (!realtimeHandedOff) realtimeHandle?.cancel();
-        // Guard: don't double-stop if stop/cancel already ran
-        if (!stopAlreadyCalled) {
+        if (!finalizationCompleted) {
             stopInternal(true);
         }
         document.removeEventListener('keydown',   handleKeyDown);
@@ -160,9 +169,15 @@
     // --- Recording Logic ---
     async function initializeAndStartRecording() {
         isCancelled = false;
-        stopAlreadyCalled = false;
+        stopIntent = null;
+        finalized = false;
+        finalizationCompleted = false;
+        clearStopFallback();
         recordedChunks = [];
         recordedWaveformLevels = [];
+        realtimeFinishRequested = false;
+        realtimeCancelled = false;
+        realtimeFinishFailed = false;
 
         try {
             let streamToUse: MediaStream;
@@ -174,6 +189,10 @@
                 internalStream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true }
                 });
+                if (finalizationCompleted) {
+                    releaseInternalStream();
+                    return;
+                }
                 streamToUse = internalStream;
                 logger.info('Internal audio stream acquired.');
             }
@@ -200,50 +219,12 @@
             }
 
             mediaRecorder.ondataavailable = (e) => {
-                if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+                if (!finalizationCompleted && e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
 
             mediaRecorder.onstop = () => {
                 logger.debug('MediaRecorder stopped.');
-                stopWaveform();
-
-                // Release the mic track
-                if (internalStream) {
-                    internalStream.getTracks().forEach(track => track.stop());
-                    internalStream = null;
-                }
-
-                if (!isCancelled && recordedChunks.length > 0) {
-                    const finalMimeType = mediaRecorder?.mimeType || mimeType;
-                    const blob = new Blob(recordedChunks, { type: finalMimeType });
-                    const finalDuration = recordingTime;
-                    const waveform = buildWaveformFromLevels(recordedWaveformLevels, finalDuration);
-                    logger.info('Recording finished:', {
-                        blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
-                        duration:  `${finalDuration}s`,
-                        mimeType:  blob.type,
-                        waveformSamples: waveform?.samples.length ?? 0,
-                    });
-                    realtimeHandedOff = !!realtimeHandle;
-                    dispatch('audiorecorded', {
-                        blob,
-                        duration: finalDuration,
-                        mimeType: finalMimeType,
-                        waveform,
-                        realtime: realtimeHandle ?? undefined,
-                        liveTranscript: liveTranscript || undefined,
-                    });
-                } else {
-                    logger.info(isCancelled ? 'Recording cancelled.' : 'Recording stopped with no data.');
-                    dispatch('cancel');
-                }
-
-                isRecording = false;
-                recordedChunks = [];
-                recordedWaveformLevels = [];
-                recordingTime = 0;
-                stopRecordingTimer();
-                dispatch('close');
+                finalizeRecording(stopIntent ?? (isCancelled ? 'cancel' : 'finish'));
             };
 
             mediaRecorder.onerror = (event) => {
@@ -273,11 +254,13 @@
             isRecording = false;
             stopRecordingTimer();
             stopWaveform();
-            if (internalStream) {
-                internalStream.getTracks().forEach(track => track.stop());
-                internalStream = null;
+            releaseInternalStream();
+            if (!finalizationCompleted) {
+                finalizationCompleted = true;
+                finalized = true;
+                finishRealtime(true);
+                dispatch('close');
             }
-            dispatch('close');
         }
     }
 
@@ -322,45 +305,141 @@
         transcriptResizeObserver = null;
     }
 
-    /**
-     * Core stop/cancel — all paths converge here.
-     * Guards against double-invocation via stopAlreadyCalled.
-     */
-    function stopInternal(cancelled = false) {
-        if (stopAlreadyCalled) {
-            logger.debug('stopInternal: already called, ignoring duplicate.');
+    function clearStopFallback() {
+        if (stopFallbackTimer !== null) {
+            clearTimeout(stopFallbackTimer);
+            stopFallbackTimer = null;
+        }
+    }
+
+    function releaseInternalStream() {
+        if (!internalStream) return;
+        const stream = internalStream;
+        internalStream = null;
+        for (const track of stream.getTracks()) {
+            try {
+                track.stop();
+            } catch (error) {
+                logger.error('Failed to stop microphone track:', error);
+            }
+        }
+    }
+
+    function finishRealtime(cancelled: boolean) {
+        if (!realtimeHandle || realtimeHandedOff) return;
+        if (cancelled) {
+            if (realtimeCancelled) return;
+            realtimeCancelled = true;
+        } else {
+            if (realtimeFinishRequested) return;
+            realtimeFinishRequested = true;
+        }
+        try {
+            if (cancelled) realtimeHandle.cancel();
+            else realtimeHandle.finish();
+        } catch (error) {
+            // Realtime transcription is an optimization. A broken socket/audio
+            // graph must never prevent the MediaRecorder and microphone cleanup.
+            logger.error(`Failed to ${cancelled ? 'cancel' : 'finish'} realtime transcription:`, error);
+            if (!cancelled) {
+                realtimeFinishFailed = true;
+                finishRealtime(true);
+            }
+        }
+    }
+
+    function finalizeRecording(intent: 'finish' | 'cancel') {
+        if (finalizationCompleted) {
+            logger.debug('finalizeRecording: already finalized, ignoring late event.');
             return;
         }
-        stopAlreadyCalled = true;
+        finalizationCompleted = true;
+        finalized = true;
+        clearStopFallback();
+        stopRecordingTimer();
+        stopWaveform();
+        releaseInternalStream();
+        isRecording = false;
+        readyForRelease = false;
+
+        if (intent === 'finish' && recordedChunks.length > 0) {
+            const finalMimeType = mediaRecorder?.mimeType || recordedChunks[0]?.type || 'audio/webm';
+            const blob = new Blob(recordedChunks, { type: finalMimeType });
+            const finalDuration = recordingTime;
+            const waveform = buildWaveformFromLevels(recordedWaveformLevels, finalDuration);
+            logger.info('Recording finished:', {
+                blobSize: `${(blob.size / 1024).toFixed(2)} KB`,
+                duration:  `${finalDuration}s`,
+                mimeType:  blob.type,
+                waveformSamples: waveform?.samples.length ?? 0,
+            });
+            realtimeHandedOff = !!realtimeHandle && !realtimeFinishFailed;
+            dispatch('audiorecorded', {
+                blob,
+                duration: finalDuration,
+                mimeType: finalMimeType,
+                waveform,
+                realtime: realtimeHandedOff ? realtimeHandle ?? undefined : undefined,
+                liveTranscript: liveTranscript || undefined,
+            });
+        } else {
+            logger.info(intent === 'cancel' ? 'Recording cancelled.' : 'Recording stopped with no data.');
+            finishRealtime(true);
+            dispatch('cancel');
+        }
+
+        recordedChunks = [];
+        recordedWaveformLevels = [];
+        recordingTime = 0;
+        mediaRecorder = null;
+        dispatch('close');
+    }
+
+    /** Core stop/cancel — all paths converge here. */
+    function stopInternal(cancelled = false) {
+        if (finalizationCompleted) {
+            logger.debug('stopInternal: already finalized, ignoring duplicate.');
+            return;
+        }
+
+        if (stopIntent === 'cancel' || (stopIntent === 'finish' && !cancelled)) {
+            logger.debug('stopInternal: request already pending, ignoring duplicate.');
+            return;
+        }
 
         isCancelled = isCancelled || cancelled;
+        stopIntent = isCancelled ? 'cancel' : 'finish';
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
 
         stopRecordingTimer();
-        if (isCancelled) realtimeHandle?.cancel();
-        else realtimeHandle?.finish();
         stopWaveform();
         isRecording = false;
+
+        finishRealtime(isCancelled);
+
+        // Cancellation is terminal and must release an owned microphone even if
+        // MediaRecorder never acknowledges stop. External streams remain owned
+        // by their provider and are intentionally not stopped here.
+        if (isCancelled) releaseInternalStream();
 
         if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
             try {
                 mediaRecorder.stop(); // fires onstop → dispatches events
             } catch (e) {
                 logger.error('Error calling mediaRecorder.stop():', e);
-                if (internalStream) {
-                    internalStream.getTracks().forEach(track => track.stop());
-                    internalStream = null;
-                }
-                dispatch('close');
             }
-        } else {
-            // Recorder was never started or already stopped (e.g. error path)
-            if (internalStream) {
-                internalStream.getTracks().forEach(track => track.stop());
-                internalStream = null;
-            }
-            dispatch('close');
         }
+
+        if (isCancelled) {
+            finalizeRecording('cancel');
+            return;
+        }
+
+        if (finalizationCompleted) return;
+        stopFallbackTimer = setTimeout(() => {
+            logger.error('MediaRecorder stop event timed out; finalizing available audio.');
+            finalizeRecording('finish');
+        }, MEDIA_RECORDER_STOP_TIMEOUT_MS);
     }
 
     // --- Timer ---
@@ -538,6 +617,8 @@
     bind:this={recordOverlayElement}
     class="record-overlay"
     data-testid="record-overlay"
+    data-recording-finalized={finalized}
+    data-recording-stop-intent={stopIntent ?? ''}
     tabindex="-1"
     transition:fade={{ duration: 150 }}
 >

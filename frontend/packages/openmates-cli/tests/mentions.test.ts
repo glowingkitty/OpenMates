@@ -261,13 +261,16 @@ describe("parseMentions", () => {
       assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-5.4");
     });
 
-    it("resolves GPT-5.6 display names", () => {
+    it("resolves current GPT and Claude display names", () => {
       for (const [mention, modelId] of [
         ["@GPT-6-Astra", "gpt-6-astra"],
+        ["@GPT-6-Luna", "gpt-6-luna"],
+        ["@GPT-6-Sol", "gpt-6-sol"],
         ["@GPT-5.6-Luna", "gpt-5.6-luna"],
         ["@GPT-5.6-Terra", "gpt-5.6-terra"],
         ["@GPT-5.6-Sol", "gpt-5.6-sol"],
         ["@GPT-5.6-Sol-Max", "gpt-5.6-sol-max"],
+        ["@Claude-Opus-5.5", "claude-opus-5-5"],
       ] as const) {
         const result = parseMentions(`${mention} explain this`, testContext);
 

@@ -83,6 +83,10 @@ struct AskOpenMatesIntent: AppIntent {
         var currentChat = sent.chat
         let pendingUserMessagesById: [String: Message] = [sent.message.id: sent.message]
         var userMessageIdByAssistantId: [String: String] = [:]
+        var completedAnswer: String?
+        var postProcessingCompleted = false
+        var postProcessingTimeout: Task<Void, Never>?
+        defer { postProcessingTimeout?.cancel() }
 
         for await event in stream {
             switch event {
@@ -127,9 +131,18 @@ struct AskOpenMatesIntent: AppIntent {
                     wsManager: wsManager,
                     chatStore: chatStore
                 )
-                return persisted.content ?? content
+                completedAnswer = persisted.content ?? content
+                if postProcessingCompleted { return completedAnswer ?? content }
+                // Shortcuts should wait for the durable generated header while
+                // still returning the answer if post-processing is unavailable.
+                postProcessingTimeout?.cancel()
+                postProcessingTimeout = Task {
+                    try? await Task.sleep(for: .seconds(15))
+                    guard !Task.isCancelled else { return }
+                    await stream.finish()
+                }
 
-            case .postProcessingCompleted(let eventChatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
+            case .postProcessingCompleted(let eventChatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle, let sourceTitleVersion, let sourceMetadataVersion):
                 guard eventChatId == chatId else { continue }
                 await pipeline.sendPostProcessingMetadata(
                     chatId: chatId,
@@ -138,19 +151,23 @@ struct AskOpenMatesIntent: AppIntent {
                     chatSummary: summary,
                     chatTags: tags,
                     updatedTitle: updatedTitle,
+                    sourceTitleVersion: sourceTitleVersion,
+                    sourceMetadataVersion: sourceMetadataVersion,
                     wsManager: wsManager,
                     chatStore: chatStore
                 )
+                postProcessingCompleted = true
+                if let completedAnswer { return completedAnswer }
 
             case .error(let message):
-                return "OpenMates could not finish the response: \(message)"
+                return completedAnswer ?? "OpenMates could not finish the response: \(message)"
 
             default:
                 continue
             }
         }
 
-        return "Response is still processing. Open the app to see the full answer."
+        return completedAnswer ?? "Response is still processing. Open the app to see the full answer."
     }
 
     @MainActor

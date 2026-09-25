@@ -83,6 +83,46 @@ APP_SKILL_BILLING_IDEMPOTENCY_PREFIX = "app-skill"
 MAX_BILLING_IDEMPOTENCY_KEY_LENGTH = 255
 
 
+def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Translate JSON Schema constraints used in app.yml into Pydantic Field options."""
+    field_kwargs: Dict[str, Any] = {
+        "description": schema.get("description", ""),
+    }
+    schema_type = schema.get("type")
+
+    if schema_type == "string":
+        constraint_names = {
+            "minLength": "min_length",
+            "maxLength": "max_length",
+            "pattern": "pattern",
+        }
+    elif schema_type == "array":
+        constraint_names = {
+            "minItems": "min_length",
+            "maxItems": "max_length",
+        }
+    elif isinstance(schema_type, str) and schema_type in {"integer", "number"}:
+        constraint_names = {
+            "minimum": "ge",
+            "maximum": "le",
+            "multipleOf": "multiple_of",
+        }
+        exclusive_minimum = schema.get("exclusiveMinimum")
+        exclusive_maximum = schema.get("exclusiveMaximum")
+        if exclusive_minimum is not None and not isinstance(exclusive_minimum, bool):
+            field_kwargs["gt"] = exclusive_minimum
+        if exclusive_maximum is not None and not isinstance(exclusive_maximum, bool):
+            field_kwargs["lt"] = exclusive_maximum
+    else:
+        constraint_names = {}
+
+    for json_schema_name, pydantic_name in constraint_names.items():
+        if json_schema_name in schema:
+            field_kwargs[pydantic_name] = schema[json_schema_name]
+
+    return field_kwargs
+
+
 def _build_app_skill_billing_idempotency_key(
     *,
     app_id: str,
@@ -2835,12 +2875,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     except Exception as e:
                         logger.warning(f"Could not import models from skill module {captured_skill.class_path}: {e}")
                 
-                # If a response model exists, build the request model from tool_schema.
-                # Some async skills (e.g. code.image_to_html) intentionally define
-                # only a Response model and rely on app.yml for request structure.
+                # Build the request model from tool_schema independently of response typing.
+                # Some skills intentionally define only a request or only a response model;
+                # their REST input must still preserve the app.yml schema and constraints.
                 if (
-                    SkillResponseModel
-                    and captured_skill.tool_schema
+                    captured_skill.tool_schema
                     and "requests" in (captured_skill.tool_schema.get("properties") or {})
                 ):
                     # Create an enhanced request model that properly defines the requests array items
@@ -2935,14 +2974,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                                 n_py_type = float
                                             else:
                                                 n_py_type = Any
-                                            n_desc = nested_prop.get("description", "")
+                                            n_field_kwargs = _json_schema_field_kwargs(nested_prop)
                                             n_default = nested_prop.get("default")
                                             if nested_name in nested_required:
-                                                nested_field_defs[nested_name] = (n_py_type, Field(..., description=n_desc))
+                                                nested_field_defs[nested_name] = (n_py_type, Field(..., **n_field_kwargs))
                                             elif n_default is not None:
-                                                nested_field_defs[nested_name] = (n_py_type, Field(default=n_default, description=n_desc))
+                                                nested_field_defs[nested_name] = (n_py_type, Field(default=n_default, **n_field_kwargs))
                                             else:
-                                                nested_field_defs[nested_name] = (Optional[n_py_type], Field(default=None, description=n_desc))
+                                                nested_field_defs[nested_name] = (Optional[n_py_type], Field(default=None, **n_field_kwargs))
                                         if nested_field_defs:
                                             NestedItemModel = create_model(
                                                 f"NestedItem_{captured_app_id}_{captured_skill.id}_{prop_name}",
@@ -2953,18 +2992,23 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                             prop_type = List[Any]
                                     else:
                                         prop_type = List[Any]
+                                elif schema_type == "number":
+                                    prop_type = float
+                                elif schema_type == "object":
+                                    prop_type = Dict[str, Any]
                                 
                                 # Check if field is required
                                 is_required = prop_name in requests_items_schema.get("required", [])
                                 
                                 # Get default value if available
+                                field_kwargs = _json_schema_field_kwargs(prop_schema)
                                 default_value = prop_schema.get("default")
                                 if default_value is not None:
-                                    field_definitions[prop_name] = (prop_type, Field(default=default_value, description=prop_schema.get("description", "")))
+                                    field_definitions[prop_name] = (prop_type, Field(default=default_value, **field_kwargs))
                                 elif not is_required:
-                                    field_definitions[prop_name] = (Optional[prop_type], Field(default=None, description=prop_schema.get("description", "")))
+                                    field_definitions[prop_name] = (Optional[prop_type], Field(default=None, **field_kwargs))
                                 else:
-                                    field_definitions[prop_name] = (prop_type, Field(..., description=prop_schema.get("description", "")))
+                                    field_definitions[prop_name] = (prop_type, Field(..., **field_kwargs))
                         
                         # Create the request item model
                         if field_definitions:
@@ -2998,10 +3042,12 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         logger.debug(f"Overrode JSON schema for {captured_app_id}/{captured_skill.id} request model")
                     
                     # Create a wrapper response model that includes the skill response in 'data'
+                    SkillResponseDataModel = SkillResponseModel or Dict[str, Any]
+
                     class WrappedSkillResponse(BaseModel):
                         """Response wrapper for skill execution"""
                         success: bool
-                        data: Optional[SkillResponseModel] = Field(None, description="The skill execution result (only present when success=True)")
+                        data: Optional[SkillResponseDataModel] = Field(None, description="The skill execution result (only present when success=True)")
                         error: Optional[str] = Field(None, description="Error message if execution failed")
                         credits_charged: Optional[int] = Field(None, description="Credits charged for this execution")
                     
@@ -3147,7 +3193,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             
                             # Parse result into the skill's response model for proper typing
                             try:
-                                skill_response = SkillResponseModel(**result) if isinstance(result, dict) else result
+                                skill_response = (
+                                    SkillResponseModel(**result)
+                                    if SkillResponseModel and isinstance(result, dict)
+                                    else result
+                                )
                             except Exception as e:
                                 logger.warning(f"Could not parse result into {SkillResponseModel.__name__}: {e}, using raw result")
                                 skill_response = result

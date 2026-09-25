@@ -164,7 +164,7 @@
 </script>
 
 <section class="detail-page" data-testid="plan-detail-page">
-  <nav><a href="/plans">{domainLabel}</a><WorkspaceReportIssueButton /></nav>
+  <nav><a href="/#plans">{domainLabel}</a><WorkspaceReportIssueButton /></nav>
   {#if plan}
     <WorkspaceDetailHeader title={plan.title || $text('common.detail_untitled', { values: { item: domainLabel } })} description={plan.summary || plan.goal || ''} category="productivity" icon="list-checks" writable={true} onSaveTitle={saveTitle} onSaveDescription={saveDescription} />
     <div class="plan-body">

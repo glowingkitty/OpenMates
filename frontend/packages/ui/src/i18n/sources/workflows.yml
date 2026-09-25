@@ -613,6 +613,16 @@ builder.remove:
   en: "Remove"
   verified_by_human: []
 
+builder.delete_node:
+  context: Accessible label for the delete button in a Workflow node header
+  en: "Delete step"
+  verified_by_human: []
+
+builder.confirm_delete_node:
+  context: Confirmation revealed after the first press of a Workflow node delete button
+  en: "Press again to confirm delete"
+  verified_by_human: []
+
 builder.add_item:
   context: Workflow progressive builder control
   en: "Add item"
@@ -625,17 +635,22 @@ builder.choose:
 
 builder.true:
   context: Workflow progressive builder control
-  en: "Yes"
+  en: "true"
   verified_by_human: []
 
 builder.false:
   context: Workflow progressive builder control
-  en: "No"
+  en: "false"
   verified_by_human: []
 
 builder.today:
   context: Workflow progressive builder control
   en: "Today"
+  verified_by_human: []
+
+builder.next_week:
+  context: Relative date range option in a Workflow App skill input
+  en: "Next week"
   verified_by_human: []
 
 builder.next_week_start:
@@ -691,6 +706,36 @@ builder.show_all_fields:
 builder.show_basic_fields:
   context: Link that hides optional Workflow App skill inputs
   en: "Show basic fields"
+  verified_by_human: []
+
+builder.show_all_variables:
+  context: Link that reveals secondary Workflow output variables
+  en: "Show all variables"
+  verified_by_human: []
+
+builder.show_basic_variables:
+  context: Link that hides secondary Workflow output variables
+  en: "Show basic variables"
+  verified_by_human: []
+
+builder.show_output_fields:
+  context: Link that reveals a Workflow App skill's output fields
+  en: "Show output fields"
+  verified_by_human: []
+
+builder.hide_output_fields:
+  context: Link that hides a Workflow App skill's output fields
+  en: "Hide output fields"
+  verified_by_human: []
+
+builder.summary_in:
+  context: Connects a minimized Workflow field value to its date or place
+  en: "in"
+  verified_by_human: []
+
+builder.summary_to:
+  context: Connects a minimized Workflow date range's start and end
+  en: "to"
   verified_by_human: []
 
 builder.date_range:
@@ -773,11 +818,6 @@ builder.existing_chat:
   en: "Existing chat"
   verified_by_human: []
 
-builder.new_chat_each_run:
-  context: Workflow progressive builder control
-  en: "New chat for each run"
-  verified_by_human: []
-
 builder.unavailable:
   context: Workflow progressive builder control
   en: "Not available"
@@ -828,6 +868,56 @@ builder.add_check:
   en: "Add check"
   verified_by_human: []
 
+builder.ask_ai:
+  context: Workflow progressive builder control
+  en: "Ask AI"
+  verified_by_human: []
+
+builder.ask_ai_question:
+  context: Workflow Ask AI instruction editor heading
+  en: "What should AI do with the information from earlier steps?"
+  verified_by_human: []
+
+builder.ask_ai_placeholder:
+  context: Workflow Ask AI instruction editor placeholder
+  en: "For example: Summarize the events and explain what makes each one useful. Type @ to add a variable from an earlier step."
+  verified_by_human: []
+
+builder.suggested_values:
+  context: Workflow Ask AI suggested earlier values
+  en: "Suggested information"
+  verified_by_human: []
+
+builder.ask_ai_app_warning:
+  context: Blocking Workflow Ask AI authoring validation
+  en: "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill."
+  verified_by_human: []
+
+builder.ask_ai_validation_unavailable:
+  context: Non-blocking Workflow Ask AI authoring reminder
+  en: "We couldn't verify this instruction right now. You can still save it; Ask AI cannot use app skills."
+  verified_by_human: []
+
+builder.checking_instruction:
+  context: Workflow Ask AI authoring validation progress
+  en: "Checking this instruction…"
+  verified_by_human: []
+
+builder.ask_ai_unavailable:
+  context: Workflow Ask AI capability unavailable error
+  en: "Ask AI is not available right now."
+  verified_by_human: []
+
+builder.ask_ai_instruction_required:
+  context: Workflow Ask AI empty instruction error
+  en: "Enter an instruction for Ask AI."
+  verified_by_human: []
+
+builder.answer:
+  context: Workflow Ask AI output label
+  en: "Answer"
+  verified_by_human: []
+
 builder.back:
   context: Workflow progressive builder control
   en: "Back"
@@ -835,7 +925,7 @@ builder.back:
 
 builder.use_app:
   context: Workflow progressive builder control
-  en: "Use App"
+  en: "Use app"
   verified_by_human: []
 
 builder.choose_skill:
@@ -953,6 +1043,56 @@ builder.check_question:
   en: "What should we check?"
   verified_by_human: []
 
+builder.check_mode:
+  context: Workflow Check mode selector
+  en: "How should this be checked?"
+  verified_by_human: []
+
+builder.exact_rule:
+  context: Deterministic Workflow Check mode
+  en: "Exact rule"
+  verified_by_human: []
+
+builder.ai_judgment:
+  context: AI-powered Workflow Check mode
+  en: "Ask AI"
+  verified_by_human: []
+
+builder.ai_check_question:
+  context: Workflow AI Check natural-language question label
+  en: "The following Yes or No question:"
+  verified_by_human: []
+
+builder.ai_check_placeholder:
+  context: Workflow AI Check natural-language question placeholder
+  en: "For example: Is this weather suitable for an outdoor event? Type @ to add a variable from an earlier step."
+  verified_by_human: []
+
+builder.ai_check_values:
+  context: Workflow AI Check selected input values legend
+  en: "Information AI may use"
+  verified_by_human: []
+
+builder.ai_check_guidance:
+  context: Workflow AI Check guidance
+  en: "Use an exact rule for fixed thresholds. Use Ask AI when context or several factors matter. If AI cannot decide reliably, the Unsure branch runs."
+  verified_by_human: []
+
+builder.ai_check_required:
+  context: Workflow AI Check missing question or values error
+  en: "Enter a question and add at least one earlier variable."
+  verified_by_human: []
+
+builder.ai_check_add_variable:
+  context: Workflow AI Check missing variable guidance above disabled Save button
+  en: "Add a variable to evaluate, before saving the check."
+  verified_by_human: []
+
+builder.if_unsure:
+  context: Workflow AI Check unsure branch label
+  en: "If unsure"
+  verified_by_human: []
+
 builder.if:
   context: Workflow progressive builder control
   en: "If"
@@ -983,11 +1123,6 @@ builder.search_chats:
   en: "Search recent chats"
   verified_by_human: []
 
-builder.new_chat:
-  context: Workflow progressive builder control
-  en: "New chat"
-  verified_by_human: []
-
 builder.message_question:
   context: Workflow progressive builder control
   en: "What should the message be?"
@@ -1000,7 +1135,7 @@ builder.chat_title:
 
 builder.message_placeholder:
   context: Workflow progressive builder control
-  en: "Enter the message template here. Type @ or select an output above to include results from previous actions."
+  en: "Enter the message here. Type @ to add a variable from an earlier step, or select one below."
   verified_by_human: []
 
 builder.only_new_results:
@@ -1259,8 +1394,8 @@ builder.output_type_object:
   verified_by_human: []
 
 builder.output_type_boolean:
-  context: Readable workflow values and feedback for everyday users
-  en: "Yes / No"
+  context: Boolean workflow data type, whose values are true or false
+  en: "Bool"
   verified_by_human: []
 
 builder.output_empty_list:

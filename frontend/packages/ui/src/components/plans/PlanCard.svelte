@@ -78,7 +78,7 @@
   </footer>
 
   <div class="plan-actions" aria-label="Manage plan">
-    <a href={`/plans/${encodeURIComponent(plan.plan_id)}`} data-testid="plan-detail-link">Open</a>
+    <a href={`/#plan-id=${encodeURIComponent(plan.plan_id)}`} data-testid="plan-detail-link">Open</a>
     {#if plan.primaryChatId}
       <a href={`/#chat-id=${encodeURIComponent(plan.primaryChatId)}`} data-testid="plan-chat-link">Chat</a>
     {/if}

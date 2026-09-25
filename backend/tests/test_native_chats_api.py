@@ -65,6 +65,7 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
     result = await list_chats(
         request=_request(chat_service, chat_key_wrapper_service),
         limit=20,
+        offset=0,
         team_id=None,
         current_user=SimpleNamespace(id="user-1"),
     )
@@ -134,6 +135,7 @@ async def test_list_team_chats_fetches_team_key_wrappers_after_role_check() -> N
     result = await list_chats(
         request=_request(chat_service, chat_key_wrapper_service, team_service=team_service),
         limit=20,
+        offset=25,
         team_id="team-1",
         current_user=SimpleNamespace(id="user-1"),
     )
@@ -143,6 +145,14 @@ async def test_list_team_chats_fetches_team_key_wrappers_after_role_check() -> N
         "team-1",
         "user-1",
         {"owner", "admin", "member", "viewer"},
+    )
+    chat_service.get_user_chats_metadata.assert_awaited_once_with(
+        "user-1",
+        limit=20,
+        offset=25,
+        sort="-pinned,-last_edited_overall_timestamp",
+        admin_required=True,
+        team_id="team-1",
     )
     chat_key_wrapper_service.get_wrappers_by_hashed_chat_ids_batch.assert_awaited_once_with(
         [chat_hash],

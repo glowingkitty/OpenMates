@@ -602,6 +602,9 @@ async def test_viewer_cannot_create_team_project() -> None:
                 created_at=1,
                 updated_at=1,
                 last_opened_at=1,
+                write_mode="apply_and_show",
+                default_focus_id="9f56b770-3903-46bb-b9ea-5d01d6bc995b",
+                encrypted_settings="cipher-settings",
                 key_wrappers=[
                     {
                         "key_type": "team",

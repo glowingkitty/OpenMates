@@ -105,7 +105,7 @@ test.describe('Tasks V1 flow', () => {
 		const staleDraft = `${editedTitle} stale draft`;
 		const otherPage = await page.context().newPage();
 		try {
-			await otherPage.goto(getE2EDebugUrl(`/tasks/${taskId}`), { waitUntil: 'domcontentloaded' });
+			await otherPage.goto(getE2EDebugUrl(`/#task-id=${taskId}`), { waitUntil: 'domcontentloaded' });
 			await expect(otherPage.getByTestId('task-detail-title')).toHaveText(editedTitle);
 			await otherPage.getByTestId('task-detail-title').click();
 			await otherPage.getByTestId('workspace-detail-title-input').fill(concurrentTitle);
@@ -182,6 +182,7 @@ test.describe('Tasks V1 flow', () => {
 		await expect(codexCard).toBeVisible({ timeout: 30000 });
 		await expect(codexCard).toContainText('Codex');
 
+		await createdCard.getByTestId('task-actions-more').click();
 		await Promise.all([
 			page.waitForResponse((response) =>
 				response.request().method() === 'POST' &&

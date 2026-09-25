@@ -6,10 +6,96 @@
 // orchestration and remote Mac runners.
 
 import XCTest
+import CryptoKit
 @testable import OpenMates
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testSharedSocketReconnectWorkHasOneWindowOwnerAndMigratesOnClose() {
+        var ownership = SharedSocketWindowOwnership()
+        let firstWindow = UUID()
+        let secondWindow = UUID()
+        ownership.register(firstWindow)
+        ownership.register(secondWindow)
+
+        XCTAssertFalse(ownership.claimReconnectWork(secondWindow))
+        XCTAssertTrue(ownership.claimReconnectWork(firstWindow))
+        XCTAssertEqual(ownership.reconnectWorkCount, 1)
+
+        ownership.unregister(firstWindow)
+        XCTAssertTrue(ownership.claimReconnectWork(secondWindow))
+        XCTAssertEqual(ownership.reconnectWorkCount, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testNewChatEncryptedKeyWrapperStaysStableAcrossConcurrentWraps() async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+        let masterKey = SymmetricKey(size: .bits256)
+        let firstWrap = try await CryptoManager.shared.wrapChatKey(key, masterKey: masterKey)
+        let secondWrap = try await CryptoManager.shared.wrapChatKey(key, masterKey: masterKey)
+        XCTAssertNotEqual(firstWrap, secondWrap, "Wrapping the same key uses a fresh nonce")
+
+        let first = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(firstWrap, for: chatId, matching: key)
+        let second = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(secondWrap, for: chatId, matching: key)
+        XCTAssertEqual(first, firstWrap)
+        XCTAssertEqual(second, firstWrap, "Every send must use the wrapper first assigned to this chat")
+        XCTAssertEqual(ChatKeyManager.shared.encryptedKey(for: chatId), firstWrap)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+    func testOverlappingFirstSendsUseOneChatKeyAndWrapper() async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let gate = OverlappingChatKeyGate()
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+
+        let first = Task { await ChatKeyManager.shared.createKeyForNewChat(
+            chatId, generateKey: { await gate.generate() }
+        ) }
+        await gate.waitForFirstGeneration()
+        let second = Task { await ChatKeyManager.shared.createKeyForNewChat(
+            chatId, generateKey: { await gate.generate() }
+        ) }
+        let secondKey = await second.value
+        await gate.releaseFirstGeneration()
+        let firstKey = await first.value
+        XCTAssertEqual(Self.keyData(firstKey), Self.keyData(secondKey))
+
+        let masterKey = SymmetricKey(size: .bits256)
+        let firstWrap = try await CryptoManager.shared.wrapChatKey(firstKey, masterKey: masterKey)
+        let secondWrap = try await CryptoManager.shared.wrapChatKey(secondKey, masterKey: masterKey)
+        let stableFirst = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            firstWrap, for: chatId, matching: firstKey
+        )
+        let stableSecond = ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            secondWrap, for: chatId, matching: secondKey
+        )
+        XCTAssertEqual(stableFirst, stableSecond)
+    }
+
+    private static func keyData(_ key: SymmetricKey) -> Data {
+        key.withUnsafeBytes { Data($0) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testStaleWrapCannotReplaceNewChatKeyAfterKeyReplacement() async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let oldKey = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+        let newKey = SymmetricKey(size: .bits256)
+        let generation = ChatKeyManager.shared.cacheGeneration
+        defer { ChatKeyManager.shared.removeKey(for: chatId) }
+        ChatKeyManager.shared.setKey(newKey, for: chatId)
+        XCTAssertNil(ChatKeyManager.shared.rememberNewEncryptedKeyIfAbsent(
+            "stale-wrap", for: chatId, matching: oldKey
+        ))
+        XCTAssertNil(ChatKeyManager.shared.installValidatedKey(
+            oldKey, encryptedKey: "old-server-wrap", for: chatId, expectedGeneration: generation
+        ))
+        XCTAssertNil(ChatKeyManager.shared.encryptedKey(for: chatId))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
     func testNotificationReplyDoesNotCommitAfterItsSessionChangesDuringPreflight() async throws {
         let payloads = Self.notificationTurnPayloads()
@@ -290,6 +376,47 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(result.mappings.contains { $0.original == "sarah@proton.com" && $0.type == "EMAIL" })
     }
 
+    // contract-test: direct surface=gui.apple assertions=pii.composer.detect-redact-exclude,pii.surface.semantic-parity
+    func testContextualPIIPatternsReplaceTheSameFullMatchAsWeb() throws {
+        let awsSecret = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn"
+        let azureSecret = "0123456789abcdef0123456789abcdef"
+        let fixtures: [(text: String, type: PIIType, expectedOriginal: String)] = [
+            ("password=supersecret123", .genericSecret, "password=supersecret123"),
+            ("aws_secret=\(awsSecret)", .awsSecretKey, "aws_secret=\(awsSecret)"),
+            ("azure_key=\(azureSecret)", .azureKey, "azure_key=\(azureSecret)"),
+            ("passport no: C01X00T47", .passport, "passport no: C01X00T47"),
+            ("tax id: 12-3456789", .taxId, "tax id: 12-3456789"),
+            ("license plate: B AB 1234", .vehiclePlate, "license plate: B AB 1234"),
+        ]
+
+        for fixture in fixtures {
+            let match = try XCTUnwrap(
+                PIIDetector.detect(in: fixture.text).first { $0.type == fixture.type },
+                "Expected \(fixture.type.rawValue) in \(fixture.text)"
+            )
+            XCTAssertEqual(match.value, fixture.expectedOriginal)
+            XCTAssertEqual((fixture.text as NSString).substring(with: match.range), fixture.expectedOriginal)
+            XCTAssertEqual(match.id, "pii-\(fixture.type.rawValue)-0")
+
+            let redaction = PIIDetector.redactionResult(in: fixture.text, matches: [match])
+            XCTAssertEqual(redaction.redactedText, match.placeholder)
+            XCTAssertEqual(redaction.mappings.first?.original, fixture.expectedOriginal)
+            XCTAssertEqual(redaction.mappings.first?.type, fixture.type.rawValue)
+
+            let excludedRedaction = PIIDetector.redactionResult(
+                in: fixture.text,
+                matches: [match],
+                excludedIds: [match.id]
+            )
+            XCTAssertEqual(
+                excludedRedaction.redactedText,
+                fixture.text,
+                "The same stable full-match ID must preserve the current-send exclusion"
+            )
+            XCTAssertTrue(excludedRedaction.mappings.isEmpty)
+        }
+    }
+
     // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
     func testSendTimeRedactionUsesCurrentPrivacySettingsInsteadOfCachedMatches() {
         let text = "Email alice@example.com about Project Orchid."
@@ -422,6 +549,151 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
 
         XCTAssertEqual(merged, [textMapping, attachmentMapping])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testAudioOnlySendAddsDurableReferenceExactlyOnce() {
+        let embed = ComposerPendingEmbed.from(
+            upload: UploadFileResponse(
+                embedId: "audio-embed-1",
+                filename: "recording.m4a",
+                contentType: "audio/mp4",
+                contentHash: nil,
+                files: ["original": UploadedFileVariant(
+                    s3Key: "audio.bin", sizeBytes: 12, width: nil, height: nil, format: "m4a"
+                )],
+                s3BaseUrl: "https://example.invalid/audio",
+                aesKey: "key", aesNonce: "nonce", vaultWrappedAesKey: "wrapped",
+                pageCount: nil, deduplicated: false
+            ),
+            localData: Data([0x01]),
+            transcription: TranscriptionMetadata(transcript: "Recorded request"),
+            duration: 1
+        )
+
+        let audioOnly = ChatSendPipeline.contentByAppendingComposerEmbedReferences(
+            "",
+            composerEmbeds: [embed]
+        )
+        let repeated = ChatSendPipeline.contentByAppendingComposerEmbedReferences(
+            audioOnly,
+            composerEmbeds: [embed]
+        )
+
+        XCTAssertEqual(audioOnly, embed.markdownReference)
+        XCTAssertEqual(repeated, audioOnly)
+        XCTAssertEqual(
+            ChatSendPipeline.provisionalTitleSource(content: audioOnly, composerEmbeds: [embed]),
+            "[Audio] Recorded request"
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testTextAndEmbedProvisionalTitleExcludesEmbedMarkup() {
+        let embed = ComposerPendingEmbed.uiTestFixture
+        let content = "Summarize this\n\n\(embed.markdownReference)"
+        let canonical = ChatSendPipeline.contentByAppendingComposerEmbedReferences(
+            "Summarize this",
+            composerEmbeds: [embed]
+        )
+
+        XCTAssertEqual(
+            ChatSendPipeline.provisionalTitleSource(content: content, composerEmbeds: [embed]),
+            "[Image] Summarize this"
+        )
+        XCTAssertTrue(canonical.contains("Summarize this"))
+        XCTAssertTrue(canonical.contains("\"embed_id\": \"ui-test-pending-image\""))
+        let payload = embed.serverPayload
+        let payloadContent = payload?["content"] as? String
+        XCTAssertNotNil(payloadContent)
+        let contentObject = payloadContent?.data(using: String.Encoding.utf8).flatMap {
+            try? JSONSerialization.jsonObject(with: $0) as? [String: Any]
+        }
+        XCTAssertEqual(contentObject?["embed_ref"] as? String, "ui-test-image.png")
+        XCTAssertEqual(embed.record.rawData?["embed_ref"]?.value as? String, "ui-test-image.png")
+        XCTAssertEqual(embed.record.type, "images-image")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity,message-input.embeds.gated-send
+    func testImageUploadPreservesMediaEncryptionAndTitlesHideEmbedIdentifiers() throws {
+        let uploadJSON = """
+        {
+          "embed_id": "image-1", "filename": "photo.jpg", "content_type": "image/jpeg",
+          "files": {"original": {"s3_key": "media/photo.jpg", "encryption": "aes-gcm-nonce-prefixed-v1"}},
+          "s3_base_url": "https://example.invalid", "aes_key": "key", "aes_nonce": "",
+          "vault_wrapped_aes_key": "wrapped"
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let upload = try decoder.decode(UploadFileResponse.self, from: Data(uploadJSON.utf8))
+        let embed = ComposerPendingEmbed.from(
+            upload: upload, localData: nil, transcription: nil, duration: nil
+        )
+        let contentData = try XCTUnwrap(embed.content?.data(using: .utf8))
+        let contentObject = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: contentData) as? [String: Any]
+        )
+        let files = try XCTUnwrap(contentObject["files"] as? [String: [String: Any]])
+        XCTAssertEqual(files["original"]?["encryption"] as? String, "aes-gcm-nonce-prefixed-v1")
+        XCTAssertEqual(contentObject["embed_ref"] as? String, "photo.jpg")
+        XCTAssertEqual(
+            ChatSendPipeline.provisionalTitleSource(content: "what is this?", composerEmbeds: [embed]),
+            "[Image] what is this?"
+        )
+        XCTAssertEqual(
+            ChatSendPipeline.titleByReplacingEmbedReferences(
+                "[[embed:image-1]] what is this?", embedTypes: ["images-image"]
+            ),
+            "[Image] what is this?"
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
+    func testLegacyAudioOnlyMessageRecoversItsPersistedEmbedLink() throws {
+        let messageID = "legacy-audio-message"
+        let messageHash = SHA256.hash(data: Data(messageID.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        XCTAssertEqual(
+            messageHash,
+            "b01c731376d38838b752117a8df680216c9fedf304994c2968eef09e4d6dc7f9"
+        )
+        let embedJSON = """
+        {
+          "embed_id":"legacy-audio",
+          "status":"finished",
+          "encrypted_type":"encrypted-type-fixture",
+          "encrypted_content":"encrypted-content-fixture",
+          "encrypted_text_preview":"encrypted-preview-fixture",
+          "hashed_chat_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "hashed_message_id":"\(messageHash)",
+          "hashed_user_id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "created_at":1727172000
+        }
+        """
+        let embed = try JSONDecoder().decode(EmbedRecord.self, from: Data(embedJSON.utf8))
+        let message = Message(
+            id: messageID, chatId: "chat-1", role: .user, content: "",
+            encryptedContent: "ciphertext", createdAt: "2026-09-24T10:00:00Z",
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil
+        )
+
+        let recovered = try XCTUnwrap(
+            ChatLegacyEmbedLinkPolicy.applying(to: [message], embeds: [embed]).first
+        )
+
+        XCTAssertEqual(embed.hashedMessageId, messageHash)
+        XCTAssertEqual(recovered.embedRefs?.map(\.id), ["legacy-audio"])
+        XCTAssertTrue(recovered.content?.contains("\"embed_id\": \"legacy-audio\"") == true)
+
+        let rawRecovery = try XCTUnwrap(ChatLegacyEmbedLinkPolicy.applying(
+            to: [message],
+            embeds: [embed],
+            synthesizeMissingContent: false
+        ).first)
+        XCTAssertEqual(rawRecovery.content, "", "Raw encrypted content must still decrypt before fallback synthesis")
+        XCTAssertEqual(rawRecovery.embedRefs?.map(\.id), ["legacy-audio"])
     }
 
     // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity
@@ -1066,5 +1338,34 @@ private struct SlowPrivacyFilterModelRunner: PrivacyFilterModelRunning {
     func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan] {
         try await Task.sleep(nanoseconds: delayNanoseconds)
         return spans
+    }
+}
+
+private actor OverlappingChatKeyGate {
+    private var calls = 0
+    private var firstStarted = false
+    private var startedWaiter: CheckedContinuation<Void, Never>?
+    private var firstRelease: CheckedContinuation<Void, Never>?
+
+    func generate() async -> SymmetricKey {
+        calls += 1
+        if calls == 1 {
+            firstStarted = true
+            startedWaiter?.resume()
+            startedWaiter = nil
+            await withCheckedContinuation { firstRelease = $0 }
+            return SymmetricKey(data: Data(repeating: 0x11, count: 32))
+        }
+        return SymmetricKey(data: Data(repeating: 0x22, count: 32))
+    }
+
+    func waitForFirstGeneration() async {
+        if firstStarted { return }
+        await withCheckedContinuation { startedWaiter = $0 }
+    }
+
+    func releaseFirstGeneration() {
+        firstRelease?.resume()
+        firstRelease = nil
     }
 }

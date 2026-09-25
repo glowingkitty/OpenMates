@@ -116,6 +116,7 @@ embed_types:
 
 skills:
   - id: get-posts
+    anonymous_access: authenticated
     name_translation_key: app_skills.social_media.get_posts
     description_translation_key: app_skills.social_media.get_posts.description
     icon_image: search.svg
@@ -140,6 +141,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of social post fetch requests. For Reddit, page is the subreddit
@@ -150,8 +153,12 @@ skills:
             type: object
             properties:
               id:
+                x-ui:
+                  basic: false
                 description: Optional caller-supplied ID for correlating responses.
               platform:
+                x-ui:
+                  basic: true
                 type: string
                 description: Social platform to fetch from.
                 enum:
@@ -160,9 +167,13 @@ skills:
                   - reddit
                 default: reddit
               page:
+                x-ui:
+                  basic: true
                 type: string
                 description: Platform page/profile identifier. For Reddit, this is the subreddit name. For Bluesky, this is an actor handle for profile feeds. For Mastodon, use user@instance or a profile URL.
               sort:
+                x-ui:
+                  basic: true
                 type: string
                 description: Post listing sort. Reddit supports new/hot/rising/top/comments. Comments means most discussed in the selected time range. Bluesky and Mastodon profile feeds ignore this value.
                 enum:
@@ -173,6 +184,8 @@ skills:
                   - comments
                 default: new
               time_range:
+                x-ui:
+                  basic: false
                 type: string
                 description: Reddit time filter for top/comments sorts.
                 enum:
@@ -183,22 +196,30 @@ skills:
                   - year
                   - all
               limit:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of posts to fetch per page.
                 minimum: 1
                 maximum: 25
                 default: 10
               include_comments:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Whether to fetch comments/replies for returned posts when supported.
                 default: true
               comments_limit:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Number of comments/replies to fetch per post.
                 minimum: 0
                 maximum: 5
                 default: 5
               comments_sort:
+                x-ui:
+                  basic: false
                 type: string
                 description: Reddit comment sort. Bluesky and Mastodon ignore this value.
                 enum:
@@ -209,32 +230,45 @@ skills:
                   - old
                 default: top
               min_score:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Minimum Reddit score/upvotes to include.
                 minimum: 0
               min_comments:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Minimum Reddit comment count to include.
                 minimum: 0
               exclude_stickied:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Exclude stickied Reddit posts.
                 default: true
               exclude_nsfw:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Exclude NSFW Reddit posts.
                 default: true
               include_self_posts:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Include Reddit text/self posts.
                 default: true
               include_link_posts:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Include Reddit link/media posts.
                 default: true
       required:
         - requests
   - id: search
+    anonymous_access: authenticated
     name_translation_key: app_skills.social_media.search
     description_translation_key: app_skills.social_media.search.description
     icon_image: search.svg
@@ -259,6 +293,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of social post search requests. For Bluesky, query is the topic
@@ -269,8 +305,12 @@ skills:
             type: object
             properties:
               id:
+                x-ui:
+                  basic: false
                 description: Optional caller-supplied ID for correlating responses.
               platform:
+                x-ui:
+                  basic: true
                 type: string
                 description: Social platform to search. Omit or use all to search every supported provider.
                 enum:
@@ -280,17 +320,25 @@ skills:
                   - reddit
                 default: all
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Topic or search query to find posts around.
               page:
+                x-ui:
+                  basic: true
                 type: string
                 description: Optional subreddit/page to restrict Reddit search to, without r/. For Mastodon, optionally provide one extra instance such as fosstodon.org.
               mastodon_instances:
+                x-ui:
+                  basic: false
                 type: array
                 description: Optional additional Mastodon instances to search after mastodon.social, for example fosstodon.org or hachyderm.io.
                 items:
                   type: string
               sort:
+                x-ui:
+                  basic: false
                 type: string
                 description: Search sort. Bluesky supports latest/top. Reddit supports relevance/hot/top/new/comments/latest. Mastodon public search returns instance-ranked recent results and ignores sort.
                 enum:
@@ -302,6 +350,8 @@ skills:
                   - comments
                 default: latest
               time_range:
+                x-ui:
+                  basic: false
                 type: string
                 description: Reddit time filter for top/comments search.
                 enum:
@@ -312,25 +362,35 @@ skills:
                   - year
                   - all
               limit:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of posts to fetch per search.
                 minimum: 1
                 maximum: 25
                 default: 10
               author:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional platform profile/handle filter. For Bluesky, this maps to the author filter.
               include_comments:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Whether to fetch comments/replies for returned posts when supported.
                 default: false
               comments_limit:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Number of comments/replies to fetch per returned post when supported.
                 minimum: 0
                 maximum: 5
                 default: 0
               comments_sort:
+                x-ui:
+                  basic: false
                 type: string
                 description: Reddit comment sort.
                 enum:
@@ -341,18 +401,26 @@ skills:
                   - old
                 default: top
               min_score:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Minimum Reddit score/upvotes to include.
                 minimum: 0
               min_comments:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Minimum Reddit comment count to include.
                 minimum: 0
               exclude_stickied:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Exclude stickied Reddit posts.
                 default: true
               exclude_nsfw:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: Exclude NSFW Reddit posts.
                 default: true

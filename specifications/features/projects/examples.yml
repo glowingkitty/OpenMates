@@ -1,6 +1,293 @@
 schema_version: 1
 specification: feature.projects@1
 
+project_search:
+  - id: scoped-read-search
+    assertion_ids: [projects.files.search-scoped, projects.files.search-consistent]
+    given: The chat has Project access but no command grant.
+    when: It finds **/package.json or searches refreshToken in src/auth with a declared query mode.
+    then: Bounded ordinary-file results need no per-search approval and do not grant command or credential access.
+  - id: query-is-not-shell
+    assertion_ids: [projects.files.search-scoped]
+    given: A query contains shell metacharacters or requests an rg preprocessor.
+    when: The search tool validates and executes it.
+    then: Query text remains data, unsupported options are rejected, and no subprocess other than the fixed search operation is launched.
+  - id: missing-search-engine
+    assertion_ids: [projects.files.search-consistent]
+    given: rg is unavailable on the executor.
+    when: A regex query is requested.
+    then: A fallback preserves declared semantics and scope or returns a clear capability error; it does not reinterpret the regex as a literal query.
+
+project_file_access_policy:
+  - id: ignored-local-notes-hidden-until-exactly-included
+    assertion_ids: [projects.files.ignored-exact-inclusion]
+    given: A Git Project ignores notes/local-plan.md and build/, and no exact-file grant exists.
+    when: The agent lists, searches, or directly requests notes/local-plan.md or a file below build/.
+    then: Neither path is returned or read. After the client asks and the user explicitly approves only notes/local-plan.md, a signed ephemeral grant bound to that Project, source, chat, request and exact path permits the authorized operation while build/ remains filtered; a directory, glob, model assertion, repository file, stale grant, or grant from another context is rejected.
+  - id: tracked-file-matching-ignore-stays-filtered
+    assertion_ids: [projects.files.ignored-exact-inclusion]
+    given: config/example.json is tracked, then a later .gitignore rule matches config/*.json.
+    when: The agent lists, searches, or reads the tracked file.
+    then: It remains filtered like an untracked matching sibling and requires its own exact-file user grant for direct access; Git index state does not create a discovery or read-policy exception.
+  - id: nested-plain-and-fallback-ignore-parity
+    assertion_ids: [projects.files.ignored-exact-inclusion, projects.files.search-consistent]
+    given: Equivalent ignored fixtures exist in a Git root, a nested repository, and a connected plain folder, and one executor lacks rg.
+    when: Native and fallback list, search, and exact-read paths evaluate them.
+    then: They produce the same filtered set and honor only a current exact-file client grant; losing rg or crossing a nested root cannot expose an ignored name or content.
+  - id: builtin-and-custom-private-paths-stay-opaque
+    assertion_ids: [projects.files.private-path-deny]
+    given: The source contains .env, .git/config, .openmates/permissions.yml, secrets/customer.pem, and private/client-notes/, with the latter two added to file_access.private_paths.
+    when: The agent lists, searches, reads, imports, edits, follows an in-root symlink or known pre-existing hard-link alias, requests recovery, or runs an approved terminal command against those paths.
+    then: Dedicated file listing and search omit matching names and contents, and direct file operations return only a generic denial before bytes leave the source. A terminal may show that a filename exists but cannot obtain or change its content through the private path, a symlink into it, or a known pre-existing alias. An exact ignored-file grant and repository instructions cannot weaken the boundary, and deleting or changing the Project policy file does not relax active trusted policy. If an external unconfined owner deliberately republishes the bytes at a new allowed pathname, that new pathname is outside path-based enforcement and must be treated like any other accidental copy of a secret into ordinary source.
+
+project_executor_wait:
+  - id: executor-returns-before-reminder
+    assertion_ids: [projects.files.executor-wait]
+    given: A chat waits from 12:00 because no authorized executor can perform its next hosted or remote file operation.
+    when: At 12:09 an authorized capable executor becomes ready and the original file work resumes after all current checks.
+    then: The waiting episode closes, work continues without a new routine permission question, and the old 12:10 reminder and 12:20 timeout no longer act. Waiting held no file lock or model polling loop.
+  - id: reminder-then-automatic-recovery
+    given: The chat waits from 12:00 and has an eligible email recipient.
+    when: It remains waiting at 12:10, then an authorized executor resumes the file work at 12:12.
+    then: One private reminder is dispatched at the reminder threshold, recovery revalidates current file and permission state, and no timeout stops the resumed work at 12:20.
+  - id: twenty-minute-stop-and-late-device
+    assertion_ids: [projects.files.wait-expiry]
+    given: The chat waits from 12:00 and has made no resumed file progress by 12:20.
+    when: An executor becomes available at 12:20 or later, including before a delayed timeout worker runs.
+    then: The run requires explicit chat resume and cannot automatically dispatch more work. Merely opening the chat or its email link does not resume it, and previously applied work remains intact.
+  - id: deadline-survives-restart
+    assertion_ids: [projects.files.wait-deadlines]
+    given: A waiting episode began at 12:00 and its scheduler is unavailable from 12:08 until 12:22.
+    when: Scheduling recovers.
+    then: The run is recognized as expired from its persisted deadline; it does not start a fresh twenty-minute wait or send an obsolete still-waiting reminder. No client clock or model evaluation is needed.
+  - id: reconnect-flapping-does-not-reset-wait
+    assertion_ids: [projects.files.wait-deadlines]
+    given: The chat waits from 12:00; a device repeatedly connects but cannot unlock the needed keys, establish authorized readiness, or resume the blocked file work.
+    when: These connection events arrive before 12:20.
+    then: They do not restart the episode, create new reminder emails, or extend its deadline; unrelated device activity is not file progress.
+  - id: one-private-reminder-for-chat-interruption
+    assertion_ids: [projects.files.wait-email]
+    given: Several file operations in the same interrupted chat await an executor, and scheduler or delivery jobs are retried.
+    when: The same episode reaches its ten-minute reminder threshold.
+    then: The application dispatches one deduplicated reminder for the episode to the account running the chat, not one per file or all Project members. Its generic wording and authenticated chat link disclose no private Project title, path, file content, or keys and grant no access or resume action.
+  - id: email-failure-does-not-extend-deadline
+    assertion_ids: [projects.files.wait-email]
+    given: A chat remains waiting, but email is disabled by the existing notification settings, unavailable, or its delivery fails.
+    when: The ten-minute reminder is evaluated and the twenty-minute deadline later arrives.
+    then: Notification state records the actual skipped or failed outcome, the in-app waiting state remains accurate, and the chat still requires explicit resume at twenty minutes. Retries cannot send a stale waiting reminder after the episode ends.
+  - id: reconnect-does-not-restore-revoked-authority
+    assertion_ids: [projects.files.executor-wait]
+    given: While a chat is waiting, its Project focus is switched off or the user's write permission is revoked.
+    when: An executor returns before the deadline.
+    then: Automatic recovery cannot write or restore the missing authority. The chat exposes the current permission or focus blocker instead of treating connectivity as consent.
+  - id: late-commit-result-does-not-resume-run
+    assertion_ids: [projects.files.wait-result-reconciliation]
+    given: An authorized encrypted commit was dispatched before disconnection, its outcome remained unknown, and the waiting chat later expired.
+    when: A success acknowledgement or an authorized reconciliation proves that commit already succeeded.
+    then: Its actual result is recorded without duplicate mutation or history; the chat remains paused and does not dispatch its next edit until explicit resume.
+  - id: manual-resume-is-a-new-authorized-attempt
+    assertion_ids: [projects.files.wait-expiry]
+    given: A waiting episode expired at 12:20 and the user explicitly resumes the chat at 12:25.
+    when: The system restores the encrypted continuation and checks executor availability and current authority.
+    then: It reconciles previous outcomes and rechecks file base, focus, policy, and needed approval. If no authorized executor is ready, a fresh waiting episode starts; callbacks from the expired episode cannot notify, resume, or stop that new episode.
+
+project_encrypted_file_writes:
+  - id: client-patches-server-stores-ciphertext
+    assertion_ids: [projects.files.hosted-ciphertext-commit]
+    given: An authorized client can decrypt hosted README.md at revision 12 and its chat has current write permission.
+    when: The client validates the proposed patch, encrypts the new content and diff history, and requests a commit expecting revision 12.
+    then: The server can atomically publish revision 13 with its encrypted history using identity and revision checks alone. It receives no new plaintext file, diff, content hash, or decryption key through the commit protocol; authorized clients can decrypt and display the result.
+  - id: concurrent-encrypted-proposals
+    assertion_ids: [projects.files.hosted-ciphertext-commit]
+    given: Two authorized clients independently decrypt revision 12 and prepare differently encrypted proposals against that same revision.
+    when: A's proposal commits first and B's proposal arrives afterward.
+    then: B receives a revision conflict; B's ciphertext does not replace A's head or create a successful history entry. An authorized client must decrypt the current revision before rebuilding B's edit. The server neither compares plaintext hashes nor decrypts either proposal to decide the winner.
+  - id: storage-alone-cannot-recover-content
+    assertion_ids: [projects.files.no-server-decryption-authority]
+    given: The storage service has the stored file and history ciphertext, revision metadata, and existing client-wrapped keys, but no authorized client supplies decrypted context.
+    when: A background retry tries to recover from a conflicting revision using storage records alone.
+    then: It cannot decrypt the file or diff history by itself. The operation must not introduce a server-readable key wrapper, persist plaintext, or report a regenerated patch as applied without the authorized client work.
+  - id: history-and-undo-preserve-encryption
+    given: A hosted file has several encrypted revisions and the user requests an earlier change to be undone.
+    when: An authorized client prepares the undo against the current revision and submits encrypted replacement content and history.
+    then: The same revision checks apply; neither a restore path nor its version history gives the server decryption capability. Private paths, diffs, and client content fingerprints remain protected in history and error records as well as file storage.
+  - id: approved-ai-context-is-not-a-storage-key
+    assertion_ids: [projects.files.no-server-decryption-authority]
+    given: The user authorizes selected file content as transient context for the coding model under the existing inference flow.
+    when: The model proposes an edit and the current stored file has since changed.
+    then: Possession of earlier inference context does not let the service decrypt the new stored revision independently. Fresh content requires its existing authorized client access flow; a focus name or model request cannot supply missing keys or widen the authorized scope.
+
+project_file_freshness:
+  - id: stale-update-preserves-new-content
+    assertion_ids: [projects.files.expected-base]
+    given: The chat read README.md at base A; an authorized editor saved a new paragraph as base B.
+    when: The chat submits its installation edit with expected base A.
+    then: The mutation returns a file-changed result without writing README.md. The new paragraph remains intact and the agent can recover from B.
+  - id: timestamp-touch-is-not-content-change
+    given: A remote file has the same bytes and target identity as the agent read, but a watcher changed its modification time.
+    when: An otherwise valid edit is checked.
+    then: The timestamp alone does not reject the edit or generate a user question; all normal content and permission checks still apply.
+  - id: create-cannot-overwrite-new-file
+    assertion_ids: [projects.files.expected-base]
+    given: The chat intends to create config.example.json at a previously absent authorized path; another writer creates it first.
+    when: The create request reaches the write boundary.
+    then: The existing file is preserved. Recovery inspects it only with read permission and does not convert the create into an unconditional overwrite.
+  - id: deleted-or-replaced-target
+    assertion_ids: [projects.files.exact-patch]
+    given: The chat was asked to update an existing file, which another writer deletes, moves, or replaces with a different target before the write.
+    when: The old update is submitted.
+    then: The old mutation is rejected; the system does not recreate the deleted path or follow the replacement automatically. Recovery must establish an authorized target within the request or ask about the changed intent.
+  - id: patch-target-is-missing-or-ambiguous
+    assertion_ids: [projects.files.exact-patch]
+    given: The expected base is current, but the proposed replacement context matches no location or several locations without an exact target.
+    when: Patch application is attempted.
+    then: The file is unchanged and the agent receives actionable patch failure feedback; fuzzy replacement or whole-file overwrite is not used as a fallback.
+  - id: remote-current-state-unavailable
+    given: The remote bridge disconnects before the file's current state and write result can be established.
+    when: The chat would otherwise retry a stale edit.
+    then: The chat reports the write as unconfirmed or unavailable as appropriate, without assuming success or blindly replaying an overwrite. Recovery first establishes current state and any known prior outcome.
+
+project_file_recovery:
+  - id: unrelated-readme-edits-recover-automatically
+    assertion_ids: [projects.files.automatic-recovery]
+    given: Apply and show changes is selected; another writer added a README paragraph while this chat prepared updated installation steps.
+    when: The stale installation patch is rejected.
+    then: The agent rereads, preserves the paragraph, rebuilds the requested installation edit, and submits it with its refreshed base. If accepted, it shows the actual applied diff without another routine permission question.
+  - id: conflicting-package-manager-intent
+    assertion_ids: [projects.files.conflict-decision]
+    given: The chat's requested installation update assumes npm, but another writer has deliberately changed the instructions to pnpm; the intended package manager is unresolved.
+    when: The agent recovers from the stale patch.
+    then: It asks which package manager to use and leaves the competing change intact instead of silently reverting it.
+  - id: repeated-changes-exhaust-recovery
+    assertion_ids: [projects.files.conflict-decision]
+    given: The same requested edit repeatedly becomes stale because another writer keeps changing the target.
+    when: The finite recovery budget is exhausted.
+    then: The agent stops retrying that edit, preserves the latest file, and explains the repeated conflict. It does not reset the budget by starting another internal tool loop.
+  - id: desired-change-already-present
+    assertion_ids: [projects.files.automatic-recovery]
+    given: After a stale rejection, the agent rereads the file and finds the exact requested change already present from another writer.
+    when: It determines whether another write is needed.
+    then: It reports the request as already satisfied without adding a duplicate change or attributing the earlier write to itself.
+  - id: partial-progress-remains-honest
+    given: A requested change spans README.md and an example file; the README update has succeeded but the example file is blocked by an unresolved competing edit.
+    when: Recovery of the example file stops.
+    then: The response identifies the applied README change and the unapplied example change separately. It does not claim that the entire request succeeded or restore an old snapshot over newer work. This example does not define a multi-file transaction protocol.
+
+project_file_recovery_authorization:
+  - id: refreshed-diff-needs-refreshed-approval
+    assertion_ids: [projects.files.recovery-authorization]
+    given: Always ask before writes is selected; the user approved a concrete patch, but another writer changed its target before application.
+    when: The stale patch is rejected and the agent produces a revised patch against the new base.
+    then: The revised concrete proposal is shown for explicit approval before mutation; the old approval cannot authorize its changed diff.
+  - id: focus-off-before-retry
+    given: An initial edit failed because the file changed, and the originating chat's Project focus is then switched off before a new write attempt.
+    when: The agent retries using its earlier permission state.
+    then: The new write is denied even if a different chat still has that Project focus active; recovery does not reactivate focus.
+  - id: policy-changes-during-recovery
+    assertion_ids: [projects.files.write-policy-settings]
+    given: Recovery began in Apply and show changes mode, but the owner changed the Project setting to Always ask before writes before the next attempt.
+    when: The agent proposes its regenerated edit.
+    then: The current setting applies and the concrete edit awaits approval.
+  - id: access-revoked-before-reread
+    assertion_ids: [projects.files.recovery-authorization]
+    given: A stale edit failed and the user's access to the target file is revoked before recovery reads current content.
+    when: Recovery requests the latest file to explain or resolve the conflict.
+    then: No fresh file content is returned and no write occurs; the response explains the access failure without exposing the intervening private changes.
+
+project_file_concurrency:
+  - id: thinking-and-approval-do-not-reserve-file
+    assertion_ids: [projects.files.short-write-turn]
+    given: Chat A is thinking or awaiting approval for a README edit while authorized chat B is ready to save to that file.
+    when: B requests its write turn.
+    then: A holds no file reservation merely because its work or approval is pending. B can commit after its own checks; A must validate its base again when eventually submitting the approved proposal.
+  - id: different-files-do-not-wait-for-chat-completion
+    given: Chat A is making an edit to README.md and chat B has an independent authorized edit to examples.md.
+    when: Both prepare their writes.
+    then: Neither file is reserved until the other chat finishes. Only overlapping commit targets need shared coordination; this does not assert that the two changes are semantically independent merely because their paths differ.
+  - id: abandoned-turn-cannot-be-reused
+    assertion_ids: [projects.files.short-write-turn]
+    given: A remote writer loses ownership of a write turn because its process fails or is replaced; a valid successor is ready.
+    when: The successor acquires coordination and an old request later reappears.
+    then: The abandoned turn does not indefinitely block the successor. The old request cannot commit under expired ownership and must establish a valid current attempt with normal base and permission checks.
+  - id: lost-acknowledgement-is-not-a-second-edit
+    assertion_ids: [projects.files.wait-result-reconciliation, projects.files.commit-replay]
+    given: A hosted or remote write succeeds, but its success response is lost before the originating chat receives it.
+    when: The same immutable operation is delivered again with its stable identity.
+    then: Authorized recovery resolves the already-applied outcome without a second mutation or duplicate successful history entry. A newer file version is not overwritten to replay the old operation.
+  - id: two-chats-one-base-both-storage-locations
+    assertion_ids: [projects.files.concurrent-chat-safety]
+    given: In separate runs for a remote file and an OpenMates-stored file, authorized chats A and B read the same base and prepare compatible edits to different sections.
+    when: Both submit updates and A's update succeeds first.
+    then: B's stale proposal cannot replace A's result. B refreshes and rebuilds against the latest base; if recovery succeeds, both requested changes remain. B cannot inherit A's focus or approvals.
+  - id: independent-bridges-or-links-same-file
+    assertion_ids: [projects.files.concurrent-chat-safety]
+    given: Two authorized chats reach the same underlying file through different bridge processes, devices, or Project links where those access paths are supported.
+    when: Both attempt incompatible updates from the same base.
+    then: Different routing identities do not allow both stale replacements to succeed. Recovery uses the actual current file and each chat's own permissions; resolving routing identity cannot disclose another private chat's transcript or title.
+  - id: distinct-files-can-still-conflict-semantically
+    given: Chat A changes an exported function in api.ts while chat B updates caller.ts using the old function contract; neither target file changed after its own read.
+    when: The system evaluates each target's freshness.
+    then: Freshness checks alone do not establish that the combined program is correct. If the integration conflict is detected, it is reported and reconciled within the request or raised as a material choice, not silently treated as proof of successful integration.
+
+project_write_policy:
+  - id: explicit-choice-during-setup
+    assertion_ids: [projects.files.write-policy-setup]
+    given: Alice creates a new hosted Project or adds an existing remote folder as a Project.
+    when: Setup presents the write-permission question.
+    then: The question appears only after Alice initiates creation or addition. Apply and show changes is presented first and Always ask before writes is available. Neither is preselected; leaving the question unanswered does not complete setup or authorize writes.
+  - id: legacy-project-default
+    assertion_ids: [projects.files.write-policy-setup, projects.focus.default-owned]
+    given: Alice opens a Project created before write policies and encrypted default Project focuses existed.
+    when: An authorized client first needs the Project settings or starts its connected source.
+    then: The Project assumes Apply and show changes, and the client stores a new encrypted Work on (project name) focus without exposing its plaintext to the server. The Projects workspace does not interrupt Alice with the setup question.
+  - id: routine-request-applies-and-shows
+    assertion_ids: [projects.files.write-policy-enforcement]
+    given: Alice selected Apply and show changes and Work on OpenMates is active in this chat with all other permissions satisfied.
+    when: Alice asks to update README.md and a configuration example, and deterministic guards accept both ordinary edits.
+    then: The edits are applied without an additional approval for each file and the resulting changes are shown.
+  - id: always-ask-before-mutation
+    assertion_ids: [projects.files.write-policy-enforcement]
+    given: Alice selected Always ask before writes and the correct Project focus is active.
+    when: Alice requests a README.md update.
+    then: The assistant presents the concrete proposed change and waits for explicit approval before writing; rejecting or leaving the proposal pending leaves the file unchanged.
+  - id: change-policy-across-clients
+    assertion_ids: [projects.files.write-policy-settings]
+    given: A Project uses Apply and show changes and an existing chat has its Project focus active.
+    when: Alice changes that Project setting to Always ask before writes using CLI, web, or native Project settings.
+    then: All clients expose the same saved choice and the next write requires approval, including from the already-active chat, without recreating either the chat or Project.
+  - id: policy-does-not-replace-focus
+    given: Alice selected Apply and show changes but switches the Project focus off.
+    when: The assistant attempts another Project file update.
+    then: The write is denied; the saved apply policy does not replace the active-focus prerequisite.
+
+project_default_focus:
+  - id: new-project-owns-focus
+    assertion_ids: [projects.focus.default-owned]
+    given: Alice creates a Project named Garden notes without an existing repository instruction file.
+    when: Project creation succeeds.
+    then: The Project stores its own Work on Garden notes focus; its private instructions use the Project's encrypted access boundaries.
+  - id: existing-agent-instructions
+    assertion_ids: [projects.focus.existing-instructions]
+    given: Alice adds an existing OpenMates repository with one AGENTS.md or CLAUDE.md-style instruction file.
+    when: The Project and its default focus are created.
+    then: Work on OpenMates uses those existing instructions. Instruction text cannot enable permissions that Alice has not granted.
+
+project_focus_writes:
+  - id: inactive-focus-both-storage-locations
+    assertion_ids: [projects.files.chat-focus-required]
+    given: A chat shows notes.md stored in OpenMates and src/login.ts from its remote Project, but no focus from that Project is active.
+    when: The assistant requests a write to either file or requests creation of a new file in the Project.
+    then: Deterministic authorization rejects the mutation before storage changes. Showing a file in history does not grant write access.
+  - id: another-project-or-chat-is-not-authority
+    assertion_ids: [projects.files.chat-focus-required]
+    given: Chat A has a focus belonging to Project A; chat B has a focus belonging to Project B.
+    when: Chat A attempts to update a Project B file.
+    then: The write is rejected even if both focuses have the same display name or chat B is authorized to write that file.
+  - id: active-focus-is-necessary-not-sufficient
+    given: Work on OpenMates is active in the current chat but the user's Project role is read-only.
+    when: The assistant tries to update a Project file.
+    then: The write is rejected; focus activation cannot override the user's underlying permissions.
+
 project_contexts:
   - id: personal-project
     input: {context: personal, operation: create, name: Specification system redesign}

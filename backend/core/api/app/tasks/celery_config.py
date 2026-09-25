@@ -182,6 +182,8 @@ TASK_CONFIG = [
     {'name': 'workflow',    'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 manual run tasks
     {'name': 'user_tasks', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.project_file_operation_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.remote_command_tasks'},
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.operational_monitoring_tasks'},  # Daily operational report
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
@@ -1325,6 +1327,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'sweep-assistant-speech-billing': {
+        'task': 'apps.audio.tasks.assistant_speech_billing_sweep',
+        'schedule': timedelta(minutes=10),
+        'options': {'queue': 'app_music', 'expires': 540},
+    },
     'sweep-due-storage-jobs': {
         'task': 'storage.sweep_due_jobs',
         'schedule': timedelta(minutes=5),

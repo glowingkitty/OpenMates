@@ -100,6 +100,28 @@ Every Svelte product UI file must list its native Swift counterpart files in its
 
 If no native counterpart exists yet, write `Native Swift counterparts: none yet` so the gap is explicit.
 
+## Specification ↔ Apple Proof Traceability
+
+Every touched production Swift file that implements approved Specification
+behavior must list the project-relative `specifications/**/specification.yml`
+path and exact assertion IDs in its file header. Every Apple unit or UI test that
+proves those assertions must carry the repository's existing metadata immediately
+above the test declaration, for example:
+
+```swift
+// contract-test: direct surface=gui.apple assertions=pii.composer.detect-redact-exclude
+func testComposerReplacesDetectedPIIBeforeSend() { ... }
+```
+
+Classify partial or lower-level evidence as `supporting`. The Specification must
+declare Apple through `applies_to.gui.implementations.apple`; do not invent new
+Specification YAML fields for source paths. After metadata changes, run
+`python3 scripts/specifications.py generate` and validate the affected bundle.
+The generated `specifications/generated/assertion-index.yml` provides the
+reciprocal link from each assertion to its Apple proof path and line. Production
+source references establish implementation ownership; contract-linked tests
+establish proof.
+
 ## Implementation Standard
 
 When touching a screen that still uses default product UI, convert the touched area to OpenMates primitives before adding new behavior. Do not add new default controls to legacy screens.
@@ -196,6 +218,32 @@ python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
 Use `--apple test --only-testing "OpenMatesUITests/<testName>"` when a targeted
 native test exists. Use `--apple skip --skip-apple "Apple not affected"` only
 when the changed surface has no Apple counterpart.
+
+## TestFlight delivery
+
+Every TestFlight milestone updates all supported Apple platforms together: the
+iOS archive must contain the companion Watch app, and macOS must be uploaded
+separately with the same marketing version and build number. On the release Mac,
+use `python3 scripts/apple_testflight_release.py`. It archives both products,
+checks the embedded Watch app and universal macOS architectures, reuses the
+existing ExportOptions plist, uploads both archives, and waits for both App Store
+Connect builds to become valid. Stages are resumable from source-bound receipts
+under `.runtime/testflight-build-N/`; use `--rebuild-stale-archives` when the
+script reports that preserved archives no longer match current source. Run
+`--dry-run --build-number N` for a bounded command preview.
+
+App Store Connect API credentials may come from `APP_STORE_CONNECT_API_*` or the
+existing `~/.config/openmates/apple-remote.json`. With credentials configured,
+one invocation selects the next unified build number and verifies processing.
+Without them, pass `--build-number N`; Xcode may use its signed-in account for
+upload, but the script must finish as `uploaded_processing_unverified` and print
+the exact `--verify-only` resume command. That status is not a completed
+TestFlight release. No Vercel credential is part of Apple release delivery.
+
+Use `scripts/apple_remote.py deploy-latest-testflight --branch dev` only when the
+release must execute on the configured remote Mac. It must meet the same
+all-platform and processing requirements. A successful iOS upload alone is not
+a complete release.
 
 Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
 a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found

@@ -32,6 +32,14 @@ these tests. Publish immutable source with `sessions.py ci-source`, submit with
 result events. Inspect the scoped receipt on completion. Source and harness
 identity must match the check; mocks and old runs are not new integration proof.
 
+Exception: tests that strictly need real AI inference always run directly on the
+dev server for now, never in CI. Use disposable accounts/Projects, temporary source
+folders outside the repository, and isolated CLI state. Keep relevant non-inference
+checks in CI. Deploy the scoped candidate through the session helper before its
+live-inference verification; shared runtime changes require an explicit target
+and coordinator lease. Record the deployed revision and actual live results.
+Do not add a paid-provider CI profile or substitute replay for real-inference proof.
+
 Choose checks for the actual changed behavior and affected clients. Shared API
 changes need relevant API/client coverage; a web-only fix does not create an
 automatic Apple-verification ladder. Use existing test helpers, fixtures and

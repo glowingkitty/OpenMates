@@ -33,6 +33,7 @@
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",
         "debug-logging-settings.spec.ts",
+        "draft-embed-preview.spec.ts",
         "export-account-flow.spec.ts",
         "focus-mode-mention.spec.ts",
         "focus-mode-settings.spec.ts",
@@ -76,8 +77,10 @@
         "unified-detail-pages.spec.ts",
         "web-lifecycle-notification-suppression.spec.ts",
         "workflows-definition-history.spec.ts",
+        "workflows-ai-authoring.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
+        "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts"
       ]
     },
@@ -155,13 +158,16 @@
         "teams-settings-context.spec.ts",
         "usage-token-breakdown.spec.ts",
         "webhook-incoming-chat.spec.ts",
-        "wikipedia-mentions.spec.ts"
+        "wikipedia-mentions.spec.ts",
+        "cli-project-file-chat.spec.ts",
+        "projects-chat-file-executor.spec.ts"
       ]
     },
     "private_cloud": {
       "execution": null,
       "enabling_work": "Cloud eligibility/billing services with private code; real payment/inference credentials and explicit caps for live cases. Browser-mocked cases are separate coverage, not cloud proof.",
       "specs": [
+        "anonymous-cli-skill.spec.ts",
         "anonymous-free-chat.spec.ts",
         "anonymous-production-repair.spec.ts",
         "billing-settlement-recovery.spec.ts",
@@ -195,7 +201,13 @@
         "business-company-financials-example.spec.ts",
         "business-company-financials.spec.ts",
         "components/pdf-view-preview.spec.ts",
+        "components/project-file-approval.spec.ts",
+        "components/project-readme-figma.spec.ts",
+        "components/remote-command-review.spec.ts",
+        "components/projects-remote-preview.spec.ts",
+        "components/projects-workspace-figma.spec.ts",
         "components/record-audio-live-transcript.spec.ts",
+        "components/task-board-figma.spec.ts",
         "chat-replay-demo-mode.spec.ts",
         "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",
@@ -204,11 +216,15 @@
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
+        "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-detail-tabs.spec.ts",
+        "components/workflow-graph-skill-variants.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/report-issue-confirmation.spec.ts",
+        "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
         "components/panel-responsiveness.spec.ts",
         "composer-model-routing.spec.ts",
@@ -326,7 +342,8 @@
         "settings-gift-card-bank-transfer.spec.ts",
         "settings-support-bank-transfer.spec.ts",
         "signup-flow-bank-transfer.spec.ts",
-        "signup-free-testing-credits.spec.ts"
+        "signup-free-testing-credits.spec.ts",
+        "workflow-billing-usage.spec.ts"
       ]
     },
     "ai_cached_pipeline_pending": {
@@ -409,6 +426,12 @@
     }
   },
   "holds": {
+    "anonymous-cli-skill.spec.ts": {
+      "dependency": "official_cloud_eligibility_and_billing",
+      "next_action": "Run the public anonymous skill boundary against an isolated official-cloud billing profile. The portable self-host runner intentionally returns 404 for this cloud-only route.",
+      "user_input_required": false,
+      "source_environment_names": []
+    },
     "account-recovery-flow.spec.ts": {
       "dependency": "real_brevo_delivery_and_gmail_reader",
       "next_action": "For completes full account recovery flow with same password, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
@@ -559,7 +582,7 @@
     },
     "cli-workflows-search-controls-real.spec.ts": {
       "dependency": "original_workflow_events_provider_credentials",
-      "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search including SerpAPI Google Events. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
+      "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search using live event sources. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -966,7 +989,7 @@
     },
     "skill-events-search.spec.ts": {
       "dependency": "original_direct_cli_provider_credentials",
-      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path, including Google Events via SerpAPI. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
+      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path with live event sources. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
       "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
@@ -1204,6 +1227,30 @@
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: Wiki discovery selects a canonical article and completes with source context. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": []
+    },
+    "cli-project-file-chat.spec.ts": {
+      "dependency": "original_live_inference",
+      "next_action": "Run directly against the dev server with the documented personal dev account and disposable Projects/CLI state. Explicit user direction U24 forbids real AI inference in CI for now. Do not request CI provider credentials or replace the real chat with mocks.",
+      "user_input_required": false,
+      "source_environment_names": [
+        "OPENMATES_TEST_ACCOUNT_EMAIL",
+        "OPENMATES_TEST_ACCOUNT_PASSWORD",
+        "OPENMATES_TEST_ACCOUNT_OTP_KEY",
+        "PLAYWRIGHT_TEST_BASE_URL",
+        "PLAYWRIGHT_TEST_API_URL"
+      ]
+    },
+    "projects-chat-file-executor.spec.ts": {
+      "dependency": "original_live_inference",
+      "next_action": "Run directly against the dev server with the documented personal dev account and disposable Projects/CLI state. Explicit user direction U24 forbids real AI inference in CI for now. Do not request CI provider credentials or replace the real chat with mocks.",
+      "user_input_required": false,
+      "source_environment_names": [
+        "OPENMATES_TEST_ACCOUNT_EMAIL",
+        "OPENMATES_TEST_ACCOUNT_PASSWORD",
+        "OPENMATES_TEST_ACCOUNT_OTP_KEY",
+        "PLAYWRIGHT_TEST_BASE_URL",
+        "PLAYWRIGHT_TEST_API_URL"
+      ]
     }
   }
 }

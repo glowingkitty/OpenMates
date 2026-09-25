@@ -9,6 +9,9 @@
 // CSS:     frontend/packages/ui/src/styles/fields.css
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
+
 #if canImport(UIKit)
 import SwiftUI
 import UIKit
@@ -45,17 +48,10 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             }
             return
         }
-        let actions = attachment.embedActions
-        let embedRecord = attachment.embedRecord
-        let localPreviewData = attachment.localPreviewData
+        let content = ComposerAttachmentContent(attachment: attachment)
         let hosted = MainActor.assumeIsolated {
             let controller = UIHostingController(
-                rootView: ComposerAttachmentContent(
-                    node: node,
-                    embedRecord: embedRecord,
-                    localPreviewData: localPreviewData,
-                    actions: actions
-                )
+                rootView: content
             )
             controller.view.backgroundColor = .clear
             controller.view.accessibilityIdentifier = platformIdentifier(for: node)
@@ -124,17 +120,10 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             }
             return
         }
-        let actions = attachment.embedActions
-        let embedRecord = attachment.embedRecord
-        let localPreviewData = attachment.localPreviewData
+        let content = ComposerAttachmentContent(attachment: attachment)
         let hosted = MainActor.assumeIsolated {
             let hosted = NSHostingView(
-                rootView: ComposerAttachmentContent(
-                    node: node,
-                    embedRecord: embedRecord,
-                    localPreviewData: localPreviewData,
-                    actions: actions
-                )
+                rootView: content
             )
             hosted.identifier = NSUserInterfaceItemIdentifier(platformIdentifier(for: node))
             return hosted
@@ -172,15 +161,12 @@ private func platformIdentifier(for node: ComposerNodeV1) -> String {
 }
 
 private struct ComposerAttachmentContent: View {
-    let node: ComposerNodeV1
-    let embedRecord: EmbedRecord?
-    let localPreviewData: Data?
-    let actions: AppleComposerEmbedActions
+    @ObservedObject var attachment: ComposerTextAttachment
 
     @ViewBuilder
     var body: some View {
         Group {
-            if node.kind == "mention" {
+            if let node = attachment.nodeSnapshot, node.kind == "mention" {
                 Text(node.displayLabel ?? node.canonicalSyntax ?? "")
                     .font(.omSmall)
                     .foregroundStyle(Color.fontPrimary)
@@ -188,20 +174,21 @@ private struct ComposerAttachmentContent: View {
                     .padding(.vertical, .spacing2)
                     .background(Color.grey10)
                     .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-            } else if let embedType = node.embedType,
+            } else if let node = attachment.nodeSnapshot,
+                      let embedType = node.embedType,
                       let descriptor = AppleComposerRendererRegistry.shared.descriptor(for: embedType),
                       let lifecycle = try? AppleComposerRendererRegistry.shared.lifecycleState(for: node) {
                 AppleComposerEmbedPreview(
                     descriptor: descriptor,
                     node: node,
                     lifecycle: lifecycle,
-                    embedRecord: embedRecord,
-                    allEmbedRecords: embedRecord.map { [$0.id: $0] } ?? [:],
-                    localPreviewData: localPreviewData,
-                    actions: actions
+                    embedRecord: attachment.embedRecord,
+                    allEmbedRecords: attachment.embedRecord.map { [$0.id: $0] } ?? [:],
+                    localPreviewData: attachment.localPreviewData,
+                    actions: attachment.embedActions
                 )
             } else {
-                Text(node.display?.title ?? node.embedType ?? "")
+                Text(attachment.nodeSnapshot?.display?.title ?? attachment.nodeSnapshot?.embedType ?? "")
                     .font(.omSmall)
                     .foregroundStyle(Color.fontPrimary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

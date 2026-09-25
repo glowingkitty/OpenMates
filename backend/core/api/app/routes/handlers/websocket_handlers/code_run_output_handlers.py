@@ -22,26 +22,28 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.terminal_output_safety import (
+    normalize_terminal_output,
+    sanitize_terminal_output_for_model,
+)
 
 logger = logging.getLogger(__name__)
 
 COLLECTION = "code_run_outputs"
 CODE_RUN_OUTPUT_CACHE_TTL_SECONDS = 259200
-CODE_RUN_OUTPUT_MAX_INFERENCE_CHARS = 24000
-CODE_RUN_OUTPUT_TRUNCATED_HEAD_CHARS = 12000
-CODE_RUN_OUTPUT_TRUNCATED_TAIL_CHARS = 12000
+CODE_RUN_OUTPUT_ALLOWED_STATUSES = {
+    "cancelled",
+    "cancelling",
+    "exited",
+    "failed",
+    "finished",
+    "running",
+    "unknown",
+}
 
 
 def code_run_output_cache_key(user_id_hash: str, chat_id_hash: str, embed_id: str) -> str:
     return f"code_run_output:{user_id_hash}:{chat_id_hash}:{embed_id}"
-
-
-def _compact_output_for_inference(output: str) -> tuple[str, bool]:
-    if len(output) <= CODE_RUN_OUTPUT_MAX_INFERENCE_CHARS:
-        return output, False
-    head = output[:CODE_RUN_OUTPUT_TRUNCATED_HEAD_CHARS].rstrip()
-    tail = output[-CODE_RUN_OUTPUT_TRUNCATED_TAIL_CHARS:].lstrip()
-    return f"{head}\n\n[... Code Run output truncated for inference ...]\n\n{tail}", True
 
 
 def _build_inference_payload(payload: Dict[str, Any]) -> Dict[str, Any] | None:
@@ -51,23 +53,23 @@ def _build_inference_payload(payload: Dict[str, Any]) -> Dict[str, Any] | None:
 
     output = inference_payload.get("output")
     saved_at = inference_payload.get("saved_at")
-    if not isinstance(output, str) or not output.strip() or not isinstance(saved_at, (int, float)):
+    if not isinstance(output, str) or not isinstance(saved_at, (int, float)):
         return None
 
-    compact_output, truncated = _compact_output_for_inference(output)
     files = inference_payload.get("files")
-    clean_files = [str(file) for file in files if isinstance(file, str)] if isinstance(files, list) else []
+    clean_files = []
+    if isinstance(files, list):
+        clean_files = [normalize_terminal_output(file)[0][:512] for file in files if isinstance(file, str)]
+    requested_status = str(inference_payload.get("status") or "unknown").lower()
 
     result: Dict[str, Any] = {
         "type": "code_run_output",
-        "status": str(inference_payload.get("status") or "unknown"),
+        "status": requested_status if requested_status in CODE_RUN_OUTPUT_ALLOWED_STATUSES else "unknown",
         "saved_at": int(saved_at),
-        "output": compact_output,
+        "output": output,
     }
     if clean_files:
         result["files"] = clean_files
-    if truncated:
-        result["truncated_for_inference"] = True
     return result
 
 
@@ -88,10 +90,25 @@ async def _cache_output_for_inference(
     if not inference_payload:
         return
 
+    safety_result = await sanitize_terminal_output_for_model(
+        inference_payload["output"],
+        task_id=f"code_run_output_{embed_id}",
+        cache_service=cache_service,
+    )
+    receipt = safety_result.receipt.to_dict()
+    receipt_id = str(uuid4())
+    receipt["receipt_id"] = receipt_id
+
     inference_payload["chat_id"] = chat_id
     inference_payload["embed_id"] = embed_id
-    content_toon = encode(inference_payload)
-    encrypted_content, _ = await encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
+    inference_payload["output_safety_receipt"] = receipt
+    inference_payload["output_safety_receipt_id"] = receipt_id
+    inference_payload.pop("output", None)
+    encrypted_content = None
+    if safety_result.model_text is not None:
+        inference_payload["output"] = safety_result.model_text
+        content_toon = encode(inference_payload)
+        encrypted_content, _ = await encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
 
     client = await cache_service.client
     if not client:
@@ -108,11 +125,17 @@ async def _cache_output_for_inference(
             "chat_id": chat_id,
             "embed_id": embed_id,
             "encrypted_content": encrypted_content,
+            "output_safety_receipt": receipt,
             "updated_at": int(payload.get("updated_at") or payload.get("created_at") or 0),
         }),
         ex=CODE_RUN_OUTPUT_CACHE_TTL_SECONDS,
     )
-    logger.debug("[code_run_outputs] cached inference output embed=%s chat=%s", embed_id, chat_id)
+    logger.debug(
+        "[code_run_outputs] cached inference output embed=%s chat=%s scan_status=%s",
+        embed_id,
+        chat_id,
+        receipt["scan_status"],
+    )
 
 
 async def _verify_chat_accessible(

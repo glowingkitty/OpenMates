@@ -12,11 +12,15 @@
 
   let {
     value = '',
+    latitude,
+    longitude,
     mode,
     required = false,
     onChange
   }: {
     value?: string;
+    latitude?: number;
+    longitude?: number;
     mode: 'weather' | 'events' | 'home';
     required?: boolean;
     onChange: (selection: LocationSelection) => void;
@@ -66,6 +70,9 @@
         allowCurrentLocation={false}
         allowFullscreen={false}
         requireCity={mode === 'home'}
+        initialLatitude={latitude}
+        initialLongitude={longitude}
+        initialLocationText={value}
         on:locationselected={selectLocation}
         on:close={() => open = false}
         on:toggleFullscreen={() => undefined}
@@ -77,10 +84,10 @@
 <style>
   .location-field { grid-column:1/-1; display:grid; gap:var(--spacing-4); min-width:0; text-align:start; }
   .label { font-size:max(16px, 1rem); font-weight:650; }
-  .location-button { box-sizing:border-box; width:100%; min-height:3.375rem; display:flex; align-items:center; gap:var(--spacing-6); padding:.8rem 1.1rem; border:0; border-radius:var(--radius-8); background:var(--color-grey-0); color:var(--color-font-primary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); text-align:start; cursor:pointer; }
+  .location-button { box-sizing:border-box; width:100%; min-height:3.375rem; display:flex; align-items:center; gap:var(--spacing-6); padding:.8rem 1.1rem; border:0; border-radius:var(--radius-8); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-primary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); text-align:start; cursor:pointer; }
   .location-button span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .help { color:var(--color-font-secondary); font-size:max(14px, .875rem); }
-  .map-shell { position:relative; min-height:28rem; overflow:hidden; border-radius:var(--radius-6); background:var(--color-grey-0); box-shadow:var(--shadow-sm); }
+  .map-shell { position:relative; box-sizing:border-box; width:100%; min-width:0; min-height:28rem; overflow:hidden; border-radius:var(--radius-6); background:var(--color-grey-0); box-shadow:var(--shadow-sm); }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
   @media(max-width:730px) { .map-shell { min-height:24rem; } }
 </style>

@@ -13,6 +13,12 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.urban_sports import UrbanSportsClient
+from backend.shared.python_utils.search_relevance import (
+    normalize_relevance_criteria,
+    rank_search_candidates,
+    relevance_candidate_target,
+    stable_deduplicate_candidates,
+)
 
 
 class FitnessLocationSearchRequestItem(BaseModel):
@@ -27,6 +33,11 @@ class FitnessLocationSearchRequestItem(BaseModel):
     plan: str | None = Field(default=None, description="Optional plan filter: essential, classic, premium, or max. Omit for all plans.")
     category: str | None = Field(default=None, description="Optional Urban Sports category filter ID.")
     limit: int = Field(default=10, ge=1, le=50, description="Maximum number of locations to return.")
+    relevance_criteria: str | None = Field(
+        default=None,
+        max_length=1_000,
+        description="Optional natural-language activity goal used only to rank matching locations.",
+    )
     language: str | None = Field(default="en", description="Urban Sports language path, usually en or de.")
 
 
@@ -78,11 +89,46 @@ class SearchLocationsSkill(BaseSkill):
         for index, item in enumerate(request.requests):
             req = item.model_dump(exclude_none=True)
             request_id = req.get("id", index)
+            requested_limit = int(req.pop("limit", 10))
+            relevance_criteria = normalize_relevance_criteria(req.pop("relevance_criteria", None))
             plan = req.get("plan")
             req["plan"] = plan
             filters = _filters(req, plan=plan, attendance_mode=None)
             try:
-                results = await self.client.search_locations(**{key: value for key, value in req.items() if key != "id"})
+                provider_request = {key: value for key, value in req.items() if key != "id"}
+                provider_request["limit"] = (
+                    relevance_candidate_target(requested_limit, profile="fitness_locations")
+                    if relevance_criteria
+                    else requested_limit
+                )
+                results = await self.client.search_locations(**provider_request)
+                if relevance_criteria:
+                    results = stable_deduplicate_candidates(
+                        results,
+                        key=lambda candidate: candidate.get("id") or candidate.get("url"),
+                    )
+                    ranking = await rank_search_candidates(
+                        candidates=results,
+                        candidate_projections=[
+                            {
+                                "name": candidate.get("name"),
+                                "address": candidate.get("address"),
+                                "city": candidate.get("city"),
+                                "distance_km": candidate.get("distance_km"),
+                                "disciplines": candidate.get("disciplines"),
+                                "plans_required": candidate.get("plans_required"),
+                                "rating": candidate.get("rating"),
+                                "rating_count": candidate.get("rating_count"),
+                            }
+                            for candidate in results
+                        ],
+                        relevance_criteria=relevance_criteria,
+                        search_parameters=filters,
+                        profile="fitness_locations",
+                        secrets_manager=kwargs.get("secrets_manager"),
+                    )
+                    results = ranking.candidates
+                results = results[:requested_limit]
                 groups.append(
                     {
                         "id": request_id,

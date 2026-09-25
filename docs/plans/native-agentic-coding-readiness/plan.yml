@@ -1,0 +1,1593 @@
+# Goal-first roadmap and decision log; individual code/test contracts live in Specifications.
+id: native-agentic-coding-readiness
+title: 'Agentic coding implementation: project file access first'
+status: implementing
+goal: Implement CLI and chat read/write access to remote and OpenMates-stored Project files, then web
+  Project browsing and editing, then address Tasks, Specifications, and Plans gaps.
+revision: r64
+conversation: codex:01a0caf0-76d6-7e73-86d1-c7c759db3cf4
+workspace_session: '6407'
+approved_by_user: true
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-23T00:00:00Z'
+    reason: U28 approved the ignored/private requirements; U30 approved AppArmor-first live-folder terminal enforcement and updated examples.
+  plan:
+    status: approved
+    approved_at: '2026-09-23T00:00:00Z'
+    reason: U28 and U30 explicitly instructed implementation of the recorded ignored/private-path design and bounded reviewed dev-host validation.
+specification_refs:
+- specification: feature.projects@1
+  role: primary
+  fingerprint: 096846bbfd905d649adcfd26e218d95b98643f3d0d8fa406e2ac03056bd06094
+- specification: feature.focus-modes@1
+  role: related
+- specification: feature.app-skill.code-run@1
+  role: related
+  fingerprint: 09b06da0aa7020a23125d0a77e5052731185ac05212581cabccc6f8132b840a7
+implementation_checkpoint_2026_09_23:
+  completed_local_slices:
+  - Project focus/role/write policy, setup/settings surfaces and exact approval checks.
+  - Remote exact-patch mutation with shared source-command coordination and private replay journal.
+  - Shared client file-job executor and encrypted hosted atomic head/history commit with receipt reconciliation.
+  - Remote and hosted typed search contract; bounded ripgrep and explicit unsupported regex handling.
+  - Terminal output checks on initial, async completion and later cached model-input paths.
+  - Shared async continuation markers and CLI response collection for file work and wait/continue commands.
+  - Seven focused CLI preflight/continuation checks pass; earlier component evidence remains recorded below.
+  final_integration:
+  - Long-lived source controller preserves execution across reconnects; Stop handles startup races and remains usable after focus-off.
+  - Named resource grants live outside the Project; source, toolchain and writable mounts cannot expose private CLI state.
+  - HTTPS profiles, Project credential masks and cross-chunk selected-secret redaction are implemented.
+  - Hosted search filters protected candidates before decryption; unsupported glob subsets fail explicitly.
+  - File wait episodes share deadlines/email dedupe, and per-file conflict recovery has a three-failure server budget.
+  - Command continue mode queues completion until the initial response finishes and retains newer-turn/cancellation fences.
+  - Origin CLI review, resource controls, deferred noninteractive prompts and fallback completeness metadata pass their final focused checks.
+  verification_remaining:
+  - Isolated Project settings verification passed both cases without retries, skips or failures. Supporting evidence includes source transport 8/8, runtime 11/11, backend 77/77, origin 6/6, resource grants 1/1, WebSocket 24/24 and CLI focused suites 13/13.
+  - Actual CLI/chat remote and hosted edits plus one exact approved remote command run directly on dev per U24.
+  - Exact three-bundle Specification review receipts are recorded after the user approved the presented PDFs.
+  - CLI build and declarations pass. Scoped dev deployment 5fe487f43d262864326ccc15d078943690b96c57 passed the required integration gates; schema setup, service refresh, API health, Vercel and automatic CLI alpha publication succeeded. Real chat verification remains pending.
+  limitations:
+  - Linux bubblewrap retains general command confinement while the AppArmor-first adapter enforces
+    private-content access on the original live folder; unsupported hosts fail closed.
+  - This host previously rejected the bubblewrap probe; U30 authorizes bounded reviewed host setup,
+    but the supported dev-host execution route still requires concrete review and live validation.
+  - Network adapter scope is public exact HTTPS hostname:443; other transports fail explicitly.
+  - Source-writing commands conservatively serialize across roots on one host, preserving alias safety.
+  - Dedicated file edits currently bound complete UTF-8 text to 200 KiB; excerpted reads do not claim a complete-file base hash. Large-file/ranged editing remains a capability limitation.
+  - Raw remote terminal logs are live encrypted events; durable encrypted log-history sidecars are not added in this slice.
+  - P2 connected-source web browsing is now actively being completed per U26; web-chat editing and later Tasks/Specs/Plans execution remain unverified.
+working_agreement:
+- Maintain this single implementation plan as decisions evolve; read it again after context loss or before
+  resuming work.
+- Discuss one architecture question per round, provide concrete examples and a recommendation, then wait
+  for the user response.
+- Inspect existing source and designs before asking questions; distinguish historical ideas, user decisions,
+  and assistant recommendations.
+- Do not invoke skills. Keep architecture and decisions in this requested Plan; use the existing
+  OpenMates Tasks authority for outcome status under the current repository instructions.
+- The first bounded file-editing slice was authorized and started. All five requested search/terminal
+  rounds are now accepted in U23; resume implementation without reopening settled requirements.
+- Keep later-stage design questions deferred until their slice needs them; do not implement speculative
+  access expansion or promise multi-file isolation that has not been agreed.
+sequence:
+- id: P1
+  outcome: CLI and chat can read, create, and update Project files in both remote sources and OpenMates
+    storage.
+  includes:
+  - Agree write permissions, project-focus access lifecycle, patch/version contract, conflict behavior,
+    recovery/undo, and worktree scope.
+  - Use effective deterministic guards without repeated prompts for already-authorized routine edits.
+  - Validate actual chat read/write behavior against both storage locations before moving on.
+  - Require the setup write-policy choice and editable Project settings in CLI, web, and native apps;
+    full native Project browsing remains separately scoped.
+- id: P2
+  outcome: Web Projects can be discovered, browsed, opened in embed fullscreen, and edited from chats.
+  includes:
+  - Show connected Projects with expandable subfolders and appropriate file embed previews, including code.
+  - Open file previews in the existing fullscreen embed view and deliver remote content safely on demand.
+  - Keep remote Project file content transient on the authorized client; do not persist it as hosted
+    files/embeds or upload entire repositories to OpenMates. Preserve bounded encrypted transport.
+  - Verify the actual connected-source browse/preview/fullscreen flow with a disposable Project.
+  - Retrieve remote tree/content on demand without uploading entire repositories.
+  - Preserve encryption, scoped permissions, and honest online/offline state.
+  - Confirm web-chat edits work for both storage locations.
+- id: P3
+  outcome: Address Task execution and completion gaps after Project editing works.
+- id: P4
+  outcome: Address Specifications and Plans gaps after Tasks; clarify their detailed order later.
+user_direction:
+- id: U27
+  decision: The user replied Continue after the concrete request to restore the older embed-fallback
+    fix. Apply only the prepared three historical hunks, run the existing failing regression tests
+    and selected gate, then resume publication. This does not authorize host AppArmor changes.
+- id: U26
+  decision: Explicitly implement and test the web Projects workspace showing connected Projects,
+    expandable subfolders and file embed previews, with click-to-open fullscreen embeds and safe
+    on-demand remote content delivery. Remote access Project files must not be stored on OpenMates.
+    Inspect P2 gaps alongside the current P1 fix, then implement and verify the bounded web flow.
+- id: U25
+  decision: Use the documented personal DEV TEST account for the dev verification. The user clarified
+    that this account should already be logged in and its existing recovery instructions/credentials
+    must be used if needed. Live identity and engineering Project read access are confirmed; no new
+    login or numbered-account repair is needed. Preserve the global session and test only newly
+    created disposable Projects with private temporary CLI state.
+- id: U1
+  decision: Plan through multiple question rounds with one question and a wait after every round. Each
+    question includes concrete examples and the assistant recommendation.
+- id: U2
+  decision: Keep this implementation plan current throughout the long-running work and reread it when
+    no longer in context.
+- id: U3
+  decision: Every new Project stores a default Work on (project) focus. When adding an existing repository,
+    existing AGENTS.md or CLAUDE.md-style instructions become that focus; multiple-file precedence and
+    ongoing synchronization remain undecided.
+- id: U4
+  proposal: Natural-language Project routing requests confirmation before granting access. Explicit @project
+    selection activates its focus mode and constitutes consent to Project access.
+- id: U5
+  decision: A focus stored in the target Project must be active in this chat for chat-initiated file writes;
+    enforce this deterministically. Deactivation removes active instructions and write authority, while
+    files already shown in the chat remain readable under existing access.
+- id: U6
+  decision: Use direct edits to the connected remote folder. Automatic worktree creation and management
+    are out of scope for now; revisit only if later multitasking warrants it.
+- id: U7
+  decision: Apply and show changes is the default write-policy option, with Always ask before writes as
+    the alternative. New Project setup and adding an existing folder as a Project require an explicit
+    answer. Users can inspect/change the same persisted Project setting through CLI, web, and native Project
+    settings at any time. Both modes still require a focus belonging to that Project to be active for
+    chat writes.
+- id: U8
+  decision: Accept automatic reread-and-regenerate recovery after deterministic stale-write rejection,
+    asking only for material intent conflicts or bounded repeated failures. Always ask mode still requires
+    approval of a refreshed concrete diff. Record clear Specification requirements and edge-case examples;
+    apply the same correctness rules when the intervening writer is another chat.
+- id: U9
+  decision: Accept parallel chats with brief per-file write turns covering final validation and commit,
+    leaving files available while chats think or await approval. Use atomic hosted revision publication
+    and shared remote-machine coordination, preserving each chat's own access and automatic stale recovery.
+- id: U10
+  constraint: Files and embeds stored in OpenMates remain client-side encrypted. The server cannot decrypt
+    them by itself, and the coding/write/concurrency implementation must preserve that property.
+- id: U11
+  decision: Accept automatic waiting and recovery for an unavailable authorized executor, with an email
+    notification after ten minutes waiting. After twenty minutes stop automatic waiting and require an
+    explicit chat resume; device reconnection alone must no longer restart the run.
+- id: U12
+  direction: The user asked how many more questions are necessary before implementation. No additional
+    architecture questions are required to begin the first bounded slice; remaining details must not
+    become an open-ended planning prerequisite.
+- id: U13
+  decision: Implementation is explicitly authorized. Keep tests efficient and targeted; create a separate
+    disposable Project for exercising file edits and never test product file mutations against the
+    OpenMates repository itself.
+- id: U14
+  direction: Pause implementation to research existing file/name/content search and general terminal
+    execution. Discuss exactly five further rounds, with one question, concrete examples, and a
+    recommendation per round; wait for each response before asking the next question.
+- id: U15
+  direction: Mark the agreed Project requirements approved and link the partial implementation to
+    Specification assertions using existing traceability conventions. Approval describes accepted
+    requirements, not completion or verification. New search/terminal decisions remain unapproved.
+- id: U16
+  decision: Project file search should run through a dedicated product skill without per-search user
+    approval inside existing Project access. The user asked whether ripgrep or grep is preferable;
+    recommend ripgrep (rg) behind typed search parameters and deterministic scope/limit enforcement.
+- id: U17
+  decision: Extend the product Code Run skill with a remote-access-machine target. For now every remote
+    terminal command requires explicit user confirmation, independently of ordinary file-write policy.
+    Before confirmation, a separate LLM call explains the command in natural language.
+  assistant_response: Accepted explicitly in U18. The separate model explains likely effects and
+    uncertainty; it cannot grant permission or replace deterministic execution guards. U19 introduces
+    selectable allowlists; U20 accepts explicit user-enabled preapproval exceptions while keeping Ask
+    first as the default.
+- id: U18
+  decision: Accept Project-confined remote commands with approved toolchain/cache access and OS-enforced
+    boundaries; extra resource access appears in the same approval. Use the latest Gemini Flash-Lite
+    model for the separate natural-language command explanation. Separate its context from the coding
+    agent to reduce prompt-injection exposure; this does not replace deterministic enforcement.
+- id: U19
+  direction: Support user-selectable command allowlists and investigate a standard repository file for
+    storing them. Existing design reserves .openmates/permissions.yml. U20 resolves selection as explicit
+    preapproval of matching commands, subject to the remaining guards.
+- id: U20
+  decision: Accept user-enabled command allowlists as standing approval for their exact matching
+    commands, with Ask first remaining the default for other eligible commands. Every execution retains
+    the separate Gemini explanation, current Project authority and confinement. Store reviewable list
+    definitions in .openmates/permissions.yml; repository changes cannot activate or broaden grants.
+- id: U21
+  decision: Accept network and credentials off by default for remote commands, with explicitly enabled
+    reusable Project access profiles for destinations and selected credentials. Use a minimal executor
+    environment; never inherit unrelated host credentials. Existing profiles avoid repeated prompts;
+    requested expansions appear in the command approval. Command preapproval alone grants neither
+    network nor credentials, and credential values stay out of the explanation model's context.
+- id: U22
+  clarification_request: Before answering final S5, inspect safe terminal-output delivery and existing
+    long-running app-skill behavior. User proposes scanning completed output or periodic batches through
+    existing prompt-injection protection and asks whether skills already support waiting versus
+    continuing with later completion updates, or whether that is a sub-chat feature. S5 remains open.
+- id: U23
+  decision: Accept the refined final round and proceed with implementation. Reuse the shared async-skill
+    lifecycle with agent-selected wait-for-result or continue-independent-work; use events rather than
+    model polling. Buffer short command results and scan once; scan bounded long-command batches with
+    neighboring context before agent use. Close later-turn cached Code Run output's missing scan path.
+    Technical unscanned text remains visible as unreviewed logs/status but is withheld from autonomous
+    model input. Checked output remains untrusted and cannot confer permissions. Preserve client-side
+    encryption, tracked execution/cancellation, and the preceding Project/command/resource decisions.
+- id: U24
+  decision: Tests that strictly need real AI inference must always run directly on the dev server,
+    never in CI, for now. This supersedes the earlier isolated-CI requirement for those tests only.
+    Keep disposable test Projects/folders and isolated CLI state; preserve runtime target/lease guards.
+historical_designs:
+- path: docs/plans/projects-remote-sources/plan.yml
+  findings:
+  - 'Two proposed write modes: Always ask and Auto approve safe writes.'
+  - Project/folder/file mention access controls and scoped instruction-file loading.
+  - Remote unified-diff proposals, expected base hashes, local undo journal and conflict-aware undo.
+  - OpenMates-stored file edits reuse encrypted embed versions.
+  - No user-facing worktree lifecycle decision found in this Project design; remote mutation examples
+    write the connected source directly.
+  - The historical Always ask default and mention-based write authority are superseded by U5/U7 and the
+    current draft Specifications; do not implement those older defaults.
+- path: docs/architecture/messaging/embed-diff-editing.md
+  findings:
+  - Unified diffs and encrypted version history already designed for embeds.
+  - Historical fuzzy patch and last-write-wins behavior must not be assumed suitable for concurrent repository
+    writes.
+- path: docs/plans/orchestration-checkpoint-scheduler/remote-patch-and-reporting.md
+  findings:
+  - 'Existing host-tool precedent: reviewed patches, expected hashes, root/path constraints and no Git-index
+    reset.'
+  - This is repository engineering tooling, not native OpenMates remote-write capability.
+- path: backend/apps/ai/processing/main_processor.py
+  findings:
+  - Currently assembles a prompt from one active_focus_id resolved through the app focus catalogue.
+  - Project-owned focus modes and focus-bound filesystem authorization require additional implementation.
+assistant_recommendations_pending: []
+open_questions:
+- id: Q2
+  topic: Worktrees
+  question: For the first version, edit the connected folder directly with version checks and undo, deferring
+    automatic worktree creation, or include isolated worktree creation now?
+  recommendation: Direct connected-folder edits first; no model-decided automatic worktree creation.
+  status: resolved
+  answer: Direct edits; automatic worktrees deferred.
+- id: Q3
+  topic: Read versus write consent
+  question: When the correct Project focus is active and the user asks for an edit, apply routine changes
+    without another per-file confirmation, or require a preview approval first?
+  recommendation: Apply ordinary requested edits and show the diff; reserve additional confirmation for
+    separately defined exceptions.
+  status: resolved
+  answer: Apply and show changes by default; required explicit setup choice; Always ask alternative; CLI/web/native
+    settings parity.
+- id: Q4
+  topic: Focus deactivation
+  status: deferred_until_needed
+  question_to_ask_later: Files already shown remain readable; clarify fresh remote fetch versus retained
+    content, in-flight writes, and reactivation consent.
+- id: Q5
+  topic: Focus composition
+  status: deferred_until_needed
+  question_to_ask_later: Define specific Project focus inheritance, generic focus switching, and chats
+    involving more than one Project.
+- id: Q6
+  topic: Concurrent file edits
+  question: If a file changes after the agent reads it, should the agent reread and regenerate its requested
+    edit automatically, asking only when intent conflicts, or always ask before retrying?
+  recommendation: Reread and regenerate within the original request; never overwrite unseen changes. Ask
+    when preserving both edits needs a material choice.
+  example: User adds a README paragraph in their editor while the assistant is updating installation steps;
+    reread and preserve the paragraph while updating the steps.
+  status: resolved
+  answer: Automatic bounded reread and regeneration accepted, with deterministic guards, a user question
+    for conflicting intent or repeated failure, and clear Specification edge cases including other chats.
+- id: Q7
+  topic: Multiple chats editing one file
+  question: Allow chats to work in parallel, with brief exclusive write turns for the same underlying
+    file and automatic recovery for a stale second writer, rather than reserving files for an entire chat?
+  recommendation: Parallel reading and planning with brief per-file commit serialization; preserve each
+    chat's own authorization and surface meaningful conflicts without silently overriding another chat.
+  example: Chats A and B read README base 12. A saves installation changes as 13. B's edit to the examples
+    section is rejected against 12, rebuilt against 13, and saved as 14 preserving both changes.
+  status: resolved
+  answer: Accepted brief per-file write turns with parallel reading/planning; hosted encryption and the
+    server's inability to decrypt stored files independently must remain intact.
+- id: Q8
+  topic: No authorized client available for file work
+  question: When no authorized app or CLI can perform the next client-side file operation, should that
+    work wait and resume automatically once an authorized executor reconnects?
+  recommendation: Show waiting for an authorized device, release any write turn, and resume within the
+    original request after validating current permissions, focus, write policy, and file base. Do not
+    create a server decryption fallback or silently grant a different device access.
+  example: Closing the browser can leave an already-authorized CLI handling Project work. If no authorized
+    executor remains, the next operation needing decrypted file access waits; reconnection triggers safe
+    recovery. A ciphertext commit already dispatched can still complete and its result must be reconciled.
+  status: resolved
+  answer: Accepted automatic recovery before a twenty-minute wait deadline, with a private email reminder
+    after ten minutes. Expiry stops automatic continuation and requires an explicit chat resume.
+current_checkpoint:
+  step: Finish P1 and P2 web Project coding integration and deliver it for user testing
+  next_question: null
+  clarification_rounds_remaining: 0
+  next_action: Hand over the deployed web and backend implementation for user testing. Commit
+    66a757619ce2a428f26d9b7f07a1ed1bfc7501f8 is published to dev; Vercel is ready, the coordinated
+    runtime refresh succeeded, and the API health endpoint returns 200. A small CLI publication fix
+    changes prepack to verify the already-built guard assets instead of rebuilding without development
+    dependencies. Its automatic alpha publication is the final delivery step. Do not start further
+    feature work or optional tests. The two real-AI hosted/remote browser cases remain unexecuted;
+    record user testing results before claiming end-to-end chat verification or starting later phases.
+  implementation_started: true
+  task_id: 9accd17f-21b0-4802-b5aa-934eb36eb12c
+  task_project_id: 96033196-e4b1-431e-b773-ba221e952fed
+  test_boundaries:
+  - Product file-edit targets must be a separate disposable Project and temporary directory outside the
+    repository/worktrees. Ordinary source edits by this implementation session are not product test writes.
+  - Focused unit tests run locally; non-inference REST/CLI/chat/browser flow tests use isolated GitHub CI.
+    Per U24, tests strictly needing real AI inference run directly on dev with disposable test state.
+    Never use the engineering Project or replace the global engineering CLI login with test credentials.
+  - Reuse existing test helpers and stop after relevant checks pass; no blanket suite, proof video, or
+    infrastructure repair campaign. No test emails to the user's real inbox.
+prior_audit:
+  document: overview.md
+  status: Historical assistant proposal; its runner-first sequence is superseded by the user-selected
+    file-access-first sequence above.
+  inspected_commit: c2f505a5a9a5c9d6920ea0dddb36de7e6853df4f
+  unit_evidence: 44 focused tests passed during the earlier audit; not proof of new Project-write behavior.
+  plan_validator_note: The goal-first Plan validates without an unnecessary schema-v2 executable-plan
+    declaration. Existing roadmap, decisions and implementation traceability remain intact.
+specification_tracking:
+  state: Projects, Focus Modes and Code Run requirements and their exact presented PDF revisions are
+    approved. All three matching publication receipts were recorded on 2026-09-23. Implementation
+    is published and active on dev with focused local checks and isolated Project settings CI passed;
+    real chat execution evidence remains incomplete. Approval does not claim implementation verification.
+  files:
+  - specifications/features/projects/specification.yml
+  - specifications/features/projects/examples.yml
+  - specifications/features/focus-modes/specification.yml
+  - specifications/features/focus-modes/examples.yml
+  ownership:
+  - Projects owns storage of the default focus, imported instruction source, and the same-Project relationship.
+  - Focus Modes owns the deterministic active-focus write prerequisite, deactivation, and retained read
+    access.
+  - Implementation plan owns sequence, direct-edit scope, unresolved questions, and later patch/undo design.
+  latest_changes:
+  - Added five assertions for unavailable executors, durable deterministic ten/twenty-minute deadlines,
+    one private reminder per wait episode, explicit resume after expiry, and late write-result reconciliation.
+  - Added ten timed examples for early recovery, reminder/recovery, exact deadline and late reconnect,
+    restart, flapping, email deduplication/privacy/failure, revoked authority, late commit acknowledgement,
+    and explicit resume. Together with previous work there are 37 file-editing examples.
+  validation:
+  - Projects Specification bundle validation passed after executor waiting and notification requirements were added.
+  - Plan YAML, resolved Q8 with no next mandatory question, ten/twenty-minute thresholds, all 37 file-editing examples, unique example IDs, and example
+    references checked successfully; git diff --check passed. These are document checks, not evidence
+    that Project write behavior has been implemented or tested.
+  remaining_design:
+  - P1 conservatively imports root AGENTS.md before CLAUDE.md. Ongoing source-instruction synchronization remains deferred.
+  - Focus activation, reactivation and multi-Project composition.
+  - Concrete protocol and numeric retry/coordination details can be chosen conservatively within the
+    agreed per-file rules during implementation. Ask only if a material behavior decision emerges.
+    Multi-file all-or-nothing semantics remain a later design topic, not a prerequisite to safe per-file
+    creates/updates with honest partial outcomes. Offline timing and resume behavior are agreed in U11.
+  - Required setup choice for legacy Projects and non-interactive creation; define migration/CLI details
+    without assuming defaults imply consent.
+research:
+  concurrent_file_edits:
+    purpose: Research informed the automatic recovery behavior accepted in U8; the detailed multi-chat
+      coordination proposal is tracked separately under Q7.
+    method: Primary project documentation, official changelog and commit-pinned public source; no runtime
+      reproduction or claim of universal tool behavior.
+    tools:
+    - name: Claude Code
+      finding: Official release notes confirm unexpected-file-modification safeguards and fixes for false
+        conflicts when watchers, sync tools, antivirus, or Git only change timestamps. Internal current
+        guard implementation was not verified; do not claim a specific current hash algorithm or guaranteed
+        retry policy.
+      sources:
+      - https://github.com/anthropics/claude-code/blob/56f36532530f88b572854538d685fcf781141e8c/CHANGELOG.md#L5889
+      - https://github.com/anthropics/claude-code/blob/56f36532530f88b572854538d685fcf781141e8c/CHANGELOG.md#L5910
+    - name: OpenCode
+      finding: Inspected dev edit path reads current contents under an internal per-file semaphore, tries
+        exact and several flexible/fuzzy replacement strategies, and rejects missing/ambiguous/disproportionate
+        matches. It has no prior-read FileTime check in this version. Permission handling is separate.
+        Internal locking does not cover external editors and there is no external-editor compare-and-swap
+        immediately before writing in the inspected path.
+      sources:
+      - https://github.com/anomalyco/opencode/blob/2406400f0aeb07b36d0495af4e05aaca49159832/packages/opencode/src/tool/edit.ts#L88
+      - https://github.com/anomalyco/opencode/blob/2406400f0aeb07b36d0495af4e05aaca49159832/packages/opencode/src/tool/edit.ts#L694
+    - name: Aider
+      finding: Reads current files when a message begins and when applying search/replace edits. Failed
+        edits are returned as model feedback with a bounded reflection loop (max_reflections=3 in inspected
+        code). Its FAQ advises avoiding manual edits while a reply is in progress because conflicts remain
+        possible. Some partial edits can already have succeeded; retries are told not to resend those
+        edits.
+      sources:
+      - https://aider.chat/docs/faq.html#can-i-edit-files-myself-while-aider-is-running
+      - https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/editblock_coder.py#L41
+      - https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/base_coder.py#L932
+      - https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/coders/base_coder.py#L2305
+    - name: Gemini CLI
+      finding: EditTool reads current disk content and uses exact, indentation, whitespace-regex and fuzzy
+        matching. Optional internal LLM correction refreshes file content using a local hash comparison,
+        but is disabled by default in the inspected settings and is not an atomic guard tied to an earlier
+        ReadFile call. Ordinary permission approval is separate; execution re-reads but a read/write race
+        remains.
+      sources:
+      - https://github.com/google-gemini/gemini-cli/blob/62364cb2000795537a6895261b37ec668e4cf527/packages/core/src/tools/edit.ts#L680
+      - https://github.com/google-gemini/gemini-cli/blob/62364cb2000795537a6895261b37ec668e4cf527/packages/core/src/tools/edit.ts#L302
+      - https://github.com/google-gemini/gemini-cli/blob/62364cb2000795537a6895261b37ec668e4cf527/packages/cli/src/config/settingsSchema.ts#L1761
+      - https://github.com/google-gemini/gemini-cli/blob/62364cb2000795537a6895261b37ec668e4cf527/packages/core/src/tools/edit.test.ts#L928
+    recommendations_presented_for_Q6:
+    - Compare expected content hash or stored version, not timestamps alone; a mismatch returns file_changed
+      to the agent without applying the stale patch.
+    - Let the main agent reread and regenerate an in-scope edit without a new user question in Apply and
+      show changes mode; ask about material intent conflicts or after bounded unsuccessful recovery.
+    - Require exact applicability to the refreshed base; do not silently force a fuzzy patch onto changed
+      project files.
+    - Always ask mode still requires approval of the refreshed concrete proposal; an old approval must
+      not authorize a changed patch.
+    - Enforce hosted-storage version updates atomically and serialize bridge-managed writes with revalidation
+      near mutation. Hash-check-plus-rename is not a universal atomic compare-and-swap against arbitrary
+      external filesystem writers; retain recoverable preimages and test the actual residual race.
+    example: 'User adds an unrelated README paragraph while the assistant changes installation steps:
+      refresh and preserve both. If the user switches npm to pnpm while the requested patch assumes npm,
+      ask which tool should govern.'
+  current_concurrency_constraints:
+    method: Bounded read-only repository review; these are implementation findings, not proof of the
+      proposed guarantees or authorization to change product code.
+    findings:
+    - path: backend/core/api/app/services/project_remote_access_service.py
+      lines: '77-123, 362-428'
+      finding: One live session is enforced per context/Project/source_id, with concurrent requests.
+        Different source IDs or overlapping roots can still reach the same underlying file; routing
+        identity is insufficient as a write coordination key.
+    - path: frontend/packages/openmates-cli/src/remoteAccess.ts
+      lines: '365-373, 417-419, 466-504, 560-563'
+      finding: Current bridge operations are read-only and dispatched concurrently. Existing authenticated
+        session/source/client bindings must survive the addition of write coordination.
+    - path: docs/plans/projects-remote-sources/plan.yml
+      lines: '768-842'
+      finding: Prior write design includes canonical paths, expected hashes, pre/post undo journal hashes,
+        and conflict-aware undo; these are reusable design inputs.
+    - path: docs/architecture/messaging/embed-diff-editing.md
+      lines: '91-110, 211-214'
+      finding: Historical hosted embed editing uses last-write-wins. This is incompatible with the agreed
+        stale-write protection for shared Project files and must not be reused unchanged.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      lines: '11589-11674'
+      finding: Existing restore writes embed content and history in separate requests using a cached
+        version; it does not already provide an atomic expected-revision commit.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      lines: '1268-1318'
+      finding: Current AI diff application reads and increments a cached version; hosted concurrency
+        protection must cover every writer to the underlying object, not only the new Project tool.
+  hosted_encryption_and_offline:
+    method: Read-only review of existing client, CLI, storage, and transient inference paths.
+    findings:
+    - paths:
+      - docs/architecture/core/chat-encryption-implementation.md:62-68,117-136
+      - docs/architecture/core/client-side-encryption.md:100-108,122-149
+      finding: Durable embed ciphertext uses client-derived keys that storage cannot independently obtain.
+        Backend workers can decrypt separate Vault-wrapped transient inference copies; preserve the
+        distinction and do not turn that cache into background decryption authority for stored files.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      lines: '11560-11674'
+      finding: CLI restore already decrypts and builds/encrypts snapshot plus diff on the client, but
+        submits them separately. Reuse this cryptographic ownership with the new atomic revision boundary.
+    - paths:
+      - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py:37-76,117-170
+      - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py:71-202
+      finding: Storage handlers owner-check and store client ciphertext; revision arbitration does not
+        require new plaintext content or decryption keys.
+    - path: frontend/packages/ui/src/services/embedSenders.ts
+      lines: '6-35,64-109,116-159'
+      finding: Encrypted embed writes have an IndexedDB reconnect queue, but encrypted diff sends are
+        dropped when offline. A unified ciphertext mutation envelope must avoid this split failure mode.
+    - paths:
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts:157-158,330-423,4280-4313
+      - backend/core/api/app/tasks/persistence_tasks.py:2894-2916,3027-3052,3090-3099
+      finding: Missing safe client keys prevent persistence; current plaintext finalization buffering
+        expires. Server fallback re-sends transient output for client encryption and does not establish
+        durable completion without a client. Reliable waiting/reconnection remains new implementation work.
+  executor_wait_notifications:
+    method: Read-only review; no email was sent and no scheduler/runtime state was changed.
+    findings:
+    - file: email_delivery_guard.py
+      lines: '33-209'
+      finding: Existing send_email_once reserves a deterministic delivery identity before transport;
+        duplicate or ambiguous reservations do not send again. Reuse per wait episode and reminder stage.
+        Ambiguous or failed reservations do not imply automatic resend or confirmed delivery.
+    - file: daily_notification_dispatcher.py
+      lines: '77-107,238-245'
+      finding: Existing global email switch and category preferences are checked by handlers. Check current
+        eligibility at dispatch and use a dedicated executor-wait category rather than bypassing preferences.
+    - path: docs/plans/unified-notifications/plan.yml
+      lines: '5-10,64-77,217-223'
+      finding: Notification payloads use generic localized text without private chat titles or plaintext
+        content. Reuse the current authenticated chat navigation link, with no keys or resume authority.
+    - files: [reminder_notification_email_task.py, ai_response_notification_email_task.py]
+      lines: '122-140;125-151'
+      finding: Reminder email documents the hash-route chat link; older AI-response email uses a different
+        path and plaintext preview/title. Do not copy that older content model for this notification.
+    - file: workflow_assistant_service.py
+      lines: '141-177,445-470,693-700'
+      finding: Existing durable absolute expiry plus backend scheduled callbacks and conditional state
+        transitions provide a reusable pattern for deadlines independent of browser lifetime.
+    - file: workflow_chat_delivery_service.py
+      lines: '409-465,571-619'
+      finding: Existing token/generation/expiry device claims reject stale owners. Use corresponding
+        episode identity and conditional transitions to fence late resume/email/expiry callbacks.
+multi_chat_design:
+  status: direction_accepted_U9_with_encryption_constraint_U10
+  user_visible_behavior:
+  - Read and plan in parallel. Same-file commits take brief turns; show a waiting indication when
+    needed, followed by applied, refreshed, or blocked status. No user decision for ordinary contention.
+  - A successful change can record originating chat and operation for authorized attribution, but a
+    competing writer does not gain access to another private chat's title, transcript, or instructions.
+  - Overlapping code changes can require a material choice even if a textual patch can apply. Never
+    treat other-chat content or change metadata as authority to override this chat's user request.
+  accepted_enforcement_direction:
+  - Hosted files use an atomic expected-revision update of encrypted content and consistent version/diff
+    history. Authorized clients verify/decrypt the base, apply patches, and encrypt the new snapshot and
+    history; the server checks scoped identity and opaque revision/version only. It receives no new
+    file plaintext, plaintext content hashes, or decryption authority via this protocol. All supported
+    writers to the same object, including existing edit/restore paths, must obey this boundary.
+  - Remote writes use a host-wide coordinator shared by bridge processes. Coordinate by the underlying
+    local target after path/access validation, not by chat, Project link, source session, or process alone.
+    Overlapping roots and aliases must not bypass coordination; unsupported shared-filesystem or alias
+    cases must fail explicitly rather than claim protection that is unavailable.
+  - Acquire only for final revalidation and mutation, never for model thinking, network approval waits,
+    or a whole chat. Use bounded fair waiting and release on failure/process exit; prevent stale owners
+    from later committing after takeover. Reads must not observe an in-progress partial write.
+  - Carry an operation identity and a recoverable result/journal so a lost response or reconnect does
+    not double-apply a write. Preserve preimages; recovery and undo must not overwrite later changes.
+  - Keep content/version validation and scheduling deterministic; the main agent adapts rejected edits.
+    No extra Jev decision is needed to grant a write turn or establish file freshness.
+  limits_and_followups:
+  - Host-wide coordination protects participating OpenMates writers, not arbitrary editors or shell
+    commands. Revalidate near mutation and preserve recoverable preimages, but do not describe a hash
+    check plus rename as universal atomic compare-and-swap against external processes.
+  - Same-file safety does not provide an isolated workspace. Chats see shared direct edits; different
+    files can still conflict semantically and checks can become stale after another chat writes. Bind
+    eventual verification evidence to the files/revisions tested; detailed validation belongs to its
+    later design step, not a claim that file hashes prove correctness.
+  - Multi-file change grouping, all-or-nothing guarantees, crash recovery, conflict-aware undo, and exact
+    retry/wait limits need further design. Do not imply a remote multi-file
+    transaction or silently roll back already applied files over another writer's changes.
+hosted_encryption_boundary:
+  accepted:
+  - File snapshots, diffs, undo/history, private paths, and content fingerprints remain encrypted or in
+    their existing authorized local/transient contexts. Coordination does not introduce key escrow,
+    server-readable wrappers, independent storage decryption, or plaintext recovery jobs/logs.
+  - Server revision arbitration operates on scoped object identity and version/opaque revision metadata;
+    it cannot establish plaintext patch correctness. The authorized client performs that validation.
+  - Existing user-authorized transient AI context remains distinct from decrypting stored ciphertext by
+    itself. Earlier chat context does not grant keys or fresh file access, and this work must not silently
+    widen that inference boundary.
+  accepted_executor_wait:
+  - Pause only the work requiring unavailable authorized client-side execution; retain no exclusive write
+    turn while waiting. Do not treat disconnect as authorization loss or as automatic write approval.
+  - Before twenty minutes, reconnect may trigger reconciliation and safe recovery within the original
+    request. Revalidate focus, role, current write policy, file base, and needed concrete approval. Skip
+    if canceled, no longer authorized, or expired. At/after twenty minutes explicit chat resume is required.
+  - An already-submitted encrypted commit may complete without a connected client. Distinguish that from
+    new decryption/patch/encryption work which has no available executor, and avoid a false pending or
+    success report when the actual commit outcome is unknown.
+  later_detail:
+  - Define executor selection and capability advertisement using existing first-party/CLI authenticated
+    connections; do not turn every logged-in device into an implicit background worker.
+  - Define encrypted pending-operation persistence and reconnect behavior; no plaintext persistence as a
+    shortcut when a client disappears before preparing a safely encrypted continuation.
+executor_wait_policy:
+  authority: U11
+  timing:
+    reminder_after_seconds: 600
+    require_explicit_resume_after_seconds: 1200
+  implementation_direction:
+  - Persist waiting start and absolute reminder/expiry times with an episode/generation identity tied to
+    the chat run. Schedule backend events; deadlines and readiness checks are deterministic, without Jev
+    or repeated model calls. Multiple blocked files share the interruption's reminder.
+  - Send one generic localized email through the existing eligible notification channel at ten minutes,
+    only if the episode is still waiting and not expired. Recheck state and preferences before dispatch;
+    deduplicate transport intent and record actual skipped/failed/unknown outcomes honestly.
+  - No private titles, paths, code, diffs, keys, or decryption-bearing links in email or its logs. Link
+    opens the chat after normal authorization; opening it does not resume the run.
+  - At twenty minutes latch paused_requires_explicit_resume for this run and fence automatic continuation
+    from reconnect, scheduler retries, and old claims. Check the deadline on resume even if the timeout
+    worker ran late; delivery failure or service restart never extends it.
+  - Connection flapping without resumed file progress does not reset the episode. Explicit resume starts
+    a fresh attempt/episode if needed, rechecking all guards and reconciling earlier committed work.
+implementation_start:
+  prerequisites: File-writing direction was sufficient to start. U14 subsequently requests five new
+    search/terminal rounds before continuing integration; this does not revoke earlier decisions.
+  first_slice: Shared typed create/update proposal and result contract, current Project-focus/write-policy
+    authorization, immutable operation identities, expected-base guards, and remote/hosted integration seams.
+  following_slices:
+  - Remote CLI coordinated file creates/updates with current-base checks, recoverable local history, and
+    focused product evidence for actual chat writes.
+  - Hosted client-side patch/encryption with atomic encrypted head/history publication and all existing
+    writers using the same revision boundary; actual CLI/chat read-write evidence.
+  - Authorized executor readiness and encrypted reconnect handling with the ten-minute private reminder,
+    twenty-minute manual-resume cutoff, and meaningful coverage for duplicate/stale events.
+  - Required setup write-policy choice and shared CLI/web/native Project settings integrated with the gate.
+  boundaries:
+  - Preserve the overall P1 through P4 sequence. Completing one slice does not claim all Project editing,
+    web browsing, Tasks, Plans, or Specifications work is finished.
+  - Track outcomes and verification in this same plan, with only necessary code-level decisions escalated.
+search_terminal_clarification:
+  authority: U14
+  status: accepted
+  rounds_total: 5
+  rounds_answered: 5
+  rounds:
+  - id: S1
+    topic: Search access to ordinary source and configuration
+    question: With Project access active, should filename/content search automatically include ordinary
+      source and configuration, including package.json, Dockerfile, and authentication code, while
+      known credential files remain excluded unless separately authorized?
+    recommendation: Yes. Separate read/search restrictions from write/command restrictions. Offer
+      dedicated filename glob and literal/regex content search, bounded results, and no per-search
+      prompt inside existing access. A model may choose useful queries; deterministic code enforces
+      access, limits, and secret-path exclusions. This does not itself grant terminal execution.
+    example: Find package.json and src/**/auth*.ts, then find uses of refreshToken with relative paths
+      and line numbers. package.json, Dockerfile, and src/auth/session.ts are searchable; .env,
+      private key files, and credential stores remain excluded by default.
+    status: resolved
+    answer: User chose a dedicated file-search product skill with no per-call approval and proposed
+      separate confirmed remote Code Run commands with independent LLM explanations. This resolves
+      the search-versus-terminal approval boundary; it does not grant whole-machine search or silently
+      waive existing Project access. Detailed ordinary-file/credential patterns remain to be specified.
+  - id: S2
+    topic: Remote command filesystem scope
+    question: Should an approved terminal command be confined to the Project and explicitly allowed
+      build/cache folders, or be allowed to use the full remote machine?
+    recommendation: Confine execution by default with OS enforcement, while allowing required toolchain
+      reads and approved temporary/cache paths. Show any requested additional resource access in the
+      same command approval. A working directory alone is not confinement. Do not silently fall back
+      to unrestricted execution if the declared isolation is unavailable.
+    example: npm test may use the Project, its test output and approved caches. Another Project and
+      ~/.ssh remain inaccessible by default; a build needing /opt/shared-sdk must declare that extra
+      read access for review. The command still requires the user's Run once confirmation.
+    status: resolved
+    answer: Accepted Project confinement and the command-review approach. User selected latest Gemini
+      Flash-Lite for explanations and requested selectable repository-stored command allowlists.
+  - id: S3
+    topic: Effect of selecting a command allowlist
+    question: Should explicitly enabling an allowlist preapprove its matching commands, or should even
+      listed commands continue to require confirmation every time?
+    recommendation: Keep Ask first as the default. Let users explicitly enable a narrow Project command
+      preset as a standing approval, with matching executions retaining explanation and all deterministic
+      guards. Other eligible commands still ask; explicit denials remain denied. This is a proposed
+      opt-in exception to U17 accepted by U20; broader permissions remain subject to explicit user action.
+    example: A user enables a Checks list containing exact npm test and npm run lint invocations at the
+      Project root. They then run without repeated prompts, while npm install still asks. The alternative
+      is a restrictive list where both test/lint also ask and unlisted commands are unavailable until
+      separately authorized. Both choices retain Project confinement and current focus requirements.
+    status: resolved
+    answer: Accepted. Explicitly enabling a narrow command list preapproves matching executions; other
+      eligible commands still ask. Model explanations and deterministic guards remain required.
+  - id: S4
+    topic: Reusable network and credential access for commands
+    question: Should commands start without network or credentials, with users able to enable reusable
+      Project access profiles for specific destinations and selected credentials?
+    recommendation: Yes. Define bounded named access profiles and let the user activate them once for
+      the Project. Include any newly requested access in the same command confirmation rather than
+      layering routine prompts. Command preapproval alone grants neither network nor credentials.
+      New destinations or credentials require explicit expansion; secrets are supplied by the authorized
+      executor without exposing their values to the explanation model or ordinary server persistence.
+    example: Checks runs npm test offline with no credentials; Packages lets npm install contact the
+      approved npm registry without personal tokens; Staging tests lets npm run integration contact
+      api.staging.example using only the selected TEST_API_TOKEN. A command still asks unless separately
+      preapproved; existing access profiles remove repeated network/credential prompts.
+    status: resolved
+    answer: Accepted reusable Project network/credential profiles with both disabled by default and
+      explicit activation. Keep credential values local to authorized execution and outside review context.
+  - id: S5
+    topic: Managed command jobs and their lifetime
+    question: Should commands run as managed jobs with status, bounded logs and Stop, including explicit
+      background mode for builds/dev servers so the chat can continue other work?
+    recommendation: Yes. Record each execution and its approved lifetime/mode; show status, logs and Stop.
+      Browser closure alone need not end an approved job while its authorized CLI remains available.
+      Stop or loss of authorization terminates the owned process tree when reachable; lost executors
+      produce an honest interrupted/unknown state until reconciliation, never a blind duplicate launch.
+      Commands that may change source must coordinate against overlapping edits; background dev servers
+      use read-only source with explicitly writable caches/output so they do not reserve source indefinitely.
+    example: A build card shows Running, elapsed time, logs and Stop while the chat reviews other files.
+      A dev server can remain as an explicitly approved background job with a visible time limit and
+      writable cache/output folders. A formatter writing src cannot run concurrently with another chat's
+      edit commit to the overlapping scope. Remote disconnect does not turn an unknown exit into success.
+    status: resolved
+    answer: U23 accepts the refined async-skill flow, wait/continue choice and checked output batches;
+      proceed with implementation using the preceding managed-job and authorization constraints.
+    clarification: U22 asks for the existing skill waiting/continuation contract and safe terminal-output
+      buffering/scanning before deciding. This is part of round 5, not an additional question round.
+  later_round_topics_provisional: []
+  command_job_recommendation:
+    status: Accepted in U23 with the refined shared async and output-safety flow
+    lifecycle: Reuse Code Run execution IDs, status/output stream and authenticated cancellation surfaces,
+      extending them with remote source/host-session identity, approved foreground/background mode,
+      deadline, process-tree ownership and durable outcome reconciliation. No unbounded detached daemon.
+    authorization: Revocation prevents new launches immediately at the authorization boundary. Reachable
+      executors stop revoked jobs; disconnected hosts need a bounded local authorization lease so work
+      cannot continue indefinitely. Do not claim a remote process stopped without evidence. Parent exit,
+      timeout and cancellation must clean up descendants within the supported sandbox boundary.
+    concurrency: Match declared writable scopes using runtime-enforced filesystem access, not an LLM
+      guess about a command name. Acquire coordination against overlapping Project file commits only
+      for actual execution, never while explaining or awaiting approval. A command with unrestricted
+      writes inside the Project needs a Project-wide mutation turn. Source-read-only background jobs
+      with separate writable caches/output avoid blocking source edits. Cross-source aliases of the
+      same host files must retain shared coordination. External editors remain outside this guarantee.
+    evidence: A test/build can read live files while other work continues; successful exit is not proof
+      of a coherent latest Project revision. Record the relevant observed versions and mark results
+      stale/uncertain when inputs change rather than claiming snapshot isolation. Reconnection checks
+      the prior execution outcome before any retry, preserving independent user-approved grants.
+    boundaries: Existing ten-minute reminder and twenty-minute manual-resume cutoff govern waiting for
+      an unavailable executor, not a blanket command runtime limit. Command limits/mode are visible in
+      their own approval or selected preset. Interactive terminal sessions and public preview tunnels
+      are not implicitly included by managed background process support.
+  terminal_async_and_output_review:
+    status: U22 research and refinement of S5 accepted in U23
+    current_output_behavior:
+    - backend/shared/providers/e2b_code_runner.py applies limited secret-pattern redaction and caps
+      combined output at 100000 characters. backend/apps/code/tasks/run_code_task.py appends events
+      to execution state and publishes them; the authenticated stream route forwards snapshots/events.
+      CodeEmbedFullscreen.svelte uses escaped text interpolation. This stream has no semantic scan or
+      complete terminal-control normalization before publication.
+    - Initial Code Run tool responses pass the central skill output sanitizer, but contain processing
+      metadata rather than later stdout. The asynchronous completion result excludes stdout/stderr
+      events and includes status, exit/duration and artifact/error metadata. A scan of the initial
+      response cannot cover later output.
+    - Later-turn output does reach inference. CodeEmbedFullscreen.persistRunOutput sends encrypted
+      output plus a separate inference_payload via sendersCodeRunOutputs.ts. The websocket
+      code_run_output_handlers.py path bounds the plaintext inference copy to 24000 characters and
+      vault-encrypts it in a three-day cache. EmbedService appends it as a TOON block when resolving
+      the embed on later turns. No shared ASCII/semantic scan was found in this cache write/read path.
+      Thus the initial dispatch scan and metadata-only callback do not cover cached terminal output.
+      The ciphertext payload does not establish that its separate inference copy is safe or identical.
+    - The shared app-skill scanner selects fields and lengths, uses bounded units with neighboring
+      context, and marks technical failures unscanned while returning cleaned input. Terminal output
+      needs explicit required-text coverage including short lines and errors, rather than provider
+      inference or default field heuristics. Scanner uncertainty remains distinct from a failed scan;
+      checked uncertain text still remains untrusted data, not a reason to claim safety or permission.
+    current_async_behavior:
+    - backend/apps/ai/processing/main_processor.py uses a static ASYNC_SKILLS set. Only selected
+      social-media calls get the existing single-call inline wait of up to ten seconds. Code Run and
+      other listed skills become background jobs by orchestration policy; their schemas have no
+      model-selectable wait/background argument.
+    - backend/apps/code/skills/run_code_skill.py returns processing plus execution/task identifiers.
+      backend/apps/code/tasks/run_code_task.py dispatches completion into the generic
+      backend/apps/ai/tasks/async_skill_continuation.py path. It re-enters the originating chat on
+      completion; this callback is not confirmed for every skill in the static async set.
+    - start_sub_chats exposes wait_for_completion and each/all report triggers. That is the current
+      explicit model choice the user recalls; sub-chat orchestration is distinct from skill execution.
+    proposed_wait_contract: Reuse the app-skill async lifecycle and completion events, with a model-selected
+      wait-for-result versus continue-independent-work orchestration hint for terminal skills. Waiting
+      suspends dependent chat work until a result event rather than occupying inference or polling with
+      an LLM. Both modes execute asynchronously underneath. This choice is separate from permission,
+      process background lifetime, and the choice of remote versus E2B executor.
+    proposed_examples:
+    - Run tests before declaring a fix complete; await their checked result through the completion event.
+    - Run tests while drafting independent documentation; continue, then incorporate the checked result.
+    - A dev server needs a verified readiness event rather than waiting for process exit; stdout saying
+      ready is untrusted and cannot alone establish readiness or grant network access.
+    proposed_output_flow:
+    - Treat every stdout/stderr byte as untrusted external data even when the agent wrote the command.
+      Preserve execution identity and sequence; apply output limits, secret redaction and deterministic
+      control-character/ASCII-smuggling cleanup before model review or client display. Render logs as
+      inert text; do not execute terminal escape actions, HTML, suggested commands or apparent permissions.
+    - Short commands can scan their complete bounded output once. Long commands release bounded batches
+      through the shared app-skill output-safety scanner, retaining source order and neighboring context
+      to reduce split-message gaps. Bound queue size, bytes and scan cadence; avoid a model call per line,
+      repeated scans of unchanged text, and scanning only a tail while claiming all output was reviewed.
+    - Status/progress metadata can update live. Deliver checked text batches to the log surface and feed
+      the coding model only relevant checked completion/checkpoint excerpts. Scanning logs does not
+      require restarting the coding model for every batch. A summarizer must not bypass the same input
+      safety boundary. A detected injection is redacted with an honest marker, preserving usable output.
+    - Existing generic scan failure returns cleaned content with an unscanned status. Recommend a narrow
+      stronger terminal-to-agent rule; keep unscanned text out of autonomous agent input, retain visible
+      scan status and process state, and allow the job itself to continue. Do not mark it safe, rerun the
+      command, or change all app-skill failure behavior as a side effect. This exception needs explicit
+      Specification requirements; UI access to inert unreviewed logs is distinct from agent consumption.
+    - Store durable remote logs only under the accepted client encryption boundary. Semantic scanning
+      requires an authorized transient plaintext excerpt, never server decryption rights to stored logs.
+      The independent Gemini command explainer remains separate from the existing output-safety model.
+    continuation_guards: Bind output coverage and completion to the exact execution, originating chat/run
+      and sequence. Apply the shared safety boundary to asynchronous completion payloads as well as the
+      initial tool response and later code_run_outputs inference-cache hydration. Gate legacy unreviewed
+      cache entries before model use; encryption or a client-supplied scan claim is not a scan receipt.
+      Do not give the server Project keys to compare encrypted logs with an inference copy. Deduplicate
+      result delivery and never resume canceled/expired runs from
+      stale callbacks. Revalidate current authority and incorporate newer chat context before follow-up
+      actions; scanned terminal text never becomes a source of permissions or system instructions.
+  deferred_scope:
+  - A new terminal attached to OpenMates-stored encrypted Projects is not implicitly authorized by the
+    remote-target decision. Preserve existing E2B behavior while its Project/client connection remains
+    to be designed; remote terminal rules must not grant server access to stored plaintext or keys.
+  command_allowlist_recommendation:
+    status: Core selection and activation semantics accepted in U20; detailed schema remains to implement.
+    repository_path: .openmates/permissions.yml
+    current_implementation: Reserved by the historical plan only; no product schema or loader exists yet.
+    rationale: Existing remote-source design reserves this path for restrictions, warnings and suggested
+      checks. Research found tool-specific JSON/TOML formats rather than a shared cross-tool standard.
+    authority: The repository file contains reviewable definitions and suggestions. It cannot grant
+      itself permissions through an agent edit, repository pull or branch change. User-approved active
+      selections are recorded outside the command-writable Project in protected local control state;
+      any synchronized Project settings/receipts preserve encryption. A changed rule cannot inherit an
+      older broader grant. Users can revoke selections in Project settings without editing source.
+    matching: Prefer exact executable/argument lists plus Project-relative cwd and declared resource
+      scope. Avoid broad npm-star or shell-prefix rules. Shell composition, extra arguments and wrappers
+      cannot inherit a narrower command approval. Scripts remain executable project code; allowlisting
+      a command does not prove its contents harmless or bypass runtime confinement. Relevant launcher
+      or permission-definition changes require renewed review; ordinary development edits must not be
+      presented as automatically harmless merely because the command text stays the same.
+    selection_example:
+      label: Checks
+      commands:
+      - argv: [npm, test]
+        cwd: .
+      - argv: [npm, run, lint]
+        cwd: .
+      active_by_default: false
+    compatibility: External tool policy files may later be imported as visible suggestions. Do not
+      automatically activate another tool's permissions or assume equivalent rule semantics.
+  command_review_recommendation:
+    status: Core review flow accepted in U17/U18/U20; pending Specification additions and implementation.
+    flow: Agent proposes exact command and context; deterministic preflight prepares the request;
+      separate model explains it; user approves once unless a current explicitly enabled list already
+      covers the execution; executor revalidates current authority and approval binding immediately
+      before execution; results return to the originating chat.
+    approval_context: Bind the exact command/script, target device/source and Project, working directory,
+      requested environment/resource access and operation identity. Any changed request requires fresh
+      review and a current matching grant or new confirmation; no blanket terminal grant follows from
+      Apply and show file-write mode. A command-list match cannot silently widen resource access.
+    explanation: Use the latest Gemini Flash-Lite with the concrete request and necessary authorized
+      context, such as the package.json test script. Treat repository text as untrusted data, disclose
+      uncertainty and indirect script effects, and never present a model's safe label as a guarantee.
+      Do not include credentials or persist new plaintext command/code records on the server.
+    explanation_model:
+      required_family: Gemini Flash-Lite
+      verified_model_id: gemini-3.5-flash-lite
+      configured_model_reference: google/gemini-3.5-flash-lite
+      verified_on: '2026-09-22'
+      official_status: stable; official latest update July 2026
+      source: https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite
+      existing_provider_path: backend/providers/google.yml already declares this model; the generative
+        helper in backend/apps/ai/utils/llm_utils.py can route it with a bounded structured explanation
+        result. Preserve the selected Flash-Lite model through configured Google server fallback;
+        do not inherit utility fallbacks that silently substitute another model family.
+      implementation_note: Verify provider availability and the latest stable Flash-Lite again when
+        wiring execution; use an explicit configured model version rather than silently substituting
+        an older model or granting commands when explanation fails.
+      context_boundary: Fixed review instructions, exact command and target/cwd/resource facts, and
+        minimal authorized script excerpts. No inherited coding-agent conversation or Project focus
+        instructions. Treat command/code/comments as untrusted data. Give the reviewer no execution
+        tools or power to approve; context separation reduces exposure but does not prove immunity.
+    search_boundary: The search product skill accepts query, path, filename glob and literal/regex mode.
+      It constructs a fixed rg argument array, disables untrusted rg configuration/preprocessors and
+      enforces root, credential-path, output and runtime limits. Arbitrary shell strings or flags must
+      not turn approval-free search into command execution. Fallback semantics must match.
+  research:
+    inspected_workspace: session 6407; distinguish committed code from partial file-write additions
+    current_search:
+    - frontend/packages/openmates-cli/src/remoteAccess.ts already implements encrypted-relay content
+      search with rg, up to 20 results, 500-character snippets, and a ten-second rg timeout. It lacks
+      recursive filename search and an include-glob parameter. The regex rg query and literal fallback
+      currently disagree; list/read/fallback and rg also differ in hidden/ignore behavior.
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts applies broad restrictions to reads/search,
+      including ordinary dependency manifests, Docker files, and auth/security source. Its protected
+      paths differ from backend/shared/python_utils/project_file_risk.py. A common policy needs separate
+      read/search and write/execute concerns, without treating all configuration as secret.
+    - ProjectsPage.svelte exposes remote browsing/search, but chat model Project tools are not wired.
+      Hosted files are encrypted linked embeds without implemented Project filename/content search;
+      client-side authorized search is required to preserve the storage encryption boundary.
+    current_execution:
+    - Remote bridge rg/git subprocesses currently inherit the CLI environment. Future command execution
+      needs an explicit minimal environment and named credential selection; reusing those spawn defaults
+      would expose unrelated host credentials. Existing Code Run has no secret-injection schema and
+      only a coarse outbound-internet switch, not per-destination grants. Existing output redaction is
+      supplementary protection, not a guarantee that executing code cannot disclose an injected secret.
+    - backend/apps/code/skills/run_code_skill.py and backend/shared/providers/e2b_code_runner.py execute
+      supplied chat code/files in transient E2B sandboxes. This is not a shell attached to a Project.
+    - Existing Code Run authorization is a temporary chat/message/embed marker, allows limited unprompted
+      reruns, and does not bind an exact remote command, source, cwd or environment. Assistant-created
+      inline code follows its own path. Do not reuse either mechanism to authorize remote commands;
+      remote execution needs a distinct one-execution approval and host transport under the shared UX.
+    - The current Jev/TypeSafe wrapper provides structured choices/scores, not prose explanations.
+      A natural-language command explanation needs a generative model call. Existing safety handling
+      supplies a useful precedent for treating submitted commands and repository context as untrusted
+      data, but cannot confer execution authority.
+    - Committed remote relay operations are list/search/read_text. This session's partial create/update
+      additions do not add shell execution. Existing remote-source plans explicitly excluded arbitrary
+      commands; consent for configured checks is a narrower distinct permission.
+    - General Project commands lack an agreed environment, network/credential policy, process lifecycle,
+      and coordination with guarded file writes. Command names such as npm test do not prove no side
+      effects; scripts and child processes need enforceable boundaries.
+    existing_design_sources:
+    - docs/plans/projects-remote-sources/plan.yml
+    - docs/plans/cli-remote-access-live-bridge/plan.yml
+    - docs/plans/code-run-cli-app-skill/plan.yml
+    - docs/architecture/privacy/prompt-injection.md
+    external_primary_sources:
+    - url: https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite
+      finding: Stable model code gemini-3.5-flash-lite, latest update July 2026, supports text output.
+    - url: https://code.claude.com/docs/en/settings
+      finding: Shared Project permission settings use .claude/settings.json; local settings use
+        .claude/settings.local.json. These are Claude-specific files, not a cross-tool standard.
+    - url: https://opencode.ai/docs/permissions/
+      finding: OpenCode uses its own opencode.json permission configuration with allow/ask/deny rules.
+    - url: https://geminicli.com/docs/reference/policy-engine/
+      finding: Gemini CLI uses TOML policy rules, including ~/.gemini/policies/*.toml. Current docs warn
+        that workspace .gemini/policies loading is disabled; do not promise portable Project behavior.
+    - url: https://github.com/BurntSushi/ripgrep
+      finding: ripgrep is invoked as rg, optimized for recursive code search, with ignore and binary
+        filtering defaults. Performance depends on the workload; it is the existing remote-search engine.
+    - url: https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md
+      finding: rg supports literal/regex search and glob filters, but also configurable preprocessors;
+        approval-free search must expose a controlled query interface rather than arbitrary rg options.
+    - url: https://opencode.ai/docs/tools/
+      finding: Separate grep, glob, and bash tools; search uses ripgrep and respects ignore files.
+    - url: https://geminicli.com/docs/tools/file-system/
+      finding: Separate filename glob and content-search tools, with path/line results and no edit prompt.
+    - url: https://code.claude.com/docs/en/sandboxing
+      finding: OS filesystem and network restrictions apply to commands and child processes. Permission
+        prompts and command labels do not substitute for enforced runtime isolation.
+implementation_traceability:
+  state: The P1 source below is published and active on dev at 5fe487f; focused checks and Project settings CI passed. Real file verification is resuming with the confirmed personal DEV TEST session per U25. Command verification separately needs the host sandbox prerequisite. Later P2-P4 work remains unimplemented.
+  specifications: [feature.projects@1, feature.focus-modes@1, feature.app-skill.code-run@1]
+  evidence_state: Focused backend and CLI component checks have passed. Actual disposable-Project
+    chat/command evidence remains pending direct dev verification per U24. Exact Specification approval receipts are recorded.
+  metadata_validation:
+  - Project Specification bundle and new test-to-assertion metadata validated successfully.
+  - Plan YAML, five-round checkpoint, source paths, and assertion references validated successfully.
+  entries:
+  - id: I1
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Strict create/update proposal, remote version checks, exact patching and coordinated commit
+    assertions: [projects.files.expected-base, projects.files.exact-patch, projects.files.commit-replay,
+      projects.files.short-write-turn, projects.files.concurrent-chat-safety]
+    source_paths:
+    - frontend/packages/ui/src/utils/projectFileMutationProtocol.ts
+    - frontend/packages/ui/src/utils/projectFilePatch.ts
+    - frontend/packages/openmates-cli/src/remoteFileWrites.ts
+    test_paths: [frontend/packages/openmates-cli/tests/remoteFileWrites.test.ts]
+    remaining: Four focused temporary-directory mutation tests pass; the shared kernel command/file lock
+      now covers aliases and nested roots conservatively per OS user. Product chat recovery evidence remains pending.
+  - id: I2
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Current Project focus/policy authority and immutable concrete proposal approvals
+    assertions: [projects.files.chat-focus-required, projects.files.write-policy-enforcement,
+      projects.files.recovery-authorization, focus-modes.project-write-gate]
+    source_paths:
+    - backend/core/api/app/services/project_write_authorization_service.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/directus/schemas/project_settings.yml
+    remaining: Endpoint/client wiring and focused authority checks are implemented; 55 backend checks
+      passed. Product CLI/browser/native integration evidence remains pending.
+  - id: I3
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Remote encrypted create/update relay and host-side authorization checks
+    assertions: [projects.files.chat-focus-required, projects.files.write-policy-enforcement,
+      projects.files.no-server-decryption-authority, projects.files.recovery-authorization]
+    source_paths:
+    - backend/core/api/app/services/project_remote_access_service.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    remaining: CLI Project selection, chat tools and encrypted client executor are wired. Disposable
+      Project chat read/create/update coverage is added and awaits direct dev execution after deployment.
+  - id: I4
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Atomic ciphertext head/history commit with scoped revision and replay checks
+    assertions: [projects.files.hosted-ciphertext-commit, projects.files.no-server-decryption-authority,
+      projects.files.commit-replay, projects.files.concurrent-chat-safety]
+    source_paths:
+    - backend/core/api/app/services/embed_version_transaction_service.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/commit_embed_revision_handler.py
+    - backend/core/directus/extensions/embed-version-transaction/src/index.js
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/schemas/embed_diffs.yml
+    remaining: Atomic extension/create/update/receipt endpoints, legacy bypass closures and client
+      patch/encryption are implemented. Focused transaction and client tests pass; real hosted chat evidence is pending.
+  - id: I5
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Authorized executor operation lifecycle with fixed waiting deadlines and transient arguments
+    assertions: [projects.files.executor-wait, projects.files.wait-deadlines, projects.files.wait-email,
+      projects.files.wait-expiry, projects.files.wait-result-reconciliation]
+    source_paths:
+    - backend/core/api/app/schemas/project_file_operation_schemas.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    remaining: File jobs, authority, shared deadlines/email, conflict budget and async continuation pass
+      focused checks. Real disposable-Project evidence is pending; no real notification email was sent.
+      Web executor remains P2.
+  - id: I6
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Explicit setup write policy, encrypted default focus, shared Project settings
+    assertions: [projects.focus.default-owned, projects.focus.existing-instructions,
+      projects.files.write-policy-setup, projects.files.write-policy-settings]
+    source_paths:
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/settings/SettingsProjects.svelte
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+    remaining: CLI setup/attach, explicit policy, instruction import, Project mention/flag and web/native
+      settings are implemented. Focused tests and CLI build pass; product/UI evidence remains pending.
+  - id: I7
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Typed source-side search and client-decrypted hosted search with bounded results
+    assertions: [projects.files.search-scoped, projects.files.search-consistent]
+    source_paths:
+    - frontend/packages/ui/src/utils/projectSearchProtocol.ts
+    - frontend/packages/ui/src/services/hostedProjectFileExecutor.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    test_paths:
+    - frontend/packages/openmates-cli/tests/projectSearchProtocol.test.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    remaining: Hosted candidate-protection, root-state boundary and truncation checks pass; real chat evidence pending.
+  - id: I8
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Confined remote commands with exact review, reusable local grants and managed source transport
+    assertions: [code-run.remote.confinement, code-run.remote.explicit-approval,
+      code-run.remote.command-lists, code-run.remote.explanation, code-run.remote.resource-profiles,
+      code-run.remote.managed-jobs, code-run.execution.wait-or-continue]
+    source_paths:
+    - frontend/packages/openmates-cli/src/remoteCommandRuntime.ts
+    - frontend/packages/openmates-cli/src/remoteCommandSource.ts
+    - frontend/packages/openmates-cli/src/remoteCommandClient.ts
+    - frontend/packages/openmates-cli/src/remoteCommandPermissions.ts
+    - frontend/packages/openmates-cli/src/remoteCommandResourceGrants.ts
+    - frontend/packages/openmates-cli/src/remoteCommandNetwork.ts
+    - backend/core/api/app/services/remote_command_service.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/remote_command_handlers.py
+    - backend/apps/code/skills/run_code_skill.py
+    remaining: Source/origin integration, targeted checks and CLI build pass; real confined command needs direct dev verification per U24.
+  - id: I9
+    status: partial
+    coverage_status: focused_unit_passed_product_ci_pending
+    outcome: Checked bounded terminal output and verified cached model-input admission
+    assertions: [code-run.output.external-text-guard, code-run.output.cached-inference-guard,
+      code-run.output.bounded-delivery]
+    source_paths:
+    - backend/shared/python_utils/terminal_output_safety.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/remote_command_origin_completion_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/apps/code/tasks/run_code_task.py
+    remaining: Source and origin completeness metadata checks pass; actual remote result evidence awaits direct dev verification per U24.
+  not_yet_implemented:
+  - Product evidence for the implemented model-tool read/write flows, bounded conflict recovery and visible diffs.
+  - Full chat read/write evidence for remote and hosted disposable Projects.
+  - Web Project browsing/editing completion, followed by Tasks and Specifications/Plans gaps.
+integration_constraints:
+  source_command_coordination: Kernel shared/exclusive coordination currently serializes source-writing
+    commands against all participating file commits under the same OS user. This intentionally covers
+    overlapping roots at the cost of serializing unrelated source-writing commands.
+  network_profiles: The first confined adapter supports exact public HTTPS hostnames on port 443 through
+    an isolated-namespace proxy. HTTP, UDP, private/IP targets and arbitrary ports remain unsupported;
+    no unsupported request falls back to unrestricted host networking.
+  terminal_inference: An explicitly authorized source executor may send a bounded transient output copy
+    through the existing semantic guard for AI continuation, separately from encrypted durable logs.
+    This gives the server neither Project keys nor independent access to stored log contents.
+  candidate_ci: Exact Specification approvals and metadata preparation are complete. A resolved
+    candidate preserves all 116 non-generated task paths against current dev and regenerates three
+    Specification indexes. Project settings uses CI; per U24 live CLI/chat coverage runs directly on dev.
+    The isolated harness's missing paid-provider profile no longer blocks this task's test route.
+
+exact_review_prepared_2026_09_23:
+  status: User approved all three presented exact revisions and instructed continuation; matching approval receipts are recorded.
+  rationale: sessions.py ci-source rejected the missing exact-fingerprint Specification receipts before running CI.
+  bundles:
+  - specification: feature.projects@1
+    fingerprint: 0d28da41b9b4e584876b41e30800f6bd6a011fbc3690220d71df9e86964de1cf
+    review_artifact: /tmp/openmates/specification-approvals/feature.projects-0d28da41b9b4e584.approval.json
+  - specification: feature.focus-modes@1
+    fingerprint: 3fcede82b7b3a44a2b45c6d53233c0f319b8bd97fecb3949618794f0a703cd72
+    review_artifact: /tmp/openmates/specification-approvals/feature.focus-modes-3fcede82b7b3a44a.approval.json
+  - specification: feature.app-skill.code-run@1
+    fingerprint: e5eb33c19acff79e89efd29b8156d8dd08b0f30714b30bc3f4ad5bd998948ea5
+    review_artifact: /tmp/openmates/specification-approvals/feature.app-skill.code-run-e5eb33c19acff79e.approval.json
+  review_mapping: Each changed requirement maps to one or two concrete readable examples; all additional edge cases remain in the examples appendix.
+
+final_local_preflight_2026_09_23:
+  historical: This checkpoint predates recorded approvals and U24; use current_checkpoint for continuation.
+  result: All changed-test metadata and generated traceability pass; only the three exact Specification approval receipts are missing.
+  receipt: /tmp/openmates-6407-spec-final-preflight.log
+  build: CLI production build and declaration generation passed after final origin integration.
+  product_evidence: Not run; submit frontend/apps/web_app/tests/cli-project-file-chat.spec.ts through isolated CI after exact review approval.
+  deployment: Not performed.
+  resume: Read this Plan, record only explicitly approved exact PDFs, prepare session6407 CI source and run the two disposable-Project cases before claiming chat editing or remote commands verified.
+
+approval_and_ci_continuation_2026_09_23:
+  user_confirmation: Approved. Continue.
+  turn: 01a0cbf4-7144-7d52-9060-97d287b0fb0b
+  approvals: Recorded the three exact fingerprints listed above with their corresponding reviewed PDF artifacts.
+  next_step: Run real-inference checks directly on healthy dev per U24. No additional approval is needed for the accepted Specification revisions or this test route.
+  candidate:
+    source: 4d90bf1558257551428154b181b43d3dbbedbdca
+    base: 3463965d60d71d359fbd9011e14d771aee0b8acb
+    manifest: /home/superdev/projects/OpenMates/logs/ci-candidates/4d90bf1558257551428154b181b43d3dbbedbdca/manifest.json
+    equivalence: All 118 non-generated paths matched the frozen r28 source; only three regenerated Specification artifacts are additional. Compared with the passing CI candidate, nine paths differ; all four CLI deltas are comments only, and all 15 compared UI/web paths are byte-identical. Backend changes correct one service reference, remove two unused imports and add a passing regression test.
+  settings_ci:
+    source: 736802cdea0034e4a204bd82d6cf59c63785227d
+    request: d6477b5ff81a77c16cd0af1ffa2412a48b3f5d5ed98a200c6460e29621b55869
+    spec: projects-flow.spec.ts
+    state: corrected_candidate_passed
+    result: Both cases passed on retry zero; expected 2, unexpected 0, skipped 0, flaky 0.
+    report: /home/superdev/projects/OpenMates/test-results/ci-runs/d6477b5ff81a77c16cd0af1ffa2412a48b3f5d5ed98a200c6460e29621b55869/test-results/ci-spec-0.json
+    run: https://github.com/glowingkitty/OpenMates/actions/runs/35811888481
+    wait_log: /tmp/openmates-6407-projects-flow-ci-rerun.log
+    prior_failed_request: 3654fdd6bc1d9a9b475b523554bc9e8b0397b5279d949394ee7355b93c4332bd
+    prior_failed_run: https://github.com/glowingkitty/OpenMates/actions/runs/35809772682
+    findings:
+    - Project creation succeeds, but the new write-policy chooser intercepts clicks on Project landing cards.
+    - Both settings policy saves/reloads and ciphertext preservation assertions were reached; the final deletion response waiter timed out.
+    diagnostic_log: /tmp/openmates-6407-projects-flow-failed.log
+    receipt_caveat: Source/run/proof identity matched, but retained preparation harness fd46897 differed from workflow head3463965 after dev advanced. Failed-run diagnostics inform fixes; no passing evidence claimed.
+    correction: Project-only layout docking prevents composer/card overlap; DELETE waiters match exact path while preserving confirmation query and successful-response assertions. Svelte compilation, test syntax and metadata pass.
+    rerun: Use existing --no-prepared-builds to keep actual workflow and reported harness identities aligned; no CI infrastructure changes.
+  live_chat_ci:
+    spec: cli-project-file-chat.spec.ts
+    state: dev_server_execution_required_per_U24
+    reason: New spec lacks an executable dependency classification; actual calls require a live-provider profile that isolated CI does not yet provide.
+    disposition: No CI provider capability will be added. User requires all strictly real-inference tests directly on dev for now.
+    preserved: Real disposable remote/hosted file mutations and execution-generated terminal UUID assertions remain intact; no mock replacement or passing skip.
+    scope_boundary: U24 is the explicit dev execution instruction. Preserve disposable state, confinement and runtime coordination; no broader CI infrastructure work.
+  dev_test_preparation:
+    fixture_recovery:
+      state: Superseded and withdrawn by U25. Use the existing personal DEV TEST account; do not repair numbered fixtures for this task.
+      explanation: The earlier invalid-TOTP failures belonged to numbered automated fixtures, not
+        the personal account. No numbered fixture or personal security reset was performed.
+    personal_dev_account:
+      verification: Global CLI is authenticated as the documented personal DEV TEST user and can read
+        the existing engineering Project. Documented personal recovery credential fields are available;
+        no secrets were printed and no re-login was needed.
+      instructions: docs/architecture/codex-task-cache.md, Recover the global dev login.
+      test_scope: Copy only the authenticated session into a mode0700 temporary state directory, keep
+        the global session intact, and exercise only new disposable Projects and external temp folders.
+      first_run: Authentication and fixture setup succeeded; chat submission failed with
+        WebSocketProtocolError preflight_mismatch (durable encrypted preflight did not authorize the
+        request). This is a client/server chat-preflight issue, not a login failure. No model/file
+        operation success is claimed. The private session copy was removed and leases released.
+      receipt: /tmp/openmates-6407-live-personal-files.log
+      diagnosis: The API runtime and relevant canonical/worktree source match; stale dependencies are
+        not causal. Preflight committed no focus, then CLI focus activation changed the server's
+        inference snapshot, so enqueue correctly rejected the HMAC mismatch. The fix belongs in
+        client sequencing, not relaxed authorization or an account reset.
+      cleanup: Root removed only the failed run's exact fresh chat, two Project IDs and UUID-named
+        external temporary folder. Both Projects were confirmed absent; source was offline and no
+        foreground child remained. The ordinary personal dev session is still authenticated.
+      local_fix: New Project chats persist an owned key-only encrypted chat and await its ACK, then
+        activate focus before preflight; existing chats activate before preflight directly. The
+        Directus transaction atomically completes only missing metadata on an empty version-zero
+        owned shell and rejects conflicting non-null metadata. Parallel promise rejection handlers
+        preserve cleanup on failure; enqueue HMAC validation is unchanged.
+      focused_checks: Handler suite6, real persistence/detail suite22, wrapper/ChatMethods suites15,
+        Directus preflight tests2 and CLI executor tests8 passed. Scoped Ruff, ESLint and diff checks
+        passed. Root confirmed the CLI production ESM and declaration build completed successfully.
+      build_receipt: /tmp/openmates-6407-project-preflight-cli-build.log
+      followup_scope:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/projectFileExecutor.ts
+      - frontend/packages/openmates-cli/tests/projectFileExecutor.test.ts
+      - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+      - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+      - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      - backend/core/api/app/tasks/persistence_tasks.py
+      - backend/core/api/app/services/directus/chat_methods.py
+      - backend/core/api/app/services/directus/chat_key_wrapper_methods.py
+      - backend/tests/test_encrypted_chat_metadata_guard.py
+      - backend/tests/test_unified_detail_metadata.py
+      - backend/tests/test_unified_key_wrappers.py
+      - backend/tests/test_chat_directus_encryption_guards.py
+      publication_status: Focused fix is local; review, scoped publication, CMS extension refresh and
+        the next real file check remain pending. The already-passing Project settings UI is unchanged.
+      review_findings_resolved: Actual persistence now preserves version0/null for a strict new
+        key-only shell, including canonical Team-scoped wrappers. The classifier excludes content,
+        metadata and sub-chat fields; ordinary metadata creates retain prior versions and defaults.
+        Tests traverse the real handler-to-persistence path. No followup deployment has occurred;
+        final narrow review passed. The first publication attempt found missing legacy test contract
+        links; those annotations were added without changing test behavior and check-test passed.
+        Replacement candidate and publication are next.
+    preflight_deploy_gate:
+      candidate: 2a9264ef2fbb7f7516851473ef424cdc811bca19
+      state: The earlier candidate was not deployed. Its required gate exposed the pre-existing
+        fallback regression. U27 approved the exact historical restoration; it is applied locally
+        and both former failures plus all59 tests in the selected Python gate now pass.
+      failures: Missing _persisted_embed_snapshot_is_current and no resend of newer cached embed.
+      diagnosis: Pre-existing deployed regression, not test pollution or the Project shell patch.
+        Commit07291e943 introduced version-aware fallback plus tests; later2dfdcd28e removed that
+        behavior while retaining tests. Current task exposed it by touching persistence_tasks.py.
+      reviewable_fix: /tmp/openmates-6407-embed-fallback-restoration.patch
+      approval: Approved by U27 Continue response to the concrete restoration request. Apply only
+        the reviewed dry-run-clean patch; no other baseline repair or AppArmor mutation is authorized.
+      verified_fix: The applied file byte-matches the reviewed restoration snapshot and preserves
+        the Project shell fix. Two former failures passed, then the full selected five-file gate
+        passed59/59 in98.24s. No runtime or deployment change has occurred.
+      next: Include the verified restoration in the combined scoped candidate and complete P2 CI.
+      receipt: /tmp/openmates-6407-preflight-deploy-final.log
+    runtime_order: The initial P1 schema setup and runtime refresh are complete. For the current
+      code-only preflight fix, use sessions.py docker restart --session 6407 --build with explicit
+      cms, api and core-worker targets, followed by wait-health. No new schema setup is needed
+      unless the final patch changes schemas. The helper may expand to other running backend
+      services for generation coherence. There are no app-ai or app-code HTTP services.
+    isolation: Dedicated temporary OPENMATES_STATE_DIR controls login, source registry, caches and child processes; HOME and the engineering login stay intact.
+    runner: logs/agent-6407-live-check.py
+    coordination: Existing exclusive test-account and shared dev-stack leases with heartbeats; no automatic inference retries.
+    apparmor:
+      finding: Ubuntu's AppArmor user-namespace restriction blocks unprofiled bubblewrap on the dev host.
+      prepared_profile: /tmp/openmates-6407-bwrap.apparmor
+      validation: Syntax checked without kernel load; dedicated /usr/bin/bwrap attachment adds userns permission and preserves the global restriction.
+      status: The earlier path-selection question is superseded by U30's AppArmor-first terminal
+        adapter decision. The prior syntax-only profile was not loaded; the new bounded host setup
+        must be concretely reviewed before authorized dev validation.
+  deployment:
+    state: published_and_healthy
+    commit: 5fe487f43d262864326ccc15d078943690b96c57
+    published_plan_checkpoint: Plan r32 was published separately in docs-only commit ee65046505b7b285c7cb01e67bb4af6b7aa90c6f. The current local handoff records U25, withdraws the unnecessary numbered-fixture repair request, and resumes with the working personal DEV TEST account.
+    receipt: /tmp/openmates-6407-reviewed-deploy-corrected.log
+    passed: Materialized Specification gate, embed registry, changed-file lint and the required backend pytest gate (24 files) passed. The exact reviewed 121-path candidate was published through session6407.
+    initial_attempt_receipt: /tmp/openmates-6407-reviewed-deploy.log
+    runtime: Schema setup docker-1d449f21 and service refresh docker-caa4cb44 succeeded. The coordinator expanded the explicit services to restore a single backend generation; all services and the API health endpoint are healthy.
+    health_receipt: /tmp/openmates-6407-dev-health.log
+    web: Exact-commit Vercel deployment succeeded at https://vercel.com/marcos-projects-e740a395/open-mates-webapp/7CqKSj2oZtxUgNgdnGH6eDshoV6X.
+    cli: Automatic workflow run https://github.com/glowingkitty/OpenMates/actions/runs/35814376095 passed build/tests and published openmates@0.21.0-alpha.1. The global engineering CLI login/install has not been changed.
+    first_live_launch: The local pnpm-resolved Playwright binary rejected the test subcommand. No test, login or inference ran; fix the test-runner entrypoint without changing product assertions.
+    live_runner_correction: The ignored runner now invokes the already-installed Playwright Test CLI from the canonical dependency directory, with explicit worktree config and spec paths. No dependency installation was needed.
+    second_live_launch: The selected real-inference test starts, but beforeAll login returns HTTP200 login.code_wrong. No chat, inference or Project mutation ran. Inspect credential-slot consistency and backend rejection semantics without resetting accounts or sending email.
+    live_receipt: /tmp/openmates-6407-live-files-rerun.log
+    bounded_auth_diagnosis: Slot mapping and the shared HMAC-SHA1/Base32 six-digit TOTP algorithm are consistent; API and host clocks differ by about 1.6 seconds. Bounded API logs show accepted credentials followed by invalid_2fa_otp_code, with no password failure. The configured test-account TOTP secret appears stale or mismatched.
+    alternate_fixture: One further attempt selected explicit configured slot10 under its own lease; it also failed login.code_wrong in beforeAll. No chat, Project mutation or inference ran. Stop further authentication attempts until the fixture credentials are corrected.
+    alternate_receipt: /tmp/openmates-6407-live-files-alternate-account.log
+    verification_status: Live inference is not verified; failed setup is neither a product pass nor a passing skip. Disposable CLI state and account/runtime leases are cleaned up by finally hooks. No test-account security settings, engineering login or AppArmor profiles were changed.
+    checks: Materialized Specification gate and embed registry passed. Lint found one undefined
+      Directus service reference in the Project focus WebSocket path, two unused Python imports,
+      and intentional terminal-control regexes needing narrowly documented lint exceptions.
+    correction_scope: Fix the actual service reference and targeted regression check; remove unused
+      imports and document intentional regexes without changing terminal sanitization behavior.
+      Refresh the candidate after fixes. Existing Project settings UI CI remains applicable if its
+      source is unchanged; real chat focus behavior is still verified directly on dev per U24.
+
+web_workspace_checkpoint:
+  task_id: f9815278-09c8-454e-80f3-1138174df040
+  user_direction: U26
+  state: browser_verification_passed_deployment_in_progress
+  existing_plan: docs/plans/projects-remote-sources/plan.yml
+  accepted_outcome: Connected Project source roots, nested folders, type-appropriate supported file
+    previews and fullscreen on-demand viewing without persisting remote files during browse/open.
+  supported_transport: Existing authenticated encrypted personal/Team bridge for bounded UTF-8 text.
+    Images/PDFs and binary or large-file progressive streaming remain unsupported by this bridge;
+    show explicit limitations rather than broken or falsely complete previews. No new binary protocol.
+  persistence_boundary: Browse/preview/fullscreen retain decrypted content only in client memory;
+    opaque relay envelopes are short-lived and single-consume. Explicit user import is a distinct
+    existing action and must reject incomplete content. No automatic upload or hosted embed creation.
+  implementation:
+  - Integrate remote roots and nested folder navigation into Project browsing; fix stored list-row activation.
+  - Separate bounded preview snippets from bounded fullscreen text and preserve completeness metadata.
+  - Add browser Team identity/routing parity, abort cleanup, safe errors and stale-response guards.
+  - Clear transient remote content on navigation or closure and show offline/protected/unsupported states.
+  verification:
+  - Focused virtual-preview/transport tests; representative bare component preview in isolated CI.
+  - Actual disposable foreground CLI source browser E2E in isolated CI, including nested navigation,
+    file fullscreen, no browse/open upload or Project-item persistence, and offline behavior.
+  - No real inference is needed for browser file viewing; live chat edits remain dev-only per U24.
+  focused_evidence:
+  - Fourteen UI service/crypto/request tests pass after the final valid-hash fixture correction;
+    eleven helper tests plus three transport tests. CLI serialization-budget tests pass2/2.
+  - Browser requests180KiB/4000 lines; source fits the exact serialized200KiB envelope budget,
+    marks trimmed text incomplete and removes its complete-file base. Ordinary64KiB and heavily
+    escaped180KiB cases are covered. Unknown UTF8 file types use safe text; known binary types do not.
+  - Review corrections preserve direct row actions, suppress nested-control duplicate activation,
+    fence refetch/import against source/navigation races, and use the refetched base hash/provenance.
+  current_coverage:
+  - projects-remote-sources.spec.ts now uses private CLI state and discovers the connected Project
+    from the workspace, browses src/lib/deep, and reads an end marker beyond the former20k snippet
+    limit. It checks no implicit persistence through close/reload, then retains deliberate import
+    and offline checks. Isolated E2E request8e3f3cc50aad2314b8de5c5fd9866bf9cc05de307a325c20a4571be48226fa0d,
+    run35860281860 passed1/1 with no skips, failures or flaky retries; the resulting connected
+    Project nested-files screenshot was inspected at /tmp/openmates-6407-connected-project-nested-files-passed.png.
+  - components/projects-remote-preview.spec.ts checks distinct view/import actions and incomplete
+    import blocking in bare desktop/mobile fixtures. Specification metadata and scoped lint pass.
+  - scripts/project_remote_access_live.mjs adds a UUID-named Project title and nested temporary
+    text fixture. These are outside the repository at runtime and contain only synthetic content.
+  ci_registration:
+    state: corrected_before_dispatch
+    checkpoint: The first component submission was rejected before dispatch because the new spec
+      lacked dependency classification; no CI run occurred. Register the spec in the existing
+      browser_component_contract group and publish a successor retained candidate before retrying.
+    translation_correction: Remove the redundant projects prefix from the new projects.yml keys
+      because the translation build already namespaces that source file. Component coverage now
+      asserts the translated privacy notice, import label and incomplete-content warning text.
+    helper_cleanup_correction: Remote-source fixture cleanup now attempts every registered cleanup
+      after an earlier failure and emits fixture IDs for deterministic reconciliation.
+    notification_lifecycle_correction: Before sending a delayed Project file completion notice,
+      recheck that the originating chat still exists so a deleted chat cannot trigger an email.
+    first_component_result: Candidate984800 component CI passed mobile and failed desktop because
+      the default five-second assertion ran before cold Vite hydration; retry failed identically.
+      Apply the shared component-preview readiness wait after all three navigations. The screenshot
+      also showed a real 200px code preview clipped by its 170px shell, so align the shell to 200px,
+      let its content fill that height and assert the embedded preview fits inside the shell.
+    component_verification: Candidate0d5c component run35857959662 passed both cases with no skips
+      or flaky retries; screenshots were reviewed. Preserve the proven product and component source.
+    browser_setup_correction: Candidate0d5c E2E run35858292047 reached authenticated browser setup
+      but the CLI helper received403 before fixture browsing. Retained CI logs confirm the helper
+      defaulted localhost API to Origin https://app.dev.openmates.org while the isolated server
+      allowed http://localhost:5173. Pass the URL-derived web origin to the login helper; no product
+      authentication behavior changed, and the actual browser verification remains pending.
+  owners:
+    ui: project_setup_surfaces
+    transport_helpers: project_browser_transport
+    browser_evidence_and_plan: root
+
+combined_candidate_checkpoint:
+  candidate: 0291e217163213a90b68d9cfaf2611bd445fa90d
+  state: deployment_attempt_failed_publication_not_confirmed
+  verification:
+  - Browser E2E request8e3f3cc50aad2314b8de5c5fd9866bf9cc05de307a325c20a4571be48226fa0d,
+    run35860281860 passed1/1 with no skips, failures or flaky retries.
+  - Component request0515fe04, run35857959662 passed2/2; screenshots were reviewed and remain
+    applicable because the final candidate preserves the verified product and component bytes.
+  - The final local CLI production ESM and declaration build passed; receipt is
+    /tmp/openmates-6407-final-cli-build.log.
+  deployment_hold: The reviewed deploy stopped before gates or publication because origin/dev moved
+    after candidate preparation. Across the35 selected paths, the only upstream overlap is regenerated
+    specifications/generated/assertion-index.yml; no reviewed product, test or helper source drifted.
+  reconciliation: Seed the successor from current origin/dev, reapply the same33 reviewed source
+    paths and regenerate both indexes so the unrelated upstream assertion entries are preserved.
+    Reuse the exact-byte component and browser evidence; no CI rerun is needed for generated-only drift.
+  latest_deploy_attempt: Reviewed deployment exec13839 exited1 because the original worktree HEAD,
+    index or selected files changed during deployment. Specification, lint, translations, SDK
+    boundary and the six-file pytest gates passed before that stop. Publication is not confirmed.
+  current_action: The reviewed AppArmor broker, installer, Git compatibility shim and source-policy
+    changes passed isolated kernel-integration CI. In parallel, the user explicitly requires the
+    approved web-chat Project scope now. Explicit Project mentions must activate the selected
+    Project focus before inference so hosted and remote browsing, fullscreen previews and editing
+    work from web chats. The browser remote-command origin reviewer was also confirmed missing and
+    is required now; without it a web code.run request waits until expiry because the source CLI is
+    not the requesting user interface. Dev-host setup and live command validation follow after the
+    kernel proof and explicit review of the concrete administrator-authenticated commands. The earlier combined
+    deployment, runtime refresh and real-AI checks remain separate and unverified.
+  remaining_verification: Real-AI Project file behavior and remote command execution are unverified.
+    Browser-only behavior runs in isolated CI; tests requiring real inference run directly on dev.
+  apparmor: U30 selects AppArmor-first kernel enforcement for terminal private content on the live
+    Project folder. The helper and installer are implemented and reviewed, but no profile has been
+    installed or exercised on the dev host. The isolated kernel fixture passes, but dev runtime
+    behavior remains unverified. Profiles are immutable per-policy artifacts cached until
+    reboot; per-command leases release without unloading them, so ordinary commands reuse a matching
+    profile. Pattern compilation widens Unicode and bracket-class wildcards conservatively when an
+    exact AppArmor representation is unsafe, and denies renaming protected ancestor directories so
+    a command cannot move private content outside the mediated pathname. This remains path-based
+    rather than data-taint enforcement.
+
+ignored_path_policy_checkpoint:
+  status: implementation_in_progress_apparmor_terminal_approved
+  user_direction: U28-U30
+  approval_scope: The user's explicit approval covers the defined ignored/private requirements and
+    six examples; no additional Specification-approval reprompt is required within that scope.
+  user_question: Determine whether files matched by .gitignore are impossible to inspect through
+    Project list, search, read and terminal tools, or whether their names or contents are anonymized.
+  confirmed_behavior:
+  - In a native Git root, remoteAccess.ts uses git check-ignore for ordinary untracked ignored paths;
+    their names and contents are omitted and only aggregate omission counts are returned. Tracked
+    files remain visible even when a later ignore pattern matches them.
+  - The .gitignore file itself remains readable and can reveal private-looking path patterns.
+  - Plain folders, nested repositories and fallback list/read paths do not apply one consistent
+    ignore policy. Native ripgrep applies ignore patterns, so native and fallback search can diverge.
+  - Terminal execution masks credential-classified values plus .git/config and configured aliases,
+    but does not generally deny paths because .gitignore matches them. Masked names can remain visible.
+  confirmed_gap: Current behavior is neither a deterministic cross-tool private-path boundary nor
+    a consistent anonymization contract across list, search, read and terminal execution.
+  approved_policy:
+  - Treat .gitignore as a discovery and direct-read filter rather than a secrecy boundary. Ignored
+    untracked files require explicit client user confirmation for a signed ephemeral exact-file grant
+    bound to Project, source, chat, request and path; no model or Project-file allowlist can grant it.
+  - Keep built-in private paths plus trusted additive .openmates/permissions.yml
+    file_access.private_paths as a deterministic deny boundary across list, search, read, import,
+    edit, recovery and terminal content access. Dedicated file tools hide matching names and content;
+    a terminal may reveal a filename but cannot obtain or mutate its private content.
+  - Enforce private policy at the source before bytes are read, transmitted or decrypted, and before
+    commands launch. Plain folders, nested repositories, native rg and fallback traversal must agree.
+  - Allow exact approved confined commands to use ordinary ignored dependencies and build outputs;
+    this command access neither exposes them to agent file tools nor overrides private paths.
+  authority: Built-ins and activated user additions are additive trusted state outside the
+    agent-writable Project. The permissions file is itself private; agent output, repository content,
+    deletion or edits cannot weaken active policy. Remote and hosted encryption remains unchanged.
+  approved_examples:
+  - An ignored local note remains absent until the user approves that exact file for one bound request.
+  - A tracked configuration file matching .gitignore remains filtered and needs its own exact grant.
+  - Git roots, nested repositories, plain folders, native search and fallback traversal return the
+    same ignored-file boundary.
+  - Built-in and custom private paths reveal neither names nor contents through dedicated file tools;
+    terminal filename visibility does not grant content access.
+  - An approved npm test may read ignored node_modules and write an allowed ignored test report.
+  - An approved shell command still cannot read .env, .git/config, the permissions file, or a custom
+    private certificate directly or through an alias.
+  contract_assertions:
+  - projects.files.ignored-exact-inclusion
+  - projects.files.private-path-deny
+  - code-run.remote.ignored-project-files
+  - code-run.remote.private-path-deny
+  implementation_status: Contracts, user documentation and the reviewed local implementation are
+    complete for the kernel-tested candidate, and the mandatory web-chat Project focus, source
+    discovery and origin-review slices are locally ready. Bounded host setup, dev runtime verification,
+    final publication and the separate earlier deployment remain pending.
+  implementation_evidence:
+  - The backend read/waiting focused suite passes 16 tests; the focused HMAC ignored-file grant case
+    passes 1 test. Independent ignored-file list, search and exact-read implementation may continue.
+  - The source policy helper suite reports 31 tests with 30 passing and 1 unsupported-host skip. This is focused
+    source evidence, not proof of live AppArmor enforcement or dev-host terminal behavior.
+  - Focused AppArmor broker tests pass 7 cases, installer tests pass 5 cases, Git compatibility shim
+    tests pass 5 cases, ignored-read tests pass 5 cases, and the full CLI bundle plus declaration
+    build passes. The build receipt is
+    /tmp/openmates-6407-u30-cli-build.log.
+  - backend/tests/test_remote_command_apparmor_live.py provides the kernel integration fixture.
+    The first two isolated runs failed before the kernel assertions. Explicit user-namespace setup
+    was then added to runtime and test preparation, and minimal toolchain mounts were added to the
+    fixture. Final request 6c96d4fadf0e06a024295d2fdcbf7e0738e8f2a53fe8f5eb5c4e57428e7ee91e
+    passed from source 4c8915b8fcc1e7c6470fbe12a4e143ee9b6715d7 at base
+    9f3b6921fb7661d80afc4c36376fa729226b0881 in run 35873282657. This is isolated
+    kernel proof, not dev-host setup or live Project command proof.
+  terminal_live_mount_gap:
+    finding: The current terminal sandbox masks private paths found before launch but exposes a live
+      Project mount. A matching private path created concurrently after mask construction can therefore
+      become visible to the running command, violating the deterministic deny boundary.
+    rejected_approach: U29 rejects a filtered temporary Project copy with checked writeback because
+      it behaves like another worktree or staging layer. Do not implement overlay copies, temporary
+      worktrees, staged source mirrors, or post-command writeback reconciliation for this boundary.
+    approved_architecture: U30 chooses a Linux AppArmor-first adapter that runs against the original
+      live Project folder and enforces private-content restrictions on every kernel access, including
+      newly created matching private paths, symlinks resolving into denied paths and known pre-existing
+      hard-link aliases. Filenames and ordinary metadata may be visible; content access and mutation
+      remain denied without copy, worktree, staging or writeback. The sandbox cannot create or rename
+      a denied source into an allowed alias, and source-owning peer processes should run under the same
+      policy. AppArmor does not taint file contents; an external unconfined owner deliberately copying
+      or hard-linking private data to a new allowed pathname republishes it outside this path boundary,
+      just as copying a secret into ordinary source would.
+    implementation: The reviewed broker and installer cache immutable per-policy profiles until reboot
+      and release per-command leases without unloading reusable profiles. Conservative widening for
+      Unicode and bracket-class rules fails closed, and protected ancestor-directory renames are denied.
+    current_followup:
+      finding: Ordinary Git commands failed when AppArmor denied the existing .git/config pathname that
+        the legacy confinement layer replaces with a readable empty mask. A compatibility shim and its
+        focused tests are now implemented locally without exempting that pathname.
+      rejected_shortcut: Exempting that pathname from AppArmor is unsafe because an external unconfined
+        owner could unlink and recreate it after command launch, exposing the replacement to the
+        confined command. That exemption is rejected.
+      required_outcome: Isolated kernel CI now proves the fixture, while later dev-host live validation
+        must still prove ordinary Git operation on a disposable real Project without weakening the
+        private-path boundary before claiming full runtime readiness.
+    host_setup: No dev-host setup has run. sudo -n is unavailable; after kernel proof, bounded setup
+      requires administrator authentication using the reviewed commands. No sysctl change is requested
+      or authorized. Unsupported enforcement fails visibly before launch.
+    verification: Kernel fixture CI passed in run 35873282657. Administrator-reviewed profile
+      installation, dev-host enforcement and live Project command behavior remain pending; the isolated
+      result does not establish those runtime outcomes.
+  task_account_status:
+    global_session: The earlier session expired while recording activity.
+    recovery: The documented PERSONAL account recovery succeeded without substituting a test account.
+    verification: Identity is verified as Glowingkitty user f21... with read access to the engineering
+      Project, and the scoped Task activity update was posted and confirmed.
+
+web_chat_project_checkpoint:
+  status: local_web_integration_complete_dev_verification_pending
+  user_direction: The user explicitly rejected deferring web-chat coding. Hosted and remote Project
+    browsing, fullscreen previews and editing from web chats remain mandatory approved scope.
+  focus_send_wiring:
+  - Current structured Project mentions capture transient send consent; plaintext mention syntax or
+    historical chat frames cannot synthesize activation intent.
+  - The durable encrypted-chat preflight must acknowledge first. The client then reloads the selected
+    Project and its decrypted current default focus with Team context, activates that exact focus and
+    only then dispatches chat_message_added. A distinct Project mention deterministically switches the
+    server binding, while ambiguous multi-Project sends fail closed.
+  - Focus-off revokes authenticated Project focus authority before clearing ordinary encrypted focus
+    metadata, and local state clears only after both backend steps succeed.
+  source_discovery: Remote folder and file mentions retain the exact source_id in their serialized
+    syntax. The active Project prompt now loads a fresh permission-scoped non-revoked source catalog
+    containing only source_id, type, live status and capabilities. Labels and encrypted content remain
+    absent, and deterministic dispatch authorization still rechecks the selected source.
+  command_origin: The bounded browser requesting-origin review lifecycle and approval transport are
+    implemented locally. Source-side CLI approval cannot substitute for the requesting user's decision.
+  local_verification: Focus and mention-routing suites pass 9 tests across 2 files. Targeted ESLint,
+    Specification test metadata, Plan YAML and diff checks pass. The focused backend source-routing
+    metadata test passes, including revoked-source exclusion and ciphertext omission; targeted Ruff
+    and Specification metadata checks pass.
+  remaining_verification: The file approval component passes 2 cases and terminal review passes 1,
+    with screenshots inspected. The connected-source browser case passed on retry; its initial
+    keyboard action race is fixed without weakening the assertion. The visible Project focus
+    lifecycle fix passes its focused regression.
+    Exactly two real-AI browser cases will verify hosted and remote file work directly on dev with
+    disposable state; these do not claim live terminal command execution.
+
+terminal_setup_product_requirement:
+  user_direction: Users must not need to run a developer-provided shell script for OpenMates to work.
+  decision: The temporary manual installer request is withdrawn. Supported Linux terminal protection
+    must have a normal CLI-managed setup path with clear capability detection and standard OS
+    authorization where necessary. Missing terminal setup must not disable Project browsing or file
+    editing, and must not silently weaken terminal protection.
+  status: Implemented locally; helper tests 4/4, CLI ESM/declaration build and bundled-source parity pass. No privileged host change made.
+  integration: Ship the exact reviewed guard assets with the CLI. Explicit remote-access
+    --enable-commands performs capability detection and, on an interactive supported Linux host,
+    invokes standard sudo authorization before verifying the installed capability. Preset enable
+    reuses this setup path, but presets remain optional for always-confirm terminal commands.
+    Ordinary file-only startup never initiates privileged setup. Noninteractive requests return a
+    stable setup-required error instead of hanging or weakening confinement.
+
+final_web_verification_checkpoint:
+  component_evidence:
+  - File approval card passes 2 cases and terminal review passes 1 on source
+    0c7276986c6083766899528c03bd5992705433e4; screenshots inspected for readability.
+  connected_browser_evidence: Run 35879480451 on source b2864b6eb1af3fd726e0057f05c4f9e0ae95a978
+    completes its sole case on retry (flaky=1, unexpected=0, skipped=0). Existing artifacts confirm
+    exact source and spec identity. Coordinator receipt retrieval rejects a harness-hash mismatch;
+    this is recorded rather than repaired or concealed. The initial keyboard action was split across
+    focus and global keypress calls; the final test targets locator.press with unchanged assertions.
+  real_inference: Pending dev deployment. Exactly two independent browser cases and three model
+    turns cover hosted encrypted create/update, approval, focus reopen/deactivation, remote original
+    file read/update, nested browsing and fullscreen content. Retries are disabled. All mutation
+    targets are disposable, and the personal dev account is used under the existing resource lease.
+
+final_scope_freeze:
+  user_direction: Come to an end; this is taking too long. Stop expansion and deliver the current patch.
+  action: Freeze source, publish the scoped patch through the required session integration gates, and
+    report actual availability and evidence. Do not begin additional optional checks or repair work.
+  unverified: The two real-AI hosted/remote browser cases are prepared but have not run. Actual dev
+    terminal execution is unverified because the one-time OS guard has not been installed. Do not
+    claim those checks passed or mark their Tasks complete merely because implementation is frozen.
+
+deployment_handoff:
+  implementation_commit: 66a757619ce2a428f26d9b7f07a1ed1bfc7501f8
+  web: Vercel deployment 6618319740 is ready; Projects are available through app.dev.openmates.org.
+  backend: Coordinated session6407 refresh completed on the implementation commit; API health is 200.
+  runtime_data: Seven existing generated newsletter files were preserved byte-for-byte with ownership
+    unchanged. A temporary exact-path Git exclusion was used only for the refresh invocation after
+    confirming no tracked changes and no overlap with published source; no data was moved or deleted.
+    Every other dirty path remained subject to the normal guard; Git fast-forward collision checks
+    remained enabled. Receipt is logs/agent-6407-web-checkpoint.json in the task workspace.
+  cli_publication: Initial alpha.4 publication failed because prepack invoked tsup without development
+    dependencies in the publish job. The correction verifies the already-built, byte-matched guard
+    assets. Existing CLI build/tests passed; automatic republishing is required to finish delivery.
+  not_claimed: Real-AI hosted/remote browser execution and installed dev-host terminal execution.
+  user_testing: Use the dev Projects workspace for nested browsing and fullscreen previews. Mention a
+    Project in a web chat to activate its visible focus, then request a small edit in a disposable
+    Project. Remote folders use the updated CLI. Terminal protection setup is integrated into normal
+    remote-access --enable-commands with standard OS authorization; no separate shell script is needed.
+
+final_registry_confirmation:
+  status: Delivered for user testing; no further automatic implementation or testing is running.
+  cli_version: 0.21.0-alpha.4
+  cli_publish_fix_commit: 86b475a6864faa84f6cb30889839fb857ad6b9ad
+  publish_workflow: https://github.com/glowingkitty/OpenMates/actions/runs/35885597622
+  registry: The pinned version and alpha tag are both confirmed available; all three guard assets are included.
+  deployment: Web alias and backend are confirmed on implementation commit 66a7576; API health is 200.
+  verification_remaining: Real-AI hosted/remote web-chat edits and actual installed dev-host terminal execution.
+
+projects_creation_policy_correction:
+  status: ready_for_scoped_deployment
+  user_direction: The Projects workspace must not show the write-policy question continuously. Web
+    and CLI creation or folder-addition flows ask after the user initiates that operation. Existing
+    Projects assume Apply and show changes.
+  implementation:
+  - The web workspace now collects the Project name first, then opens a focused setup dialog with
+    neither policy preselected. The same two-step flow is used by the sidebar creator.
+  - Legacy settings serialize with Apply and show changes. An authorized web or CLI client creates
+    the missing Work on (project) focus and encrypts it with the Project key before storing it; the
+    server retains ciphertext and the focus hash only.
+  - Starting a previously linked CLI source initializes missing legacy settings before registering
+    the live bridge. New Project and folder setup continues to require an explicit policy answer.
+  personal_dev_account: The documented Glowingkitty account and Project 96033196-e4b1-431e-b773-ba221e952fed
+    were restored after the session expired. Its legacy settings now use apply_and_show with an
+    encrypted default focus, and source a265557a-4465-45a0-a6e7-e3bcd90c99fc reports connected.
+  verification: Focused backend settings/authorization tests pass 26/26; the browser settings
+    migration test passes 7/7 in its file; ProjectsPage compiles; CLI ESM and declaration builds pass;
+    scoped diff validation passes. Existing unrelated repository-wide type errors remain outside scope.

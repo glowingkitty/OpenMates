@@ -61,3 +61,28 @@ def test_run_executes_stages_in_order_and_validates_each_manifest(monkeypatch):
     run_id = module.run(stages)
     assert len(run_id) == 32
     assert calls == list(module.STAGES)
+
+
+def test_run_recovers_stale_control_file_under_lock(tmp_path, monkeypatch):
+    module = load_module()
+    control_file = tmp_path / "control.json"
+    control_file.write_text('{"run_id":"interrupted"}', encoding="utf-8")
+    monkeypatch.setattr(module, "CONTROL_FILE", control_file)
+    monkeypatch.setattr(module, "CONTROL_LOCK", tmp_path / "control.lock")
+
+    def fake_run_stage(_command, environment):
+        control = __import__("json").loads(control_file.read_text(encoding="utf-8"))
+        assert control["run_id"] == environment["APPLE_CROSS_CLIENT_RUN_ID"]
+        assert control["artifact_dir"] == environment["APPLE_CROSS_CLIENT_ARTIFACT_DIR"]
+        for name in ("apple-consumer", "apple-producer"):
+            module.manifest_path(
+                Path(environment["APPLE_CROSS_CLIENT_ARTIFACT_DIR"]),
+                environment["APPLE_CROSS_CLIENT_RUN_ID"], name
+            ).write_text(
+                '{"schema_version":1,"run_id":"' + environment["APPLE_CROSS_CLIENT_RUN_ID"] + '","chat_id":"opaque"}',
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(module, "run_stage", fake_run_stage)
+    module.run({"apple": "synthetic"}, module.APPLE_TO_WEB_STAGES[:1])
+    assert not control_file.exists()

@@ -13,6 +13,14 @@ import UIKit
 
 @MainActor
 final class ChatManagementSharingParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=message-input.drafts.preview-persistence,message-input.embeds.gated-send
+    func testAskAboutPhotoQuickActionUsesDraftCapableNewChatComposer() {
+        XCTAssertEqual(MainAppQuickActionRoute.route(for: .askAboutPhoto), .photoNewChat)
+        XCTAssertEqual(MainAppQuickActionRoute.route(for: .recordRequest), .recordingNewChat)
+        XCTAssertNotEqual(MainAppQuickActionRoute.route(for: .askAboutPhoto), .focusedNewChat)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=workspace-shell.start.shared-affordances
     func testHomeScreenQuickActionDefinitionsMatchChatActions() {
         #if os(iOS)
         let items = AppQuickAction.shortcutItems
@@ -38,6 +46,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.start.shared-affordances
     func testInfoPlistRegistersInstallTimeHomeScreenQuickActions() throws {
         #if os(iOS)
         let bundle = Bundle(for: AppDelegate.self)
@@ -72,6 +81,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         #endif
     }
 
+    // contract-test: direct surface=gui.apple assertions=workspace-shell.start.shared-affordances
     func testMacMenuBarQuickCaptureUsesGlyphOnlyStatusIcon() {
         #if os(macOS)
         XCTAssertFalse(
@@ -81,6 +91,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
     func testMacMenuBarQuickCaptureRefreshesOfflineAuthenticatedSessionBeforeSend() {
         #if os(macOS)
         XCTAssertTrue(
@@ -103,6 +114,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.localization.visible-content-resolves,workspace-shell.start.shared-affordances
     func testQuickActionTitlesResolveForEverySupportedLanguage() async {
         #if os(iOS)
         let manager = LocalizationManager.shared
@@ -123,6 +135,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testPinnedAndArchivedChatsMatchSidebarBuckets() {
         let store = ChatStore()
         let pinned = makeChat(id: "pinned", title: "Pinned", isArchived: false, isPinned: true, updatedAt: "2026-01-03T00:00:00Z")
@@ -139,6 +152,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(store.unpinnedChats.map(\.id), ["visible"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence
     func testChatManagementMergePreservesLocalFlagsWhenSyncPatchOmitsThem() {
         let store = ChatStore()
         let base = makeChat(id: "managed-chat", title: "Managed", isArchived: false, isPinned: true, updatedAt: "2026-01-01T00:00:00Z")
@@ -169,6 +183,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(merged?.messagesV, 2)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testShareBlobsUseWebFieldsForEveryDuration() async throws {
         let key = SymmetricKey(data: Data((0..<32).map(UInt8.init)))
 
@@ -192,6 +207,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         }
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testPasswordProtectedEmbedShareBlobUsesWebDerivation() async throws {
         let key = SymmetricKey(data: Data(repeating: 7, count: 32))
         let identifier = "embed-share-fixture"
@@ -221,6 +237,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(values["pwd"], "1")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDurableShortLinksUseWebTwoHundredThousandRoundDerivation() async throws {
         let longURL = try XCTUnwrap(URL(string: "https://app.example.invalid/share/chat/chat-share-fixture#key=opaque"))
         let encrypted = try await ShareLinkCrypto.encryptedShortURL(longURL)

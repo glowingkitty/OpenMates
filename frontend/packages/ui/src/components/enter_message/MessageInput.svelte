@@ -96,8 +96,8 @@
     import { handleSend } from './handlers/sendHandlers';
     import { shouldAwaitAITaskStart } from './handlers/sendClassification';
     import MentionDropdown from './MentionDropdown.svelte';
+    import { buildProjectMentionSyntax } from './services/projectMentionSyntax';
     import {
-        buildProjectMentionSyntax,
         extractMentionQuery,
         resolveModelMentionSelection,
         type AnyMentionResult,
@@ -192,6 +192,7 @@
         activeFocusId?: string | null;
         activeFocusAppId?: string | null;
         activeFocusModeMetadata?: FocusModeMetadata | null;
+        activeProjectFocusName?: string | null;
         /**
          * Bounding rect of the parent ActiveChat container (the full-width card),
          * passed from ActiveChat so that when MessageInput is in fullscreen mode
@@ -241,6 +242,7 @@
         activeFocusId = null,
         activeFocusAppId = null,
         activeFocusModeMetadata = null,
+        activeProjectFocusName = null,
         onFocusPillDeepLink = undefined,
         onFocusPillDeactivate = undefined,
         isIncognitoMode = false,
@@ -2019,7 +2021,7 @@
                 // Desktop is the default layout (no class needed)
                 if (isMobile) {
                     group.classList.add('container-mobile');
-                } else {
+                    } else {
                     group.classList.remove('container-mobile');
                 }
             });
@@ -2925,6 +2927,7 @@
                     mentionSyntax: result.mentionSyntax,
                     mentionId: crypto.randomUUID(),
                     projectId: projectResult?.projectId,
+                    projectSourceId: projectResult?.projectSourceId,
                     projectPath: projectResult?.projectPath,
                     projectAccessMode: projectResult?.projectAccessMode,
                     colorStart: 'colorStart' in genericResult ? genericResult.colorStart : undefined,
@@ -4269,6 +4272,7 @@
             String(found.node.attrs.projectId),
             nextMode,
             typeof found.node.attrs.projectPath === 'string' ? found.node.attrs.projectPath : undefined,
+            typeof found.node.attrs.projectSourceId === 'string' ? found.node.attrs.projectSourceId : undefined,
         );
 
         editor.view.dispatch(
@@ -6045,7 +6049,8 @@
     // "@Travel-Search Show me flights..." instead of "Show me flights...@Travel-Search",
     // which avoids false PII detection (an @mention at the end looks like an email).
     $effect(() => {
-        const mention = $pendingMentionStore;
+        const pendingMention = $pendingMentionStore;
+        const mention = typeof pendingMention === 'string' ? pendingMention : pendingMention?.syntax;
         if (mention && editor && !editor.isDestroyed) {
             console.debug('[MessageInput] Inserting pending mention:', mention);
             pendingMentionStore.set(null);
@@ -6053,6 +6058,30 @@
                 if (!editor || editor.isDestroyed) return;
                 // Insert at the start so the mention precedes any existing body text.
                 editor.commands.focus('start');
+
+                if (typeof pendingMention !== 'string') {
+                    editor
+                        .chain()
+                        .focus()
+                        .setGenericMention({
+                            mentionType: pendingMention.type,
+                            displayName: pendingMention.displayName,
+                            mentionSyntax: pendingMention.syntax,
+                            mentionId: crypto.randomUUID(),
+                            projectId: pendingMention.projectId,
+                            projectSourceId: pendingMention.projectSourceId,
+                            projectPath: pendingMention.projectPath,
+                            projectAccessMode: pendingMention.projectAccessMode,
+                        })
+                        .insertContent(' ')
+                        .run();
+                    hasContent = true;
+                    refreshDraftPreviewState(editor);
+                    lastEditorUpdateText = editor.getText();
+                    updateOriginalMarkdown(editor);
+                    editor.commands.focus('end');
+                    return;
+                }
 
                 // Parse "@mate:{mateId}" to extract the id
                 const mateMatch = mention.match(/^@mate:(.+)$/);
@@ -6079,7 +6108,7 @@
                             })
                             .insertContent(' ')
                             .run();
-                    } else {
+                } else {
                         // Unknown mate id — fall back to plain text insertion
                         console.warn('[MessageInput] Unknown mate id from pendingMentionStore:', mateId);
                         editor.commands.insertContent(mention + ' ');
@@ -6344,13 +6373,17 @@
                         ></span>
                     {/if}
                     <span class="focus-pill-label" data-testid="focus-pill-label">
-                        {#if activeFocusModeMetadata}
+                        {#if activeProjectFocusName}
+                            {$text('projects.focus_active', { values: { project: activeProjectFocusName } })}
+                        {:else if activeFocusModeMetadata}
                             {$text(activeFocusModeMetadata.name_translation_key)}
                         {:else}
                             {$text('embeds.focus_mode.active_banner')}
                         {/if}
                     </span>
-                    <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
+                    {#if !activeProjectFocusName}
+                        <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
+                    {/if}
                 </button>
                 <!-- Toggle: click to start 1s deactivation countdown (click again to undo).
                      stopPropagation on the wrapper prevents clicks from reaching the pill-body button. -->
@@ -6363,6 +6396,7 @@
                 >
                     <Toggle
                         checked={!focusPillDeactivating}
+                        testId="focus-pill-toggle"
                         on:change={handleFocusPillToggle}
                     />
                 </div>

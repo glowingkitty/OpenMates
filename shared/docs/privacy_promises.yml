@@ -33,7 +33,7 @@ promises:
   - id: client-side-chat-encryption
     category: encryption
     severity: critical
-    i18n_key: legal.privacy.promises.client_side_chat_encryption
+    i18n_key: legal.privacy.promises.client_side_chat_encryption_v2
     verification: test
     gdpr_articles: ["Art. 32"]
     enforcement:
@@ -102,7 +102,7 @@ promises:
   - id: pii-placeholder-substitution
     category: pii
     severity: critical
-    i18n_key: legal.privacy.promises.pii_placeholder_substitution
+    i18n_key: legal.privacy.promises.pii_placeholder_substitution_v2
     verification: test
     gdpr_articles: ["Art. 5(1)(c)", "Art. 25"]
     enforcement:

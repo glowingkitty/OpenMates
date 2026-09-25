@@ -20,6 +20,7 @@ DEFAULT_TIMEOUT_SECONDS = 15.0
 PRINTABLES_GRAPHQL_URL = "https://api.printables.com/graphql/"
 PRINTABLES_MEDIA_BASE_URL = "https://media.printables.com"
 PRINTABLES_SOURCE_BASE_URL = "https://www.printables.com/model"
+PRINTABLES_MAX_SEARCH_RESULTS = 40
 
 FORBIDDEN_METADATA_KEYS = {
     "api_key",
@@ -225,6 +226,7 @@ class PrintablesSearchProvider:
     provider_name = "Printables"
 
     async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
+        bounded_count = max(1, min(int(count), PRINTABLES_MAX_SEARCH_RESULTS))
         graphql_query = """
         query SearchPrints($query: String!, $limit: Int!) {
           searchPrints2(query: $query, printType: print, limit: $limit, ordering: best_match) {
@@ -255,7 +257,7 @@ class PrintablesSearchProvider:
         async with create_http_client("printables", timeout=DEFAULT_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 PRINTABLES_GRAPHQL_URL,
-                json={"query": graphql_query, "variables": {"query": query, "limit": count}},
+                json={"query": graphql_query, "variables": {"query": query, "limit": bounded_count}},
             )
         if response.status_code != 200:
             raise Model3DProviderError("Printables", "http_error", f"Printables returned HTTP {response.status_code}")

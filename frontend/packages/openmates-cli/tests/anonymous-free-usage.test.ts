@@ -23,6 +23,8 @@ const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 interface AnonymousMockOptions {
   statusCode?: number;
   statusBody?: unknown;
+  skillStatusCode?: number;
+  skillBody?: unknown;
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
@@ -38,9 +40,10 @@ function writeJson(response: ServerResponse, status: number, value: unknown): vo
 
 async function withAnonymousMockApi<T>(
   options: AnonymousMockOptions,
-  run: (params: { apiUrl: string; tempHome: string; requests: Record<string, unknown>[] }) => T | Promise<T>,
+  run: (params: { apiUrl: string; tempHome: string; requests: Record<string, unknown>[]; skillRequests: Array<{ body: Record<string, unknown>; anonymousId: string | undefined }> }) => T | Promise<T>,
 ): Promise<T> {
   const requests: Record<string, unknown>[] = [];
+  const skillRequests: Array<{ body: Record<string, unknown>; anonymousId: string | undefined }> = [];
   const tempHome = join(tmpdir(), `openmates-cli-anonymous-free-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   mkdirSync(tempHome, { recursive: true });
   const server = createServer(async (request, response) => {
@@ -68,6 +71,14 @@ async function withAnonymousMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/anonymous/apps/web/skills/search") {
+        const body = await readJsonBody(request);
+        skillRequests.push({ body, anonymousId: request.headers["x-openmates-anonymous-id"] as string | undefined });
+        writeJson(response, options.skillStatusCode ?? 200, options.skillBody ?? {
+          success: true, data: { results: [{ title: "Example" }] }, credits_charged: 6,
+        });
+        return;
+      }
       writeJson(response, 404, { detail: "Not Found" });
     } catch (error) {
       writeJson(response, 500, { detail: String(error) });
@@ -77,7 +88,7 @@ async function withAnonymousMockApi<T>(
   const address = server.address();
   assert.ok(address && typeof address === "object");
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, tempHome, requests });
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, tempHome, requests, skillRequests });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -111,6 +122,37 @@ async function runCliExpectError(args: string[], env: Record<string, string>): P
 }
 
 describe("anonymous free usage CLI", () => {
+  // contract-test: direct surface=cli assertions=billing.anonymous.hard-capped-provider-metering
+  it("runs an inline account-free app skill while logged out with the anonymous identity", async () => {
+    await withAnonymousMockApi({}, async ({ apiUrl, tempHome, skillRequests }) => {
+      const result = await runCliJson(
+        ["apps", "web", "search", "--query", "OpenMates", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      assert.equal(result.credits_charged, 6);
+      assert.deepEqual(skillRequests[0].body, { requests: [{ query: "OpenMates" }] });
+      assert.ok(skillRequests[0].anonymousId);
+      const diskState = JSON.parse(readFileSync(join(tempHome, ".openmates", "anonymous.json"), "utf-8")) as { anonymousId?: string };
+      assert.equal(skillRequests[0].anonymousId, diskState.anonymousId);
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=billing.anonymous.hard-capped-provider-metering
+  it("shows shared-budget rejection for a logged-out app skill", async () => {
+    await withAnonymousMockApi(
+      { skillStatusCode: 429, skillBody: { detail: { code: "budget_exhausted", message: "Create an account to keep using OpenMates." } } },
+      async ({ apiUrl, tempHome, skillRequests }) => {
+        const stderr = await runCliExpectError(
+          ["apps", "web", "search", "--query", "OpenMates", "--json", "--api-url", apiUrl],
+          { HOME: tempHome, USERPROFILE: tempHome },
+        );
+        assert.match(stderr, /Create an account to keep using OpenMates/);
+        assert.equal(skillRequests.length, 1);
+      },
+    );
+  });
+
+  // contract-test: direct surface=cli assertions=billing.anonymous.hard-capped-provider-metering
   it("discovers active status, sends anonymous ID, and persists it locally", async () => {
     await withAnonymousMockApi({}, async ({ apiUrl, tempHome, requests }) => {
       const first = await runCliJson(
@@ -135,6 +177,7 @@ describe("anonymous free usage CLI", () => {
     });
   });
 
+  // contract-test: supporting surface=cli assertions=billing.anonymous.hard-capped-provider-metering
   it("sends anonymous Learning Mode context when requested", async () => {
     await withAnonymousMockApi({}, async ({ apiUrl, tempHome, requests }) => {
       await runCliJson(
@@ -161,6 +204,7 @@ describe("anonymous free usage CLI", () => {
     });
   });
 
+  // contract-test: supporting surface=cli assertions=billing.anonymous.hard-capped-provider-metering
   it("omits anonymous Learning Mode context by default", async () => {
     await withAnonymousMockApi({}, async ({ apiUrl, tempHome, requests }) => {
       await runCliJson(
@@ -173,6 +217,7 @@ describe("anonymous free usage CLI", () => {
     });
   });
 
+  // contract-test: direct surface=cli assertions=billing.anonymous.hard-capped-provider-metering
   it("blocks inactive anonymous status before chat execution", async () => {
     await withAnonymousMockApi(
       { statusBody: { active: false, reason: "inactive", reset_at: "2026-06-17T00:00:00+00:00", cta: "Create an account to keep using OpenMates." } },
@@ -187,6 +232,7 @@ describe("anonymous free usage CLI", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=billing.anonymous.hard-capped-provider-metering
   it("blocks self-hosted anonymous status before chat execution", async () => {
     await withAnonymousMockApi(
       { statusCode: 404, statusBody: { detail: "Feature not available on this server edition" } },
@@ -201,6 +247,7 @@ describe("anonymous free usage CLI", () => {
     );
   });
 
+  // contract-test: direct surface=cli assertions=billing.anonymous.hard-capped-provider-metering
   it("returns signup_required before reading anonymous file references", () => {
     const tempHome = join(tmpdir(), `openmates-cli-anonymous-file-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     mkdirSync(tempHome, { recursive: true });

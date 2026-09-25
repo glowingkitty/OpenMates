@@ -308,3 +308,18 @@ async def test_draft_step_test_uses_initialized_output_safety_dependencies(monke
     assert result["run"]["status"] == "completed"
     assert captured["adapter"].secrets_manager is secrets
     assert captured["adapter"].cache_service is cache
+
+    node.type = WorkflowNodeType.CHECK
+    node.config = {
+        "mode": "exact",
+        "predicate": {
+            "left": "$nodes.weather.output.rain_probability",
+            "op": "gte",
+            "right": 60,
+        },
+    }
+    result = await namespace["test_workflow_step"]("workflow", "weather", request,
+        SimpleNamespace(input={}, upstream_outputs={"weather": {"rain_probability": 72}}),
+        SimpleNamespace(id="owner", vault_key_id="owner-vault"),
+        SimpleNamespace(get_workflow=lambda *args: workflow))
+    assert result["run"]["status"] == "completed"

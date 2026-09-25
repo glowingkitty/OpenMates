@@ -38,6 +38,8 @@
     title?: string;
     /** Subtitle (smaller, 0.85 opacity). */
     subtitle?: string;
+    /** Optional source provenance shown above the subtitle with a cloud icon. */
+    provenance?: string;
     /** Optional favicon/logo URL shown next to the title text. */
     faviconUrl?: string;
     /** Whether the favicon should be circular (channel thumbnails, profile pics). */
@@ -66,6 +68,7 @@
     showSkillIcon = true,
     title = '',
     subtitle = '',
+    provenance = '',
     faviconUrl,
     faviconIsCircular = false,
     hasCta = false,
@@ -275,6 +278,13 @@
             />
           {/if}
           <span class="header-title-text" data-testid="embed-header-title">{title}</span>
+        </div>
+      {/if}
+
+      {#if provenance}
+        <div class="header-provenance" data-testid="embed-header-provenance">
+          <span class="header-provenance-icon" data-testid="embed-header-provenance-icon" aria-hidden="true"></span>
+          <span>{provenance}</span>
         </div>
       {/if}
 
@@ -670,6 +680,37 @@
     overflow-wrap: anywhere;
   }
 
+  .header-provenance {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    max-width: 100%;
+    margin-top: var(--spacing-1);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: center;
+    animation: fadeIn 0.4s ease-out 0.15s both;
+  }
+
+  .header-provenance-icon {
+    width: 1em;
+    height: 1em;
+    flex: 0 0 auto;
+    background: currentColor;
+    -webkit-mask: var(--icon-url-cloud) center / contain no-repeat;
+    mask: var(--icon-url-cloud) center / contain no-repeat;
+  }
+
+  .header-provenance span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* Subtitle */
   .header-subtitle {
     font-size: var(--font-size-small);
@@ -931,6 +972,10 @@
       font-size: var(--font-size-xs);
     }
 
+    .header-provenance {
+      font-size: var(--font-size-xs);
+    }
+
     .deco-icon {
       width: 90px;
       height: 90px;
@@ -966,6 +1011,7 @@
     }
   }
   .static-presentation .header-center,
+  .static-presentation .header-provenance,
   .static-presentation .header-subtitle,
   .static-presentation .header-cta-area,
   .static-presentation .deco-icon { animation: none; }

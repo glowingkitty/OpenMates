@@ -3,6 +3,8 @@
 // Receipts, broadcasts, reconnect versions, and authoritative chat deletion are
 // applied without echoing remote updates or inferring deletion from partial pages.
 // Composer rendering and plaintext editor state remain outside this service.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
 
 import Foundation
 
@@ -41,6 +43,20 @@ final class DraftSyncCoordinator {
 
     var activeNewChatDraftId: String? { newChatDraftId }
 
+    func reserveNewChatDraftId(preferredId: String) -> String {
+        if let newChatDraftId { return newChatDraftId }
+        newChatDraftId = preferredId
+        return preferredId
+    }
+
+    /// Starts another new-chat composer without deleting the previous draft.
+    /// The old UUID remains a normal draft-only chat and can still be resumed
+    /// from the chat list; only the synthetic composer alias moves forward.
+    func beginFreshNewChatDraft(preferredId: String) -> String {
+        newChatDraftId = preferredId
+        return preferredId
+    }
+
     init(
         repository: any ComposerDraftRepository,
         chatStore: ChatStore,
@@ -74,10 +90,20 @@ final class DraftSyncCoordinator {
         newChatDraftId = nil
     }
 
-    func restoreNewChatDraftId(from records: [ComposerDraftRecord]) {
+    func restoreNewChatDraftId(
+        from records: [ComposerDraftRecord],
+        cachedChats: [Chat] = [],
+        preferredId: String? = nil
+    ) {
         guard newChatDraftId == nil else { return }
         let recordIds = Set(records.map(\.chatId))
-        newChatDraftId = chatStore.chats.first(where: { chat in
+        let knownChats = chatStore.chats + cachedChats
+        if let preferredId, recordIds.contains(preferredId),
+           knownChats.first(where: { $0.id == preferredId }).map({ isDraftOnlyChat($0) }) != false {
+            newChatDraftId = preferredId
+            return
+        }
+        newChatDraftId = knownChats.first(where: { chat in
             recordIds.contains(chat.id) && isDraftOnlyChat(chat)
         })?.id
     }
@@ -96,6 +122,7 @@ final class DraftSyncCoordinator {
             chatId: resolvedChatId,
             encryptedMarkdown: record.encryptedMarkdown,
             encryptedPreview: record.encryptedPreview,
+            encryptedRecordingPayload: record.encryptedRecordingPayload,
             revision: record.revision,
             draftVersion: record.draftVersion
         )
@@ -362,7 +389,6 @@ final class DraftSyncCoordinator {
 
     private func isDraftOnlyChat(_ chat: Chat) -> Bool {
         (chat.messagesV ?? 0) == 0
-            && chat.lastMessageAt == nil
             && chatStore.messages(for: chat.id).isEmpty
     }
 

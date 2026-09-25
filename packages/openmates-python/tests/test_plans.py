@@ -8,7 +8,9 @@ Run: python3 -m pytest packages/openmates-python/tests/test_plans.py
 
 # contract-test-file: tooling
 
-from openmates import OpenMates
+import pytest
+
+from openmates import OpenMates, OpenMatesConfigError
 from openmates.sdk import _create_api_key_material, _encrypted_object_slug_metadata, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
 
 
@@ -19,10 +21,28 @@ PLAN = {
     "created_at": 100,
     "updated_at": 100,
 }
+PROJECT_ID = "22222222-2222-4222-8222-222222222222"
 
 
 def assert_no_plaintext_marker(value, marker):
     assert marker not in str(value)
+
+
+# contract-test: direct surface=sdks.pip assertions=plans.project-links.encrypted
+def test_pip_sdk_rejects_every_plan_creation_path_without_a_project(monkeypatch):
+    def unexpected_request(*args, **kwargs):
+        raise AssertionError("Plan validation must happen before API access")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", unexpected_request)
+    monkeypatch.setattr("openmates.sdk.requests.post", unexpected_request)
+    client = OpenMates(api_key="test-key", device_id="test-device")
+
+    with pytest.raises(OpenMatesConfigError, match="requires at least one Project link"):
+        client.plans.create({"title": "Unlinked", "goal": "Must fail"})
+    with pytest.raises(OpenMatesConfigError, match="requires at least one Project link"):
+        client.plans.ask("Create an unlinked Plan")
+    with pytest.raises(OpenMatesConfigError, match="requires at least one Project link"):
+        client.chats.send("Do it", goal="Create a Plan")
 
 
 # contract-test: direct surface=sdks.pip assertions=plans.content.client-encrypted,plans.lifecycle.visible,plans.key-wrappers.contextual,plans.execution.gates-evidence,plans.surface.semantic-parity
@@ -31,6 +51,7 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     master_key = bytes([8]) * 32
     plan_key = bytes([9]) * 32
     chat_key = bytes([10]) * 32
+    project_key = bytes([11]) * 32
     api_key, material = _create_api_key_material("pip plan cleartext", master_key)
     encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, master_key)
     plan = {
@@ -59,6 +80,8 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
             return FakeResponse({"chat": {"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}})
         if url.endswith("/v1/sdk/chats?limit=0&offset=0"):
             return FakeResponse({"chats": [{"id": "chat-1", "encrypted_chat_key": encrypted_chat_key, "encrypted_title": _encrypt_aes_gcm_text("Chat", chat_key)}]})
+        if url.endswith(f"/v1/projects/{PROJECT_ID}"):
+            return FakeResponse({"project": {"project_id": PROJECT_ID, "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}})
         if url.endswith("/v1/user-plans/plan-1"):
             return FakeResponse({"plan": plan})
         if url.endswith("/runs/run-1"):
@@ -121,7 +144,7 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     client = OpenMates(api_key=api_key, device_id="test-device")
     assert client.plans.list(status="draft", chat_id="chat-1")[0]["plan_id"] == "plan-1"
     assert client.plans.show("plan-1")["plan_id"] == "plan-1"
-    assert client.plans.create({"title": "Created plan", "goal": "Deliver the plan"})["title"] == "Created plan"
+    assert client.plans.create({"title": "Created plan", "goal": "Deliver the plan", "linked_project_ids": [PROJECT_ID]})["title"] == "Created plan"
     assert client.plans.update("plan-1", {"status": "active"})["status"] == "active"
     assert client.plans.attach("plan-1", chat_id="chat-1")["primary_chat_id"] == "chat-1"
     assert client.plans.start("plan-1")["status"] == "executing"
@@ -176,6 +199,9 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     assert any(url.startswith("/v1/user-plans?status=draft") for url in urls)
     assert "/v1/user-plans/plan-1" in urls
     assert "/v1/user-plans/plan-1/activate" in urls
+    create_request = next(request for request in requests_seen if request["method"] == "POST" and request["url"].endswith("/v1/user-plans"))
+    assert create_request["json"]["linked_project_ids"] == [PROJECT_ID]
+    assert any(wrapper["key_type"] == "project" for wrapper in create_request["json"]["key_wrappers"])
 
 
 # contract-test: direct surface=sdks.pip assertions=plans.project-links.encrypted,plans.key-wrappers.contextual,plans.surface.semantic-parity

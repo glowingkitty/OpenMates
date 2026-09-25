@@ -47,6 +47,37 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         attachScreenshot(name: "Chat history responsive parity")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history
+    func testHeaderActionsOverflowAndBannerScrollStyleMatchWebContract() throws {
+        let app = launchFixture()
+        let actions = element(in: app, identifier: "chat-top-actions")
+        XCTAssertTrue(actions.waitForExistence(timeout: 12), app.debugDescription)
+        XCTAssertEqual(actions.value as? String, "banner-overlay")
+        XCTAssertTrue(element(in: app, identifier: "report-issue-button").exists)
+        XCTAssertTrue(element(in: app, identifier: "chat-more-button").exists)
+        XCTAssertTrue(element(in: app, identifier: "chat-close-button").exists)
+        XCTAssertFalse(element(in: app, identifier: "chat-share-button").exists)
+
+        element(in: app, identifier: "chat-more-button").tap()
+        let moreMenu = element(in: app, identifier: "chat-more-actions")
+        XCTAssertTrue(moreMenu.waitForExistence(timeout: 3))
+        XCTAssertTrue(element(in: app, identifier: "chat-more-share-button").exists)
+        XCTAssertTrue(element(in: app, identifier: "chat-details-button").exists)
+        let reminder = element(in: app, identifier: "chat-reminders-button")
+        XCTAssertTrue(reminder.exists)
+        XCTAssertFalse(reminder.label.hasPrefix("chat."), "Reminder action must resolve its translation")
+        XCTAssertLessThan(moreMenu.frame.width, actions.frame.width - 24, "More actions should size to their labels")
+        attachScreenshot(name: "Chat header compact overflow on banner")
+
+        element(in: app, identifier: "chat-more-button").tap()
+        let history = element(in: app, identifier: "chat-history-container")
+        for _ in 0..<6 where (actions.value as? String) != "standard" {
+            history.swipeUp()
+        }
+        XCTAssertEqual(actions.value as? String, "standard")
+        attachScreenshot(name: "Chat header standard style after banner scroll")
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testRTLAndAccessibilityDynamicTypePreserveSemanticOrderAndClearance() throws {
         let app = launchFixture(
@@ -94,6 +125,32 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         element(in: app, identifier: "chat-history-container").tap()
         XCTAssertFalse(keyboard.waitForExistence(timeout: 3))
         assertComposerClearsFinalContent(in: app)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testStreamingThinkingAndComposerStopMatchWebContract() throws {
+        let app = launchFixture(extraArguments: ["--ui-test-streaming-presentation"])
+        let stage = element(in: app, identifier: "streaming-banner")
+        let stop = element(in: app, identifier: "stop-processing-button")
+
+        XCTAssertTrue(stage.waitForExistence(timeout: 12), app.debugDescription)
+        XCTAssertFalse(stage.label.contains("embed."), "Stage status exposed an untranslated key")
+        XCTAssertTrue(stop.waitForExistence(timeout: 8), app.debugDescription)
+        XCTAssertTrue(stop.isHittable)
+        XCTAssertGreaterThanOrEqual(stop.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(stop.frame.height, 44)
+        XCTAssertFalse(element(in: app, identifier: "send-button").exists)
+
+        let history = element(in: app, identifier: "chat-history-container")
+        let thinking = element(in: app, identifier: "thinking-content")
+        for _ in 0..<5 where !thinking.exists {
+            history.swipeUp()
+        }
+        XCTAssertTrue(thinking.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertLessThanOrEqual(thinking.frame.height, 202, "Streaming thinking content must remain bounded")
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "**")).count, 0)
+        XCTAssertTrue(app.staticTexts["Bounded thinking detail"].exists)
+        attachScreenshot(name: "Streaming stage thinking and composer stop")
     }
 
     private func launchFixture(

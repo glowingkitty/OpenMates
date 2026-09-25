@@ -323,7 +323,7 @@ export function envKeyCategory(key: string): EnvCategory {
 }
 
 export function isSecretEnvKey(key: string): boolean {
-  return key.startsWith("SECRET__") || key.includes("PASSWORD") || key.includes("TOKEN") || key.includes("SECRET") || key.includes("API_KEY");
+  return key.startsWith("SECRET__") || key.includes("PASSWORD") || key.includes("TOKEN") || key.includes("SECRET") || key.includes("API_KEY") || key.includes("PRIVATE_KEY");
 }
 
 export function redactEnvValue(key: string, value: string): string {

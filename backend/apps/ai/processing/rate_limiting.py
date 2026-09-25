@@ -10,8 +10,11 @@ import time
 import asyncio
 from typing import Dict, Any, Optional, Tuple
 
+from fastapi import HTTPException
+
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.anonymous_inline_execution import is_anonymous_inline_execution
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +227,12 @@ async def wait_for_rate_limit(
 
         if is_allowed:
             return
+
+        if is_anonymous_inline_execution():
+            raise HTTPException(
+                status_code=429,
+                detail={"code": "provider_rate_limited", "message": "This skill is temporarily busy. Please try again later."},
+            )
 
         if not retry_after or retry_after <= 0:
             retry_after = 0.1

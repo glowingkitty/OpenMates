@@ -299,6 +299,23 @@ api.openmates.org {
 			}
 		}
 
+		# Handle actual WebSocket requests before the broad /v1/apps/* matcher.
+		# IMPORTANT: Do NOT apply compression to WebSocket connections!
+		# Compression interferes with WebSocket upgrade handshake, especially on Safari iPad OS.
+		handle @websocket_actual {
+			reverse_proxy localhost:8000 {
+				header_up Host {http.request.host}
+				# For WebSockets (both HTTP/1.1 and HTTP/2 via CONNECT),
+				# Caddy's reverse_proxy handles the necessary Connection and Upgrade headers automatically.
+				# Explicitly setting them from client request headers can be problematic,
+				# especially for HTTP/2 CONNECT where these headers aren't used in the same way
+				# as in an HTTP/1.1 GET upgrade request.
+				# header_up Connection {http.request.header.Connection}
+				# header_up Upgrade {http.request.header.Upgrade}
+				flush_interval -1 # Disable response buffering for WebSockets
+			}
+		}
+
 		# === PUBLIC DEVELOPER API ROUTES (No Origin restriction) ===
 		# These handlers come AFTER webapp handlers so API key requests (without Origin header) fall through here
 
@@ -363,23 +380,6 @@ api.openmates.org {
 				# Remove CORS headers from backend response to prevent conflicts
 				header_down -Access-Control-Allow-Origin
 				header_down -Access-Control-Allow-Credentials
-			}
-		}
-
-		# 10. Handle actual WebSocket requests (non-OPTIONS) from the correct origin
-		# IMPORTANT: Do NOT apply compression to WebSocket connections!
-		# Compression interferes with WebSocket upgrade handshake, especially on Safari iPad OS
-		handle @websocket_actual {
-			reverse_proxy localhost:8000 {
-				header_up Host {http.request.host}
-				# For WebSockets (both HTTP/1.1 and HTTP/2 via CONNECT),
-				# Caddy's reverse_proxy handles the necessary Connection and Upgrade headers automatically.
-				# Explicitly setting them from client request headers can be problematic,
-				# especially for HTTP/2 CONNECT where these headers aren't used in the same way
-				# as in an HTTP/1.1 GET upgrade request.
-				# header_up Connection {http.request.header.Connection}
-				# header_up Upgrade {http.request.header.Upgrade}
-				flush_interval -1 # Disable response buffering for WebSockets
 			}
 		}
 

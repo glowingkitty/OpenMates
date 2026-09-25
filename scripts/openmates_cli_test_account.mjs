@@ -5,14 +5,15 @@
  * Purpose: bootstrap the local OpenMates CLI from existing E2E test account
  * credentials and optionally create/share real CLI chats for example-chat data.
  * Security: reads secrets from .env/process.env, never prints credentials, and
- * writes only the normal ~/.openmates/session.json consumed by the CLI.
+ * writes session.json under OPENMATES_STATE_DIR when provided, otherwise the
+ * normal ~/.openmates directory consumed by the CLI.
  */
 
 import { spawnSync } from "node:child_process";
 import { createHash, createHmac, randomUUID, webcrypto } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
 import { arch, homedir, platform, release } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -32,6 +33,7 @@ Environment:
   OPENMATES_TEST_ACCOUNT_EMAIL / PASSWORD / OTP_KEY
   OPENMATES_TEST_ACCOUNT_<slot>_EMAIL / PASSWORD / OTP_KEY
   OPENMATES_TEST_ACCOUNT_SOURCE_SLOT
+  OPENMATES_STATE_DIR (absolute private CLI state directory)
 `);
 }
 
@@ -300,7 +302,11 @@ async function apiPost(apiUrl, webOrigin, path, body, cookies = {}) {
 }
 
 function writeCliSession(session) {
-  const dir = join(homedir(), ".openmates");
+  const configuredStateDir = process.env.OPENMATES_STATE_DIR?.trim();
+  if (configuredStateDir && !isAbsolute(configuredStateDir)) {
+    throw new Error("OPENMATES_STATE_DIR must be an absolute path");
+  }
+  const dir = configuredStateDir ? resolve(configuredStateDir) : join(homedir(), ".openmates");
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
   const filePath = join(dir, "session.json");

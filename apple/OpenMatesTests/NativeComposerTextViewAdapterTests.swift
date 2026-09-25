@@ -113,6 +113,54 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         #endif
     }
 
+    #if canImport(UIKit)
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle
+    func testResolvedEmbedReprojectsAttachmentWithoutWaitingForTyping() throws {
+        let controller = try makeController()
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let staleProjection = NSAttributedString.Key("synthetic-stale-attachment-projection")
+        textView.textStorage.addAttribute(staleProjection, value: true, range: NSRange(location: 1, length: 1))
+
+        let original = try XCTUnwrap(controller.document.nodes.first { $0.id == "composer:embed:first" })
+        let resolved = ComposerNodeV1(
+            kind: "embed",
+            id: original.id,
+            embedType: original.embedType,
+            status: "finished",
+            contentRef: "embed:resolved-recording",
+            referenceOnly: true,
+            canonicalSource: "```json\n{\"type\":\"recording\",\"embed_id\":\"resolved-recording\"}\n```",
+            display: ComposerEmbedDisplayV1(title: "Resolved recording", mediaKind: "recording")
+        )
+        let originalString = textView.attributedText.string
+        try controller.replaceEmbed(id: original.id, with: resolved)
+        adapter.synchronize(textView)
+
+        XCTAssertEqual(textView.attributedText.string, originalString)
+        XCTAssertNil(textView.attributedText.attribute(staleProjection, at: 1, effectiveRange: nil))
+        XCTAssertEqual(textView.selectedRange, controller.selection)
+        XCTAssertEqual(adapter.embedAccessibilityElements.first?.label, "Resolved recording, finished")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testHostedEmbedOwnsInteractionInsteadOfUITextViewAttachmentMenu() throws {
+        let controller = try makeController()
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let attachment = try XCTUnwrap(
+            textView.attributedText.attribute(
+                .attachment,
+                at: 1,
+                effectiveRange: nil
+            ) as? ComposerTextAttachment
+        )
+
+        XCTAssertFalse(NativeComposerTextView.shouldUseTextViewInteraction(for: attachment))
+        XCTAssertTrue(NativeComposerTextView.shouldUseTextViewInteraction(for: NSTextAttachment()))
+    }
+    #endif
+
     // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
     func testPlatformEditsAndSelectionChangesSynchronizeBackToController() throws {
         let controller = try makeController()

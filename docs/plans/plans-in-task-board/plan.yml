@@ -1,0 +1,165 @@
+schema_version: 2
+id: plans-in-task-board
+title: Plans in Tasks boards
+status: verified
+goal: >
+  Remove the standalone Plans workspace and show encrypted Plans as cards in the
+  five-column Tasks board, both globally and within their linked Projects. New
+  Plans start from a Project and require a Project link across web, CLI, SDK,
+  and API creation; older unlinked Plans remain readable.
+scope:
+  in:
+    - Remove the Plans header tab and forward the old /plans index to Tasks.
+    - Keep Plan detail editing and existing Plan links working.
+    - Project-scoped New plan creates a draft with its Project key wrapper.
+    - Render Plan cards in the same status columns and live counts as Tasks and
+      Workflow runs, using Plan lifecycle transitions and blockers for moves.
+    - Require a valid Project link on every new Plan in web, CLI, npm and pip
+      SDKs, and REST; preserve readable legacy unlinked Plans.
+    - Focused browser, API, CLI and SDK coverage of the new behavior.
+  out:
+    - Replacing Plan records with Task records or changing Plan encryption.
+    - Removing /plans/:plan_id detail links before root hash routes are ready.
+    - Migrating or deleting old unlinked Plans.
+decisions:
+  - id: D-1
+    status: active
+    decision: Show Plans as their own card projection in TaskBoard rather than a
+      separate linked-plans strip or fake Task rows.
+    reason: The user wants one status board while Plan lifecycle and encrypted
+      content remain distinct from Task execution.
+    decided_at: '2026-09-25'
+  - id: D-2
+    status: active
+    decision: New Plans originate within a Project and require a Project link on
+      every client; legacy unlinked Plans stay readable.
+    reason: The user explicitly chose this behavior across web, CLI, SDK and API.
+    decided_at: '2026-09-25'
+scenarios:
+  - id: S-1
+    title: Global and Project Tasks include Plans
+    given:
+      - A user has Project-linked Plans, Tasks and Workflow runs.
+    when:
+      - The user opens global Tasks or a Project's Tasks tab.
+    then:
+      - Plans appear as cards in their status columns with contextual counts.
+      - The Project board shows only Plans linked to that Project.
+      - Opening a Plan preserves the editable Plan detail.
+  - id: S-2
+    title: Project-scoped Plan creation and compatibility
+    given:
+      - A user opens a Project, and older unlinked Plans may exist.
+    when:
+      - The user creates a Plan or visits the old Plans URL.
+    then:
+      - New Plan creation carries the Project link and authorized key wrapper.
+      - All client creation surfaces reject a missing Project.
+      - Older unlinked Plans remain readable in global Tasks.
+      - The old Plans index forwards to Tasks; its header tab is absent.
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Global and Project Tasks boards render Plans as cards within the five
+      Task status columns, with counts, search, opening and guarded drag moves.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-BOARD]
+  - id: AC-2
+    scenario: S-2
+    text: Project New plan creates a Project-linked draft and opens Plan detail;
+      the Plans header tab and standalone index are gone, while legacy links and
+      old unlinked Plan reads continue to work.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PROJECT]
+  - id: AC-3
+    scenario: S-2
+    text: REST, web, CLI, npm SDK and pip SDK creation require a Project and
+      preserve encrypted Project links and authorized wrappers.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CREATE]
+tests:
+  - id: T-BOARD
+    type: playwright
+    file: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-1]
+    assertions: [Plans share Task lanes and counts without losing Plan actions.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Existing source and screenshots establish the separate Plans surface.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/ci_coordinator.py submit --session 0377 --source 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e --mode e2e --spec tasks-plans-workspace.spec.ts', run_id: '36148707062', subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e, timestamp: '2026-09-25T14:42:46Z', execution_environment: isolated_github_ci, harness_commit: a2f31ca19a455cd38715c3135d0437342c7701e2, profile: e2e, artifacts: ['https://github.com/glowingkitty/OpenMates/actions/runs/36148707062/artifacts/10870861106'], result: 'Global Tasks board includes Project-linked Plan cards, counts, drag move to Todo, and detail navigation.'}}
+  - id: T-PROJECT
+    type: playwright
+    file: frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-2]
+    assertions: [Project creation and legacy route behavior preserve Plan detail.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Project Plan creation and header behavior were confirmed by source inspection.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/ci_coordinator.py submit --session 0377 --source 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e --mode e2e --spec project-plans-flow.spec.ts', run_id: '36148261531', subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e, timestamp: '2026-09-25T14:42:46Z', execution_environment: isolated_github_ci, harness_commit: a2f31ca19a455cd38715c3135d0437342c7701e2, profile: e2e, artifacts: ['https://github.com/glowingkitty/OpenMates/actions/runs/36148261531/artifacts/10869573798'], result: 'Project Create creates linked Plan; Project Tasks shows card and detail route remains available.'}}
+  - id: T-CREATE
+    type: manual
+    file: backend/tests/test_user_plans_api.py
+    covers: [AC-3]
+    assertions: [Backend and all client builders reject missing Project links while retaining legacy reads.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Current client builders and backend permit empty Project links.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, reason: 'Focused creation tests ran locally for npm CLI/SDK and in isolated GitHub CI for backend REST and pip SDK; only the Tasks toolbar changed after those client checks.', command: 'node --test focused Plan CLI/SDK suites; python3 scripts/ci_coordinator.py submit --mode pytest with backend Plan and pip SDK targets', run_id: 'local-50-node-and-47-python; CI-36146364943-36146494899-36146684979', subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e, timestamp: '2026-09-25T14:42:46Z', result: 'New Plan creation requires a Project across web, CLI, npm and pip SDK, and REST; legacy unlinked reads remain supported.'}}
+implementation_state:
+  subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e
+approvals:
+  specification:
+    status: not_required
+    reason: Existing draft Plans and Tasks contracts already define encrypted
+      Project links and distinct lifecycle records; this user-approved change is
+      to workspace presentation and a stricter creation precondition.
+  plan:
+    status: approved
+    approved_at: '2026-09-25'
+    source: User explicitly specified the board projection, Project-scoped
+      creation, and cross-client consistency in this conversation.
+tasks:
+  - id: TASK-1
+    title: Integrate Plans into Tasks and require Project on creation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      - backend/core/api/app/services/user_plan_service.py
+      - frontend/packages/openmates-cli/src/plansCli.ts
+    verification_ids: [T-BOARD, T-PROJECT, T-CREATE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      owner: session-0377
+      files:
+        - frontend/packages/ui/src/components/tasks/
+        - backend/core/api/app/services/user_plan_service.py
+        - frontend/packages/openmates-cli/src/plansCli.ts
+      shared_files: []
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Reuse Plan encryption and lifecycle services while projecting
+      Plans into the shared Task board.
+    recorded_at: '2026-09-25'
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the verified Project-scoped Plan integration to dev.
+  command: python3 scripts/plan_validate.py docs/plans/plans-in-task-board/plan.yml
+  expected_outcome: The user-approved cross-client scope stays explicit.
+  last_verified_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e

@@ -216,6 +216,7 @@ _backup
 .derivedData/
 apple/.derivedData/
 DerivedData/
+.runtime/
 
 # Deployment configuration
 # Allow template/example files, but ignore environment-specific overrides
@@ -358,3 +359,5 @@ backend/core/directus/uploads/
 
 # Findings are local investigation notes and may contain private context.
 docs/findings/**
+apple/.openmates-cross-client-control.json
+apple/.openmates-cross-client-control.lock

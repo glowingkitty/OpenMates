@@ -36,6 +36,11 @@
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/app-skills/videos-get-transcript/specification.yml
+//                specifications/features/app-skills/web-search/specification.yml
+//                specifications/features/chats/specification.yml
+// Assertions: videos.transcript.surface-parity, web-search.surface-parity,
+//             chats.surface.semantic-parity
 
 import Combine
 import SwiftUI
@@ -88,6 +93,7 @@ struct AppSkillUseRenderer: View {
         case ("web", "read"): return "Read"
         case ("math", "calculate"): return "Calculate"
         case ("reminder", "set-reminder"): return "Reminder"
+        case ("videos", "get_transcript"), ("videos", "get-transcript"): return AppStrings.videoGetTranscript
         default:
             return EmbedType(rawValue: embed.type)?.displayName ?? skillId.replacingOccurrences(of: "_", with: " ")
         }
@@ -98,19 +104,23 @@ struct AppSkillUseRenderer: View {
     }
 
     private var isCalendarActionSkill: Bool {
-        appId == "calendar" && ["get-events", "create-event", "update-event", "delete-event"].contains(skillId)
+        appId == "calendar" && ["list-calendars", "get-events", "create-event", "update-event", "delete-event"].contains(skillId)
     }
 
     private var childEmbeds: [EmbedRecord] {
         let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
-        if !explicit.isEmpty { return uniqueEmbeds(explicit) }
         let parented = allEmbedRecords.values
             .filter { $0.parentEmbedId == embed.id }
             .sorted { $0.id < $1.id }
-        if !parented.isEmpty { return uniqueEmbeds(parented) }
-
         let preview = previewChildEmbeds
-        if !preview.isEmpty { return preview }
+        let hydrated = uniqueEmbeds(explicit + parented)
+        if !preview.isEmpty || !hydrated.isEmpty {
+            return SearchSkillPreviewModel.mergedRecords(
+                parentOrder: embed.childEmbedIds,
+                inlineRecords: preview,
+                hydratedRecords: hydrated
+            )
+        }
 
         return uniqueEmbeds(allEmbedRecords.values
             .filter { child in
@@ -132,6 +142,32 @@ struct AppSkillUseRenderer: View {
             .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) })
     }
 
+    /// Finished authenticated app-skill embeds persist their full result in a
+    /// child record and keep only lightweight preview metadata on the parent.
+    /// Prefer that child for transcript rendering while retaining inline data
+    /// for legacy/demo payloads and processing placeholders.
+    private var videoTranscriptData: [String: AnyCodable] {
+        Self.videoTranscriptData(embed: embed, parentData: data, allEmbedRecords: allEmbedRecords)
+    }
+
+    static func videoTranscriptData(
+        embed: EmbedRecord,
+        parentData: [String: AnyCodable],
+        allEmbedRecords: [String: EmbedRecord]
+    ) -> [String: AnyCodable] {
+        if !VideoTranscriptPayload(data: parentData).transcript.isEmpty {
+            return parentData
+        }
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        let linked = explicit.isEmpty
+            ? allEmbedRecords.values.filter { $0.parentEmbedId == embed.id }
+            : explicit
+        guard let childData = linked.compactMap(\.rawData).first(where: {
+            !VideoTranscriptPayload(data: $0).transcript.isEmpty
+        }) else { return parentData }
+        return VideoTranscriptPayload.mergedData(parent: parentData, child: childData)
+    }
+
     private var parentResultCount: Int {
         EmbedFieldReader.int(data, keys: ["result_count"]) ?? childEmbeds.count
     }
@@ -147,7 +183,9 @@ struct AppSkillUseRenderer: View {
             var recordData = result.mapValues { AnyCodable($0) }
             recordData["app_id"] = recordData["app_id"] ?? AnyCodable(appId)
             return EmbedRecord(
-                id: "\(embed.id)-preview-\(index)",
+                id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
+                    ?? (embed.childEmbedIds.indices.contains(index) ? embed.childEmbedIds[index] : nil)
+                    ?? "\(embed.id)-preview-\(index)",
                 type: previewChildType,
                 status: .finished,
                 data: .raw(recordData),
@@ -188,6 +226,14 @@ struct AppSkillUseRenderer: View {
         let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
         if appId == "web", skillId == "search" {
             return AnyView(WebSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
+        } else if appId == "code", skillId == "search_repos" {
+            return AnyView(CodeRepoSearchEmbedRenderer(
+                model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                mode: .preview,
+                onOpenEmbed: onOpenEmbed
+            ))
+        } else if appId == "audio", skillId == "generate" || skillId == "speak" {
+            return AnyView(GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .preview))
         } else if appId == "web", skillId == "read" {
             return AnyView(WebReadEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "search" {
@@ -195,7 +241,14 @@ struct AppSkillUseRenderer: View {
         } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
             return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "view" {
-            return AnyView(ImageEmbedRenderer(data: data, mode: .preview))
+            let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
+            return AnyView(ImageEmbedRenderer(
+                data: model.resolvedData,
+                mode: .preview,
+                accessibilityPrefix: "image-view-skill"
+            ))
+        } else if appId == "videos", skillId == "get_transcript" || skillId == "get-transcript" {
+            return AnyView(TranscriptRenderer(data: videoTranscriptData, mode: .preview))
         } else if appId == "videos", skillId == "create" {
             return AnyView(RemotionVideoCreateRenderer(embedId: embed.id, data: data, mode: .preview))
         } else if appId == "code", skillId == "get_docs" {
@@ -297,6 +350,14 @@ struct AppSkillUseRenderer: View {
         let model = SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords)
         if appId == "web", skillId == "search" {
             WebSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
+        } else if appId == "code", skillId == "search_repos" {
+            CodeRepoSearchEmbedRenderer(
+                model: CodeRepoSearchModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                mode: .fullscreen,
+                onOpenEmbed: onOpenEmbed
+            )
+        } else if appId == "audio", skillId == "generate" || skillId == "speak" {
+            GeneratedAudioSkillEmbedRenderer(data: data, status: embed.status, skillId: skillId, mode: .fullscreen)
         } else if appId == "web", skillId == "read" {
             WebReadEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "search" {
@@ -304,7 +365,14 @@ struct AppSkillUseRenderer: View {
         } else if appId == "images", skillId == "generate" || skillId == "generate_draft" {
             ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "view" {
-            ImageEmbedRenderer(data: data, mode: .fullscreen)
+            let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
+            ImageEmbedRenderer(
+                data: model.resolvedData,
+                mode: .fullscreen,
+                accessibilityPrefix: "image-view-skill"
+            )
+        } else if appId == "videos", skillId == "get_transcript" || skillId == "get-transcript" {
+            TranscriptRenderer(data: videoTranscriptData, mode: .fullscreen)
         } else if appId == "videos", skillId == "create" {
             RemotionVideoCreateRenderer(embedId: embed.id, data: data, mode: .fullscreen)
         } else if appId == "code", skillId == "get_docs" {
@@ -1735,7 +1803,7 @@ private struct BusinessFinancialChip: View {
     }
 }
 
-private struct CalendarActionEmbedRenderer: View {
+struct CalendarActionEmbedRenderer: View {
     let embed: EmbedRecord
     let data: [String: AnyCodable]
     let skillId: String

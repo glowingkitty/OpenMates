@@ -4,6 +4,8 @@
 // the full iOS AuthManager dependency graph.
 // Chat sync uses the restored WebSocket token from /v1/auth/session after
 // cached user and local master-key checks pass.
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.private-session
 
 import CryptoKit
 import Foundation
@@ -24,14 +26,25 @@ final class WatchAuthStore: ObservableObject {
     private let api = APIClient.shared
 
     private static let cachedUserDefaultsKey = "openmates.apple.auth.cached_user"
+    private static let diagnosticsCategory = "watch_auth"
 
     func checkSession() async {
-        guard let user = Self.cachedUser(),
-              (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil else {
+        guard let user = Self.cachedUser() else {
+            NativeDiagnostics.event("session_restore_missing_user", category: Self.diagnosticsCategory)
+            state = .unauthenticated
+            return
+        }
+        guard (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil else {
+            NativeDiagnostics.event("session_restore_missing_master_key", category: Self.diagnosticsCategory)
             state = .unauthenticated
             return
         }
         currentUser = user
+        NativeDiagnostics.event(
+            "session_restore_request",
+            category: Self.diagnosticsCategory,
+            flags: ["refresh_cookie_present": hasRefreshCookie]
+        )
         switch await refreshSessionToken() {
         case .authenticated, .transientFailure:
             state = .authenticated
@@ -54,6 +67,18 @@ final class WatchAuthStore: ObservableObject {
         webSocketToken = result.loginResponse.wsToken
         cacheAuthenticatedUser(user)
         state = .authenticated
+        NativeDiagnostics.event(
+            "pair_login_authenticated",
+            category: Self.diagnosticsCategory,
+            flags: ["refresh_cookie_present": hasRefreshCookie]
+        )
+    }
+
+    private var hasRefreshCookie: Bool {
+        let url = ServerConfiguration.current.apiBaseURL
+        return OpenMatesSharedEnvironment.cookieStorage.cookies(for: url)?.contains {
+            $0.name == "auth_refresh_token"
+        } == true
     }
 
     private func refreshSessionToken() async -> WatchSessionRefreshDisposition {
@@ -69,16 +94,22 @@ final class WatchAuthStore: ObservableObject {
             guard response.isAuthenticated, let user = response.user else {
                 webSocketToken = nil
                 errorMessage = response.reAuthReason ?? response.reAuthRequired ?? response.message
+                NativeDiagnostics.event("session_restore_revoked", category: Self.diagnosticsCategory, level: .warning)
                 return .revoked
             }
             currentUser = user
             webSocketToken = response.wsToken
             cacheAuthenticatedUser(user)
             errorMessage = nil
+            NativeDiagnostics.event("session_restore_authenticated", category: Self.diagnosticsCategory)
             return .authenticated
         } catch {
             webSocketToken = nil
             errorMessage = error.localizedDescription
+            NativeDiagnostics.failure(
+                "session_restore_failed", category: Self.diagnosticsCategory,
+                level: .warning, error: error
+            )
             return WatchSessionRefreshPolicy.disposition(for: error)
         }
     }

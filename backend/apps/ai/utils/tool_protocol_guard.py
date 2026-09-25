@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any
 
 from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamChunk
@@ -17,6 +18,60 @@ from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 _PROTOCOL_FENCE = re.compile(r"^```(toon|tool_code)(?:[^\n]*)\n", re.IGNORECASE)
 _APP_FIELD = re.compile(r"(?m)^\s*app_id\s*:")
 _SKILL_FIELD = re.compile(r"(?m)^\s*skill_id\s*:")
+
+TOOL_PROTOCOL_CONTINUATION_PROMPT = (
+    "Continue the preceding assistant response exactly where it stopped. "
+    "Do not repeat or summarize text that is already present. Return only the "
+    "remaining user-facing prose. Do not emit tool calls, tool-result envelopes, "
+    "TOON, or commentary about this continuation instruction. Do not invent or "
+    "rely on information from the suppressed tool text."
+)
+TOOL_PROTOCOL_RESTART_PROMPT = (
+    "Answer the preceding user request using only information already verified in "
+    "the conversation. The previous assistant output was suppressed and is not "
+    "evidence. If a needed tool result is unavailable, say so briefly instead of "
+    "inventing it. Return only user-facing prose. Do not emit tool calls, "
+    "tool-result envelopes, or TOON."
+)
+
+
+def build_tool_protocol_recovery_messages(safe_text: str) -> list[dict[str, str]]:
+    """Continue published text, or restart when the guard suppressed all text."""
+    if not safe_text.strip():
+        return [{"role": "user", "content": TOOL_PROTOCOL_RESTART_PROMPT}]
+    return [
+        {"role": "assistant", "content": safe_text},
+        {"role": "user", "content": TOOL_PROTOCOL_CONTINUATION_PROMPT},
+    ]
+
+
+@dataclass
+class ToolProtocolRecoveryState:
+    """Bound one recovery attempt after fabricated provider protocol."""
+
+    attempted: bool = False
+    preserved_safe_text: bool = False
+
+    def action(
+        self,
+        *,
+        detected: bool,
+        native_call_count: int,
+        safe_text: str,
+        has_retry_iteration: bool,
+    ) -> str:
+        """Return ignore, retry, failure, or error for a completed model turn."""
+        if not detected or native_call_count:
+            return "ignore"
+
+        has_safe_text = bool(safe_text.strip())
+        self.preserved_safe_text = self.preserved_safe_text or has_safe_text
+        if not self.attempted and has_retry_iteration:
+            self.attempted = True
+            return "retry"
+        if self.preserved_safe_text:
+            return "failure"
+        return "error"
 
 
 def is_internal_tool_protocol(language: str, content: str) -> bool:

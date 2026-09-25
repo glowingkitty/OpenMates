@@ -3,6 +3,8 @@
 // Canonical markdown is a published compatibility boundary, not a second model.
 // Pending attachment atoms omit fake durable references until service resolution.
 // All mutations publish from the controller after successful serialization.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.recording.lifecycle, message-input.embeds.gated-send
 
 import Combine
 import Foundation
@@ -104,6 +106,36 @@ final class NativeComposerSession: ObservableObject {
 
     func updateEmbed(nodeID: String, status: String) throws {
         try controller.updateEmbed(id: nodeID, status: status)
+        publishControllerState()
+    }
+
+    /// Publishes a provisional transcript on the existing local embed atom.
+    /// Durable identity and canonical source remain unset until upload resolves.
+    func updatePendingEmbedTitle(nodeID: String, title: String) throws {
+        guard let current = controller.document.nodes.first(where: { $0.id == nodeID }),
+              current.kind == "embed",
+              current.contentRef == nil else {
+            throw NativeComposerControllerError.nodeNotFound(nodeID)
+        }
+        let replacement = ComposerNodeV1(
+            kind: current.kind,
+            id: current.id,
+            source: current.source,
+            mentionKind: current.mentionKind,
+            targetId: current.targetId,
+            canonicalSyntax: current.canonicalSyntax,
+            displayLabel: current.displayLabel,
+            embedType: current.embedType,
+            status: current.status,
+            contentRef: current.contentRef,
+            referenceOnly: current.referenceOnly,
+            canonicalSource: current.canonicalSource,
+            display: ComposerEmbedDisplayV1(
+                title: title,
+                mediaKind: current.display?.mediaKind ?? current.embedType ?? "recording"
+            )
+        )
+        try controller.replaceEmbed(id: nodeID, with: replacement)
         publishControllerState()
     }
 

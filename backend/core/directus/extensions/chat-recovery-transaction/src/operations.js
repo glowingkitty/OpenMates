@@ -544,6 +544,10 @@ const responseForPreflight = (row) => ({
 const samePreflight = (row, values) => Object.entries(values).every(([key, value]) => row[key] === value);
 const sameChatMetadata = (chat, metadata) => Object.entries(metadata)
   .every(([key, value]) => key === 'updated_at' || chat[key] === value);
+const canCompleteChatMetadata = (chat, metadata) => Object.entries(metadata)
+  .every(([key, value]) => key === 'updated_at' || chat[key] == null || chat[key] === value);
+const missingChatMetadata = (chat, metadata) => Object.fromEntries(Object.entries(metadata)
+  .filter(([key]) => key === 'updated_at' || chat[key] == null));
 const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && Number(chat.title_v ?? 0) === 0
   && Number(chat.metadata_v ?? 0) === 0
@@ -587,8 +591,18 @@ async function preparePreflight(database, raw, now) {
       return responseForPreflight(existing);
     }
     if (chat) {
-      if (chatMetadata && (!isEmptyDraftShell(chat) || !sameChatMetadata(chat, chatMetadata))) {
-        fail(409, 'existing_chat_metadata_forbidden');
+      if (chatMetadata) {
+        if (!isEmptyDraftShell(chat) || !canCompleteChatMetadata(chat, chatMetadata)) {
+          fail(409, 'existing_chat_metadata_forbidden');
+        }
+        const metadataCompletion = missingChatMetadata(chat, chatMetadata);
+        if (Object.keys(metadataCompletion).length > 0) {
+          const scope = teamHash
+            ? { id: chatId, hashed_team_id: teamHash, messages_v: 0 }
+            : { id: chatId, hashed_user_id: ownerHash, messages_v: 0 };
+          if (await trx(CHATS).where(scope).update(metadataCompletion) !== 1) fail(409, 'version_conflict');
+          chat = { ...chat, ...metadataCompletion };
+        }
       }
     } else {
       if (!chatMetadata) fail(404, 'new_chat_metadata_required');

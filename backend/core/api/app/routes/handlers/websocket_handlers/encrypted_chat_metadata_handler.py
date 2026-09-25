@@ -503,16 +503,36 @@ async def handle_encrypted_chat_metadata(
                 # shell must remain empty (`messages_v=0`, no last-message time),
                 # otherwise chat-recovery preflight treats the first real message's
                 # metadata as a forbidden update to an existing chat.
-                is_message_less_new_chat = (
+                is_key_only_new_chat_shell = (
                     chat_metadata_from_db is None
                     and not (message_id and encrypted_content)
                     and not has_history_message
+                    and bool(encrypted_chat_key)
+                    and all(value is None for value in (
+                        encrypted_title,
+                        encrypted_chat_summary,
+                        encrypted_icon,
+                        encrypted_chat_category,
+                        encrypted_chat_tags,
+                        encrypted_auto_speak_response,
+                        payload.get("parent_id"),
+                        payload.get("is_sub_chat"),
+                    ))
                 )
                 if not accepted_versions:
-                    default_messages_v = 0 if is_message_less_new_chat else 1
+                    default_messages_v = 0 if is_key_only_new_chat_shell else 1
                     chat_update_fields["messages_v"] = versions.get("messages_v", default_messages_v)
+                if is_key_only_new_chat_shell:
+                    # A Project focus must be activated only after an owned chat row
+                    # exists, while recovery preflight must still recognize that row
+                    # as an empty draft. Carry every empty-shell field explicitly so
+                    # lower persistence layers cannot synthesize non-empty defaults.
+                    chat_update_fields["messages_v"] = 0
+                    chat_update_fields["title_v"] = 0
+                    chat_update_fields["metadata_v"] = 0
+                    chat_update_fields["last_message_timestamp"] = None
                 chat_update_fields["last_edited_overall_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
-                if not is_message_less_new_chat:
+                if not is_key_only_new_chat_shell:
                     chat_update_fields["last_message_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
             
                 # The stored confirmation is a durability boundary used by logout

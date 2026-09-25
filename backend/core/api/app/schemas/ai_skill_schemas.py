@@ -20,10 +20,13 @@ class AskSkillRequest(BaseModel):
     current_chat_title_v: Optional[int] = Field(default=None, description="Client title version when the AI turn started. Used to reject stale generated title updates.")
     current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     auto_speak_response: bool = Field(default=False, description="Decrypted chat preference fixed for this assistant turn; never persisted by the AI pipeline.")
+    assistant_speech_lazy_dispatch: bool = Field(default=False, description="The owner client can request registered speech chapters as playback advances.")
     assistant_response_source_revision: int = Field(default=1, ge=1, description="Stable client-assigned revision for this assistant response source.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
+    current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
+    active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context resolved by the backend.")
     app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
@@ -66,5 +69,9 @@ class AskSkillRequest(BaseModel):
     recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
     recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
     chat_key_version: Optional[int] = Field(default=None, description="Immutable cryptographic chat-key version.")
+    is_async_skill_continuation: bool = Field(default=False, description="True when a client-executed async skill result is re-entering inference.")
+    original_user_message_id: Optional[str] = Field(default=None, description="Original user turn that created the async skill job.")
+    async_skill_task_id: Optional[str] = Field(default=None, description="Stable async operation or execution id completed by this continuation.")
+    awaiting_async_skill_continuation: bool = Field(default=False, description="True when this response dispatched a client job and its interim output is not terminal recovery.")
 
 # Add other shared AI skill-related schemas here if needed in the future.

@@ -33,6 +33,7 @@ model_aliases:
 
 skills:
   - id: ask
+    anonymous_access: authenticated
     name_translation_key: ai.ask
     description_translation_key: ai.ask.description
     icon_image: ai.svg
@@ -48,9 +49,13 @@ skills:
       type: object
       properties:
         prompt:
+          x-ui:
+            basic: true
           type: string
           description: The question or task for the Workflow AI step.
         conversation:
+          x-ui:
+            basic: false
           type: string
           description: Optional run-local conversation name for retaining previous Workflow AI context in the same run.
       required:
@@ -69,8 +74,8 @@ skills:
         type: object
         properties:
           answer:
-            type: string
-          conversation:
+            x-ui:
+              basic: true
             type: string
     # Providers are auto-discovered from backend/providers/*.yml files
     # based on models with for_app_skill: "ai.ask"

@@ -83,8 +83,9 @@ def test_download_stall_has_deadline(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("fault", ["", "source", "harness", "empty", "runner", "profile", "egress", "inventory"])
+@pytest.mark.parametrize("pinned_harness", [False, True])
 def test_result_binds_subject_harness_runner_and_execution(
-    tmp_path, monkeypatch, fault
+    tmp_path, monkeypatch, fault, pinned_harness
 ):
     import json
 
@@ -136,7 +137,7 @@ def test_result_binds_subject_harness_runner_and_execution(
                         }
                     ]
                 }
-            return {"head_sha": harness}
+            return {"head_sha": "d" * 40 if pinned_harness else harness}
 
     job = {
         "id": "request",
@@ -147,6 +148,8 @@ def test_result_binds_subject_harness_runner_and_execution(
         "state": "success",
         "url": "https://example.test/7",
     }
+    if pinned_harness:
+        job["preparation_harness_commit"] = harness
     if fault:
         with pytest.raises(RuntimeError):
             ci_results.fetch(Remote(), job, tmp_path)

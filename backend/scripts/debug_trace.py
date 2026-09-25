@@ -488,10 +488,13 @@ def _build_error_trace_sql(
         filter_parts.append(
             "(status_message LIKE '%{0}%' OR events LIKE '%{0}%')".format(fingerprint_value)
         )
+    # OpenObserve rejects DISTINCT queries that order by a column absent from
+    # the projection. Grouping also gives us the actual latest timestamp per
+    # trace, which is the ordering the CLI intended all along.
     return (
-        f"SELECT DISTINCT trace_id FROM {TRACE_STREAM} "
+        f"SELECT trace_id, MAX(_timestamp) AS latest_timestamp FROM {TRACE_STREAM} "
         f"WHERE {' AND '.join(filter_parts)} "
-        f"ORDER BY _timestamp DESC LIMIT {DEFAULT_QUERY_LIMIT}"
+        f"GROUP BY trace_id ORDER BY latest_timestamp DESC LIMIT {DEFAULT_QUERY_LIMIT}"
     )
 
 

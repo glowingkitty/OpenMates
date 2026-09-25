@@ -32,6 +32,11 @@ from backend.shared.providers.e2b_code_runner import (
     redact_execution_output,
     run_code_in_e2b,
 )
+from backend.shared.python_utils.terminal_output_safety import (
+    TerminalOutputSafetyResult,
+    normalize_terminal_output,
+    sanitize_terminal_output_for_model,
+)
 
 try:
     from backend.core.api.app.services.directus import DirectusService
@@ -389,8 +394,9 @@ def _build_code_run_completion_result(
     execution_id: str,
     payload: dict[str, Any],
     final_status: dict[str, Any],
+    output_safety: TerminalOutputSafetyResult | None = None,
 ) -> dict[str, Any]:
-    return {
+    result = {
         "id": execution_id,
         "app_id": "code",
         "skill_id": "run",
@@ -406,8 +412,15 @@ def _build_code_run_completion_result(
         "charged_minutes": final_status.get("charged_minutes"),
         "artifacts": _safe_artifact_metadata(final_status.get("artifacts")),
         "skipped_artifacts": _safe_skipped_artifacts(final_status.get("skipped_artifacts")),
-        "error": final_status.get("error"),
+        # Provider/runtime errors are terminal text. Once the terminal safety
+        # result is available, expose them only through its checked output.
+        "error": final_status.get("error") if output_safety is None else None,
     }
+    if output_safety is not None:
+        result["output_safety_receipt"] = output_safety.receipt.to_dict()
+        if output_safety.model_text is not None:
+            result["output"] = output_safety.model_text
+    return result
 
 
 async def _dispatch_code_run_async_continuation(
@@ -451,7 +464,8 @@ async def _append_output(execution_id: str, kind: str, text: str) -> None:
     raw = await client.get(key)
     data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw) if raw else {}
     events = data.setdefault("events", [])
-    event = _event(kind, text)
+    normalized_text, _ = normalize_terminal_output(text)
+    event = _event(kind, normalized_text)
     events.append(event)
     data["updated_at"] = time.time()
     await client.set(key, json.dumps(data), ex=EXECUTION_TTL_SECONDS)
@@ -548,6 +562,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
     started_at = time.time()
     billable_started_at = 0.0
     billing_state = {"charged_credits": 0, "charged_minutes": 0}
+    completion_output_parts: list[str] = []
     run_async(_store_execution(execution_id, {"status": "preparing_sandbox", "started_at": started_at}))
 
     def charge_run(duration: float, billing_phase: str) -> None:
@@ -578,6 +593,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
 
     def on_output(kind: str, text: str) -> None:
         nonlocal billable_started_at
+        normalized_text, _ = normalize_terminal_output(text)
         if kind == "status":
             if text.startswith("Starting sandbox"):
                 run_async(_store_execution(execution_id, {"status": "preparing_sandbox"}))
@@ -588,7 +604,9 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
                 run_async(_store_execution(execution_id, {"status": "installing_dependencies"}))
             elif text.startswith("Running"):
                 run_async(_store_execution(execution_id, {"status": "running"}))
-        run_async(_append_output(execution_id, kind, text))
+        if kind in {"stdout", "stderr"} and normalized_text:
+            completion_output_parts.append(normalized_text)
+        run_async(_append_output(execution_id, kind, normalized_text))
 
     def should_cancel() -> bool:
         return bool(run_async(_is_cancel_requested(execution_id)))
@@ -600,6 +618,12 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         if not payload.get("assistant_async_task"):
             return
         cache_service = cache_service or run_async(get_worker_cache_service())
+        output_safety = run_async(sanitize_terminal_output_for_model(
+            "".join(completion_output_parts),
+            task_id=f"code_run_completion_{execution_id}",
+            secrets_manager=secrets_manager,
+            cache_service=cache_service,
+        ))
         run_async(_dispatch_code_run_async_continuation(
             cache_service=cache_service,
             async_task_id=execution_id,
@@ -607,6 +631,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
                 execution_id=execution_id,
                 payload=payload,
                 final_status=final_status,
+                output_safety=output_safety,
             )],
             result_status=str(final_status.get("status") or "finished"),
             request_metadata={"target_filename": payload.get("target_path")},
@@ -702,6 +727,8 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         if billable_started_at and not billing_state["charged_credits"]:
             charge_run(time.time() - billable_started_at, "failed")
         run_async(_append_output(execution_id, "stderr", f"Run failed: {safe_error}\n"))
+        normalized_error, _ = normalize_terminal_output(f"Run failed: {safe_error}\n")
+        completion_output_parts.append(normalized_error)
         final_status = {
             "status": "failed",
             "error": safe_error,

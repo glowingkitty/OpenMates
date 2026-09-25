@@ -1,11 +1,10 @@
 <!--
-  Plans route for the authenticated web app.
-  Renders the encrypted Plans workspace while preserving the same authenticated
-  route shell, sidebar, settings, and notification behavior as Tasks.
+  Shared Plans workspace for root hash routes and legacy /plans/:plan_id paths.
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import {
     Header,
@@ -21,11 +20,26 @@
   } from '@repo/ui';
   import { isWorkspaceFeatureAvailable } from '@repo/ui/config/workspaceFeatureGates';
 
+  let { planId = null }: { planId?: string | null } = $props();
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let plansEnabled = $derived(isWorkspaceFeatureAvailable('platform:plans', $featureAvailabilityStore.disabledById));
-  let routePlanId = $derived(page.params.plan_id ?? null);
+  let plansEnabled = $derived(
+    isWorkspaceFeatureAvailable('platform:plans', $featureAvailabilityStore.disabledById),
+  );
+  let routePlanId = $derived(planId ?? page.params.plan_id ?? null);
 
   onMount(() => {
+    if (page.url.pathname.startsWith('/plans')) {
+      const legacyHashPlanId = new URLSearchParams(page.url.hash.replace(/^#\/?/, '')).get(
+        'plan-id',
+      );
+      const legacyPlanId = page.params.plan_id ?? legacyHashPlanId;
+      const target = legacyPlanId
+        ? `/#plan-id=${encodeURIComponent(legacyPlanId)}`
+        : '/#plans';
+      void goto(target, { replaceState: true });
+      return;
+    }
+
     initialize().catch((error) => {
       console.error('[PlansRoute] Failed to initialize auth:', error);
     });
