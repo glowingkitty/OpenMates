@@ -5819,6 +5819,19 @@ async def handle_main_processing(
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
                 # User won't see any indication that the tool call was skipped.
+                if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
+                    parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
+                        parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
+                    )
+                    if omitted_news_requests_for_call:
+                        omitted_news_search_requests += len(omitted_news_requests_for_call)
+                        logger.info(
+                            "%s [SKILL_BUDGET] Limiting news-search execution to %s requests; %s omitted.",
+                            log_prefix,
+                            len(parsed_args["requests"]),
+                            len(omitted_news_requests_for_call),
+                        )
+
                 requests_in_this_call = 1  # Default: single request
                 requests_list_for_budget = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
                 if isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) > 0:
@@ -5839,19 +5852,6 @@ async def handle_main_processing(
                     })
                     continue
 
-                if app_id == "news" and skill_id == "search":
-                    parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
-                        parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
-                    )
-                    if omitted_news_requests_for_call:
-                        omitted_news_search_requests += len(omitted_news_requests_for_call)
-                        logger.info(
-                            "%s [SKILL_BUDGET] Limiting news-search execution to %s requests; %s omitted.",
-                            log_prefix,
-                            len(parsed_args["requests"]),
-                            len(omitted_news_requests_for_call),
-                        )
-                
                 # Skip this tool call if we've already reached or would exceed the hard limit
                 # We don't count system tools (focus mode) against the budget
                 # CRITICAL: Also check if this call WOULD exceed the limit (not just if limit is already reached)
