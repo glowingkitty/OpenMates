@@ -315,9 +315,10 @@
         eyebrow={draft.type === 'app_skill_action' ? kind(draft) : ''}
         subtitle={draft.type === 'app_skill_action' ? location(draft) : ''}
         backLabel={isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' && !isAskAi(draft) ? tr('back_to_app_skill') : ''}
-        iconStyle={primaryNodeIconStyle(draft)}
+        backIconSize={isMessage(draft) && chooseChat ? 24 : 16}
+        iconStyle={isMessage(draft) && chooseChat ? assetIconStyle('chat', 19, 'var(--color-font-secondary)') : primaryNodeIconStyle(draft)}
         colored={draft.type === 'app_skill_action'}
-        collapsible
+        collapsible={draft.type !== 'app_skill_action' && !isMessage(draft)}
         disabled={busy || testStatus === 'processing'}
         closeLabel={tr('close')}
         collapseLabel={tr('collapse')}
@@ -369,7 +370,7 @@
           </div>
         {/if}
       {:else if isMessage(draft)}
-        {#if chooseChat}<h3>{tr('chat_question')}</h3><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><div class="chat-search"><Search size={18} aria-hidden="true"/><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/></div><button class="primary" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}>+ {tr('new_chat_each_run')}</button>
+        {#if chooseChat}<h3>{tr('chat_question')}</h3><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><div class="chat-search"><Search size={18} aria-hidden="true"/><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/></div><button class="primary new-chat-destination" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}><span class="clickable-icon icon_create new-chat-icon" aria-hidden="true"></span>{tr('new_chat')}</button>
         {:else}
           <h3>{tr('message_question')}</h3><button class="quiet target" type="button" onclick={() => { chooseChat = true; void loadChats(); }}>{tr('to')}: {summary(draft)}</button>
           <label>{tr('chat_title')}<input data-testid="workflow-message-title" value={String(draft.config?.title ?? '')} oninput={event => patch({ title: event.currentTarget.value })}/></label>
@@ -460,7 +461,7 @@
   .graph-panel { width:min(52.2rem, calc(100% - 2rem)); }
   .graph-canvas { padding:1.5rem 1.25rem; }
   .graph-canvas.blank { min-height:0; padding-block:.75rem; }
-  .editor { width:min(48.3rem, 100%); background:var(--color-grey-0); border:1px solid var(--color-grey-20); }
+  .editor { width:min(48.3rem, 100%); grid-template-columns:minmax(0,1fr); overflow:hidden; background:var(--color-grey-0); border:1px solid var(--color-grey-20); }
   .editor.weather-editor { background:var(--color-grey-10); }
   .editor :global(.editor-header.colored) { margin-top:-1px; }
   .weather-editor :global(.schema-fields > [data-testid="workflow-location-field"]),
@@ -478,6 +479,10 @@
   .chat-search input { min-height:2rem; border:0; background:transparent; box-shadow:none; padding:.2rem; }
   .editor.chat-destination { gap:.75rem; }
   .chat-destination .card-scroll { box-sizing:border-box; padding-inline:calc(50% - 8.96875rem); }
+  .new-chat-destination { display:inline-flex; align-items:center; justify-content:center; gap:var(--spacing-4); min-height:2.5625rem; border-radius:var(--radius-full); }
+  .new-chat-destination :global(.new-chat-icon) { width:20px; height:20px; flex:0 0 auto; background:var(--color-font-button); }
+  .save-row .primary, .save-row .quiet { margin:0; }
+  .save-row .quiet { min-width:0; }
   .card-scroll :global(.resume-chat-large-card) { width:17.9375rem; min-width:17.9375rem; max-width:17.9375rem; height:9.9375rem; min-height:9.9375rem; max-height:9.9375rem; }
   @media(max-width:730px) {
     .graph-panel { width:calc(100% - 1rem); }

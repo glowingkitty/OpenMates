@@ -15,6 +15,29 @@ const preview = (variant?: string, width = 900) =>
 		...(variant ? { variant } : {})
 	})}`;
 
+type Box = { x: number; y: number; width: number; height: number };
+
+function overlaps(first: Box, second: Box): boolean {
+	return (
+		first.x < second.x + second.width &&
+		first.x + first.width > second.x &&
+		first.y < second.y + second.height &&
+		first.y + first.height > second.y
+	);
+}
+
+function expectInside(outer: Box, inner: Box, tolerance = 1): void {
+	expect(inner.x).toBeGreaterThanOrEqual(outer.x - tolerance);
+	expect(inner.y).toBeGreaterThanOrEqual(outer.y - tolerance);
+	expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width + tolerance);
+	expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height + tolerance);
+}
+
+function expectHorizontallyInside(outer: Box, inner: Box, tolerance = 1): void {
+	expect(inner.x).toBeGreaterThanOrEqual(outer.x - tolerance);
+	expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width + tolerance);
+}
+
 async function openLastActionMenu(page: Page): Promise<void> {
 	await page.getByTestId('workflow-add-step').last().click();
 	await expect(page.getByTestId('workflow-step-menu')).toBeVisible();
@@ -250,9 +273,26 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await page.locator('[data-node-id="weather"]').getByTestId('workflow-node-summary').click();
 		const editor = page.getByTestId('workflow-node-expanded');
 		await expectCenteredWithin(canvas, editor);
-		const headerBox = await editor.locator('.editor-header.colored').boundingBox();
-		expect(headerBox && headerBox.height >= 120).toBe(true);
-		await expect(editor.getByTestId('workflow-editor-primary-icon')).toBeVisible();
+		const coloredHeader = editor.locator('.editor-header.colored');
+		const headerBox = await coloredHeader.boundingBox();
+		expect(headerBox && headerBox.height >= 180).toBe(true);
+		await expect(coloredHeader.locator('.collapse')).toHaveCount(0);
+		await expect(coloredHeader.getByRole('button', { name: 'Close' })).toBeVisible();
+		const appIcon = editor.getByTestId('workflow-editor-primary-icon');
+		const appIconBox = await appIcon.boundingBox();
+		expect(appIconBox && appIconBox.width >= 38 && appIconBox.height >= 38).toBe(true);
+		const headerType = await editor.locator('.eyebrow').evaluate((element) => ({
+			eyebrow: Number.parseFloat(getComputedStyle(element).fontSize),
+			title: Number.parseFloat(
+				getComputedStyle(element.closest('.title')?.querySelector('strong') as Element).fontSize
+			),
+			subtitle: Number.parseFloat(
+				getComputedStyle(element.closest('.title')?.querySelector('.subtitle') as Element).fontSize
+			)
+		}));
+		expect(headerType.eyebrow).toBeGreaterThanOrEqual(16);
+		expect(headerType.title).toBeGreaterThanOrEqual(18);
+		expect(headerType.subtitle).toBeGreaterThanOrEqual(18);
 		await expect(editor).toContainText('Weather | Get forecast');
 		await expect(editor).toContainText('Berlin');
 		const dateRange = editor.getByTestId('workflow-date-range-field');
@@ -273,6 +313,28 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await expect(page.getByTestId('workflow-step-menu').getByText('Add filter')).toHaveCount(0);
 		await page.getByTestId('workflow-step-create-chat-report').click();
 		const chooser = page.getByTestId('workflow-node-expanded');
+		const chooserHeader = chooser.locator('.editor-header');
+		await expect(chooserHeader.locator('.collapse')).toHaveCount(0);
+		await expect(chooserHeader.getByRole('button', { name: 'Close' })).toBeVisible();
+		const backButton = chooserHeader.getByRole('button', { name: 'Add action' });
+		const [backIconBox, messageIconBox, messageIconStyle] = await Promise.all([
+			backButton.locator('svg').boundingBox(),
+			chooserHeader.getByTestId('workflow-editor-primary-icon').boundingBox(),
+			chooserHeader.getByTestId('workflow-editor-primary-icon').evaluate((element) => ({
+				color: getComputedStyle(element).color,
+				headerColor: getComputedStyle(element.closest('.editor-header') as Element).color
+			}))
+		]);
+		expect(backIconBox).not.toBeNull();
+		expect(messageIconBox).not.toBeNull();
+		if (!backIconBox || !messageIconBox) return;
+		expect(backIconBox.width).toBeGreaterThanOrEqual(24);
+		expect(backIconBox.height).toBe(backIconBox.width);
+		expect(messageIconBox.width).toBeGreaterThanOrEqual(18);
+		expect(messageIconBox.width).toBeLessThanOrEqual(20);
+		expect(messageIconBox.height).toBe(messageIconBox.width);
+		expect(messageIconBox.width).toBeLessThan(backIconBox.width);
+		expect(messageIconStyle.color).toBe(messageIconStyle.headerColor);
 		const chatCards = chooser.getByTestId('app-store-example-chat-card');
 		await expect(chatCards).toHaveCount(2);
 		await expect(chatCards.nth(0)).toContainText('Daily weather reports');
@@ -284,7 +346,140 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			.getByRole('textbox', { name: 'Search recent chats' })
 			.boundingBox();
 		expect(cardsBox && searchBox && searchBox.y >= cardsBox.y + cardsBox.height).toBe(true);
-		await expect(chooser.getByTestId('workflow-new-chat-destination')).toBeVisible();
+		const newChat = chooser.getByTestId('workflow-new-chat-destination');
+		await expect(newChat).toHaveText('New chat');
+		const [newChatIconBox, newChatIconMask] = await Promise.all([
+			newChat.locator('.new-chat-icon').boundingBox(),
+			newChat.locator('.new-chat-icon').evaluate((element) => getComputedStyle(element).maskImage)
+		]);
+		expect(newChatIconBox).not.toBeNull();
+		if (!newChatIconBox) return;
+		expect(newChatIconBox.width).toBeGreaterThanOrEqual(20);
+		expect(newChatIconBox.height).toBe(newChatIconBox.width);
+		expect(newChatIconMask).not.toBe('none');
+
+		await backButton.click();
+		const actionPicker = page.getByTestId('workflow-step-menu');
+		await expect(actionPicker).toBeVisible();
+		await expect(actionPicker.locator('.choice')).toHaveText([
+			'Use app',
+			'Ask AI',
+			'Add check',
+			'Send message'
+		]);
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.visual-language.coherent,workflows-ui.responsive-accessible-reachable
+	test('keeps the enlarged app skill header readable without phone overlap', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
+		await page.setViewportSize({ width: 390, height: 900 });
+		await page.goto(preview(undefined, 390), { waitUntil: 'networkidle' });
+		await page.locator('[data-node-id="weather"]').getByTestId('workflow-node-summary').click();
+		const header = page.getByTestId('workflow-node-expanded').locator('.editor-header.colored');
+		const content = [
+			header.locator('.eyebrow'),
+			header.getByTestId('workflow-editor-primary-icon'),
+			header.locator('.title strong'),
+			header.locator('.subtitle')
+		];
+		const controls = [
+			header.locator('.breadcrumb'),
+			header.locator('.close-control')
+		];
+		const editor = page.getByTestId('workflow-node-expanded');
+		const previewViewport = page.getByTestId('component-preview-viewport');
+		const example = editor.locator('.output-heading span');
+		const save = editor.getByTestId('workflow-node-save');
+		const remove = editor.getByTestId('remove-workflow-node');
+		const close = header.locator('.close-control');
+		const [
+			headerBox,
+			editorBox,
+			viewportBox,
+			iconBox,
+			exampleBox,
+			saveBox,
+			removeBox,
+			closeBox,
+			phoneType,
+			contentBoxes,
+			controlBoxes,
+			overflow
+		] = await Promise.all([
+			header.boundingBox(),
+			editor.boundingBox(),
+			previewViewport.boundingBox(),
+			header.getByTestId('workflow-editor-primary-icon').boundingBox(),
+			example.boundingBox(),
+			save.boundingBox(),
+			remove.boundingBox(),
+			close.boundingBox(),
+			header.locator('.eyebrow').evaluate((element) => ({
+				eyebrow: Number.parseFloat(getComputedStyle(element).fontSize),
+				title: Number.parseFloat(
+					getComputedStyle(element.closest('.title')?.querySelector('strong') as Element).fontSize
+				)
+			})),
+			Promise.all(content.map((element) => element.boundingBox())),
+			Promise.all(controls.map((element) => element.boundingBox())),
+			Promise.all([
+				editor.evaluate((element) => ({
+					clientWidth: element.clientWidth,
+					scrollWidth: element.scrollWidth
+				})),
+				previewViewport.evaluate((element) => ({
+					clientWidth: element.clientWidth,
+					scrollWidth: element.scrollWidth
+				}))
+			])
+		]);
+		expect(headerBox && headerBox.height >= 168).toBe(true);
+		expect(iconBox && iconBox.width >= 34 && iconBox.height >= 34).toBe(true);
+		expect(phoneType.eyebrow).toBeGreaterThanOrEqual(15);
+		expect(phoneType.title).toBeGreaterThanOrEqual(17);
+		await expect(header.locator('.collapse')).toHaveCount(0);
+		await expect(header.getByRole('button', { name: 'Close' })).toBeVisible();
+		await expect(example).toHaveText('Example');
+		await expect(save).toBeVisible();
+		await expect(remove).toBeVisible();
+		expect(editorBox).not.toBeNull();
+		expect(viewportBox).not.toBeNull();
+		expect(exampleBox).not.toBeNull();
+		expect(saveBox).not.toBeNull();
+		expect(removeBox).not.toBeNull();
+		expect(closeBox).not.toBeNull();
+		if (
+			!headerBox ||
+			!editorBox ||
+			!viewportBox ||
+			!exampleBox ||
+			!saveBox ||
+			!removeBox ||
+			!closeBox
+		)
+			return;
+		expectInside(editorBox, headerBox);
+		expectInside(editorBox, closeBox);
+		for (const elementBox of [exampleBox, saveBox, removeBox]) {
+			expectInside(editorBox, elementBox);
+			expectHorizontallyInside(viewportBox, elementBox);
+		}
+		expectHorizontallyInside(viewportBox, headerBox);
+		expectHorizontallyInside(viewportBox, closeBox);
+		for (const dimensions of overflow) {
+			expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+		}
+		for (const contentBox of contentBoxes) {
+			expect(contentBox).not.toBeNull();
+			if (!contentBox) continue;
+			for (const controlBox of controlBoxes) {
+				expect(controlBox).not.toBeNull();
+				if (controlBox) expect(overlaps(contentBox, controlBox)).toBe(false);
+			}
+		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows-ui.responsive-accessible-reachable
