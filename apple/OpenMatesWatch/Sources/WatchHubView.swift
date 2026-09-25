@@ -192,6 +192,7 @@ private enum WatchHubCopy {
 struct WatchHubView: View {
     @StateObject private var dataService: WatchHubDataService
     @State private var selectedSection: WatchHubSection?
+    @State private var showsSectionMenu = true
     @State private var isSearching = false
     @State private var searchText = ""
     @State private var popupMessage: String?
@@ -231,18 +232,30 @@ struct WatchHubView: View {
             Group {
                 switch selectedSection {
                 case nil:
-                    selector
+                    Color.black
                 case .chat:
                     WatchChatShellView(
                         currentUserId: currentUserId,
                         currentUsername: currentUsername,
                         webSocketToken: webSocketToken,
-                        onOpenHub: { selectedSection = nil },
+                        onOpenHub: openSectionMenu,
                         onOpenSettings: showSettingsPopup
                     )
                 case .tasks, .workflows:
                     listScreen
                 }
+            }
+            .allowsHitTesting(!showsSectionMenu)
+            if showsSectionMenu {
+                if selectedSection != nil {
+                    Color.black.opacity(0.72)
+                        .ignoresSafeArea()
+                        .onTapGesture { showsSectionMenu = false }
+                        .transition(.opacity)
+                }
+                selector
+                    .transition(.opacity)
+                    .zIndex(1)
             }
             if let popupMessage {
                 Color.black.opacity(0.65).ignoresSafeArea()
@@ -271,6 +284,7 @@ struct WatchHubView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
+        .animation(.easeInOut(duration: 0.28), value: showsSectionMenu)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-hub")
     }
@@ -309,36 +323,38 @@ struct WatchHubView: View {
     }
 
     private var listScreen: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                header
-                    .padding(.bottom, 40)
-                actions
-                    .padding(.bottom, isSearching ? 8 : 26)
-                if isSearching {
-                    TextField(WatchHubCopy.search, text: $searchText)
-                        .font(.omXs)
-                        .foregroundStyle(Color.grey0)
-                        .tint(WatchHubPalette.blue)
-                        .padding(.horizontal, 10)
-                        .frame(height: 28)
-                        .background(Color.grey90, in: Capsule())
-                        .padding(.bottom, 12)
-                        .accessibilityIdentifier("watch-hub-search-input")
+        VStack(spacing: 0) {
+            header
+                .zIndex(1)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    actions
+                        .padding(.bottom, isSearching ? 8 : 26)
+                    if isSearching {
+                        TextField(WatchHubCopy.search, text: $searchText)
+                            .font(.omXs)
+                            .foregroundStyle(Color.grey0)
+                            .tint(WatchHubPalette.blue)
+                            .padding(.horizontal, 10)
+                            .frame(height: 28)
+                            .background(Color.grey90, in: Capsule())
+                            .padding(.bottom, 12)
+                            .accessibilityIdentifier("watch-hub-search-input")
+                    }
+                    if selectedSection == .tasks {
+                        taskGroups
+                    } else {
+                        workflowRows
+                            .padding(.top, 19)
+                    }
                 }
-                if selectedSection == .tasks {
-                    taskGroups
-                } else {
-                    workflowRows
-                        .padding(.top, 19)
-                }
+                .padding(.horizontal, 11)
+                .padding(.top, 40)
             }
-            .padding(.horizontal, 11)
-            .padding(.top, 7)
-        }
-        .refreshable {
-            if selectedSection == .tasks { await dataService.refreshTasks() }
-            else { await dataService.refreshWorkflows() }
+            .refreshable {
+                if selectedSection == .tasks { await dataService.refreshTasks() }
+                else { await dataService.refreshWorkflows() }
+            }
         }
         .ignoresSafeArea(edges: .top)
         .accessibilityElement(children: .contain)
@@ -346,7 +362,7 @@ struct WatchHubView: View {
     }
 
     private var header: some View {
-        Button { selectedSection = nil } label: {
+        Button(action: openSectionMenu) {
             HStack(spacing: 0) {
                 if let selectedSection {
                     WatchHubSectionGlyph(section: selectedSection)
@@ -363,6 +379,10 @@ struct WatchHubView: View {
             .background(WatchHubPalette.blue, in: Capsule())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 49)
+        .padding(.leading, 11)
+        .background(Color.black)
         .accessibilityLabel(selectedSection?.title ?? "")
         .accessibilityIdentifier("watch-hub-section-selector")
     }
@@ -501,10 +521,15 @@ struct WatchHubView: View {
 
     private func select(_ section: WatchHubSection) {
         selectedSection = section
+        showsSectionMenu = false
         isSearching = false
         searchText = ""
         if section == .tasks { Task { await dataService.refreshTasks() } }
         if section == .workflows { Task { await dataService.refreshWorkflows() } }
+    }
+
+    private func openSectionMenu() {
+        showsSectionMenu = true
     }
 
     private func showSettingsPopup() {

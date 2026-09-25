@@ -9,6 +9,18 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.chats.new-text-reply
+    func testWatchInitialSyncIncludesRequiredPersonalContextEpoch() {
+        let state = WatchSyncClientState(
+            clientChatVersions: [:], clientChatIds: ["fixture-chat"],
+            clientSuggestionsCount: 0, clientEmbedIds: []
+        )
+        let payload = state.phasedSyncPayload
+        XCTAssertEqual(payload["context_epoch"] as? Int, 0)
+        XCTAssertEqual(payload["phase"] as? String, "all")
+        XCTAssertEqual(payload["client_chat_ids"] as? [String], ["fixture-chat"])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.audio-reply
     func testWatchSocketReadinessWaitsForDelayedOpenAndStopsAfterClosure() async {
         var attempts = 0
@@ -261,9 +273,44 @@ final class WatchChatRuntimeTests: XCTestCase {
 
         await runtime.refresh()
 
-        XCTAssertEqual(api.requestedChatOffsets, [0, 100])
+        XCTAssertEqual(api.requestedChatOffsets, [0, 20, 120])
         XCTAssertEqual(runtime.chats.count, 126)
         XCTAssertEqual(runtime.chats.filter { $0.title == "Chat 126" }.map(\.id), ["chat-126"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testRefreshStopsWhenServerRepeatsPageAndKeepsFirstHundredChats() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(chats: (1...126).map { index in
+            Self.remoteChat(id: "chat-\(index)", title: "Chat \(index)", lastMessageAt: "2026-07-01T10:00:00Z")
+        }, ignoresChatOffset: true)
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto())
+
+        await runtime.refresh()
+
+        XCTAssertEqual(api.requestedChatOffsets, [0, 20, 120])
+        XCTAssertEqual(runtime.chats.count, 100)
+        XCTAssertFalse(runtime.isOffline)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testRefreshFallsBackToSmallPagesWhenLargePageFails() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(chats: (1...26).map { index in
+            Self.remoteChat(id: "chat-\(index)", title: "Chat \(index)", lastMessageAt: "2026-07-01T10:00:00Z")
+        }, maxAcceptedChatLimit: 20)
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto())
+
+        await runtime.refresh()
+
+        XCTAssertEqual(api.requestedChatOffsets, [0, 20, 20])
+        XCTAssertEqual(runtime.chats.count, 26)
+        XCTAssertFalse(runtime.isOffline)
+        XCTAssertFalse(runtime.chatLoadFailed)
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
@@ -348,6 +395,21 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.chats.map(\.id), ["cached"])
     }
 
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testChatHTTPFailureDoesNotClaimDeviceIsOffline() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let runtime = WatchChatRuntime(
+            api: FakeWatchChatAPI(chatFetchError: APIError.httpError(status: 503, message: "Unavailable")),
+            cache: WatchChatOfflineCache(directory: directory), crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.refresh()
+
+        XCTAssertFalse(runtime.isOffline)
+        XCTAssertTrue(runtime.chatLoadFailed)
+    }
+
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
     func testFailedPreflightKeepsExactEncryptedTurnForRetry() async throws {
         let directory = temporaryDirectory()
@@ -377,6 +439,35 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual((preflight["encrypted_user_message"] as? [String: Any])?["encrypted_content"] as? String, "encrypted:Pending reply")
         XCTAssertEqual((inference["message"] as? [String: Any])?["content"] as? String, "Pending reply")
         XCTAssertNil(preflight["encrypted_chat_metadata"], "Existing titled chats do not resend initial metadata")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
+    func testNextSendRetriesPersistedTurnBeforeSendingNewText() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let runtime = WatchChatRuntime(
+            api: FakeWatchChatAPI(chats: [Self.remoteChat(id: chat.id, title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")]),
+            cache: cache, crypto: FakeWatchChatCrypto(), syncSocket: socket,
+            syncSession: WatchSyncSession(sessionId: "session", token: "token")
+        )
+        await runtime.refresh()
+        await runtime.openChat(chat)
+        let firstQueued = await runtime.sendText("First")
+        let blockedNewSend = await runtime.sendText("Second")
+        XCTAssertTrue(firstQueued)
+        XCTAssertFalse(blockedNewSend)
+        XCTAssertNotEqual(runtime.errorMessage, WatchChatRuntimeError.sendInProgress.localizedDescription)
+
+        socket.shouldRejectSend = false
+        let secondSent = await runtime.sendText("Second")
+        XCTAssertTrue(secondSent)
+        XCTAssertEqual(socket.sentTurns.count, 2)
+        let saved = await cache.loadSnapshot()
+        XCTAssertTrue(saved.pendingTextSends.isEmpty)
+        XCTAssertEqual(runtime.selectedMessages.filter(\.isPending).count, 0)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
@@ -799,6 +890,9 @@ private actor WatchAudioUploadGate {
 
 private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private let shouldThrow: Bool
+    private let chatFetchError: Error?
+    private let ignoresChatOffset: Bool
+    private let maxAcceptedChatLimit: Int?
     private let chats: [WatchRemoteChat]
     private let messagesByChatId: [String: [WatchRemoteMessage]]
     private let uploadedAudio: WatchUploadedAudio?
@@ -816,6 +910,9 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         chats: [WatchRemoteChat] = [],
         messagesByChatId: [String: [WatchRemoteMessage]] = [:],
         shouldThrow: Bool = false,
+        chatFetchError: Error? = nil,
+        ignoresChatOffset: Bool = false,
+        maxAcceptedChatLimit: Int? = nil,
         transientChatFetchFailures: Int = 0,
         transientMessageFetchFailures: Int = 0,
         uploadedAudio: WatchUploadedAudio? = nil,
@@ -824,6 +921,9 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
         self.shouldThrow = shouldThrow
+        self.chatFetchError = chatFetchError
+        self.ignoresChatOffset = ignoresChatOffset
+        self.maxAcceptedChatLimit = maxAcceptedChatLimit
         self.transientChatFetchFailures = transientChatFetchFailures
         self.transientMessageFetchFailures = transientMessageFetchFailures
         self.uploadedAudio = uploadedAudio
@@ -838,8 +938,12 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
             transientChatFetchFailures -= 1
             throw URLError(.networkConnectionLost)
         }
+        if let chatFetchError { throw chatFetchError }
+        if let maxAcceptedChatLimit, limit > maxAcceptedChatLimit {
+            throw APIError.httpError(status: 503, message: "Page too large")
+        }
         if shouldThrow { throw URLError(.notConnectedToInternet) }
-        return Array(chats.dropFirst(offset).prefix(limit))
+        return Array(chats.dropFirst(ignoresChatOffset ? 0 : offset).prefix(limit))
     }
 
     func fetchMessagesVersion(chatId: String) async throws -> Int? {
@@ -988,7 +1092,7 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     private(set) var connectedSyncState: WatchSyncClientState?
     private(set) var didDisconnect = false
     private(set) var sentTurns: [WatchPendingTextSend] = []
-    private let shouldRejectSend: Bool
+    var shouldRejectSend: Bool
 
     init(shouldRejectSend: Bool = false) { self.shouldRejectSend = shouldRejectSend }
 

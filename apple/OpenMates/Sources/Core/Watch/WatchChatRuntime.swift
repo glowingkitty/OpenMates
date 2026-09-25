@@ -358,6 +358,18 @@ struct WatchSyncClientState: Equatable, Sendable {
     let clientChatIds: [String]
     let clientSuggestionsCount: Int
     let clientEmbedIds: [String]
+
+    var phasedSyncPayload: [String: Any] {
+        [
+            "phase": "all",
+            // Personal scope still requires an explicit context epoch on the server.
+            "context_epoch": 0,
+            "client_chat_versions": clientChatVersions,
+            "client_chat_ids": clientChatIds,
+            "client_suggestions_count": clientSuggestionsCount,
+            "client_embed_ids": clientEmbedIds,
+        ]
+    }
 }
 
 // Mirrors ChatKeyWrapperRecord selection for the Watch target, which does not
@@ -504,6 +516,7 @@ final class WatchChatRuntime: ObservableObject {
     @Published var selectedChatId: String?
     @Published private(set) var isSyncing = false
     @Published private(set) var isOffline = false
+    @Published private(set) var chatLoadFailed = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var pendingAudioEmbeds: [WatchPendingAudioEmbed] = []
     @Published private(set) var unavailableChatCount = 0
@@ -516,8 +529,9 @@ final class WatchChatRuntime: ObservableObject {
     private var isSending = false
     private var pendingTextSends: [WatchPendingTextSend] = []
     private static let incognitoChatIdPrefix = "incognito-"
-    // The chat endpoint caps each request at 100. Fetch every page so local
-    // search can find older encrypted titles after client-side decryption.
+    // Show the first page promptly, then fetch older chats for local search.
+    // Some deployed servers ignore offset, so stop when a page repeats.
+    private static let firstChatFetchLimit = 20
     private static let chatFetchLimit = 100
     private static let fetchRetryAttempts = 4
     private static let fetchRetryDelayNanoseconds: UInt64 = 750_000_000
@@ -567,56 +581,92 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func refresh() async {
+        guard !isSyncing else { return }
         isSyncing = true
         errorMessage = nil
         if chats.isEmpty {
             await loadCachedSnapshot()
         }
-
-        var failurePhase = "fetch"
-        do {
-            var fetchedChats: [WatchRemoteChat] = []
-            while true {
-                let offset = fetchedChats.count
-                let page = try await fetchWithRetry {
-                    try await api.fetchRecentChats(limit: Self.chatFetchLimit, offset: offset)
+        var remote: [WatchChatSummary] = []
+        var seenChatIds = Set<String>()
+        var fetchedCount = 0
+        var offset = 0
+        var limit = Self.firstChatFetchLimit
+        var fetchedFirstPage = false
+        var fetchError: Error?
+        while true {
+            let page: [WatchRemoteChat]
+            do {
+                page = try await fetchWithRetry {
+                    try await api.fetchRecentChats(limit: limit, offset: offset)
                 }
-                fetchedChats.append(contentsOf: page)
-                if page.count < Self.chatFetchLimit { break }
+            } catch {
+                if fetchedFirstPage && limit == Self.chatFetchLimit {
+                    NativeDiagnostics.failure("large_page_failed", category: "watch_chat", level: .warning, error: error)
+                    limit = Self.firstChatFetchLimit
+                    continue
+                }
+                fetchError = error
+                break
             }
-            let remote = Self.sortedChats(await decryptChats(fetchedChats))
-            unavailableChatCount = fetchedChats.count - remote.count
-            NativeDiagnostics.event("refresh", category: "watch_chat", counts: [
-                "fetched": fetchedChats.count, "decrypted": remote.count,
-                "unavailable_key": unavailableChatCount,
-            ])
-            if unavailableChatCount > 0 {
-                NativeDiagnostics.event("decrypt_key_unavailable", category: "watch_chat", level: .warning,
-                                        counts: ["count": unavailableChatCount])
+            fetchedFirstPage = true
+            let unseen = page.filter { seenChatIds.insert($0.id).inserted }
+            if !page.isEmpty && unseen.isEmpty {
+                NativeDiagnostics.event("repeated_page", category: "watch_chat", level: .warning,
+                                        counts: ["offset": offset, "limit": limit])
+                break
             }
+            fetchedCount += unseen.count
+            remote.append(contentsOf: await decryptChats(unseen))
+            unavailableChatCount = fetchedCount - remote.count
             let remoteIds = Set(remote.map(\.id))
             let pendingChatIds = Set(pendingTextSends.map(\.chatId))
+            let hasMore = page.count == limit
             let localRetained = chats.filter { chat in
                 !remoteIds.contains(chat.id) && (
-                    pendingChatIds.contains(chat.id)
+                    hasMore || pendingChatIds.contains(chat.id)
                     || (chat.messagesV == 0 && messagesByChatId[chat.id] != nil)
                 )
             }
             chats = Self.sortedChats(remote + localRetained)
             isOffline = false
+            chatLoadFailed = false
+            NativeDiagnostics.event("refresh_page", category: "watch_chat", counts: [
+                "offset": offset, "fetched": unseen.count, "decrypted": remote.count,
+                "unavailable_key": unavailableChatCount,
+            ])
+            guard hasMore else { break }
+            offset += page.count
+            limit = Self.chatFetchLimit
+        }
+        if let fetchError {
+            NativeDiagnostics.failure("fetch_failed", category: "watch_chat", level: .warning, error: fetchError)
+            errorMessage = fetchError.localizedDescription
+            chatLoadFailed = true
+            if !fetchedFirstPage {
+                isOffline = Self.isConnectivityError(fetchError)
+                if chats.isEmpty { await loadCachedSnapshot() }
+            }
+        }
+        if fetchedFirstPage {
+            NativeDiagnostics.event("refresh", category: "watch_chat", counts: [
+                "fetched": fetchedCount, "decrypted": remote.count,
+                "unavailable_key": unavailableChatCount,
+            ])
             await replayPendingTextSends()
-            failurePhase = "persist"
-            try await persistSnapshot()
-        } catch {
-            NativeDiagnostics.failure("\(failurePhase)_failed", category: "watch_chat", level: .warning, error: error)
-            unavailableChatCount = 0
-            isOffline = true
-            errorMessage = error.localizedDescription
-            if chats.isEmpty {
-                await loadCachedSnapshot()
+            do {
+                try await persistSnapshot()
+            } catch {
+                NativeDiagnostics.failure("persist_failed", category: "watch_chat", level: .warning, error: error)
             }
         }
         isSyncing = false
+    }
+
+    private static func isConnectivityError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        return [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost,
+                .cannotFindHost, .timedOut].contains(urlError.code)
     }
 
     func startRealtimeSync() async {
@@ -647,9 +697,14 @@ final class WatchChatRuntime: ObservableObject {
             }
             isOffline = false
             errorMessage = nil
-            try await persistSnapshot()
+            do {
+                try await persistSnapshot()
+            } catch {
+                NativeDiagnostics.failure("persist_failed", category: "watch_chat", level: .warning, error: error)
+            }
         } catch {
-            isOffline = true
+            NativeDiagnostics.failure("messages_fetch_failed", category: "watch_chat", level: .warning, error: error)
+            isOffline = Self.isConnectivityError(error)
             errorMessage = error.localizedDescription
         }
     }
@@ -707,9 +762,18 @@ final class WatchChatRuntime: ObservableObject {
             errorMessage = WatchChatRuntimeError.missingChatKey.localizedDescription
             return false
         }
-        guard !isSending, pendingTextSends.isEmpty else {
+        guard !isSending else {
             errorMessage = WatchChatRuntimeError.sendInProgress.localizedDescription
             return false
+        }
+        if !pendingTextSends.isEmpty {
+            await replayPendingTextSends()
+            guard pendingTextSends.isEmpty else {
+                if errorMessage == nil {
+                    errorMessage = WatchChatRuntimeError.socketUnavailable.localizedDescription
+                }
+                return false
+            }
         }
         isSending = true
         defer { isSending = false }
@@ -923,12 +987,13 @@ final class WatchChatRuntime: ObservableObject {
         isSending = true
         defer { isSending = false }
         syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
-        for pending in pendingTextSends where !pending.preflightJSON.isEmpty {
+        for pending in pendingTextSends {
             do {
                 try await syncSocket.sendTurn(pending)
                 pendingTextSends.removeAll { $0.id == pending.id }
                 markPendingMessageSent(messageId: pending.messageId, chatId: pending.chatId)
             } catch {
+                NativeDiagnostics.failure("pending_replay_failed", category: "watch_chat", level: .warning, error: error)
                 errorMessage = error.localizedDescription
                 break
             }
@@ -1126,12 +1191,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 return
             }
             NativeDiagnostics.event("connected", category: "watch_chat_socket")
-            let sync = WatchWSOutboundMessage(type: "phased_sync_request", payload: [
-                "phase": "all", "client_chat_versions": syncState.clientChatVersions,
-                "client_chat_ids": syncState.clientChatIds,
-                "client_suggestions_count": syncState.clientSuggestionsCount,
-                "client_embed_ids": syncState.clientEmbedIds
-            ])
+            let sync = WatchWSOutboundMessage(type: "phased_sync_request", payload: syncState.phasedSyncPayload)
             do {
                 try await self.send(sync, on: task)
                 self.isReady = true

@@ -100,6 +100,9 @@ private enum WatchChatCopy {
     static var chats: String { WatchLocalization.text("common.chats") }
     static var search: String { WatchLocalization.text("activity.search") }
     static var settings: String { WatchLocalization.text("common.settings") }
+    static var chatsLoadFailed: String {
+        WatchLocalization.text("common.detail_load_error", replacements: ["item": chats])
+    }
     static var recording: String { WatchLocalization.text("enter_message.record_audio.recording") }
     static func welcomeGreeting(username: String?) -> String {
         guard let username = username?.trimmingCharacters(in: .whitespacesAndNewlines), !username.isEmpty else {
@@ -214,118 +217,141 @@ private struct WatchChatListView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: .spacing3) {
-                Button {
-                    onOpenHub?()
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                        Image(systemName: "arrowtriangle.down.fill")
-                            .font(.system(size: 18))
-                    }
-                    .foregroundStyle(WatchChatPalette.foreground)
-                    .frame(width: 95, height: 37)
-                    .background(
-                        LinearGradient(
-                            colors: [Color(red: 0.30, green: 0.43, blue: 0.81), Color(red: 0.34, green: 0.52, blue: 0.91)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ), in: Capsule()
-                    )
+        VStack(spacing: 0) {
+            Button {
+                onOpenHub?()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.system(size: 18))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(WatchChatCopy.chats)
-                .accessibilityIdentifier("watch-chats-heading")
-
-                HStack(spacing: 0) {
-                    Button {
-                        isSearching.toggle()
-                        if !isSearching { searchText = "" }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 24))
-                            .frame(maxWidth: .infinity, minHeight: 30)
-                    }
-                    .accessibilityLabel(WatchChatCopy.search)
-                    .accessibilityIdentifier("watch-chat-search-button")
-
-                    Button {
-                        Task { await runtime.createNewChat() }
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 24))
-                            .frame(maxWidth: .infinity, minHeight: 30)
-                    }
-                    .accessibilityLabel(WatchStrings.newChat)
-                    .accessibilityIdentifier("watch-new-chat-button")
-
-                    Button {
-                        onOpenSettings?()
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 24))
-                            .frame(maxWidth: .infinity, minHeight: 30)
-                    }
-                    .disabled(onOpenSettings == nil)
-                    .accessibilityLabel(WatchChatCopy.settings)
-                    .accessibilityIdentifier("watch-chat-settings-button")
-                }
-                .foregroundStyle(WatchChatPalette.blue)
-                .buttonStyle(.plain)
-                .padding(.top, 27)
-
-                // The first conversation sits below the three large controls
-                // in the 184-point Figma Watch frame.
-                Color.clear.frame(height: 25)
-
-                if isSearching {
-                    TextField(WatchChatCopy.search, text: $searchText)
-                        .font(.omXs)
-                        .foregroundStyle(WatchChatPalette.foreground)
-                        .tint(WatchChatPalette.blue)
-                        .padding(.horizontal, .spacing3)
-                        .frame(height: 28)
-                        .background(WatchChatPalette.surface, in: Capsule())
-                        .accessibilityIdentifier("watch-chat-search-input")
-                }
-
-                if runtime.isOffline {
-                    WatchStatusPill(text: WatchStrings.offlineBanner)
-                }
-
-                if runtime.unavailableChatCount > 0 {
-                    WatchStatusPill(text: WatchLocalization.text("workflows.builder.chats_unavailable"))
-                        .accessibilityIdentifier("watch-chat-unavailable")
-                }
-
-                if runtime.chats.isEmpty && !runtime.isSyncing && !runtime.isOffline && runtime.unavailableChatCount == 0 {
-                    Text(WatchStrings.noChats)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.grey0.opacity(0.76))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, .spacing8)
-                        .accessibilityIdentifier("watch-chat-empty")
-                }
-
-                ForEach(visibleChats) { chat in
-                    Button {
-                        Task { await runtime.openChat(chat) }
-                    } label: {
-                        WatchChatRow(chat: chat)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("watch-chat-row-\(chat.id)")
-                }
+                .foregroundStyle(WatchChatPalette.foreground)
+                .frame(width: 95, height: 37)
+                .background(
+                    LinearGradient(
+                        colors: [Color(red: 0.30, green: 0.43, blue: 0.81), Color(red: 0.34, green: 0.52, blue: 0.91)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), in: Capsule()
+                )
             }
-            .padding(.horizontal, .spacing4)
-            .padding(.top, 6)
-            .padding(.bottom, .spacing5)
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 49)
+            .padding(.leading, .spacing4)
+            .background(WatchChatPalette.background)
+            .accessibilityLabel(WatchChatCopy.chats)
+            .accessibilityIdentifier("watch-chats-heading")
+            .zIndex(1)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: .spacing3) {
+                    HStack(spacing: 0) {
+                        Button {
+                            isSearching.toggle()
+                            if !isSearching { searchText = "" }
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .accessibilityLabel(WatchChatCopy.search)
+                        .accessibilityIdentifier("watch-chat-search-button")
+
+                        Button {
+                            Task { await runtime.createNewChat() }
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .accessibilityLabel(WatchStrings.newChat)
+                        .accessibilityIdentifier("watch-new-chat-button")
+
+                        Button {
+                            onOpenSettings?()
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 24))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                        }
+                        .disabled(onOpenSettings == nil)
+                        .accessibilityLabel(WatchChatCopy.settings)
+                        .accessibilityIdentifier("watch-chat-settings-button")
+                    }
+                    .foregroundStyle(WatchChatPalette.blue)
+                    .buttonStyle(.plain)
+                    .padding(.top, 27)
+
+                    // The first conversation sits below the three large controls
+                    // in the 184-point Figma Watch frame.
+                    Color.clear.frame(height: 25)
+
+                    if isSearching {
+                        TextField(WatchChatCopy.search, text: $searchText)
+                            .font(.omXs)
+                            .foregroundStyle(WatchChatPalette.foreground)
+                            .tint(WatchChatPalette.blue)
+                            .padding(.horizontal, .spacing3)
+                            .frame(height: 28)
+                            .background(WatchChatPalette.surface, in: Capsule())
+                            .accessibilityIdentifier("watch-chat-search-input")
+                    }
+
+                    if runtime.isOffline {
+                        WatchStatusPill(text: WatchStrings.offlineBanner)
+                    }
+
+                    if runtime.chatLoadFailed && !runtime.isOffline {
+                        WatchStatusPill(text: WatchChatCopy.chatsLoadFailed)
+                            .accessibilityIdentifier("watch-chat-load-error")
+                        Button {
+                            Task { await runtime.refresh() }
+                        } label: {
+                            Text(WatchStrings.retry)
+                                .font(.omXs)
+                                .foregroundStyle(WatchChatPalette.foreground)
+                                .padding(.horizontal, .spacing4)
+                                .frame(minHeight: 28)
+                                .background(WatchChatPalette.blue, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("watch-chat-load-retry")
+                    }
+
+                    if runtime.unavailableChatCount > 0 {
+                        WatchStatusPill(text: WatchLocalization.text("workflows.builder.chats_unavailable"))
+                            .accessibilityIdentifier("watch-chat-unavailable")
+                    }
+
+                    if runtime.chats.isEmpty && !runtime.isSyncing && !runtime.isOffline && !runtime.chatLoadFailed && runtime.unavailableChatCount == 0 {
+                        Text(WatchStrings.noChats)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.grey0.opacity(0.76))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, .spacing8)
+                            .accessibilityIdentifier("watch-chat-empty")
+                    }
+
+                    ForEach(visibleChats) { chat in
+                        Button {
+                            Task { await runtime.openChat(chat) }
+                        } label: {
+                            WatchChatRow(chat: chat)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("watch-chat-row-\(chat.id)")
+                    }
+                }
+                .padding(.horizontal, .spacing4)
+                .padding(.bottom, .spacing5)
+            }
+            .accessibilityIdentifier("watch-chat-list")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WatchChatPalette.background)
         .ignoresSafeArea(edges: .top)
-        .accessibilityIdentifier("watch-chat-list")
     }
 }
 
@@ -712,11 +738,13 @@ private struct WatchChatRow: View {
                             .accessibilityHidden(true)
                     }
                 }
-                Text(chat.preview ?? WatchStrings.clientEncrypted)
-                    .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
-                    .foregroundStyle(WatchChatPalette.muted)
-                    .lineLimit(1)
-                    .multilineTextAlignment(.leading)
+                if let preview = chat.preview?.trimmingCharacters(in: .whitespacesAndNewlines), !preview.isEmpty {
+                    Text(preview)
+                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+                        .foregroundStyle(WatchChatPalette.muted)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
+                }
             }
         }
         .padding(.vertical, .spacing2)

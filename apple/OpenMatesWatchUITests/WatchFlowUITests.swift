@@ -79,6 +79,9 @@ final class WatchFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["watch-task-row-task-two"].exists)
         XCTAssertTrue(app.buttons["watch-hub-search"].exists)
         XCTAssertTrue(app.buttons["watch-hub-new"].exists)
+        let sectionSelector = app.buttons["watch-hub-section-selector"]
+        app.swipeUp()
+        XCTAssertTrue(sectionSelector.isHittable)
         keepScreenshot("Watch read-only Tasks list")
 
         app.buttons["watch-task-row-task-one"].tap()
@@ -86,13 +89,27 @@ final class WatchFlowUITests: XCTestCase {
         XCTAssertTrue(openedItem.waitForExistence(timeout: 3))
         XCTAssertEqual(openedItem.label, "task:task-one")
 
-        app.buttons["watch-hub-section-selector"].tap()
+        sectionSelector.tap()
+        XCTAssertTrue(app.buttons["watch-hub-select-chat"].waitForExistence(timeout: 3))
+        keepScreenshot("Watch section menu reopened above Tasks")
         app.buttons["watch-hub-select-workflows"].tap()
         let workflow = app.buttons["watch-workflow-row-workflow-one"]
         XCTAssertTrue(workflow.waitForExistence(timeout: 5))
         keepScreenshot("Watch read-only Workflows list")
         workflow.tap()
         XCTAssertEqual(openedItem.label, "workflow:workflow-one")
+
+        sectionSelector.tap()
+        let chatOption = app.buttons["watch-hub-select-chat"]
+        XCTAssertTrue(chatOption.waitForExistence(timeout: 3))
+        chatOption.tap()
+        let chatsHeading = app.buttons["watch-chats-heading"]
+        XCTAssertTrue(chatsHeading.waitForExistence(timeout: 5))
+        app.swipeUp()
+        XCTAssertTrue(chatsHeading.isHittable)
+        chatsHeading.tap()
+        XCTAssertTrue(app.buttons["watch-hub-select-tasks"].waitForExistence(timeout: 3))
+        keepScreenshot("Watch fixed Chats header and reopened menu")
     }
 
     @MainActor
