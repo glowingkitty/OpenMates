@@ -17,7 +17,7 @@ scope:
     - Reuse of existing per-chat encryption for anonymous chats, with chat keys stored locally until signup.
     - Anonymous local chat/embed storage in an explicit local anonymous scope guarded by a tab/session-scoped anonymous marker and purged on unauthenticated client start when that marker is absent.
     - Signup conversion that wraps anonymous chat keys with the new account master key and uploads encrypted chats, messages, and embeds through normal sync.
-    - App skills that do not require connected accounts, determined by machine-readable connected-account requirement metadata.
+    - App skills explicitly classified as account-free, inline, and without file or durable side effects, available in anonymous chat and the CLI.
     - Signup-gated file uploads from anonymous chat, including composer UI that replaces suggestions above the message input with an account-required notice and replaces Send with Signup while a file is attached.
     - Terms/privacy notice before first anonymous message and legal/privacy/browser-storage documentation updates.
   out:
@@ -25,6 +25,7 @@ scope:
     - Server-side persistence of anonymous prompts, responses, encrypted chat blobs, or embed content before signup.
     - Anonymous memories, custom PII entries, connected accounts, reminders, notifications, billing, teams, sharing, or export.
     - Anonymous file uploads, transient upload processing, durable S3 objects, Directus upload_files rows, or Directus embed records before signup.
+    - Anonymous file-generating skills and background skill jobs, including image, audio, music, and video generation.
     - Anonymous availability on self-hosted editions.
     - Strong bot/fraud prevention beyond practical local ID, IP hash, rate limit, and global budget caps.
     - Retroactive import of older demo chats or shared chats into anonymous free usage.
@@ -94,7 +95,7 @@ clarification:
     - question: If an anonymous user starts signup from a pending file upload, should the typed message and file be preserved through signup?
       answer: Preserve the typed message as a draft, but do not preserve the file. After account creation, the user must attach the file again through the normal authenticated upload flow.
     - question: Should app skills be limited to plain chat first, or should all skills without connected-account requirements be available?
-      answer: All app skills that do not require connected accounts should be accessible, gated by explicit metadata.
+      answer: Anonymous chat and CLI may use account-free skills that return their final result within the request without creating files or durable side effects. File-generating and background skills require authentication, even without a connected provider account. The revised feature.billing@5 Specification is the approved contract.
     - question: Should the server retain weekly/monthly per-user usage metadata?
       answer: No. The system only needs shared daily/weekly budget counters and short-lived per-identity daily cap records to make simple circumvention harder.
     - question: Should anonymous app skills be removed when their costs are not covered by the outer AI charge?
@@ -102,7 +103,7 @@ clarification:
     - question: Which absolute anonymous limits must remain enforceable even if an admin enters higher values?
       answer: Hard maxima are 400 credits per identity per UTC day, 3000 credits server-wide per UTC day, 15000 credits server-wide per UTC week, and 60000 credits server-wide per UTC month. Admin configuration may lower but never exceed them.
   vision_summary: >
-    New users can try real OpenMates chat and non-connected-account skills for free on official cloud clients while global daily/weekly budget remains available.
+    New users can try real OpenMates chat and account-free inline skills for free on official cloud clients while global daily/weekly/monthly budget remains available.
     The user sees a normal Send input. When they send the first anonymous message, the client inserts a local system message immediately before it explaining free daily credits and local-only storage.
     Anonymous content is encrypted locally with normal chat keys, every follow-up sends the needed full chat context from the client, no anonymous server inference cache is written, file uploads are signup-only, and signup can promote the local encrypted chats into normal account sync.
   approved_by_user: true
@@ -204,16 +205,16 @@ scenarios:
       - The rejected request receives a budget-exhausted response.
       - Failed or unused reservations expire and release unused budget.
   - id: S-10
-    title: Anonymous app skills are available unless they require connected accounts
+    title: Anonymous chat and CLI can use only account-free inline app skills
     given:
-      - A skill does not require a connected account.
-      - A second skill requires OAuth or connected account data.
+      - Event and web search return final results inline without account data or file storage.
+      - Image generation creates files, while a connected-account skill needs OAuth data.
     when:
-      - Bob asks the anonymous chat to use both capabilities.
+      - Bob asks anonymous chat for events and uses web search through the CLI, then tries image generation and the connected-account skill.
     then:
-      - The skill without connected-account requirements can run and charge the free budget.
-      - The connected-account skill is blocked with a signup/connect-account CTA.
-      - Skills missing machine-readable connected-account metadata fail a deterministic metadata audit before release.
+      - Event and web search can run and charge the same anonymous free budget.
+      - Image generation and the connected-account skill are blocked with a signup CTA before provider work.
+      - Every skill has an explicit anonymous-access classification, and missing metadata fails a deterministic audit before release.
   - id: S-13
     title: Anonymous file upload requires signup
     given:
@@ -314,7 +315,7 @@ acceptance_criteria:
     text: Reservation/finalization accounting prevents concurrent anonymous requests from overspending daily, weekly, or per-identity caps and releases unused reservations on failure or timeout.
   - id: AC-12
     scenario: S-10
-    text: Anonymous app skill execution is allowed for every skill that has machine-readable metadata proving it does not require connected accounts; skills requiring connected accounts are blocked with a signup/connect-account CTA.
+    text: Anonymous chat and CLI app skills require explicit account-free inline metadata, a safe preflight credit quote, and no file or durable side effects; file-generating, background, connected-account, and account-state skills are blocked before provider work.
   - id: AC-13
     scenario: S-13
     text: Anonymous file attachments are signup-gated; attaching a file while anonymous does not upload or process the file, replaces the suggestions above the message input with account-required copy, replaces Send with Signup until the file is removed or the user signs up, preserves typed message text as a draft through signup, and requires the user to reattach the file after account creation.
@@ -455,9 +456,9 @@ tests:
       - AC-13
       - AC-18
     assertions:
-      - skill without connected-account requirement can execute through anonymous meter without an explicit anonymous allowlist flag
-      - connected-account skill is rejected for anonymous callers
-      - missing connected-account classification fails metadata audit
+      - an explicitly classified inline skill can execute through the anonymous meter
+      - file-generating, background, account-state, and connected-account skills are rejected for anonymous callers
+      - missing anonymous-access classification fails the metadata audit
       - anonymous skill execution rejects file or upload payloads with signup_required
       - anonymous chat stream rejects message or history payloads containing file/embed upload references before inference starts
       - direct anonymous upload attempts are not accepted before account creation
@@ -917,7 +918,7 @@ tasks:
 
 risks:
   - IndexedDB reuse can leak stale anonymous records if session-marker purge gating is incomplete; tests must cover same-session reload, new unauthenticated session, and auth-state transitions.
-  - Connected-account metadata drift can accidentally expose a skill that needs user credentials; deterministic metadata audits are required.
+  - Anonymous-access metadata drift can accidentally expose a skill that needs account credentials or writes a file; deterministic metadata audits and runtime exclusions are required.
   - IP HMAC records remain pseudonymous personal data under GDPR; privacy policy and retention must be explicit.
   - Reservation accounting must be atomic enough to prevent budget overspend under concurrent streaming requests.
   - Cross-platform parity makes this larger than a web-only feature and should be implemented in slices behind feature flags.
@@ -930,5 +931,5 @@ decisions:
   - Anonymous file uploads require signup. Before account creation, attaching a file only changes the composer UI: suggestions above the input are replaced by account-required copy and Send is replaced by Signup; no file bytes, upload metadata, or embed payloads are sent to the backend. If the user starts signup from this state, preserve the typed message as a draft but discard the pending file so it must be reattached after account creation.
   - Per-identity abuse prevention is daily-only for v1; weekly protection is enforced through the shared weekly budget, not weekly per-identity metadata.
   - Public status exposes active/inactive and reset timing only; exact global remaining budget is admin-only.
-  - Anonymous app skills remain available. Their provider requests and every main-model iteration must reserve and settle credits through the same HMAC-scoped anonymous request ledger.
+  - Account-free inline app skills remain available in anonymous chat and CLI. File-generating and background skills require authentication. Every eligible provider request and main-model iteration reserves and settles credits through the same HMAC-scoped anonymous request ledger.
   - Absolute hard maxima are 400 credits per identity per UTC day, 3000 server-wide per UTC day, 15000 server-wide per UTC week, and 60000 server-wide per UTC month. Admin settings may only lower these limits.

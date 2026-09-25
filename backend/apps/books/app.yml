@@ -135,6 +135,7 @@ settings_and_memories:
 
 skills:
   - id: translate
+    anonymous_access: authenticated
     name_translation_key: books.translate
     description_translation_key: books.translate.description
     class_path: |

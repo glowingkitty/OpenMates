@@ -159,8 +159,16 @@ assertions:
     depends_on: [models.CreditBalance, models.CreditSettlement, examples.settlement_concurrency]
   - id: billing.anonymous.hard-capped-provider-metering
     type: security
-    must: Unauthenticated official-cloud text chat and eligible non-connected-account app skills reserve a conservative per-operation quote before provider work, atomically enforce absolute per-identity and shared UTC daily, weekly, and monthly caps, settle actual usage without exceeding the quote, retain ambiguous provider attempts, use only server-HMAC identity counters, and reject file, connected-account, or unpriced work before provider dispatch.
-    depends_on: [examples.credit_charges, applies_to]
+    must: Unauthenticated official-cloud web chat, CLI chat, and app skills called from anonymous chat or the CLI may run while both the per-identity limit and shared server-wide UTC daily, weekly, and monthly credit limits have room. Eligible skills must be explicitly classified as account-free, return a final result within the request, and create no file or durable side effect. Every provider operation reserves a conservative quote atomically before work, settles no more than that quote, and retains ambiguous attempts; connected-account actions, account-owned data mutations, file uploads, file-generating skills, background jobs, and work without a safe cost quote are rejected before provider dispatch. Identity counters contain only server-HMAC values.
+    depends_on: [examples.anonymous_free_use, applies_to]
+  - id: billing.anonymous.paid-users-unaffected
+    type: behavior
+    must: Exhausting any shared anonymous daily, weekly, or monthly limit rejects further unauthenticated paid work, while an authenticated user with sufficient account credits may continue through normal account billing.
+    depends_on: [examples.anonymous_paid]
+  - id: billing.anonymous.local-only-content
+    type: privacy
+    must: Before signup, anonymous chat and eligible app-skill content and result embeds remain transient on the server and may be stored only in the client's anonymous scope. File-generating skills require authentication. Directus receives no permanent chat, message, embed, or upload-file records for anonymous requests. Anonymous budget counters and operation reservations may be stored without content.
+    depends_on: [examples.anonymous_storage]
   - id: billing.purchase.provider-routing
     type: behavior
     must: Credit purchases route to the configured Stripe card, Stripe managed payment, bank transfer, gift-card, or free-testing-credit path and only completed payment evidence grants credits.

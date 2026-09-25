@@ -82,6 +82,7 @@ settings_and_memories:
         - name
 skills:
   - id: search
+    anonymous_access: inline
     name_translation_key: maps.search
     description_translation_key: maps.search.description
     icon_image: search.svg
@@ -99,7 +100,8 @@ skills:
       - Google
       - Geoapify
     pricing:
-      per_request_credits: 40
+      per_unit:
+        credits: 40
     # Follow-up suggestions shown to users after search results
     suggestions_follow_up_requests:
       - "Show me more places nearby"

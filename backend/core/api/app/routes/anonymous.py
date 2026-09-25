@@ -43,6 +43,7 @@ MAX_ANONYMOUS_HISTORY_MESSAGES = 50
 ANONYMOUS_INFERENCE_ERROR_MESSAGE = "Anonymous inference failed. Please try again."
 ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE = 60
 ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE = 20
+MAX_ANONYMOUS_SKILL_BODY_BYTES = 20_000
 
 EMBED_REFERENCE_PATTERN = re.compile(
     r'```(?:json|json_embed)\s*\n\s*\{[^`]*("embed_id"|"type"\s*:\s*"(?:image|audio|pdf|document|file)")',
@@ -99,21 +100,23 @@ class AnonymousChatResponse(BaseModel):
 
 
 def validate_anonymous_skill_allowed(app_id: str, skill: dict[str, Any]) -> None:
-    """Fail closed unless skill metadata explicitly classifies account needs."""
-    if "connected_account_required" not in skill:
+    """Only explicitly classified inline skills can run without an account."""
+    from backend.shared.python_utils.anonymous_skill_policy import is_anonymous_inline_skill
+
+    if skill.get("anonymous_access") is None:
         raise HTTPException(
             status_code=500,
             detail={
                 "code": "skill_metadata_missing",
-                "message": f"Skill {app_id}.{skill.get('id', 'unknown')} is missing connected-account classification.",
+                "message": f"Skill {app_id}.{skill.get('id', 'unknown')} is missing anonymous access classification.",
             },
         )
-    if skill.get("connected_account_required") is True:
+    if not is_anonymous_inline_skill(app_id, skill):
         raise HTTPException(
             status_code=403,
             detail={
                 "code": "signup_required",
-                "message": "Create an account to connect this app and use this skill.",
+                "message": "Create an account to use this skill.",
             },
         )
 
@@ -166,6 +169,73 @@ def reject_anonymous_file_payloads(payload: AnonymousChatStreamRequest) -> None:
         content = _anonymous_history_content(message)
         if _contains_embed_reference(content):
             raise _signup_required_for_uploads()
+
+
+def _reject_anonymous_skill_references(value: Any) -> None:
+    """Do not let a public skill request refer to private chats or uploads."""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if not isinstance(key, str) or key.startswith("_") or key in {
+                "chat_id", "message_id", "user_id", "embed_id", "file_id",
+                "file", "files", "attachments", "connected_account", "connected_account_id",
+            }:
+                raise _signup_required_for_uploads()
+            _reject_anonymous_skill_references(child)
+    elif isinstance(value, list):
+        for child in value:
+            _reject_anonymous_skill_references(child)
+
+
+def _anonymous_skill_quote(request: Request, app_id: str, skill: Any, body: dict[str, Any]) -> int:
+    """Price one inline skill operation before dispatch, failing closed for variable work."""
+    from backend.core.api.app.utils.config_manager import ConfigManager
+    from backend.shared.python_utils.billing_utils import calculate_total_credits
+
+    pricing = skill.pricing.model_dump(exclude_none=True) if skill.pricing else None
+    if pricing and "per_request_credits" in pricing:
+        pricing = {"per_unit": {"credits": pricing["per_request_credits"]}}
+    config = None if pricing else (getattr(request.app.state, "config_manager", None) or ConfigManager())
+    if not pricing and skill.full_model_reference and "/" in skill.full_model_reference:
+        provider_id, model_id = skill.full_model_reference.split("/", 1)
+        pricing = config.get_model_pricing(provider_id, model_id)
+    if not pricing and skill.providers:
+        provider_name = skill.providers[0].name
+        provider_id = provider_name.lower().replace(" ", "_")
+        if provider_name == "Google" and app_id == "maps":
+            provider_id = "google_maps"
+        elif provider_name in {"Brave", "Brave Search"}:
+            provider_id = "brave"
+        provider = config.get_provider_config(provider_id) or {}
+        provider_pricing = provider.get("pricing") or {}
+        if "per_request_credits" in provider_pricing:
+            pricing = {"per_unit": {"credits": provider_pricing["per_request_credits"]}}
+        elif "per_unit" in provider_pricing:
+            pricing = {"per_unit": provider_pricing["per_unit"]}
+    if not pricing and skill.providers and all(provider.no_api_key for provider in skill.providers):
+        pricing = {"fixed": 1}
+    rules = (pricing or {}).get("pricing", pricing or {})
+    if not rules or any(key in rules for key in ("tokens", "per_second", "per_minute", "per_started_minute")):
+        raise HTTPException(status_code=403, detail={"code": "skill_unpriced"})
+    quote = calculate_total_credits(pricing_config=pricing, units_processed=1)
+    if quote < 1:
+        raise HTTPException(status_code=403, detail={"code": "skill_unpriced"})
+    return quote
+
+
+def _anonymous_skill_result_succeeded(result: Any) -> bool:
+    if not isinstance(result, dict) or result.get("success") is False or result.get("error"):
+        return False
+    data = result.get("data", result)
+    if isinstance(data, dict) and (data.get("success") is False or data.get("error")):
+        return False
+    results = data.get("results") if isinstance(data, dict) else None
+    if isinstance(results, list) and results:
+        return any(
+            not isinstance(item, dict)
+            or (not item.get("error") and item.get("status") not in {"error", "cancelled"})
+            for item in results
+        )
+    return True
 
 
 def _get_directus_service(request: Request) -> Any:
@@ -229,6 +299,93 @@ async def get_anonymous_free_usage_status(
         anonymous_id=local_id,
         ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
     )))
+
+
+@router.post("/apps/{app_id}/skills/{skill_id}", include_in_schema=False)
+@limiter.limit("20/minute")
+async def anonymous_app_skill(
+    request: Request,
+    app_id: str,
+    skill_id: str,
+    body: dict[str, Any],
+    directus_service: Any = Depends(_get_directus_service),
+    cache_service: Any = Depends(_get_cache_service),
+) -> dict[str, Any]:
+    """Public official-cloud CLI surface for transient, priced read-only skills."""
+    _require_official_cloud(request)
+    anonymous_id = request.headers.get("X-OpenMates-Anonymous-ID", "")
+    if not 1 <= len(anonymous_id) <= 128:
+        raise HTTPException(status_code=422, detail={"code": "anonymous_id_required"})
+    if len(json.dumps(body).encode("utf-8")) > MAX_ANONYMOUS_SKILL_BODY_BYTES:
+        raise HTTPException(status_code=413, detail={"code": "skill_input_too_large"})
+    _reject_anonymous_skill_references(body)
+    requests = body.get("requests")
+    if isinstance(requests, list) and len(requests) != 1:
+        raise HTTPException(status_code=422, detail={"code": "invalid_request_count"})
+
+    from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
+    from backend.core.api.app.services.skill_registry import get_global_registry
+    from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+    from backend.shared.python_utils.app_skill_output_safety import (
+        APP_SKILL_SURFACE_REST, AppSkillOutputSafetyContext, central_app_skill_dispatch,
+        sanitize_app_skill_output, strip_request_security_controls,
+    )
+
+    registry = get_global_registry()
+    metadata = registry.get_metadata(app_id)
+    if metadata is None or not registry.is_skill_available(app_id, skill_id):
+        raise HTTPException(status_code=404, detail={"code": "skill_not_found"})
+    skill = next((item for item in metadata.skills or [] if item.id == skill_id), None)
+    if skill is None:
+        raise HTTPException(status_code=404, detail={"code": "skill_not_found"})
+    assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+    validate_anonymous_skill_allowed(app_id, skill.model_dump())
+    sanitized_body, _ = sanitize_text_payload_for_ascii_smuggling(body, log_prefix="[anonymous skill]")
+    sanitized_body = strip_request_security_controls(sanitized_body)
+    quoted_credits = _anonymous_skill_quote(request, app_id, skill, sanitized_body)
+
+    service = _anonymous_usage_service(directus_service, cache_service)
+    await _enforce_local_rate_limit(
+        service, anonymous_id=anonymous_id,
+        max_requests=ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE,
+    )
+    request_id = str(uuid.uuid4())
+    admission = await service.open_request(
+        request_id=request_id, anonymous_id=anonymous_id,
+        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+    )
+    if not admission.accepted:
+        raise HTTPException(status_code=429, detail={"code": admission.reason or "budget_exhausted"})
+    operation_id = str(uuid.uuid4())
+    reservation = await service.reserve_operation(
+        parent_request_id=request_id, operation_id=operation_id,
+        charge_id=operation_id, quoted_credits=quoted_credits,
+    )
+    if not reservation.accepted:
+        raise HTTPException(status_code=429, detail={"code": reservation.reason or "budget_exhausted"})
+
+    # No account, chat, message, embed, or Vault context is passed to the skill.
+    # Keep ambiguous provider attempts reserved for the normal expiry path.
+    with central_app_skill_dispatch():
+        result = await registry.dispatch_skill(app_id, skill_id, sanitized_body)
+    safe_result = await sanitize_app_skill_output(
+        result,
+        AppSkillOutputSafetyContext(
+            app_id=app_id, skill_id=skill_id, surface=APP_SKILL_SURFACE_REST,
+            request_body=body,
+            # CLI results are returned to the caller, not fed into a model turn.
+            # Keep the mandatory ASCII cleanup without starting an unmetered
+            # semantic-scanning provider operation after the skill call.
+            external_data=False,
+            secrets_manager=getattr(request.app.state, "secrets_manager", None),
+            cache_service=cache_service, log_prefix="[anonymous skill]",
+        ),
+    )
+    if not _anonymous_skill_result_succeeded(result):
+        await service.release_reservation(operation_id, reason="skill_failed")
+        return {"success": False, "data": safe_result, "credits_charged": 0}
+    await service.finalize_charge(operation_id, actual_credits=quoted_credits)
+    return {"success": True, "data": safe_result, "credits_charged": quoted_credits}
 
 
 def _anonymous_sse_event(payload: dict[str, Any]) -> str:

@@ -37,6 +37,7 @@ skills:
   # Search Products — search REWE online shop for products with live prices
   # -----------------------------------------------------------------------
   - id: search_products
+    anonymous_access: inline
     name_translation_key: app_skills.shopping.search_products
     description_translation_key: app_skills.shopping.search_products.description
     icon_image: shopping.svg

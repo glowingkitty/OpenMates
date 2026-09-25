@@ -29,6 +29,7 @@ embed_types:
         type: object
 skills:
   - id: check_accounts
+    anonymous_access: authenticated
     name_translation_key: app_skills.finance.check_accounts
     description_translation_key: app_skills.finance.check_accounts.description
     icon_image: finance.svg

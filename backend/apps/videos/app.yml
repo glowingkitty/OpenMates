@@ -144,6 +144,7 @@ focuses:
       broad web research that is not centered on a specific video.
 skills:
   - id: generate
+    anonymous_access: authenticated
     name_translation_key: app_skills.videos.generate
     description_translation_key: app_skills.videos.generate.description
     icon_image: ai.svg
@@ -209,6 +210,7 @@ skills:
       - aes_nonce
       - vault_wrapped_aes_key
   - id: create
+    anonymous_access: authenticated
     name_translation_key: app_skills.videos.create
     description_translation_key: app_skills.videos.create.description
     icon_image: videos.svg
@@ -244,6 +246,7 @@ skills:
       - vault_wrapped_aes_key
       - sandbox_id
   - id: get_transcript
+    anonymous_access: authenticated
     name_translation_key: videos.get_transcript
     description_translation_key: videos.get_transcript.description
     icon_image: transcript.svg
@@ -288,6 +291,7 @@ skills:
       required:
         - requests
   - id: search
+    anonymous_access: inline
     name_translation_key: videos.search
     description_translation_key: videos.search.description
     icon_image: search.svg

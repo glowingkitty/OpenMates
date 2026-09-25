@@ -33,6 +33,7 @@ model_aliases:
 
 skills:
   - id: ask
+    anonymous_access: authenticated
     name_translation_key: ai.ask
     description_translation_key: ai.ask.description
     icon_image: ai.svg

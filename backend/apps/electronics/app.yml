@@ -94,6 +94,7 @@ embed_types:
     i18n_namespace: embeds.electronics.search_components
 skills:
   - id: search_components
+    anonymous_access: inline
     name_translation_key: electronics.search_components
     description_translation_key: electronics.search_components.description
     icon_image: pcbdesign.svg

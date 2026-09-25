@@ -111,6 +111,7 @@ embed_types:
         type: string
 skills:
   - id: transcribe
+    anonymous_access: authenticated
     name_translation_key: app_skills.audio.transcribe
     description_translation_key: app_skills.audio.transcribe.description
     preprocessor_hint: >
@@ -176,6 +177,7 @@ skills:
       required:
         - requests
   - id: generate
+    anonymous_access: authenticated
     name_translation_key: app_skills.audio.generate
     description_translation_key: app_skills.audio.generate.description
     icon_image: audio.svg
@@ -249,6 +251,7 @@ skills:
       - vault_wrapped_aes_key
       - raw_provider_diagnostics
   - id: speak
+    anonymous_access: authenticated
     name_translation_key: app_skills.audio.speak
     description_translation_key: app_skills.audio.speak.description
     icon_image: audio.svg

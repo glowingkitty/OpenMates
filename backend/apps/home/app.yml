@@ -131,6 +131,7 @@ skills:
   # Search — search German housing platforms for apartments and rooms
   # -----------------------------------------------------------------------
   - id: search
+    anonymous_access: inline
     name_translation_key: app_skills.home.search
     description_translation_key: app_skills.home.search.description
     icon_image: home.svg

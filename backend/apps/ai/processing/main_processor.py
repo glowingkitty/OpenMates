@@ -1622,6 +1622,16 @@ async def _resolve_skill_billing_config(
         except Exception as exc:
             logger.warning("%s Failed to resolve provider pricing for %s: %s", log_prefix, provider_id, exc)
 
+    # Account-free inline skills backed only by free/public providers still
+    # consume a minimum credit from the shared anonymous allowance.
+    if (
+        not pricing_config
+        and skill_def.anonymous_access == "inline"
+        and skill_def.providers
+        and all(provider.no_api_key for provider in skill_def.providers)
+    ):
+        pricing_config = {"fixed": MINIMUM_CREDITS_CHARGED}
+
     return skill_def, pricing_config
 
 
@@ -3487,6 +3497,12 @@ async def handle_main_processing(
         prompt_parts.append(sub_chats_instruction)
         logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
 
+    if getattr(request_data, "is_anonymous", False):
+        prompt_parts.append(
+            "In this anonymous chat, use only the tools made available for this turn. "
+            "If the user asks for image, audio, music, video, or other file generation, "
+            "or an account-connected action, explain that creating an account is required."
+        )
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     
     # Generate tool definitions from discovered apps using the tool generator
@@ -3785,13 +3801,22 @@ async def handle_main_processing(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
         )
 
+    if getattr(request_data, "is_anonymous", False):
+        from backend.shared.python_utils.anonymous_skill_policy import filter_anonymous_tools
+
+        available_tools_for_llm = filter_anonymous_tools(
+            available_tools_for_llm,
+            discovered_apps_metadata,
+            _canonicalize_tool_name,
+        )
+
     if not request_data.orchestration_id and any(
         tool.get("function", {}).get("name") == "start_sub_chats"
         for tool in available_tools_for_llm
     ):
         await create_orchestration_root(directus_service, request_data)
     
-    if chat_depth > 0:
+    if chat_depth > 0 and not getattr(request_data, "is_anonymous", False):
         available_tools_for_llm.append(ask_user_input_tool)
         logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
     
@@ -5603,6 +5628,26 @@ async def handle_main_processing(
                 if not skill_id or not skill_id.strip():
                     logger.error(f"{log_prefix} Empty skill_id extracted from tool name '{tool_name}'. Cannot proceed with skill execution.")
                     raise ValueError(f"Empty skill_id in tool name '{tool_name}'")
+
+                if getattr(request_data, "is_anonymous", False):
+                    from backend.shared.python_utils.anonymous_skill_policy import is_anonymous_inline_skill
+
+                    app_metadata = discovered_apps_metadata.get(app_id)
+                    skill_definition = next(
+                        (skill for skill in (app_metadata.skills or []) if skill.id == skill_id),
+                        None,
+                    ) if app_metadata else None
+                    if not skill_definition or not is_anonymous_inline_skill(app_id, skill_definition):
+                        current_message_history.append({
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": json.dumps({
+                                "status": "signup_required",
+                                "reason": "Create an account to use this skill.",
+                            }),
+                        })
+                        continue
                 
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
@@ -5709,6 +5754,22 @@ async def handle_main_processing(
                 requests_list_for_budget = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
                 if isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) > 0:
                     requests_in_this_call = len(requests_list_for_budget)
+
+                if getattr(request_data, "is_anonymous", False) and (
+                    not isinstance(parsed_args, dict)
+                    or requests_in_this_call != 1
+                    or (isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) != 1)
+                ):
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": "Use one request per anonymous skill call.",
+                        }),
+                    })
+                    continue
                 
                 # Skip this tool call if we've already reached or would exceed the hard limit
                 # We don't count system tools (focus mode) against the budget

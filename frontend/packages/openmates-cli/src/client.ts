@@ -8561,10 +8561,21 @@ export class OpenMatesClient {
       ...this.getCliRequestHeaders(),
     };
     if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    const anonymous = !params.apiKey && !this.hasSession();
+    if (anonymous) {
+      let anonymousId = loadAnonymousId();
+      if (!anonymousId) {
+        anonymousId = randomUUID();
+        saveAnonymousId(anonymousId);
+      }
+      headers["X-OpenMates-Anonymous-ID"] = anonymousId;
+    }
     // The dynamic skill endpoints expect the tool_schema structure directly
     // as the request body (e.g. {"requests": [...]}), not wrapped in input_data.
     const response = await this.http.post(
-      `/v1/apps/${params.app}/skills/${params.skill}`,
+      anonymous
+        ? `/v1/anonymous/apps/${encodeURIComponent(params.app)}/skills/${encodeURIComponent(params.skill)}`
+        : `/v1/apps/${encodeURIComponent(params.app)}/skills/${encodeURIComponent(params.skill)}`,
       withAppSkillPromptInjectionOption(params.inputData, params.promptInjectionProtection),
       headers,
     );
@@ -8573,6 +8584,8 @@ export class OpenMatesClient {
       const detail =
         typeof body?.detail === "string"
           ? body.detail
+          : body?.detail && typeof body.detail === "object" && !Array.isArray(body.detail)
+            ? String((body.detail as Record<string, unknown>).message ?? (body.detail as Record<string, unknown>).code ?? "")
           : Array.isArray(body?.detail)
             ? (body.detail as Array<{ msg?: string }>)
                 .map((d) => d.msg ?? JSON.stringify(d))

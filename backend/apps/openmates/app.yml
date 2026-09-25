@@ -39,6 +39,7 @@ instructions:
 
 skills:
   - id: share-usecase
+    anonymous_access: authenticated
     name_translation_key: openmates_app.share_usecase
     description_translation_key: openmates_app.share_usecase.description
     icon_image: share.svg
@@ -70,6 +71,7 @@ skills:
         - language
 
   - id: get-docs
+    anonymous_access: inline
     default_enabled: false
     name_translation_key: openmates_app.get_docs
     description_translation_key: openmates_app.get_docs.description

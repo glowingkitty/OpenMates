@@ -175,6 +175,7 @@ instructions:
       - software_development
 skills:
   - id: search
+    anonymous_access: inline
     name_translation_key: app_skills.web.search
     description_translation_key: app_skills.web.search.description
     # Brave search is read-only and has no account, workspace, or payment state.
@@ -360,6 +361,7 @@ skills:
           result_count:
             type: integer
   - id: read
+    anonymous_access: authenticated
     name_translation_key: web.read
     description_translation_key: web.read.description
     icon_image: web.svg

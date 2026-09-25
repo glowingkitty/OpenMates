@@ -43,6 +43,7 @@ instructions:
       When you use the music-generate tool, the result will confirm the track is being generated. Briefly acknowledge the request naturally (for example, "I'm creating that track now"). Do NOT output JSON, task IDs, embed IDs, or status codes.
 skills:
   - id: generate
+    anonymous_access: authenticated
     name_translation_key: app_skills.music.generate
     description_translation_key: app_skills.music.generate.description
     icon_image: ai.svg

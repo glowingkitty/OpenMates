@@ -121,6 +121,7 @@ instructions:
       exposing task IDs, embed IDs, provider URLs, or encryption details.
 skills:
   - id: search
+    anonymous_access: inline
     name_translation_key: app_skills.models3d.search
     description_translation_key: app_skills.models3d.search.description
     icon_image: 3dmodels.svg
@@ -194,6 +195,7 @@ skills:
       required:
         - requests
   - id: generate
+    anonymous_access: authenticated
     # Disabled by default until Hi3D-backed generation is affordable enough to
     # keep real CLI/SDK/web verification green. Enable with skill:models3d:generate.
     default_enabled: false

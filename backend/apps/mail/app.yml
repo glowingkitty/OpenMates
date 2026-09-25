@@ -127,6 +127,7 @@ instructions:
       If the user has writing style preferences loaded in context (from mail app settings), apply the matching style's tone, verbosity, and footer accordingly.
 skills:
   - id: search
+    anonymous_access: authenticated
     name_translation_key: app_skills.mail.search
     description_translation_key: app_skills.mail.search.description
     icon_image: search.svg

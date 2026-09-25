@@ -26,6 +26,7 @@ embed_types:
     i18n_namespace: embeds.news.search
 skills:
   - id: search
+    anonymous_access: inline
     name_translation_key: news.search
     description_translation_key: news.search.description
     icon_image: search.svg

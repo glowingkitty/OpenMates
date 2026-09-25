@@ -40,6 +40,7 @@ instructions:
       When you use the weather-rain-radar tool, the tool returns deterministic rain summaries and compact timeline metadata for German DWD radar. Use those summaries for inference. Do not describe raw radar pixels or storage fields; the fullscreen embed renders the radar timeline separately.
 skills:
   - id: forecast
+    anonymous_access: inline
     name_translation_key: apps.weather.forecast
     description_translation_key: apps.weather.forecast.description
     icon_image: search.svg
@@ -467,6 +468,7 @@ skills:
               timezone: Europe/Berlin
               probability_pct: 60
   - id: rain_radar
+    anonymous_access: authenticated
     name_translation_key: apps.weather.rain_radar
     description_translation_key: apps.weather.rain_radar.description
     icon_image: weather.svg

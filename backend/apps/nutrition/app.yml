@@ -47,6 +47,7 @@ skills:
   # Search Recipes — search Edamam recipes by query and nutrition filters
   # -----------------------------------------------------------------------
   - id: search_recipes
+    anonymous_access: inline
     name_translation_key: app_skills.nutrition.search_recipes
     description_translation_key: app_skills.nutrition.search_recipes.description
     icon_image: search.svg

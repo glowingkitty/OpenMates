@@ -116,6 +116,7 @@ embed_types:
 
 skills:
   - id: get-posts
+    anonymous_access: authenticated
     name_translation_key: app_skills.social_media.get_posts
     description_translation_key: app_skills.social_media.get_posts.description
     icon_image: search.svg
@@ -235,6 +236,7 @@ skills:
       required:
         - requests
   - id: search
+    anonymous_access: authenticated
     name_translation_key: app_skills.social_media.search
     description_translation_key: app_skills.social_media.search.description
     icon_image: search.svg

@@ -85,6 +85,7 @@ embed_types:
         type: object
 skills:
   - id: search_icons
+    anonymous_access: inline
     name_translation_key: app_skills.design.search_icons
     description_translation_key: app_skills.design.search_icons.description
     icon_image: design.svg

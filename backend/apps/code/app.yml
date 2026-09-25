@@ -453,6 +453,7 @@ embed_types:
         type: object
 skills:
   - id: search_repos
+    anonymous_access: inline
     name_translation_key: code.search_repos
     description_translation_key: code.search_repos.description
     icon_image: search.svg
@@ -515,6 +516,7 @@ skills:
       required:
         - requests
   - id: get_docs
+    anonymous_access: inline
     name_translation_key: code.get_docs
     description_translation_key: code.get_docs.description
     icon_image: library.svg
@@ -541,6 +543,7 @@ skills:
         - library
         - question
   - id: run
+    anonymous_access: authenticated
     name_translation_key: app_skills.code.run
     description_translation_key: app_skills.code.run.description
     icon_image: play.svg
@@ -826,6 +829,7 @@ skills:
             type: string
           description: Exact user-enabled credential profile ids; never include credential values.
   - id: image_to_html
+    anonymous_access: authenticated
     name_translation_key: app_skills.code.image_to_html
     description_translation_key: app_skills.code.image_to_html.description
     icon_image: coding.svg
@@ -880,18 +884,23 @@ skills:
       required:
         - requests
   - id: clean_repo
+    anonymous_access: authenticated
     name_translation_key: code.clean_repo
     description_translation_key: code.clean_repo.description
   - id: get_issues
+    anonymous_access: authenticated
     name_translation_key: code.get_issues
     description_translation_key: code.get_issues.description
   - id: add_issue
+    anonymous_access: authenticated
     name_translation_key: code.add_issue
     description_translation_key: code.add_issue.description
   - id: remove_secrets
+    anonymous_access: authenticated
     name_translation_key: code.remove_secrets
     description_translation_key: code.remove_secrets.description
   - id: get_project_overview
+    anonymous_access: authenticated
     name_translation_key: code.get_project_overview
     description_translation_key: code.get_project_overview.description
 focuses:

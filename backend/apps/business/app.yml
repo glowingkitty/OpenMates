@@ -105,6 +105,7 @@ embed_types:
         type: object
 skills:
   - id: company_financials
+    anonymous_access: inline
     name_translation_key: app_skills.business.company_financials
     description_translation_key: app_skills.business.company_financials.description
     icon_image: business.svg

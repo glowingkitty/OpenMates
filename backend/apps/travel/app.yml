@@ -255,6 +255,7 @@ settings_and_memories:
         - name
 skills:
   - id: search_connections
+    anonymous_access: inline
     name_translation_key: app_skills.travel.search_connections
     description_translation_key: app_skills.travel.search_connections.description
     icon_image: travel.svg
@@ -535,6 +536,7 @@ skills:
   # Search Stays – hotel / hostel / accommodation search via Google Hotels
   # -----------------------------------------------------------------------
   - id: search_stays
+    anonymous_access: inline
     name_translation_key: app_skills.travel.search_stays
     description_translation_key: app_skills.travel.search_stays.description
     icon_image: home.svg
@@ -635,6 +637,7 @@ skills:
   # Get Flight — Flightradar24 real flight track + enrichment metadata
   # -----------------------------------------------------------------------
   - id: get_flight
+    anonymous_access: inline
     name_translation_key: app_skills.travel.get_flight
     description_translation_key: app_skills.travel.get_flight.description
     icon_image: travel.svg

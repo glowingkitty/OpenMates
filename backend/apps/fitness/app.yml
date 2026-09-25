@@ -39,6 +39,7 @@ embed_types:
     i18n_namespace: embeds.fitness.search_classes
 skills:
   - id: search_locations
+    anonymous_access: inline
     name_translation_key: fitness.search_locations
     description_translation_key: fitness.search_locations.description
     preprocessor_hint: >
@@ -102,6 +103,7 @@ skills:
         region: Europe
         no_api_key: true
   - id: search_classes
+    anonymous_access: inline
     name_translation_key: fitness.search_classes
     description_translation_key: fitness.search_classes.description
     preprocessor_hint: >

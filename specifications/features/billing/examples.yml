@@ -1,6 +1,28 @@
 schema_version: 1
 specification: feature.billing@5
 
+anonymous_free_use:
+  - id: web-and-cli-share-the-same-allowance
+    given: A guest has room under their identity limit and the server's daily, weekly, and monthly free credit limits.
+    when: They ask the web chat to search for events, send a CLI chat, and use the CLI to search the web directly.
+    then: Each request may run after its provider cost is reserved from the same anonymous allowance, and only settled cost remains consumed.
+  - id: any-limit-stops-provider-work
+    given: A guest has used their identity allowance or the server has exhausted its daily, weekly, or monthly free credit limit.
+    when: They request another chat or an account-free CLI search skill.
+    then: The server rejects it before any provider call and offers account signup.
+
+anonymous_paid:
+  - id: account-credits-work-after-free-pool-is-empty
+    given: The server's anonymous monthly allowance is exhausted and a signed-in user has enough account credits.
+    when: A guest and that signed-in user each request a chat.
+    then: The guest request is rejected, and the signed-in user's request can run against their own account credits.
+
+anonymous_storage:
+  - id: guest-chat-and-skill-results-stay-local
+    given: A guest has not signed up and can use chat and account-free search skills.
+    when: They receive a chat skill result displayed as an embed, search the web through the CLI, and attempt to generate an image.
+    then: The image request requires authentication before provider work; Directus holds only anonymous budget and operation records, with no permanent chat, message, embed, or upload-file record for the guest.
+
 credit_charges:
   - id: personal-ai-charge
     subject: personal

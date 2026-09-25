@@ -46,6 +46,7 @@ instructions:
       - Use Tasks search when the user asks to find existing tasks; private task search requires a connected capable client.
 skills:
   - id: create
+    anonymous_access: authenticated
     name_translation_key: tasks.skills.create
     description_translation_key: tasks.skills.create.description
     icon_image: task.svg
@@ -101,6 +102,7 @@ skills:
       required: []
 
   - id: search
+    anonymous_access: authenticated
     name_translation_key: tasks.skills.search
     description_translation_key: tasks.skills.search.description
     icon_image: search.svg

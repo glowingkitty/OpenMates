@@ -216,6 +216,7 @@ instructions:
       Wrong: calling images-view first and then images-generate without reference_images.
 skills:
   - id: search
+    anonymous_access: authenticated
     name_translation_key: images.search
     description_translation_key: images.search.description
     api_config:
@@ -285,6 +286,7 @@ skills:
       - "thumbnail_url"
       - "favicon_url"
   - id: generate
+    anonymous_access: authenticated
     name_translation_key: images.generate
     description_translation_key: images.generate.description
     api_config:
@@ -371,6 +373,7 @@ skills:
       required:
         - requests
   - id: view
+    anonymous_access: authenticated
     name_translation_key: images.view
     description_translation_key: images.view.description
     # Internal: invoked automatically by the backend when the user attaches an image.
@@ -396,6 +399,7 @@ skills:
       required:
         - file_path
   - id: vectorize
+    anonymous_access: authenticated
     name_translation_key: images.vectorize
     description_translation_key: images.vectorize.description
     api_config:
@@ -424,6 +428,7 @@ skills:
       required:
         - source_image
   - id: generate_draft
+    anonymous_access: authenticated
     name_translation_key: images.generate_draft
     description_translation_key: images.generate_draft.description
     api_config:

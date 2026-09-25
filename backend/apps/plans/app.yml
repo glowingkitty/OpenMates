@@ -12,6 +12,7 @@ instructions:
       - Plan content is client-side encrypted. Do not invent server-visible plan search results.
 skills:
   - id: create
+    anonymous_access: authenticated
     name_translation_key: plans.skills.create
     description_translation_key: plans.skills.create.description
     icon_image: planning.svg
@@ -40,6 +41,7 @@ skills:
         - title
 
   - id: search
+    anonymous_access: authenticated
     name_translation_key: plans.skills.search
     description_translation_key: plans.skills.search.description
     icon_image: search.svg
