@@ -222,4 +222,44 @@ test.describe('Assistant response processing rendered contract', () => {
 		expect(motion.animationName).toBe('none');
 		expect(motion.scrollBehavior).not.toBe('smooth');
 	});
+
+	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+	test('shows a terminal inference failure instead of an empty completed turn', async ({ page }: { page: any }) => {
+		await openFixtureChat(page);
+		await emitStage(page, 'task-initiated');
+		await emitStage(page, 'typing');
+
+		const errorText = 'The AI service encountered an error while processing your request. Please try again in a moment.';
+		await page.evaluate(({ fixture, error }) => {
+			const lifecycle = (window as any).__openmatesE2ELifecycle;
+			const payload = {
+				chat_id: fixture.chat_id,
+				task_id: fixture.task_id,
+				message_id: fixture.assistant_message_id,
+				user_message_id: fixture.user_message_id
+			};
+			lifecycle.emit('ai_message_update', {
+				...payload,
+				type: 'ai_message_chunk',
+				sequence: 1,
+				full_content_so_far: error,
+				is_final_chunk: true,
+				category: 'ai'
+			});
+			lifecycle.emit('ai_message_ready', {
+				chat_id: fixture.chat_id,
+				message_id: fixture.assistant_message_id
+			});
+			lifecycle.emit('ai_typing_ended', {
+				chat_id: fixture.chat_id,
+				message_id: fixture.assistant_message_id
+			});
+		}, { fixture: FIXTURE, error: errorText });
+
+		const assistant = page.getByTestId('message-assistant');
+		await expect(assistant).toHaveCount(1);
+		await expect(assistant).toContainText(errorText);
+		await expect(page.getByTestId('active-chat-container')).not.toHaveClass(/ai-typing/);
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+	});
 });

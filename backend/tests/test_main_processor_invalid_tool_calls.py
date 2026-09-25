@@ -244,6 +244,7 @@ async def _run_mocked_protocol_guard_main_processor(
     streams,
     *,
     truncate_history=None,
+    generated_tools=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -274,6 +275,11 @@ async def _run_mocked_protocol_guard_main_processor(
 
         async def provider_stream():
             for chunk in chunks:
+                if isinstance(chunk, dict) and "fake_google_tool_call" in chunk:
+                    tool_call = main_processor.ParsedGoogleToolCall()
+                    tool_call.function_name = chunk["fake_google_tool_call"]
+                    yield tool_call
+                    continue
                 yield chunk
 
         return provider_stream()
@@ -301,7 +307,7 @@ async def _run_mocked_protocol_guard_main_processor(
         truncate_history or (lambda history, **_kwargs: history),
     )
     monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: 100_000)
-    monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: [])
+    monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
     monkeypatch.setattr(main_processor, "evaluate_task_queue_post_turn", no_task_queue_retry)
     monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: 0)
     monkeypatch.setattr(main_processor, "has_transcribed_web_audio_recording", lambda _history: False)
@@ -395,6 +401,39 @@ async def _run_mocked_protocol_guard_main_processor(
         )
     ]
     return output, calls
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_final_no_tools_turn_rejects_provider_tool_call_and_fails_visibly(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search"}]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search the web."}}],
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["tool_choice"] == "none"
+    assert calls[0]["tools"] is None
+    assert not any(isinstance(chunk, str) for chunk in output)
+    assert {"__main_processing_failure__": True, "reason": "empty_post_tool_response"} in output
+    assert not any(isinstance(chunk, dict) and "embed_id" in chunk for chunk in output)
+    assert not any(isinstance(chunk, dict) and "__tool_calls_info__" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_call(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    answer = "Here is the answer from the results already gathered."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "web-search"}, answer]],
+        generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search the web."}}],
+    )
+
+    assert len(calls) == 1
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

@@ -614,7 +614,10 @@ async def invoke_google_ai_studio_chat_completions(
         google_tools = _map_tools_to_google_format(tools)
 
         tool_config_dict = {}
-        if google_tools:
+        # A continuation can include earlier function calls even when this
+        # request supplies no tools. Explicitly disable function calling so
+        # Gemini does not continue that pattern on the final answer turn.
+        if google_tools or (tool_choice or "").lower() == "none":
             mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE", "required": "ANY"}
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
@@ -993,7 +996,7 @@ async def invoke_google_chat_completions(
         google_tools = _map_tools_to_google_format(tools)
         
         tool_config_dict = {}
-        if google_tools:
+        if google_tools or (tool_choice or "").lower() == "none":
             mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE", "required": "ANY"}
             selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}

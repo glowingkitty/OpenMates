@@ -4415,6 +4415,7 @@ async def handle_main_processing(
         hallucinated_tool_calls_this_turn: List[Tuple[Any, Dict[str, Any]]] = []
         hallucinated_rejections_this_turn = 0
         llm_turn_had_content = False
+        forbidden_tool_call_seen = False
         
         # Dictionary to store placeholder embeds created for tool calls during stream processing
         # Key: tool_call_id, Value: placeholder_embed_data dict
@@ -4485,6 +4486,17 @@ async def handle_main_processing(
                 )
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall)):
+                if force_no_tools:
+                    # The provider may return a function call even after a
+                    # no-tools request. Never create a placeholder or execute
+                    # that call: the remaining budget belongs to the answer.
+                    forbidden_tool_call_seen = True
+                    logger.warning(
+                        "%s [MAX_ITERATIONS] Ignoring provider tool call while tools are disabled: %s",
+                        log_prefix,
+                        chunk.function_name,
+                    )
+                    continue
                 # === STRICT ALLOW-LIST (OPE-399) ===
                 # Reject any tool call whose name is not in the preprocessor-provided
                 # tool list BEFORE it is appended for execution. This prevents
@@ -5161,7 +5173,7 @@ async def handle_main_processing(
                     TASK_QUEUE_GUARD_MAX_RETRIES,
                 )
                 continue
-            if _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content):
+            if (forbidden_tool_call_seen and not llm_turn_had_content) or _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content):
                 has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
                 if has_retry_iteration and not empty_post_tool_recovery_attempted:
                     empty_post_tool_recovery_attempted = True
