@@ -51,6 +51,7 @@
   const tr = (key: string) => $text(`workflows.builder.${key}`);
   const Down = getLucideIcon('chevron-down');
   const Coin = getLucideIcon('coins'); const Play = getLucideIcon('play'); const Stop = getLucideIcon('square'); const Search = getLucideIcon('search');
+  const Download = getLucideIcon('download'); const Upload = getLucideIcon('upload');
   const available = $derived(capabilities.filter(item => item.type === 'app_skill' && item.enabled && item.id !== 'ai.ask'));
   const askCapability = $derived(capabilities.find(item => item.id === 'ai.ask' && item.enabled));
   const appIds = $derived([...new Set(available.map(item => item.metadata.app_id).filter(Boolean))] as string[]);
@@ -344,16 +345,16 @@
           {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<Coin size={16}/><span>{tr('variable_cost')}</span></button>{/if}
         </div>
-        <div class="output-heading"><h4>↑ {tr('output')}</h4><span>{tr(testOutputs[draft.id] ? 'test_output' : 'example')}</span></div>
+        <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4><span data-testid="workflow-output-example-heading">{tr(testOutputs[draft.id] ? 'test_output' : 'example')}:</span></div>
         <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? { answer: { type: 'string', title: tr('answer') } }) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div><div class="output-label"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong>{spec.title || label(key)}</strong></div><WorkflowValueView {value} schema={spec} appId="ai" path={`${draft.id}.${key}`}/></div>{/each}</div>
       {:else if draft.type === 'app_skill_action'}
-        <h4>↓ {tr('input')}</h4>
+        <h4 class="input-heading" data-testid="workflow-input-heading"><span class="section-icon" data-testid="workflow-input-icon"><Download size={18} aria-hidden="true"/></span>{tr('input')}</h4>
         {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
         <div class="test-control">
           {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || draftCapability?.metadata.workflow?.test_allowed === false || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<Coin size={16}/><span>{draftCapability?.metadata.cost?.fixed ?? draftCapability?.metadata.cost?.per_unit?.credits ?? tr('variable_cost')}</span></button>{/if}
         </div>
-        <div class="output-heading"><h4>↑ {tr('output')}</h4><span>{tr(testOutputs[draft.id] ? 'test_output' : 'example')}</span></div>
+        <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4><span data-testid="workflow-output-example-heading">{tr(testOutputs[draft.id] ? 'test_output' : 'example')}:</span></div>
         <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? {}) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div><div class="output-label"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong>{spec.title || label(key)}</strong></div><WorkflowValueView {value} schema={spec} appId={String(draft.config?.app_id ?? '')} path={`${draft.id}.${key}`}/></div>{/each}</div>
       {:else if isCheck(draft)}
         <h3>{tr('check_question')}</h3>
@@ -464,8 +465,22 @@
   .editor { width:min(48.3rem, 100%); grid-template-columns:minmax(0,1fr); overflow:hidden; background:var(--color-grey-0); border:1px solid var(--color-grey-20); }
   .editor.weather-editor { background:var(--color-grey-10); }
   .editor :global(.editor-header.colored) { margin-top:-1px; }
-  .weather-editor :global(.schema-fields > [data-testid="workflow-location-field"]),
-  .weather-editor :global(.schema-fields > [data-testid="workflow-date-range-field"]) { grid-column:auto; }
+  .skill-editor .input-heading,
+  .skill-editor .output-heading,
+  .skill-editor .output-fields,
+  .skill-editor :global(.schema-fields) { box-sizing:border-box; width:min(34rem,100%); justify-self:center; }
+  .skill-editor .input-heading,
+  .skill-editor .output-heading h4 { display:flex; align-items:center; gap:.35rem; }
+  .section-icon { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; }
+  .skill-editor .output-heading,
+  .skill-editor .output-fields > div { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); align-items:start; column-gap:.8rem; }
+  .skill-editor .output-heading > span { text-align:start; font-weight:650; }
+  .skill-editor .output-fields { gap:.3rem; }
+  .skill-editor .output-label { display:grid; grid-template-columns:max-content minmax(0,1fr); align-items:start; gap:.35rem; }
+  .skill-editor .output-label strong { min-width:0; overflow-wrap:anywhere; }
+  .skill-editor .output-fields :global(.workflow-value .scalar) { color:var(--color-font-secondary); }
+  .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-location"]),
+  .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-date-range"]) { grid-column:auto; }
   .choice { box-sizing:border-box; width:9.25rem; min-width:9.25rem; min-height:6rem; margin:0; background:var(--color-grey-0); }
   .choice :global(svg) { color:var(--color-primary-start); }
   .add-controls.blank { position:relative; align-items:center; min-height:8.5rem; gap:2.25rem; padding:0; }
@@ -489,8 +504,11 @@
     .graph-canvas { padding:1.25rem .5rem; }
     .graph-canvas.blank { padding-block:.5rem; }
     .editor { width:100%; }
-    .weather-editor :global(.schema-fields > [data-testid="workflow-location-field"]),
-    .weather-editor :global(.schema-fields > [data-testid="workflow-date-range-field"]) { grid-column:1/-1; }
+    .skill-editor .output-heading,
+    .skill-editor .output-fields > div { grid-template-columns:minmax(0,1fr) 4.75rem; column-gap:.5rem; }
+    .skill-editor .output-label { display:flex; flex-direction:column; align-items:flex-start; gap:.25rem; }
+    .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-location"]),
+    .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-date-range"]) { grid-column:1/-1; }
     .choice { width:8.625rem; min-width:8.625rem; min-height:5.5rem; }
     .choice .workflow-icon, .choice :global(svg) { width:24px; height:24px; }
     .add-controls.blank { gap:.75rem; }

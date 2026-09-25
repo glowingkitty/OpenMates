@@ -37,7 +37,7 @@
 
 <header class="editor-header" class:colored>
   {#if backLabel}
-    <button type="button" class="breadcrumb" disabled={disabled} onclick={onBack}><Back size={backIconSize}/><span>{backLabel}</span></button>
+    <button type="button" class="breadcrumb" disabled={disabled} aria-label={backLabel} onclick={onBack}><Back size={backIconSize}/><span>{backLabel}</span></button>
   {:else}<span></span>{/if}
   <div class="title">
     {#if eyebrow}<span class="eyebrow">{eyebrow}</span>{/if}
@@ -56,7 +56,7 @@
 </header>
 
 <style>
-  .editor-header { position:relative; box-sizing:border-box; display:flex; align-items:center; justify-content:center; min-height:3.25rem; margin-inline:-1.5rem; padding:.35rem 3.5rem; border-radius:1rem 1rem 0 0; color:var(--color-font-secondary); }
+  .editor-header { position:relative; box-sizing:border-box; container:workflow-editor-header / inline-size; display:flex; align-items:center; justify-content:center; min-height:3.25rem; margin-inline:-1.5rem; padding:.35rem 3.5rem; border-radius:1rem 1rem 0 0; color:var(--color-font-secondary); }
   .editor-header.colored { min-height:11.5rem; padding-bottom:1.65rem; background:var(--node-gradient); color:var(--color-font-button); }
   button { border:0; box-shadow:none; background:transparent; color:inherit; font:inherit; cursor:pointer; }
   .breadcrumb { position:absolute; left:.65rem; top:.75rem; display:flex; align-items:center; gap:var(--spacing-2); min-width:0; max-width:35%; padding:.35rem; font-size:max(14px, .875rem); }
@@ -81,6 +81,9 @@
   .collapse { position:absolute; bottom:.25rem; left:50%; display:grid; place-items:center; width:2rem; height:1.6rem; padding:0; transform:translateX(-50%); }
   button:disabled { opacity:.5; cursor:default; }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
+  @container workflow-editor-header (max-width:22.5rem) {
+    .breadcrumb span { display:none; }
+  }
   @media(max-width:730px) {
     .editor-header { margin-inline:-.8rem; padding-inline:3rem; }
     .editor-header.colored { min-height:10.625rem; padding-bottom:1.45rem; }
@@ -89,7 +92,6 @@
     .colored .title .asset-icon { width:36px; height:36px; }
     .colored .eyebrow { font-size:max(15px, .9375rem); }
     .colored .subtitle { font-size:max(17px, 1.0625rem); }
-    .colored .breadcrumb { top:2.35rem; }
     .colored .breadcrumb :global(svg), .colored .collapse :global(svg) { width:20px; height:20px; }
   }
 </style>

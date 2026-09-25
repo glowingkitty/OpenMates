@@ -625,12 +625,12 @@ builder.choose:
 
 builder.true:
   context: Workflow progressive builder control
-  en: "Yes"
+  en: "true"
   verified_by_human: []
 
 builder.false:
   context: Workflow progressive builder control
-  en: "No"
+  en: "false"
   verified_by_human: []
 
 builder.today:
@@ -1354,8 +1354,8 @@ builder.output_type_object:
   verified_by_human: []
 
 builder.output_type_boolean:
-  context: Readable workflow values and feedback for everyday users
-  en: "Yes / No"
+  context: Boolean workflow data type, whose values are true or false
+  en: "Bool"
   verified_by_human: []
 
 builder.output_empty_list:

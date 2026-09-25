@@ -295,6 +295,27 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		expect(headerType.subtitle).toBeGreaterThanOrEqual(18);
 		await expect(editor).toContainText('Weather | Get forecast');
 		await expect(editor).toContainText('Berlin');
+		await expect(coloredHeader.locator('.breadcrumb span')).toBeVisible();
+		await expect(editor.getByTestId('workflow-input-icon').locator('svg')).toBeVisible();
+		await expect(editor.getByTestId('workflow-output-icon').locator('svg')).toBeVisible();
+		await expect(editor.getByTestId('workflow-schema-field-location').locator('.type-badge')).toHaveText('Text');
+		await expect(editor.getByTestId('workflow-schema-field-date-range').locator('.type-badge')).toHaveText('Date');
+		const exampleHeading = editor.getByTestId('workflow-output-example-heading');
+		await expect(exampleHeading).toHaveText('Example:');
+		const firstOutput = editor.getByTestId('workflow-output-fields').locator(':scope > div').first();
+		const [exampleHeadingBox, firstOutputLabelBox, firstOutputValueBox] = await Promise.all([
+			exampleHeading.boundingBox(),
+			firstOutput.locator('.output-label').boundingBox(),
+			firstOutput.getByTestId('workflow-readable-value').boundingBox()
+		]);
+		expect(exampleHeadingBox && firstOutputLabelBox && firstOutputValueBox).not.toBeNull();
+		if (exampleHeadingBox && firstOutputLabelBox && firstOutputValueBox) {
+			expect(Math.abs(exampleHeadingBox.x - firstOutputValueBox.x)).toBeLessThan(2);
+			expect(Math.abs(firstOutputLabelBox.y - firstOutputValueBox.y)).toBeLessThan(12);
+		}
+		const boolOutput = editor.getByTestId('workflow-output-fields').locator(':scope > div').filter({ hasText: 'Rain Expected' });
+		await expect(boolOutput.locator('.type')).toHaveText('Bool');
+		await expect(boolOutput.getByTestId('workflow-readable-value')).toHaveText('true');
 		const dateRange = editor.getByTestId('workflow-date-range-field');
 		await expect(dateRange).toContainText('Date range');
 		await expect(dateRange.getByTestId('workflow-date-range-today')).toBeVisible();
@@ -391,7 +412,9 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		];
 		const editor = page.getByTestId('workflow-node-expanded');
 		const previewViewport = page.getByTestId('component-preview-viewport');
-		const example = editor.locator('.output-heading span');
+		const example = editor.getByTestId('workflow-output-example-heading');
+		const back = header.getByRole('button', { name: 'App skill' });
+		const backLabel = back.locator('span');
 		const save = editor.getByTestId('workflow-node-save');
 		const remove = editor.getByTestId('remove-workflow-node');
 		const close = header.locator('.close-control');
@@ -401,6 +424,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			viewportBox,
 			iconBox,
 			exampleBox,
+			backBox,
 			saveBox,
 			removeBox,
 			closeBox,
@@ -414,6 +438,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			previewViewport.boundingBox(),
 			header.getByTestId('workflow-editor-primary-icon').boundingBox(),
 			example.boundingBox(),
+			back.boundingBox(),
 			save.boundingBox(),
 			remove.boundingBox(),
 			close.boundingBox(),
@@ -442,12 +467,36 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		expect(phoneType.title).toBeGreaterThanOrEqual(17);
 		await expect(header.locator('.collapse')).toHaveCount(0);
 		await expect(header.getByRole('button', { name: 'Close' })).toBeVisible();
-		await expect(example).toHaveText('Example');
+		await expect(backLabel).toBeHidden();
+		await expect(example).toHaveText('Example:');
+		await expect(editor.getByTestId('workflow-schema-field-location').locator('.type-badge')).toBeVisible();
+		await expect(editor.getByTestId('workflow-schema-field-date-range').locator('.type-badge')).toBeVisible();
+		const [mobileInputTypeBox, mobileInputNameBox, mobileOutputTypeBox, mobileOutputNameBox] = await Promise.all([
+			editor.getByTestId('workflow-schema-field-location').locator('.type-badge').boundingBox(),
+			editor.getByTestId('workflow-schema-field-location').locator('.field-title').boundingBox(),
+			editor.getByTestId('workflow-output-fields').locator('.output-label .type').first().boundingBox(),
+			editor.getByTestId('workflow-output-fields').locator('.output-label strong').first().boundingBox()
+		]);
+		expect(mobileInputTypeBox && mobileInputNameBox && mobileOutputTypeBox && mobileOutputNameBox).not.toBeNull();
+		if (mobileInputTypeBox && mobileInputNameBox && mobileOutputTypeBox && mobileOutputNameBox) {
+			expect(mobileInputTypeBox.y + mobileInputTypeBox.height).toBeLessThanOrEqual(mobileInputNameBox.y + 1);
+			expect(mobileOutputTypeBox.y + mobileOutputTypeBox.height).toBeLessThanOrEqual(mobileOutputNameBox.y + 1);
+		}
+		const mobileFirstOutput = editor.getByTestId('workflow-output-fields').locator(':scope > div').first();
+		const [mobileOutputLabelBox, mobileOutputValueBox] = await Promise.all([
+			mobileFirstOutput.locator('.output-label').boundingBox(),
+			mobileFirstOutput.getByTestId('workflow-readable-value').boundingBox()
+		]);
+		expect(mobileOutputLabelBox && mobileOutputValueBox).not.toBeNull();
+		if (mobileOutputLabelBox && mobileOutputValueBox) {
+			expect(Math.abs(mobileOutputLabelBox.y - mobileOutputValueBox.y)).toBeLessThan(12);
+		}
 		await expect(save).toBeVisible();
 		await expect(remove).toBeVisible();
 		expect(editorBox).not.toBeNull();
 		expect(viewportBox).not.toBeNull();
 		expect(exampleBox).not.toBeNull();
+		expect(backBox).not.toBeNull();
 		expect(saveBox).not.toBeNull();
 		expect(removeBox).not.toBeNull();
 		expect(closeBox).not.toBeNull();
@@ -456,6 +505,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			!editorBox ||
 			!viewportBox ||
 			!exampleBox ||
+			!backBox ||
 			!saveBox ||
 			!removeBox ||
 			!closeBox
@@ -463,6 +513,8 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			return;
 		expectInside(editorBox, headerBox);
 		expectInside(editorBox, closeBox);
+		expect(backBox.x).toBeLessThan(headerBox.x + 35);
+		expect(backBox.y).toBeLessThan(headerBox.y + 25);
 		for (const elementBox of [exampleBox, saveBox, removeBox]) {
 			expectInside(editorBox, elementBox);
 			expectHorizontallyInside(viewportBox, elementBox);
