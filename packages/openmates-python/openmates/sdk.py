@@ -1796,10 +1796,13 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     goal = payload.get("goal")
     if not isinstance(goal, str) or not goal.strip():
         raise OpenMatesConfigError("Plan goal is required")
+    requested_project_ids = _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])
+    if not requested_project_ids:
+        raise OpenMatesConfigError("Creating a Plan requires at least one Project link")
     master_key = client._get_master_key()
     plan_key = os.urandom(32)
     now = int(time.time())
-    linked_project_ids = [_resolve_project_id(client, project_id) for project_id in _string_list(payload.get("linked_project_ids") or payload.get("linkedProjectIds") or [])]
+    linked_project_ids = [_resolve_project_id(client, project_id) for project_id in requested_project_ids]
     primary_chat_raw = payload.get("primary_chat_id") or payload.get("primaryChatId") or None
     primary_chat_id = _resolve_chat_id(client, primary_chat_raw) if isinstance(primary_chat_raw, str) and primary_chat_raw else None
     primary_chat_key = payload.get("_primary_chat_key") if isinstance(payload.get("_primary_chat_key"), bytes) else None
@@ -3107,6 +3110,7 @@ class OpenMatesChats:
         title: str | None = None,
         goal: str | None = None,
         goal_title: str | None = None,
+        project_ids: list[str] | None = None,
         team_id: str | None = None,
         sender_name: str | None = None,
         team_member_mentions: list[str] | None = None,
@@ -3120,6 +3124,8 @@ class OpenMatesChats:
         normalized_goal = _normalize_optional_goal(goal)
         if normalized_goal and save_to_account is False:
             raise OpenMatesConfigError("Chat goals require a saved account chat. Omit save_to_account or set save_to_account=True.")
+        if normalized_goal and not _string_list(project_ids or []):
+            raise OpenMatesConfigError("Creating a Plan requires at least one Project link")
         if save_to_account is True or normalized_goal or team_id:
             return self._send_saved(
                 final_message,
@@ -3132,6 +3138,7 @@ class OpenMatesChats:
                 title=title,
                 goal=normalized_goal,
                 goal_title=goal_title,
+                project_ids=project_ids,
                 team_id=team_id,
                 sender_name=sender_name,
                 team_member_mentions=team_member_mentions,
@@ -3192,6 +3199,7 @@ class OpenMatesChats:
         connected_account_token_ref_inputs: list[dict[str, Any]] | None,
         goal: str | None,
         goal_title: str | None,
+        project_ids: list[str] | None,
         team_id: str | None,
         sender_name: str | None,
         team_member_mentions: list[str] | None,
@@ -3353,6 +3361,7 @@ class OpenMatesChats:
                 {
                     "title": _normalize_optional_goal(goal_title) or title or goal,
                     "goal": goal,
+                    "linked_project_ids": project_ids or [],
                     "primary_chat_id": saved_chat_id,
                     "_primary_chat_key": chat_key,
                     "status": "draft",
@@ -4039,10 +4048,15 @@ class OpenMatesPlans:
         self,
         instruction: str,
         *,
-            create: dict[str, Any] | None = None,
-            update: dict[str, Any] | None = None,
-            updates: list[dict[str, Any]] | None = None,
+        project_ids: list[str] | None = None,
+        create: dict[str, Any] | None = None,
+        update: dict[str, Any] | None = None,
+        updates: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        will_create = create is not None or (update is None and not updates)
+        requested_project_ids = _string_list((create or {}).get("linked_project_ids") or (create or {}).get("linkedProjectIds") or project_ids or []) if will_create else []
+        if will_create and not requested_project_ids:
+            raise OpenMatesConfigError("Creating a Plan requires at least one Project link")
         master_key = self._client._get_master_key()
         planned_create = None
         if create is None and update is None and not updates:
@@ -4056,7 +4070,8 @@ class OpenMatesPlans:
                 encrypted_updates.append({"plan_id": existing["plan_id"], "patch": _build_plan_update_input(existing, master_key, {**dict(item.get("patch") or {}), "_client": self._client})})
         request_payload: dict[str, Any] = {"instruction": instruction}
         if create is not None or planned_create is not None:
-            request_payload["encrypted_create"] = _build_plan_create_input(self._client, create or planned_create or {"title": instruction})
+            create_payload = {**(create or planned_create or {"title": instruction}), "linked_project_ids": requested_project_ids}
+            request_payload["encrypted_create"] = _build_plan_create_input(self._client, create_payload)
         if update is not None:
             plan_id = str(update.get("plan_id") or update.get("planId") or "")
             existing = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)

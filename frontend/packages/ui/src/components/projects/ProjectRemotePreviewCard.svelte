@@ -15,6 +15,7 @@
     sourceLabel,
     canUpload,
     isUploading,
+    previewOnly = false,
     onOpenFullscreen,
     onUpload,
   }: {
@@ -22,6 +23,7 @@
     sourceLabel: string;
     canUpload: boolean;
     isUploading: boolean;
+    previewOnly?: boolean;
     onOpenFullscreen: () => void;
     onUpload: () => void;
   } = $props();
@@ -31,7 +33,8 @@
   let isTruncated = $derived(content.safety_flags.includes('truncated'));
 </script>
 
-<article class="remote-preview-card" data-testid="project-remote-preview-card" data-remote-path={content.path}>
+<article class="remote-preview-card" class:preview-only={previewOnly} data-testid="project-remote-preview-card" data-remote-path={content.path}>
+  <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
   <div class="remote-preview-shell">
     {#if content.snippet}
       <CodeEmbedPreview
@@ -54,7 +57,8 @@
       </button>
     {/if}
   </div>
-  <div class="remote-preview-meta">
+  {#if !previewOnly}
+  <div class="remote-preview-meta" data-testid="project-remote-preview-meta">
     <div>
       <span class="remote-source-label">{sourceLabel}</span>
       <strong>{content.display_name}</strong>
@@ -79,15 +83,50 @@
       </button>
     </div>
   </div>
+  {/if}
 </article>
 
 <style>
   .remote-preview-card {
+    position: relative;
+    box-sizing: border-box;
+    width: min(18.75rem, 100%);
+    min-width: 0;
     border: 1px solid var(--color-grey-20);
     border-radius: var(--radius-5);
     background: var(--color-grey-0);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     overflow: hidden;
+  }
+
+  .remote-cloud-badge {
+    position: absolute;
+    inset-block-start: var(--spacing-3);
+    inset-inline-end: var(--spacing-3);
+    z-index: 2;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+  }
+
+  .remote-cloud-badge::after {
+    position: absolute;
+    inset: 0.2rem;
+    background: var(--color-font-secondary);
+    content: '';
+    -webkit-mask: var(--icon-url-cloud) center / contain no-repeat;
+    mask: var(--icon-url-cloud) center / contain no-repeat;
+  }
+
+  .remote-preview-card.preview-only {
+    width: 100%;
+    border: 0;
+    border-radius: var(--radius-5);
+    background: transparent;
+    box-shadow: none;
   }
 
   .remote-preview-shell {
@@ -97,8 +136,8 @@
   }
 
   .remote-preview-shell :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: none;
+    width: 18.75rem;
+    max-width: 100%;
     min-width: 0;
     height: 100%;
     min-height: 100%;
@@ -130,6 +169,7 @@
     display: grid;
     gap: 12px;
     padding: 14px;
+    overflow-wrap: anywhere;
   }
 
   .remote-preview-meta strong,

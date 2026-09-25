@@ -143,59 +143,61 @@
   }
 </script>
 
-<!-- The card contains an embed preview with its own controls, so a native button
-     would create invalid nested buttons. Keyboard and pointer activation match a button. -->
-<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
-<article
-  class="browser-item {viewMode}"
-  class:actionable={!!resolvedEmbedData && !!resolvedContent}
-  data-testid="project-item-card"
-  data-item-type={item.item_type}
-  role="button"
-  tabindex={resolvedEmbedData && resolvedContent ? 0 : undefined}
-  aria-disabled={!resolvedEmbedData || !resolvedContent}
-  aria-label={resolvedEmbedData && resolvedContent ? `Open ${displayName || 'Project item'}` : undefined}
-  onclick={activateItem}
-  onkeydown={activateItem}
->
-  {#if viewMode === 'tile' && item.item_type === 'embed'}
-    <div class="embed-preview-shell">
-      {#if isLoading}
-        <div class="embed-preview-fallback">Loading preview...</div>
-      {:else if previewComponent}
-        {@const Component = getRenderableComponent(previewComponent.component)}
-        <Component {...previewComponent.props} />
-      {:else}
-        <div class="embed-preview-fallback">{displayName || item.target_id}</div>
-      {/if}
+{#if viewMode === 'tile' && item.item_type === 'embed'}
+  <!-- The shared preview is the complete project tile. It already owns the
+       details body, identity footer, focus treatment, and fullscreen click. -->
+  <article class="browser-item tile" data-testid="project-item-card" data-item-type={item.item_type}>
+    {#if isLoading}
+      <div class="embed-preview-fallback">Loading preview...</div>
+    {:else if previewComponent}
+      {@const Component = getRenderableComponent(previewComponent.component)}
+      <Component {...previewComponent.props} />
+    {:else}
+      <div class="embed-preview-fallback">{displayName || item.target_id}</div>
+    {/if}
+  </article>
+{:else}
+  <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+  <article
+    class="browser-item list"
+    class:actionable={!!resolvedEmbedData && !!resolvedContent}
+    data-testid="project-item-card"
+    data-item-type={item.item_type}
+    role="button"
+    tabindex={resolvedEmbedData && resolvedContent ? 0 : undefined}
+    aria-disabled={!resolvedEmbedData || !resolvedContent}
+    aria-label={resolvedEmbedData && resolvedContent ? `Open ${displayName || 'Project item'}` : undefined}
+    onclick={activateItem}
+    onkeydown={activateItem}
+  >
+    <div class="browser-item-meta">
+      <span class="item-kind">{item.metadata.embed_type?.toString() || item.item_type}</span>
+      <strong>{displayName || item.target_id}</strong>
+      <small>{item.item_type}</small>
     </div>
-  {/if}
-  <div class="browser-item-meta">
-    <span class="item-kind">{item.metadata.embed_type?.toString() || item.item_type}</span>
-    <strong>{displayName || item.target_id}</strong>
-    <small>{item.item_type}</small>
-  </div>
-</article>
+  </article>
+{/if}
 
 <style>
   .browser-item {
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-5);
-    background: var(--color-grey-0);
     color: var(--color-font-primary);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
   }
 
   .browser-item.tile {
-    min-height: 210px;
+    display: flex;
+    min-width: 0;
+    min-height: 12.5rem;
+    justify-content: center;
   }
 
   .browser-item.list {
     display: flex;
     align-items: center;
-    min-height: 64px;
-    padding: 0 14px;
+    min-height: 4rem;
+    padding: 0 var(--spacing-7);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
     box-shadow: none;
   }
 
@@ -208,25 +210,18 @@
     outline-offset: 2px;
   }
 
-  .embed-preview-shell {
-    height: 154px;
-    overflow: hidden;
-    background: var(--color-grey-10);
-  }
-
-  .embed-preview-shell :global(.unified-embed-preview) {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    height: 100%;
-    border-radius: 0;
+  .browser-item.tile :global(.unified-embed-preview) {
+    flex: 0 0 auto;
   }
 
   .embed-preview-fallback {
     display: grid;
     place-items: center;
-    height: 100%;
-    padding: 16px;
+    width: min(18.75rem, 100%);
+    min-height: 12.5rem;
+    padding: var(--spacing-8);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
     color: var(--color-font-secondary);
     font-weight: 700;
     text-align: center;
@@ -234,12 +229,12 @@
 
   .browser-item-meta {
     display: grid;
-    gap: 6px;
-    padding: 16px;
+    gap: var(--spacing-3);
+    padding: var(--spacing-8);
   }
 
   .list .browser-item-meta {
-    grid-template-columns: minmax(90px, 140px) 1fr auto;
+    grid-template-columns: minmax(5.625rem, 8.75rem) 1fr auto;
     align-items: center;
     width: 100%;
     padding: 0;
@@ -248,7 +243,7 @@
   .item-kind,
   small {
     color: var(--color-font-secondary);
-    font-size: 0.82rem;
+    font-size: var(--font-size-xs);
   }
 
   .item-kind {

@@ -8,6 +8,7 @@ import time
 import uuid
 from typing import Any
 
+from backend.core.api.app.services.directus.project_methods import ProjectMethods
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods
 from backend.core.api.app.services.user_work_control_service import is_resolved_assumption
 
@@ -33,9 +34,15 @@ class UserPlanNotFoundError(ValueError):
 
 
 class UserPlanService:
-    def __init__(self, plan_methods: UserPlanMethods, task_service: Any | None = None):
+    def __init__(
+        self,
+        plan_methods: UserPlanMethods,
+        task_service: Any | None = None,
+        project_methods: ProjectMethods | None = None,
+    ):
         self.plan_methods = plan_methods
         self.task_service = task_service
+        self.project_methods = project_methods
 
     async def list_plans(self, user_id: str, **filters: Any) -> list[dict[str, Any]]:
         return await self.plan_methods.list_plans(user_id, **filters)
@@ -49,6 +56,22 @@ class UserPlanService:
     async def create_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = dict(payload)
         payload.setdefault("status", "draft")
+        linked_project_ids = payload.get("linked_project_ids")
+        if not isinstance(linked_project_ids, list) or not linked_project_ids or any(
+            not isinstance(project_id, str) or not project_id.strip() for project_id in linked_project_ids
+        ):
+            raise ValueError("Plans require at least one linked Project")
+        encrypted_linked_project_ids = payload.get("encrypted_linked_project_ids")
+        if not isinstance(encrypted_linked_project_ids, str) or not encrypted_linked_project_ids.strip():
+            raise ValueError("Plans require encrypted linked Project metadata")
+        if self.project_methods is None:
+            raise RuntimeError("Project authorization is unavailable")
+        authorized_projects = await self.project_methods.list_projects(user_id, include_archived=True)
+        authorized_project_ids = {
+            project.get("project_id") for project in authorized_projects if isinstance(project.get("project_id"), str)
+        }
+        if any(project_id not in authorized_project_ids for project_id in linked_project_ids):
+            raise ValueError("Linked Project not found or inaccessible")
         created = await self.plan_methods.create_plan(user_id, payload)
         if not created:
             raise ValueError("Failed to create plan")

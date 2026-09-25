@@ -163,6 +163,18 @@
       : typeof attrs?.lineCount === 'number' ? attrs.lineCount as number
       : 0
     );
+  let remoteSourceLabel = $derived.by(() => {
+    if (dc.type !== 'remote_file_preview') return '';
+    const label = typeof dc.remote_source_label === 'string'
+      ? dc.remote_source_label.trim()
+      : typeof attrs?.remoteSourceLabel === 'string'
+        ? attrs.remoteSourceLabel.trim()
+        : '';
+    return label;
+  });
+  let remoteSourceProvenance = $derived(
+    remoteSourceLabel ? `Streamed from ${remoteSourceLabel}` : ''
+  );
   let versionNumber = $derived(
       typeof dc.version_number === 'number' ? dc.version_number
       : typeof data.embedData?.version_number === 'number' ? data.embedData.version_number
@@ -1502,6 +1514,7 @@
   appId="code"
   skillId="code"
   embedHeaderTitle={skillName}
+  embedHeaderProvenance={remoteSourceProvenance || undefined}
   embedHeaderSubtitle={statusText || undefined}
   skillIconName={skillIconName}
   {onClose}

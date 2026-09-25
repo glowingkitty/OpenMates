@@ -26,8 +26,12 @@
 		panelState,
 		featureAvailabilityStore,
 		initializeFeatureAvailability,
+		consumeProjectWorkflowTarget,
+		projectWorkflowAssociationWarning,
+		saveWorkflowToProjectTarget,
 		upsertWorkflowTemplateProjection,
-		workflowWorkspaceStore
+		workflowWorkspaceStore,
+		type ProjectCreationTarget
 	} from '@repo/ui';
 	import { text } from '@repo/ui';
 	import {
@@ -35,17 +39,15 @@
 		weeklyEventsGraph,
 		hourlyApartmentsGraph
 	} from '@repo/ui/components/workflows/workflowExamples.ts';
-	import { workflowIcon, workflowGraphReady } from '@repo/ui/components/workflows/workflowBuilder.ts';
+	import {
+		workflowIcon,
+		workflowGraphReady
+	} from '@repo/ui/components/workflows/workflowBuilder.ts';
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
-	import type {
-		WorkflowDetail,
-		WorkflowGraph,
-		WorkflowRun,
-		WorkflowSummary
-	} from '@repo/ui';
+	import type { WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
 	import type { DailyInspiration } from '@repo/ui/stores/dailyInspirationStore.ts';
 
@@ -105,6 +107,7 @@
 	});
 	let blankCreatorOpen = $state(false);
 	let blankWorkflowTitle = $state('');
+	let projectWorkflowTarget = $state<ProjectCreationTarget | null>(null);
 	let lastStartedRunId = $state<string | null>(null);
 
 	let recentWorkflows = $derived(
@@ -184,6 +187,8 @@
 	);
 
 	onMount(() => {
+		projectWorkflowTarget = consumeProjectWorkflowTarget();
+		if (projectWorkflowTarget) blankCreatorOpen = true;
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		void initializeWorkflowsRoute();
@@ -311,7 +316,12 @@
 	}
 
 	function requestWorkflowShare(): void {
-		notificationStore.info($text('workflows.builder.sharing_soon'), 4000, true, 'workflow-sharing-soon');
+		notificationStore.info(
+			$text('workflows.builder.sharing_soon'),
+			4000,
+			true,
+			'workflow-sharing-soon'
+		);
 	}
 
 	function requestWorkflowTab(tab: 'template' | 'runs'): void {
@@ -414,12 +424,17 @@
 		await createWorkflow('Weekly AI events', newsBriefGraph(), false);
 	}
 
-
 	async function submitBlankWorkflow(): Promise<void> {
 		const title = blankWorkflowTitle.trim();
 		if (!title || saving) return;
-		await createWorkflow(title, blankWorkflowGraph(), false);
-		if (!routeError) blankCreatorOpen = false;
+		const created = await createWorkflow(title, blankWorkflowGraph(), false);
+		if (created) closeBlankWorkflowCreator();
+	}
+
+	function closeBlankWorkflowCreator(): void {
+		blankCreatorOpen = false;
+		blankWorkflowTitle = '';
+		projectWorkflowTarget = null;
 	}
 
 	function startWorkflowFromInspiration(inspiration: DailyInspiration) {
@@ -485,8 +500,13 @@
 		};
 	}
 
-	async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
-		if (!canLoadWorkflows || saving) return;
+	async function createWorkflow(
+		title: string,
+		graph: WorkflowGraph,
+		enabled: boolean
+	): Promise<boolean> {
+		if (!canLoadWorkflows || saving) return false;
+		const workflowProjectTarget = projectWorkflowTarget;
 		saving = true;
 		routeError = null;
 		try {
@@ -496,12 +516,28 @@
 				enabled,
 				runContentRetention
 			});
+			// Keep the selected location for a retry when workflow creation itself fails.
+			projectWorkflowTarget = null;
+			let associationWarning: string | null = null;
+			if (workflowProjectTarget) {
+				try {
+					await saveWorkflowToProjectTarget(workflowProjectTarget, workflow.id, workflow.title);
+				} catch (associationError) {
+					associationWarning = projectWorkflowAssociationWarning(
+						workflowProjectTarget,
+						associationError
+					);
+				}
+			}
 			await maintainTemplateProjection(workflow);
 			await selectWorkflow(workflow.id);
 			openWorkflowDetails(workflow.id);
+			if (associationWarning) routeError = associationWarning;
+			return true;
 		} catch (createError) {
 			routeError =
 				createError instanceof Error ? createError.message : 'Failed to create workflow.';
+			return false;
 		} finally {
 			saving = false;
 		}
@@ -610,7 +646,6 @@
 		};
 	}
 
-
 	function newsBriefGraph(): WorkflowGraph {
 		return weeklyEventsGraph();
 	}
@@ -645,7 +680,8 @@
 				graph,
 				icon: workflowIcon(editorTitle, selectedWorkflow.icon, graph)
 			});
-			authoringReminder = workflow.authoring_warnings?.map((warning) => warning.message).join(' ') || null;
+			authoringReminder =
+				workflow.authoring_warnings?.map((warning) => warning.message).join(' ') || null;
 			resetEditor(workflow);
 			await maintainTemplateProjection(workflow);
 		} catch (error) {
@@ -759,7 +795,22 @@
 				{/if}
 
 				{#if showManageView}
-					<section class="workflow-management" class:opening={workflowOpening} class:closing={workflowClosing} data-testid="workflow-management" transition:fullscreenWorkflowMotion onintrostart={() => { workflowClosing = false; workflowOpening = true; }} onintroend={() => (workflowOpening = false)} onoutrostart={() => { workflowOpening = false; workflowClosing = true; }}>
+					<section
+						class="workflow-management"
+						class:opening={workflowOpening}
+						class:closing={workflowClosing}
+						data-testid="workflow-management"
+						transition:fullscreenWorkflowMotion
+						onintrostart={() => {
+							workflowClosing = false;
+							workflowOpening = true;
+						}}
+						onintroend={() => (workflowOpening = false)}
+						onoutrostart={() => {
+							workflowOpening = false;
+							workflowClosing = true;
+						}}
+					>
 						<div class="management-grid">
 							<section class="workflow-detail" data-testid="workflow-detail">
 								{#if selectedWorkflow}
@@ -807,14 +858,30 @@
 											role="tabpanel"
 											aria-label="Workflow template"
 										>
-                      <WorkflowVersionHistory workflow={selectedWorkflow} disabled={saving} onRequestNavigation={requestNavigation} onRestored={handleWorkflowVersionRestored}>
-                        {#if editorGraph}
-                          <div data-testid="workflow-editor">
-                            {#if authoringReminder}<p class="workflow-authoring-reminder" data-testid="workflow-authoring-reminder" role="status">{authoringReminder}</p>{/if}
-                            <WorkflowGraphRenderer graph={editorGraph} workflowId={selectedWorkflow.id} onChange={updateEditorGraph} onSave={saveNodeGraph}/>
-                          </div>
-                        {/if}
-                      </WorkflowVersionHistory>
+											<WorkflowVersionHistory
+												workflow={selectedWorkflow}
+												disabled={saving}
+												onRequestNavigation={requestNavigation}
+												onRestored={handleWorkflowVersionRestored}
+											>
+												{#if editorGraph}
+													<div data-testid="workflow-editor">
+														{#if authoringReminder}<p
+																class="workflow-authoring-reminder"
+																data-testid="workflow-authoring-reminder"
+																role="status"
+															>
+																{authoringReminder}
+															</p>{/if}
+														<WorkflowGraphRenderer
+															graph={editorGraph}
+															workflowId={selectedWorkflow.id}
+															onChange={updateEditorGraph}
+															onSave={saveNodeGraph}
+														/>
+													</div>
+												{/if}
+											</WorkflowVersionHistory>
 										</div>
 									{/if}
 								{:else}
@@ -877,7 +944,7 @@
 							role="dialog"
 							aria-modal="true"
 							aria-labelledby="blank-workflow-title"
-							use:focusTrap={{ onEscape: () => (blankCreatorOpen = false) }}
+							use:focusTrap={{ onEscape: closeBlankWorkflowCreator }}
 						>
 							<form
 								onsubmit={(event) => {
@@ -887,6 +954,13 @@
 							>
 								<h2 id="blank-workflow-title">Start a blank Workflow</h2>
 								<p>Name it now, then add a time trigger and the steps it should perform.</p>
+								{#if projectWorkflowTarget}
+									<p data-testid="workflow-project-target">
+										Save to {projectWorkflowTarget.projectName}{projectWorkflowTarget.folderPath
+											? ` / ${projectWorkflowTarget.folderPath}`
+											: ''}
+									</p>
+								{/if}
 								<label
 									><span>Workflow name</span><input
 										data-testid="workflow-blank-title-input"
@@ -894,7 +968,7 @@
 									/></label
 								>
 								<div>
-									<button type="button" onclick={() => (blankCreatorOpen = false)}>Cancel</button>
+									<button type="button" onclick={closeBlankWorkflowCreator}>Cancel</button>
 									<button
 										type="submit"
 										class="primary"
@@ -988,9 +1062,23 @@
 		overflow: hidden;
 	}
 
-	#tabpanel-template { box-sizing:border-box; width:min(60rem,calc(100% - 4rem)); margin:0 auto; padding-top:2.5rem; border-radius:var(--radius-16); background:var(--color-grey-0); }
-	#tabpanel-template :global(.graph-panel) { width:100%; margin-block:0; }
-	@media(max-width:730px) { #tabpanel-template { width:calc(100% - 1rem); } }
+	#tabpanel-template {
+		box-sizing: border-box;
+		width: min(60rem, calc(100% - 4rem));
+		margin: 0 auto;
+		padding-top: 2.5rem;
+		border-radius: var(--radius-16);
+		background: var(--color-grey-0);
+	}
+	#tabpanel-template :global(.graph-panel) {
+		width: 100%;
+		margin-block: 0;
+	}
+	@media (max-width: 730px) {
+		#tabpanel-template {
+			width: calc(100% - 1rem);
+		}
+	}
 
 	.workflow-management {
 		position: absolute;
@@ -1207,13 +1295,41 @@
 			border-radius: var(--radius-10, 24px);
 		}
 	}
-  /* Release the full pane's graphics surface when its entrance finishes. */
-  .workflow-management.opening,.workflow-management.closing {
-    will-change:transform,opacity;
-    animation:workflow-pane-open 320ms cubic-bezier(0.32, 0, 0.2, 1) both;
-  }
-  .workflow-management.closing { animation-name: workflow-pane-close; pointer-events:none; }
-  @keyframes workflow-pane-open { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-  @keyframes workflow-pane-close { from { transform:translateY(0); opacity:1; } to { transform:translateY(100%); opacity:0; } }
-  @media(prefers-reduced-motion:reduce) { .workflow-management,.workflow-management.closing { animation:none; will-change:auto; } }
+	/* Release the full pane's graphics surface when its entrance finishes. */
+	.workflow-management.opening,
+	.workflow-management.closing {
+		will-change: transform, opacity;
+		animation: workflow-pane-open 320ms cubic-bezier(0.32, 0, 0.2, 1) both;
+	}
+	.workflow-management.closing {
+		animation-name: workflow-pane-close;
+		pointer-events: none;
+	}
+	@keyframes workflow-pane-open {
+		from {
+			transform: translateY(100%);
+			opacity: 0;
+		}
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
+	@keyframes workflow-pane-close {
+		from {
+			transform: translateY(0);
+			opacity: 1;
+		}
+		to {
+			transform: translateY(100%);
+			opacity: 0;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.workflow-management,
+		.workflow-management.closing {
+			animation: none;
+			will-change: auto;
+		}
+	}
 </style>

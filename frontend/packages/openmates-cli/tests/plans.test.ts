@@ -88,7 +88,12 @@ describe("OpenMatesClient user plans", () => {
   // contract-test: supporting surface=cli assertions=plans.content.client-encrypted,plans.surface.semantic-parity
   it("skips undecryptable plans without hiding the warning", async () => {
     const masterKey = Buffer.alloc(32);
-    const valid = await buildCreateUserPlanInput(masterKey, { title: "Valid", goal: "Continue safely" });
+    const valid = await buildCreateUserPlanInput(masterKey, {
+      title: "Valid",
+      goal: "Continue safely",
+      linkedProjectIds: ["project-1"],
+      linkedProjectKeys: [{ projectId: "project-1", projectKey: Buffer.alloc(32, 2) }],
+    });
     const invalid = { ...valid, plan_id: "invalid-plan", key_wrappers: [{ key_type: "master" as const, encrypted_plan_key: "invalid" }] };
     const warnings: string[] = [];
 
@@ -96,6 +101,14 @@ describe("OpenMatesClient user plans", () => {
 
     assert.deepEqual(plans.map((plan) => plan.title), ["Valid"]);
     assert.deepEqual(warnings, ["Warning: skipped undecryptable plan invalid-plan."]);
+  });
+
+  // contract-test: direct surface=cli assertions=plans.project-links.encrypted
+  it("rejects Plan creation without a Project before producing encrypted input", async () => {
+    await assert.rejects(
+      buildCreateUserPlanInput(Buffer.alloc(32), { title: "Unlinked", goal: "Must fail" }),
+      /requires at least one Project link/,
+    );
   });
 
   // contract-test: direct surface=cli assertions=plans.content.client-encrypted,plans.key-wrappers.contextual,plans.surface.semantic-parity

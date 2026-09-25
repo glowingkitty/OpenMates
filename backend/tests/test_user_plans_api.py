@@ -104,6 +104,194 @@ async def test_create_plan_hashes_owner_and_projects_without_plaintext_content()
     assert "goal" not in record
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"linked_project_ids": []},
+        {"encrypted_linked_project_ids": None},
+        {
+            "key_wrappers": [
+                {"key_type": "master", "encrypted_plan_key": "cipher-master", "created_at": 100},
+                {
+                    "key_type": "chat",
+                    "hashed_chat_id": hash_id("chat-1"),
+                    "encrypted_plan_key": "cipher-chat",
+                    "created_at": 100,
+                },
+            ]
+        },
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=plans.project-links.encrypted,plans.key-wrappers.contextual
+async def test_create_plan_persistence_rejects_incomplete_project_links(overrides: dict[str, object]) -> None:
+    directus = SimpleNamespace(create_item=AsyncMock())
+
+    created = await UserPlanMethods(directus).create_plan("user-1", plan_payload(**overrides))
+
+    assert created is None
+    directus.create_item.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted,plans.key-wrappers.contextual
+@pytest.mark.asyncio
+async def test_restore_plan_snapshot_authorizes_hashes_and_never_stores_raw_project_ids() -> None:
+    project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-1"}]))
+    directus = SimpleNamespace(project=project_methods)
+    directus.create_item = AsyncMock(
+        side_effect=lambda collection, record: (True, {"id": f"{collection}-row", **record})
+    )
+    snapshot = plan_payload()
+    snapshot.pop("linked_project_ids")
+    snapshot["linked_project_hashes"] = [hash_id("project-1")]
+
+    restored = await UserPlanMethods(directus).restore_plan_snapshot("user-1", snapshot)
+
+    assert restored is not None
+    project_methods.list_projects.assert_awaited_once_with("user-1", include_archived=True)
+    collection, record = directus.create_item.await_args_list[0].args
+    assert collection == "user_plans"
+    assert record["linked_project_hashes"] == [hash_id("project-1")]
+    assert "linked_project_ids" not in record
+
+
+# contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_restore_plan_snapshot_rejects_inaccessible_project_hash() -> None:
+    project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-2"}]))
+    directus = SimpleNamespace(project=project_methods, create_item=AsyncMock())
+    snapshot = plan_payload()
+    snapshot.pop("linked_project_ids")
+    snapshot["linked_project_hashes"] = [hash_id("project-1")]
+
+    restored = await UserPlanMethods(directus).restore_plan_snapshot("user-1", snapshot)
+
+    assert restored is None
+    directus.create_item.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible
+@pytest.mark.asyncio
+async def test_restore_plan_snapshot_preserves_legacy_unlinked_plan() -> None:
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(
+        side_effect=lambda collection, record: (True, {"id": f"{collection}-row", **record})
+    )
+    snapshot = plan_payload(
+        encrypted_linked_project_ids=None,
+        linked_project_ids=[],
+        key_wrappers=[
+            {"key_type": "master", "encrypted_plan_key": "cipher-master", "created_at": 100},
+            {
+                "key_type": "chat",
+                "hashed_chat_id": hash_id("chat-1"),
+                "encrypted_plan_key": "cipher-chat",
+                "created_at": 100,
+            },
+        ],
+    )
+    snapshot.pop("linked_project_ids")
+    snapshot["linked_project_hashes"] = []
+
+    restored = await UserPlanMethods(directus).restore_plan_snapshot("user-1", snapshot)
+
+    assert restored is not None
+    _, record = directus.create_item.await_args_list[0].args
+    assert record["linked_project_hashes"] == []
+    assert record["encrypted_linked_project_ids"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted,plans.key-wrappers.contextual
+@pytest.mark.asyncio
+async def test_update_plan_from_history_snapshot_relinks_with_authorized_hashes() -> None:
+    old_wrapper = {"id": "old-wrapper", "key_type": "project", "hashed_project_id": hash_id("project-1")}
+    existing = {
+        "id": "plan-row",
+        "plan_id": "plan-1",
+        "version": 2,
+        "linked_project_hashes": [hash_id("project-1")],
+        "key_wrappers": [old_wrapper],
+    }
+    project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-2"}]))
+    directus = SimpleNamespace(
+        project=project_methods,
+        get_items=AsyncMock(return_value=[existing]),
+        create_item=AsyncMock(side_effect=lambda _collection, record: (True, {"id": "new-wrapper", **record})),
+        update_item=AsyncMock(return_value={"id": "plan-row", "version": 3}),
+        delete_item=AsyncMock(return_value=True),
+    )
+    snapshot = {
+        "version": 3,
+        "encrypted_title": "cipher-restored-title",
+        "encrypted_linked_project_ids": "cipher-restored-project-links",
+        "linked_project_hashes": [hash_id("project-2")],
+        "key_wrappers": [
+            {"key_type": "master", "encrypted_plan_key": "cipher-master", "created_at": 200},
+            {
+                "key_type": "project",
+                "hashed_project_id": hash_id("project-2"),
+                "encrypted_plan_key": "cipher-project-2",
+                "created_at": 200,
+            },
+        ],
+    }
+
+    updated = await UserPlanMethods(directus).update_plan_from_history_snapshot(
+        "plan-1",
+        "user-1",
+        snapshot,
+    )
+
+    assert updated is not None
+    project_methods.list_projects.assert_awaited_once_with("user-1", include_archived=True)
+    _, _, patch = directus.update_item.await_args.args
+    assert patch["linked_project_hashes"] == [hash_id("project-2")]
+    assert "linked_project_ids" not in patch
+    assert len(updated["key_wrappers"]) == 2
+    directus.delete_item.assert_awaited_once_with("user_plan_key_wrappers", "old-wrapper")
+
+
+# contract-test: direct surface=rest_api assertions=plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_create_plan_requires_access_to_every_linked_project() -> None:
+    plan_methods = SimpleNamespace(create_plan=AsyncMock(return_value={"plan_id": "plan-1"}))
+    project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-1"}]))
+    service = UserPlanService(plan_methods, project_methods=project_methods)
+
+    with pytest.raises(ValueError, match="Linked Project not found or inaccessible"):
+        await service.create_plan(
+            "user-1",
+            plan_payload(
+                linked_project_ids=["project-1", "project-2"],
+                key_wrappers=[
+                    {"key_type": "master", "encrypted_plan_key": "cipher-master", "created_at": 100},
+                    {"key_type": "chat", "hashed_chat_id": hash_id("chat-1"), "encrypted_plan_key": "cipher-chat", "created_at": 100},
+                    {"key_type": "project", "hashed_project_id": hash_id("project-1"), "encrypted_plan_key": "cipher-project-1", "created_at": 100},
+                    {"key_type": "project", "hashed_project_id": hash_id("project-2"), "encrypted_plan_key": "cipher-project-2", "created_at": 100},
+                ],
+            ),
+        )
+
+    project_methods.list_projects.assert_awaited_once_with("user-1", include_archived=True)
+    plan_methods.create_plan.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_create_plan_persists_after_linked_project_authorization() -> None:
+    plan_methods = SimpleNamespace(create_plan=AsyncMock(return_value={"plan_id": "plan-1"}))
+    project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-1"}]))
+    service = UserPlanService(plan_methods, project_methods=project_methods)
+
+    created = await service.create_plan("user-1", plan_payload())
+
+    assert created == {"plan_id": "plan-1"}
+    project_methods.list_projects.assert_awaited_once_with("user-1", include_archived=True)
+    persisted_payload = plan_methods.create_plan.await_args.args[1]
+    assert persisted_payload["linked_project_ids"] == ["project-1"]
+    assert persisted_payload["encrypted_linked_project_ids"] == "cipher-linked-project-ids"
+
+
 # contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_create_plan_persists_key_wrappers_separately() -> None:
@@ -158,6 +346,23 @@ async def test_list_plans_hydrates_key_wrappers_for_client_decryption() -> None:
     plans = await UserPlanMethods(directus).list_plans("user-1")
 
     assert plans[0]["key_wrappers"] == wrappers
+
+
+# contract-test: direct surface=rest_api assertions=plans.lifecycle.visible
+@pytest.mark.asyncio
+async def test_list_plans_preserves_legacy_unlinked_plans() -> None:
+    legacy_plan = {
+        key: value
+        for key, value in plan_payload(linked_project_ids=[], encrypted_linked_project_ids=None).items()
+        if key != "key_wrappers"
+    }
+    legacy_plan["linked_project_hashes"] = []
+    wrappers = [{"key_type": "master", "encrypted_plan_key": "cipher-master"}]
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=[[legacy_plan], wrappers]))
+
+    plans = await UserPlanMethods(directus).list_plans("user-1")
+
+    assert plans == [{**legacy_plan, "key_wrappers": wrappers}]
 
 
 # contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted

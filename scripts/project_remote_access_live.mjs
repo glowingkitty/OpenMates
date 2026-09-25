@@ -771,10 +771,7 @@ async function runCliVerification(client, fixture, ownerId) {
     const protectedRead = await requestCliOperation(client, fixture, ownerId, source, "read_text", { path: ".env" });
     requireValue(protectedRead.ok === false && protectedRead.error === "protected_path", "Protected read did not fail with a sanitized encrypted error");
   } finally {
-    if (child.exitCode === null) {
-      child.kill("SIGINT");
-      await new Promise((resolvePromise) => child.once("exit", resolvePromise));
-    }
+    await stopForegroundCli(child);
     if (originalSourceStore) writeFileSync(sourceStorePath, originalSourceStore);
     else rmSync(sourceStorePath, { force: true });
     rmSync(rootPath, { recursive: true, force: true });
@@ -791,9 +788,24 @@ async function runCliVerification(client, fixture, ownerId) {
 }
 
 async function stopForegroundCli(child) {
-  if (child.exitCode !== null) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const waitForClose = (timeoutMs) => new Promise((resolvePromise) => {
+    const timeout = setTimeout(() => {
+      child.off("close", onClose);
+      resolvePromise(false);
+    }, timeoutMs);
+    const onClose = () => {
+      clearTimeout(timeout);
+      resolvePromise(true);
+    };
+    child.once("close", onClose);
+  });
+  const gracefulClose = waitForClose(10_000);
   child.kill("SIGINT");
-  await new Promise((resolvePromise) => child.once("exit", resolvePromise));
+  if (await gracefulClose) return;
+  const forcedClose = waitForClose(5_000);
+  child.kill("SIGKILL");
+  if (!await forcedClose) throw new Error("Foreground CLI did not close after SIGKILL");
 }
 
 // contract-test: supporting surface=cli assertions=projects.files.ignored-exact-inclusion,projects.files.private-path-deny

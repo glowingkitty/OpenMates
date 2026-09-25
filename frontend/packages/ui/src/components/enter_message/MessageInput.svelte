@@ -2021,7 +2021,7 @@
                 // Desktop is the default layout (no class needed)
                 if (isMobile) {
                     group.classList.add('container-mobile');
-                } else {
+                    } else {
                     group.classList.remove('container-mobile');
                 }
             });
@@ -6049,7 +6049,8 @@
     // "@Travel-Search Show me flights..." instead of "Show me flights...@Travel-Search",
     // which avoids false PII detection (an @mention at the end looks like an email).
     $effect(() => {
-        const mention = $pendingMentionStore;
+        const pendingMention = $pendingMentionStore;
+        const mention = typeof pendingMention === 'string' ? pendingMention : pendingMention?.syntax;
         if (mention && editor && !editor.isDestroyed) {
             console.debug('[MessageInput] Inserting pending mention:', mention);
             pendingMentionStore.set(null);
@@ -6057,6 +6058,30 @@
                 if (!editor || editor.isDestroyed) return;
                 // Insert at the start so the mention precedes any existing body text.
                 editor.commands.focus('start');
+
+                if (typeof pendingMention !== 'string') {
+                    editor
+                        .chain()
+                        .focus()
+                        .setGenericMention({
+                            mentionType: pendingMention.type,
+                            displayName: pendingMention.displayName,
+                            mentionSyntax: pendingMention.syntax,
+                            mentionId: crypto.randomUUID(),
+                            projectId: pendingMention.projectId,
+                            projectSourceId: pendingMention.projectSourceId,
+                            projectPath: pendingMention.projectPath,
+                            projectAccessMode: pendingMention.projectAccessMode,
+                        })
+                        .insertContent(' ')
+                        .run();
+                    hasContent = true;
+                    refreshDraftPreviewState(editor);
+                    lastEditorUpdateText = editor.getText();
+                    updateOriginalMarkdown(editor);
+                    editor.commands.focus('end');
+                    return;
+                }
 
                 // Parse "@mate:{mateId}" to extract the id
                 const mateMatch = mention.match(/^@mate:(.+)$/);
@@ -6083,7 +6108,7 @@
                             })
                             .insertContent(' ')
                             .run();
-                    } else {
+                } else {
                         // Unknown mate id — fall back to plain text insertion
                         console.warn('[MessageInput] Unknown mate id from pendingMentionStore:', mateId);
                         editor.commands.insertContent(mention + ' ');

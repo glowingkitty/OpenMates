@@ -235,8 +235,9 @@ def fetch(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "Green GitHub job lacks passing source-bound test evidence"
             )
+        expected_harness_commit = job.get("preparation_harness_commit") or run["head_sha"]
         if report and (
-            report.get("harness_commit") != run["head_sha"]
+            report.get("harness_commit") != expected_harness_commit
             or report.get("proof_profile", "") != job.get("proof_profile", "")
         ):
             raise RuntimeError(
@@ -284,7 +285,7 @@ def fetch(github, job: dict, root: Path) -> dict:
             "run_id": job["run_id"],
             "state": job["state"],
             "selected_specs": json.loads(job["specs"]),
-            "harness_commit": run["head_sha"],
+            "harness_commit": expected_harness_commit,
             "runner_jobs": [
                 {
                     "id": entry["id"],

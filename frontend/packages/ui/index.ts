@@ -170,6 +170,7 @@ export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
 export * from "./src/services/embedFullscreenController";
 export * from "./src/services/projectService";
+export * from "./src/services/projectCreationNavigation";
 export * from "./src/services/teamService";
 export * from "./src/services/userTaskService";
 export * from "./src/services/workflowTemplateService";

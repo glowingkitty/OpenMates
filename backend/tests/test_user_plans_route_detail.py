@@ -7,11 +7,12 @@ service layer and team access gated before team-scoped lookup.
 
 import sys
 import types
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import Response
+from fastapi import HTTPException, Response
 
 
 class _FakeLimiter:
@@ -32,22 +33,31 @@ workspace_planner_stub.WorkspaceAskPlanningError = RuntimeError
 workspace_planner_stub.run_plan_ask_pipeline = AsyncMock()
 team_workspace_stub = types.ModuleType("backend.core.api.app.services.team_workspace_service")
 team_workspace_stub.move_workspace_record_to_team = AsyncMock()
-workspace_history_stub = types.ModuleType("backend.core.api.app.services.workspace_change_history_service")
-workspace_history_stub.WorkspaceChangeHistoryService = object
-workspace_history_stub.build_history_commands = lambda *args, **kwargs: {}
-workspace_history_stub.s3_workspace_history_archive_io = lambda *args, **kwargs: None
+workflow_service_stub = types.ModuleType("backend.core.api.app.services.workflow_service")
+workflow_service_stub.DirectusWorkflowRepository = object
+workflow_service_stub.WorkflowService = object
 sys.modules.setdefault("backend.core.api.app.routes.auth_routes.auth_dependencies", auth_deps_stub)
 sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
 sys.modules.setdefault("backend.apps.ai.processing.workspace_ask_planner", workspace_planner_stub)
 sys.modules.setdefault("backend.core.api.app.services.team_workspace_service", team_workspace_stub)
-sys.modules.setdefault("backend.core.api.app.services.workspace_change_history_service", workspace_history_stub)
+sys.modules.setdefault("backend.core.api.app.services.workflow_service", workflow_service_stub)
 
-from backend.core.api.app.routes import user_plans  # noqa: E402
+from backend.core.api.app.routes import user_plans, workspace_history  # noqa: E402
 from backend.core.api.app.services.user_plan_service import UserPlanNotFoundError, UserPlanService  # noqa: E402
 
 
 get_user_plan = getattr(user_plans.get_user_plan, "__wrapped__", user_plans.get_user_plan)
 update_user_plan = getattr(user_plans.update_user_plan, "__wrapped__", user_plans.update_user_plan)
+restore_user_plan_from_history = getattr(
+    user_plans.restore_user_plan_from_history,
+    "__wrapped__",
+    user_plans.restore_user_plan_from_history,
+)
+restore_workspace_object_history = getattr(
+    workspace_history.restore_workspace_object_history,
+    "__wrapped__",
+    workspace_history.restore_workspace_object_history,
+)
 
 
 async def _current_user(_request: object, _response: Response) -> SimpleNamespace:
@@ -139,3 +149,78 @@ async def test_user_plan_service_get_plan_hides_missing_or_cross_owner_plan() ->
         await service.get_plan("plan-1", "user-2")
 
     plan_methods.get_plan.assert_awaited_once_with("plan-1", "user-2", team_id=None)
+
+
+# contract-test: direct surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_restore_route_reports_failed_project_authorization_without_success_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(user_plans, "_current_user", _current_user)
+
+    @asynccontextmanager
+    async def restore_guard(*_args, **_kwargs):
+        yield None
+
+    monkeypatch.setattr(
+        user_plans,
+        "_work_control_service",
+        lambda *_args: SimpleNamespace(restore_delete_guard=restore_guard),
+    )
+    history_service = SimpleNamespace(
+        restore_object_to_entry=AsyncMock(
+            side_effect=user_plans.WorkspaceHistoryRestoreError(
+                "Plan history restore failed because linked Project access or encrypted restore data is unavailable"
+            )
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await restore_user_plan_from_history(
+            request=SimpleNamespace(),
+            response=Response(),
+            plan_id="plan-1",
+            body=user_plans.UserPlanRestoreRequest(entry_id="entry-1", state="after"),
+            history_service=history_service,
+        )
+
+    assert exc_info.value.status_code == 409
+    assert "linked Project access" in str(exc_info.value.detail)
+
+
+# contract-test: direct surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_shared_workspace_restore_route_reports_plan_restore_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workspace_history, "_current_user", _current_user)
+
+    @asynccontextmanager
+    async def restore_guard(*_args, **_kwargs):
+        yield None
+
+    monkeypatch.setattr(
+        workspace_history,
+        "_work_control_service",
+        lambda *_args: SimpleNamespace(restore_delete_guard=restore_guard),
+    )
+    history_service = SimpleNamespace(
+        restore_object_to_entry=AsyncMock(
+            side_effect=workspace_history.WorkspaceHistoryRestoreError(
+                "Plan history restore failed because linked Project access or encrypted restore data is unavailable"
+            )
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await restore_workspace_object_history(
+            request=SimpleNamespace(),
+            response=Response(),
+            object_type="plan",
+            object_id="plan-1",
+            body=workspace_history.WorkspaceRestoreRequest(entry_id="entry-1", state="after"),
+            service=history_service,
+        )
+
+    assert exc_info.value.status_code == 409
+    assert "linked Project access" in str(exc_info.value.detail)

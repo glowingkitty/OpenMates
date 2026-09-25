@@ -124,6 +124,24 @@ function stringList(value: unknown): string[] {
   return [];
 }
 
+export function pdfPreviewProps(
+  embedId: string,
+  decodedContent: Record<string, unknown>,
+  embedData: Record<string, unknown>,
+  onFullscreen: () => void,
+): Record<string, unknown> {
+  const normalizedStatus = normalizeStatus(embedData.status);
+  return {
+    id: embedId,
+    filename: firstText(decodedContent.filename),
+    pageCount: firstNumber(decodedContent.page_count),
+    uploadError: firstText(decodedContent.upload_error, decodedContent.error),
+    status: normalizedStatus === "cancelled" ? "error" : normalizedStatus,
+    isMobile: false,
+    onFullscreen,
+  };
+}
+
 export function parentPreviewProps(
   decodedContent: Record<string, unknown>,
   embedData: Record<string, unknown>,
@@ -778,6 +796,35 @@ resolvers.set("code-block", codeResolver); // legacy client alias
 resolvers.set("code_embed", codeResolver); // legacy alias used in AppEmbedsPanel
 // Also reachable via app-skill routing when app_id === 'code' and no specific skill matched:
 resolvers.set("app:code:*", codeResolver);
+
+// ── Direct / auto-converted: captured files ─────────────────────────────────
+
+resolvers.set("file-file", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/file/FileEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      filename: firstText(decodedContent.filename, decodedContent.path),
+      path: firstText(decodedContent.normalized_path, decodedContent.path),
+      mimeType: firstText(decodedContent.mime_type),
+      sizeBytes: firstNumber(decodedContent.size_bytes),
+      status: normalizeStatus(embedData.status),
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+});
+
+// ── Direct / auto-converted: uploaded PDFs ──────────────────────────────────
+
+resolvers.set("pdf", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/pdf/PDFEmbedPreview.svelte");
+  return {
+    component,
+    props: pdfPreviewProps(embedId, decodedContent, embedData, onFullscreen),
+  };
+});
 
 // ── Direct / auto-converted: sheets ──────────────────────────────────────────
 

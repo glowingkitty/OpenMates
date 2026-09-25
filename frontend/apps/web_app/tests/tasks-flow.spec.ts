@@ -182,6 +182,7 @@ test.describe('Tasks V1 flow', () => {
 		await expect(codexCard).toBeVisible({ timeout: 30000 });
 		await expect(codexCard).toContainText('Codex');
 
+		await createdCard.getByTestId('task-actions-more').click();
 		await Promise.all([
 			page.waitForResponse((response) =>
 				response.request().method() === 'POST' &&

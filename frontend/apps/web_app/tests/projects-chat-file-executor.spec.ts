@@ -400,11 +400,12 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
 
       await page.goto(`/projects#project-id=${encodeURIComponent(fixture.project_id as string)}`, { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
-      const sourceCard = page.getByTestId('project-remote-source-card').filter({ hasText: 'Live remote source' });
+      const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
       await expect(sourceCard).toBeVisible({ timeout: 30_000 });
-      await page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' }).click();
-      await sourceCard.getByTestId('project-remote-entry').filter({ hasText: /^src$/ }).click();
-      const preview = sourceCard.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' });
+      await sourceCard.click();
+      const sourceBrowser = page.getByTestId('project-remote-browser');
+      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
+      const preview = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' });
       await expect(preview).toBeVisible({ timeout: 30_000 });
       await preview.getByTestId('project-remote-preview-open').click();
       const overlay = page.getByTestId('project-remote-fullscreen-overlay');

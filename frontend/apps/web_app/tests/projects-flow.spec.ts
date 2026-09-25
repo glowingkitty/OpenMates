@@ -83,6 +83,7 @@ test.describe('Projects v1 flow', () => {
       (response) => projectDeleteResponseMatches(response, projectId)
     );
     page.once('dialog', (dialog) => dialog.accept());
+    await page.getByTestId('project-more-button').click();
     await page.getByTestId('project-delete-button').click();
     await deleted;
     await expect(page.getByTestId('projects-start-screen')).toBeVisible({ timeout: 30000 });
@@ -152,7 +153,191 @@ test.describe('Projects v1 flow', () => {
       (response) => projectDeleteResponseMatches(response, projectId)
     );
     page.once('dialog', (dialog) => dialog.accept());
+    await page.getByTestId('project-more-button').click();
     await page.getByTestId('project-delete-button').click();
     await deleted;
   });
+
+	// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.links.openmates-only-encrypted,projects.lifecycle.encrypted-crud
+	test('starts project chats and saves workflows in the selected project', async ({ page }) => {
+		test.setTimeout(180000);
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const suffix = Date.now();
+		const projectName = `E2E Project navigation ${suffix}`;
+		const workflowTitle = `Project workflow ${suffix}`;
+		let projectId: string | null = null;
+		const workflowIds: string[] = [];
+		let apiOrigin: string | null = null;
+
+		try {
+			await page.goto('/projects');
+			await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+
+			const created = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).pathname === '/v1/projects' &&
+					response.ok()
+			);
+			await page.getByTestId('project-input-textarea').fill(projectName);
+			await page.getByTestId('project-input-submit').click();
+			await page.getByTestId('project-write-policy-apply-and-show').check();
+			await page.getByTestId('project-write-policy-confirm').click();
+			const createdResponse = await created;
+			apiOrigin = new URL(createdResponse.url()).origin;
+			projectId = (await createdResponse.json()).project.project_id;
+
+			await expect(page).toHaveURL(projectHashUrlPattern(projectId));
+			await expect(page.getByTestId('project-workspace-header')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName);
+			await expect(page.getByTestId('project-started-date')).toContainText('Started');
+			await expect(page.getByTestId('project-tabs')).toBeVisible();
+			await expect(page.getByTestId('project-tab-overview')).toHaveAttribute(
+				'aria-selected',
+				'true'
+			);
+			await expect(page.getByTestId('project-tab-folders')).toBeVisible();
+			await expect(page.getByTestId('project-tab-tasks')).toBeVisible();
+			await expect(page.getByTestId('project-overview-panel')).toBeVisible();
+			await expect(page.getByTestId('project-readme-empty')).toContainText(
+				'No project overview created yet.'
+			);
+			await expect(page.getByTestId('project-readme-upload')).toBeVisible();
+			await expect(page.getByTestId('project-readme-create')).toBeVisible();
+
+			await page.getByTestId('project-tab-folders').click();
+			await expect(page.getByTestId('project-folders-panel')).toBeVisible();
+			await expect(page.getByTestId('project-folder-name-input')).toHaveCount(0);
+			await expect(page.getByTestId('project-remote-sources-section')).toHaveCount(0);
+
+			await page.getByTestId('project-folder-create-menu-button').click();
+			await page.getByTestId('project-create-chat').click();
+			await expect(page).toHaveURL(/\/$/);
+			const messageEditor = page.getByTestId('message-editor');
+			await expect(messageEditor).toBeVisible({ timeout: 30000 });
+			// The inactive composer shows a draft summary and intentionally hides TipTap content.
+			// Open the draft before asserting the actual project mention chip.
+			await page.getByTestId('message-field').click();
+			const projectMention = messageEditor.locator('[data-type="generic-mention"].mention-project');
+			await expect(projectMention).toBeVisible({ timeout: 10000 });
+			await expect(projectMention).toHaveAttribute(
+				'data-mention-syntax',
+				`@project:${projectId}:read`
+			);
+			await expect(projectMention).toHaveAttribute('data-project-access-mode', 'read');
+			await expect(projectMention.getByTestId('project-access-chip')).toHaveText('Read');
+
+			await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, {
+				waitUntil: 'domcontentloaded'
+			});
+			await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 30000 });
+			await page.getByTestId('project-tab-folders').click();
+			await page.getByTestId('project-folder-create-menu-button').click();
+			await page.getByTestId('project-create-workflow').click();
+
+			await expect(page).toHaveURL(/\/workflows(?:[?#]|$)/);
+			await expect(page.getByTestId('workflow-blank-creator')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('workflow-project-target')).toContainText(projectName);
+			await page.getByTestId('workflow-blank-title-input').fill(workflowTitle);
+			await page.route('**/v1/workflows', async (route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Try again' }) });
+			});
+			const failedCreate = page.waitForResponse((response) =>
+				response.request().method() === 'POST' &&
+				new URL(response.url()).pathname === '/v1/workflows' &&
+				response.status() === 503
+			);
+			await page.getByTestId('workflow-blank-create').click();
+			await failedCreate;
+			await expect(page.getByTestId('workflow-blank-creator')).toBeVisible();
+			await expect(page.getByTestId('workflow-project-target')).toContainText(projectName);
+			await page.unroute('**/v1/workflows');
+			const workflowCreated = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).pathname === '/v1/workflows' &&
+					response.ok()
+			);
+			const projectItemCreated = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).pathname === `/v1/projects/${projectId}/items` &&
+					response.ok()
+			);
+			await page.getByTestId('workflow-blank-create').click();
+			const workflowResponse = await workflowCreated;
+			const workflowId = (await workflowResponse.json()).workflow.id;
+			workflowIds.push(workflowId);
+			const itemResponse = await projectItemCreated;
+			const itemPayload = itemResponse.request().postDataJSON();
+			expect(itemPayload).toMatchObject({
+				folder_id: null,
+				item_type: 'workflow',
+				target_id: workflowId
+			});
+			expect(typeof itemPayload.target_id_encrypted).toBe('string');
+			expect(typeof itemPayload.encrypted_display_name).toBe('string');
+			expect(typeof itemPayload.encrypted_metadata).toBe('string');
+			expect(itemPayload.encrypted_display_name).not.toContain(workflowTitle);
+			expect(itemPayload.encrypted_metadata).not.toContain(projectName);
+
+			await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, {
+				waitUntil: 'domcontentloaded'
+			});
+			await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 30000 });
+			await page.getByTestId('project-tab-folders').click();
+			await page.getByTestId('project-folder-create-menu-button').click();
+			await page.getByTestId('project-create-workflow').click();
+			await expect(page.getByTestId('workflow-project-target')).toContainText(projectName);
+
+			const failedLinkWorkflowTitle = `Unlinked workflow ${suffix}`;
+			let failedLinkWorkflowCreates = 0;
+			const recordFailedLinkWorkflowCreate = (request: { method(): string; url(): string }) => {
+				if (request.method() === 'POST' && new URL(request.url()).pathname === '/v1/workflows') {
+					failedLinkWorkflowCreates += 1;
+				}
+			};
+			page.on('request', recordFailedLinkWorkflowCreate);
+			await page.route(`**/v1/projects/${projectId}/items*`, async (route) => {
+				await route.fulfill({
+					status: 503,
+					contentType: 'application/json',
+					body: JSON.stringify({ detail: 'Project association unavailable' })
+				});
+			});
+			await page.getByTestId('workflow-blank-title-input').fill(failedLinkWorkflowTitle);
+			const failedLinkWorkflowCreated = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).pathname === '/v1/workflows' &&
+					response.ok()
+			);
+			await page.getByTestId('workflow-blank-create').click();
+			const failedLinkWorkflowId = (await (await failedLinkWorkflowCreated).json()).workflow.id;
+			workflowIds.push(failedLinkWorkflowId);
+			await expect(page).toHaveURL(new RegExp(`workflow-id=${failedLinkWorkflowId}`));
+			await expect(page.getByTestId('workflow-management')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('workflow-blank-creator')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-error')).toContainText(
+				`Workflow created, but it could not be added to ${projectName}.`
+			);
+			expect(failedLinkWorkflowCreates).toBe(1);
+			page.off('request', recordFailedLinkWorkflowCreate);
+			await page.unroute(`**/v1/projects/${projectId}/items*`);
+		} finally {
+			if (apiOrigin) {
+				for (const workflowId of workflowIds) {
+					await page.request
+						.delete(`${apiOrigin}/v1/workflows/${encodeURIComponent(workflowId)}`)
+						.catch(() => null);
+				}
+			}
+			if (projectId && apiOrigin) {
+				await page.request
+					.delete(`${apiOrigin}/v1/projects/${encodeURIComponent(projectId)}`)
+					.catch(() => null);
+			}
+		}
+	});
 });

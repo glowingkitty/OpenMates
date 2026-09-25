@@ -770,6 +770,27 @@ def main():
                     timeout=300,
                 )
             results.append({"suite": "cli-accounts", "exit_code": result.returncode})
+            with (RESULTS / "ci-unit-cli-plans.log").open("w") as output:
+                plan_result = subprocess.run(
+                    [
+                        "node",
+                        "--test",
+                        "--experimental-strip-types",
+                        "--loader",
+                        "./tests/loader.mjs",
+                        "tests/plans.test.ts",
+                        "tests/sdk-plans.test.ts",
+                        "tests/sdk-cleartext-boundary.test.ts",
+                        "tests/sdk.test.ts",
+                        "tests/teams-permissions.test.ts",
+                        "tests/cli.test.ts",
+                    ],
+                    cwd=cli,
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    timeout=300,
+                )
+            results.append({"suite": "cli-plans", "exit_code": plan_result.returncode})
         else:
             raise ValueError("Unknown test mode")
     except Exception as exc:

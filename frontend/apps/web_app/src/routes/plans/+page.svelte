@@ -1,7 +1,6 @@
 <!--
-  Plans route for the authenticated web app.
-  Renders the encrypted Plans workspace while preserving the same authenticated
-  route shell, sidebar, settings, and notification behavior as Tasks.
+  Shared shell for the legacy Plan detail route at /plans/:plan_id.
+  The /plans index redirects to /tasks in +page.ts.
 -->
 
 <script lang="ts">
@@ -12,7 +11,6 @@
     NotificationStack,
     Settings,
     PlanDetailPage,
-    PlansWorkspacePage,
     authStore,
     featureAvailabilityStore,
     initialize,
@@ -49,7 +47,7 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="plans-container" class:menu-open={$panelState.isSettingsOpen}>
       <div class="plans-wrapper" id="main-plans" tabindex="-1">
-        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{:else}<PlansWorkspacePage />{/if}
+        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />

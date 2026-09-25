@@ -70,5 +70,27 @@ export const variants = {
 			{ length: 100 },
 			(_, i) => `line_${i + 1} = "content for line ${i + 1}"`
 		).join('\n')
+	},
+
+	/** Virtual file streamed from a connected project source. */
+	remoteSource: {
+		data: {
+			decodedContent: {
+				type: 'remote_file_preview',
+				code: sampleCode,
+				filename: 'SearchableList.svelte',
+				language: 'svelte',
+				line_count: 32,
+				remote_source_label: 'Studio Mac'
+			},
+			attrs: {
+				type: 'code-code',
+				virtual: true
+			}
+		},
+		embedId: 'remote:studio-mac:SearchableList.svelte',
+		onClose: () => {},
+		hasPreviousEmbed: false,
+		hasNextEmbed: false
 	}
 };

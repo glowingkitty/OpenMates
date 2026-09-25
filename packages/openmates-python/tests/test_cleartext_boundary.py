@@ -9,20 +9,23 @@ Run: python3 -m pytest packages/openmates-python/tests/test_cleartext_boundary.p
 """
 
 from openmates import OpenMates
-from openmates.sdk import _create_api_key_material
+from openmates.sdk import _create_api_key_material, _encrypt_aes_gcm_bytes
 
 
 CLEAR_PUBLIC_TASK = "CLEAR_PUBLIC_TASK"
 CLEAR_PUBLIC_PLAN = "CLEAR_PUBLIC_PLAN"
 CLEAR_PUBLIC_PROJECT = "CLEAR_PUBLIC_PROJECT"
+PROJECT_ID = "22222222-2222-4222-8222-222222222222"
 
 
 def _assert_no_plaintext_marker(value, marker: str) -> None:
     assert marker not in str(value)
 
 
+# contract-test: direct surface=sdks.pip assertions=plans.content.client-encrypted,plans.project-links.encrypted
 def test_pip_sdk_cleartext_asks_encrypt_storage_payloads(monkeypatch):
     master_key = bytes([13]) * 32
+    project_key = bytes([14]) * 32
     api_key, material = _create_api_key_material("pip cleartext", master_key)
 
     class FakeResponse:
@@ -59,11 +62,17 @@ def test_pip_sdk_cleartext_asks_encrypt_storage_payloads(monkeypatch):
             return FakeResponse({"summary": "Created 1 project.", "project": json["encrypted_create"], "projects": [json["encrypted_create"]]})
         raise AssertionError(f"Unexpected POST {url}")
 
+    def fake_get(url, *, headers, timeout):
+        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert url.endswith(f"/v1/projects/{PROJECT_ID}")
+        return FakeResponse({"project": {"project_id": PROJECT_ID, "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}})
+
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     client = OpenMates(api_key=api_key, device_id="test-device")
 
     task = client.tasks.ask(f"create {CLEAR_PUBLIC_TASK}")
-    plan = client.plans.ask(f"create {CLEAR_PUBLIC_PLAN}")
+    plan = client.plans.ask(f"create {CLEAR_PUBLIC_PLAN}", project_ids=[PROJECT_ID])
     project = client.projects.ask(f"create {CLEAR_PUBLIC_PROJECT}")
 
     assert task["tasks"][0]["title"] == CLEAR_PUBLIC_TASK

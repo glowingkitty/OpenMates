@@ -111,6 +111,36 @@ function waitForFixtureEvent(processHandle, eventName: string, timeoutMs = 60000
   });
 }
 
+async function stopFixtureProcess(processHandle): Promise<void> {
+  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
+  const waitForClose = (timeoutMs: number): Promise<boolean> => new Promise((resolvePromise) => {
+    const timeout = setTimeout(() => {
+      processHandle.off('close', onClose);
+      resolvePromise(false);
+    }, timeoutMs);
+    const onClose = () => {
+      clearTimeout(timeout);
+      resolvePromise(true);
+    };
+    processHandle.once('close', onClose);
+  });
+  const gracefulClose = waitForClose(10_000);
+  processHandle.kill('SIGTERM');
+  if (await gracefulClose) return;
+  const forcedClose = waitForClose(5_000);
+  processHandle.kill('SIGKILL');
+  if (!await forcedClose) throw new Error('Remote fixture did not close after SIGKILL');
+}
+
+async function expectDesktopProjectSplit(page): Promise<void> {
+  const projectBox = await page.getByTestId('projects-page').boundingBox();
+  const viewerBox = await page.getByTestId('project-embed-viewer').boundingBox();
+  expect(projectBox).not.toBeNull();
+  expect(viewerBox).not.toBeNull();
+  expect(projectBox!.width).toBeLessThanOrEqual(401);
+  expect(viewerBox!.x).toBeGreaterThanOrEqual(projectBox!.x + projectBox!.width);
+}
+
 test.describe('Projects remote sources', () => {
   test.beforeEach(async ({ page }) => {
     skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -120,7 +150,8 @@ test.describe('Projects remote sources', () => {
 
   // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority,projects.surface.semantic-parity,projects.uploads.project-wrapped,projects.items.responsive-embeds,projects.files.ignored-exact-inclusion,projects.files.private-path-deny
   test('browses nested connected files transiently and imports only after an explicit action', async ({ page }, testInfo) => {
-    test.setTimeout(240000);
+    test.setTimeout(360000);
+    await page.setViewportSize({ width: 1512, height: 921 });
     const fixtureStateDir = mkdtempSync(join(tmpdir(), 'openmates-browser-project-source-'));
     chmodSync(fixtureStateDir, 0o700);
     const fixtureEnvironment = { ...process.env, OPENMATES_STATE_DIR: fixtureStateDir };
@@ -170,38 +201,62 @@ test.describe('Projects remote sources', () => {
       await connectedProject.click();
       await expect(page).toHaveURL(projectHashUrlPattern(fixture.project_id));
       await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
-      const sourceCard = page.getByTestId('project-remote-source-card').filter({ hasText: 'Live remote source' });
+      await page.getByTestId('project-tab-folders').click();
+      const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
       await expect(sourceCard).toBeVisible({ timeout: 30000 });
       await expect(sourceCard).toContainText('connected');
+      await expect(sourceCard.getByTestId('project-remote-cloud-badge')).toBeVisible();
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
 
-      await page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' }).click();
-      const directoryResults = sourceCard.getByTestId('project-remote-directory-results');
+      await sourceCard.click();
+      const sourceBrowser = page.getByTestId('project-remote-browser');
+      const directoryResults = sourceBrowser.getByTestId('project-remote-directory-results');
       await expect(directoryResults).toBeVisible({ timeout: 30000 });
+      const remoteEntries = directoryResults.getByTestId('project-remote-entry');
+      await expect(remoteEntries.first()).toBeVisible();
+      await expect(remoteEntries.getByTestId('project-remote-cloud-badge')).toHaveCount(await remoteEntries.count());
       await expect(directoryResults.getByTestId('project-remote-entry').filter({ hasText: /debug\.log|other\.log|customer-export|^private$/ })).toHaveCount(0);
       await directoryResults.getByTestId('project-remote-entry').filter({ hasText: 'src' }).click();
-      await expect(sourceCard.getByTestId('project-remote-entry').filter({ hasText: 'remote-demo.ts' })).toBeVisible();
+      await expect(sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'remote-demo.ts' })).toBeVisible();
 
-      await sourceCard.getByTestId('project-remote-entry').filter({ hasText: /\blib\b/ }).click();
-      await sourceCard.getByTestId('project-remote-entry').filter({ hasText: /\bdeep\b/ }).click();
-      const largeFile = sourceCard.getByTestId('project-remote-preview-card').filter({ hasText: 'large-demo.ts' });
+      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\blib\b/ }).click();
+      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bdeep\b/ }).click();
+      const largeFile = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'large-demo.ts' });
       await expect(largeFile).toBeVisible();
-      await testInfo.attach('connected-project-nested-files', { body: await sourceCard.screenshot(), contentType: 'image/png' });
+      await expect(largeFile.getByTestId('project-remote-cloud-badge')).toBeVisible();
+      await testInfo.attach('connected-project-nested-files', { body: await sourceBrowser.screenshot(), contentType: 'image/png' });
       await largeFile.getByTestId('project-remote-preview-open').click();
       const fullscreenOverlay = page.getByTestId('project-remote-fullscreen-overlay');
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
       await expect(fullscreenOverlay).toContainText('Remote fullscreen end marker');
+      const provenance = fullscreenOverlay.getByTestId('embed-header-provenance');
+      const lineCount = fullscreenOverlay.getByTestId('embed-header-subtitle');
+      await expect(provenance).toHaveText('Streamed from Live remote source');
+      await expect(provenance.getByTestId('embed-header-provenance-icon')).toBeVisible();
+      await expect(lineCount).toContainText('1501 lines');
+      const provenanceBox = await provenance.boundingBox();
+      const lineCountBox = await lineCount.boundingBox();
+      expect(provenanceBox).not.toBeNull();
+      expect(lineCountBox).not.toBeNull();
+      expect(provenanceBox!.y + provenanceBox!.height).toBeLessThanOrEqual(lineCountBox!.y + 1);
+      await expect(page.getByTestId('project-folder-actions').getByRole('button')).toHaveCount(3);
+      await expect(page.getByTestId('project-folder-actions').getByRole('button').first()).toHaveCSS('filter', 'none');
+      await expect(page.getByTestId('project-remote-parent')).toBeHidden();
+      await expect(page.getByTestId('project-remote-search-input')).toBeHidden();
+      await expect(page.getByTestId('project-remote-preview-meta')).toHaveCount(0);
+      await expectDesktopProjectSplit(page);
+      await testInfo.attach('connected-project-fullscreen-split', { body: await page.locator('.projects-workspace-layout').screenshot(), contentType: 'image/png' });
       await closeFullscreen(page, fullscreenOverlay);
       await expect(fullscreenOverlay).toHaveCount(0);
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
       expect(persistenceRequests).toEqual([]);
 
       // Search from the source root after exercising multiple nested directories.
-      await sourceCard.getByTestId('project-remote-source-browse').click();
+      await sourceCard.click();
 
-      await sourceCard.getByTestId('project-remote-search-input').fill('remoteDemo');
-      await sourceCard.getByTestId('project-remote-search-submit').click();
-      const searchResults = sourceCard.getByTestId('project-remote-search-results');
+      await sourceBrowser.getByTestId('project-remote-search-input').fill('remoteDemo');
+      await sourceBrowser.getByTestId('project-remote-search-submit').click();
+      const searchResults = sourceBrowser.getByTestId('project-remote-search-results');
       await expect(searchResults).toContainText('remote-demo.ts', { timeout: 30000 });
       await expect(searchResults).not.toContainText('PRIVATE_DUMMY_CANARY');
       await expect(searchResults).not.toContainText('debug.log');
@@ -215,29 +270,34 @@ test.describe('Projects remote sources', () => {
 
       // Reload must reconstruct source metadata, not a durable copy of any previewed file.
       await page.reload();
+      await page.getByTestId('project-tab-folders').click();
       await expect(sourceCard).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
       await expect(page.getByTestId('project-remote-fullscreen-overlay')).toHaveCount(0);
       expect(persistenceRequests).toEqual([]);
 
       // Preserve the existing deliberate import behavior after proving viewing is transient.
-      await sourceCard.getByTestId('project-remote-source-browse').click();
-      await sourceCard.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
-      await sourceCard.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).getByTestId('project-remote-preview-open').click();
+      await sourceCard.click();
+      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
+      await sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).getByTestId('project-remote-preview-open').click();
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
       await closeFullscreen(page, fullscreenOverlay);
       const remotePreview = page.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).first();
       await remotePreview.getByTestId('project-remote-preview-upload').click();
       const importedFile = page.getByTestId('project-item-card').filter({ hasText: 'remote-demo.ts' }).first();
       await expect(importedFile).toBeVisible({ timeout: 30000 });
-      await page.getByRole('button', { name: 'List', exact: true }).click();
-      await expect(importedFile).toHaveAttribute('aria-disabled', 'false');
-      await importedFile.click();
+      await expect(importedFile.getByTestId('project-remote-cloud-badge')).toHaveCount(0);
+      const importedPreview = importedFile.locator('.unified-embed-preview');
+      await expect(importedPreview).toBeVisible({ timeout: 30_000 });
+      await importedPreview.click();
       const storedFullscreen = page.getByTestId('embed-fullscreen-overlay');
       await expect(storedFullscreen).toBeVisible({ timeout: 30000 });
       await expect(storedFullscreen).toContainText('OpenMates live remote preview');
+      await expect(storedFullscreen.getByTestId('embed-header-provenance')).toHaveCount(0);
+      await expectDesktopProjectSplit(page);
       await closeFullscreen(page, storedFullscreen);
-      await importedFile.press('Enter');
+      await importedPreview.focus();
+      await importedPreview.press('Enter');
       await expect(storedFullscreen).toBeVisible();
       await closeFullscreen(page, storedFullscreen);
 
@@ -245,12 +305,9 @@ test.describe('Projects remote sources', () => {
       bridge.kill('SIGUSR1');
       await stopped;
       await expect(sourceCard).toContainText('offline', { timeout: 30000 });
-      await expect(sourceCard.getByTestId('project-remote-source-browse')).toBeDisabled();
+      await expect(sourceCard).toHaveAttribute('data-status', 'offline');
     } finally {
-      if (bridge && bridge.exitCode === null) {
-        bridge.kill('SIGTERM');
-        await new Promise((resolvePromise) => bridge.once('exit', resolvePromise));
-      }
+      if (bridge) await stopFixtureProcess(bridge);
       rmSync(fixtureStateDir, { recursive: true, force: true });
     }
   });

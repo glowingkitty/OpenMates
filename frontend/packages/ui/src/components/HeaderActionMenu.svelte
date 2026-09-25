@@ -24,6 +24,7 @@
     hasShare,
     actionCount,
     forceOverflow = false,
+    triggerTestId,
   }: {
     report: Snippet;
     share: Snippet;
@@ -36,6 +37,7 @@
     hasShare: boolean;
     actionCount: number;
     forceOverflow?: boolean;
+    triggerTestId?: string;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -152,6 +154,7 @@
           bind:this={trigger}
           use:tooltip
           class="header-action more-trigger"
+          data-testid={triggerTestId}
           aria-label={$text('common.more_actions')}
           aria-expanded={open}
           aria-controls={menuId}

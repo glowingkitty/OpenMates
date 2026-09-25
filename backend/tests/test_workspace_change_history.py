@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, s3_workspace_history_archive_io
+from backend.core.api.app.services.workspace_change_history_service import (
+    WorkspaceChangeHistoryService,
+    WorkspaceHistoryRestoreError,
+    _decode_snapshot_ref,
+    hash_id,
+    s3_workspace_history_archive_io,
+)
 
 
 class FakeDirectus:
@@ -100,11 +106,19 @@ class FakeDirectus:
         assert user_id == "user-1"
         return (await self.create_item("user_plans", {**payload, "hashed_user_id": "0a041b9462caa4a31bac3567e0b6e6fd9100787d6a1b8822a98203a5caa1cf65"}))[1]
 
+    async def restore_plan_snapshot(self, user_id: str, payload: dict):
+        assert "linked_project_ids" not in payload
+        return await self.create_plan(user_id, payload)
+
     async def update_plan(self, plan_id: str, user_id: str, patch: dict):
         plan = await self.get_plan(plan_id, user_id)
         if not plan:
             return None
         return await self.update_item("user_plans", plan["id"], patch)
+
+    async def update_plan_from_history_snapshot(self, plan_id: str, user_id: str, patch: dict):
+        assert "linked_project_ids" not in patch
+        return await self.update_plan(plan_id, user_id, patch)
 
     async def get_project(self, project_id: str, user_id: str):
         owner_hash = "0a041b9462caa4a31bac3567e0b6e6fd9100787d6a1b8822a98203a5caa1cf65"
@@ -410,6 +424,115 @@ async def test_restore_plan_entry_applies_opaque_snapshot() -> None:
     assert restored["object"]["encrypted_title"] == "cipher-before"
     assert restored["object"]["version"] == 2
     assert restored["rollback_entry_commands"][0].startswith("openmates plans restore plan-1 --entry")
+
+
+# contract-test: direct surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted,plans.key-wrappers.contextual
+@pytest.mark.asyncio
+async def test_restore_deleted_project_linked_plan_uses_hash_only_history_snapshot() -> None:
+    directus = FakeDirectus()
+    service = WorkspaceChangeHistoryService(directus)
+    project_hash = hash_id("private-project-id")
+    created = await directus.create_plan(
+        "user-1",
+        {
+            "plan_id": "plan-1",
+            "encrypted_title": "cipher-title",
+            "encrypted_goal": "cipher-goal",
+            "encrypted_linked_project_ids": "cipher-project-links",
+            "linked_project_hashes": [project_hash],
+            "key_wrappers": [
+                {"key_type": "master", "encrypted_plan_key": "cipher-master", "created_at": 1},
+                {
+                    "key_type": "project",
+                    "hashed_project_id": project_hash,
+                    "encrypted_plan_key": "cipher-project",
+                    "created_at": 1,
+                },
+            ],
+            "version": 1,
+            "created_at": 1,
+            "updated_at": 1,
+        },
+    )
+    change = await service.record_change_set(
+        user_id="user-1",
+        source="cli",
+        namespace="plans",
+        action_type="create",
+        entries=[
+            {
+                "object_type": "plan",
+                "object_id": "plan-1",
+                "operation": "create",
+                "after": {**created, "linked_project_ids": ["private-project-id"]},
+                "patch": {"linked_project_ids": ["private-project-id"]},
+            }
+        ],
+    )
+    entry = change["entries"][0]
+    durable_snapshot = service.snapshot_for_entry_state(entry, "after")
+    durable_patch = _decode_snapshot_ref(entry["encrypted_patch_ref"])
+
+    assert "linked_project_ids" not in durable_snapshot
+    assert durable_snapshot["linked_project_hashes"] == [project_hash]
+    assert "linked_project_ids" not in durable_patch
+
+    assert await directus.delete_item("user_plans", created["id"])
+    restored = await service.restore_object_to_entry(
+        user_id="user-1",
+        object_type="plan",
+        object_id="plan-1",
+        entry_id=entry["entry_id"],
+        state="after",
+    )
+
+    assert restored["object"]["linked_project_hashes"] == [project_hash]
+    assert restored["object"]["encrypted_linked_project_ids"] == "cipher-project-links"
+    assert "linked_project_ids" not in restored["object"]
+
+
+# contract-test: direct surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_restore_deleted_plan_failure_records_no_compensating_history() -> None:
+    directus = FakeDirectus()
+    service = WorkspaceChangeHistoryService(directus)
+    created = await directus.create_plan(
+        "user-1",
+        {
+            "plan_id": "plan-1",
+            "encrypted_title": "cipher-title",
+            "encrypted_linked_project_ids": "cipher-project-links",
+            "linked_project_hashes": [hash_id("project-1")],
+            "version": 1,
+        },
+    )
+    change = await service.record_change_set(
+        user_id="user-1",
+        source="cli",
+        namespace="plans",
+        action_type="create",
+        entries=[{"object_type": "plan", "object_id": "plan-1", "operation": "create", "after": created}],
+    )
+    assert await directus.delete_item("user_plans", created["id"])
+
+    async def reject_restore(_user_id: str, _payload: dict):
+        return None
+
+    directus.restore_plan_snapshot = reject_restore
+    entry_count = len(directus.collections["workspace_change_entries"])
+    change_set_count = len(directus.collections["workspace_change_sets"])
+
+    with pytest.raises(WorkspaceHistoryRestoreError, match="linked Project access"):
+        await service.restore_object_to_entry(
+            user_id="user-1",
+            object_type="plan",
+            object_id="plan-1",
+            entry_id=change["entries"][0]["entry_id"],
+            state="after",
+        )
+
+    assert len(directus.collections["workspace_change_entries"]) == entry_count
+    assert len(directus.collections["workspace_change_sets"]) == change_set_count
 
 
 # contract-test: direct surface=rest_api assertions=projects.lifecycle.encrypted-crud

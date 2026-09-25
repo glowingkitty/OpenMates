@@ -1,0 +1,299 @@
+schema_version: 2
+id: projects-tasks-figma-parity
+title: Projects and Tasks web Figma alignment
+status: verified
+goal: 'Make the web Projects detail, folder browser, project task board and Tasks
+  workspace match the approved Figma layouts while preserving existing encrypted data
+  and actions.
+
+  '
+scope:
+  in:
+  - Persistent blue project header reaching the pane edges, shared chat/embed
+    More actions, and shared icon tabs for Overview, Files and Tasks.
+  - Root README.md rendered as safe, readable Markdown with proxied images; Figma
+    empty state otherwise.
+  - Folder and embed cards using the shared preview surface and responsive
+    fullscreen behavior; connected remote cards show a cloud marker and remote
+    fullscreen files identify their server or device. Create offers New chat,
+    New workflow and Project-linked New plan.
+  - Five task statuses, including Blocked, with the newer Figma board styling and
+    colored status lines.
+  - Workspace-specific sidebar content and responsive project/task layout.
+  - Bare component previews and focused browser coverage for changed states.
+  out:
+  - README editing, document/sheet/code creation, production changes or unrelated
+    chat sidebar styling.
+design_reference:
+  file_key: PzgE78TVxG0eWuEeO6o8ve
+  nodes:
+    project_details: 5386:33360
+    folders: 5394:45975
+    project_tasks: 5395:47058
+    tasks_newer: 5371:46140
+    tasks_toolbar: 5395:47061
+    task_card: 5371:46143
+    task_assigned_ai: 5376:47116
+    task_assigned_user: 5376:47084
+    task_workflow_run: 5376:47191
+  interpretation: Exact layout target for project surfaces and Tasks workspace, adapted
+    to current data and five statuses.
+  viewport_sizes: Desktop frames 1512px wide; project details and Tasks also show
+    393px mobile frames.
+  reusable_components:
+  - frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte
+  - frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+  - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+  - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+  evidence_paths:
+  - test-results/figma/projects-redesign/reference/
+  - test-results/figma/projects-redesign/rendered/
+  accepted_differences:
+  - Keep a fifth Blocked task column because the current product has that status.
+  - Shade only Blocked; the linked Figma frame predates the fifth column.
+  - Use each saved project icon, or a folder fallback, in place of the example airplane
+    icon.
+  - Create offers New chat, New workflow and Project-linked New plan; README
+    editing is deferred.
+  - Ignore the exact chat sidebar contents shown in Figma.
+  - Show muted live counts beside each task category title instead of the Figma
+    count summary at the top left.
+  - The empty Overview retains Upload and Create actions; Upload and Create also
+    remain in Files, and neither appears in the Project header More menu.
+scenarios:
+- id: S-1
+  title: Project detail and folder navigation
+  given:
+  - A project has optional root README, folders and linked embeds.
+  when:
+  - The user opens the project and switches Overview or Files.
+  then:
+  - The Figma header and tabs persist, README renders safely, and folders show reusable
+    previews.
+- id: S-2
+  title: Project and global task boards
+  given:
+  - Tasks exist in five statuses.
+  when:
+  - The user opens project Tasks or the global Tasks workspace.
+  then:
+  - The newer Figma styling appears and Blocked remains a visible fifth column.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Opening a project selects Overview and keeps the edge-to-edge header and
+    width-limited tabs and content visible across views. The header uses the existing
+    chat/embed More UI for Settings and Delete, with no Upload or Delete at top left.
+    A root README renders headings, images, links and code without executing
+    untrusted content or direct remote image loading. The empty Overview prompts for
+    a README and retains Upload and Create actions. Files also exposes Upload
+    and the approved Create actions; neither Upload nor Create belongs in the
+    Project More menu.
+    Folders show reusable embed previews and open files through existing split or
+    overlay fullscreen behavior. Connected remote cards show a cloud marker; their
+    fullscreen files identify the server or device above the line count. The narrow
+    split pane shows the three Files actions above stacked previews without remote
+    browser chrome. New chat enters chat creation with a project mention; New
+    workflow carries the selected project and folder path; New plan starts a
+    Project-linked draft.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-PROJECTS
+- id: AC-2
+  scenario: S-2
+  text: Project tasks and Tasks workspace share a five-column board with the newer
+    Figma visual treatment, with only Blocked shaded, colored category lines,
+    black-on-light task titles limited to three lines, and lift/rotate/drop animation.
+    Each category shows a muted live count, while the toolbar has the Figma search
+    field, compact tags, and circular filter control. Relevant preview states and browser flows are verified
+    at desktop and mobile sizes against exported Figma PNGs.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-TASKS
+tests:
+- id: T-PROJECTS
+  type: playwright
+  file: frontend/apps/web_app/tests/projects-flow.spec.ts
+  command: isolated GitHub CI
+  target: frontend/apps/web_app/tests/projects-flow.spec.ts
+  execution_environment: isolated_github_ci
+  covers:
+  - AC-1
+  assertions:
+  - Visible layout, responsive controls and approved behavior match the exact candidate.
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: skipped
+      reason: Source and retained preview established the mismatch.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 0377 --source 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e --mode e2e --spec projects-flow.spec.ts
+      run_id: '36149144908'
+      subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e
+      timestamp: '2026-09-25T14:47:24Z'
+      execution_environment: isolated_github_ci
+      harness_commit: a2f31ca19a455cd38715c3135d0437342c7701e2
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36149144908/artifacts/10870657624
+      result: Project Overview, Files, embed previews, remote provenance, and Project actions passed.
+- id: T-TASKS
+  type: playwright
+  file: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+  command: isolated GitHub CI
+  target: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+  execution_environment: isolated_github_ci
+  covers:
+  - AC-2
+  assertions:
+  - Visible layout, responsive controls and approved behavior match the exact candidate.
+  red_phase:
+    required: false
+    expected: fail
+    evidence:
+      status: skipped
+      reason: Source and retained preview established the mismatch.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 scripts/ci_coordinator.py submit --session 0377 --source 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e --mode e2e --spec tasks-web-app-parity.spec.ts
+      run_id: '36149149718'
+      subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e
+      timestamp: '2026-09-25T14:47:24Z'
+      execution_environment: isolated_github_ci
+      harness_commit: a2f31ca19a455cd38715c3135d0437342c7701e2
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36149149718/artifacts/10870657584
+      result: Five-column Tasks UI, category counts, toolbar, and task interactions passed.
+implementation_state:
+  subject_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e
+approvals:
+  specification:
+    status: not_required
+    reason: The user approved this bounded UI redesign in five question rounds; no
+      new API contract is defined.
+  plan:
+    status: approved
+    approved_at: '2026-09-24'
+    source: User requested implementation and answered all five design questions.
+decisions:
+- id: D-1
+  status: active
+  decision: Use Overview first, root README, reusable settings tabs, saved icon fallback
+    and five task columns.
+  reason: These choices were explicitly confirmed by the user.
+  decided_at: '2026-09-24'
+- id: D-2
+  status: active
+  decision: Reuse the chat/embed HeaderActionMenu; place Delete there, keep Upload
+    in the Files flow, and extend the project hero to the top and side edges of
+    its pane while limiting width only below the hero.
+  reason: User corrected the rendered header and action placement during review.
+  decided_at: '2026-09-24'
+- id: D-3
+  status: active
+  decision: Keep encrypted Project folders as folder records, render them through
+    the shared embed preview surface, and remove New folder and standalone Remote
+    sources sections. Show only Blocked with a darker task-column background;
+    task cards have no completion circle and animate lift, ten-degree rotation,
+    and settle on drag and drop.
+  reason: User corrected the Files and Tasks previews and clarified that folder
+    visuals must not create new embed records.
+  decided_at: '2026-09-25'
+- id: D-4
+  status: active
+  decision: Use the existing Create icon and white selected tab icons in dark mode;
+    center Upload and Create icons over their labels, align the tab pill center to
+    the content panel top edge, and match the Figma task toolbar search, compact
+    tags, and circular filter button while showing counts beside each category.
+  reason: User corrected the light and dark preview screenshots.
+  decided_at: '2026-09-25'
+- id: D-5
+  status: active
+  decision: In the remote-file split view, show only the three Files actions above
+    stacked shared preview cards in the narrow pane. Mark all remote folders and
+    files with a cloud icon on the card, and identify the server or device above
+    the line count in the remote fullscreen viewer.
+  reason: User corrected the live split-view screenshot and remote provenance cues.
+  decided_at: '2026-09-25'
+- id: D-6
+  status: active
+  decision: Retain Upload and Create in the empty Overview and Files, while the
+    Project header More menu reuses the chat/embed menu styling for Settings and
+    Delete only.
+  reason: User explicitly clarified the empty Overview buttons and shared More
+    menu behavior after reviewing the screenshot.
+  decided_at: '2026-09-25'
+tasks:
+- id: TASK-1
+  title: Align shared task board and Tasks workspace
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-2
+  expected_files:
+  - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+  - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+  verification_ids:
+  - T-TASKS
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    owner: session-0377
+    files:
+    - frontend/packages/ui/src/components/tasks/
+    shared_files: []
+- id: TASK-2
+  title: Align Projects overview, folders and project task view
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+  - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+  verification_ids:
+  - T-PROJECTS
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    owner: session-0377
+    files:
+    - frontend/packages/ui/src/components/projects/
+    shared_files: []
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: succeeded
+  approach: Use shared board and reusable preview components, then verify exact-source
+    browser output.
+  recorded_at: '2026-09-24'
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the verified Project and Tasks Figma surfaces to dev.
+  command: python3 scripts/plan_validate.py docs/plans/projects-tasks-figma-parity/plan.yml
+  expected_outcome: The approved design contract remains valid during implementation.
+  last_verified_commit: 77dc1582c82bd9f63a8e64f0e2495d76f2136b9e

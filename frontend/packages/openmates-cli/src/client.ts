@@ -10240,6 +10240,9 @@ export class OpenMatesClient {
 
   async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {
     this.requireSession();
+    if (!Array.isArray(input.linked_project_ids) || input.linked_project_ids.length === 0) {
+      throw new Error("Creating a Plan requires at least one Project link.");
+    }
     const response = await this.http.post<{ plan?: UserPlanRecord; history?: WorkspaceHistoryResult }>("/v1/user-plans", input, this.getCliRequestHeaders());
     if (!response.ok || !response.data.plan) {
       throw new Error(`User plan create failed with HTTP ${response.status}`);
@@ -10255,6 +10258,9 @@ export class OpenMatesClient {
     encryptedUpdates?: Record<string, unknown>[];
   }): Promise<Record<string, unknown>> {
     this.requireSession();
+    if (input.encryptedCreate && (!Array.isArray(input.encryptedCreate.linked_project_ids) || input.encryptedCreate.linked_project_ids.length === 0)) {
+      throw new Error("Creating a Plan requires at least one Project link.");
+    }
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/user-plans/ask",
       {

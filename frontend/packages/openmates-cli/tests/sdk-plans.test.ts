@@ -32,6 +32,7 @@ const plan = {
 
 const CHAT_ID = "11111111-1111-4111-8111-111111111111";
 const PLAN_ID = "33333333-3333-4333-8333-333333333333";
+const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 
 async function withServer(
   handler: (request: IncomingMessage, body: unknown) => unknown,
@@ -63,6 +64,14 @@ async function withServer(
 }
 
 describe("OpenMates SDK user plans", () => {
+  // contract-test: direct surface=sdks.npm assertions=plans.project-links.encrypted
+  it("rejects every SDK Plan creation path without a Project before API access", async () => {
+    const client = new OpenMates({ apiKey: "x", apiUrl: "http://127.0.0.1:9" });
+    await assert.rejects(client.plans.create({ title: "Unlinked", goal: "Must fail" }), /requires at least one Project link/);
+    await assert.rejects(client.plans.ask("Create an unlinked Plan"), /requires at least one Project link/);
+    await assert.rejects(client.chats.send("Do it", { goal: "Create a Plan" }), /requires at least one Project link/);
+  });
+
   // contract-test: direct surface=sdks.npm assertions=plans.surface.semantic-parity
   it("scopes plan task updates and deletes to the selected plan", async () => {
     const client = new OpenMates({ apiKey: "x", apiUrl: "http://127.0.0.1:9" });
@@ -101,10 +110,12 @@ describe("OpenMates SDK user plans", () => {
     const masterKey = Buffer.alloc(32, 3);
     const planKey = Buffer.alloc(32, 4);
     const chatKey = Buffer.alloc(32, 5);
+    const projectKey = Buffer.alloc(32, 6);
     const material = await createApiKeyCryptoMaterial("sdk plan parity", masterKey.toString("base64"));
     const encryptedPlanKey = await encryptBytesWithAesGcm(planKey, masterKey);
     const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
     const encryptedChatTitle = await encryptWithAesGcmCombined("Chat", chatKey);
+    const encryptedProjectKey = await encryptBytesWithAesGcm(projectKey, masterKey);
     const validPlan = {
       ...plan,
       key_wrappers: [{ key_type: "master", encrypted_plan_key: encryptedPlanKey }],
@@ -119,6 +130,9 @@ describe("OpenMates SDK user plans", () => {
         }
         if (request.method === "GET" && request.url === `/v1/sdk/chats/${CHAT_ID}`) {
           return { chat: { id: CHAT_ID, encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedChatTitle, updated_at: 200 }, messages: [] };
+        }
+        if (request.method === "GET" && request.url === `/v1/projects/${PROJECT_ID}`) {
+          return { project: { project_id: PROJECT_ID, encrypted_project_key: encryptedProjectKey } };
         }
         if (request.method === "DELETE") return { deleted: true };
         if (request.url?.includes("/runs/run-1")) return { run: { run_id: "run-1" }, artifacts: [] };
@@ -138,7 +152,7 @@ describe("OpenMates SDK user plans", () => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
         assert.equal((await client.plans.list({ status: "draft", chatId: CHAT_ID }))[0]?.planId, PLAN_ID);
         assert.equal((await client.plans.show(PLAN_ID)).planId, PLAN_ID);
-        assert.equal((await client.plans.create({ title: "Created plan", goal: "Ship it" })).title, "Created plan");
+        assert.equal((await client.plans.create({ title: "Created plan", goal: "Ship it", linkedProjectIds: [PROJECT_ID] })).title, "Created plan");
         assert.equal((await client.plans.update(PLAN_ID, { status: "active" })).status, "active");
         assert.equal((await client.plans.attach(PLAN_ID, { chatId: CHAT_ID })).primaryChatId, CHAT_ID);
         assert.equal((await client.plans.start(PLAN_ID)).status, "executing");
@@ -189,6 +203,9 @@ describe("OpenMates SDK user plans", () => {
         assert.ok(urls.includes(`/v1/user-plans/${PLAN_ID}`));
         assert.ok(urls.includes(`/v1/user-plans/${PLAN_ID}/activate`));
         assert.ok(urls.includes(`/v1/user-plans/${PLAN_ID}/verification/V-1/evidence`));
+        const createBody = seen.find((request) => request.method === "POST" && request.url === "/v1/user-plans")?.body as Record<string, unknown>;
+        assert.deepEqual(createBody.linked_project_ids, [PROJECT_ID]);
+        assert.ok((createBody.key_wrappers as Array<Record<string, unknown>>).some((wrapper) => wrapper.key_type === "project"));
         for (const marker of ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally"]) {
           assertNoPlaintextMarker(seen, marker);
         }

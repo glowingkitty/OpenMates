@@ -161,6 +161,14 @@ export interface PlanCreateOptions {
   slug?: string;
 }
 
+export function requirePlanProjectIds(projectIds: string[] | undefined): string[] {
+  const normalized = (projectIds ?? []).map((projectId) => projectId.trim()).filter(Boolean);
+  if (normalized.length === 0) {
+    throw new Error("Creating a Plan requires at least one Project link.");
+  }
+  return [...new Set(normalized)];
+}
+
 export interface PlanUpdateOptions {
   title?: string;
   goal?: string;
@@ -345,9 +353,9 @@ export function normalizeLearningLevel(value: string | undefined): UserPlanLearn
 }
 
 export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: PlanCreateOptions): Promise<UserPlanCreateInput> {
+  const linkedProjectIds = requirePlanProjectIds(input.linkedProjectIds);
   const planKey = randomBytes(32);
   const timestamp = nowSeconds();
-  const linkedProjectIds = input.linkedProjectIds ?? [];
   const slugMetadata = await buildEncryptedObjectSlugMetadata({
     value: input.slug ?? input.title,
     encryptionKey: planKey,

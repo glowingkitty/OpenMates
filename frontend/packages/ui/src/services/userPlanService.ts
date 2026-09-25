@@ -730,11 +730,12 @@ export async function listUserPlans(filters: ListUserPlansFilters = {}): Promise
 }
 
 export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPlanViewModel> {
+  const linkedProjectIds = Array.from(new Set((input.linkedProjectIds ?? []).map((id) => id.trim()).filter(Boolean)));
+  if (linkedProjectIds.length === 0) throw new Error("New plans require a Project");
   const planKey = generateEmbedKey();
   const encryptedPlanKey = await encryptChatKeyWithMasterKey(planKey);
   if (!encryptedPlanKey) throw new Error("Could not wrap plan key with master key");
   const timestamp = nowSeconds();
-  const linkedProjectIds = input.linkedProjectIds ?? [];
   const primaryChatId = input.primaryChatId ?? null;
   const body: EncryptedUserPlanRecord = {
     plan_id: crypto.randomUUID(),

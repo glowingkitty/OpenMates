@@ -14,9 +14,25 @@
  *   inserts the text into the TipTap editor and clears the store.
  */
 import { writable } from "svelte/store";
+import type {
+  GenericMentionType,
+  ProjectMentionAccessMode,
+} from "../components/enter_message/extensions/GenericMentionNode";
+
+export interface PendingGenericMention {
+  syntax: string;
+  type: GenericMentionType;
+  displayName: string;
+  projectId?: string;
+  projectSourceId?: string;
+  projectPath?: string;
+  projectAccessMode?: ProjectMentionAccessMode;
+}
+
+export type PendingMention = string | PendingGenericMention;
 
 /**
  * Pending mention text (e.g. "@mate:software_development") or null when idle.
  * MessageInput consumes and clears this on the next render after it is set.
  */
-export const pendingMentionStore = writable<string | null>(null);
+export const pendingMentionStore = writable<PendingMention | null>(null);

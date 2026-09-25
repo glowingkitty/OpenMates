@@ -142,6 +142,9 @@
      * Shown smaller and at 0.85 opacity (e.g. "via Brave Search", "Data from 2025/03/27").
      */
     embedHeaderSubtitle?: string;
+
+    /** Optional provenance row displayed above the header subtitle. */
+    embedHeaderProvenance?: string;
     
     /**
      * Favicon/logo URL shown as a small image next to the title text.
@@ -347,6 +350,7 @@
     // Embed header props
     embedHeaderTitle = '',
     embedHeaderSubtitle = '',
+    embedHeaderProvenance = '',
     embedHeaderFaviconUrl,
     embedHeaderFaviconIsCircular = false,
     skillIconName = '',
@@ -1404,6 +1408,7 @@
           {showSkillIcon}
           onHeaderIconClick={handleEmbedHeaderIconClick}
           title={embedHeaderTitle}
+          provenance={embedHeaderProvenance}
           subtitle={embedHeaderSubtitle}
           faviconUrl={embedHeaderFaviconUrl}
           faviconIsCircular={embedHeaderFaviconIsCircular}

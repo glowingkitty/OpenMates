@@ -28,6 +28,7 @@ const project = {
   project_id: "project-1",
   name: "Project",
   description: "",
+  icon: "folder",
   projectKey,
   encrypted: { project_id: "project-1", encrypted_project_key: "wrapped", encrypted_name: "cipher", created_at: 1, updated_at: 1, last_opened_at: 1 },
 } satisfies ProjectViewModel;

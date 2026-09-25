@@ -2218,6 +2218,12 @@ async function handlePlans(
     return;
   }
 
+  const requiredCreateProjectIds = subcommand === "create" ? requiredPlanProjectFlags(flags) : undefined;
+  if (subcommand === "ask") {
+    const instruction = requiredAskInstruction(flags, rest, "openmates plans ask \"Prepare launch plan\"");
+    if (!exactAskTarget(instruction, "plan") && !looksLikePlanMutationAsk(instruction)) requiredPlanProjectFlags(flags);
+  }
+
   const masterKey = client.getMasterKeyBytes();
   const statusBelongsToChild = ["tasks", "assumptions", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
   const scope = await resolvePlanScope(client, masterKey, flags, planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild }));
@@ -2389,13 +2395,14 @@ async function handlePlans(
       printAskApplyResult("plan", await preparePlanAskOutput(result, masterKey), flags);
       return;
     }
+    const requestedProjectIds = requiredPlanProjectFlags(flags);
     const proposal = isShortWorkspaceAsk(instruction)
       ? { title: instruction, goal: instruction }
       : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
     const title = requiredString(proposal, "title", instruction);
     const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
       primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
-      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+      linkedProjectIds: requestedProjectIds,
     });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
@@ -2417,7 +2424,7 @@ async function handlePlans(
     const title = planTitleFromFlagsOrRest(flags, rest);
     const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
       primaryChatId: typeof flags.chat === "string" ? flags.chat : null,
-      linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+      linkedProjectIds: requiredCreateProjectIds,
     });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
@@ -3034,6 +3041,12 @@ function requiredPlanGoal(flags: Record<string, unknown>): string {
   return flags.goal;
 }
 
+function requiredPlanProjectFlags(flags: Record<string, string | boolean>): string[] {
+  const projectIds = splitCsvFlag(flags.project ?? flags.projects);
+  if (projectIds.length === 0) throw new Error("Creating a Plan requires --project <id>.");
+  return projectIds;
+}
+
 function recoveryPlanCreateOptions(record: Record<string, unknown>, linkContext: PlanLinkKeyContext): Parameters<typeof buildCreateUserPlanInput>[1] {
   return {
     planId: recoveryString(record, "plan_id"), title: recoveryString(record, "title"), goal: recoveryString(record, "goal"),
@@ -3143,6 +3156,7 @@ async function handleGoalChat(
     throw new Error("openmates chat --goal requires login. Run 'openmates login' first.");
   }
   const goal = normalizeGoalFlag(flags.goal);
+  const requestedProjectIds = requiredPlanProjectFlags(flags);
   const result = await sendMessageStreaming(
     client,
     {
@@ -3166,7 +3180,7 @@ async function handleGoalChat(
   const masterKey = client.getMasterKeyBytes();
   const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
     primaryChatId: result.chatId,
-    linkedProjectIds: splitCsvFlag(flags.project ?? flags.projects),
+    linkedProjectIds: requestedProjectIds,
   });
   const planInput = await buildCreateUserPlanInput(masterKey, {
     title: typeof flags.title === "string" && flags.title.trim() ? flags.title.trim() : goal,
@@ -14588,8 +14602,8 @@ function printPlansHelp(): void {
   openmates plans <plan-id|short-id> remove-from-project <project-id> [--json]
   openmates plans history <plan-id|short-id> [--limit <n>] [--json]
   openmates plans restore <plan-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates plans create --title <title> [--goal <goal>] [--summary <text>] [--chat <id>] [--project <id>] [--status <status>] [--json]
-  openmates plans create --goal <goal> [--chat <id>] [--json]
+  openmates plans create --title <title> --project <id> [--goal <goal>] [--summary <text>] [--chat <id>] [--status <status>] [--json]
+  openmates plans create --goal <goal> --project <id> [--chat <id>] [--json]
   openmates plans edit|update <plan-id|short-id> [--title <title>] [--goal <goal>] [--summary <text>] [--status <status>] [--json]
   openmates plans approve <plan-id|short-id> --chat <id> [--json]
   openmates plans activate <plan-id|short-id> --chat <id> [--json]
@@ -14620,9 +14634,9 @@ function printPlansHelp(): void {
 
 Chat-scoped aliases:
   openmates chats <chat-id> plans list
-  openmates chats <chat-id> plans create --goal <goal>
+  openmates chats <chat-id> plans create --goal <goal> --project <id>
   openmates chats <chat-id> plans approve <plan-id|short-id>
-  openmates chat --goal <goal>
+  openmates chat --goal <goal> --project <id>
 
 Statuses:
   draft, checking_assumptions, awaiting_confirmation, active, executing, running_checks, blocked, completed, archived
@@ -14635,7 +14649,7 @@ Check statuses:
 
 Notes:
   Plan IDs accept full plan_id or human short IDs such as PLAN-A1B2C3.
-  create --goal is the minimal goal capture path; it still creates an encrypted Plan record.
+  Every newly created Plan requires at least one Project link via --project.
   approve/activate require a primary chat because active plans use the chat as the command center.
   pause currently moves a plan back to awaiting_confirmation; resume sets it active.
   Normal output decrypts plan fields locally; use --json for machine-readable plaintext fields.`);
@@ -14643,7 +14657,7 @@ Notes:
 
 function printGoalChatHelp(): void {
   console.log(`Goal chat command:
-  openmates chat --goal <goal> [--title <title>] [--project <id>] [--json]
+  openmates chat --goal <goal> --project <id> [--title <title>] [--json]
 
 Starts a new saved chat and attaches a minimal encrypted draft Plan to it.
 Use this for lightweight agentic work that should keep a durable goal, checks,
@@ -14653,7 +14667,7 @@ Options:
   --goal <goal>      Required durable goal for the attached Plan
   --title <title>    Optional Plan title (defaults to the goal)
   --summary <text>   Optional Plan summary
-  --project <id>     Also link the Plan to a Project
+  --project <id>     Required Project link for the Plan
   --json             Output chat and Plan details as JSON
 
 Examples:

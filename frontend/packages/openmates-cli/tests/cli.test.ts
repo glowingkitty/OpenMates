@@ -1111,11 +1111,23 @@ describe("plans command", () => {
   it("is listed in global help and prints contextual help", () => {
     assert.match(runCli(["help"]), /openmates plans \[--help\]/);
     const output = runCli(["plans", "--help"]);
-    assert.match(output, /openmates plans create --goal <goal>/);
+    assert.match(output, /openmates plans create --goal <goal> --project <id>/);
+    assert.match(output, /Every newly created Plan requires at least one Project link via --project/);
     assert.match(output, /openmates plans <plan-id\|short-id> add-to-project <project-id>/);
     assert.match(output, /openmates plans <plan-id\|short-id> remove-from-project <project-id>/);
     assert.match(output, /openmates plans checks evidence <plan-id\|short-id>/);
     assert.match(output, /openmates chats <chat-id> plans list/);
+  });
+
+  // contract-test: direct surface=cli assertions=plans.project-links.encrypted
+  it("rejects Plan creation without a Project before login or API access", () => {
+    const result = runCliWithoutSessionResult(["plans", "create", "--goal", "Ship it"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Creating a Plan requires --project <id>/);
+
+    const askResult = runCliWithoutSessionResult(["plans", "ask", "Create a launch Plan"]);
+    assert.notEqual(askResult.status, 0);
+    assert.match(askResult.stderr, /Creating a Plan requires --project <id>/);
   });
 });
 

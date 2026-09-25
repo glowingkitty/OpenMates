@@ -231,6 +231,20 @@ def _validate_wrapper_set(
     return True
 
 
+def _validate_create_project_links(payload: dict[str, Any]) -> bool:
+    linked_project_ids = payload.get("linked_project_ids")
+    if not isinstance(linked_project_ids, list) or not linked_project_ids or any(
+        not isinstance(project_id, str) or not project_id.strip() for project_id in linked_project_ids
+    ):
+        logger.error("Rejected user plan create without linked Projects")
+        return False
+    encrypted_linked_project_ids = payload.get("encrypted_linked_project_ids")
+    if not isinstance(encrypted_linked_project_ids, str) or not encrypted_linked_project_ids.strip():
+        logger.error("Rejected user plan create without encrypted linked Project metadata")
+        return False
+    return True
+
+
 class UserPlanMethods:
     def __init__(self, directus_service):
         self.directus_service = directus_service
@@ -334,8 +348,87 @@ class UserPlanMethods:
         return None
 
     async def create_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-        key_wrappers = payload.pop("key_wrappers", []) or []
+        if not _validate_create_project_links(payload):
+            return None
+        payload = dict(payload)
         linked_project_ids = payload.pop("linked_project_ids", []) or []
+        linked_project_hashes = [hash_id(project_id) for project_id in linked_project_ids]
+        return await self._create_plan_with_project_hashes(user_id, payload, linked_project_hashes)
+
+    async def restore_plan_snapshot(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Restore an owner-scoped history snapshot without reintroducing raw Project IDs."""
+        payload = dict(payload)
+        linked_project_hashes = await self._validated_history_project_hashes(user_id, payload)
+        if linked_project_hashes is None:
+            return None
+        return await self._create_plan_with_project_hashes(user_id, payload, linked_project_hashes)
+
+    async def update_plan_from_history_snapshot(
+        self,
+        plan_id: str,
+        user_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Update from owner-scoped history using hashes that never leave the trusted boundary."""
+        payload = dict(payload)
+        linked_project_hashes = await self._validated_history_project_hashes(user_id, payload)
+        if linked_project_hashes is None:
+            return None
+        payload["linked_project_hashes"] = linked_project_hashes
+        return await self._update_plan(
+            plan_id,
+            user_id,
+            payload,
+            restored_project_hashes=set(linked_project_hashes),
+        )
+
+    async def _validated_history_project_hashes(
+        self,
+        user_id: str,
+        payload: dict[str, Any],
+    ) -> list[str] | None:
+        if "linked_project_ids" in payload:
+            logger.error("Rejected user plan history restore containing raw linked Project IDs")
+            return None
+        raw_project_hashes = payload.pop("linked_project_hashes", [])
+        if raw_project_hashes is None:
+            raw_project_hashes = []
+        if not isinstance(raw_project_hashes, list) or any(
+            not isinstance(project_hash, str) or not is_sha256_hex(project_hash)
+            for project_hash in raw_project_hashes
+        ):
+            logger.error("Rejected user plan history restore with invalid linked Project hashes")
+            return None
+        linked_project_hashes = list(dict.fromkeys(raw_project_hashes))
+        encrypted_linked_project_ids = payload.get("encrypted_linked_project_ids")
+        if linked_project_hashes and (
+            not isinstance(encrypted_linked_project_ids, str) or not encrypted_linked_project_ids.strip()
+        ):
+            logger.error("Rejected user plan history restore without encrypted linked Project metadata")
+            return None
+        if linked_project_hashes:
+            project_methods = getattr(self.directus_service, "project", None)
+            if project_methods is None:
+                logger.error("Rejected user plan history restore without Project authorization backend")
+                return None
+            authorized_projects = await project_methods.list_projects(user_id, include_archived=True)
+            authorized_project_hashes = {
+                hash_id(project["project_id"])
+                for project in authorized_projects
+                if isinstance(project.get("project_id"), str)
+            }
+            if any(project_hash not in authorized_project_hashes for project_hash in linked_project_hashes):
+                logger.error("Rejected user plan history restore for inaccessible linked Project")
+                return None
+        return linked_project_hashes
+
+    async def _create_plan_with_project_hashes(
+        self,
+        user_id: str,
+        payload: dict[str, Any],
+        linked_project_hashes: list[str],
+    ) -> dict[str, Any] | None:
+        key_wrappers = payload.pop("key_wrappers", []) or []
         validate_encrypted_slug_metadata(payload, record_label="Plan")
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
@@ -343,7 +436,7 @@ class UserPlanMethods:
             **payload,
             "hashed_user_id": hash_id(user_id),
             "status": payload.get("status") or "draft",
-            "linked_project_hashes": [hash_id(project_id) for project_id in linked_project_ids if project_id],
+            "linked_project_hashes": linked_project_hashes,
             "hashed_primary_chat_id": hash_id(primary_chat_id) if primary_chat_id else None,
             "version": payload.get("version", 1),
             "created_at": now,
@@ -444,6 +537,19 @@ class UserPlanMethods:
         return response if isinstance(response, list) else []
 
     async def update_plan(self, plan_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
+        if "linked_project_hashes" in patch:
+            logger.error("Rejected user plan update containing linked Project hashes")
+            return None
+        return await self._update_plan(plan_id, user_id, patch)
+
+    async def _update_plan(
+        self,
+        plan_id: str,
+        user_id: str,
+        patch: dict[str, Any],
+        *,
+        restored_project_hashes: set[str] | None = None,
+    ) -> dict[str, Any] | None:
         existing = await self.get_plan(plan_id, user_id)
         if not existing:
             return None
@@ -464,7 +570,7 @@ class UserPlanMethods:
         if "primary_chat_id" in update:
             primary_chat_id = update.get("primary_chat_id")
             next_chat_hash = hash_id(primary_chat_id) if primary_chat_id else None
-        next_project_hashes = existing_project_hashes
+        next_project_hashes = restored_project_hashes if restored_project_hashes is not None else existing_project_hashes
         if "linked_project_ids" in update:
             linked_project_ids = update.get("linked_project_ids") or []
             next_project_hashes = {hash_id(project_id) for project_id in linked_project_ids if project_id}
@@ -473,7 +579,14 @@ class UserPlanMethods:
         if relinks_context and not key_wrappers:
             logger.error("Rejected user plan relink without replacement key wrappers")
             return None
-        if next_project_hashes != existing_project_hashes and ("encrypted_linked_project_ids" not in update or update.get("encrypted_linked_project_ids") is None):
+        missing_encrypted_project_links = (
+            "encrypted_linked_project_ids" not in update or update.get("encrypted_linked_project_ids") is None
+        )
+        if (
+            next_project_hashes != existing_project_hashes
+            and missing_encrypted_project_links
+            and (restored_project_hashes is None or bool(next_project_hashes))
+        ):
             logger.error("Rejected user plan project relink without encrypted linked project ids")
             return None
         update.pop("plan_id", None)

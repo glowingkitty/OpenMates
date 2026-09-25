@@ -4,7 +4,7 @@
 // preview-time child hydration or provider calls.
 
 import { describe, expect, it } from 'vitest';
-import { embedPreviewRegistry, parentPreviewProps } from '../embedPreviewRegistry';
+import { embedPreviewRegistry, parentPreviewProps, pdfPreviewProps } from '../embedPreviewRegistry';
 
 function metadataFor(decodedContent: Record<string, unknown>) {
   return parentPreviewProps(
@@ -160,4 +160,47 @@ it('normalizes backend child types through the central embed mapping', () => {
       embedId: 'event-child', embedData: { type }, decodedContent: {},
     })).toBe(true);
   }
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.items.responsive-embeds
+it('registers existing captured files for shared preview rendering', () => {
+  expect(embedPreviewRegistry.canResolve({
+    embedId: 'captured-file',
+    embedData: { type: 'file-file', status: 'finished' },
+    decodedContent: {
+      filename: 'report.pdf',
+      path: 'output/report.pdf',
+      mime_type: 'application/pdf',
+      size_bytes: 2048,
+    },
+  })).toBe(true);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.items.responsive-embeds
+it('resolves uploaded project PDFs through the existing PDF preview', () => {
+  const onFullscreen = () => {};
+  const embedData = { type: 'pdf', status: 'finished' };
+  const decodedContent = {
+    type: 'pdf',
+    app_id: 'pdf',
+    skill_id: 'upload',
+    filename: 'architecture.pdf',
+    file_type: 'application/pdf',
+    file_size: 184_320,
+    page_count: 12,
+  };
+
+  expect(embedPreviewRegistry.canResolve({
+    embedId: 'project-pdf',
+    embedData,
+    decodedContent,
+  })).toBe(true);
+  expect(pdfPreviewProps('project-pdf', decodedContent, embedData, onFullscreen)).toMatchObject({
+    id: 'project-pdf',
+    filename: 'architecture.pdf',
+    pageCount: 12,
+    status: 'finished',
+    isMobile: false,
+    onFullscreen,
+  });
 });

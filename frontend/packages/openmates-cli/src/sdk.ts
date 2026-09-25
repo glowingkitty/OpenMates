@@ -97,6 +97,7 @@ import {
   decryptUserPlan,
   decryptUserPlans,
   planKeyFromRecord,
+  requirePlanProjectIds,
   serializeAssumptionProofInputs,
   type DecryptedPlanLearning,
   type DecryptedUserPlan,
@@ -227,6 +228,7 @@ export interface ChatCreateOptions {
   title?: string;
   goal?: string;
   goalTitle?: string;
+  projectIds?: string[];
   teamId?: string;
 }
 
@@ -482,7 +484,7 @@ export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
 export type TaskActivityRecord = DecryptedTaskActivityEntry;
 export type TaskActivityInput = TaskActivityCreateOptions;
 export type PlanRecord = Omit<DecryptedUserPlan, "encrypted">;
-export type PlanPlainCreateOptions = PlanCreateOptions;
+export type PlanPlainCreateOptions = PlanCreateOptions & { linkedProjectIds: string[] };
 export type PlanPlainUpdateOptions = PlanUpdateOptions;
 export type ProjectPlainCreateOptions = {
   name: string;
@@ -2136,6 +2138,7 @@ export class OpenMatesChats {
     if (goal && options.saveToAccount === false) {
       throw new OpenMatesConfigError("Chat goals require a saved account chat. Omit saveToAccount or set saveToAccount: true.");
     }
+    if (goal) requirePlanProjectIds(options.projectIds);
     if (options.saveToAccount === true || goal || options.teamId) {
       return this.sendSaved(finalMessage, options);
     }
@@ -2349,6 +2352,7 @@ export class OpenMatesChats {
           chatKey,
           goal,
           title: normalizeOptionalGoal(options.goalTitle) ?? options.title ?? goal,
+          projectIds: options.projectIds ?? [],
         })
       : null;
     return {
@@ -2368,13 +2372,17 @@ export class OpenMatesChats {
     chatKey: Uint8Array;
     goal: string;
     title: string;
+    projectIds: string[];
   }): Promise<PlanRecord> {
     const masterKey = await this.client.masterKey();
+    const projectLinks = await resolveSdkPlanProjectLinks(this.client, requirePlanProjectIds(input.projectIds));
     const payload = await buildCreateUserPlanInput(masterKey, {
       title: input.title,
       goal: input.goal,
       primaryChatId: input.chatId,
       primaryChatKey: input.chatKey,
+      linkedProjectIds: projectLinks.linkedProjectIds,
+      linkedProjectKeys: projectLinks.linkedProjectKeys,
       status: "draft",
     });
     const response = await this.client.request<{ plan?: UserPlanRecord }>("/v1/user-plans", payload);
@@ -4160,8 +4168,14 @@ export class OpenMatesPlans {
     return listSdkRawPlans(this.client, filters);
   }
 
-  async create(input: PlanCreateOptions): Promise<PlanRecord> {
-    const payload = await buildCreateUserPlanInput(await this.client.masterKey(), input);
+  async create(input: PlanPlainCreateOptions): Promise<PlanRecord> {
+    const requestedProjectIds = requirePlanProjectIds(input.linkedProjectIds);
+    const projectLinks = await resolveSdkPlanProjectLinks(this.client, requestedProjectIds);
+    const payload = await buildCreateUserPlanInput(await this.client.masterKey(), {
+      ...input,
+      linkedProjectIds: projectLinks.linkedProjectIds,
+      linkedProjectKeys: projectLinks.linkedProjectKeys,
+    });
     const response = await this.client.request<{ plan?: UserPlanRecord }>("/v1/user-plans", payload);
     if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
     return toPublicPlan(await decryptUserPlan(response.plan, await this.client.masterKey()));
@@ -4242,10 +4256,15 @@ export class OpenMatesPlans {
   }
 
   async ask(instruction: string, options: {
-    create?: PlanCreateOptions;
+    projectIds?: string[];
+    create?: PlanPlainCreateOptions;
     update?: { planId: string; patch: PlanUpdateOptions };
     updates?: Array<{ planId: string; patch: PlanUpdateOptions }>;
   } = {}): Promise<Record<string, unknown>> {
+    const willCreate = options.create !== undefined || (options.update === undefined && !options.updates?.length);
+    const requestedProjectIds = willCreate
+      ? requirePlanProjectIds(options.create?.linkedProjectIds ?? options.projectIds)
+      : undefined;
     const masterKey = await this.client.masterKey();
     const plannedCreate = !options.create && !options.update && !options.updates?.length
       ? (await this.client.request<{ proposed_plan?: PlanCreateOptions }>("/v1/user-plans/ask/plan", { instruction })).proposed_plan
@@ -4256,9 +4275,17 @@ export class OpenMatesPlans {
         return { plan_id: plan.planId, patch: await buildUpdateUserPlanInput(plan, masterKey, update.patch) };
       }))
       : undefined;
+    const createInput = options.create ?? plannedCreate;
+    const projectLinks = createInput
+      ? await resolveSdkPlanProjectLinks(this.client, requestedProjectIds)
+      : undefined;
     const response = await this.client.request<Record<string, unknown>>("/v1/user-plans/ask", {
       instruction,
-      ...(options.create || plannedCreate ? { encrypted_create: await buildCreateUserPlanInput(masterKey, options.create ?? plannedCreate ?? { title: instruction, goal: instruction }) } : {}),
+      ...(createInput ? { encrypted_create: await buildCreateUserPlanInput(masterKey, {
+        ...createInput,
+        linkedProjectIds: projectLinks?.linkedProjectIds,
+        linkedProjectKeys: projectLinks?.linkedProjectKeys,
+      }) } : {}),
       ...(options.update ? await this.buildAskUpdate(options.update, masterKey) : {}),
       ...(encryptedUpdates ? { encrypted_updates: encryptedUpdates } : {}),
     });

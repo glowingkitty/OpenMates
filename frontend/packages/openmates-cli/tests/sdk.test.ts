@@ -29,6 +29,7 @@ const {
 const { buildEncryptedObjectSlugMetadata } = await import("../src/objectSlugs.ts");
 
 const CHAT_ID = "11111111-1111-4111-8111-111111111111";
+const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 
 async function withServer(
   handler: (request: IncomingMessage, response: ServerResponse) => void,
@@ -696,7 +697,9 @@ describe("OpenMates SDK", () => {
 
   it("creates an attached draft plan for goal chats", async () => {
     const masterKey = generateSalt(32);
+    const projectKey = generateSalt(32);
     const material = await createApiKeyCryptoMaterial("Goal chat test", bytesToBase64(masterKey));
+    const encryptedProjectKey = await encryptBytesWithAesGcm(projectKey, masterKey);
     const apiKey = material.apiKey;
     const requests: Array<{ url?: string; body: Record<string, unknown> }> = [];
     const taskId = "77777777-7777-4777-8777-777777777777";
@@ -766,6 +769,10 @@ describe("OpenMates SDK", () => {
           response.end(JSON.stringify({ job_id: jobId, state: "TERMINAL", committed_messages_v: 2 }));
           return;
         }
+        if (request.url === `/v1/projects/${PROJECT_ID}`) {
+          response.end(JSON.stringify({ project: { project_id: PROJECT_ID, encrypted_project_key: encryptedProjectKey } }));
+          return;
+        }
         assert.equal(request.url, "/v1/user-plans");
         response.end(JSON.stringify({ plan: parsed }));
       });
@@ -774,6 +781,7 @@ describe("OpenMates SDK", () => {
       const result = await client.chats.send("Start the work", {
         goal: "Ship the docs update",
         goalTitle: "Docs launch",
+        projectIds: [PROJECT_ID],
         recoveryPollIntervalMs: 1,
       });
       assert.equal(result.content, "goal reply");
@@ -788,10 +796,11 @@ describe("OpenMates SDK", () => {
       "/v1/sdk/chats",
       `/v1/sdk/chats/recovery/${taskId}/claim`,
       `/v1/sdk/chats/recovery/${taskId}/persist`,
+      `/v1/projects/${PROJECT_ID}`,
       "/v1/user-plans",
     ]);
     const saved = requests[1].body;
-    const planPayload = requests[4].body;
+    const planPayload = requests[5].body;
     assert.equal(saved.save_to_account, true);
     assert.equal(planPayload.primary_chat_id, saved.chat_id);
     assert.equal(planPayload.status, "draft");
@@ -799,7 +808,9 @@ describe("OpenMates SDK", () => {
     assert.equal(JSON.stringify(planPayload).includes("Ship the docs update"), false);
     const wrappers = planPayload.key_wrappers as Array<Record<string, unknown>>;
     const chatWrapper = wrappers.find((wrapper) => wrapper.key_type === "chat");
+    const projectWrapper = wrappers.find((wrapper) => wrapper.key_type === "project");
     assert.equal(chatWrapper?.hashed_chat_id, createHash("sha256").update(String(saved.chat_id)).digest("hex"));
+    assert.equal(projectWrapper?.hashed_project_id, createHash("sha256").update(PROJECT_ID).digest("hex"));
   });
 
   it("rejects goal chats when account persistence is explicitly disabled", async () => {
