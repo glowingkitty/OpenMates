@@ -436,6 +436,28 @@ async def test_main_processor_continues_safe_text_after_fabricated_protocol(monk
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_main_processor_recovers_when_protocol_was_the_first_output(monkeypatch) -> None:
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    answer = "I cannot verify current results from the available conversation."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[protocol + "\nInvented result prose."], [answer]],
+    )
+
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert len(calls) == 2
+    assert calls[0]["tool_choice"] == "auto"
+    assert calls[1]["tool_choice"] == "none"
+    assert calls[1]["tools"] is None
+    assert calls[1]["message_history"][-1]["role"] == "user"
+    assert "previous assistant output was suppressed" in calls[1]["message_history"][-1]["content"]
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 async def test_main_processor_bounds_repeated_protocol_and_marks_failure(monkeypatch) -> None:
     safe_prefix = "A safe paragraph was already published.\n\n"
     protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"

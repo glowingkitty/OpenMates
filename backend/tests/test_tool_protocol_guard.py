@@ -14,6 +14,7 @@ from backend.apps.ai.utils.main_processing_failure import (
 from backend.apps.ai.utils.tool_protocol_guard import (
     ToolProtocolGuard,
     ToolProtocolRecoveryState,
+    build_tool_protocol_recovery_messages,
     is_internal_tool_protocol,
 )
 
@@ -147,17 +148,30 @@ def test_protocol_recovery_state_is_bounded_and_keeps_safe_text():
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
-def test_protocol_without_any_safe_text_remains_a_model_error():
+def test_protocol_without_any_safe_text_gets_one_bounded_restart():
     recovery = ToolProtocolRecoveryState()
 
-    action = recovery.action(
+    first_action = recovery.action(
         detected=True,
         native_call_count=0,
         safe_text='\n',
         has_retry_iteration=True,
     )
+    second_action = recovery.action(
+        detected=True,
+        native_call_count=0,
+        safe_text='',
+        has_retry_iteration=True,
+    )
 
-    assert action == 'error'
+    assert first_action == 'retry'
+    assert second_action == 'error'
+    restart_messages = build_tool_protocol_recovery_messages('')
+    assert len(restart_messages) == 1
+    assert restart_messages[0]['role'] == 'user'
+    restart_prompt = restart_messages[0]['content']
+    assert 'previous assistant output was suppressed' in restart_prompt
+    assert 'If a needed tool result is unavailable' in restart_prompt
     assert main_processing_failure_reason(
         main_processing_failure('protocol_guard')
     ) == 'protocol_guard'

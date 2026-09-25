@@ -26,12 +26,19 @@ TOOL_PROTOCOL_CONTINUATION_PROMPT = (
     "TOON, or commentary about this continuation instruction. Do not invent or "
     "rely on information from the suppressed tool text."
 )
+TOOL_PROTOCOL_RESTART_PROMPT = (
+    "Answer the preceding user request using only information already verified in "
+    "the conversation. The previous assistant output was suppressed and is not "
+    "evidence. If a needed tool result is unavailable, say so briefly instead of "
+    "inventing it. Return only user-facing prose. Do not emit tool calls, "
+    "tool-result envelopes, or TOON."
+)
 
 
-def build_tool_protocol_continuation_messages(safe_text: str) -> list[dict[str, str]]:
-    """Build provider history that continues, but does not replay, published text."""
+def build_tool_protocol_recovery_messages(safe_text: str) -> list[dict[str, str]]:
+    """Continue published text, or restart when the guard suppressed all text."""
     if not safe_text.strip():
-        raise ValueError("safe_text is required for protocol continuation")
+        return [{"role": "user", "content": TOOL_PROTOCOL_RESTART_PROMPT}]
     return [
         {"role": "assistant", "content": safe_text},
         {"role": "user", "content": TOOL_PROTOCOL_CONTINUATION_PROMPT},
@@ -40,7 +47,7 @@ def build_tool_protocol_continuation_messages(safe_text: str) -> list[dict[str, 
 
 @dataclass
 class ToolProtocolRecoveryState:
-    """Bound one safe text continuation after fabricated provider protocol."""
+    """Bound one recovery attempt after fabricated provider protocol."""
 
     attempted: bool = False
     preserved_safe_text: bool = False
@@ -59,7 +66,7 @@ class ToolProtocolRecoveryState:
 
         has_safe_text = bool(safe_text.strip())
         self.preserved_safe_text = self.preserved_safe_text or has_safe_text
-        if has_safe_text and not self.attempted and has_retry_iteration:
+        if not self.attempted and has_retry_iteration:
             self.attempted = True
             return "retry"
         if self.preserved_safe_text:

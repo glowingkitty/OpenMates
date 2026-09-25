@@ -58,7 +58,7 @@ from backend.apps.ai.utils.embeds_map_view import (
 from backend.apps.ai.utils.tool_protocol_guard import (
     ToolProtocolGuard,
     ToolProtocolRecoveryState,
-    build_tool_protocol_continuation_messages,
+    build_tool_protocol_recovery_messages,
 )
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
@@ -4300,7 +4300,7 @@ async def handle_main_processing(
                 ):
                     logger.error(
                         "%s [TOOL_PROTOCOL_GUARD] Model-specific history truncation split "
-                        "the recovery assistant/instruction pair; refusing an orphaned continuation.",
+                        "the recovery instruction from its context; refusing an orphaned continuation.",
                         log_prefix,
                     )
                     yield main_processing_failure("protocol_guard")
@@ -5031,13 +5031,13 @@ async def handle_main_processing(
                 protocol_recovery_action,
             )
             if protocol_recovery_action == "retry":
-                pending_protocol_recovery_messages = build_tool_protocol_continuation_messages(
+                pending_protocol_recovery_messages = build_tool_protocol_recovery_messages(
                     final_buffered_text_for_turn
                 )
                 current_message_history.extend(pending_protocol_recovery_messages)
                 force_no_tools = True
                 logger.info(
-                    "%s [TOOL_PROTOCOL_GUARD] Continuing the preserved partial answer once "
+                    "%s [TOOL_PROTOCOL_GUARD] Retrying the guarded answer once "
                     "with tools disabled.",
                     log_prefix,
                 )

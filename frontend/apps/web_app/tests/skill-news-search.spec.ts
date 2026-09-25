@@ -158,6 +158,8 @@ test.describe('App: News / Skill: search', () => {
 		await expect(followupEmbed).toContainText(/OpenAI/i);
 		await expect(followup.getByTestId('chat-mate-name')).toHaveText(originalMate);
 		await expect(followup).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
+		await expect(followup).not.toContainText(/AI service encountered an error|try again in a moment/i);
+		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 		await expect(followup.locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
 		const followupOverlay = await openFullscreen(page, followupEmbed);
 		await verifySearchGrid(followupOverlay);
