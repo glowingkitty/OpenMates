@@ -219,6 +219,7 @@ INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
 INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
 _get_skill_execution_args = main_processor._get_skill_execution_args
+_limit_news_search_batch_to_budget = main_processor._limit_news_search_batch_to_budget
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
 _apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
@@ -851,6 +852,18 @@ def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> 
     parsed_args = {"requests": [{"id": "search_aethos", "query": "aethos"}]}
 
     assert _get_skill_execution_args(parsed_args, {"multiple": True}) is parsed_args
+
+
+def test_news_search_batch_uses_remaining_budget_without_mutating_original_args() -> None:
+    args = {"requests": [{"query": f"topic {index}"} for index in range(6)], "other": "kept"}
+
+    limited, omitted = _limit_news_search_batch_to_budget(args, 5)
+
+    assert [request["query"] for request in limited["requests"]] == [f"topic {index}" for index in range(5)]
+    assert [request["query"] for request in omitted] == ["topic 5"]
+    assert limited["other"] == "kept"
+    assert len(args["requests"]) == 6
+    assert _limit_news_search_batch_to_budget(args, 0) == (args, [])
 
 
 def test_diff_prompt_uses_resolved_embed_file_path_index() -> None:

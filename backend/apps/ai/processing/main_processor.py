@@ -629,6 +629,17 @@ SOFT_LIMIT_SKILL_CALLS = 3
 # Maximum of 5 request attempts per assistant message to prevent excessive research loops.
 HARD_LIMIT_SKILL_CALLS = 5
 
+
+def _limit_news_search_batch_to_budget(
+    parsed_args: Dict[str, Any], remaining_requests: int
+) -> Tuple[Dict[str, Any], List[Any]]:
+    """Run the news searches that fit instead of discarding an oversized batch."""
+    requests = parsed_args.get("requests") if isinstance(parsed_args, dict) else None
+    if remaining_requests <= 0 or not isinstance(requests, list) or len(requests) <= remaining_requests:
+        return parsed_args, []
+    return {**parsed_args, "requests": requests[:remaining_requests]}, requests[remaining_requests:]
+
+
 INVALID_TOOL_FALLBACK_MESSAGE = (
     "I found relevant information, but I could not complete every requested action automatically. "
     "Here is the best answer I can provide from the available results."
@@ -4206,6 +4217,7 @@ async def handle_main_processing(
     task_queue_guard_retries = 0
     empty_post_tool_recovery_attempted = False
     answer_only_recovery_attempted = False
+    omitted_news_search_requests = 0
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -4284,6 +4296,13 @@ async def handle_main_processing(
                 "\n\nThe previous answer-only attempt did not produce a usable answer. "
                 "Answer the user's request now using the completed results in this conversation. "
                 "Do not request tools or mention this retry."
+            )
+
+        if omitted_news_search_requests:
+            iteration_system_prompt += (
+                "\n\nThe news search budget omitted some requested searches. "
+                "Identify those topics as unsearched, and cite only results actually returned by the news tool. "
+                "Never invent a headline, date, source, or embed reference for an omitted search."
             )
 
         # Inject embed preview instruction when images-search was executed
@@ -4666,6 +4685,19 @@ async def handle_main_processing(
                         current_message_history,
                         log_prefix,
                     )
+
+                    if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
+                        parsed_args, omitted_inline_news_requests = _limit_news_search_batch_to_budget(
+                            parsed_args, HARD_LIMIT_SKILL_CALLS - streaming_skill_count
+                        )
+                        if omitted_inline_news_requests:
+                            logger.info(
+                                "%s INLINE: [SKILL_BUDGET] Limiting news-search placeholder batch to %s requests; "
+                                "%s omitted.",
+                                log_prefix,
+                                len(parsed_args["requests"]),
+                                len(omitted_inline_news_requests),
+                            )
 
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
@@ -5597,6 +5629,7 @@ async def handle_main_processing(
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
             tool_result_content_str: str
+            omitted_news_requests_for_call: List[Any] = []
 
             try:
                 # Parse function arguments
@@ -5805,6 +5838,19 @@ async def handle_main_processing(
                         }),
                     })
                     continue
+
+                if app_id == "news" and skill_id == "search":
+                    parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
+                        parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
+                    )
+                    if omitted_news_requests_for_call:
+                        omitted_news_search_requests += len(omitted_news_requests_for_call)
+                        logger.info(
+                            "%s [SKILL_BUDGET] Limiting news-search execution to %s requests; %s omitted.",
+                            log_prefix,
+                            len(parsed_args["requests"]),
+                            len(omitted_news_requests_for_call),
+                        )
                 
                 # Skip this tool call if we've already reached or would exceed the hard limit
                 # We don't count system tools (focus mode) against the budget
@@ -8856,6 +8902,19 @@ async def handle_main_processing(
             # Add tool response to message history
             # Store full results as TOON in content, and include ignore_fields_for_inference metadata
             # This allows follow-up requests to filter tool results correctly when reading from history
+            if omitted_news_requests_for_call:
+                omitted_queries = [
+                    request.get("query") for request in omitted_news_requests_for_call
+                    if isinstance(request, dict) and isinstance(request.get("query"), str)
+                ]
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "research_budget": {
+                        "status": "partial",
+                        "omitted_queries": omitted_queries,
+                        "instruction": "These queries were not searched. Do not cite or invent results for them.",
+                    }
+                })
+
             tool_response_message = {
                 "tool_call_id": tool_call_id,
                 "role": "tool",
