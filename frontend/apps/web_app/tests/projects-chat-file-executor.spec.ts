@@ -131,7 +131,7 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
 }
 
 async function deleteProject(page: Page, projectId: string): Promise<void> {
-  await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
   const deleted = page.waitForResponse(
     (response: Response) => response.request().method() === 'DELETE'
       && new URL(response.url()).pathname === `/v1/projects/${projectId}`
@@ -292,7 +292,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await deleteActiveChat(page);
       chatUrl = null;
 
-      await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
       const folder = page.getByTestId('project-virtual-folder-card').filter({ hasText: 'proofs' }).first();
       await expect(folder).toBeVisible({ timeout: 30_000 });
       await folder.click();
@@ -398,7 +398,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await deleteActiveChat(page);
       chatUrl = null;
 
-      await page.goto(`/projects#project-id=${encodeURIComponent(fixture.project_id as string)}`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`/#project-id=${encodeURIComponent(fixture.project_id as string)}`, { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
       const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
       await expect(sourceCard).toBeVisible({ timeout: 30_000 });

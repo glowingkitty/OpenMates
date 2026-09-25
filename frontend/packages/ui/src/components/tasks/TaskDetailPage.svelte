@@ -31,7 +31,7 @@
 </script>
 
 <section class="detail-page" data-testid="task-detail-page">
-  <nav><a href="/tasks">{domainLabel}</a><WorkspaceReportIssueButton /></nav>
+  <nav><a href="/#tasks">{domainLabel}</a><WorkspaceReportIssueButton /></nav>
   {#if task}
     <TaskDetailContent {task} {canAssignCodex} onTaskChange={handleTaskChange} />
   {:else if hasError}<div class="state" role="alert"><p>{$text('common.detail_load_error', { values: { item: domainLabel } })}</p><button type="button" onclick={() => void load()}>{$text('common.retry')}</button></div>

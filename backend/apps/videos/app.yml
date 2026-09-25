@@ -172,30 +172,44 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: REQUIRED array of video generation request objects.
           items:
             type: object
             properties:
               prompt:
+                x-ui:
+                  basic: true
                 type: string
                 description: Detailed text description of the video to generate.
               aspect_ratio:
+                x-ui:
+                  basic: true
                 type: string
                 enum: ["16:9", "9:16"]
                 default: "16:9"
               duration_seconds:
+                x-ui:
+                  basic: true
                 type: integer
                 enum: [4, 6, 8]
                 default: 8
               resolution:
+                x-ui:
+                  basic: true
                 type: string
                 enum: ["720p", "1080p", "4k"]
                 default: "720p"
               seed:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Optional seed for more reproducible output when supported.
               model:
+                x-ui:
+                  basic: false
                 type: string
                 enum: ["veo-3.1-generate-preview", "veo-3.1-fast-generate-preview", "veo-3.0-generate-001"]
                 default: "veo-3.1-generate-preview"
@@ -231,9 +245,13 @@ skills:
       type: object
       properties:
         source:
+          x-ui:
+            basic: true
           type: string
           description: Remotion TSX source code to render.
         filename:
+          x-ui:
+            basic: true
           type: string
           description: Source filename, for example ProductAnnouncement.tsx.
       required:
@@ -266,6 +284,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of transcript request objects for parallel processing. 
@@ -278,9 +298,13 @@ skills:
             type: object
             properties:
               url:
+                x-ui:
+                  basic: true
                 type: string
                 description: YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)
               languages:
+                x-ui:
+                  basic: true
                 type: array
                 description: List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language.
                 items:
@@ -324,6 +348,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
@@ -336,15 +362,21 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Search query string
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of results for this request (max 20)
                 minimum: 1
                 maximum: 20
                 default: 6
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -354,6 +386,8 @@ skills:
                   "Advanced, hands-on production guidance with deployment and evaluation details."
                   Omit only for a neutral search fully expressed by query and structured fields.
               country:
+                x-ui:
+                  basic: true
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
                 enum:
@@ -437,10 +471,14 @@ skills:
                   ]
                 default: "us"
               search_lang:
+                x-ui:
+                  basic: false
                 type: string
                 description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
                 default: "en"
               safesearch:
+                x-ui:
+                  basic: false
                 type: string
                 description: Safe search level
                 enum: ["off", "moderate", "strict"]

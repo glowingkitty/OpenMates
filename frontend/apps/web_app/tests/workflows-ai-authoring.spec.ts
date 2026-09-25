@@ -74,7 +74,7 @@ test.describe('Workflow AI authoring', () => {
 		});
 
 		try {
-			await page.goto(getE2EDebugUrl(`/workflows#workflow-id=${workflow.id}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl(`/#workflow-id=${workflow.id}&workflow-tab=details`), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(workflow.title, { timeout: 30_000 });
 			await page.getByTestId('workflow-add-step').click();
 			const choices = page.getByTestId('workflow-step-menu').locator('.choice');
@@ -103,8 +103,10 @@ test.describe('Workflow AI authoring', () => {
 			await page.getByTestId('workflow-add-step').click();
 			await page.getByTestId('workflow-step-menu').getByText('Add check', { exact: true }).click();
 			await page.getByLabel('How should this be checked?').selectOption('ai');
-			await page.getByTestId('workflow-ai-check-question').fill('Are these events genuinely useful for a design professional?');
-			await page.getByTestId('workflow-ai-check-inputs').getByRole('checkbox').first().check();
+			await page.getByTestId('workflow-message-template').fill('Are these events genuinely useful for a design professional?');
+			await expect(page.getByTestId('workflow-node-save')).toBeDisabled();
+			await page.getByTestId('workflow-ai-check-variable-chips').getByRole('button').first().click();
+			await expect(page.getByTestId('workflow-node-save')).toBeEnabled();
 			const saved = page.waitForResponse((item: Response) =>
 				item.url().endsWith(`/v1/workflows/${workflow.id}`)
 				&& item.request().method() === 'PATCH'

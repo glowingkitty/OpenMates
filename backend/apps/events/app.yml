@@ -170,6 +170,8 @@ skills:
       type: object
       properties:
         provider:
+          x-ui:
+            basic: false
           type: string
           description: >
             The event provider to use. 'auto' (default) searches general sources
@@ -192,6 +194,8 @@ skills:
             - "38C3"
             - "37C3"
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of event search request objects for parallel processing.
@@ -212,6 +216,8 @@ skills:
               basic: false
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon',
@@ -219,18 +225,28 @@ skills:
                   'meetup', 'luma', or 'eventbrite' — these are stripped automatically
                   and reduce result quality.
               location:
+                x-ui:
+                  basic: true
                 type: string
                 description: "City name or 'city, country' string (e.g. 'Berlin, Germany', 'New York', 'Paris'). Used if lat/lon are not provided. Optional for ONLINE searches and GPN/Congress schedules; never invent a location for an online-only request."
               lat:
+                x-ui:
+                  basic: false
                 type: number
                 description: "Latitude of search center (decimal degrees). Overrides location string if provided."
               lon:
+                x-ui:
+                  basic: false
                 type: number
                 description: "Longitude of search center (decimal degrees). Overrides location string if provided."
               start_date:
+                x-ui:
+                  basic: false
                 type: string
                 description: "Start of date range in ISO 8601 format. Include UTC offset if known (e.g. '2026-03-01T00:00:00+01:00'). An optional matching IANA annotation such as [Europe/Berlin] is accepted. Preserve the user's requested date range. If omitted, defaults to now."
               end_date:
+                x-ui:
+                  basic: false
                 type: string
                 description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
               event_type:
@@ -242,16 +258,22 @@ skills:
                   - "PHYSICAL"
                   - "ONLINE"
               radius_miles:
+                x-ui:
+                  basic: false
                 type: number
                 description: "Search radius in miles from the center coordinates (default: 25, ~40 km). Only applies to PHYSICAL events."
                 default: 25
               count:
+                x-ui:
+                  basic: false
                 type: integer
                 description: "Maximum number of events to return (default: 10, max: 50). Use 10 unless the user asks for more results."
                 minimum: 1
                 maximum: 50
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -264,6 +286,8 @@ skills:
                   and this goal. Results with no credible relationship are omitted, so fewer than
                   count can be returned rather than padding the response with irrelevant events.
               provider:
+                x-ui:
+                  basic: false
                 type: string
                 description: "Provider for this request. Overrides the top-level provider when set."
                 enum:
@@ -279,6 +303,8 @@ skills:
                   - "38C3"
                   - "37C3"
               providers:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: string
@@ -295,6 +321,8 @@ skills:
                     - "37C3"
                 description: "Specific providers for this request. Use only when the user asks to search multiple named event platforms."
               conference:
+                x-ui:
+                  basic: false
                 type: string
                 description: "Known GPN/Congress schedule to search. Supported values: GPN24, 39C3, 38C3, 37C3."
                 enum:
@@ -303,10 +331,14 @@ skills:
                   - "38C3"
                   - "37C3"
               past_events:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: "Default false. Set true only when the user explicitly asks to include past/completed conference sessions."
                 default: false
               concert_tags:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: string
@@ -335,53 +367,85 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
             example: Events search completed
           result_count:
+            x-ui:
+              basic: false
             type: integer
             example: 1
           provider:
+            x-ui:
+              basic: false
             type: string
             example: Example events provider
           results:
+            x-ui:
+              basic: true
             type: array
             items:
               type: object
               properties:
                 id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-event
                 source_id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-event
                 title:
+                  x-ui:
+                    basic: true
                   type: string
                   example: AI community meetup
                 url:
+                  x-ui:
+                    basic: true
                   type: string
                   example: https://example.invalid/events/ai
                 canonical_url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/events/ai
                 provider:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Example events provider
                 description:
+                  x-ui:
+                    basic: false
                   type: string
                   example: An example meetup for people working with AI.
                 date_start:
+                  x-ui:
+                    basic: true
                   type: string
                   example: '2026-09-23T18:00:00+02:00'
                 date_end:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-23T20:00:00+02:00'
                 location:
+                  x-ui:
+                    basic: true
                   type: string
                   example: Berlin
                 event_type:
+                  x-ui:
+                    basic: false
                   type: string
                   example: PHYSICAL
                 price_amount:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
@@ -413,44 +477,70 @@ skills:
               description: An example meetup for people working with AI.
               price_amount: 0
           events:
+            x-ui:
+              basic: false
             type: array
             items:
               type: object
               properties:
                 id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-event
                 source_id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: example-event
                 title:
+                  x-ui:
+                    basic: false
                   type: string
                   example: AI community meetup
                 url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/events/ai
                 canonical_url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/events/ai
                 provider:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Example events provider
                 description:
+                  x-ui:
+                    basic: false
                   type: string
                   example: An example meetup for people working with AI.
                 date_start:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-23T18:00:00+02:00'
                 date_end:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-23T20:00:00+02:00'
                 location:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Berlin
                 event_type:
+                  x-ui:
+                    basic: false
                   type: string
                   example: PHYSICAL
                 price_amount:
+                  x-ui:
+                    basic: false
                   type:
                   - number
                   - 'null'
@@ -482,11 +572,15 @@ skills:
               description: An example meetup for people working with AI.
               price_amount: 0
           warnings:
+            x-ui:
+              basic: false
             type: array
             items:
               type: string
             example: []
           partial:
+            x-ui:
+              basic: false
             type: boolean
             example: false
 

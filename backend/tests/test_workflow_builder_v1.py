@@ -108,6 +108,33 @@ def test_result_list_cannot_be_used_as_requests_without_required_query_fields():
         validate_workflow_readiness(WorkflowGraph.model_validate(data))
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data
+def test_list_item_output_projection_is_validated_as_an_array_of_the_child_field_type():
+    data = graph_data()
+    block = data["nodes"][2]["config"]["blocks"][0]
+    block["source"] = "$nodes.search.output.results.title"
+    block["only_new_results"] = False
+
+    validate_workflow_readiness(WorkflowGraph.model_validate(data))
+
+    block["only_new_results"] = True
+    with pytest.raises(WorkflowValidationError, match="declared result list"):
+        validate_workflow_readiness(WorkflowGraph.model_validate(data))
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data
+@pytest.mark.parametrize("reference", ["$nodes.search.output.results.missing", "{{steps.search.results.missing}}"])
+def test_list_item_output_projection_still_rejects_undeclared_fields(reference):
+    data = graph_data()
+    if reference.startswith("$nodes."):
+        data["nodes"][2]["config"]["blocks"][0]["source"] = reference
+    else:
+        data["nodes"][2]["config"]["title"] = reference
+
+    with pytest.raises(WorkflowValidationError, match="not declared"):
+        validate_workflow_readiness(WorkflowGraph.model_validate(data))
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
 @pytest.mark.parametrize("reference", ["$nodes.limit.output.value", "{{steps.limit.value}}"])
 def test_check_resolves_both_reference_operands_and_missing_numeric_values(reference):

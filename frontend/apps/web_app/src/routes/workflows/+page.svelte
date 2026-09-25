@@ -10,7 +10,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { replaceState } from '$app/navigation';
+	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
 		Header,
 		Settings,
@@ -70,7 +70,7 @@
 		runId: string | null;
 	};
 
-	const WORKFLOWS_ROUTE = '/workflows';
+	const WORKFLOWS_ROUTE = '/';
 	const WORKFLOW_ID_HASH_PARAM = 'workflow-id';
 	const WORKFLOW_TAB_HASH_PARAM = 'workflow-tab';
 	const WORKFLOW_RUN_ID_HASH_PARAM = 'run-id';
@@ -187,14 +187,27 @@
 	);
 
 	onMount(() => {
+		if (window.location.pathname !== '/') {
+			const legacyState = readWorkflowHashState(window.location.hash);
+			const canonicalHash = workflowStateHash(
+				legacyState.workflowId,
+				legacyState.tab,
+				legacyState.runId
+			);
+			void goto(`${WORKFLOWS_ROUTE}${canonicalHash}`, { replaceState: true });
+			return;
+		}
+
 		projectWorkflowTarget = consumeProjectWorkflowTarget();
 		if (projectWorkflowTarget) blankCreatorOpen = true;
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
+		window.addEventListener('popstate', syncWorkflowHashFromLocation);
 		void initializeWorkflowsRoute();
 
 		return () => {
 			window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
+			window.removeEventListener('popstate', syncWorkflowHashFromLocation);
 		};
 	});
 
@@ -262,29 +275,44 @@
 		baseHash = ''
 	): string {
 		const params = parseHashParams(baseHash);
+		params.delete('workflows');
+		params.delete('projects');
+		params.delete('tasks');
+		params.delete('project-id');
+		params.delete('task-id');
 		params.delete(WORKFLOW_ID_HASH_PARAM);
 		params.delete(WORKFLOW_TAB_HASH_PARAM);
 		params.delete(WORKFLOW_RUN_ID_HASH_PARAM);
 
 		if (workflowId) {
-			params.set(WORKFLOW_ID_HASH_PARAM, workflowId);
-			params.set(WORKFLOW_TAB_HASH_PARAM, tab);
+			const routeParams = new URLSearchParams();
+			routeParams.set(WORKFLOW_ID_HASH_PARAM, workflowId);
+			routeParams.set(WORKFLOW_TAB_HASH_PARAM, tab);
 			if (tab === 'runs' && runId) {
-				params.set(WORKFLOW_RUN_ID_HASH_PARAM, runId);
+				routeParams.set(WORKFLOW_RUN_ID_HASH_PARAM, runId);
 			}
+			params.forEach((value, key) => routeParams.append(key, value));
+			return serializeHashParams(routeParams);
 		}
 
-		return serializeHashParams(params);
+		const preservedHash = serializeHashParams(params);
+		return `#workflows${preservedHash ? `&${preservedHash.slice(1)}` : ''}`;
 	}
 
 	function setWorkflowUrlState(
 		workflowId: string | null,
 		tab: WorkflowTab = 'details',
-		runId: string | null = null
+		runId: string | null = null,
+		replaceHistory = false
 	): void {
 		const nextHash = workflowStateHash(workflowId, tab, runId, window.location.hash);
 		workflowHashState = readWorkflowHashState(nextHash);
-		replaceState(`${WORKFLOWS_ROUTE}${nextHash}`, {});
+		if (window.location.pathname === WORKFLOWS_ROUTE && window.location.hash === nextHash) return;
+		if (replaceHistory) {
+			replaceState(`${WORKFLOWS_ROUTE}${nextHash}`, {});
+		} else {
+			pushState(`${WORKFLOWS_ROUTE}${nextHash}`, {});
+		}
 	}
 
 	function workflowStateHref(workflowId: string, tab: WorkflowTab = 'details'): string {
@@ -299,8 +327,8 @@
 		setWorkflowUrlState(workflowId, 'runs', runId);
 	}
 
-	function openWorkflowHome(): void {
-		setWorkflowUrlState(null);
+	function openWorkflowHome(replaceHistory = false): void {
+		setWorkflowUrlState(null, 'details', null, replaceHistory);
 	}
 
 	function requestNavigation(action: () => void | Promise<void>): void {
@@ -390,7 +418,7 @@
 			: null;
 		const workflowId = requestedWorkflow?.id ?? null;
 		if (requestedWorkflowId && !workflowId && $workflowWorkspaceStore.listStatus === 'ready') {
-			openWorkflowHome();
+			openWorkflowHome(true);
 			return;
 		}
 		if (!workflowId || workflowId === $workflowWorkspaceStore.selectedWorkflowId) return;

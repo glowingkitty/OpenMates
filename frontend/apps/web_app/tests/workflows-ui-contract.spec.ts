@@ -171,7 +171,7 @@ function waitingGraph() {
 }
 
 function workflowDetailsHashUrlPattern(workflowId: string): RegExp {
-	return new RegExp(`/workflows#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
+	return new RegExp(`/#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
 }
 
 async function settleProofState(page: any, durationMs = PROOF_STATE_SETTLE_MS): Promise<void> {

@@ -254,6 +254,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of appointment search requests. Each request searches for
@@ -262,6 +264,8 @@ skills:
             type: object
             properties:
               speciality:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Doctor speciality or type. Supports German and English names.
@@ -271,6 +275,8 @@ skills:
                   "ophthalmologist", "dermatologist", "general_practitioner",
                   "dentist", "cardiologist", "neurologist", "pediatrician".
               city:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   City where to search for appointments. Supports German and English
@@ -278,6 +284,8 @@ skills:
                   "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Dresden",
                   "Leipzig", "Hannover", "Nürnberg", "Bonn", "Heidelberg".
               provider_platform:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Booking platform to search. "both" (default) searches Doctolib and
@@ -290,6 +298,8 @@ skills:
                   - jameda
                 default: both
               insurance_sector:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Insurance type filter. "public" for gesetzliche Krankenversicherung
@@ -299,12 +309,16 @@ skills:
                   - public
                   - private
               telehealth:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: >
                   If true, only return doctors offering telehealth (video consultation)
                   appointments. Defaults to false.
                 default: false
               language:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Filter for doctors who speak a specific language.
@@ -312,6 +326,8 @@ skills:
                   "tr" (Turkish), "ar" (Arabic), "fr" (French), "es" (Spanish),
                   "it" (Italian), "pl" (Polish), "ro" (Romanian), "zh" (Chinese).
               days_ahead:
+                x-ui:
+                  basic: true
                 type: integer
                 description: >
                   How many days ahead to search for appointments. Must be one of
@@ -323,6 +339,8 @@ skills:
                   - 7
                 default: 7
               max_doctors:
+                x-ui:
+                  basic: false
                 type: integer
                 description: >
                   Maximum number of doctors to check for availability. Higher values
@@ -331,6 +349,8 @@ skills:
                 minimum: 1
                 maximum: 30
               visit_motive_category:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Filter results by appointment type category for both providers.

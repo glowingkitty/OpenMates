@@ -71,7 +71,7 @@
   button { border:0; box-shadow:none; background:transparent; color:inherit; font:inherit; cursor:pointer; }
   .header-control { display:grid; place-items:center; min-width:2.5rem; height:2.5rem; padding:0; border-radius:var(--radius-full); background:color-mix(in srgb, var(--color-grey-0) 82%, transparent); box-shadow:var(--shadow-md); }
   .left-actions { position:absolute; top:.4rem; left:.65rem; display:flex; align-items:center; gap:var(--spacing-4); max-width:calc(100% - 4.5rem); }
-  .breadcrumb :global(svg) { width:24px; height:24px; }
+  .breadcrumb :global(svg) { width:30px; height:30px; stroke-width:2.4; }
   .title { display:flex; align-items:center; justify-content:center; gap:var(--spacing-4); min-width:0; text-align:center; }
   .title strong { max-width:34rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:max(14px, .875rem); }
   .colored .title { flex-direction:column; gap:.45rem; }
@@ -85,11 +85,11 @@
   .asset-icon { display:inline-block; flex:0 0 auto; width:var(--workflow-icon-size, 16px); height:var(--workflow-icon-size, 16px); background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
   .close-control { position:absolute; top:.4rem; right:.65rem; display:grid; place-items:center; width:2.5rem; height:2.5rem; }
   .close-button { width:100%; }
-  .delete-control { box-sizing:border-box; grid-auto-flow:column; gap:var(--spacing-4); width:2.5rem; overflow:hidden; color:var(--color-error); transition:width .18s ease, padding .18s ease; }
+  .delete-control { box-sizing:border-box; grid-auto-flow:column; gap:var(--spacing-4); width:2.5rem; overflow:hidden; color:var(--color-font-button); transition:width .18s ease, padding .18s ease; }
   .delete-control.armed { width:auto; max-width:min(22rem, calc(100cqw - 7rem)); padding-inline:.65rem .85rem; }
   .confirm-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--font-size-small); font-weight:700; }
   .header-control :global(.clickable-icon.top-button) { position:static !important; inset:auto !important; display:block; flex:0 0 auto; width:22px; height:22px; margin:0 !important; transform:none !important; background:var(--color-primary-start); }
-  .delete-control :global(.clickable-icon.top-button) { background:currentColor; }
+  .delete-control :global(.clickable-icon.top-button) { background:var(--color-font-button); }
   .colored .close-control :global(.clickable-icon.top-button) { background:var(--color-font-button); }
   button:disabled { opacity:.5; cursor:default; }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }

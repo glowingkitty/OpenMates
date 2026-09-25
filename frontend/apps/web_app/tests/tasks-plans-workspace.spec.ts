@@ -24,7 +24,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 function projectHashUrlPattern(projectId: string): RegExp {
-	return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
+	return new RegExp(`/#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
 }
 
 async function columnCount(page: any, status: string): Promise<number> {
@@ -63,7 +63,7 @@ async function createProjectPlan(page: any, projectName: string): Promise<{ proj
 	await expect(page.getByTestId('project-create-menu')).toBeVisible();
 	await page.getByTestId('project-create-plan').click();
 	const planId = (await (await planCreated).json()).plan.plan_id;
-	await expect(page).toHaveURL(new RegExp(`/plans/${planId}(?:[?#]|$)`));
+	await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));
 	await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
 
 	return { projectId, planId };
@@ -104,12 +104,13 @@ test.describe('Plans on the global Tasks board', () => {
 		try {
 			await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 			await expectTaskBoardReady(page);
-			await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
+			await expect(page.getByTestId('plans-nav-link')).toBeVisible();
 			await expect(page.getByTestId('plan-create-form')).toHaveCount(0);
 
 			await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
-			await expect(page).toHaveURL(/\/tasks(?:[?#]|$)/);
-			await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
+			await expect(page).toHaveURL(/\/#plans(?:&|$)/);
+			await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('plans-nav-link')).toBeVisible();
 
 			({ projectId, planId } = await createProjectPlan(page, projectName));
 
@@ -140,9 +141,9 @@ test.describe('Plans on the global Tasks board', () => {
 			await expect.poll(() => columnCount(page, 'todo')).toBe(todoBefore + 1);
 
 			await planCard.getByTestId('task-board-plan-open').click();
-			await expect(page).toHaveURL(new RegExp(`/plans/${planId}(?:[?#]|$)`));
+			await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));
 			await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
+			await expect(page.getByTestId('plans-nav-link')).toBeVisible();
 		} finally {
 			if (planId) await page.request.delete(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}`).catch(() => null);
 			if (projectId) {

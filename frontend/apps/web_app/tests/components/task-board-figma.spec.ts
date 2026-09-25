@@ -74,7 +74,7 @@ test('matches the five-column Figma board and keeps actions keyboard reachable',
   await expect(draftPlan.getByTestId('plan-project-pill')).toHaveText(/OpenMates/);
   await expect(draftPlan.locator('h3')).toHaveCSS('font-size', '16px');
   expect(await draftPlan.locator('h3').evaluate((element) => getComputedStyle(element).webkitLineClamp)).toBe('3');
-  await expect(draftPlan.getByTestId('task-board-plan-open')).toHaveAttribute('href', '/plans/preview-plan-draft');
+  await expect(draftPlan.getByTestId('task-board-plan-open')).toHaveAttribute('href', '/#plan-id=preview-plan-draft');
   await expect(draftPlan.locator('.plan-label, .status-pill, .plan-card-main p')).toHaveCount(0);
   const openPlan = draftPlan.getByTestId('task-board-plan-link');
   await expect(openPlan).toHaveText('Open plan');

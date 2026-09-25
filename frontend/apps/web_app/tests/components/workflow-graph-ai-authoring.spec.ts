@@ -114,13 +114,14 @@ test.describe('WorkflowGraphRenderer AI authoring preview', () => {
 		]);
 		await page.getByTestId('workflow-step-ask-ai').click();
 		const editor = page.getByTestId('workflow-message-template');
+		await expect(editor).toHaveAttribute('aria-label', /Type @ to add a variable/);
 		await editor.fill('Summarize the news results');
 		await expect(page.getByTestId('workflow-ai-suggestions')).toContainText('Results', {
 			timeout: 10_000
 		});
 		const suggestionBox = await page.getByTestId('workflow-ai-suggestions').boundingBox();
 		const editorBox = await editor.boundingBox();
-		expect(suggestionBox && editorBox && suggestionBox.y < editorBox.y).toBe(true);
+		expect(suggestionBox && editorBox && suggestionBox.y > editorBox.y).toBe(true);
 
 		const staleResponse = page.waitForResponse(
 			(response) =>
@@ -159,16 +160,115 @@ test.describe('WorkflowGraphRenderer AI authoring preview', () => {
 		await page.goto(preview('aiCheck', 390), { waitUntil: 'networkidle' });
 		const check = page.locator('[data-node-id="rain"]');
 		await expect(page.locator('.branch-label')).toHaveText(['If true', 'Else', 'If unsure']);
-		await check.getByTestId('workflow-node-summary').click();
-		await expect(check.getByLabel('How should this be checked?')).toHaveValue('ai');
-		await expect(check.getByTestId('workflow-ai-check-question')).toHaveValue(
-			'Is this weather unsuitable for an outdoor lunch?'
+		const checkSummary = check.getByTestId('workflow-node-summary');
+		await expect(checkSummary).toHaveClass(/branded/);
+		expect(await checkSummary.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+		expect(await checkSummary.getByTestId('workflow-node-primary-icon').evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)');
+		await checkSummary.click();
+		await expect(check.getByTestId('workflow-node-expanded')).toBeFocused();
+		await expect(check.locator('.editor-header')).toHaveClass(/colored/);
+		const mode = check.getByLabel('How should this be checked?');
+		await expect(mode).toHaveValue('ai');
+		await expect(mode.locator('option:checked')).toHaveText('Ask AI');
+		await expect(check.getByText('The following Yes or No question:', { exact: true })).toBeVisible();
+		await expect(check.getByText('Information AI may use', { exact: true })).toHaveCount(0);
+		const question = check.getByTestId('workflow-message-template');
+		await expect(question).toHaveAttribute('aria-label', /Type @ to add a variable/);
+		await expect(question).toContainText('Is this weather unsuitable for an outdoor lunch?');
+		await expect(question.locator('.generic-mention')).toHaveCount(2);
+		const variableRow = check.getByTestId('workflow-ai-check-variable-chips');
+		await expect(variableRow).toBeVisible();
+		await expect.poll(async () => {
+			const [questionBox, variableRowBox] = await Promise.all([question.boundingBox(), variableRow.boundingBox()]);
+			return Boolean(questionBox && variableRowBox && variableRowBox.y > questionBox.y);
+		}).toBe(true);
+		expect(await variableRow.evaluate((element) => getComputedStyle(element).flexWrap)).toBe('nowrap');
+		await expect(check.getByTestId('workflow-node-save')).toBeEnabled();
+		await expect(check.getByTestId('workflow-test-action')).toBeVisible();
+
+		await question.fill('Is this weather unsuitable for an outdoor lunch?');
+		await expect(check.getByTestId('workflow-ai-check-save-hint')).toHaveText(
+			'Add a variable to evaluate, before saving the check.'
 		);
-		await expect(
-			check.getByTestId('workflow-ai-check-inputs').getByRole('checkbox', { checked: true })
-		).toHaveCount(2);
+		await expect(check.getByTestId('workflow-node-save')).toBeDisabled();
+		await variableRow.getByRole('button', { name: /Rain Probability/ }).click();
+		await expect(question.locator('.generic-mention')).toHaveCount(1);
+		await expect(check.getByTestId('workflow-ai-check-save-hint')).toHaveCount(0);
+		await expect(check.getByTestId('workflow-node-save')).toBeEnabled();
 		const box = await check.getByTestId('workflow-node-expanded').boundingBox();
 		expect(box && box.width <= 390).toBe(true);
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows.control.check,workflows.control.typed-data
+	test('tests an exact check with declared examples from its upstream action', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
+		let testedInput: Record<string, unknown> | undefined;
+		await page.route('**/v1/workflows/preview-workflow/steps/rain/test', async (route: Route) => {
+			testedInput = route.request().postDataJSON();
+			await route.fulfill({ json: { run: { id: 'exact-check-test' } } });
+		});
+		await page.route('**/v1/workflows/preview-workflow/runs/exact-check-test', (route: Route) =>
+			route.fulfill({
+				json: {
+					run: {
+						id: 'exact-check-test',
+						workflow_id: 'preview-workflow',
+						version_id: 'preview-version',
+						trigger_type: 'step_test',
+						status: 'completed',
+						node_runs: [{ node_id: 'rain', status: 'completed', output_summary: { matched: true, branch: 'yes' } }]
+					}
+				}
+			})
+		);
+
+		await page.goto(preview('exactCheckTestable'), { waitUntil: 'networkidle' });
+		const check = page.locator('[data-node-id="rain"]');
+		await check.getByTestId('workflow-node-summary').click();
+		const testAction = check.getByTestId('workflow-test-action');
+		await expect(testAction).toBeEnabled();
+		await expect(testAction.locator('.credits-coin-icon')).toHaveCount(0);
+		await testAction.click();
+		await expect(check.getByTestId('workflow-show-output-fields')).toHaveCount(0);
+		await expect(check.getByTestId('workflow-check-test-result')).toHaveText('Test output: true');
+		expect(testedInput).toMatchObject({
+			upstream_outputs: { weather: { rain_probability: 60, rain_expected: true } }
+		});
+
+		await page.goto(preview('aiCheckTestable'), { waitUntil: 'networkidle' });
+		const aiCheck = page.locator('[data-node-id="rain"]');
+		await aiCheck.getByTestId('workflow-node-summary').click();
+		await expect(aiCheck.getByTestId('workflow-test-action')).toBeEnabled();
+		await expect(aiCheck.getByTestId('workflow-test-action').locator('.credits-coin-icon')).toHaveCount(1);
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.visual-language.coherent
+	test('matches an empty step to minimized node dimensions and highlights its border', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
+		await page.goto(preview(), { waitUntil: 'networkidle' });
+		const minimized = page.getByTestId('workflow-node-summary').first();
+		const emptyStep = page.locator('button.nothing').last();
+		const [minimizedBox, emptyBox, initialBorder] = await Promise.all([
+			minimized.boundingBox(),
+			emptyStep.boundingBox(),
+			emptyStep.evaluate((element) => getComputedStyle(element).borderColor)
+		]);
+		expect(minimizedBox).not.toBeNull();
+		expect(emptyBox).not.toBeNull();
+		if (!minimizedBox || !emptyBox) return;
+		expect(Math.abs(minimizedBox.width - emptyBox.width)).toBeLessThanOrEqual(1);
+		expect(Math.abs(minimizedBox.height - emptyBox.height)).toBeLessThanOrEqual(1);
+		await emptyStep.hover();
+		await expect.poll(() => emptyStep.evaluate((element) => getComputedStyle(element).borderColor)).toBe('rgb(255, 255, 255)');
+		const hoverBorder = await emptyStep.evaluate((element) => getComputedStyle(element).borderColor);
+		expect(hoverBorder).not.toBe(initialBorder);
+		expect(hoverBorder).toBe('rgb(255, 255, 255)');
 	});
 });
 
@@ -218,6 +318,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await expect(initialPalette.locator('.choice')).toHaveCount(2);
 		await page.getByTestId('workflow-add-time-trigger').click();
 		const picker = page.getByTestId('workflow-step-menu');
+		await expect(picker).toBeFocused();
 		await expectCenteredWithin(canvas, picker);
 		await expect(picker.locator('.choice')).toHaveText(['Date & Time']);
 		await expect(picker.getByText('Webhook')).toHaveCount(0);
@@ -258,6 +359,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		).toBeLessThanOrEqual(1);
 		await page.getByTestId('workflow-trigger-date-time').click();
 		const triggerEditor = page.getByTestId('workflow-node-expanded');
+		await expect(triggerEditor).toBeFocused();
 		await expect(triggerEditor).toContainText('Repeat');
 		await expect(triggerEditor.getByLabel('Repeat')).toBeVisible();
 	});
@@ -297,6 +399,8 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await expect(editor).toContainText('Berlin');
 		await expect(coloredHeader.getByRole('button', { name: 'App skill' }).locator('svg')).toBeVisible();
 		await expect(editor.getByTestId('workflow-input-icon').locator('svg')).toBeVisible();
+		await expect(editor.getByTestId('workflow-output-heading')).toHaveCount(0);
+		await editor.getByTestId('workflow-show-output-fields').click();
 		await expect(editor.getByTestId('workflow-output-icon').locator('svg')).toBeVisible();
 		await expect(editor.getByTestId('workflow-schema-field-location').locator('.type-badge')).toHaveText('Text');
 		await expect(editor.getByTestId('workflow-schema-field-date-range').locator('.type-badge')).toHaveText('Date');
@@ -455,6 +559,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			header.locator('.close-control')
 		];
 		const editor = page.getByTestId('workflow-node-expanded');
+		await editor.getByTestId('workflow-show-output-fields').click();
 		const previewViewport = page.getByTestId('component-preview-viewport');
 		const example = editor.getByTestId('workflow-output-example-heading');
 		const back = header.getByRole('button', { name: 'App skill' });
@@ -709,6 +814,10 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		let editor = messageNode.getByTestId('workflow-node-expanded');
 		const title = editor.getByTestId('workflow-message-title');
 		const body = editor.getByTestId('workflow-message-template');
+		const variables = editor.getByTestId('workflow-message-variable-chips');
+		await expect(body).toHaveAttribute('aria-label', /Type @ to add a variable/);
+		const [bodyBox, variablesBox] = await Promise.all([body.boundingBox(), variables.boundingBox()]);
+		expect(bodyBox && variablesBox && variablesBox.y > bodyBox.y).toBe(true);
 		await title.fill('Edited morning briefing');
 		await body.fill('Keep this unsaved weather and news draft.');
 		await editor.getByRole('button', { name: /^To:/ }).click();

@@ -37,13 +37,13 @@
 
 	async function startProjectWorkflow(target: ProjectCreationTarget): Promise<void> {
 		prepareProjectWorkflowNavigation(target);
-		await goto('/workflows');
+		await goto('/#workflows');
 	}
 
 	async function startProjectPlan(target: ProjectCreationTarget): Promise<void> {
 		try {
 			const plan = await createPlanForProjectTarget(target);
-			await goto(`/plans/${encodeURIComponent(plan.plan_id)}`);
+			await goto(`/#plan-id=${encodeURIComponent(plan.plan_id)}`);
 		} catch (error) {
 			console.error('[ProjectsRoute] Failed to create project plan:', error);
 			notificationStore.error('Could not create the project plan');
@@ -51,6 +51,16 @@
 	}
 
 	onMount(() => {
+		if (window.location.pathname !== '/') {
+			const projectId = new URLSearchParams(window.location.hash.replace(/^#\/?/, '')).get(
+				'project-id'
+			);
+			void goto(projectId ? `/#project-id=${encodeURIComponent(projectId)}` : '/#projects', {
+				replaceState: true
+			});
+			return;
+		}
+
 		initialize().catch((error) => {
 			console.error('[ProjectsRoute] Failed to initialize auth:', error);
 		});

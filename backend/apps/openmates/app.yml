@@ -59,11 +59,15 @@ skills:
       type: object
       properties:
         summary:
+          x-ui:
+            basic: true
           type: string
           description: >
             A brief summary (2-5 sentences) of what the user wants to use OpenMates for,
             as discussed in the conversation. Should capture the key use cases and interests.
         language:
+          x-ui:
+            basic: true
           type: string
           description: "ISO 639-1 language code of the conversation (e.g., 'en', 'de')"
       required:
@@ -88,6 +92,8 @@ skills:
       type: object
       properties:
         url:
+          x-ui:
+            basic: true
           type: string
           description: >
             An openmates.org/docs URL or a docs slug path

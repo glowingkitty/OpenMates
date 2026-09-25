@@ -149,6 +149,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of 3D model search requests. Each request searches public 3D
@@ -157,30 +159,42 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Search query, e.g. "benchy", "phone stand", or "desk cable clip".
               providers:
+                x-ui:
+                  basic: false
                 type: array
                 items:
                   type: string
                   enum: [Printables]
                 description: Optional provider filter. Defaults to Printables.
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 1
                 maximum: 20
                 default: 10
                 description: Maximum total results to return after merging providers.
               sort:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [best_match, popular, downloads, newest]
                 default: best_match
                 description: Sorting strategy applied after provider results are merged.
               free_only:
+                x-ui:
+                  basic: true
                 type: boolean
                 default: false
                 description: Return only results that the provider marks as free.
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -220,15 +234,21 @@ skills:
       type: object
       properties:
         prompt:
+          x-ui:
+            basic: true
           type: string
           description: Text description used to create a reference image before 3D generation.
         image_embed_refs:
+          x-ui:
+            basic: true
           type: array
           items:
             type: string
           maxItems: 1
           description: One attached image embed reference.
         image_views:
+          x-ui:
+            basic: false
           type: array
           minItems: 2
           maxItems: 4
@@ -236,8 +256,12 @@ skills:
             type: object
             properties:
               embed_ref:
+                x-ui:
+                  basic: false
                 type: string
               view:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [front, back, left, right]
             required: [embed_ref, view]

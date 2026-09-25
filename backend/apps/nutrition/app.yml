@@ -80,6 +80,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of recipe search requests. Each request searches for
@@ -88,11 +90,15 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Free-text recipe query, e.g. "quick vegan pasta",
                   "gluten-free pancakes", or "miso salmon".
               health:
+                x-ui:
+                  basic: true
                 type: array
                 description: >
                   Optional Edamam health labels such as vegan, vegetarian,
@@ -100,6 +106,8 @@ skills:
                 items:
                   type: string
               diet:
+                x-ui:
+                  basic: false
                 type: array
                 description: >
                   Optional Edamam diet labels such as balanced, high-fiber,
@@ -107,35 +115,51 @@ skills:
                 items:
                   type: string
               time:
+                x-ui:
+                  basic: true
                 type: string
                 description: Optional cooking/prep time range, e.g. "1-30".
               calories:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional calories range, e.g. "100-600".
               cuisine_type:
+                x-ui:
+                  basic: false
                 type: array
                 description: Optional cuisine filters such as Italian, Japanese, Mexican.
                 items:
                   type: string
               meal_type:
+                x-ui:
+                  basic: false
                 type: array
                 description: Optional meal filters such as Breakfast, Dinner, Lunch, Snack.
                 items:
                   type: string
               dish_type:
+                x-ui:
+                  basic: false
                 type: array
                 description: Optional dish filters such as Main course, Soup, Salad, Pancake.
                 items:
                   type: string
               excluded:
+                x-ui:
+                  basic: false
                 type: array
                 description: Optional ingredients or terms to exclude from recipes.
                 items:
                   type: string
               ingredients:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional ingredient-count range, e.g. "5-10".
               max_results:
+                x-ui:
+                  basic: true
                 type: integer
                 description: >
                   Maximum number of recipes to return with full details (1-10, default 6).

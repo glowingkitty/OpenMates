@@ -134,7 +134,7 @@
   .date-range { grid-column:1/-1; display:grid; gap:var(--spacing-6); min-width:0; text-align:start; }
   .label { font-size:max(16px, 1rem); font-weight:650; }
   .range-modes { display:flex; flex-wrap:wrap; gap:var(--spacing-4); }
-  .range-modes button { min-height:2.5rem; margin:0; padding:.45rem .9rem; border:0; border-radius:var(--radius-full); background:var(--color-grey-0); color:var(--color-font-secondary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); cursor:pointer; }
+  .range-modes button { min-height:2.5rem; margin:0; padding:.45rem .9rem; border:0; border-radius:var(--radius-full); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-secondary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); cursor:pointer; }
   .range-modes button.active { background:var(--gradient-primary); color:var(--color-font-button); }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
 </style>

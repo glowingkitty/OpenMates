@@ -21,12 +21,20 @@ capabilities:
       type: object
       properties:
         summary:
+          x-ui:
+            basic: false
           type: string
         result_count:
+          x-ui:
+            basic: true
           type: integer
         provider:
+          x-ui:
+            basic: false
           type: string
         artifact_ids:
+          x-ui:
+            basic: true
           type: array
           items:
             type: string
@@ -70,15 +78,68 @@ capabilities:
       requests:
         - query: svelte markdown editor
           count: 3
-    output_schema: &search_output
+    output_schema:
       type: object
       properties:
         summary:
+          x-ui:
+            basic: false
           type: string
         result_count:
+          x-ui:
+            basic: true
           type: integer
         provider:
+          x-ui:
+            basic: false
           type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              full_name:
+                x-ui:
+                  basic: true
+                type: string
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              description:
+                x-ui:
+                  basic: true
+                type: string
+              stars:
+                x-ui:
+                  basic: true
+                type: integer
+              owner_login:
+                x-ui:
+                  basic: false
+                type: string
+              primary_language:
+                x-ui:
+                  basic: false
+                type: string
+              license_name:
+                x-ui:
+                  basic: false
+                type: string
+              forks:
+                x-ui:
+                  basic: false
+                type: integer
+              open_issues:
+                x-ui:
+                  basic: false
+                type: integer
+              updated_at:
+                x-ui:
+                  basic: false
+                type: string
   code.get_docs:
     available: true
     execution_mode: sync
@@ -90,7 +151,28 @@ capabilities:
     test_example_input:
       library: Svelte
       question: How do actions work?
-    output_schema: *search_output
+    output_schema: &search_output
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   code.run:
     available: false
     unavailable_reason: WORKFLOW_RUNTIME_UNSUPPORTED
@@ -124,7 +206,80 @@ capabilities:
       requests:
         - query: calendar
           count: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              display_name:
+                x-ui:
+                  basic: true
+                type: string
+              collection_name:
+                x-ui:
+                  basic: true
+                type: string
+              license_spdx:
+                x-ui:
+                  basic: true
+                type: string
+              svg_path:
+                x-ui:
+                  basic: true
+                type: string
+              icon_id:
+                x-ui:
+                  basic: false
+                type: string
+              prefix:
+                x-ui:
+                  basic: false
+                type: string
+              name:
+                x-ui:
+                  basic: false
+                type: string
+              license_title:
+                x-ui:
+                  basic: false
+                type: string
+              author_name:
+                x-ui:
+                  basic: false
+                type: string
+              width:
+                x-ui:
+                  basic: false
+                type: number
+              height:
+                x-ui:
+                  basic: false
+                type: number
+              palette:
+                x-ui:
+                  basic: false
+                type: boolean
+              tags:
+                x-ui:
+                  basic: false
+                type: object
   electronics.search_components:
     available: true
     execution_mode: sync
@@ -141,7 +296,72 @@ capabilities:
           output_voltage: 3.3
           output_current_max: 1
           max_results: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              part_number:
+                x-ui:
+                  basic: true
+                type: string
+              topology:
+                x-ui:
+                  basic: true
+                type: string
+              efficiency_percent:
+                x-ui:
+                  basic: true
+                type: number
+              bom_cost_usd:
+                x-ui:
+                  basic: true
+                type: number
+              title:
+                x-ui:
+                  basic: false
+                type: string
+              base_part_number:
+                x-ui:
+                  basic: false
+                type: string
+              provider:
+                x-ui:
+                  basic: false
+                type: string
+              package:
+                x-ui:
+                  basic: false
+                type: string
+              regulator_type:
+                x-ui:
+                  basic: false
+                type: string
+              bom_count:
+                x-ui:
+                  basic: false
+                type: integer
+              footprint_mm2:
+                x-ui:
+                  basic: false
+                type: number
   fitness.search_locations:
     available: true
     execution_mode: sync
@@ -155,7 +375,76 @@ capabilities:
         - query: yoga studio
           city: Berlin
           limit: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                x-ui:
+                  basic: true
+                type: string
+              address:
+                x-ui:
+                  basic: true
+                type: string
+              city:
+                x-ui:
+                  basic: true
+                type: string
+              distance_km:
+                x-ui:
+                  basic: true
+                type: number
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              category:
+                x-ui:
+                  basic: false
+                type: string
+              lat:
+                x-ui:
+                  basic: false
+                type: number
+              lon:
+                x-ui:
+                  basic: false
+                type: number
+              disciplines:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              plans_required:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              image_url:
+                x-ui:
+                  basic: false
+                type: string
   fitness.search_classes:
     available: true
     execution_mode: sync
@@ -169,7 +458,84 @@ capabilities:
         - query: yoga
           city: Berlin
           limit: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                x-ui:
+                  basic: true
+                type: string
+              date:
+                x-ui:
+                  basic: true
+                type: string
+              time_range:
+                x-ui:
+                  basic: true
+                type: string
+              venue_name:
+                x-ui:
+                  basic: true
+                type: string
+              venue_address:
+                x-ui:
+                  basic: true
+                type: string
+              spots_display:
+                x-ui:
+                  basic: true
+                type: string
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              class_type:
+                x-ui:
+                  basic: false
+                type: string
+              attendance_mode:
+                x-ui:
+                  basic: false
+                type: string
+              distance_km:
+                x-ui:
+                  basic: false
+                type: number
+              disciplines:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              plans_required:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              image_url:
+                x-ui:
+                  basic: false
+                type: string
   health.search_appointments:
     available: true
     execution_mode: sync
@@ -183,7 +549,72 @@ capabilities:
         - speciality: dermatologist
           city: Berlin
           max_doctors: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              slot_datetime:
+                x-ui:
+                  basic: true
+                type: string
+              name:
+                x-ui:
+                  basic: true
+                type: string
+              speciality:
+                x-ui:
+                  basic: true
+                type: string
+              address:
+                x-ui:
+                  basic: true
+                type: string
+              telehealth:
+                x-ui:
+                  basic: true
+                type: boolean
+              provider_platform:
+                x-ui:
+                  basic: true
+                type: string
+              insurance:
+                x-ui:
+                  basic: false
+                type: string
+              rating:
+                x-ui:
+                  basic: false
+                type: number
+              rating_count:
+                x-ui:
+                  basic: false
+                type: integer
+              price:
+                x-ui:
+                  basic: false
+                type: number
+              additional_slot_count:
+                x-ui:
+                  basic: false
+                type: integer
   health.create_report:
     available: false
     unavailable_reason: WORKFLOW_SKILL_NOT_IMPLEMENTED
@@ -212,7 +643,52 @@ capabilities:
       requests:
         - query: mountain lake
           count: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              image_url:
+                x-ui:
+                  basic: true
+                type: string
+              source_page_url:
+                x-ui:
+                  basic: true
+                type: string
+              source:
+                x-ui:
+                  basic: true
+                type: string
+              thumbnail_url:
+                x-ui:
+                  basic: false
+                type: string
+              favicon_url:
+                x-ui:
+                  basic: false
+                type: string
   images.generate:
     available: true
     execution_mode: async_job
@@ -258,7 +734,74 @@ capabilities:
       requests:
         - query: coffee near Berlin Hauptbahnhof
           pageSize: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                x-ui:
+                  basic: true
+                type: string
+              formatted_address:
+                x-ui:
+                  basic: true
+                type: string
+              rating:
+                x-ui:
+                  basic: true
+                type: number
+              open_now:
+                x-ui:
+                  basic: true
+                type: boolean
+              website_uri:
+                x-ui:
+                  basic: true
+                type: string
+              user_rating_count:
+                x-ui:
+                  basic: false
+                type: integer
+              types:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              phone_number:
+                x-ui:
+                  basic: false
+                type: string
+              price_level:
+                x-ui:
+                  basic: false
+                type: string
+              description:
+                x-ui:
+                  basic: false
+                type: string
+              image_url:
+                x-ui:
+                  basic: false
+                type: string
   math.calculate:
     available: true
     execution_mode: sync
@@ -273,10 +816,16 @@ capabilities:
       type: object
       properties:
         summary:
+          x-ui:
+            basic: false
           type: string
         result:
+          x-ui:
+            basic: true
           type: string
         result_count:
+          x-ui:
+            basic: false
           type: integer
   models3d.search:
     available: true
@@ -290,7 +839,80 @@ capabilities:
       requests:
         - query: office chair
           count: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              source_page_url:
+                x-ui:
+                  basic: true
+                type: string
+              preview_image_url:
+                x-ui:
+                  basic: true
+                type: string
+              creator_name:
+                x-ui:
+                  basic: true
+                type: string
+              is_free:
+                x-ui:
+                  basic: true
+                type: boolean
+              provider:
+                x-ui:
+                  basic: false
+                type: string
+              provider_kind:
+                x-ui:
+                  basic: false
+                type: string
+              license:
+                x-ui:
+                  basic: false
+                type: string
+              category:
+                x-ui:
+                  basic: false
+                type: string
+              likes_count:
+                x-ui:
+                  basic: false
+                type: integer
+              download_count:
+                x-ui:
+                  basic: false
+                type: integer
+              files_count:
+                x-ui:
+                  basic: false
+                type: integer
+              price:
+                x-ui:
+                  basic: false
+                type: string
   models3d.generate:
     available: true
     execution_mode: async_job
@@ -327,7 +949,92 @@ capabilities:
       requests:
         - query: lentil soup
           max_results: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              recipe_url:
+                x-ui:
+                  basic: true
+                type: string
+              total_time_minutes:
+                x-ui:
+                  basic: true
+                type: number
+              image_url:
+                x-ui:
+                  basic: true
+                type: string
+              servings:
+                x-ui:
+                  basic: true
+                type: number
+              source:
+                x-ui:
+                  basic: false
+                type: string
+              calories_per_serving:
+                x-ui:
+                  basic: false
+                type: number
+              diet_labels:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              health_labels:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              cuisine_type:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              meal_type:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              dish_type:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              tags:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
   openmates.share-usecase:
     available: true
     execution_mode: sync
@@ -343,9 +1050,19 @@ capabilities:
       type: object
       properties:
         summary:
+          x-ui:
+            basic: false
           type: string
-        status:
-          type: string
+        success:
+          x-ui:
+            basic: true
+          type: boolean
+        message:
+          x-ui:
+            basic: true
+          type:
+            - string
+            - 'null'
   openmates.get-docs:
     available: true
     execution_mode: sync
@@ -399,7 +1116,84 @@ capabilities:
       requests:
         - query: coffee beans
           max_results: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              brand:
+                x-ui:
+                  basic: true
+                type: string
+              price:
+                x-ui:
+                  basic: true
+                type: string
+              price_amount:
+                x-ui:
+                  basic: true
+                type: number
+              availability:
+                x-ui:
+                  basic: true
+                type: string
+              rating:
+                x-ui:
+                  basic: true
+                type: number
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              price_cents:
+                x-ui:
+                  basic: false
+                type: integer
+              price_eur:
+                x-ui:
+                  basic: false
+                type: string
+              base_price:
+                x-ui:
+                  basic: false
+                type: string
+              stock:
+                x-ui:
+                  basic: false
+                type: integer
+              reviews:
+                x-ui:
+                  basic: false
+                type: integer
+              image_url:
+                x-ui:
+                  basic: false
+                type: string
+              prime:
+                x-ui:
+                  basic: false
+                type: boolean
   social_media.get-posts:
     available: true
     execution_mode: sync
@@ -413,7 +1207,80 @@ capabilities:
         - platform: reddit
           page: selfhosted
           limit: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                x-ui:
+                  basic: true
+                type: string
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              author:
+                x-ui:
+                  basic: true
+                type: string
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              published_at:
+                x-ui:
+                  basic: true
+                type: string
+              like_count:
+                x-ui:
+                  basic: true
+                type: integer
+              page:
+                x-ui:
+                  basic: false
+                type: string
+              body:
+                x-ui:
+                  basic: false
+                type: string
+              author_display_name:
+                x-ui:
+                  basic: false
+                type: string
+              reply_count:
+                x-ui:
+                  basic: false
+                type: integer
+              repost_count:
+                x-ui:
+                  basic: false
+                type: integer
+              media_url:
+                x-ui:
+                  basic: false
+                type: string
+              thumbnail_url:
+                x-ui:
+                  basic: false
+                type: string
   social_media.search:
     available: true
     execution_mode: sync
@@ -427,7 +1294,80 @@ capabilities:
         - platform: reddit
           query: open source AI
           limit: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                x-ui:
+                  basic: true
+                type: string
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              author:
+                x-ui:
+                  basic: true
+                type: string
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              published_at:
+                x-ui:
+                  basic: true
+                type: string
+              like_count:
+                x-ui:
+                  basic: true
+                type: integer
+              page:
+                x-ui:
+                  basic: false
+                type: string
+              body:
+                x-ui:
+                  basic: false
+                type: string
+              author_display_name:
+                x-ui:
+                  basic: false
+                type: string
+              reply_count:
+                x-ui:
+                  basic: false
+                type: integer
+              repost_count:
+                x-ui:
+                  basic: false
+                type: integer
+              media_url:
+                x-ui:
+                  basic: false
+                type: string
+              thumbnail_url:
+                x-ui:
+                  basic: false
+                type: string
   tasks.create:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED
@@ -450,7 +1390,102 @@ capabilities:
               date: "2026-08-01"
           transport_methods: [train]
           max_results: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              origin:
+                x-ui:
+                  basic: true
+                type: string
+              destination:
+                x-ui:
+                  basic: true
+                type: string
+              departure:
+                x-ui:
+                  basic: true
+                type: string
+              arrival:
+                x-ui:
+                  basic: true
+                type: string
+              duration:
+                x-ui:
+                  basic: true
+                type: string
+              total_price:
+                x-ui:
+                  basic: true
+                type: [string, 'null']
+              currency:
+                x-ui:
+                  basic: true
+                type: [string, 'null']
+              transport_method:
+                x-ui:
+                  basic: true
+                type: string
+              booking_url:
+                x-ui:
+                  basic: true
+                type: [string, 'null']
+              source_provider:
+                x-ui:
+                  basic: false
+                type: [string, 'null']
+              provider:
+                x-ui:
+                  basic: false
+                type: string
+              trip_type:
+                x-ui:
+                  basic: false
+                type: string
+              stops:
+                x-ui:
+                  basic: false
+                type: integer
+              carriers:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              booking_provider:
+                x-ui:
+                  basic: false
+                type: [string, 'null']
+              bookable_seats:
+                x-ui:
+                  basic: false
+                type: [integer, 'null']
+              last_ticketing_date:
+                x-ui:
+                  basic: false
+                type: [string, 'null']
+              co2_kg:
+                x-ui:
+                  basic: false
+                type: [number, 'null']
   travel.search_stays:
     available: true
     execution_mode: sync
@@ -466,7 +1501,78 @@ capabilities:
           check_out_date: "2026-08-03"
           adults: 1
           max_results: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                x-ui:
+                  basic: true
+                type: string
+              hotel_class:
+                x-ui:
+                  basic: true
+                type: number
+              overall_rating:
+                x-ui:
+                  basic: true
+                type: number
+              rate_per_night:
+                x-ui:
+                  basic: true
+                type: number
+              total_rate:
+                x-ui:
+                  basic: true
+                type: number
+              currency:
+                x-ui:
+                  basic: true
+                type: string
+              link:
+                x-ui:
+                  basic: true
+                type: string
+              reviews:
+                x-ui:
+                  basic: false
+                type: integer
+              amenities:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
+              thumbnail:
+                x-ui:
+                  basic: false
+                type: string
+              eco_certified:
+                x-ui:
+                  basic: false
+                type: boolean
+              free_cancellation:
+                x-ui:
+                  basic: false
+                type: boolean
   travel.get_flight:
     available: true
     execution_mode: sync
@@ -531,7 +1637,74 @@ capabilities:
       requests:
         - query: Svelte tutorial
           count: 3
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        summary:
+          x-ui:
+            basic: false
+          type: string
+        result_count:
+          x-ui:
+            basic: true
+          type: integer
+        provider:
+          x-ui:
+            basic: false
+          type: string
+        results:
+          x-ui:
+            basic: true
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                x-ui:
+                  basic: true
+                type: string
+              url:
+                x-ui:
+                  basic: true
+                type: string
+              channelTitle:
+                x-ui:
+                  basic: true
+                type: string
+              duration:
+                x-ui:
+                  basic: true
+                type: string
+              viewCount:
+                x-ui:
+                  basic: true
+                type: integer
+              publishedAt:
+                x-ui:
+                  basic: true
+                type: string
+              description:
+                x-ui:
+                  basic: false
+                type: string
+              thumbnail:
+                x-ui:
+                  basic: false
+                type: string
+              likeCount:
+                x-ui:
+                  basic: false
+                type: integer
+              commentCount:
+                x-ui:
+                  basic: false
+                type: integer
+              tags:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: string
   weather.rain_radar:
     available: true
     execution_mode: sync

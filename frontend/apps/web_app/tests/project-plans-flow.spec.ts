@@ -12,7 +12,7 @@ const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 function projectHashUrlPattern(projectId: string): RegExp {
-	return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
+	return new RegExp(`/#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
 }
 
 function deriveApiUrl(baseUrl: string): string {
@@ -66,10 +66,10 @@ test.describe('Project-linked Plans V1 flow', () => {
 			await expect(page.getByTestId('project-create-menu')).toBeVisible();
 			await page.getByTestId('project-create-plan').click();
 			planId = (await (await planCreated).json()).plan.plan_id;
-			await expect(page).toHaveURL(new RegExp(`/plans/${planId}(?:[?#]|$)`));
+			await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));
 			await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
 
-			await page.goto(getE2EDebugUrl(`/projects#project-id=${encodeURIComponent(projectId)}`), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl(`/#project-id=${encodeURIComponent(projectId)}`), { waitUntil: 'domcontentloaded' });
 			await expect(page).toHaveURL(projectHashUrlPattern(projectId));
 			await page.getByTestId('project-tab-tasks').click();
 			const projectTasks = page.getByTestId('project-tasks-panel');
@@ -87,9 +87,9 @@ test.describe('Project-linked Plans V1 flow', () => {
 			await expect(planCard.getByTestId('task-board-plan-move-todo')).toBeAttached();
 
 			await planCard.getByTestId('task-board-plan-open').click();
-			await expect(page).toHaveURL(new RegExp(`/plans/${planId}(?:[?#]|$)`));
+			await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));
 			await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
+			await expect(page.getByTestId('plans-nav-link')).toBeVisible();
 		} finally {
 			if (planId) await page.request.delete(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}`).catch(() => null);
 			if (projectId) {

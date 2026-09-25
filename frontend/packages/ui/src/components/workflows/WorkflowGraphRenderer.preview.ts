@@ -207,6 +207,7 @@ const eventsSearchCapability: Capability = {
       type: "object",
       properties: {
         provider: {
+          "x-ui": { basic: false },
           type: "string",
           enum: [
             "auto",
@@ -223,6 +224,7 @@ const eventsSearchCapability: Capability = {
           ],
         },
         requests: {
+          "x-ui": { basic: true },
           type: "array",
           items: {
             type: "object",
@@ -234,25 +236,25 @@ const eventsSearchCapability: Capability = {
               basic: false,
             },
             properties: {
-              query: { type: "string" },
-              location: { type: "string" },
-              lat: { type: "number" },
-              lon: { type: "number" },
-              start_date: { type: "string" },
-              end_date: { type: "string" },
+              query: { type: "string", "x-ui": { basic: true } },
+              location: { type: "string", "x-ui": { basic: true } },
+              lat: { type: "number", "x-ui": { basic: false } },
+              lon: { type: "number", "x-ui": { basic: false } },
+              start_date: { type: "string", "x-ui": { basic: false } },
+              end_date: { type: "string", "x-ui": { basic: false } },
               event_type: {
                 type: "string",
                 enum: ["PHYSICAL", "ONLINE"],
                 "x-ui": { basic: false },
               },
-              radius_miles: { type: "number", default: 25 },
+              radius_miles: { type: "number", default: 25, "x-ui": { basic: false } },
               count: {
                 type: "integer",
                 minimum: 1,
                 maximum: 50,
                 default: 10,
               },
-              relevance_criteria: { type: "string" },
+              relevance_criteria: { type: "string", "x-ui": { basic: true } },
               provider: {
                 type: "string",
                 enum: [
@@ -303,39 +305,45 @@ const eventsSearchCapability: Capability = {
     output_schema: {
       type: "object",
       properties: {
-        summary: { type: "string", example: "Events search completed" },
-        result_count: { type: "integer", example: 1 },
-        provider: { type: "string", example: "Example events provider" },
+        summary: { type: "string", example: "Events search completed", "x-ui": { basic: false } },
+        result_count: { type: "integer", example: 1, "x-ui": { basic: false } },
+        provider: { type: "string", example: "Example events provider", "x-ui": { basic: false } },
         results: {
+          "x-ui": { basic: true },
           type: "array",
           items: {
             type: "object",
             properties: {
-              id: { type: "string", example: "example-event" },
-              title: { type: "string", example: "AI community meetup" },
+              id: { type: "string", example: "example-event", "x-ui": { basic: false } },
+              title: { type: "string", example: "AI community meetup", "x-ui": { basic: true } },
               url: {
                 type: "string",
                 example: "https://example.invalid/events/ai",
+                "x-ui": { basic: true },
               },
               provider: {
                 type: "string",
                 example: "Example events provider",
+                "x-ui": { basic: false },
               },
               description: {
                 type: "string",
                 example: "An example meetup for people working with AI.",
+                "x-ui": { basic: false },
               },
               date_start: {
                 type: "string",
                 example: "2026-09-23T18:00:00+02:00",
+                "x-ui": { basic: true },
               },
               date_end: {
                 type: "string",
                 example: "2026-09-23T20:00:00+02:00",
+                "x-ui": { basic: false },
               },
-              location: { type: "string", example: "Berlin" },
-              event_type: { type: "string", example: "PHYSICAL" },
-              price_amount: { type: "number", example: 0 },
+              location: { type: "string", example: "Berlin", "x-ui": { basic: true } },
+              event_type: { type: "string", example: "PHYSICAL", "x-ui": { basic: false } },
+              price_amount: { type: "number", example: 0, "x-ui": { basic: false } },
             },
           },
         },
@@ -379,6 +387,8 @@ export const variants = {
     graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] },
   },
   aiCheck: { ...defaultProps, graph: aiCheckGraph() },
+  exactCheckTestable: { ...defaultProps, workflowId: "preview-workflow" },
+  aiCheckTestable: { ...defaultProps, workflowId: "preview-workflow", graph: aiCheckGraph() },
   weatherForecast: skillVariant(
     singleSkillGraph("weather"),
     defaultCapability("weather.forecast"),

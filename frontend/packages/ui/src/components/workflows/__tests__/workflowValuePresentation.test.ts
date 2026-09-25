@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { workflowValue, valueEntries, outputFields, valueType, readableScalar, exampleValue } from '../workflowValuePresentation.ts';
+import { workflowValue, valueEntries, outputFields, valueType, readableScalar, exampleValue, presentedFields } from '../workflowValuePresentation';
 
 // contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.typed-data
 test('nested and encoded workflow data remain structured values instead of JSON text', () => {
@@ -25,4 +25,16 @@ test('internal embed instructions and transport identities are absent from reada
 test('nested output examples come from declared schema values without inventing unavailable fields', () => {
   assert.deepEqual(exampleValue({ type: 'object', properties: { rain: { type: 'boolean', example: false }, temperatures: { type: 'array', items: { type: 'number', example: 18 } }, unknown: { type: 'string' } } }), { rain: false, temperatures: [18] });
   assert.equal(exampleValue({ type: 'string' }), undefined);
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.typed-data
+test('explicit skill field selection keeps unspecified fields behind Show all', () => {
+  const fields = presentedFields({
+    result_count: { type: 'integer', 'x-ui': { basic: true } },
+    results: { type: 'array', items: { type: 'object' }, 'x-ui': { basic: true } },
+    url: { type: 'string' },
+    title: { type: 'string', 'x-ui': { basic: false } },
+  }, 1);
+  assert.deepEqual(fields.basic.map(([key]) => key), ['result_count', 'results']);
+  assert.deepEqual(fields.advanced.map(([key]) => key), ['url', 'title']);
 });

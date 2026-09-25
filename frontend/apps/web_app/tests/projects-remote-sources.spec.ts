@@ -18,7 +18,7 @@ const REPO_ROOT = resolve(__dirname, '../../../..');
 const CLI_DIR = resolve(REPO_ROOT, 'frontend/packages/openmates-cli');
 
 function projectHashUrlPattern(projectId: string): RegExp {
-  return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
+  return new RegExp(`/#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
 }
 
 function runChecked(command: string, args: string[], cwd = REPO_ROOT, env = process.env): void {

@@ -35,7 +35,7 @@ export function prefetchWorkspace(target: WorkspacePrefetchTarget): void {
 }
 
 export function prefetchWorkspaceForHref(href: string): void {
-  if (href.startsWith("/workflows")) {
+  if (href.startsWith("/workflows") || href.startsWith("/#workflows")) {
     prefetchWorkspace("workflows");
   }
 }

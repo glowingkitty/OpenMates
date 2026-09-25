@@ -1,9 +1,9 @@
 <!--
   Legacy Project detail route.
-  Projects now use the same hash-state navigation model as workflows, so direct
-  nested route visits are redirected to /projects#project-id=<id>. Keeping this
+  Projects now use the root app's hash-state navigation model, so direct nested
+  route visits are redirected to /#project-id=<id>. Keeping this
   small redirect prevents existing links from dead-ending while the canonical UI
-  stays in the /projects route shell.
+  stays in the root route shell.
 -->
 
 <script lang="ts">
@@ -14,7 +14,7 @@
   onMount(() => {
     const projectId = page.params.project_id;
     if (!projectId) return;
-    void goto(`/projects#project-id=${encodeURIComponent(projectId)}`, { replaceState: true });
+    void goto(`/#project-id=${encodeURIComponent(projectId)}`, { replaceState: true });
   });
 </script>
 

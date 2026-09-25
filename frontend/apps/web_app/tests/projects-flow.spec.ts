@@ -11,7 +11,7 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 function projectHashUrlPattern(projectId: string): RegExp {
-  return new RegExp(`/projects#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
+  return new RegExp(`/#(?:[^#]*&)?project-id=${projectId}(?:&|$)`);
 }
 
 function projectDeleteResponseMatches(response: Response, projectId: string): boolean {
@@ -72,7 +72,7 @@ test.describe('Projects v1 flow', () => {
     await expect(page.getByTestId('workspace-detail-title')).toHaveText(projectName, { timeout: 30000 });
 
     await page.getByTestId('project-detail-back').click();
-    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page).toHaveURL(/\/#projects$/);
     await expect(page.getByTestId('projects-start-screen')).toBeVisible();
     await expect(page.getByTestId('project-landing-card').filter({ hasText: projectName }).first()).toBeVisible();
 
@@ -148,7 +148,7 @@ test.describe('Projects v1 flow', () => {
     await expect(page.getByTestId('project-settings-write-mode-apply-and-show')).toBeDisabled({ timeout: 30000 });
     expect((await (await applyAndShowReloaded).json()).settings.encrypted_settings).toBe(initialEncryptedSettings);
 
-    await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
     const deleted = page.waitForResponse(
       (response) => projectDeleteResponseMatches(response, projectId)
     );
@@ -227,7 +227,7 @@ test.describe('Projects v1 flow', () => {
 			await expect(projectMention).toHaveAttribute('data-project-access-mode', 'read');
 			await expect(projectMention.getByTestId('project-access-chip')).toHaveText('Read');
 
-			await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, {
+			await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, {
 				waitUntil: 'domcontentloaded'
 			});
 			await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 30000 });
@@ -235,7 +235,7 @@ test.describe('Projects v1 flow', () => {
 			await page.getByTestId('project-folder-create-menu-button').click();
 			await page.getByTestId('project-create-workflow').click();
 
-			await expect(page).toHaveURL(/\/workflows(?:[?#]|$)/);
+			await expect(page).toHaveURL(/\/#workflows(?:&|$)/);
 			await expect(page.getByTestId('workflow-blank-creator')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-project-target')).toContainText(projectName);
 			await page.getByTestId('workflow-blank-title-input').fill(workflowTitle);
@@ -282,7 +282,7 @@ test.describe('Projects v1 flow', () => {
 			expect(itemPayload.encrypted_display_name).not.toContain(workflowTitle);
 			expect(itemPayload.encrypted_metadata).not.toContain(projectName);
 
-			await page.goto(`/projects#project-id=${encodeURIComponent(projectId)}`, {
+			await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, {
 				waitUntil: 'domcontentloaded'
 			});
 			await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 30000 });

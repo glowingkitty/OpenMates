@@ -33,6 +33,17 @@ def resolve_workflow_template(value: Any, context: dict[str, Any], *, now: datet
     return value
 
 
+def resolve_workflow_path(value: Any, parts: list[str]) -> Any:
+    """Resolve an object path, projecting fields through lists in their original order."""
+    if not parts:
+        return value
+    if isinstance(value, list):
+        return [resolve_workflow_path(item, parts) for item in value]
+    if not isinstance(value, dict):
+        return None
+    return resolve_workflow_path(value.get(parts[0]), parts[1:])
+
+
 def _resolve_template_string(value: str, context: dict[str, Any], *, now: datetime) -> Any:
     matches = list(_TEMPLATE_PATTERN.finditer(value))
     if not matches:
@@ -67,35 +78,18 @@ def _resolve_path(path: str, context: dict[str, Any], *, now: datetime) -> Any:
         return now.replace(microsecond=0).isoformat().replace("+00:00", "Z")
     parts = path.split(".")
     if parts[0] == "steps":
-        value: Any = context.get("nodes", {})
-        for index, part in enumerate(parts[1:]):
-            if index == 1 and isinstance(value, dict) and "output" in value:
-                value = value["output"]
-            if not isinstance(value, dict):
-                return None
-            value = value.get(part)
-        if isinstance(value, dict) and "output" in value and len(parts) == 2:
-            return value["output"]
-        return value
-    value = context.get(parts[0], {})
-    for part in parts[1:]:
-        if not isinstance(value, dict):
+        node = resolve_workflow_path(context.get("nodes", {}), parts[1:2])
+        if not isinstance(node, dict):
             return None
-        value = value.get(part)
-    return value
+        return resolve_workflow_path(node.get("output"), parts[2:])
+    return resolve_workflow_path(context.get(parts[0], {}), parts[1:])
 
 
 def _legacy_node_reference(value: str, context: dict[str, Any]) -> Any:
     if not value.startswith("$nodes."):
         return value
     parts = value.removeprefix("$nodes.").split(".")
-    item: Any = context.get("nodes", {})
-    for part in parts:
-        if isinstance(item, dict):
-            item = item.get(part)
-        else:
-            return None
-    return item
+    return resolve_workflow_path(context.get("nodes", {}), parts)
 
 
 def _apply_datetime_filter(value: Any, filter_name: str, amount: int) -> str:

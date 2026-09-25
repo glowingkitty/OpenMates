@@ -1854,7 +1854,7 @@ async def test_workflow_step(
             metadata = capability.metadata.get("workflow") or {}
             if not capability.enabled or not metadata.get("test_allowed") or metadata.get("effect") != "read":
                 raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_UNAVAILABLE")
-        elif node.type != WorkflowNodeType.CHECK or node.config.get("mode", "exact") != "ai":
+        elif node.type != WorkflowNodeType.CHECK:
             raise HTTPException(status_code=409, detail="WORKFLOW_STEP_TEST_UNAVAILABLE")
         draft_nodes = [item for item in workflow.graph.nodes if item.id != step_id] + [node]
         draft = workflow.model_copy(update={"graph": workflow.graph.model_copy(update={"nodes": draft_nodes})})

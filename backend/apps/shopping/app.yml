@@ -78,6 +78,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of product search requests. Each request searches for
@@ -86,10 +88,14 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Search query, e.g. "bio joghurt", "coffee grinder", "wireless mouse".
               provider:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Product provider. If omitted, inferred from category: grocery routes
@@ -101,6 +107,8 @@ skills:
                   - Amazon
                   - Stoffe.de
               category:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Product category used for routing and provider compatibility.
@@ -129,12 +137,16 @@ skills:
                   - video_games
                   - baby
               max_results:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Maximum number of products to return (1-20, default 10).
                 minimum: 1
                 maximum: 20
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -144,6 +156,8 @@ skills:
                   for travel, with explicit quiet-click, long-battery, and multi-device evidence."
                   Omit only for a neutral search fully expressed by query and structured fields.
               sort:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Sort order for results.
@@ -161,6 +175,8 @@ skills:
                   - best_sellers
                 default: relevance
               service_type:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   REWE-only fulfilment type. "DELIVERY" for home delivery (default).
@@ -170,12 +186,16 @@ skills:
                   - CLICK_AND_COLLECT
                 default: DELIVERY
               country:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Amazon-only marketplace country code. Example: us, uk, de, fr,
                   it, es, ca, au, jp, in, br, mx, nl, sg, se, pl.
                   If omitted, inferred from user language/locale with fallback to us.
               department:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Amazon-only category filter. Example: electronics, computers,
@@ -201,9 +221,13 @@ skills:
                   - video_games
                   - baby
               min_price:
+                x-ui:
+                  basic: false
                 type: number
                 description: Amazon-only minimum price filter (client-side after fetch).
               max_price:
+                x-ui:
+                  basic: false
                 type: number
                 description: Amazon-only maximum price filter (client-side after fetch).
             required:

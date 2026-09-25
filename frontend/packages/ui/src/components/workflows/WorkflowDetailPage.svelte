@@ -5,8 +5,9 @@
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
   import { tooltip } from '../../actions/tooltip';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
+  import IconTabBar, { type IconTabItem } from '../IconTabBar.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab, saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity }: {
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity }: {
     title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
     enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
     onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onOpenRuns: () => void; runsHref: string;
@@ -17,6 +18,10 @@
   const Identity = $derived(getLucideIcon(getValidIconName(icon, category)));
   const gradient = $derived(getCategoryGradientColors(category) ?? getCategoryGradientColors('general_knowledge'));
   const headerStyle = $derived(`--workflow-gradient-start:${gradient?.start};--workflow-gradient-end:${gradient?.end}`);
+  const viewTabs = $derived<IconTabItem[]>([
+    { id: 'template', label: tr('workflow'), iconClass: 'workflow-icon', testId: 'workflow-tab-template', controls: 'tabpanel-template' },
+    { id: 'runs', label: tr('run_history'), iconClass: 'task-icon', testId: 'workflow-tab-runs', controls: 'tabpanel-runs' },
+  ]);
   function metadata(): string {
     if (enabled && nextRunAt && nextRunAt > Date.now() / 1000) return `${tr('next_run')} ${new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(nextRunAt * 1000))}`;
     if (!createdAt) return '';
@@ -58,11 +63,19 @@
   <span class="metadata" data-testid="workflow-detail-metadata">{metadata()}</span>
   {#if lastStartedRunId}<span class="run-started" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>{tr('run_started')}</span>{/if}
 </section>
-<div class="workflow-tabs" data-testid="workflow-view-tabs" role="tablist" aria-label={tr('workflow')}><button type="button" role="tab" aria-selected={activeTab === 'template'} aria-label={tr('workflow')} class:active={activeTab === 'template'} data-testid="workflow-tab-template" onclick={() => onTabChange('template')}><span class="workflow-icon icon-workflow size-20" aria-hidden="true"></span></button><button type="button" role="tab" aria-selected={activeTab === 'runs'} aria-label={tr('run_history')} class:active={activeTab === 'runs'} data-testid="workflow-tab-runs" onclick={() => onTabChange('runs')}><span class="workflow-icon icon-projectmanagement size-20" aria-hidden="true"></span></button></div>
+<div class="workflow-tabs">
+  <IconTabBar
+    items={viewTabs}
+    activeId={activeTab}
+    ariaLabel={tr('workflow')}
+    testId="workflow-view-tabs"
+    onChange={(tab) => onTabChange(tab as 'template' | 'runs')}
+  />
+</div>
 
 <style>
   .workflow-icon { display:inline-block; flex:0 0 auto; background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
-  .icon-play { --workflow-icon:var(--icon-url-play); }.icon-workflow { --workflow-icon:var(--icon-url-workflow); }.icon-projectmanagement { --workflow-icon:var(--icon-url-projectmanagement); }
+  .icon-play { --workflow-icon:var(--icon-url-play); }.icon-workflow { --workflow-icon:var(--icon-url-workflow); }
   .size-16 { width:16px;height:16px; }.size-20 { width:20px;height:20px; }
   .workflow-detail-header { position:relative; min-height:19rem; font-size:var(--font-size-p); box-sizing:border-box; border-radius:0 0 1rem 1rem; color:var(--color-font-button); background:linear-gradient(135deg,var(--workflow-gradient-start),var(--workflow-gradient-end)); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4.8rem 4rem 3.6rem; }
   .header-toolbar { position:sticky; top:15px; height:0; margin:0 15px; z-index:var(--z-index-raised-3); pointer-events:none; }
@@ -77,9 +90,7 @@
   .toggle i { position:relative; width:2rem; height:1.2rem; border-radius:1rem; background:color-mix(in srgb,var(--color-font-button) 35%,transparent); }
   .toggle i::after { content:''; position:absolute; left:.12rem; top:.12rem; width:.96rem; height:.96rem; border-radius:50%; background:var(--color-font-button); transition:transform .2s; box-shadow:0 1px 3px #0002; }
   .toggle i.enabled::after { transform:translateX(.8rem); }
-  .workflow-tabs { display:flex; position:relative; box-sizing:border-box; width:7.5rem; height:2.5rem; margin:1.5rem auto -1.25rem; padding:.1rem; border-radius:2rem; box-shadow:var(--shadow-sm); background:var(--color-grey-0); z-index:3; }
-  .workflow-tabs button { height:100%; margin:0; filter:none; display:grid; place-items:center; flex:1; min-width:0; padding:0; border:0; border-radius:2rem; background:transparent; color:var(--color-font-secondary); cursor:pointer; }
-  .workflow-tabs button.active { color:var(--color-font-button); background:var(--color-primary); }
+  .workflow-tabs { display:flex; position:relative; width:max-content; margin:1.5rem auto -1.4rem; z-index:3; }
   button:disabled { opacity:.5; cursor:default; }
   .identity form { display:grid; gap:.4rem; max-width:25rem; width:100%; }
   .identity input { box-sizing:border-box; width:100%; border:0; border-radius:.7rem; padding:.45rem .65rem; background:var(--color-grey-0); color:var(--color-font-primary); font:inherit; font-size:var(--font-size-p); }

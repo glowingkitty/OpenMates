@@ -118,7 +118,7 @@
   {#if workflowRun}
     <a
       class="workflow-run-link"
-      href={`/workflows#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=runs${workflowRun.workflowRunId ? `&run-id=${encodeURIComponent(workflowRun.workflowRunId)}` : ''}`}
+      href={`/#workflow-id=${encodeURIComponent(workflowRun.workflowId)}&workflow-tab=runs${workflowRun.workflowRunId ? `&run-id=${encodeURIComponent(workflowRun.workflowRunId)}` : ''}`}
       data-testid="workflow-run-open"
     ><span aria-hidden="true"></span>Open workflow run</a>
   {:else}
@@ -157,7 +157,7 @@
       <details class="task-action-menu">
         <summary data-testid="task-actions-more" aria-label={`More actions for ${task.title || 'task'}`} title="More actions"><span aria-hidden="true">•••</span></summary>
         <div class="task-action-menu-items">
-          <a href={`/tasks/${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open task</a>
+          <a href={`/#task-id=${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open task</a>
           {#if !isAssignedToAI}
             <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Assign to AI</button>
           {/if}

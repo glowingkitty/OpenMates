@@ -482,6 +482,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of repository search requests. Each request searches GitHub for
@@ -490,17 +492,23 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Repository search query, e.g. "svelte markdown editor",
                   "python cli framework", or "rust web server".
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 1
                 maximum: 10
                 default: 10
                 description: Number of repositories to return.
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -531,10 +539,14 @@ skills:
       type: object
       properties:
         library:
+          x-ui:
+            basic: true
           type: string
           description: |
             Library name to search for (e.g., "Svelte 5", "React", "FastAPI", "Miro API", etc.).
         question:
+          x-ui:
+            basic: true
           type: string
           description: |
             Natural language question about the documentation needed

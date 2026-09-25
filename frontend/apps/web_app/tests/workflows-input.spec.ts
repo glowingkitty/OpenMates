@@ -27,7 +27,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 function workflowDetailsHashUrlPattern(workflowId: string): RegExp {
-	return new RegExp(`/workflows#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
+	return new RegExp(`/#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
 }
 
 function blankWorkflowGraph(index: number) {

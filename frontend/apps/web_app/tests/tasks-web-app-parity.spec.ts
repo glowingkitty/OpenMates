@@ -175,7 +175,7 @@ test.describe('Tasks web app parity', () => {
 		await expect(persistedDoneCard).toBeVisible({ timeout: 30_000 });
 		const taskId = await persistedDoneCard.getAttribute('data-task-id');
 		expect(taskId, 'created task id should be available for direct-route verification').toBeTruthy();
-		await page.goto(getE2EDebugUrl(`/tasks/${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl(`/#task-id=${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('task-detail-content')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);

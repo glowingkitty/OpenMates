@@ -301,6 +301,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of connection search requests. Each request searches for
@@ -310,24 +312,32 @@ skills:
             type: object
             properties:
               origin:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Flat route origin accepted from LLM or CLI callers. Prefer legs for
                   round trips and multi-stop trips; single-leg flat requests are
                   normalized into legs before execution.
               destination:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Flat route destination accepted from LLM or CLI callers. Prefer legs for
                   round trips and multi-stop trips; single-leg flat requests are
                   normalized into legs before execution.
               date:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Flat route departure date in YYYY-MM-DD format. Prefer legs for
                   round trips and multi-stop trips; single-leg flat requests are
                   normalized into legs before execution.
               legs:
+                x-ui:
+                  basic: true
                 type: array
                 description: >
                   Ordered list of trip legs. One-way trip = 1 leg.
@@ -337,15 +347,21 @@ skills:
                   type: object
                   properties:
                     origin:
+                      x-ui:
+                        basic: true
                       type: string
                       description: >
                         Origin city or location name (e.g. "Munich", "London Heathrow",
                         "Berlin"). The system resolves this to airport codes or
                         coordinates internally.
                     destination:
+                      x-ui:
+                        basic: true
                       type: string
                       description: Destination city or location name.
                     date:
+                      x-ui:
+                        basic: true
                       type: string
                       description: Departure date in YYYY-MM-DD format.
                   required:
@@ -353,6 +369,8 @@ skills:
                     - destination
                     - date
               transport_methods:
+                x-ui:
+                  basic: true
                 type: array
                 description: >
                   Transport types to search. Supported: "airplane" (worldwide via Google Flights),
@@ -368,6 +386,8 @@ skills:
                 default:
                   - airplane
               transport_method:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Singular transport method alias accepted from LLM or CLI callers.
@@ -378,6 +398,8 @@ skills:
                   - bus
                   - boat
               providers:
+                x-ui:
+                  basic: false
                 type: array
                 description: >
                   Optional provider IDs to search. Use "google_flights" for flights,
@@ -393,6 +415,8 @@ skills:
                     - flix
                     - transitous
               provider:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Singular provider alias accepted from LLM or CLI callers.
@@ -403,6 +427,8 @@ skills:
                   - flix
                   - transitous
               countries:
+                x-ui:
+                  basic: false
                 type: array
                 description: >
                   ISO 3166-1 alpha-2 country codes involved in the route, inferred from
@@ -412,10 +438,14 @@ skills:
                 items:
                   type: string
               passengers:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Number of adult passengers.
                 default: 1
               travel_class:
+                x-ui:
+                  basic: false
                 type: string
                 description: Cabin class for flights.
                 enum:
@@ -425,30 +455,44 @@ skills:
                   - first
                 default: economy
               max_results:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Maximum number of connection options to return per transport method.
                 default: 6
               non_stop_only:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: If true, only return direct/non-stop connections.
                 default: false
               max_stops:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Maximum number of stops allowed. Use 0 for direct/non-stop only, 1 for up to one stop, or 2 for up to two stops.
               max_price:
+                x-ui:
+                  basic: false
                 type: number
                 description: Maximum total price for the connection in the requested currency. Results above this price are filtered from strict matches.
               include_airlines:
+                x-ui:
+                  basic: false
                 type: array
                 description: Only show flights from these airlines. Use IATA carrier codes when known, such as LH, BA, VY, or FR.
                 items:
                   type: string
               exclude_airlines:
+                x-ui:
+                  basic: false
                 type: array
                 description: Exclude flights from these airlines. Use IATA carrier codes when known. Do not combine with include_airlines.
                 items:
                   type: string
               owned_passes:
+                x-ui:
+                  basic: false
                 type: array
                 description: >
                   Fare or mobility pass IDs the traveller already owns, such as
@@ -457,12 +501,16 @@ skills:
                 items:
                   type: string
               pass_only:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: >
                   If true, prefer routes covered by owned fare passes when supported.
                   Use with owned_passes ["deutschland_ticket"] for Deutschlandticket-only routing.
                 default: false
               rail_products:
+                x-ui:
+                  basic: false
                 type: array
                 description: >
                   Stable rail product filters for train searches. Use high_speed for ICE/high-speed,
@@ -481,36 +529,56 @@ skills:
                     - bus
                     - ferry
               min_departure_time:
+                x-ui:
+                  basic: false
                 type: string
                 description: Earliest acceptable local departure time in HH:MM format.
               max_departure_time:
+                x-ui:
+                  basic: false
                 type: string
                 description: Latest acceptable local departure time in HH:MM format.
               min_arrival_time:
+                x-ui:
+                  basic: false
                 type: string
                 description: Earliest acceptable local arrival time in HH:MM format.
               max_arrival_time:
+                x-ui:
+                  basic: false
                 type: string
                 description: Latest acceptable local arrival time in HH:MM format.
               max_duration_minutes:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Maximum total duration for the first leg, in minutes.
               min_transfer_minutes:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Minimum acceptable layover or transfer duration, in minutes. Defaults to 10.
                 default: 10
               max_layover_minutes:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Maximum allowed layover or transfer duration, in minutes.
               avoid_overnight_layovers:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: If true, remove connections with overnight layovers or transfers.
                 default: false
               currency:
+                x-ui:
+                  basic: false
                 type: string
                 description: Preferred currency for prices (ISO 4217 code).
                 default: EUR
               sort_by:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   How to sort the results. Options: "price_asc" (cheapest first,
@@ -559,6 +627,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Array of stay search requests. Each request searches for
@@ -567,33 +637,47 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Search query describing the destination or property
                   (e.g. "Hotels in Paris", "Hostels near Eiffel Tower",
                   "Barcelona beachfront hotel").
               check_in_date:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Check-in date in YYYY-MM-DD format (e.g. "2026-03-15").
               check_out_date:
+                x-ui:
+                  basic: true
                 type: string
                 description: >
                   Check-out date in YYYY-MM-DD format (e.g. "2026-03-18").
               adults:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of adult guests.
                 default: 2
               children:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Number of children.
                 default: 0
               currency:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Price currency (ISO 4217 code, e.g. "EUR", "USD").
                 default: EUR
               sort_by:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Sort order for results. Options: "relevance" (default),
@@ -601,23 +685,33 @@ skills:
                   (highest rated first), "reviews_desc" (most reviewed).
                 default: relevance
               min_price:
+                x-ui:
+                  basic: false
                 type: number
                 description: Minimum nightly price filter.
               max_price:
+                x-ui:
+                  basic: false
                 type: number
                 description: Maximum nightly price filter.
               hotel_class:
+                x-ui:
+                  basic: false
                 type: string
                 description: >
                   Comma-separated star rating filter (e.g. "3,4,5"
                   for 3-star and above).
               max_results:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Maximum number of results to return (1-20, default 10).
                 minimum: 1
                 maximum: 20
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -657,21 +751,29 @@ skills:
       type: object
       properties:
         flight_number:
+          x-ui:
+            basic: true
           type: string
           description: >
             IATA flight number including the carrier code prefix
             (e.g. 'LH2472', 'BA234', 'AF447'). Do NOT include spaces.
         departure_date:
+          x-ui:
+            basic: true
           type: string
           description: >
             Departure date in YYYY-MM-DD format (e.g. '2026-03-05').
             Must be a past/completed date — live tracking is not supported.
         origin_iata:
+          x-ui:
+            basic: false
           type: string
           description: >
             Optional IATA code of the departure airport (e.g. 'MUC').
             Used for disambiguation when a flight number has multiple legs.
         destination_iata:
+          x-ui:
+            basic: false
           type: string
           description: >
             Optional IATA code of the destination airport (e.g. 'LHR').

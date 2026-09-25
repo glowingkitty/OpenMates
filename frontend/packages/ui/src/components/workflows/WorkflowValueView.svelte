@@ -50,13 +50,13 @@
     {:else if valueEntries(item).length}
       <details class="value-collection"><summary>{tr('details')}</summary>{@render fields(item, spec, id)}</details>
     {:else}<span class="muted">{tr('unavailable')}</span>{/if}
-  {:else if typeof data === 'string' && /^https?:\/\/\S+$/.test(data)}<a href={data} target="_blank" rel="noopener noreferrer">{tr('output_open_link')}</a>
+  {:else if typeof data === 'string' && /^https?:\/\/\S+$/.test(data)}<a href={data} target="_blank" rel="noopener noreferrer">{data}</a>
   {:else}<span class="scalar">{readableScalar(data, key || spec?.format || '')}</span>{/if}
 {/snippet}
 
 <div class="workflow-value" data-testid="workflow-readable-value">
   {#if rootValue && typeof rootValue === 'object' && !Array.isArray(rootValue) && !resultKind(rootValue as Record<string, unknown>)}{@render fields(rootValue, schema, path)}
-  {:else}{@render present(rootValue, schema, path)}{/if}
+  {:else}{@render present(rootValue, schema, path, path.split('.').at(-1) ?? '')}{/if}
 </div>
 
 <style>

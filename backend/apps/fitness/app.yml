@@ -57,32 +57,54 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           items:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
               city:
+                x-ui:
+                  basic: true
                 type: string
               address:
+                x-ui:
+                  basic: false
                 type: string
               lat:
+                x-ui:
+                  basic: false
                 type: number
               lon:
+                x-ui:
+                  basic: false
                 type: number
               radius_km:
+                x-ui:
+                  basic: false
                 type: number
               plan:
+                x-ui:
+                  basic: false
                 type: string
               category:
+                x-ui:
+                  basic: true
                 type: string
               limit:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 1
                 maximum: 50
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -121,44 +143,78 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           items:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
               city:
+                x-ui:
+                  basic: true
                 type: string
               address:
+                x-ui:
+                  basic: false
                 type: string
               lat:
+                x-ui:
+                  basic: false
                 type: number
               lon:
+                x-ui:
+                  basic: false
                 type: number
               radius_km:
+                x-ui:
+                  basic: false
                 type: number
               start_date:
+                x-ui:
+                  basic: true
                 type: string
               end_date:
+                x-ui:
+                  basic: true
                 type: string
               days:
+                x-ui:
+                  basic: false
                 type: number
               plan:
+                x-ui:
+                  basic: false
                 type: string
               attendance_mode:
+                x-ui:
+                  basic: false
                 type: string
               min_spots:
+                x-ui:
+                  basic: false
                 type: number
               category:
+                x-ui:
+                  basic: false
                 type: string
               venue_id:
+                x-ui:
+                  basic: false
                 type: string
               limit:
+                x-ui:
+                  basic: false
                 type: integer
                 minimum: 1
                 maximum: 50
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >

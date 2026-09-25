@@ -30,6 +30,39 @@ AI_APP_ID = "ai"
 AI_ASK_SKILL_ID = "ask"
 OPENAI_USER_ROLE = "user"
 WORKFLOW_USAGE_SOURCES = frozenset({"workflow", "workflow_test"})
+WORKFLOW_RESULT_LIST_SKILLS = frozenset(
+    {
+        ("business", "company_financials"),
+        ("code", "search_repos"),
+        ("code", "get_docs"),
+        ("design", "search_icons"),
+        ("electronics", "search_components"),
+        ("fitness", "search_locations"),
+        ("fitness", "search_classes"),
+        ("health", "search_appointments"),
+        ("images", "search"),
+        ("maps", "search"),
+        ("models3d", "search"),
+        ("nutrition", "search_recipes"),
+        ("openmates", "get-docs"),
+        ("shopping", "search_products"),
+        ("social_media", "get-posts"),
+        ("social_media", "search"),
+        ("travel", "search_connections"),
+        ("travel", "search_stays"),
+        ("travel", "get_flight"),
+        ("videos", "get_transcript"),
+        ("videos", "search"),
+        ("weather", "rain_radar"),
+        ("web", "read"),
+        ("web", "search"),
+    }
+)
+WORKFLOW_PASSTHROUGH_FIELDS = {
+    ("finance", "check_accounts"): ("account_count", "transaction_count", "overview"),
+    ("math", "calculate"): ("result",),
+    ("openmates", "share-usecase"): ("success", "message"),
+}
 
 
 class WorkflowSkillBillingError(RuntimeError):
@@ -410,15 +443,29 @@ def _normalize_skill_output(
         return output
 
     results = raw_output.get("results")
+    normalized_results = (
+        _search_results(raw_output)
+        if (app_id, skill_id) in WORKFLOW_RESULT_LIST_SKILLS
+        else None
+    )
     artifact_ids = _collect_artifact_ids(raw_output)
     task_ids = _collect_string_values(raw_output, ("task_id", "task_ids", "job_id", "job_ids"))
     output.update(
         {
             "summary": raw_output.get("summary") or f"{app_id}:{skill_id} completed",
-            "result_count": len(results) if isinstance(results, list) else None,
+            "result_count": (
+                len(normalized_results)
+                if normalized_results is not None
+                else len(results) if isinstance(results, list) else None
+            ),
             "provider": raw_output.get("provider"),
         }
     )
+    if normalized_results is not None:
+        output["results"] = normalized_results
+    for field in WORKFLOW_PASSTHROUGH_FIELDS.get((app_id, skill_id), ()):
+        if field in raw_output:
+            output[field] = raw_output[field]
     if artifact_ids:
         output["artifact_ids"] = artifact_ids
     if task_ids:

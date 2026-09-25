@@ -69,6 +69,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of music generation request objects. Each object must
@@ -78,32 +80,48 @@ skills:
             type: object
             properties:
               prompt:
+                x-ui:
+                  basic: true
                 type: string
                 description: Text description of the music to generate.
               mode:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [song, instrumental, background, loop, jingle]
                 default: background
                 description: Desired music type.
               lyrics:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional lyrics to include for vocal/song generation.
               style:
+                x-ui:
+                  basic: true
                 type: string
                 description: Optional genre, mood, instrumentation, tempo, or production style.
               duration_seconds:
+                x-ui:
+                  basic: true
                 type: integer
                 minimum: 3
                 maximum: 184
                 default: 30
                 description: Target duration in seconds. Lyria 3 Clip is 30s; Lyria 3 Pro supports longer tracks in preview.
               negative_prompt:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional sounds, genres, instruments, or qualities to avoid.
               seed:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Optional seed for more reproducible output when supported.
               model:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [lyria-3-pro-preview, lyria-3-clip-preview, lyria-002]
                 default: lyria-3-pro-preview

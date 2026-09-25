@@ -1,0 +1,104 @@
+schema_version: 2
+id: workspace-root-hash-routing
+title: Shared root-hash workspace navigation
+status: verified
+goal: >
+  Present Workflows, Projects, Tasks, and their selected detail views within the
+  same web page, using root hash URLs such as /#workflows,
+  /#workflow-id=<id>, and /#projects, while preserving direct links and browser
+  history.
+scope:
+  in:
+    - Route workspace views and selected detail state from the root page.
+    - Update header, cards, and breadcrumbs to canonical root hash links.
+    - Preserve browser history, direct links, and accessible active tabs.
+    - Redirect old path URLs to the equivalent root hash.
+  out:
+    - Changes to workflow execution, project data, or task data contracts.
+scenarios:
+  - id: S-1
+    title: Open and navigate workspace views
+    given:
+      - A user opens a canonical or legacy workspace URL.
+    when:
+      - The user navigates among list and detail views or uses browser history.
+    then:
+      - The intended view opens within the root page and the URL remains shareable.
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Root hash list and detail links open the correct view, and back/forward restores selection.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-ROUTES]
+  - id: AC-2
+    scenario: S-1
+    text: Legacy workspace paths redirect to equivalent canonical hashes and header tabs expose active state.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-ROUTES]
+tests:
+  - id: T-ROUTES
+    type: playwright
+    file: frontend/apps/web_app/tests/workspace-hash-routing.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session 3003 --spec frontend/apps/web_app/tests/workspace-hash-routing.spec.ts --mode e2e
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [canonical root hashes, history restoration, legacy redirects, active header tabs]
+    covers: [AC-1, AC-2]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {run_id: '36177113968', source_commit: '563b75ff', result: passed}
+tasks:
+  - id: TASK-1
+    title: Implement and verify root hash navigation
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files: [frontend/apps/web_app/src/routes/+page.svelte]
+    verification_ids: [T-ROUTES]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [frontend/apps/web_app/src/routes/+page.svelte]
+      shared_files: []
+implementation_state:
+  subject_commit: cc8862ca74fc1fb3e8871d79d6fb0b6ebcdfbbc7
+approvals:
+  specification:
+    status: not_required
+    reason: Reuses workspace views and data contracts; route behavior is covered by focused browser assertions.
+  plan:
+    status: approved
+    approved_at: '2026-09-25'
+decisions:
+  - id: D-1
+    status: active
+    decision: Canonical workspace URLs use root hashes; previous /workflows#... navigation is legacy.
+    reason: User explicitly requested one shared page for workspace views.
+    decided_at: '2026-09-25'
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Implement root dispatch and compatible redirects, then run focused route coverage.
+    recorded_at: '2026-09-25'
+handoff:
+  current_task_id: TASK-1
+  next_action: Publish the verified routing change with the workflow builder update.
+  command: python3 scripts/plan_validate.py docs/plans/workspace-root-hash-routing/plan.yml
+  expected_outcome: Validated plan and passing root route coverage.
+  last_verified_commit: cc8862ca74fc1fb3e8871d79d6fb0b6ebcdfbbc7
+  blocker: null

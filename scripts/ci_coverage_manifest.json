@@ -80,6 +80,7 @@
         "workflows-ai-authoring.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
+        "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts"
       ]
     },
@@ -216,6 +217,7 @@
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-detail-tabs.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",

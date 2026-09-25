@@ -59,6 +59,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
@@ -71,15 +73,21 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Search query string
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of final results for this request (default 10, max 20).
                 minimum: 1
                 maximum: 20
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -91,6 +99,8 @@ skills:
                   present, up to 40 candidates are ranked and up to count are returned; candidates
                   below the relevant-coverage threshold are omitted rather than used as padding.
               country:
+                x-ui:
+                  basic: false
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
                 enum:
@@ -174,20 +184,28 @@ skills:
                   ]
                 default: "us"
               search_lang:
+                x-ui:
+                  basic: false
                 type: string
                 description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
                 default: "en"
               safesearch:
+                x-ui:
+                  basic: false
                 type: string
                 description: Safe search level
                 enum: ["off", "moderate", "strict"]
                 default: "moderate"
               freshness:
+                x-ui:
+                  basic: true
                 type: string
                 description: Filter by freshness - "pd" (past 24 hours), "pw" (past week), "pm" (past month), "py" (past year). Defaults to "pw" (past week) to prioritize recent news content.
                 enum: ["pd", "pw", "pm", "py"]
                 default: "pw"
               filter_tabloids:
+                x-ui:
+                  basic: true
                 type: boolean
                 description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality news. Set to false ONLY if the user explicitly asks for tabloid sources."
                 default: true
@@ -211,40 +229,64 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
             example: News search completed
           result_count:
+            x-ui:
+              basic: false
             type: integer
             example: 1
           provider:
+            x-ui:
+              basic: false
             type: string
             example: Example news provider
           results:
+            x-ui:
+              basic: true
             type: array
             items:
               type: object
               properties:
                 id:
+                  x-ui:
+                    basic: false
                   type: string
                 source_id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/news/ai
                 title:
+                  x-ui:
+                    basic: true
                   type: string
                   example: New developments in artificial intelligence
                 url:
+                  x-ui:
+                    basic: true
                   type: string
                   example: https://example.invalid/news/ai
                 canonical_url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/news/ai
                 provider:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Example news provider
                 description:
+                  x-ui:
+                    basic: true
                   type: string
                   example: An example article excerpt from the search result.
                 page_age:
+                  x-ui:
+                    basic: true
                   type: string
                   example: '2026-09-21T08:00:00Z'
               example:
@@ -264,31 +306,49 @@ skills:
               description: An example article excerpt from the search result.
               page_age: '2026-09-21T08:00:00Z'
           articles:
+            x-ui:
+              basic: false
             type: array
             items:
               type: object
               properties:
                 id:
+                  x-ui:
+                    basic: false
                   type: string
                 source_id:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/news/ai
                 title:
+                  x-ui:
+                    basic: false
                   type: string
                   example: New developments in artificial intelligence
                 url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/news/ai
                 canonical_url:
+                  x-ui:
+                    basic: false
                   type: string
                   example: https://example.invalid/news/ai
                 provider:
+                  x-ui:
+                    basic: false
                   type: string
                   example: Example news provider
                 description:
+                  x-ui:
+                    basic: false
                   type: string
                   example: An example article excerpt from the search result.
                 page_age:
+                  x-ui:
+                    basic: false
                   type: string
                   example: '2026-09-21T08:00:00Z'
               example:
@@ -308,11 +368,15 @@ skills:
               description: An example article excerpt from the search result.
               page_age: '2026-09-21T08:00:00Z'
           warnings:
+            x-ui:
+              basic: false
             type: array
             items:
               type: string
             example: []
           partial:
+            x-ui:
+              basic: false
             type: boolean
             example: false
 

@@ -115,6 +115,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: >
             Component search requests. Use one request per distinct power rail
@@ -123,42 +125,64 @@ skills:
             type: object
             properties:
               id:
+                x-ui:
+                  basic: false
                 description: Optional caller-supplied ID for correlating responses.
               category:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [power_converters]
                 description: Component category. Currently only power_converters is supported.
               input_voltage_min:
+                x-ui:
+                  basic: true
                 type: number
                 description: Minimum input voltage in volts. For fixed input voltage, use the same value as input_voltage_max.
               input_voltage_max:
+                x-ui:
+                  basic: true
                 type: number
                 description: Maximum input voltage in volts. For fixed input voltage, use the same value as input_voltage_min.
               output_voltage:
+                x-ui:
+                  basic: true
                 type: number
                 description: Target output voltage in volts.
               output_current_max:
+                x-ui:
+                  basic: true
                 type: number
                 description: Maximum output current in amps.
               supply_type:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [dc, ac]
                 default: dc
                 description: dc for DC/DC converters, ac for AC/DC converters.
               isolated:
+                x-ui:
+                  basic: false
                 type: boolean
                 default: false
                 description: Whether the design should be isolated.
               ambient_temp_c:
+                x-ui:
+                  basic: false
                 type: number
                 default: 30
                 description: Maximum ambient temperature in degrees Celsius.
               optimization:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [balanced, low_cost, high_efficiency, small_footprint]
                 default: balanced
                 description: Optimization goal for WEBENCH ranking.
               max_results:
+                x-ui:
+                  basic: false
                 type: integer
                 default: 10
                 description: Maximum number of candidate components to return.

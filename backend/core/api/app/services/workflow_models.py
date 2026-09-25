@@ -536,6 +536,22 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
         kind = "null" if value is None else "boolean" if isinstance(value, bool) else "integer" if isinstance(value, int) else "number" if isinstance(value, float) else "string" if isinstance(value, str) else "array" if isinstance(value, list) else "object"
         return {"type": kind}
 
+    def projected_path_schema(schema: dict[str, Any], fields: list[str]) -> dict[str, Any] | None:
+        if not fields:
+            return schema
+        if "array" in types(schema):
+            item_schema = schema.get("items")
+            if not isinstance(item_schema, dict):
+                return None
+            projected = projected_path_schema(item_schema, fields)
+            if projected is None:
+                return None
+            return {"type": "array", "items": projected}
+        child = schema.get("properties", {}).get(fields[0])
+        if not isinstance(child, dict):
+            return None
+        return projected_path_schema(child, fields[1:])
+
     def path_schema(path: str, label: str) -> dict[str, Any]:
         if path.startswith("$nodes."):
             parts = path[len("$nodes."):].split(".")
@@ -563,11 +579,10 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
         schema = outputs.get(node_id)
         if not isinstance(schema, dict):
             raise WorkflowValidationError(f"{label}: step {node_id} has no declared output")
-        for field in fields:
-            schema = schema.get("properties", {}).get(field)
-            if not isinstance(schema, dict):
-                raise WorkflowValidationError(f"{label}: output {path} is not declared by its app skill")
-        return schema
+        projected = projected_path_schema(schema, fields)
+        if projected is None:
+            raise WorkflowValidationError(f"{label}: output {path} is not declared by its app skill")
+        return projected
 
     def value_schema(value: Any, label: str) -> dict[str, Any]:
         if isinstance(value, dict) and "$date" in value:

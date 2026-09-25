@@ -708,6 +708,36 @@ builder.show_basic_fields:
   en: "Show basic fields"
   verified_by_human: []
 
+builder.show_all_variables:
+  context: Link that reveals secondary Workflow output variables
+  en: "Show all variables"
+  verified_by_human: []
+
+builder.show_basic_variables:
+  context: Link that hides secondary Workflow output variables
+  en: "Show basic variables"
+  verified_by_human: []
+
+builder.show_output_fields:
+  context: Link that reveals a Workflow App skill's output fields
+  en: "Show output fields"
+  verified_by_human: []
+
+builder.hide_output_fields:
+  context: Link that hides a Workflow App skill's output fields
+  en: "Hide output fields"
+  verified_by_human: []
+
+builder.summary_in:
+  context: Connects a minimized Workflow field value to its date or place
+  en: "in"
+  verified_by_human: []
+
+builder.summary_to:
+  context: Connects a minimized Workflow date range's start and end
+  en: "to"
+  verified_by_human: []
+
 builder.date_range:
   context: Label for a Workflow App skill date range
   en: "Date range"
@@ -788,11 +818,6 @@ builder.existing_chat:
   en: "Existing chat"
   verified_by_human: []
 
-builder.new_chat_each_run:
-  context: Workflow progressive builder control
-  en: "New chat for each run"
-  verified_by_human: []
-
 builder.unavailable:
   context: Workflow progressive builder control
   en: "Not available"
@@ -855,7 +880,7 @@ builder.ask_ai_question:
 
 builder.ask_ai_placeholder:
   context: Workflow Ask AI instruction editor placeholder
-  en: "For example: Summarize the events and explain what makes each one useful. Type @ to add information from an earlier step."
+  en: "For example: Summarize the events and explain what makes each one useful. Type @ to add a variable from an earlier step."
   verified_by_human: []
 
 builder.suggested_values:
@@ -1030,17 +1055,17 @@ builder.exact_rule:
 
 builder.ai_judgment:
   context: AI-powered Workflow Check mode
-  en: "AI judgment"
+  en: "Ask AI"
   verified_by_human: []
 
 builder.ai_check_question:
   context: Workflow AI Check natural-language question label
-  en: "Question with a yes or no answer"
+  en: "The following Yes or No question:"
   verified_by_human: []
 
 builder.ai_check_placeholder:
   context: Workflow AI Check natural-language question placeholder
-  en: "For example: Is this weather suitable for an outdoor event?"
+  en: "For example: Is this weather suitable for an outdoor event? Type @ to add a variable from an earlier step."
   verified_by_human: []
 
 builder.ai_check_values:
@@ -1050,12 +1075,17 @@ builder.ai_check_values:
 
 builder.ai_check_guidance:
   context: Workflow AI Check guidance
-  en: "Use an exact rule for fixed thresholds. Use AI judgment when context or several factors matter. If AI cannot decide reliably, the Unsure branch runs."
+  en: "Use an exact rule for fixed thresholds. Use Ask AI when context or several factors matter. If AI cannot decide reliably, the Unsure branch runs."
   verified_by_human: []
 
 builder.ai_check_required:
   context: Workflow AI Check missing question or values error
-  en: "Enter a question and select at least one earlier value."
+  en: "Enter a question and add at least one earlier variable."
+  verified_by_human: []
+
+builder.ai_check_add_variable:
+  context: Workflow AI Check missing variable guidance above disabled Save button
+  en: "Add a variable to evaluate, before saving the check."
   verified_by_human: []
 
 builder.if_unsure:
@@ -1093,11 +1123,6 @@ builder.search_chats:
   en: "Search recent chats"
   verified_by_human: []
 
-builder.new_chat:
-  context: Workflow progressive builder control
-  en: "New chat"
-  verified_by_human: []
-
 builder.message_question:
   context: Workflow progressive builder control
   en: "What should the message be?"
@@ -1110,7 +1135,7 @@ builder.chat_title:
 
 builder.message_placeholder:
   context: Workflow progressive builder control
-  en: "Enter the message template here. Type @ or select an output above to include results from previous actions."
+  en: "Enter the message here. Type @ to add a variable from an earlier step, or select one below."
   verified_by_human: []
 
 builder.only_new_results:

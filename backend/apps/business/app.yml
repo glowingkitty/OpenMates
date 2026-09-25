@@ -135,6 +135,8 @@ skills:
       type: object
       properties:
         companies:
+          x-ui:
+            basic: true
           type: array
           description: Explicit public companies to look up by ticker, CIK, or exact company name. Do not pass broad categories such as "egg producers".
           minItems: 1
@@ -143,31 +145,45 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Ticker, CIK, or exact public company name, e.g. CALM, 0000016160, or Cal-Maine Foods Inc.
               identifier_type:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [auto, ticker, cik, company_name]
                 default: auto
               display_name:
+                x-ui:
+                  basic: false
                 type: string
                 description: Optional user-facing label from the original request.
             required:
               - query
         period:
+          x-ui:
+            basic: true
           type: string
           enum: [latest_annual, latest_quarter, annual_history, quarterly_history]
           default: latest_annual
         metric_group:
+          x-ui:
+            basic: true
           type: string
           enum: [summary, income, balance_sheet, cash_flow, all]
           default: summary
         years:
+          x-ui:
+            basic: true
           type: integer
           minimum: 1
           maximum: 10
           default: 3
         include_sources:
+          x-ui:
+            basic: false
           type: boolean
           default: true
       required:
@@ -191,13 +207,104 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
           result_count:
+            x-ui:
+              basic: false
             type: integer
           provider:
+            x-ui:
+              basic: false
             type: string
           results:
+            x-ui:
+              basic: true
             type: array
+            items:
+              type: object
+              properties:
+                company:
+                  x-ui:
+                    basic: true
+                  type: string
+                ticker:
+                  x-ui:
+                    basic: true
+                  type: string
+                period_type:
+                  x-ui:
+                    basic: true
+                  type: string
+                fiscal_year:
+                  x-ui:
+                    basic: true
+                  type: integer
+                revenue:
+                  x-ui:
+                    basic: true
+                  type: number
+                net_income:
+                  x-ui:
+                    basic: true
+                  type: number
+                source_url:
+                  x-ui:
+                    basic: true
+                  type: string
+                cik:
+                  x-ui:
+                    basic: false
+                  type: string
+                country:
+                  x-ui:
+                    basic: false
+                  type: string
+                exchange:
+                  x-ui:
+                    basic: false
+                  type: string
+                fiscal_quarter:
+                  x-ui:
+                    basic: false
+                  type: string
+                period_start:
+                  x-ui:
+                    basic: false
+                  type: string
+                period_end:
+                  x-ui:
+                    basic: false
+                  type: string
+                currency:
+                  x-ui:
+                    basic: false
+                  type: string
+                gross_profit:
+                  x-ui:
+                    basic: false
+                  type: number
+                operating_income:
+                  x-ui:
+                    basic: false
+                  type: number
+                operating_cash_flow:
+                  x-ui:
+                    basic: false
+                  type: number
+                assets:
+                  x-ui:
+                    basic: false
+                  type: number
+                liabilities:
+                  x-ui:
+                    basic: false
+                  type: number
+                equity:
+                  x-ui:
+                    basic: false
+                  type: number
 
 marketing_discovery:
   skills:

@@ -94,7 +94,7 @@
 >
   <a
     class="card-open"
-    href={`/plans/${encodeURIComponent(plan.plan_id)}`}
+    href={`/#plan-id=${encodeURIComponent(plan.plan_id)}`}
     aria-label={`Open ${plan.title || 'plan'} details`}
     data-testid="task-board-plan-open"
   ></a>
@@ -107,13 +107,13 @@
       <span class="project-pill" data-testid="plan-project-pill"><span aria-hidden="true"></span>{linkedProjectLabel}</span>
     {/if}
   </div>
-  <a class="open-plan-link" href={`/plans/${encodeURIComponent(plan.plan_id)}`} data-testid="task-board-plan-link"><span aria-hidden="true"></span>Open plan</a>
+  <a class="open-plan-link" href={`/#plan-id=${encodeURIComponent(plan.plan_id)}`} data-testid="task-board-plan-link"><span aria-hidden="true"></span>Open plan</a>
 
   <div class="plan-actions" aria-label="Move plan">
     <details class="plan-action-menu">
       <summary data-testid="task-board-plan-actions" aria-label={`More actions for ${plan.title || 'plan'}`} title="More actions"><span aria-hidden="true">•••</span></summary>
       <div class="plan-action-menu-items">
-        <a href={`/plans/${encodeURIComponent(plan.plan_id)}`} data-testid="task-board-plan-detail-link">Open plan</a>
+        <a href={`/#plan-id=${encodeURIComponent(plan.plan_id)}`} data-testid="task-board-plan-detail-link">Open plan</a>
         {#if plan.primaryChatId}
           <a href={`/#chat-id=${encodeURIComponent(plan.primaryChatId)}`} data-testid="task-board-plan-chat-link">Open chat</a>
         {/if}

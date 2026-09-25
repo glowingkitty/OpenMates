@@ -56,3 +56,35 @@ async def test_step_test_missing_step_fails_visibly() -> None:
             "alice",
             "missing",
         )
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=workflows.control.check,workflows.control.typed-data
+async def test_exact_check_step_test_uses_supplied_upstream_output() -> None:
+    service = workflow_service()
+    graph = rain_graph()
+    check = next(node for node in graph["nodes"] if node["id"] == "decision")
+    check["type"] = "check"
+    check["config"] = {
+        "mode": "exact",
+        "predicate": {
+            "left": "$nodes.weather.output.rain_probability",
+            "op": "gte",
+            "right": 60,
+        },
+    }
+    workflow = service.create_workflow("alice", "Draft exact check", graph, enabled=False)
+
+    run = await WorkflowRunner(
+        service,
+        app_skill_adapter=FakeAppSkillAdapter(),
+        action_adapter=FakeActionAdapter(),
+    ).run_step_test(
+        workflow,
+        "alice",
+        "decision",
+        upstream_outputs={"weather": {"rain_probability": 72}},
+    )
+
+    assert run.status == WorkflowRunStatus.COMPLETED
+    assert run.node_runs[0].output_summary == {"matched": True, "branch": "yes"}

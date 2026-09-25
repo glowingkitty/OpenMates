@@ -32,7 +32,7 @@
     getLastAuthMethod,
     type LastAuthMethod,
   } from "../utils/lastAuthMethod";
-  import { tooltip } from "../actions/tooltip";
+  import IconTabBar, { type IconTabItem } from "./IconTabBar.svelte";
 
   // Props using Svelte 5 runes
   let {
@@ -91,21 +91,47 @@
     text: string;
   }
 
-  type WorkspaceTab = {
+  type WorkspaceTab = IconTabItem & {
+    id: string;
     href: string;
     testId: string;
     label: string;
-    iconClass: string;
     active: boolean;
     disabled: boolean;
   };
 
-  let isChatsRoute = $derived($page.url.pathname === "/");
-  let isProjectsRoute = $derived($page.url.pathname.startsWith("/projects"));
-  let isWorkflowsRoute = $derived($page.url.pathname.startsWith("/workflows"));
+  let workspaceHashParams = $derived(
+    new URLSearchParams($page.url.hash.replace(/^#\/?(?:workflows|projects|plans|tasks)&?/, "")),
+  );
+  let workspaceHashMarker = $derived(
+    $page.url.hash.replace(/^#\/?/, "").split("&", 1)[0],
+  );
+  let isProjectsRoute = $derived(
+    $page.url.pathname.startsWith("/projects") ||
+      workspaceHashMarker === "projects" ||
+      workspaceHashParams.has("project-id"),
+  );
+  let isWorkflowsRoute = $derived(
+    $page.url.pathname.startsWith("/workflows") ||
+      workspaceHashMarker === "workflows" ||
+      workspaceHashParams.has("workflow-id"),
+  );
+  let isPlansRoute = $derived(
+    $page.url.pathname.startsWith("/plans") ||
+      workspaceHashMarker === "plans" ||
+      workspaceHashParams.has("plan-id"),
+  );
   let isTasksRoute = $derived(
     $page.url.pathname.startsWith("/tasks") ||
-      $page.url.pathname.startsWith("/plans/"),
+      workspaceHashMarker === "tasks" ||
+      workspaceHashParams.has("task-id"),
+  );
+  let isChatsRoute = $derived(
+    $page.url.pathname === "/" &&
+      !isProjectsRoute &&
+      !isPlansRoute &&
+      !isWorkflowsRoute &&
+      !isTasksRoute,
   );
   let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
   let chatsEnabled = $derived(
@@ -117,6 +143,9 @@
   let workflowsEnabled = $derived(
     isWorkspaceFeatureAvailable("platform:workflows", disabledFeatures),
   );
+  let plansEnabled = $derived(
+    isWorkspaceFeatureAvailable("platform:plans", disabledFeatures),
+  );
   let tasksEnabled = $derived(
     isWorkspaceFeatureAvailable("platform:tasks", disabledFeatures),
   );
@@ -124,10 +153,11 @@
     ...(chatsEnabled
       ? [
           {
+            id: "/",
             href: "/",
             testId: "chats-nav-link",
             label: $text("common.chat"),
-            iconClass: "chat-icon",
+            iconClass: "chat-icon" as const,
             active: isChatsRoute,
             disabled: false,
           },
@@ -136,23 +166,25 @@
     ...(projectsEnabled
       ? [
           {
-            href: "/projects",
+            id: "/#projects",
+            href: "/#projects",
             testId: "projects-nav-link",
             label: $text("navigation.projects"),
-            iconClass: "project-icon",
+            iconClass: "project-icon" as const,
             active: isProjectsRoute,
             disabled: false,
           },
         ]
       : []),
-    ...(tasksEnabled
+    ...(plansEnabled
       ? [
           {
-            href: "/tasks",
-            testId: "tasks-nav-link",
-            label: $text("navigation.tasks"),
-            iconClass: "task-icon",
-            active: isTasksRoute,
+            id: "/#plans",
+            href: "/#plans",
+            testId: "plans-nav-link",
+            label: $text("navigation.plans"),
+            iconClass: "plan-icon" as const,
+            active: isPlansRoute,
             disabled: false,
           },
         ]
@@ -160,11 +192,25 @@
     ...(workflowsEnabled
       ? [
           {
-            href: "/workflows",
+            id: "/#workflows",
+            href: "/#workflows",
             testId: "workflows-nav-link",
             label: $text("navigation.workflows"),
-            iconClass: "workflow-icon",
+            iconClass: "workflow-icon" as const,
             active: isWorkflowsRoute,
+            disabled: false,
+          },
+        ]
+      : []),
+    ...(tasksEnabled
+      ? [
+          {
+            id: "/#tasks",
+            href: "/#tasks",
+            testId: "tasks-nav-link",
+            label: $text("navigation.tasks"),
+            iconClass: "task-icon" as const,
+            active: isTasksRoute,
             disabled: false,
           },
         ]
@@ -180,7 +226,6 @@
     webappWorkspaceTabs[activeWorkspaceIndex] ?? webappWorkspaceTabs[0],
   );
   let activeWorkspaceHref = $derived(activeWorkspaceTab?.href ?? "/");
-  let hoveredWorkspaceIndex = $state<number | null>(null);
   let selectedWorkspaceHref = $state("/");
 
   const prefetchWorkspaceIfReady = (href: string) => {
@@ -212,9 +257,8 @@
     await goto(selectedTab.href, { replaceState: false });
   };
 
-  const handleWorkspaceIntent = (item: WorkspaceTab, index: number) => {
-    hoveredWorkspaceIndex = item.active ? null : index;
-    prefetchWorkspaceIfReady(item.href);
+  const handleWorkspaceIntent = (item: IconTabItem) => {
+    if (item.href) prefetchWorkspaceIfReady(item.href);
   };
 
   // Define the type for social links
@@ -598,60 +642,15 @@
             <a href="/" class="docs-tab">{$text("common.chat")}</a>
           </div>
         {:else if WORKSPACE_SWITCHER_ENABLED && context === "webapp" && isLoggedIn && webappWorkspaceTabs.length >= 2}
-          <div
-            class="webapp-center-tabs"
-            aria-label="Workspace switcher"
-            style="--tab-count: {webappWorkspaceTabs.length}; --active-index: {activeWorkspaceIndex}; --hover-index: {hoveredWorkspaceIndex ??
-              activeWorkspaceIndex};"
-          >
-            <div
-              class="workspace-hover-pill"
-              class:visible={hoveredWorkspaceIndex !== null}
-              aria-hidden="true"
-            ></div>
-            <div class="workspace-active-pill" aria-hidden="true"></div>
-            {#each webappWorkspaceTabs as item, index}
-              {#if item.disabled}
-                <button
-                  type="button"
-                  class="workspace-tab"
-                  class:active={item.active}
-                  data-testid={item.testId}
-                  aria-label={item.label}
-                  aria-disabled="true"
-                  use:tooltip
-                >
-                  <span
-                    class={`workspace-icon ${item.iconClass}`}
-                    aria-hidden="true"
-                  ></span>
-                </button>
-              {:else}
-                <a
-                  href={item.href}
-                  class="workspace-tab"
-                  class:active={item.active}
-                  data-testid={item.testId}
-                  aria-label={item.label}
-                  aria-current={item.active ? "page" : undefined}
-                  onclick={(e) => handleClick(e, item.href)}
-                  onmouseenter={() => handleWorkspaceIntent(item, index)}
-                  onmouseleave={() => {
-                    hoveredWorkspaceIndex = null;
-                  }}
-                  onfocus={() => handleWorkspaceIntent(item, index)}
-                  onblur={() => {
-                    hoveredWorkspaceIndex = null;
-                  }}
-                  use:tooltip
-                >
-                  <span
-                    class={`workspace-icon ${item.iconClass}`}
-                    aria-hidden="true"
-                  ></span>
-                </a>
-              {/if}
-            {/each}
+          <div class="webapp-center-tabs">
+            <IconTabBar
+              items={webappWorkspaceTabs}
+              activeId={activeWorkspaceHref}
+              ariaLabel="Workspace switcher"
+              mode="navigation"
+              onIntent={handleWorkspaceIntent}
+              onNavigate={(event, item) => handleClick(event, item.href ?? null)}
+            />
           </div>
           <div class="workspace-select-shell" aria-label="Workspace switcher">
             <span
@@ -1176,16 +1175,6 @@
   }
 
   .webapp-center-tabs {
-    --workspace-tab-width: 4.5rem;
-    --workspace-tab-height: 2.8rem;
-    --workspace-tab-radius: 3.25rem;
-
-    display: flex;
-    align-items: center;
-    background: var(--color-grey-10);
-    border-radius: var(--workspace-tab-radius);
-    filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.14));
-    overflow: hidden;
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
@@ -1205,69 +1194,6 @@
     white-space: nowrap;
   }
 
-  .workspace-active-pill,
-  .workspace-hover-pill {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: calc(var(--workspace-tab-width) * var(--active-index, 0));
-    width: var(--workspace-tab-width);
-    border-radius: var(--workspace-tab-radius);
-    background: linear-gradient(
-      135deg,
-      var(--color-primary-start),
-      var(--color-primary-end)
-    );
-    transition:
-      left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-      opacity 0.25s ease;
-    z-index: var(--z-index-base);
-  }
-
-  .workspace-hover-pill {
-    left: calc(var(--workspace-tab-width) * var(--hover-index, 0));
-    opacity: 0;
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-primary-start) 50%, transparent),
-      color-mix(in srgb, var(--color-primary-end) 50%, transparent)
-    );
-  }
-
-  .workspace-hover-pill.visible {
-    opacity: 1;
-  }
-
-  .workspace-tab {
-    all: unset;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--workspace-tab-width);
-    height: var(--workspace-tab-height);
-    min-width: var(--workspace-tab-width);
-    min-height: var(--workspace-tab-height);
-    flex: 0 0 var(--workspace-tab-width);
-    padding: 0;
-    background: transparent;
-    cursor: pointer;
-    font: inherit;
-    margin: 0;
-    position: relative;
-    z-index: var(--z-index-raised);
-  }
-
-  .workspace-tab[aria-disabled="true"] {
-    cursor: default;
-    opacity: 0.7;
-  }
-
-  .workspace-tab:focus-visible {
-    outline: 0.125rem solid var(--color-primary-start);
-    outline-offset: 0.125rem;
-  }
-
   .docs-tab:hover {
     color: var(--color-font-primary);
   }
@@ -1276,25 +1202,6 @@
     background-color: color-mix(in srgb, var(--color-grey-60) 30%, transparent);
     color: var(--color-font-primary);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .workspace-icon {
-    width: 20px;
-    height: 20px;
-    background: var(--color-grey-70);
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    transition: background-color 0.25s ease;
-  }
-
-  .workspace-tab:hover .workspace-icon,
-  .workspace-tab:focus-visible .workspace-icon,
-  .workspace-tab.active .workspace-icon {
-    background: #fff;
   }
 
   .chat-icon {

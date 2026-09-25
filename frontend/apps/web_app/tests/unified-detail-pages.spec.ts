@@ -21,10 +21,10 @@ function deriveApiUrl(baseUrl: string): string {
 
 async function expectUnifiedDetail(page, domain: string, itemId: string, headerSystem = 'workspace-detail'): Promise<void> {
 	const urlPattern = domain === 'projects'
-		? new RegExp(`/${domain}#(?:[^#]*&)?project-id=${itemId}(?:&|$)`)
+		? new RegExp(`/#(?:[^#]*&)?project-id=${itemId}(?:&|$)`)
 		: domain === 'workflows'
-			? new RegExp(`/${domain}#(?:[^#]*&)?workflow-id=${itemId}(?:&|$)`)
-			: new RegExp(`/${domain}/${itemId}(?:[?#]|$)`);
+			? new RegExp(`/#(?:[^#]*&)?workflow-id=${itemId}(?:&|$)`)
+			: new RegExp(`/#(?:[^#]*&)?task-id=${itemId}(?:&|$)`);
 	await expect(page).toHaveURL(urlPattern);
 	const header = page.getByTestId('workspace-detail-header');
 	await expect(header).toBeVisible({ timeout: 30000 });

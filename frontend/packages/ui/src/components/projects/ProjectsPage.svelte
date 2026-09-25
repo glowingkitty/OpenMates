@@ -8,6 +8,7 @@
 
 <script lang="ts">
   import { onMount, setContext } from 'svelte';
+  import { pushState, replaceState } from '$app/navigation';
   import { text } from '@repo/ui';
   import { SettingsTabs } from '../settings/elements';
   import UnifiedEmbedPreview from '../embeds/UnifiedEmbedPreview.svelte';
@@ -127,7 +128,7 @@
     title?: string;
   }
 
-  const PROJECTS_ROUTE = '/projects';
+  const PROJECTS_ROUTE = '/';
   const PROJECT_ID_HASH_PARAM = 'project-id';
 
   let { variant = 'main', onNewChat, onNewPlan, onNewWorkflow, previewState = null, initialTab = 'overview' }: Props = $props();
@@ -312,19 +313,37 @@
 
   function projectStateHash(projectId: string | null, baseHash = ''): string {
     const params = parseHashParams(baseHash);
+    params.delete('workflows');
+    params.delete('projects');
+    params.delete('tasks');
+    params.delete('workflow-id');
+    params.delete('workflow-tab');
+    params.delete('run-id');
+    params.delete('task-id');
     params.delete(PROJECT_ID_HASH_PARAM);
-    if (projectId) params.set(PROJECT_ID_HASH_PARAM, projectId);
-    return serializeHashParams(params);
+    if (projectId) {
+      const routeParams = new URLSearchParams();
+      routeParams.set(PROJECT_ID_HASH_PARAM, projectId);
+      params.forEach((value, key) => routeParams.append(key, value));
+      return serializeHashParams(routeParams);
+    }
+    const preservedHash = serializeHashParams(params);
+    return `#projects${preservedHash ? `&${preservedHash.slice(1)}` : ''}`;
   }
 
   function projectStateHref(projectId: string): string {
     return `${PROJECTS_ROUTE}${projectStateHash(projectId)}`;
   }
 
-  function setProjectUrlState(projectId: string | null): void {
+  function setProjectUrlState(projectId: string | null, replaceHistory = false): void {
     const nextHash = projectStateHash(projectId, window.location.hash);
     projectHashId = readProjectHashId(nextHash);
-    window.history.replaceState(window.history.state, '', `${PROJECTS_ROUTE}${nextHash}`);
+    if (window.location.pathname === PROJECTS_ROUTE && window.location.hash === nextHash) return;
+    if (replaceHistory) {
+      replaceState(`${PROJECTS_ROUTE}${nextHash}`, {});
+    } else {
+      pushState(`${PROJECTS_ROUTE}${nextHash}`, {});
+    }
   }
 
   function broadcastProjectSelected(project: ProjectViewModel): void {
@@ -448,7 +467,7 @@
       notificationStore.error('Failed to open project');
       if (!updateHash) {
         clearSelectedProject();
-        setProjectUrlState(null);
+        setProjectUrlState(null, true);
       }
     }
   }
@@ -1113,11 +1132,13 @@
     };
     const sourceStatusTimer = window.setInterval(() => void refreshRemoteSourceStatus(), 15_000);
     window.addEventListener('hashchange', syncProjectHashFromLocation);
+    window.addEventListener('popstate', syncProjectHashFromLocation);
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
     return () => {
       remoteRequestController?.abort();
       window.removeEventListener('hashchange', syncProjectHashFromLocation);
+      window.removeEventListener('popstate', syncProjectHashFromLocation);
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
       window.clearInterval(sourceStatusTimer);

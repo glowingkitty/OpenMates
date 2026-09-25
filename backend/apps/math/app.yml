@@ -90,12 +90,16 @@ skills:
       type: object
       properties:
         title:
+          x-ui:
+            basic: false
           type: string
           description: >
             A short human-readable title that explains why this calculation is
             being made. This is shown in the embed preview, so prefer concise
             context like "Bike time to the Moon" or "Monthly mortgage estimate".
         expression:
+          x-ui:
+            basic: true
           type: string
           description: >
             The mathematical expression, equation, or operation to evaluate.
@@ -108,6 +112,8 @@ skills:
             - Unit conversion: "convert(100, kg, lbs)"
             - With context vars: "E = m * c^2 where m=1, c=299792458"
         mode:
+          x-ui:
+            basic: true
           type: string
           description: >
             Evaluation mode. 'auto' (default) detects the appropriate mode from
@@ -128,6 +134,8 @@ skills:
             ]
           default: "auto"
         variable:
+          x-ui:
+            basic: false
           type: string
           description: >
             The variable to differentiate or integrate with respect to, or to
@@ -135,6 +143,8 @@ skills:
             or 'solve'.
           default: "x"
         precision:
+          x-ui:
+            basic: true
           type: integer
           description: >
             Number of significant digits for numeric results. Defaults to 15.

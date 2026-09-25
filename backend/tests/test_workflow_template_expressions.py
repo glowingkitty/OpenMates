@@ -15,6 +15,7 @@ from backend.core.api.app.services.workflow_template_expressions import (
 )
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data,workflows.message.standard
 def test_typed_step_and_trigger_templates_resolve_without_stringifying_exact_values() -> None:
     context = {
         "trigger": {"city": "Berlin"},
@@ -25,6 +26,49 @@ def test_typed_step_and_trigger_templates_resolve_without_stringifying_exact_val
     assert resolve_workflow_template("Weather for {{ trigger.city }}", context) == "Weather for Berlin"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data,workflows.message.standard
+def test_list_item_fields_are_projected_for_direct_and_template_references() -> None:
+    context = {
+        "nodes": {
+            "events": {
+                "output": {
+                    "results": [
+                        {"title": "AI Meetup", "venue": {"city": "Berlin"}},
+                        {"title": "Design Night", "venue": {"city": "Hamburg"}},
+                        {"title": "Founders Talk", "venue": {"city": "Munich"}},
+                    ]
+                }
+            }
+        }
+    }
+
+    assert resolve_workflow_template("$nodes.events.output.results.title", context) == [
+        "AI Meetup",
+        "Design Night",
+        "Founders Talk",
+    ]
+    assert resolve_workflow_template("{{steps.events.results.title}}", context) == [
+        "AI Meetup",
+        "Design Night",
+        "Founders Talk",
+    ]
+    assert resolve_workflow_template("{{ steps.events.results.venue.city }}", context) == [
+        "Berlin",
+        "Hamburg",
+        "Munich",
+    ]
+    assert resolve_workflow_template("$nodes.events.output.results", context) == context["nodes"]["events"]["output"]["results"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data
+def test_invalid_list_item_path_preserves_missing_path_semantics_per_item() -> None:
+    context = {"nodes": {"events": {"output": {"results": [{"title": "AI Meetup"}, {}]}}}}
+
+    assert resolve_workflow_template("$nodes.events.output.results.missing", context) == [None, None]
+    assert resolve_workflow_template("{{steps.events.results.missing}}", context) == [None, None]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data
 def test_clock_now_and_date_filters_are_deterministic() -> None:
     now = datetime(2026, 7, 13, 7, 30, tzinfo=timezone.utc)
 
@@ -41,6 +85,7 @@ def test_clock_now_and_date_filters_are_deterministic() -> None:
         "{{ clock.now | eval: 1 }}",
     ],
 )
+# contract-test: supporting surface=rest_api assertions=workflows.control.typed-data
 def test_arbitrary_code_attributes_and_unknown_filters_are_rejected(expression: str) -> None:
     with pytest.raises(WorkflowTemplateExpressionError):
         resolve_workflow_template(expression, {"nodes": {"forecast": {"output": {}}}})

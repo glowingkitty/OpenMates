@@ -52,39 +52,63 @@ skills:
       type: object
       properties:
         period:
+          x-ui:
+            basic: true
           type: string
           enum: [monthly, quarterly, yearly, custom]
           default: monthly
         start_date:
+          x-ui:
+            basic: false
           type: string
         end_date:
+          x-ui:
+            basic: false
           type: string
         projection_horizon:
+          x-ui:
+            basic: false
           type: string
           enum: [monthly, quarterly, yearly]
           default: monthly
         connected_account_requests:
+          x-ui:
+            basic: true
           type: array
           items:
             type: object
             properties:
               source_ref:
+                x-ui:
+                  basic: true
                 type: string
               access_token_handle:
+                x-ui:
+                  basic: false
                 type: string
               environment:
+                x-ui:
+                  basic: false
                 type: string
                 enum: [sandbox, production]
         csv_statements:
+          x-ui:
+            basic: true
           type: array
           items:
             type: object
             properties:
               filename:
+                x-ui:
+                  basic: true
                 type: string
               content:
+                x-ui:
+                  basic: false
                 type: string
         sheet_embed_refs:
+          x-ui:
+            basic: true
           type: array
           description: Human-readable embed_ref values for uploaded sheets-sheet CSV/TSV embeds already present in the chat.
           items:
@@ -105,10 +129,18 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
           account_count:
+            x-ui:
+              basic: true
             type: integer
           transaction_count:
+            x-ui:
+              basic: true
             type: integer
           overview:
+            x-ui:
+              basic: true
             type: object

@@ -239,6 +239,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of image search request objects (up to 5 parallel searches).
@@ -250,12 +252,16 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: |
                   Text description of images to search for (e.g. "sunset over mountains").
                   Use this for discovering images by topic or visual description.
                   Mutually exclusive with file_path.
               file_path:
+                x-ui:
+                  basic: false
                 type: string
                 description: |
                   The original filename (embed_ref) of an image in the conversation to
@@ -263,16 +269,22 @@ skills:
                   Works for uploaded images AND for image search result embeds.
                   Mutually exclusive with query.
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of image results to return (default 6, max 20).
                 default: 6
                 minimum: 1
                 maximum: 20
               country:
+                x-ui:
+                  basic: true
                 type: string
                 description: Country code for localised results (default "us").
                 default: "us"
               search_lang:
+                x-ui:
+                  basic: false
                 type: string
                 description: Language code for search (default "en").
                 default: "en"
@@ -313,6 +325,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).
@@ -324,14 +338,20 @@ skills:
             type: object
             properties:
               prompt:
+                x-ui:
+                  basic: true
                 type: string
                 description: Detailed description of the image to generate
               aspect_ratio:
+                x-ui:
+                  basic: true
                 type: string
                 description: Aspect ratio of the generated image
                 enum: ["1:1", "16:9", "4:3", "3:2", "2:3", "9:16"]
                 default: "1:1"
               output_filetype:
+                x-ui:
+                  basic: true
                 type: string
                 description: |
                   Output file format. Use "svg" to generate a scalable vector graphic (SVG) via
@@ -342,6 +362,8 @@ skills:
                 enum: ["png", "jpg", "svg"]
                 default: "png"
               quality:
+                x-ui:
+                  basic: true
                 type: string
                 description: |
                   Generation quality. Controls which model tier is used when Recraft is the provider.
@@ -356,6 +378,8 @@ skills:
                 enum: ["default", "max"]
                 default: "default"
               reference_images:
+                x-ui:
+                  basic: false
                 type: array
                 description: |
                   Optional list of reference image filenames (embed_refs) to use as visual
@@ -450,6 +474,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of image generation request objects for parallel processing (up to 5 requests).
@@ -460,9 +486,13 @@ skills:
             type: object
             properties:
               prompt:
+                x-ui:
+                  basic: true
                 type: string
                 description: Description of the image to generate
               reference_images:
+                x-ui:
+                  basic: false
                 type: array
                 description: |
                   Optional list of reference image filenames (embed_refs) to use as visual

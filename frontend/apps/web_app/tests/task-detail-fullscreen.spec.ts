@@ -168,11 +168,11 @@ test.describe('Task detail fullscreen component', () => {
 		await expect(detail.getByTestId('task-detail-chat')).toContainText('Codex');
 		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute(
 			'href',
-			'/projects/preview-project'
+			'/#project-id=preview-project'
 		);
 		await expect(detail.getByTestId('task-detail-plan-card')).toHaveAttribute(
 			'href',
-			'/plans/preview-plan'
+			'/#plan-id=preview-plan'
 		);
 		await proof.assert('canonical-headings', async () => {
 			for (const heading of [

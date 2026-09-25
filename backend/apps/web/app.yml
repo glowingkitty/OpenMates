@@ -211,6 +211,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
@@ -223,15 +225,21 @@ skills:
             type: object
             properties:
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: Search query string
               count:
+                x-ui:
+                  basic: true
                 type: integer
                 description: Number of final results for this request (default 10, max 20).
                 minimum: 1
                 maximum: 20
                 default: 10
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -242,6 +250,8 @@ skills:
                   for a neutral search fully expressed by query and structured fields; never invent
                   preferences. When present, up to 40 candidates are ranked and only count are returned.
               country:
+                x-ui:
+                  basic: true
                 type: string
                 description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
                 enum:
@@ -325,15 +335,21 @@ skills:
                   ]
                 default: "us"
               search_lang:
+                x-ui:
+                  basic: false
                 type: string
                 description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
                 default: "en"
               safesearch:
+                x-ui:
+                  basic: false
                 type: string
                 description: Safe search level
                 enum: ["off", "moderate", "strict"]
                 default: "moderate"
               filter_tabloids:
+                x-ui:
+                  basic: false
                 type: boolean
                 description: "Filter out tabloid/boulevard media sources (e.g., BILD, Daily Mail, TMZ, The Sun) from results. Enabled by default for quality results. Set to false ONLY if the user explicitly asks for tabloid sources."
                 default: true
@@ -357,9 +373,48 @@ skills:
         type: object
         properties:
           summary:
+            x-ui:
+              basic: false
             type: string
           result_count:
+            x-ui:
+              basic: true
             type: integer
+          results:
+            x-ui:
+              basic: true
+            type: array
+            items:
+              type: object
+              properties:
+                title:
+                  x-ui:
+                    basic: true
+                  type: string
+                url:
+                  x-ui:
+                    basic: true
+                  type: string
+                description:
+                  x-ui:
+                    basic: true
+                  type: string
+                page_age:
+                  x-ui:
+                    basic: true
+                  type: string
+                provider:
+                  x-ui:
+                    basic: false
+                  type: string
+                canonical_url:
+                  x-ui:
+                    basic: false
+                  type: string
+                source_id:
+                  x-ui:
+                    basic: false
+                  type: string
   - id: read
     anonymous_access: authenticated
     name_translation_key: web.read
@@ -392,6 +447,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           description: |
             REQUIRED: Array of read request objects for parallel processing (up to 5 requests). 
@@ -403,22 +460,32 @@ skills:
             type: object
             properties:
               url:
+                x-ui:
+                  basic: true
                 type: string
                 description: URL of the webpage to read/scrape
               formats:
+                x-ui:
+                  basic: true
                 type: array
                 description: List of output formats to include (e.g., 'markdown', 'html', 'summary')
                 items:
                   type: string
                 default: ["markdown"]
               only_main_content:
+                x-ui:
+                  basic: true
                 type: boolean
                 description: Whether to return only main content (excluding headers, navs, footers, etc.)
                 default: true
               max_age:
+                x-ui:
+                  basic: true
                 type: integer
                 description: "Cache age in milliseconds (default: 172800000 = 2 days). Returns cached version if available."
               timeout:
+                x-ui:
+                  basic: false
                 type: integer
                 description: Timeout in milliseconds for the request
             required:

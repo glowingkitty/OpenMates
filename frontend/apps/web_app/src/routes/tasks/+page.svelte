@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
   import {
     Header,
     NotificationStack,
@@ -20,11 +21,23 @@
     panelState,
   } from '@repo/ui';
 
+  let { taskId = null }: { taskId?: string | null } = $props();
+
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let tasksEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:tasks'] !== true && $featureAvailabilityStore.disabledById !== null);
-  let routeTaskId = $derived(page.params.task_id ?? null);
+  let routeTaskId = $derived(taskId ?? page.params.task_id ?? null);
 
   onMount(() => {
+    if (window.location.pathname !== '/') {
+      const legacyTaskId = page.params.task_id ?? new URLSearchParams(
+        window.location.hash.replace(/^#\/?/, ''),
+      ).get('task-id');
+      void goto(legacyTaskId ? `/#task-id=${encodeURIComponent(legacyTaskId)}` : '/#tasks', {
+        replaceState: true,
+      });
+      return;
+    }
+
     initialize().catch((error) => {
       console.error('[TasksRoute] Failed to initialize auth:', error);
     });

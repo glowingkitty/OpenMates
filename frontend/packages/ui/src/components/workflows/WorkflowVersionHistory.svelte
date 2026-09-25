@@ -9,6 +9,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { text } from '../../i18n/translations';
+  import { notificationStore } from '../../stores/notificationStore';
   import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import {
     workflowWorkspaceStore,
@@ -41,24 +42,35 @@
   let restoring = $state(false);
   let restoreConfirmationVersionId = $state<string | null>(null);
   let errorMessage = $state<string | null>(null);
-  let restoredMessage = $state<string | null>(null);
   let inspectionRequest = 0;
+  let historyRequest = 0;
 
   let selectedVersion = $derived(versions.find((version) => version.version_id === selectedVersionId) ?? null);
   let canRestoreSelected = $derived(!!selectedVersion && !selectedVersion.current && !disabled && !restoring);
+  let hasVersionHistory = $derived(versions.length > 1);
 
   $effect(() => {
     const workflowId = workflow.id;
-    if (workflow.version > 1) void loadHistory(workflowId, workflow.graph);
-    else { versions = []; loading = false; inspectedGraph = null; selectedVersionId = null; }
+    const request = ++historyRequest;
+    versions = [];
+    currentVersionId = null;
+    selectedVersionId = null;
+    inspectedGraph = null;
+    expanded = false;
+    inspecting = false;
+    restoreConfirmationVersionId = null;
+    errorMessage = null;
+    inspectionRequest++;
+    if (workflow.version > 1) void loadHistory(workflowId, workflow.graph, request);
+    else loading = false;
   });
 
-  async function loadHistory(workflowId: string, currentGraph: WorkflowGraph) {
+  async function loadHistory(workflowId: string, currentGraph: WorkflowGraph, request = ++historyRequest) {
     loading = true;
     errorMessage = null;
     try {
       const history = await workflowWorkspaceStore.getWorkflowVersions(workflowId);
-      if (workflow.id !== workflowId) return;
+      if (workflow.id !== workflowId || request !== historyRequest) return;
       versions = history.versions;
       currentVersionId = history.current_version_id;
 
@@ -66,11 +78,11 @@
       inspectedGraph = currentGraph;
       restoreConfirmationVersionId = null;
     } catch (error) {
-      if (workflow.id !== workflowId) return;
+      if (workflow.id !== workflowId || request !== historyRequest) return;
       console.error('[WorkflowVersions] Failed to load history', error);
       errorMessage = $text('workflows.version_history.load_failed');
     } finally {
-      if (workflow.id === workflowId) loading = false;
+      if (workflow.id === workflowId && request === historyRequest) loading = false;
     }
   }
 
@@ -80,7 +92,6 @@
     inspectedGraph = version.version_id === currentVersionId ? workflow.graph : null;
     restoreConfirmationVersionId = null;
     errorMessage = null;
-    restoredMessage = null;
     if (version.version_id === currentVersionId) {
       inspectedGraph = workflow.graph;
       return;
@@ -116,11 +127,10 @@
     const versionNumber = selectedVersion.version_number;
     restoring = true;
     errorMessage = null;
-    restoredMessage = null;
     try {
       const restoredWorkflow = await workflowWorkspaceStore.restoreWorkflowVersion(workflow.id, versionId);
       await onRestored(restoredWorkflow);
-      restoredMessage = $text('workflows.version_history.restore_success', { values: { version: versionNumber } });
+      notificationStore.success($text('workflows.version_history.restore_success', { values: { version: versionNumber } }));
       await loadHistory(workflow.id, restoredWorkflow.graph);
     } catch (error) {
       console.error('[WorkflowVersions] Failed to restore version', error);
@@ -143,7 +153,7 @@
   function ignoreGraphChange(_graph: WorkflowGraph): void {}
 </script>
 
-{#if workflow.version > 1}
+{#if hasVersionHistory}
 <section class="version-history" data-testid="workflow-version-history" aria-label={$text('workflows.version_history.title')}>
   <button type="button" class="version-selector" data-testid="workflow-version-selector" aria-expanded={expanded} onclick={() => (expanded = !expanded)}>
     <span>{$text('workflows.version_history.version', { values: { version: selectedVersion?.version_number ?? workflow.version } })}:</span>
@@ -180,13 +190,12 @@
       {/if}
     {/if}
 
-  {#if restoredMessage}
-    <p class="success-message" role="status" data-testid="workflow-version-restored">{restoredMessage}</p>
-  {/if}
   {#if errorMessage}
     <p class="error-message" role="alert" data-testid="workflow-version-error">{errorMessage}</p>
   {/if}
 </section>
+{:else if errorMessage}
+  <p class="error-message" role="alert" data-testid="workflow-version-error">{errorMessage}</p>
 {/if}
 
 {#if inspecting || (selectedVersion && !selectedVersion.current)}
@@ -215,7 +224,7 @@
 <style>
   .version-history button { height:auto; min-width:0; margin:0; filter:none; }
   .version-history { display:grid; gap:var(--spacing-3); margin:0 auto var(--spacing-6); width:100%; font-size:var(--font-size-p); }
-  .version-selector { justify-self:center; display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 2rem); align-items:center; gap:var(--spacing-2); border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); color:var(--color-font-secondary); background:var(--color-grey-10); font:inherit; font-weight:700; cursor:pointer; }
+  .version-selector { justify-self:center; display:flex; flex-wrap:wrap; justify-content:center; max-width:calc(100% - 2rem); align-items:center; gap:var(--spacing-2); border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); color:var(--color-font-secondary); background:var(--color-grey-10); font:inherit; font-size:var(--font-size-small); font-weight:700; cursor:pointer; }
   .version-list { position:relative; display:flex; justify-content:safe center; gap:var(--spacing-4); overflow-x:auto; padding:var(--spacing-3) var(--spacing-4) var(--spacing-6); scrollbar-width:thin; background:var(--color-grey-10); }
   .version-list::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1rem; background:repeating-linear-gradient(to right,transparent 0,transparent 7px,var(--color-grey-30) 7px,var(--color-grey-30) 8px); pointer-events:none; }
   .version-list button { flex:0 0 10rem; display:grid; gap:var(--spacing-1); position:relative; padding:var(--spacing-2); border:0; background:transparent; color:var(--color-font-secondary); font:inherit; font-size:var(--font-size-small); text-align:center; cursor:pointer; }
@@ -226,6 +235,6 @@
   .inspection-node-count { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
   .restore-action,.restore-confirmation button { justify-self:center; width:fit-content; border:0; border-radius:var(--radius-full); padding:var(--spacing-3) var(--spacing-5); background:var(--color-button-primary); color:var(--color-font-button); font:inherit; cursor:pointer; }
   .restore-confirmation { display:flex; justify-content:center; flex-wrap:wrap; gap:var(--spacing-3); font-size:var(--font-size-p); } .restore-confirmation p { flex-basis:100%; text-align:center; } .restore-confirmation .secondary { background:var(--color-grey-20); color:var(--color-font-primary); }
-  .error-message { color:var(--color-error); } .success-message { color:var(--color-primary); }
+  .error-message { color:var(--color-error); }
   button:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; } button:disabled { opacity:.5; cursor:default; }
 </style>

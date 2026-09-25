@@ -1,16 +1,17 @@
 <!--
-  Shared shell for the legacy Plan detail route at /plans/:plan_id.
-  The /plans index redirects to /tasks in +page.ts.
+  Shared Plans workspace for root hash routes and legacy /plans/:plan_id paths.
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import {
     Header,
     NotificationStack,
     Settings,
     PlanDetailPage,
+    PlansWorkspacePage,
     authStore,
     featureAvailabilityStore,
     initialize,
@@ -19,11 +20,26 @@
   } from '@repo/ui';
   import { isWorkspaceFeatureAvailable } from '@repo/ui/config/workspaceFeatureGates';
 
+  let { planId = null }: { planId?: string | null } = $props();
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let plansEnabled = $derived(isWorkspaceFeatureAvailable('platform:plans', $featureAvailabilityStore.disabledById));
-  let routePlanId = $derived(page.params.plan_id ?? null);
+  let plansEnabled = $derived(
+    isWorkspaceFeatureAvailable('platform:plans', $featureAvailabilityStore.disabledById),
+  );
+  let routePlanId = $derived(planId ?? page.params.plan_id ?? null);
 
   onMount(() => {
+    if (page.url.pathname.startsWith('/plans')) {
+      const legacyHashPlanId = new URLSearchParams(page.url.hash.replace(/^#\/?/, '')).get(
+        'plan-id',
+      );
+      const legacyPlanId = page.params.plan_id ?? legacyHashPlanId;
+      const target = legacyPlanId
+        ? `/#plan-id=${encodeURIComponent(legacyPlanId)}`
+        : '/#plans';
+      void goto(target, { replaceState: true });
+      return;
+    }
+
     initialize().catch((error) => {
       console.error('[PlansRoute] Failed to initialize auth:', error);
     });
@@ -47,7 +63,7 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="plans-container" class:menu-open={$panelState.isSettingsOpen}>
       <div class="plans-wrapper" id="main-plans" tabindex="-1">
-        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{/if}
+        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{:else}<PlansWorkspacePage />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />

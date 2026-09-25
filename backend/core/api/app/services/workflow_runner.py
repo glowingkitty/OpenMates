@@ -28,7 +28,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowRunStatus,
 )
 from backend.core.api.app.services.workflow_service import WorkflowService
-from backend.core.api.app.services.workflow_template_expressions import resolve_workflow_template
+from backend.core.api.app.services.workflow_template_expressions import resolve_workflow_path, resolve_workflow_template
 from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 
 
@@ -611,13 +611,7 @@ def _resolve_value(reference: Any, context: dict[str, Any]) -> Any:
     if not isinstance(reference, str) or not reference.startswith("$nodes."):
         return reference
     parts = reference.removeprefix("$nodes.").split(".")
-    value: Any = context.get("nodes", {})
-    for part in parts:
-        if isinstance(value, dict):
-            value = value.get(part)
-        else:
-            return None
-    return value
+    return resolve_workflow_path(context.get("nodes", {}), parts)
 
 
 def _resolve_template(value: Any, context: dict[str, Any]) -> Any:
