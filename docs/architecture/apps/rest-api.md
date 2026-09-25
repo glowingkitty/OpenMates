@@ -75,7 +75,8 @@ Examples: `POST /v1/apps/web/skills/search`, `POST /v1/apps/videos/skills/get_tr
 The official cloud also accepts logged-out CLI calls at
 `POST /v1/anonymous/apps/{app_id}/skills/{skill_id}` with a stable
 `X-OpenMates-Anonymous-ID` header. The body uses the same skill schema, with
-exactly one request per call. Only skills explicitly marked
+exactly one provider request per call. Provider rate-limit waits are rejected
+instead of queued. Only skills explicitly marked
 `anonymous_access: inline` in `app.yml` are eligible: they return an immediate
 result, require no connected account, and create no file or background job.
 File generation, uploads, account actions, and private chat/embed references

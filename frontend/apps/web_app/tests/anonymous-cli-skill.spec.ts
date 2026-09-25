@@ -27,6 +27,16 @@ test.describe('Anonymous CLI skill boundary', () => {
 		expect((await response.json()).detail.code).toBe('signup_required');
 	});
 
+	// contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+	test('rejects multiple provider requests behind one credit quote', async ({ request }: { request: any }) => {
+		const response = await request.post(`${API_URL}/v1/anonymous/apps/web/skills/search`, {
+			headers: { 'X-OpenMates-Anonymous-ID': 'e2e-guest-skill-batch' },
+			data: { requests: [{ query: 'OpenMates' }, { query: 'OpenMates docs' }] }
+		});
+		expect(response.status()).toBe(422);
+		expect((await response.json()).detail.code).toBe('invalid_request_count');
+	});
+
 	// contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.local-only-content
 	test('requires authentication for file, background, and durable-write skills', async ({ request }: { request: any }) => {
 		for (const [app, skill] of [

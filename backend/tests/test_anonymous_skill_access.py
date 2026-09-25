@@ -13,6 +13,7 @@ import json
 import asyncio
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
 import yaml
@@ -31,6 +32,7 @@ from backend.core.api.app.routes.anonymous import (
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService, AnonymousReservationResult
 from backend.shared.python_schemas.app_metadata_schemas import AppSkillDefinition
 from backend.shared.python_utils.anonymous_skill_policy import filter_anonymous_tools, is_anonymous_inline_skill
+from backend.shared.python_utils.anonymous_skill_policy import has_single_anonymous_provider_request
 from backend.tests.test_anonymous_free_usage_budget import FakeCache, FakeDirectus
 
 
@@ -192,6 +194,55 @@ def test_anonymous_direct_skill_rejects_private_references() -> None:
     with pytest.raises(HTTPException) as exc_info:
         anonymous_routes._reject_anonymous_skill_references({"requests": [{"embed_id": "private-embed"}]})
     assert exc_info.value.status_code == 403
+
+
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+def test_anonymous_input_cannot_multiply_a_single_provider_quote() -> None:
+    assert has_single_anonymous_provider_request("web", "search", {"requests": [{"query": "one"}]})
+    assert not has_single_anonymous_provider_request("web", "search", {"requests": []})
+    assert not has_single_anonymous_provider_request("web", "search", {"requests": [{"query": "one"}, {"query": "two"}]})
+    assert has_single_anonymous_provider_request("business", "company_financials", {"companies": [{"query": "AAPL"}]})
+    assert not has_single_anonymous_provider_request(
+        "business", "company_financials", {"companies": [{"query": "AAPL"}, {"query": "MSFT"}]}
+    )
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_rate_limit_rejects_before_background_queue(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.ai.processing import rate_limiting
+    from backend.apps.ai.processing.skill_executor import execute_skill
+
+    async def denied(**_kwargs: Any) -> tuple[bool, float]:
+        return False, 10.0
+
+    class NoQueueProducer:
+        def signature(self, *_args: Any, **_kwargs: Any) -> None:
+            raise AssertionError("anonymous work was queued")
+
+    class RateLimitedRegistry:
+        def has_app(self, _app_id: str) -> bool:
+            return True
+
+        def is_skill_available(self, _app_id: str, _skill_id: str) -> bool:
+            return True
+
+        async def dispatch_skill(self, _app_id: str, _skill_id: str, _body: dict) -> dict:
+            await rate_limiting.wait_for_rate_limit(
+                provider_id="brave", skill_id="search",
+                celery_producer=NoQueueProducer(),
+                celery_task_context={"app_id": "web", "skill_id": "search", "arguments": {"query": "test"}},
+            )
+            return {"success": True}
+
+    monkeypatch.setattr(rate_limiting, "check_rate_limit", denied)
+    fake_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_registry_module.get_global_registry = lambda: RateLimitedRegistry()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_registry_module)
+    with pytest.raises(HTTPException) as exc_info:
+        await execute_skill("web", "search", {"requests": [{"query": "test"}]}, is_anonymous=True)
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.detail["code"] == "provider_rate_limited"
 
 
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering

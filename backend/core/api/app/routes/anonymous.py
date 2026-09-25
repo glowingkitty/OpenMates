@@ -319,13 +319,14 @@ async def anonymous_app_skill(
     if len(json.dumps(body).encode("utf-8")) > MAX_ANONYMOUS_SKILL_BODY_BYTES:
         raise HTTPException(status_code=413, detail={"code": "skill_input_too_large"})
     _reject_anonymous_skill_references(body)
-    requests = body.get("requests")
-    if isinstance(requests, list) and len(requests) != 1:
+    from backend.shared.python_utils.anonymous_skill_policy import has_single_anonymous_provider_request
+    if not has_single_anonymous_provider_request(app_id, skill_id, body):
         raise HTTPException(status_code=422, detail={"code": "invalid_request_count"})
 
     from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
     from backend.core.api.app.services.skill_registry import get_global_registry
     from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+    from backend.shared.python_utils.anonymous_inline_execution import anonymous_inline_execution
     from backend.shared.python_utils.app_skill_output_safety import (
         APP_SKILL_SURFACE_REST, AppSkillOutputSafetyContext, central_app_skill_dispatch,
         sanitize_app_skill_output, strip_request_security_controls,
@@ -366,8 +367,14 @@ async def anonymous_app_skill(
 
     # No account, chat, message, embed, or Vault context is passed to the skill.
     # Keep ambiguous provider attempts reserved for the normal expiry path.
-    with central_app_skill_dispatch():
+    with central_app_skill_dispatch(), anonymous_inline_execution():
         result = await registry.dispatch_skill(app_id, skill_id, sanitized_body)
+    if isinstance(result, dict) and (
+        result.get("task_id") or result.get("status") in {"scheduled", "queued", "processing"}
+    ):
+        # Unexpected deferred work must not expose a pollable task to a guest.
+        # Retain the reservation because provider dispatch may have begun.
+        raise HTTPException(status_code=503, detail={"code": "inline_result_unavailable"})
     safe_result = await sanitize_app_skill_output(
         result,
         AppSkillOutputSafetyContext(

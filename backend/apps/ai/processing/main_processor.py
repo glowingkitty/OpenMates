@@ -5336,7 +5336,7 @@ async def handle_main_processing(
         # Reservations remain sequential; provider work starts only after every
         # descriptor is fixed from this turn's immutable tool-call snapshot.
         parallel_executions: Dict[str, Dict[str, Any]] = {}
-        if _is_parallel_safe_app_skill_batch(
+        if not getattr(request_data, "is_anonymous", False) and _is_parallel_safe_app_skill_batch(
             tool_calls_for_this_turn,
             tool_resolver_map,
             discovered_apps_metadata,
@@ -5527,6 +5527,7 @@ async def handle_main_processing(
                                 encryption_service=encryption_service,
                                 secrets_manager=secrets_manager,
                                 max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                             )
 
                     return execute
@@ -5630,7 +5631,10 @@ async def handle_main_processing(
                     raise ValueError(f"Empty skill_id in tool name '{tool_name}'")
 
                 if getattr(request_data, "is_anonymous", False):
-                    from backend.shared.python_utils.anonymous_skill_policy import is_anonymous_inline_skill
+                    from backend.shared.python_utils.anonymous_skill_policy import (
+                        has_single_anonymous_provider_request,
+                        is_anonymous_inline_skill,
+                    )
 
                     app_metadata = discovered_apps_metadata.get(app_id)
                     skill_definition = next(
@@ -5756,9 +5760,8 @@ async def handle_main_processing(
                     requests_in_this_call = len(requests_list_for_budget)
 
                 if getattr(request_data, "is_anonymous", False) and (
-                    not isinstance(parsed_args, dict)
-                    or requests_in_this_call != 1
-                    or (isinstance(requests_list_for_budget, list) and len(requests_list_for_budget) != 1)
+                    requests_in_this_call != 1
+                    or not has_single_anonymous_provider_request(app_id, skill_id, parsed_args)
                 ):
                     current_message_history.append({
                         "tool_call_id": tool_call_id,
@@ -7058,6 +7061,7 @@ async def handle_main_processing(
                                     encryption_service=encryption_service,
                                     secrets_manager=secrets_manager,
                                     max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
+                                    is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                                 )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,

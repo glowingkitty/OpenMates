@@ -49,6 +49,20 @@ def is_anonymous_inline_skill(app_id: str, skill: Any) -> bool:
     return True
 
 
+def has_single_anonymous_provider_request(app_id: str, skill_id: str, arguments: Any) -> bool:
+    """Prevent list-shaped inputs from multiplying work behind a one-request quote."""
+    if not isinstance(arguments, Mapping):
+        return False
+    if "requests" in arguments and (
+        not isinstance(arguments["requests"], list) or len(arguments["requests"]) != 1
+    ):
+        return False
+    if (app_id, skill_id) == ("business", "company_financials"):
+        companies = arguments.get("companies")
+        return isinstance(companies, list) and len(companies) == 1
+    return True
+
+
 def filter_anonymous_tools(
     tools: list[dict[str, Any]],
     apps_metadata: Mapping[str, Any],
