@@ -9,6 +9,25 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.audio-reply
+    func testWatchSocketReadinessWaitsForDelayedOpenAndStopsAfterClosure() async {
+        var attempts = 0
+        let opened = await WatchSocketReadiness.wait(maxAttempts: 6, interval: .milliseconds(1)) {
+            attempts += 1
+            return attempts == 4 ? .open : .retry
+        }
+        XCTAssertTrue(opened)
+        XCTAssertEqual(attempts, 4)
+
+        var closedAttempts = 0
+        let closed = await WatchSocketReadiness.wait(maxAttempts: 6, interval: .milliseconds(1)) {
+            closedAttempts += 1
+            return .closed
+        }
+        XCTAssertFalse(closed)
+        XCTAssertEqual(closedAttempts, 1)
+    }
+
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
     func testNonemptyChatResponseDecodesMasterWrappersAndSelectsReplyKey() async throws {
         let chatId = "fixture-chat"

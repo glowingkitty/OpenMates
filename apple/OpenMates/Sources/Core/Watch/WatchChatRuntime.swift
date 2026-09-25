@@ -5,7 +5,7 @@
 // per-chat keys from the Watch-local master key, and keeps a local JSON snapshot
 // for offline startup. This layer never logs plaintext.
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply
 
 import CryptoKit
 import Foundation
@@ -1043,6 +1043,28 @@ extension WebSocketManager: WatchChatSyncSocket {
 #endif
 
 @MainActor
+enum WatchSocketReadiness {
+    enum ProbeResult {
+        case open, retry, closed
+    }
+
+    static func wait(
+        maxAttempts: Int = 60,
+        interval: Duration = .milliseconds(250),
+        probe: () async -> ProbeResult
+    ) async -> Bool {
+        for _ in 0..<maxAttempts {
+            switch await probe() {
+            case .open: return true
+            case .closed: return false
+            case .retry: try? await Task.sleep(for: interval)
+            }
+        }
+        return false
+    }
+}
+
+@MainActor
 private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     private var webSocketTask: URLSessionWebSocketTask?
     private var isConnecting = false
@@ -1068,6 +1090,16 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
             defer { self.isConnecting = false }
             let baseURL = await APIClient.shared.baseURL
             let origin = await APIClient.shared.webAppURL.absoluteString
+            let hasRefreshCookie = OpenMatesSharedEnvironment.cookieStorage.cookies(for: baseURL)?.contains {
+                $0.name == "auth_refresh_token"
+            } == true
+            NativeDiagnostics.event(
+                "connect_attempt", category: "watch_chat_socket",
+                flags: [
+                    "ws_token_present": syncSession.token?.isEmpty == false,
+                    "refresh_cookie_present": hasRefreshCookie,
+                ]
+            )
             guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
             components.scheme = components.scheme == "https" ? "wss" : "ws"
             components.path = "/v1/ws"
@@ -1085,7 +1117,15 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
             self.webSocketTask = task
             task.resume()
             self.receiveTask = Task { await self.receiveLoop(task) }
-            try? await Task.sleep(for: .milliseconds(250))
+            guard await self.waitForOpenSocket(task) else {
+                NativeDiagnostics.event(
+                    "open_failed", category: "watch_chat_socket", level: .warning,
+                    counts: ["close_code": task.closeCode.rawValue]
+                )
+                self.disconnect()
+                return
+            }
+            NativeDiagnostics.event("connected", category: "watch_chat_socket")
             let sync = WatchWSOutboundMessage(type: "phased_sync_request", payload: [
                 "phase": "all", "client_chat_versions": syncState.clientChatVersions,
                 "client_chat_ids": syncState.clientChatIds,
@@ -1096,8 +1136,22 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 try await self.send(sync, on: task)
                 self.isReady = true
             } catch {
+                NativeDiagnostics.failure(
+                    "initial_sync_failed", category: "watch_chat_socket", level: .warning, error: error
+                )
                 self.disconnect()
             }
+        }
+    }
+
+    private func waitForOpenSocket(_ task: URLSessionWebSocketTask) async -> Bool {
+        await WatchSocketReadiness.wait {
+            guard self.webSocketTask === task else { return .closed }
+            let pingSucceeded = await withCheckedContinuation { continuation in
+                task.sendPing { error in continuation.resume(returning: error == nil) }
+            }
+            guard self.webSocketTask === task else { return .closed }
+            return pingSucceeded ? .open : .retry
         }
     }
 
@@ -1138,10 +1192,12 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }
 
     private func connectedTask() async throws -> URLSessionWebSocketTask {
-        for _ in 0..<50 {
+        for _ in 0..<300 {
             if let webSocketTask, isReady { return webSocketTask }
+            if webSocketTask == nil && !isConnecting { break }
             try await Task.sleep(for: .milliseconds(100))
         }
+        NativeDiagnostics.event("ready_timeout", category: "watch_chat_socket", level: .warning)
         throw WatchChatRuntimeError.socketUnavailable
     }
 
@@ -1170,6 +1226,9 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                     changeHandler?()
                 }
             } catch {
+                NativeDiagnostics.failure(
+                    "receive_failed", category: "watch_chat_socket", level: .warning, error: error
+                )
                 if webSocketTask === task {
                     webSocketTask = nil
                     isReady = false
@@ -1194,6 +1253,10 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
             }
             try await Task.sleep(for: .milliseconds(100))
         }
+        NativeDiagnostics.event(
+            type == "chat_turn_preflight_ack" ? "preflight_ack_timeout" : "inference_ack_timeout",
+            category: "watch_chat_socket", level: .warning
+        )
         throw WatchChatRuntimeError.socketUnavailable
     }
 }
