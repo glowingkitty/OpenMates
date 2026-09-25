@@ -300,20 +300,25 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await expect(editor.getByTestId('workflow-output-icon').locator('svg')).toBeVisible();
 		await expect(editor.getByTestId('workflow-schema-field-location').locator('.type-badge')).toHaveText('Text');
 		await expect(editor.getByTestId('workflow-schema-field-date-range').locator('.type-badge')).toHaveText('Date');
-		const exampleHeading = editor.getByTestId('workflow-output-example-heading');
-		await expect(exampleHeading).toHaveText('Example:');
-		const firstOutput = editor.getByTestId('workflow-output-fields').locator(':scope > div').first();
-		const [exampleHeadingBox, firstOutputLabelBox, firstOutputValueBox] = await Promise.all([
-			exampleHeading.boundingBox(),
-			firstOutput.locator('.output-label').boundingBox(),
-			firstOutput.getByTestId('workflow-readable-value').boundingBox()
+		const outputFields = editor.getByTestId('workflow-output-field');
+		await expect(outputFields).toHaveCount(4);
+		const firstOutput = outputFields.first();
+		await expect(firstOutput.getByTestId('workflow-output-example-label')).toHaveText('Example:');
+		const [firstTypeBox, firstNameBox, firstExampleBox, firstOutputBox, secondOutputBox] = await Promise.all([
+			firstOutput.locator('.type').boundingBox(),
+			firstOutput.locator('.output-name').boundingBox(),
+			firstOutput.locator('.output-example').boundingBox(),
+			firstOutput.boundingBox(),
+			outputFields.nth(1).boundingBox()
 		]);
-		expect(exampleHeadingBox && firstOutputLabelBox && firstOutputValueBox).not.toBeNull();
-		if (exampleHeadingBox && firstOutputLabelBox && firstOutputValueBox) {
-			expect(Math.abs(exampleHeadingBox.x - firstOutputValueBox.x)).toBeLessThan(2);
-			expect(Math.abs(firstOutputLabelBox.y - firstOutputValueBox.y)).toBeLessThan(12);
+		expect(firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox).not.toBeNull();
+		if (firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox) {
+			expect(firstTypeBox.y + firstTypeBox.height).toBeLessThanOrEqual(firstNameBox.y + 1);
+			expect(firstNameBox.y + firstNameBox.height).toBeLessThanOrEqual(firstExampleBox.y + 1);
+			expect(secondOutputBox.x).toBeGreaterThan(firstOutputBox.x + firstOutputBox.width);
+			expect(Math.abs(secondOutputBox.y - firstOutputBox.y)).toBeLessThan(2);
 		}
-		const boolOutput = editor.getByTestId('workflow-output-fields').locator(':scope > div').filter({ hasText: 'Rain Expected' });
+		const boolOutput = outputFields.filter({ hasText: 'Rain Expected' });
 		await expect(boolOutput.locator('.type')).toHaveText('Bool');
 		await expect(boolOutput.getByTestId('workflow-readable-value')).toHaveText('true');
 		const dateRange = editor.getByTestId('workflow-date-range-field');
@@ -412,7 +417,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		];
 		const editor = page.getByTestId('workflow-node-expanded');
 		const previewViewport = page.getByTestId('component-preview-viewport');
-		const example = editor.getByTestId('workflow-output-example-heading');
+		const example = editor.getByTestId('workflow-output-example-label').first();
 		const back = header.getByRole('button', { name: 'App skill' });
 		const backLabel = back.locator('span');
 		const save = editor.getByTestId('workflow-node-save');
@@ -474,22 +479,26 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		const [mobileInputTypeBox, mobileInputNameBox, mobileOutputTypeBox, mobileOutputNameBox] = await Promise.all([
 			editor.getByTestId('workflow-schema-field-location').locator('.type-badge').boundingBox(),
 			editor.getByTestId('workflow-schema-field-location').locator('.field-title').boundingBox(),
-			editor.getByTestId('workflow-output-fields').locator('.output-label .type').first().boundingBox(),
-			editor.getByTestId('workflow-output-fields').locator('.output-label strong').first().boundingBox()
+			editor.getByTestId('workflow-output-field').first().locator('.type').boundingBox(),
+			editor.getByTestId('workflow-output-field').first().locator('.output-name').boundingBox()
 		]);
 		expect(mobileInputTypeBox && mobileInputNameBox && mobileOutputTypeBox && mobileOutputNameBox).not.toBeNull();
 		if (mobileInputTypeBox && mobileInputNameBox && mobileOutputTypeBox && mobileOutputNameBox) {
 			expect(mobileInputTypeBox.y + mobileInputTypeBox.height).toBeLessThanOrEqual(mobileInputNameBox.y + 1);
 			expect(mobileOutputTypeBox.y + mobileOutputTypeBox.height).toBeLessThanOrEqual(mobileOutputNameBox.y + 1);
 		}
-		const mobileFirstOutput = editor.getByTestId('workflow-output-fields').locator(':scope > div').first();
-		const [mobileOutputLabelBox, mobileOutputValueBox] = await Promise.all([
-			mobileFirstOutput.locator('.output-label').boundingBox(),
-			mobileFirstOutput.getByTestId('workflow-readable-value').boundingBox()
+		const mobileOutputs = editor.getByTestId('workflow-output-field');
+		const mobileFirstOutput = mobileOutputs.first();
+		const [mobileFirstOutputNameBox, mobileOutputExampleBox, mobileFirstOutputBox, mobileSecondOutputBox] = await Promise.all([
+			mobileFirstOutput.locator('.output-name').boundingBox(),
+			mobileFirstOutput.locator('.output-example').boundingBox(),
+			mobileFirstOutput.boundingBox(),
+			mobileOutputs.nth(1).boundingBox()
 		]);
-		expect(mobileOutputLabelBox && mobileOutputValueBox).not.toBeNull();
-		if (mobileOutputLabelBox && mobileOutputValueBox) {
-			expect(Math.abs(mobileOutputLabelBox.y - mobileOutputValueBox.y)).toBeLessThan(12);
+		expect(mobileFirstOutputNameBox && mobileOutputExampleBox && mobileFirstOutputBox && mobileSecondOutputBox).not.toBeNull();
+		if (mobileFirstOutputNameBox && mobileOutputExampleBox && mobileFirstOutputBox && mobileSecondOutputBox) {
+			expect(mobileFirstOutputNameBox.y + mobileFirstOutputNameBox.height).toBeLessThanOrEqual(mobileOutputExampleBox.y + 1);
+			expect(mobileSecondOutputBox.y - mobileFirstOutputBox.y - mobileFirstOutputBox.height).toBeGreaterThanOrEqual(14);
 		}
 		await expect(save).toBeVisible();
 		await expect(remove).toBeVisible();
