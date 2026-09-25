@@ -472,11 +472,9 @@
   .skill-editor .input-heading,
   .skill-editor .output-heading h4 { display:flex; align-items:center; gap:.35rem; }
   .section-icon { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; }
-  .skill-editor .output-heading,
-  .skill-editor .output-fields { width:100%; }
   .skill-editor .output-heading { display:grid; grid-template-columns:5.5rem minmax(0,1fr) minmax(0,1fr); column-gap:.6rem; align-items:center; }
   .skill-editor .output-heading h4 { grid-column:1/3; }
-  .skill-editor .output-heading > span { grid-column:3; font-weight:650; }
+  .skill-editor .output-heading > span { grid-column:3; font-weight:650; text-align:start; }
   .skill-editor .output-fields { grid-template-columns:minmax(0,1fr); row-gap:1rem; }
   .skill-editor .output-fields > .output-field { display:grid; grid-template-columns:5.5rem minmax(0,1fr) minmax(0,1fr); align-items:start; column-gap:.6rem; row-gap:.25rem; min-width:0; }
   .skill-editor .output-field > .type { justify-self:start; }

@@ -305,26 +305,61 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		const firstOutput = outputFields.first();
 		const exampleHeading = editor.getByTestId('workflow-output-example-heading');
 		await expect(exampleHeading).toHaveText('Example:');
-		const [firstTypeBox, firstNameBox, firstExampleBox, firstOutputBox, secondOutputBox, exampleHeadingBox] = await Promise.all([
+		const [firstTypeBox, firstNameBox, firstExampleBox, firstOutputBox, secondOutputBox, exampleHeadingBox, inputBox, outputHeadingBox, outputFieldsBox] = await Promise.all([
 			firstOutput.locator('.type').boundingBox(),
 			firstOutput.locator('.output-name').boundingBox(),
 			firstOutput.locator('.output-example').boundingBox(),
 			firstOutput.boundingBox(),
 			outputFields.nth(1).boundingBox(),
-			exampleHeading.boundingBox()
+			exampleHeading.boundingBox(),
+			editor.locator('.schema-fields').boundingBox(),
+			editor.getByTestId('workflow-output-heading').boundingBox(),
+			editor.getByTestId('workflow-output-fields').boundingBox()
 		]);
-		expect(firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox && exampleHeadingBox).not.toBeNull();
-		if (firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox && exampleHeadingBox) {
+		expect(firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox && exampleHeadingBox && inputBox && outputHeadingBox && outputFieldsBox).not.toBeNull();
+		if (firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox && exampleHeadingBox && inputBox && outputHeadingBox && outputFieldsBox) {
 			expect(firstTypeBox.x + firstTypeBox.width).toBeLessThan(firstNameBox.x);
 			expect(firstNameBox.x + firstNameBox.width).toBeLessThan(firstExampleBox.x);
 			expect(Math.abs(firstTypeBox.y - firstNameBox.y)).toBeLessThan(4);
 			expect(Math.abs(firstExampleBox.x - exampleHeadingBox.x)).toBeLessThan(2);
+			expect(Math.abs(inputBox.x - outputHeadingBox.x)).toBeLessThan(2);
+			expect(Math.abs(inputBox.width - outputHeadingBox.width)).toBeLessThan(2);
+			expect(Math.abs(inputBox.x - outputFieldsBox.x)).toBeLessThan(2);
+			expect(Math.abs(inputBox.width - outputFieldsBox.width)).toBeLessThan(2);
 			expect(Math.abs(secondOutputBox.x - firstOutputBox.x)).toBeLessThan(2);
 			expect(secondOutputBox.y - firstOutputBox.y - firstOutputBox.height).toBeGreaterThanOrEqual(14);
 		}
+		expect(await exampleHeading.evaluate((element) => getComputedStyle(element).textAlign)).toBe('start');
 		const boolOutput = outputFields.filter({ hasText: 'Rain Expected' });
 		await expect(boolOutput.locator('.type')).toHaveText('Bool');
 		await expect(boolOutput.getByTestId('workflow-readable-value')).toHaveText('true');
+		const showAll = editor.getByTestId('workflow-show-all-fields');
+		await expect(showAll).toHaveText('Show all fields');
+		const [showAllBox, fieldsBox, showAllStyle] = await Promise.all([
+			showAll.boundingBox(),
+			editor.locator('.schema-fields').boundingBox(),
+			showAll.evaluate((element) => ({
+				fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+				color: getComputedStyle(element).color,
+				secondaryColor: getComputedStyle(element.closest('.editor')?.querySelector('.output-heading h4') as Element).color
+			}))
+		]);
+		expect(showAllStyle.fontSize).toBe(14);
+		expect(showAllStyle.color).toBe(showAllStyle.secondaryColor);
+		expect(showAllBox && fieldsBox).not.toBeNull();
+		if (showAllBox && fieldsBox) {
+			expect(Math.abs(showAllBox.x + showAllBox.width / 2 - fieldsBox.x - fieldsBox.width / 2)).toBeLessThan(2);
+		}
+		await expect(editor.getByText('Timezone', { exact: true })).toHaveCount(0);
+		await expect(editor.getByText('Units', { exact: true })).toHaveCount(0);
+		await showAll.click();
+		await expect(showAll).toHaveAttribute('aria-expanded', 'true');
+		await expect(showAll).toHaveText('Show basic fields');
+		await expect(editor.getByText('Timezone', { exact: true })).toBeVisible();
+		await expect(editor.getByText('Units', { exact: true })).toBeVisible();
+		await showAll.click();
+		await expect(showAll).toHaveAttribute('aria-expanded', 'false');
+		await expect(editor.getByText('Timezone', { exact: true })).toHaveCount(0);
 		const dateRange = editor.getByTestId('workflow-date-range-field');
 		await expect(dateRange).toContainText('Date range');
 		await expect(dateRange.getByTestId('workflow-date-range-today')).toBeVisible();

@@ -51564,7 +51564,7 @@ assertions:
       surface: gui.web
     - &id6132
       path: frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
-      line: 403
+      line: 438
       name: keeps the enlarged app skill header readable without phone overlap
       surface: gui.web
     supporting_tests: []
@@ -52032,12 +52032,12 @@ assertions:
       surface: gui.web
     - &id6177
       path: frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
-      line: 403
+      line: 438
       name: keeps the enlarged app skill header readable without phone overlap
       surface: gui.web
     - &id6178
       path: frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
-      line: 551
+      line: 586
       name: keeps an existing message draft when returning from the destination chooser
       surface: gui.web
     - &id6179
@@ -52086,7 +52086,7 @@ assertions:
       surface: gui.web
     - &id6182
       path: frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
-      line: 551
+      line: 586
       name: keeps an existing message draft when returning from the destination chooser
       surface: gui.web
     - &id6183

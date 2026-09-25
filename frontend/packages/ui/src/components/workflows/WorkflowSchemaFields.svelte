@@ -106,7 +106,7 @@
     {/each}
   {/if}
   {#if advanced.length}
-    <button type="button" class="show-all" aria-expanded={expanded[id] ?? false} onclick={() => expanded = { ...expanded, [id]: !expanded[id] }}>
+    <button type="button" class="show-all" data-testid="workflow-show-all-fields" aria-expanded={expanded[id] ?? false} onclick={() => expanded = { ...expanded, [id]: !expanded[id] }}>
       {tr(expanded[id] ? 'show_basic_fields' : 'show_all_fields')}
     </button>
   {/if}
@@ -176,7 +176,7 @@
   .quiet, .variable, .show-all { background:transparent; color:var(--color-primary); border:0; box-shadow:none; font:inherit; font-size:max(16px, 1rem); cursor:pointer; min-height:2rem; }
   .quiet { align-self:start; }
   .variable { padding:0; text-align:start; min-height:1.5rem; }
-  .show-all { grid-column:1/-1; justify-self:start; padding:0; text-align:start; }
+  .show-all { grid-column:1/-1; justify-self:center; padding:0; text-align:center; color:var(--color-font-secondary); font-size:var(--font-size-small); }
   input:focus-visible, button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
   @media(max-width:730px) {
     .schema-fields, .object { grid-template-columns:1fr; }
