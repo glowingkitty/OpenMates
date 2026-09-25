@@ -469,32 +469,32 @@ assertions:
       surface: rest_api
     - &id041
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 407
-      name: test_final_no_tools_turn_rejects_provider_tool_call_and_fails_visibly
+      line: 410
+      name: test_final_no_tools_turn_recovers_from_provider_tool_call_without_executing_it
       surface: gui.web
     - &id042
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 425
+      line: 435
       name: test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_call
       surface: gui.web
     - &id043
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 440
+      line: 450
       name: test_main_processor_continues_safe_text_after_fabricated_protocol
       surface: gui.web
     - &id044
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 473
+      line: 483
       name: test_main_processor_recovers_when_protocol_was_the_first_output
       surface: gui.web
     - &id045
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 495
+      line: 505
       name: test_main_processor_bounds_repeated_protocol_and_marks_failure
       surface: gui.web
     - &id046
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 513
+      line: 523
       name: test_main_processor_rejects_orphaned_protocol_recovery_instruction
       surface: gui.web
     - &id047
@@ -11088,7 +11088,7 @@ assertions:
       surface: rest_api
     - &id1306
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 739
+      line: 749
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id1307
@@ -11527,7 +11527,7 @@ assertions:
       surface: rest_api
     - &id1344
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 739
+      line: 749
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id1345
@@ -22603,7 +22603,7 @@ assertions:
       surface: rest_api
     - &id2630
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 739
+      line: 749
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     supporting_tests:
@@ -25272,7 +25272,7 @@ assertions:
       surface: gui.web
     - &id2957
       path: frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
-      line: 227
+      line: 230
       name: shows a terminal inference failure instead of an empty completed turn
       surface: gui.web
     supporting_tests:
@@ -25315,7 +25315,7 @@ assertions:
     direct_tests:
     - &id2961
       path: frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
-      line: 202
+      line: 205
       name: keeps processing state visible but static under reduced motion
       surface: gui.web
     supporting_tests: []
@@ -27765,7 +27765,7 @@ assertions:
       surface: rest_api
     - &id3281
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 670
+      line: 680
       name: test_pending_app_settings_memories_context_preserves_model_preferences
       surface: rest_api
     - &id3282

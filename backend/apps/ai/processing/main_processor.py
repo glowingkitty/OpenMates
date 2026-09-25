@@ -611,8 +611,10 @@ def _build_pending_app_settings_memories_context(
         "chat_key_version": getattr(request_data, "chat_key_version", None),
     }
 
-# Max iterations for tool calling to prevent infinite loops
+# Four tool-enabled passes followed by one answer-only pass. A silent answer-only
+# recovery below may add one more provider call, but can never execute a skill.
 MAX_TOOL_CALL_ITERATIONS = 5
+MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 1
 
 # === SKILL CALL BUDGET LIMITS ===
 # These limits prevent runaway research loops where the AI keeps requesting more and more searches.
@@ -4203,6 +4205,7 @@ async def handle_main_processing(
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
     empty_post_tool_recovery_attempted = False
+    answer_only_recovery_attempted = False
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -4213,17 +4216,13 @@ async def handle_main_processing(
     completed_skill_calls: Dict[str, Dict[str, Any]] = {}
     pending_project_operation_id: Optional[str] = None
     
-    for iteration in range(MAX_TOOL_CALL_ITERATIONS):
-        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}, total_skill_calls={total_skill_calls}")
+    max_iterations_with_recovery = MAX_TOOL_CALL_ITERATIONS + MAX_ANSWER_ONLY_RECOVERY_ITERATIONS
+    for iteration in range(max_iterations_with_recovery):
+        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
         
-        # === LAST ITERATION SAFETY CHECK ===
-        # If we're on the last iteration, always force no tools to ensure we get an answer.
-        # This acts as a safety net in case the budget limits weren't reached.
-        if (
-            iteration == MAX_TOOL_CALL_ITERATIONS - 1
-            and not force_no_tools
-            and not force_deep_research_delegation
-        ):
+        # The fifth and optional recovery calls are answer-only, regardless of
+        # remaining skill budget or Deep research routing.
+        if iteration >= MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True
@@ -4243,12 +4242,13 @@ async def handle_main_processing(
         else:
             current_tool_choice = "auto"
 
-        current_tool_choice = resolve_deep_research_tool_choice(
-            current_tool_choice,
-            active_focus_id=request_data.active_focus_id,
-            chat_depth=chat_depth,
-            is_sub_chat_continuation=request_data.is_sub_chat_continuation,
-        )
+        if not force_no_tools:
+            current_tool_choice = resolve_deep_research_tool_choice(
+                current_tool_choice,
+                active_focus_id=request_data.active_focus_id,
+                chat_depth=chat_depth,
+                is_sub_chat_continuation=request_data.is_sub_chat_continuation,
+            )
         if current_tool_choice == "required":
             logger.info(
                 f"{log_prefix} [SUB_CHAT] Requiring start_sub_chats for active Deep research."
@@ -4278,6 +4278,13 @@ async def handle_main_processing(
             )
             iteration_system_prompt = full_system_prompt + budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
+
+        if answer_only_recovery_attempted:
+            iteration_system_prompt += (
+                "\n\nThe previous answer-only attempt did not produce a usable answer. "
+                "Answer the user's request now using the completed results in this conversation. "
+                "Do not request tools or mention this retry."
+            )
 
         # Inject embed preview instruction when images-search was executed
         if images_search_executed:
@@ -5173,7 +5180,20 @@ async def handle_main_processing(
                     TASK_QUEUE_GUARD_MAX_RETRIES,
                 )
                 continue
-            if (forbidden_tool_call_seen and not llm_turn_had_content) or _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content):
+            if force_no_tools and not llm_turn_had_content and iteration == MAX_TOOL_CALL_ITERATIONS - 1:
+                answer_only_recovery_attempted = True
+                logger.warning(
+                    "%s [ANSWER_ONLY_RECOVERY] Final answer attempt produced no visible text; "
+                    "retrying once without tools in the same assistant turn.",
+                    log_prefix,
+                )
+                continue
+
+            if (
+                (forbidden_tool_call_seen and not llm_turn_had_content)
+                or _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content)
+                or (force_no_tools and not llm_turn_had_content)
+            ):
                 has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
                 if has_retry_iteration and not empty_post_tool_recovery_attempted:
                     empty_post_tool_recovery_attempted = True

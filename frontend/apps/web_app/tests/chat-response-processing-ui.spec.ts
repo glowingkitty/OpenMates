@@ -186,6 +186,9 @@ test.describe('Assistant response processing rendered contract', () => {
 		await expect(thinking.getByTestId('thinking-header')).toHaveAttribute('aria-expanded', 'true');
 
 		await emitStage(page, 'thinking-complete');
+		// The answer-only retry is internal: research completion does not end typing or create an error turn.
+		await expect(activeChat).toHaveClass(/ai-typing/);
+		await expect(assistant).toHaveCount(1);
 		await emitStage(page, 'answer-first');
 		await expect(assistant).toContainText('A deterministic');
 		await emitStage(page, 'answer-rich');

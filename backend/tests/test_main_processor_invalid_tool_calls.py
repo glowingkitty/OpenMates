@@ -17,6 +17,8 @@ import types
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 
 _INSTALLED_STUB_MODULES: dict[str, types.ModuleType] = {}
 
@@ -404,19 +406,27 @@ async def _run_mocked_protocol_guard_main_processor(
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
-async def test_final_no_tools_turn_rejects_provider_tool_call_and_fails_visibly(monkeypatch) -> None:
+@pytest.mark.parametrize("recovery_succeeds", [True, False])
+async def test_final_no_tools_turn_recovers_from_provider_tool_call_without_executing_it(
+    monkeypatch, recovery_succeeds: bool
+) -> None:
     monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    answer = "Here is the answer from the results already gathered."
+    recovery_chunk = answer if recovery_succeeds else {"fake_google_tool_call": "web-search"}
     output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch,
-        [[{"fake_google_tool_call": "web-search"}]],
+        [[{"fake_google_tool_call": "web-search"}], [recovery_chunk]],
         generated_tools=[{"type": "function", "function": {"name": "web-search", "description": "Search the web."}}],
     )
 
-    assert len(calls) == 1
-    assert calls[0]["tool_choice"] == "none"
-    assert calls[0]["tools"] is None
-    assert not any(isinstance(chunk, str) for chunk in output)
-    assert {"__main_processing_failure__": True, "reason": "empty_post_tool_response"} in output
+    assert len(calls) == 2
+    assert all(call["tool_choice"] == "none" and call["tools"] is None for call in calls)
+    assert "previous answer-only attempt" in calls[1]["system_prompt"]
+    if recovery_succeeds:
+        assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+        assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
+    else:
+        assert {"__main_processing_failure__": True, "reason": "empty_post_tool_response"} in output
     assert not any(isinstance(chunk, dict) and "embed_id" in chunk for chunk in output)
     assert not any(isinstance(chunk, dict) and "__tool_calls_info__" in chunk for chunk in output)
 
