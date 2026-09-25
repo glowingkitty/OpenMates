@@ -794,9 +794,11 @@
 		83136C15A6FE80F35F0541CD /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
 		752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914FA322E8FCDDC3A2C46FD5 /* WatchPhoneOpenPayload.swift */; };
 		1AF6B5DE991CA6579DDF1B1C /* WatchHubDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */; };
+		A3C7D64E1D9847CBA19428F1 /* WatchHubDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FF6823AA5B4183B0ADB2BBD /* WatchHubDataService.swift */; };
 		3B6494DB3177E720650E3849 /* WatchHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6764F2FB4283163E9DE77C /* WatchHubView.swift */; };
 		C69C86A067648BC7AFDD5AF3 /* WatchItemOpenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */; };
 		055E07B8EB1520CBEC63C717 /* WatchPhoneOpenPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */; };
+		A3C7D64E1D9847CBA19428F2 /* WatchHubDataServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3C7D64E1D9847CBA19428F3 /* WatchHubDataServiceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1354,6 +1356,7 @@
 		7C6764F2FB4283163E9DE77C /* WatchHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubView.swift; sourceTree = "<group>"; };
 		A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchItemOpenModelTests.swift; sourceTree = "<group>"; };
 		9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPhoneOpenPayloadTests.swift; sourceTree = "<group>"; };
+		A3C7D64E1D9847CBA19428F3 /* WatchHubDataServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHubDataServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2087,6 +2090,7 @@
 				C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */,
 				A7250F0C3BB5E74AA7BE9EA3 /* WatchItemOpenModelTests.swift */,
 				9441C5FD728416741C7EF3A7 /* WatchPhoneOpenPayloadTests.swift */,
+				A3C7D64E1D9847CBA19428F3 /* WatchHubDataServiceTests.swift */,
 				C0FFEE000000000000049030 /* WatchAuthStoreTests.swift */,
 				C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
@@ -3171,6 +3175,7 @@
 				C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */,
 				F3AD7C8BE79B4D1E3EC0B0D7 /* WatchItemOpenModel.swift in Sources */,
 				752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */,
+				A3C7D64E1D9847CBA19428F1 /* WatchHubDataService.swift in Sources */,
 				C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */,
 				88923DFE92A96AF8D50B9372 /* BackgroundChatSender.swift in Sources */,
 				E628B3A1F3BF0C7F6F112E67 /* BackupCodeView.swift in Sources */,
@@ -3550,6 +3555,7 @@
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
 				C69C86A067648BC7AFDD5AF3 /* WatchItemOpenModelTests.swift in Sources */,
 				055E07B8EB1520CBEC63C717 /* WatchPhoneOpenPayloadTests.swift in Sources */,
+				A3C7D64E1D9847CBA19428F2 /* WatchHubDataServiceTests.swift in Sources */,
 				C0FFEE000000000000049031 /* WatchAuthStoreTests.swift in Sources */,
 				C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,

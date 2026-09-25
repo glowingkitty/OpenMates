@@ -12,6 +12,8 @@
 //          frontend/packages/ui/src/styles/fields.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
 
 import AVFoundation
 import SwiftUI
@@ -292,7 +294,12 @@ private struct WatchChatListView: View {
                     WatchStatusPill(text: WatchStrings.offlineBanner)
                 }
 
-                if runtime.chats.isEmpty && !runtime.isSyncing {
+                if runtime.unavailableChatCount > 0 {
+                    WatchStatusPill(text: WatchLocalization.text("workflows.builder.chats_unavailable"))
+                        .accessibilityIdentifier("watch-chat-unavailable")
+                }
+
+                if runtime.chats.isEmpty && !runtime.isSyncing && !runtime.isOffline && runtime.unavailableChatCount == 0 {
                     Text(WatchStrings.noChats)
                         .font(.omSmall)
                         .foregroundStyle(Color.grey0.opacity(0.76))

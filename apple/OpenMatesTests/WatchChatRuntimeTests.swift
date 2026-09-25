@@ -9,6 +9,82 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testNonemptyChatResponseDecodesMasterWrappersAndSelectsReplyKey() async throws {
+        let chatId = "fixture-chat"
+        let masterKey = SymmetricKey(size: .bits256)
+        let chatKey = SymmetricKey(size: .bits256)
+        let staleKey = SymmetricKey(size: .bits256)
+        let selectedWrapper = try await CryptoManager.shared.wrapChatKey(chatKey, masterKey: masterKey)
+        let staleWrapper = try await CryptoManager.shared.wrapChatKey(staleKey, masterKey: masterKey)
+        let payload: [String: Any] = ["chats": [[
+            "id": chatId, "encrypted_title": "ciphertext", "messages_v": 2,
+            "encrypted_chat_key": staleWrapper,
+            "chat_key_wrappers": [
+                ["id": "older", "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: chatId),
+                 "key_type": "master", "encrypted_chat_key": staleWrapper, "wrapper_version": 1],
+                ["id": "current", "hashed_chat_id": WatchChatKeyWrapperRecord.hashedChatId(for: chatId),
+                 "key_type": "master", "encrypted_chat_key": selectedWrapper, "wrapper_version": 2],
+            ],
+        ]]]
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try decoder.decode(WatchChatListEnvelope.self, from: JSONSerialization.data(withJSONObject: payload))
+        let chat = try XCTUnwrap(response.chats.first.map(WatchRemoteChat.init(dto:)))
+
+        XCTAssertEqual(response.chats.count, 1)
+        XCTAssertEqual(chat.messagesV, 2)
+        XCTAssertEqual(chat.chatKeyWrappers.count, 2)
+        let resolution = await WatchChatKeyResolver.resolve(
+            chatId: chat.id, wrappers: chat.chatKeyWrappers,
+            encryptedChatKey: chat.encryptedChatKey, masterKey: masterKey
+        )
+        let resolved = try XCTUnwrap(resolution)
+        XCTAssertEqual(resolved.wrapped, selectedWrapper)
+        XCTAssertNil(resolved.outboundWrapped, "A stale row wrapper must disable replies rather than send a mismatched key")
+        let selectedBytes = resolved.key.withUnsafeBytes { Data($0) }
+        XCTAssertEqual(selectedBytes, chatKey.withUnsafeBytes { Data($0) })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
+    func testChatKeyResolverFallsBackToLegacyKeyWhenWrapperCannotUnwrap() async throws {
+        let masterKey = SymmetricKey(size: .bits256)
+        let legacyKey = SymmetricKey(size: .bits256)
+        let legacyWrapper = try await CryptoManager.shared.wrapChatKey(legacyKey, masterKey: masterKey)
+        let invalidWrapper = WatchChatKeyWrapperRecord(
+            id: nil, hashedChatId: WatchChatKeyWrapperRecord.hashedChatId(for: "chat"),
+            keyType: "master", encryptedChatKey: "invalid", wrapperVersion: 2, createdAt: nil
+        )
+
+        let resolution = await WatchChatKeyResolver.resolve(
+            chatId: "chat", wrappers: [invalidWrapper], encryptedChatKey: legacyWrapper,
+            masterKey: masterKey
+        )
+        let resolved = try XCTUnwrap(resolution)
+        XCTAssertEqual(resolved.wrapped, legacyWrapper)
+        XCTAssertEqual(resolved.outboundWrapped, legacyWrapper)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
+    func testChatKeyResolverPreservesExactRowWrapperForReplies() async throws {
+        let masterKey = SymmetricKey(size: .bits256)
+        let chatKey = SymmetricKey(size: .bits256)
+        let rowWrapper = try await CryptoManager.shared.wrapChatKey(chatKey, masterKey: masterKey)
+        let newerWrapper = try await CryptoManager.shared.wrapChatKey(chatKey, masterKey: masterKey)
+        let wrapper = WatchChatKeyWrapperRecord(
+            id: "newer", hashedChatId: WatchChatKeyWrapperRecord.hashedChatId(for: "chat"),
+            keyType: "master", encryptedChatKey: newerWrapper, wrapperVersion: 2, createdAt: nil
+        )
+
+        let resolution = await WatchChatKeyResolver.resolve(
+            chatId: "chat", wrappers: [wrapper], encryptedChatKey: rowWrapper,
+            masterKey: masterKey
+        )
+        let resolved = try XCTUnwrap(resolution)
+        XCTAssertEqual(resolved.wrapped, newerWrapper)
+        XCTAssertEqual(resolved.outboundWrapped, rowWrapper)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open
     func testLiveReservedAccountLoginLoadsAndOpensWatchChat() async throws {
         let credentials = try WatchLiveAccountCredentials.fromEnvironment(preferredReservedSlot: 14)
@@ -229,6 +305,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         await runtime.refresh()
 
         XCTAssertEqual(runtime.chats.map(\.id), ["visible"])
+        XCTAssertEqual(runtime.unavailableChatCount, 1)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.browse-search-open

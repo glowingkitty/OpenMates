@@ -4,6 +4,8 @@
 // The runtime fetches recent chats/messages directly from the backend, unwraps
 // per-chat keys from the Watch-local master key, and keeps a local JSON snapshot
 // for offline startup. This layer never logs plaintext.
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply
 
 import CryptoKit
 import Foundation
@@ -358,7 +360,32 @@ struct WatchSyncClientState: Equatable, Sendable {
     let clientEmbedIds: [String]
 }
 
-struct WatchRemoteChat: Equatable, Sendable {
+// Mirrors ChatKeyWrapperRecord selection for the Watch target, which does not
+// compile ChatKeyManager.swift.
+struct WatchChatKeyWrapperRecord: Decodable, Sendable {
+    let id: String?
+    let hashedChatId: String
+    let keyType: String
+    let encryptedChatKey: String
+    let wrapperVersion: Int?
+    let createdAt: String?
+
+    static func orderedMasterWrappers(_ wrappers: [Self], for chatId: String) -> [Self] {
+        let hash = hashedChatId(for: chatId)
+        return wrappers
+            .filter { $0.keyType == "master" && $0.hashedChatId == hash && !$0.encryptedChatKey.isEmpty }
+            .sorted {
+                ($0.wrapperVersion ?? 0, $0.createdAt ?? "", $0.id ?? "") >
+                    ($1.wrapperVersion ?? 0, $1.createdAt ?? "", $1.id ?? "")
+            }
+    }
+
+    static func hashedChatId(for chatId: String) -> String {
+        SHA256.hash(data: Data(chatId.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+struct WatchRemoteChat: Sendable {
     let id: String
     let title: String?
     let lastMessageAt: String?
@@ -368,6 +395,7 @@ struct WatchRemoteChat: Equatable, Sendable {
     let encryptedTitle: String?
     let encryptedChatSummary: String?
     let encryptedChatKey: String?
+    var chatKeyWrappers: [WatchChatKeyWrapperRecord] = []
     var messagesV: Int = 0
     var titleV: Int = 0
     var metadataV: Int = 0
@@ -478,6 +506,7 @@ final class WatchChatRuntime: ObservableObject {
     @Published private(set) var isOffline = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var pendingAudioEmbeds: [WatchPendingAudioEmbed] = []
+    @Published private(set) var unavailableChatCount = 0
 
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
@@ -544,6 +573,7 @@ final class WatchChatRuntime: ObservableObject {
             await loadCachedSnapshot()
         }
 
+        var failurePhase = "fetch"
         do {
             var fetchedChats: [WatchRemoteChat] = []
             while true {
@@ -555,6 +585,15 @@ final class WatchChatRuntime: ObservableObject {
                 if page.count < Self.chatFetchLimit { break }
             }
             let remote = Self.sortedChats(await decryptChats(fetchedChats))
+            unavailableChatCount = fetchedChats.count - remote.count
+            NativeDiagnostics.event("refresh", category: "watch_chat", counts: [
+                "fetched": fetchedChats.count, "decrypted": remote.count,
+                "unavailable_key": unavailableChatCount,
+            ])
+            if unavailableChatCount > 0 {
+                NativeDiagnostics.event("decrypt_key_unavailable", category: "watch_chat", level: .warning,
+                                        counts: ["count": unavailableChatCount])
+            }
             let remoteIds = Set(remote.map(\.id))
             let pendingChatIds = Set(pendingTextSends.map(\.chatId))
             let localRetained = chats.filter { chat in
@@ -566,8 +605,11 @@ final class WatchChatRuntime: ObservableObject {
             chats = Self.sortedChats(remote + localRetained)
             isOffline = false
             await replayPendingTextSends()
+            failurePhase = "persist"
             try await persistSnapshot()
         } catch {
+            NativeDiagnostics.failure("\(failurePhase)_failed", category: "watch_chat", level: .warning, error: error)
+            unavailableChatCount = 0
             isOffline = true
             errorMessage = error.localizedDescription
             if chats.isEmpty {
@@ -657,8 +699,12 @@ final class WatchChatRuntime: ObservableObject {
 
     private func send(content: String, chat: WatchChatSummary, embed: WatchPendingAudioEmbed?) async -> Bool {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let encryptedChatKey = chat.encryptedChatKey else {
+        guard !trimmed.isEmpty else {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
+            return false
+        }
+        guard let encryptedChatKey = chat.encryptedChatKey else {
+            errorMessage = WatchChatRuntimeError.missingChatKey.localizedDescription
             return false
         }
         guard !isSending, pendingTextSends.isEmpty else {
@@ -1172,9 +1218,11 @@ private final class WatchChatCryptoService: WatchChatCrypto {
     }
 
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
-        guard let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey) else {
+        guard let resolved = await loadChatKey(chatId: chat.id, wrappers: chat.chatKeyWrappers,
+                                               encryptedChatKey: chat.encryptedChatKey) else {
             return nil
         }
+        let key = resolved.key
         let title = await decrypt(chat.encryptedTitle, key: key) ?? chat.title
         let preview = await decrypt(chat.encryptedChatSummary, key: key) ?? chat.chatSummary
         return WatchChatSummary(
@@ -1183,7 +1231,7 @@ private final class WatchChatCryptoService: WatchChatCrypto {
             preview: preview, isPinned: chat.isPinned,
             encryptedTitle: chat.encryptedTitle,
             encryptedPreview: chat.encryptedChatSummary,
-            encryptedChatKey: chat.encryptedChatKey,
+            encryptedChatKey: resolved.outboundWrapped,
             messagesV: chat.messagesV, titleV: chat.titleV, metadataV: chat.metadataV
         )
     }
@@ -1282,9 +1330,52 @@ private final class WatchChatCryptoService: WatchChatCrypto {
         return chatKey
     }
 
+    private func loadChatKey(chatId: String, wrappers: [WatchChatKeyWrapperRecord],
+                             encryptedChatKey: String?) async -> WatchChatKeyResolver.Resolved? {
+        guard let currentUserId,
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: currentUserId) else { return nil }
+        guard let resolved = await WatchChatKeyResolver.resolve(
+            chatId: chatId, wrappers: wrappers, encryptedChatKey: encryptedChatKey,
+            masterKey: masterKey
+        ) else { return nil }
+        chatKeys[chatId] = resolved.key
+        return resolved
+    }
+
     private func decrypt(_ encrypted: String?, key: SymmetricKey?) async -> String? {
         guard let encrypted, let key else { return nil }
         return try? await CryptoManager.shared.decryptContent(base64String: encrypted, key: key)
+    }
+}
+
+enum WatchChatKeyResolver {
+    struct Resolved {
+        let key: SymmetricKey
+        let wrapped: String
+        let outboundWrapped: String?
+    }
+
+    static func resolve(chatId: String, wrappers: [WatchChatKeyWrapperRecord],
+                        encryptedChatKey: String?, masterKey: SymmetricKey) async -> Resolved? {
+        let candidates = WatchChatKeyWrapperRecord.orderedMasterWrappers(wrappers, for: chatId)
+            .map(\.encryptedChatKey) + (encryptedChatKey.map { [$0] } ?? [])
+        for wrapped in candidates {
+            if let key = try? await CryptoManager.shared.unwrapChatKey(
+                encryptedChatKeyBase64: wrapped, masterKey: masterKey
+            ) {
+                // Existing-chat writes must send the exact immutable row value.
+                // A different wrapper can decrypt content, but cannot replace it.
+                var outboundWrapped: String?
+                if let encryptedChatKey,
+                   let rowKey = try? await CryptoManager.shared.unwrapChatKey(
+                    encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey
+                   ), rowKey.withUnsafeBytes({ Data($0) }) == key.withUnsafeBytes({ Data($0) }) {
+                    outboundWrapped = encryptedChatKey
+                }
+                return Resolved(key: key, wrapped: wrapped, outboundWrapped: outboundWrapped)
+            }
+        }
+        return nil
     }
 }
 
@@ -1334,11 +1425,11 @@ private struct WatchChatVersionEnvelope: Decodable {
     let serverMessageCount: Int?
 }
 
-private struct WatchChatListEnvelope: Decodable {
+struct WatchChatListEnvelope: Decodable {
     let chats: [WatchChatDTO]
 }
 
-private struct WatchChatDTO: Decodable {
+struct WatchChatDTO: Decodable {
     let id: String
     let title: String?
     let lastMessageAt: String?
@@ -1348,6 +1439,7 @@ private struct WatchChatDTO: Decodable {
     let encryptedTitle: String?
     let encryptedChatSummary: String?
     let encryptedChatKey: String?
+    let chatKeyWrappers: [WatchChatKeyWrapperRecord]
     let messagesV: Int
     let titleV: Int
     let metadataV: Int
@@ -1371,6 +1463,8 @@ private struct WatchChatDTO: Decodable {
         case encryptedChatSummarySnake = "encrypted_chat_summary"
         case encryptedChatKey
         case encryptedChatKeySnake = "encrypted_chat_key"
+        case chatKeyWrappers
+        case chatKeyWrappersSnake = "chat_key_wrappers"
         case messagesV, titleV, metadataV
         case messagesVSnake = "messages_v"
         case titleVSnake = "title_v"
@@ -1397,6 +1491,8 @@ private struct WatchChatDTO: Decodable {
             ?? container.decodeIfPresent(String.self, forKey: .encryptedChatSummarySnake)
         encryptedChatKey = try container.decodeIfPresent(String.self, forKey: .encryptedChatKey)
             ?? container.decodeIfPresent(String.self, forKey: .encryptedChatKeySnake)
+        chatKeyWrappers = try container.decodeIfPresent([WatchChatKeyWrapperRecord].self, forKey: .chatKeyWrappers)
+            ?? container.decodeIfPresent([WatchChatKeyWrapperRecord].self, forKey: .chatKeyWrappersSnake) ?? []
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
             ?? container.decodeIfPresent(Int.self, forKey: .messagesVSnake) ?? 0
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
@@ -1448,7 +1544,7 @@ private struct WatchChatMessageDTO: Decodable {
     }
 }
 
-private extension WatchRemoteChat {
+extension WatchRemoteChat {
     init(dto: WatchChatDTO) {
         self.init(
             id: dto.id,
@@ -1460,6 +1556,7 @@ private extension WatchRemoteChat {
             encryptedTitle: dto.encryptedTitle,
             encryptedChatSummary: dto.encryptedChatSummary,
             encryptedChatKey: dto.encryptedChatKey,
+            chatKeyWrappers: dto.chatKeyWrappers,
             messagesV: dto.messagesV, titleV: dto.titleV, metadataV: dto.metadataV
         )
     }

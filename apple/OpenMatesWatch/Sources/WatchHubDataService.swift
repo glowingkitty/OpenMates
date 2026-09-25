@@ -56,29 +56,24 @@ struct WatchWorkflowListItem: Identifiable, Equatable {
     }
 }
 
-private struct WatchTaskListResponse: Decodable {
+struct WatchTaskListResponse: Decodable {
     let tasks: [WatchTaskRecord]
 }
 
-private struct WatchWorkflowListResponse: Decodable {
+struct WatchWorkflowListResponse: Decodable {
     let workflows: [WatchWorkflowRecord]
 }
 
-private struct WatchWorkflowRecord: Decodable {
+struct WatchWorkflowRecord: Decodable {
     let id: String
     let title: String
     let enabled: Bool
     let updatedAt: Int
     let category: String?
     let icon: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, title, enabled, category, icon
-        case updatedAt = "updated_at"
-    }
 }
 
-private struct WatchTaskRecord: Decodable {
+struct WatchTaskRecord: Decodable {
     let taskId: String
     let source: String?
     let workflowId: String?
@@ -88,17 +83,6 @@ private struct WatchTaskRecord: Decodable {
     let status: String
     let position: Int?
     let updatedAt: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case taskId = "task_id"
-        case source
-        case workflowId = "workflow_id"
-        case title
-        case encryptedTaskKey = "encrypted_task_key"
-        case encryptedTitle = "encrypted_title"
-        case status, position
-        case updatedAt = "updated_at"
-    }
 }
 
 @MainActor
@@ -174,8 +158,16 @@ final class WatchHubDataService: ObservableObject {
                 return $0.updatedAt > $1.updatedAt
             }
             tasksError = false
+            NativeDiagnostics.event(
+                "watch_tasks_refreshed", category: "watch_hub",
+                counts: ["response_rows": response.tasks.count, "displayed_rows": tasks.count]
+            )
         } catch {
             tasksError = true
+            NativeDiagnostics.failure(
+                "watch_tasks_refresh_failed", category: "watch_hub",
+                level: .warning, error: error
+            )
         }
     }
 
@@ -199,8 +191,16 @@ final class WatchHubDataService: ObservableObject {
                 )
             }.sorted { $0.updatedAt > $1.updatedAt }
             workflowsError = false
+            NativeDiagnostics.event(
+                "watch_workflows_refreshed", category: "watch_hub",
+                counts: ["response_rows": response.workflows.count, "displayed_rows": workflows.count]
+            )
         } catch {
             workflowsError = true
+            NativeDiagnostics.failure(
+                "watch_workflows_refresh_failed", category: "watch_hub",
+                level: .warning, error: error
+            )
         }
     }
 }
