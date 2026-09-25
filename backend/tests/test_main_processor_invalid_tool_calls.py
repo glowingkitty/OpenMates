@@ -8,11 +8,13 @@
 import asyncio
 import copy
 import importlib
+import importlib.util
 import ast
 import inspect
 import json
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 
 
@@ -237,24 +239,6 @@ if getattr(processing_package, "main_processor", None) is main_processor:
     delattr(processing_package, "main_processor")
 
 
-class _ProtocolGuardHarness:
-    """Minimal parser double; the real guard has exhaustive tests separately."""
-
-    def __init__(self) -> None:
-        self.detected = False
-
-    async def filter(self, stream):
-        async for chunk in stream:
-            if isinstance(chunk, str) and "```toon" in chunk:
-                safe_text = chunk.split("```toon", 1)[0]
-                if safe_text:
-                    yield safe_text
-                self.detected = True
-                continue
-            if not self.detected:
-                yield chunk
-
-
 async def _run_mocked_protocol_guard_main_processor(
     monkeypatch,
     streams,
@@ -297,7 +281,18 @@ async def _run_mocked_protocol_guard_main_processor(
     async def no_task_queue_retry(*_args, **_kwargs):
         return None
 
-    monkeypatch.setattr(main_processor, "ToolProtocolGuard", _ProtocolGuardHarness)
+    from backend.apps.ai.utils import tool_protocol_guard
+
+    stream_utils_path = Path(__file__).parents[1] / "apps/ai/utils/stream_utils.py"
+    stream_utils_spec = importlib.util.spec_from_file_location(
+        "_main_processor_protocol_stream_utils", stream_utils_path
+    )
+    stream_utils = importlib.util.module_from_spec(stream_utils_spec)
+    stream_utils_spec.loader.exec_module(stream_utils)
+    monkeypatch.setattr(tool_protocol_guard, "aggregate_paragraphs", stream_utils.aggregate_paragraphs)
+    monkeypatch.setattr(tool_protocol_guard, "UnifiedStreamChunk", type("ProtocolStreamChunk", (), {}))
+    monkeypatch.setattr(tool_protocol_guard, "StreamChunkType", SimpleNamespace(TEXT="text"))
+    monkeypatch.setattr(main_processor, "ToolProtocolGuard", tool_protocol_guard.ToolProtocolGuard)
     monkeypatch.setattr(main_processor, "call_main_llm_stream", call_main_llm_stream)
     monkeypatch.setattr(main_processor, "observe_ai_stream", lambda stream, *_args, **_kwargs: stream)
     monkeypatch.setattr(
@@ -441,7 +436,7 @@ async def test_main_processor_recovers_when_protocol_was_the_first_output(monkey
     answer = "I cannot verify current results from the available conversation."
     output, calls = await _run_mocked_protocol_guard_main_processor(
         monkeypatch,
-        [[protocol + "\nInvented result prose."], [answer]],
+        [[protocol[i:i + 7] for i in range(0, len(protocol), 7)] + ["\nInvented result prose."], [answer]],
     )
 
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer

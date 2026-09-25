@@ -469,22 +469,22 @@ assertions:
       surface: rest_api
     - &id041
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 406
+      line: 401
       name: test_main_processor_continues_safe_text_after_fabricated_protocol
       surface: gui.web
     - &id042
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 439
+      line: 434
       name: test_main_processor_recovers_when_protocol_was_the_first_output
       surface: gui.web
     - &id043
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 461
+      line: 456
       name: test_main_processor_bounds_repeated_protocol_and_marks_failure
       surface: gui.web
     - &id044
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 479
+      line: 474
       name: test_main_processor_rejects_orphaned_protocol_recovery_instruction
       surface: gui.web
     - &id045
@@ -11018,7 +11018,7 @@ assertions:
       surface: rest_api
     - &id1297
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 705
+      line: 700
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id1298
@@ -11457,7 +11457,7 @@ assertions:
       surface: rest_api
     - &id1335
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 705
+      line: 700
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id1336
@@ -22491,7 +22491,7 @@ assertions:
       surface: rest_api
     - &id2615
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 705
+      line: 700
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     supporting_tests:
@@ -27625,7 +27625,7 @@ assertions:
       surface: rest_api
     - &id3262
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 636
+      line: 631
       name: test_pending_app_settings_memories_context_preserves_model_preferences
       surface: rest_api
     - &id3263
