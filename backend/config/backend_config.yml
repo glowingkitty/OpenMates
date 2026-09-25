@@ -27,7 +27,6 @@ feature_overrides:
     - "app:projects"
     - "app:tasks"
     - "app:plans"
-    - "app:workflows"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"
     - "app:plants"

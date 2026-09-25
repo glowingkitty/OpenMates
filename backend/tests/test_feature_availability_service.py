@@ -33,7 +33,6 @@ UNRELEASED_AI_APPS = {
     "app:projects",
     "app:tasks",
     "app:plans",
-    "app:workflows",
 }
 
 
@@ -131,6 +130,7 @@ def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() ->
     assert UNRELEASED_PLATFORM_FEATURES | UNRELEASED_AI_APPS <= set(release_overrides["disabled"])
     assert "platform:workflows" in release_overrides["enabled"]
     assert "platform:workflows" not in release_overrides["disabled"]
+    assert "app:workflows" not in release_overrides["disabled"]
     assert UNRELEASED_PLATFORM_FEATURES <= set(dev_overrides["enabled"])
     assert UNRELEASED_AI_APPS.isdisjoint(dev_overrides["disabled"])
 

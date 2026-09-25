@@ -53513,32 +53513,32 @@ assertions:
       surface: gui.apple
     - &id6367
       path: backend/tests/test_feature_availability_service.py
-      line: 41
+      line: 40
       name: test_features_are_enabled_by_default
       surface: rest_api
     - &id6368
       path: backend/tests/test_feature_availability_service.py
-      line: 52
+      line: 51
       name: test_default_enabled_false_requires_admin_enable
       surface: rest_api
     - &id6369
       path: backend/tests/test_feature_availability_service.py
-      line: 66
+      line: 65
       name: test_disabled_parent_disables_children_unless_child_explicitly_enabled
       surface: rest_api
     - &id6370
       path: backend/tests/test_feature_availability_service.py
-      line: 88
+      line: 87
       name: test_sparse_disabled_feature_ids_do_not_list_enabled_defaults
       surface: rest_api
     - &id6371
       path: backend/tests/test_feature_availability_service.py
-      line: 103
+      line: 102
       name: test_unfinished_platform_features_are_default_disabled
       surface: rest_api
     - &id6372
       path: backend/tests/test_feature_availability_service.py
-      line: 123
+      line: 122
       name: test_release_config_disables_unreleased_surfaces_while_dev_enables_them
       surface: rest_api
     - &id6373
