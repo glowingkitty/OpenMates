@@ -204,6 +204,12 @@ skills:
             Note: The 'id' field is auto-generated if not provided.
           items:
             type: object
+            x-ui:
+              control: date-range
+              start_field: start_date
+              end_field: end_date
+              max_offset_days: 365
+              basic: false
             properties:
               query:
                 type: string
@@ -230,6 +236,8 @@ skills:
               event_type:
                 type: string
                 description: "Filter by event type. Use 'PHYSICAL' when user searches for events in a city (default for location-based searches). Use 'ONLINE' when user explicitly asks for virtual/online/remote events. Omit only when user wants both types."
+                x-ui:
+                  basic: false
                 enum:
                   - "PHYSICAL"
                   - "ONLINE"

@@ -295,7 +295,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		expect(headerType.subtitle).toBeGreaterThanOrEqual(18);
 		await expect(editor).toContainText('Weather | Get forecast');
 		await expect(editor).toContainText('Berlin');
-		await expect(coloredHeader.locator('.breadcrumb span')).toBeVisible();
+		await expect(coloredHeader.getByRole('button', { name: 'App skill' }).locator('svg')).toBeVisible();
 		await expect(editor.getByTestId('workflow-input-icon').locator('svg')).toBeVisible();
 		await expect(editor.getByTestId('workflow-output-icon').locator('svg')).toBeVisible();
 		await expect(editor.getByTestId('workflow-schema-field-location').locator('.type-badge')).toHaveText('Text');
@@ -395,10 +395,9 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		if (!backIconBox || !messageIconBox) return;
 		expect(backIconBox.width).toBeGreaterThanOrEqual(24);
 		expect(backIconBox.height).toBe(backIconBox.width);
-		expect(messageIconBox.width).toBeGreaterThanOrEqual(18);
-		expect(messageIconBox.width).toBeLessThanOrEqual(20);
+		expect(messageIconBox.width).toBeGreaterThanOrEqual(36);
+		expect(messageIconBox.width).toBeLessThanOrEqual(40);
 		expect(messageIconBox.height).toBe(messageIconBox.width);
-		expect(messageIconBox.width).toBeLessThan(backIconBox.width);
 		expect(messageIconStyle.color).toBe(messageIconStyle.headerColor);
 		const chatCards = chooser.getByTestId('app-store-example-chat-card');
 		await expect(chatCards).toHaveCount(2);
@@ -452,6 +451,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		];
 		const controls = [
 			header.locator('.breadcrumb'),
+			header.getByTestId('workflow-node-delete'),
 			header.locator('.close-control')
 		];
 		const editor = page.getByTestId('workflow-node-expanded');
@@ -460,7 +460,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		const back = header.getByRole('button', { name: 'App skill' });
 		const backLabel = back.locator('span');
 		const save = editor.getByTestId('workflow-node-save');
-		const remove = editor.getByTestId('remove-workflow-node');
+		const remove = editor.getByTestId('workflow-node-delete');
 		const close = header.locator('.close-control');
 		const [
 			headerBox,
@@ -580,6 +580,121 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 				if (controlBox) expect(overlaps(contentBox, controlBox)).toBe(false);
 			}
 		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows-ui.visual-language.coherent
+	test('navigates an app skill in place and confirms header deletion with a second press', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
+		await page.goto(preview(), { waitUntil: 'networkidle' });
+		const weatherNode = page.locator('[data-node-id="weather"]');
+		await weatherNode.getByTestId('workflow-node-summary').click();
+
+		const editor = weatherNode.getByTestId('workflow-node-expanded');
+		const back = editor.getByRole('button', { name: 'App skill' });
+		const deleteButton = editor.getByTestId('workflow-node-delete');
+		const [backBox, deleteBox] = await Promise.all([back.boundingBox(), deleteButton.boundingBox()]);
+		expect(backBox).not.toBeNull();
+		expect(deleteBox).not.toBeNull();
+		if (backBox && deleteBox) expect(deleteBox.x).toBeGreaterThanOrEqual(backBox.x + backBox.width);
+
+		await back.click();
+		let picker = weatherNode.getByTestId('workflow-step-menu');
+		await expect(picker.locator('.title strong')).toHaveText('Choose skill');
+		await expect(picker.getByTestId('app-store-card')).toHaveCount(1);
+		await picker.getByRole('button', { name: 'Back' }).click();
+		picker = weatherNode.getByTestId('workflow-step-menu');
+		await expect(picker.locator('.title strong')).toHaveText('Use app');
+		await expect(picker.getByTestId('app-store-card')).toHaveCount(2);
+		await picker.getByRole('button', { name: 'Back' }).click();
+		picker = weatherNode.getByTestId('workflow-step-menu');
+		await expect(picker.locator('.choice')).toHaveText([
+			'Use app',
+			'Ask AI',
+			'Add check',
+			'Send message'
+		]);
+		await picker.getByTestId('workflow-step-ask-ai').click();
+		await expect(weatherNode.getByTestId('workflow-node-expanded')).toContainText('Ask AI');
+		await weatherNode.getByRole('button', { name: 'Close' }).click();
+		await expect(weatherNode.getByTestId('workflow-node-title-label')).toHaveText(
+			'Weather | Get forecast'
+		);
+
+		const messageNode = page.locator('[data-node-id="message"]');
+		await messageNode.getByTestId('workflow-node-summary').click();
+		const firstDelete = messageNode.getByTestId('workflow-node-delete');
+		const firstDeleteBox = await firstDelete.boundingBox();
+		await firstDelete.click();
+		const confirmation = messageNode.getByTestId('workflow-node-delete-confirmation');
+		await expect(confirmation).toHaveText('Press again to confirm delete');
+		const armedDeleteBox = await messageNode.getByTestId('workflow-node-delete').boundingBox();
+		expect(firstDeleteBox).not.toBeNull();
+		expect(armedDeleteBox).not.toBeNull();
+		if (firstDeleteBox && armedDeleteBox) {
+			expect(Math.abs(armedDeleteBox.x - firstDeleteBox.x)).toBeLessThanOrEqual(4);
+			expect(armedDeleteBox.width).toBeGreaterThan(firstDeleteBox.width);
+			expect(armedDeleteBox.x + armedDeleteBox.width).toBeGreaterThan(
+				firstDeleteBox.x + firstDeleteBox.width + 100
+			);
+		}
+		await messageNode.getByTestId('workflow-node-delete').click();
+		await expect(messageNode.getByTestId('workflow-node-expanded')).toHaveCount(0);
+		await expect(page.getByTestId('remove-workflow-node')).toHaveCount(0);
+
+		await openLastActionMenu(page);
+		await page.getByTestId('workflow-step-app-skill-action').click();
+		await page.getByTestId('workflow-step-menu').locator('[data-app-id="weather"]').click();
+		await page.getByTestId('workflow-step-menu').locator('[data-app-id="weather"]').click();
+		const unsavedEditor = page.getByTestId('workflow-node-expanded');
+		await unsavedEditor.getByRole('button', { name: 'App skill' }).click();
+		await expect(page.getByTestId('workflow-step-menu').locator('.title strong')).toHaveText(
+			'Choose skill'
+		);
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.visual-language.coherent
+	test('uses the OpenMates gradient and no chevrons for time and message nodes', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
+		await page.goto(preview(), { waitUntil: 'networkidle' });
+		const trigger = page.locator('[data-node-id="trigger"]');
+		const weather = page.locator('[data-node-id="weather"]');
+		const message = page.locator('[data-node-id="message"]');
+		const [triggerStyle, weatherStyle, messageStyle] = await Promise.all(
+			[trigger, weather, message].map((node) =>
+				node.getByTestId('workflow-node-summary').evaluate((element) => ({
+					background: getComputedStyle(element).backgroundImage,
+					color: getComputedStyle(element).color,
+					iconColor: getComputedStyle(
+						element.querySelector('[data-testid="workflow-node-primary-icon"] .workflow-icon') as Element
+					).color
+				}))
+			)
+		);
+		expect(triggerStyle.background).toBe(messageStyle.background);
+		expect(weatherStyle.background).not.toBe(triggerStyle.background);
+		expect(triggerStyle.iconColor).toBe(triggerStyle.color);
+		expect(messageStyle.iconColor).toBe(messageStyle.color);
+		await expect(page.locator('.node-chevron')).toHaveCount(0);
+
+		await trigger.getByTestId('workflow-node-summary').click();
+		const triggerHeader = trigger.getByTestId('workflow-node-expanded').locator('.editor-header');
+		await expect(triggerHeader).toHaveClass(/colored/);
+		await expect(triggerHeader.locator('.collapse')).toHaveCount(0);
+		const expandedTriggerStyle = await triggerHeader.evaluate((element) => ({
+			background: getComputedStyle(element).backgroundImage,
+			color: getComputedStyle(element).color,
+			iconColor: getComputedStyle(
+				element.querySelector('[data-testid="workflow-editor-primary-icon"]') as Element
+			).color
+		}));
+		expect(expandedTriggerStyle.background).toBe(triggerStyle.background);
+		expect(expandedTriggerStyle.iconColor).toBe(expandedTriggerStyle.color);
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows-ui.responsive-accessible-reachable

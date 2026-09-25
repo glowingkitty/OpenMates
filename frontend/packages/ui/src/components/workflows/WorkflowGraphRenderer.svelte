@@ -29,6 +29,7 @@
   let insertion = $state<Insertion>({ after: null });
   let picker = $state<'trigger' | 'action' | 'app' | 'skill' | null>(null);
   let selectedApp = $state('');
+  let deleteArmed = $state(false);
   let expandedReadOnly = $state<string | null>(null);
   let busy = $state(false);
   let nodeError = $state('');
@@ -49,13 +50,13 @@
   let askHintRevision = 0;
   let askHintTimer: ReturnType<typeof setTimeout> | null = null;
   const tr = (key: string) => $text(`workflows.builder.${key}`);
-  const Down = getLucideIcon('chevron-down');
   const Coin = getLucideIcon('coins'); const Play = getLucideIcon('play'); const Stop = getLucideIcon('square'); const Search = getLucideIcon('search');
   const Download = getLucideIcon('download'); const Upload = getLucideIcon('upload');
   const available = $derived(capabilities.filter(item => item.type === 'app_skill' && item.enabled && item.id !== 'ai.ask'));
   const askCapability = $derived(capabilities.find(item => item.id === 'ai.ask' && item.enabled));
   const appIds = $derived([...new Set(available.map(item => item.metadata.app_id).filter(Boolean))] as string[]);
   const draftCapability = $derived(draft ? capabilityFor(draft, capabilities) : undefined);
+  const persistedDraft = $derived(!!draft && graph.nodes.some(node => node.id === draft?.id));
   const outputs = $derived(draft ? outputsBefore(graph, draft.id, capabilities, insertion) : []);
   const blocks = $derived(Array.isArray(draft?.config?.blocks) ? draft.config.blocks as Record<string, unknown>[] : []);
   const rootNodes = $derived(graph.nodes.filter(node => !graph.edges.some(edge => edge.to === node.id)).sort((a, b) => Number(isTrigger(b)) - Number(isTrigger(a))));
@@ -82,9 +83,9 @@
     return { ...appMetadata(appId), name: capability.title, name_translation_key: skill?.name_translation_key, description: '', description_translation_key: skill?.description_translation_key, icon_image: skill?.icon_image ?? `${appId}.svg` };
   }
   function sameSlot(slot: Insertion): boolean { return insertion.after === slot.after && (insertion.branch ?? '') === (slot.branch ?? ''); }
-  function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; nodeError = ''; preview = null; insertion = slot; picker = kind; }
+  function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; deleteArmed = false; nodeError = ''; preview = null; insertion = slot; picker = kind; }
   function resetAskHints(): void { askHintRevision += 1; if (askHintTimer) clearTimeout(askHintTimer); askHintTimer = null; askSuggestions = []; askVerdict = 'idle'; askReminder = ''; }
-  function closeEditor(): void { draft = null; picker = null; nodeError = ''; preview = null; chooseChat = false; showReferences = false; resetAskHints(); }
+  function closeEditor(): void { draft = null; picker = null; deleteArmed = false; nodeError = ''; preview = null; chooseChat = false; showReferences = false; resetAskHints(); }
   function backFromEditor(): void {
     if (draft && isMessage(draft) && chooseChat) {
       chooseChat = false;
@@ -92,14 +93,23 @@
       draft = null; picker = 'action';
       return;
     }
+    if (draft?.type === 'app_skill_action' && !isAskAi(draft)) {
+      selectedApp = String(draft.config?.app_id ?? '');
+      picker = 'skill';
+      deleteArmed = false;
+      nodeError = '';
+      preview = null;
+      return;
+    }
     closeEditor();
   }
   function edit(node: WorkflowNode): void { if (busy || testStatus === 'processing') return; if (readOnly) { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; return; } closeEditor(); draft = structuredClone($state.snapshot(node)); testStatus = testOutputs[node.id] ? 'completed' : 'idle'; }
   function configure(type: WorkflowNode['type'], capability?: Capability): void {
     if (busy || testStatus === 'processing') return;
+    const replacementId = picker && draft ? draft.id : draft && graph.nodes.some(node => node.id === draft?.id) ? draft.id : null;
     picker = null; nodeError = ''; preview = null; testStatus = 'idle';
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    draft = { id: `${type}_${crypto.randomUUID().slice(0, 8)}`, type, title: '', config: {} };
+    draft = { id: replacementId ?? `${type}_${crypto.randomUUID().slice(0, 8)}`, type, title: '', config: {} };
     if (type === 'schedule_trigger') draft.config = { schedule: { type: 'daily', time: '09:00', timezone } };
     if (type === 'app_skill_action' && capability) {
       draft.title = appMetadata(capability.metadata.app_id!, capability).name_translation_key ? $text(appMetadata(capability.metadata.app_id!, capability).name_translation_key!) : capability.title;
@@ -138,7 +148,7 @@
     }
     return node.title || label(node.type);
   }
-  function style(node: WorkflowNode): string { const appId = String(node.config?.app_id ?? 'workflows'); return `--node-gradient: var(--color-app-${appId}, linear-gradient(135deg, #0064a3, #00a6bc));`; }
+  function style(node: WorkflowNode): string { const appId = String(node.config?.app_id ?? 'workflows'); return `--node-gradient: var(--color-app-${appId}, var(--gradient-primary));`; }
   function nextId(nodeId: string, branch?: string): string | undefined { return graph.edges.find(edge => edge.from === nodeId && (edge.branch ?? '') === (branch ?? ''))?.to; }
   function checkSource(node: WorkflowNode): WorkflowNode | undefined { const reference = String(record(node.config?.predicate).left ?? ''); const id = reference.startsWith('$nodes.') ? reference.split('.')[1] : reference.match(/steps\.([^.]+)/)?.[1]; return graph.nodes.find(item => item.id === id && item.type === 'app_skill_action'); }
   function appIcon(node: WorkflowNode): string { return (appMetadata(String(node.config?.app_id ?? '')).icon_image ?? `${node.config?.app_id}.svg`).trim().replace(/\.svg$/, ''); }
@@ -146,7 +156,7 @@
   function primaryNodeIconStyle(node: WorkflowNode): string {
     if (node.type === 'app_skill_action') return assetIconStyle(appIcon(node), 33, 'var(--color-font-button)');
     if (isCheck(node)) return assetIconStyle(checkSource(node) ? appIcon(checkSource(node)!) : 'workflow-check', 33);
-    return assetIconStyle(isTrigger(node) ? 'calendar' : isMessage(node) ? 'chat' : 'app', 33);
+    return assetIconStyle(isTrigger(node) ? 'calendar' : isMessage(node) ? 'chat' : 'app', 33, isTrigger(node) || isMessage(node) ? 'var(--color-font-button)' : 'var(--color-primary-start)');
   }
   function location(node: WorkflowNode): string { const input = record(node.config?.input); const request = Array.isArray(input.requests) ? record(input.requests[0]) : {}; return String(input.location ?? request.location ?? ''); }
   function workflowTimezone(node: WorkflowNode): string { const input = record(node.config?.input); const trigger = graph.nodes.find(isTrigger); return String(input.timezone || record(trigger?.config?.schedule).timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'); }
@@ -217,6 +227,7 @@
     finally { busy = false; }
   }
   async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
+  function requestDelete(): void { if (!deleteArmed) { deleteArmed = true; return; } void deleteNode(); }
   async function testNode(): Promise<void> {
     if (!draft || !workflowId || testStatus === 'processing') return;
     const node = structuredClone($state.snapshot(draft)); const revision = ++testRevision; testStatus = 'processing'; nodeError = '';
@@ -276,7 +287,7 @@
 {#snippet slotControls(slot: Insertion)}
   {#if !readOnly}
     {#if sameSlot(slot) && (picker || (draft && !graph.nodes.some(node => node.id === draft?.id)))}
-      {#if draft}{@render editor()}{:else}{@render pickerPanel()}{/if}
+      {#if picker}{@render pickerPanel()}{:else if draft}{@render editor()}{/if}
     {:else}
       <div class="add-controls" class:blank={!slot.after && !graph.nodes.length} data-testid="workflow-action-palette">
         {#if !graph.nodes.some(isTrigger) && !slot.branch}{@render choice('calendar-clock', tr('add_trigger'), () => openPicker('trigger', slot), 'workflow-add-time-trigger')}{/if}
@@ -287,23 +298,29 @@
 {/snippet}
 
 {#snippet pickerPanel()}
-  <div class="editor picker" data-testid="workflow-step-menu">
+  {#key picker}
+  <div class="editor picker" style={draft ? style(draft) : ''} data-testid="workflow-step-menu">
     <WorkflowEditorHeader
       title={tr(picker === 'trigger' ? 'add_trigger' : picker === 'app' ? 'use_app' : picker === 'skill' ? 'choose_skill' : 'add_action')}
       iconStyle={assetIconStyle(picker === 'trigger' ? 'workflow' : picker === 'skill' ? selectedApp : 'app', 16, 'var(--color-font-secondary)')}
       backLabel={picker === 'app' || picker === 'skill' ? tr('back') : ''}
+      showDelete={persistedDraft}
+      {deleteArmed}
       closeLabel={tr('close')}
-      collapseLabel={tr('collapse')}
-      onBack={() => picker = picker === 'skill' ? 'app' : 'action'}
+      deleteLabel={tr('delete_node')}
+      confirmDeleteLabel={tr('confirm_delete_node')}
+      onBack={() => { picker = picker === 'skill' ? 'app' : 'action'; deleteArmed = false; }}
+      onDelete={requestDelete}
       onClose={closeEditor}
     />
     <h3>{tr(picker === 'trigger' ? 'trigger_question' : picker === 'app' ? 'app_question' : picker === 'skill' ? 'skill_question' : 'action_question')}</h3>
     {#if picker === 'trigger'}<div class="choices">{@render choice('calendar-days', tr('date_time'), () => configure('schedule_trigger'), 'workflow-trigger-date-time')}</div>
-    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('sparkles', tr('ask_ai'), configureAskAi, 'workflow-step-ask-ai')}{#if insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!)}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}</div>
+    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('sparkles', tr('ask_ai'), configureAskAi, 'workflow-step-ask-ai')}{#if (draft && !isTrigger(draft)) || (insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!))}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}</div>
     {:else if picker === 'app'}<div class="card-scroll">{#each appIds as appId}<AppStoreCard app={appMetadata(appId)} onSelect={() => { selectedApp = appId; picker = 'skill'; }}/>{/each}</div>{#if !appIds.length}<p>{loadError || tr('loading_apps')}</p>{/if}
     {:else if picker === 'skill'}<div class="card-scroll">{#each available.filter(item => item.metadata.app_id === selectedApp) as capability}<AppStoreCard app={appMetadata(selectedApp, capability)} cardIconType="skill" onSelect={() => configure('app_skill_action', capability)}/>{/each}</div>{/if}
     {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
   </div>
+  {/key}
 {/snippet}
 
 {#snippet editor()}
@@ -316,14 +333,17 @@
         eyebrow={draft.type === 'app_skill_action' ? kind(draft) : ''}
         subtitle={draft.type === 'app_skill_action' ? location(draft) : ''}
         backLabel={isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' && !isAskAi(draft) ? tr('back_to_app_skill') : ''}
-        backIconSize={isMessage(draft) && chooseChat ? 24 : 16}
-        iconStyle={isMessage(draft) && chooseChat ? assetIconStyle('chat', 19, 'var(--color-font-secondary)') : primaryNodeIconStyle(draft)}
-        colored={draft.type === 'app_skill_action'}
-        collapsible={draft.type !== 'app_skill_action' && !isMessage(draft)}
+        backIconSize={24}
+        iconStyle={isMessage(draft) && chooseChat ? assetIconStyle('chat', 19, 'var(--color-font-button)') : primaryNodeIconStyle(draft)}
+        colored={draft.type === 'app_skill_action' || isTrigger(draft) || isMessage(draft)}
+        showDelete={persistedDraft}
+        {deleteArmed}
         disabled={busy || testStatus === 'processing'}
         closeLabel={tr('close')}
-        collapseLabel={tr('collapse')}
+        deleteLabel={tr('delete_node')}
+        confirmDeleteLabel={tr('confirm_delete_node')}
         onBack={backFromEditor}
+        onDelete={requestDelete}
         onClose={closeEditor}
       />
       {#if isTrigger(draft)}
@@ -387,7 +407,7 @@
         {/if}
       {:else}<WorkflowValueView value={draft.config}/>{/if}
       {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
-      {#if !chooseChat}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || (isAskAi(draft) && askVerdict === 'asks_to_invoke_app_skill')} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button>{#if graph.nodes.some(node => node.id === draft?.id)}<button type="button" class="quiet" data-testid="remove-workflow-node" disabled={busy || testStatus === 'processing'} onclick={() => void deleteNode()}>{tr('remove')}</button>{/if}</div>{/if}
+      {#if !chooseChat}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || (isAskAi(draft) && askVerdict === 'asks_to_invoke_app_skill')} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button></div>{/if}
     </div>
   {/if}
 {/snippet}
@@ -399,8 +419,8 @@
     {@const rawRunStatus = String(isMessage(node) && run?.output_summary?.status ? run.output_summary.status : run?.status ?? '')}
     {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
     <article class="flow-node" data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card">
-      {#if draft?.id === node.id}{@render editor()}{:else}
-        <button type="button" class="node-summary" class:skill={node.type === 'app_skill_action'} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} onclick={() => edit(node)}><span class="kind">{kind(node)}</span><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && location(node)}<span class="location">{location(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}<span class="node-chevron" aria-hidden="true"><Down size={16}/></span></button>
+      {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
+        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node)} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} onclick={() => edit(node)}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && location(node)}<span class="location">{location(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
         {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{tr('output_step_failed')}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
       {/if}
     </article>
@@ -425,10 +445,10 @@
 
 <style>
   .workflow-icon{display:inline-block;flex:0 0 auto;width:var(--workflow-icon-size);height:var(--workflow-icon-size);background:currentColor;-webkit-mask:var(--workflow-icon) center/contain no-repeat;mask:var(--workflow-icon) center/contain no-repeat}
-  .graph-panel{font-size:16px;margin:0 auto;width:min(60rem,calc(100% - 4rem));padding:0 0 2rem}.graph-canvas{min-height:16rem;padding:2rem 1.25rem;background:var(--color-grey-0);border-radius:.9rem}.node-stack{display:grid;justify-items:center}.flow-node{display:grid;justify-items:center;width:100%;min-width:0}.node-summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:min(19rem,100%);padding:.7rem 1rem .4rem;min-height:8rem;border:0;border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary);box-shadow:var(--shadow-sm);cursor:pointer;font:inherit}.node-summary strong{font-size:16px;line-height:1.4}.node-summary> :global(svg){color:var(--color-primary)}.node-summary .kind{font-size:14px;color:var(--color-font-secondary)}.node-summary.skill{background:var(--node-gradient);color:var(--color-font-button)}.node-summary.skill .kind,.node-summary.skill> :global(svg){color:var(--color-font-button);opacity:.9}.location{font-size:16px;opacity:.8}.connector{color:var(--color-font-secondary);font-size:16px;font-weight:650;text-align:center;padding:.8rem 0}.branch-group{width:min(42rem,100%);padding:0 .75rem .7rem;border:1px solid var(--color-grey-20);border-radius:1rem;margin-top:-.5rem;box-sizing:border-box}.branch{display:grid;justify-items:center}.branch .branch-label{padding-top:1rem}.nothing{white-space:pre-line;line-height:1.5;font-size:16px;font:inherit;cursor:pointer;background:transparent;margin:0;border:1px dashed var(--color-grey-30);border-radius:.6rem;width:min(18rem,90%);padding:.7rem;text-align:center;color:var(--color-font-secondary);font-size:16px}.add-controls,.choices{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;padding:.75rem 0}.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;min-width:6.5rem;min-height:4.5rem;border:0;border-radius:.7rem;color:var(--color-font-secondary);background:var(--color-grey-10);box-shadow:var(--shadow-sm);padding:.65rem;cursor:pointer;font:inherit;font-size:16px;font-weight:600}.choice :global(svg){color:var(--color-primary)}.editor{position:relative;min-width:0;width:min(42rem,100%);box-sizing:border-box;display:grid;gap:1rem;padding:0 1.5rem 1rem;background:var(--color-grey-10);border-radius:1rem;box-shadow:var(--shadow-sm);color:var(--color-font-primary);text-align:center}.picker{min-height:11rem}h2,h3,h4,p{margin:0}h3{font-size:16px}h4{font-size:16px;text-align:start;color:var(--color-font-secondary)}.card-scroll{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;gap:1rem;overflow-x:auto;width:100%;padding:.5rem 0 1rem;scroll-snap-type:x proximity}.card-scroll :global(>*){flex-shrink:0;scroll-snap-align:center}.quiet{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2rem;padding:.3rem .5rem;border:0;box-shadow:none;background:transparent;color:var(--color-primary);font:inherit;font-size:16px;cursor:pointer}.primary{justify-self:center;min-width:9rem;min-height:2.4rem;border:0;border-radius:.8rem;padding:.55rem 1.2rem;font:inherit;font-size:16px;font-weight:650;background:var(--color-button-primary);color:var(--color-font-button);box-shadow:var(--shadow-sm);cursor:pointer}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}label{display:grid;gap:.4rem;min-width:0;text-align:start;font-size:16px}input,textarea{box-sizing:border-box;width:100%;min-height:2.5rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.5rem .7rem;background:var(--color-grey-0);color:var(--color-font-primary);font:inherit;font-size:16px;box-shadow:var(--shadow-sm)}textarea{min-height:7rem;resize:vertical;line-height:1.5}.weekdays{display:flex;gap:.7rem;flex-wrap:wrap}.weekdays label,.checkbox{display:flex;align-items:center;gap:.45rem}.weekdays input,input[type=checkbox]{width:1.05rem;height:1.05rem;min-height:0;box-shadow:none;accent-color:var(--color-primary)}.test-control{display:flex;justify-content:center;align-items:center;gap:.7rem;font-size:16px}.output-heading{display:flex;justify-content:space-between;font-size:16px;color:var(--color-font-secondary)}.output-fields{display:grid;gap:.5rem;text-align:start}.output-fields>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.8rem}.output-fields strong{font-size:16px}.type{font-size:14px;border-radius:.2rem;background:var(--color-primary);color:var(--color-font-button);padding:.1rem .3rem;width:fit-content}.output-fields :global(.workflow-value){animation:output-appear .2s ease}.check-fields{display:grid;gap:.8rem;width:min(23rem,100%);margin:auto}.check-fields>.type{justify-self:center}.check-mode{width:min(23rem,100%);margin:auto}.reference-chips,.suggestions{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-start}.chip{border:0;border-radius:1rem;padding:.3rem .55rem;background:var(--color-primary);color:var(--color-font-button);font:inherit;font-size:16px;cursor:pointer}.message-block{border:1px solid var(--color-grey-25);border-radius:.7rem;padding:.7rem;display:grid;gap:.6rem;text-align:start;font-size:16px}.message-block>div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}.message-block strong{overflow-wrap:anywhere}.references{display:grid;text-align:start}.message-preview{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;text-align:start;font-size:16px}.message-preview{display:grid;gap:.8rem;padding:1rem;background:var(--color-grey-0);border-radius:.8rem}.save-row{display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:.3rem}.error{color:var(--color-error);font-size:16px;overflow-wrap:anywhere}.reminder{color:var(--color-font-secondary);font-size:14px;text-align:start}.ask-validation{text-align:start}.ai-check-inputs{display:grid;gap:.7rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.8rem;text-align:start}.ai-check-inputs legend{padding:0 .35rem;color:var(--color-font-secondary)}.ai-check-option{display:flex;align-items:center;gap:.65rem}.ai-check-option input{width:1.05rem;height:1.05rem;min-height:0}.ai-check-option span{display:flex;align-items:center;justify-content:space-between;gap:.7rem;flex:1}.ai-check-option small{color:var(--color-font-secondary);font-size:14px}.selected-preview{margin:-.35rem 0 .25rem 1.7rem}.target{justify-self:start}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
-  @keyframes output-appear{from{opacity:0}to{opacity:1}}@media(max-width:730px){.graph-panel{width:calc(100% - 1rem)}.graph-canvas{padding:1.5rem .5rem}.editor{padding:0 .8rem 1rem}.field-grid{grid-template-columns:1fr}.branch-group{padding-inline:.4rem}.choice{min-width:5.6rem}.card-scroll :global(.resume-chat-large-card){width:15rem;min-width:15rem;max-width:15rem}.output-fields>div{grid-template-columns:auto 1fr}.output-fields :global(.workflow-value){grid-column:auto}}@media(prefers-reduced-motion:reduce){.output-fields :global(.workflow-value){animation:none}}
-  .node-app-icon{display:grid;place-items:center}.message-preview section{display:grid;gap:.55rem}.graph-panel{margin-block:1.75rem}.node-summary.skill .node-app-icon{color:white}@media(max-width:730px){.output-fields>div{grid-template-columns:1fr;gap:.35rem}}
-  .node-summary{width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem .65rem;gap:.55rem}.node-chevron{display:grid;place-items:center;min-height:20px;color:inherit;opacity:.9}
+  .graph-panel{font-size:16px;margin:0 auto;width:min(60rem,calc(100% - 4rem));padding:0 0 2rem}.graph-canvas{min-height:16rem;padding:2rem 1.25rem;background:var(--color-grey-0);border-radius:.9rem}.node-stack{display:grid;justify-items:center}.flow-node{display:grid;justify-items:center;width:100%;min-width:0}.node-summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;width:min(19rem,100%);padding:.7rem 1rem .7rem;min-height:8rem;border:0;border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary);box-shadow:var(--shadow-sm);cursor:pointer;font:inherit}.node-summary strong{font-size:16px;line-height:1.4}.node-summary> :global(svg){color:var(--color-primary)}.node-summary .kind{font-size:14px;color:var(--color-font-secondary)}.node-summary.branded{background:var(--node-gradient);color:var(--color-font-button)}.node-summary.branded .kind,.node-summary.branded> :global(svg){color:var(--color-font-button);opacity:.9}.location{font-size:16px;opacity:.8}.connector{color:var(--color-font-secondary);font-size:16px;font-weight:650;text-align:center;padding:.8rem 0}.branch-group{width:min(42rem,100%);padding:0 .75rem .7rem;border:1px solid var(--color-grey-20);border-radius:1rem;margin-top:-.5rem;box-sizing:border-box}.branch{display:grid;justify-items:center}.branch .branch-label{padding-top:1rem}.nothing{white-space:pre-line;line-height:1.5;font-size:16px;font:inherit;cursor:pointer;background:transparent;margin:0;border:1px dashed var(--color-grey-30);border-radius:.6rem;width:min(18rem,90%);padding:.7rem;text-align:center;color:var(--color-font-secondary);font-size:16px}.add-controls,.choices{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;padding:.75rem 0}.choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;min-width:6.5rem;min-height:4.5rem;border:0;border-radius:.7rem;color:var(--color-font-secondary);background:var(--color-grey-10);box-shadow:var(--shadow-sm);padding:.65rem;cursor:pointer;font:inherit;font-size:16px;font-weight:600}.choice :global(svg){color:var(--color-primary)}.editor{position:relative;min-width:0;width:min(42rem,100%);box-sizing:border-box;display:grid;gap:1rem;padding:0 1.5rem 1rem;background:var(--color-grey-10);border-radius:1rem;box-shadow:var(--shadow-sm);color:var(--color-font-primary);text-align:center}.picker{min-height:11rem;animation:editor-swap .16s ease-out}h2,h3,h4,p{margin:0}h3{font-size:16px}h4{font-size:16px;text-align:start;color:var(--color-font-secondary)}.card-scroll{display:flex;flex-wrap:nowrap;min-width:0;max-width:100%;gap:1rem;overflow-x:auto;width:100%;padding:.5rem 0 1rem;scroll-snap-type:x proximity}.card-scroll :global(>*){flex-shrink:0;scroll-snap-align:center}.quiet{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:2rem;padding:.3rem .5rem;border:0;box-shadow:none;background:transparent;color:var(--color-primary);font:inherit;font-size:16px;cursor:pointer}.primary{justify-self:center;min-width:9rem;min-height:2.4rem;border:0;border-radius:.8rem;padding:.55rem 1.2rem;font:inherit;font-size:16px;font-weight:650;background:var(--color-button-primary);color:var(--color-font-button);box-shadow:var(--shadow-sm);cursor:pointer}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}label{display:grid;gap:.4rem;min-width:0;text-align:start;font-size:16px}input,textarea{box-sizing:border-box;width:100%;min-height:2.5rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.5rem .7rem;background:var(--color-grey-0);color:var(--color-font-primary);font:inherit;font-size:16px;box-shadow:var(--shadow-sm)}textarea{min-height:7rem;resize:vertical;line-height:1.5}.weekdays{display:flex;gap:.7rem;flex-wrap:wrap}.weekdays label,.checkbox{display:flex;align-items:center;gap:.45rem}.weekdays input,input[type=checkbox]{width:1.05rem;height:1.05rem;min-height:0;box-shadow:none;accent-color:var(--color-primary)}.test-control{display:flex;justify-content:center;align-items:center;gap:.7rem;font-size:16px}.output-heading{display:flex;justify-content:space-between;font-size:16px;color:var(--color-font-secondary)}.output-fields{display:grid;gap:.5rem;text-align:start}.output-fields>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.8rem}.output-fields strong{font-size:16px}.type{font-size:14px;border-radius:.2rem;background:var(--color-primary);color:var(--color-font-button);padding:.1rem .3rem;width:fit-content}.output-fields :global(.workflow-value){animation:output-appear .2s ease}.check-fields{display:grid;gap:.8rem;width:min(23rem,100%);margin:auto}.check-fields>.type{justify-self:center}.check-mode{width:min(23rem,100%);margin:auto}.reference-chips,.suggestions{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-start}.chip{border:0;border-radius:1rem;padding:.3rem .55rem;background:var(--color-primary);color:var(--color-font-button);font:inherit;font-size:16px;cursor:pointer}.message-block{border:1px solid var(--color-grey-25);border-radius:.7rem;padding:.7rem;display:grid;gap:.6rem;text-align:start;font-size:16px}.message-block>div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}.message-block strong{overflow-wrap:anywhere}.references{display:grid;text-align:start}.message-preview{white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;text-align:start;font-size:16px}.message-preview{display:grid;gap:.8rem;padding:1rem;background:var(--color-grey-0);border-radius:.8rem}.save-row{display:flex;justify-content:center;align-items:center;gap:1rem;margin-top:.3rem}.error{color:var(--color-error);font-size:16px;overflow-wrap:anywhere}.reminder{color:var(--color-font-secondary);font-size:14px;text-align:start}.ask-validation{text-align:start}.ai-check-inputs{display:grid;gap:.7rem;border:1px solid var(--color-grey-25);border-radius:.8rem;padding:.8rem;text-align:start}.ai-check-inputs legend{padding:0 .35rem;color:var(--color-font-secondary)}.ai-check-option{display:flex;align-items:center;gap:.65rem}.ai-check-option input{width:1.05rem;height:1.05rem;min-height:0}.ai-check-option span{display:flex;align-items:center;justify-content:space-between;gap:.7rem;flex:1}.ai-check-option small{color:var(--color-font-secondary);font-size:14px}.selected-preview{margin:-.35rem 0 .25rem 1.7rem}.target{justify-self:start}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
+  @keyframes output-appear{from{opacity:0}to{opacity:1}}@keyframes editor-swap{from{opacity:.65;transform:translateY(.25rem)}to{opacity:1;transform:translateY(0)}}@media(max-width:730px){.graph-panel{width:calc(100% - 1rem)}.graph-canvas{padding:1.5rem .5rem}.editor{padding:0 .8rem 1rem}.field-grid{grid-template-columns:1fr}.branch-group{padding-inline:.4rem}.choice{min-width:5.6rem}.card-scroll :global(.resume-chat-large-card){width:15rem;min-width:15rem;max-width:15rem}.output-fields>div{grid-template-columns:auto 1fr}.output-fields :global(.workflow-value){grid-column:auto}}@media(prefers-reduced-motion:reduce){.output-fields :global(.workflow-value){animation:none}.picker{animation:none}}
+  .node-app-icon{display:grid;place-items:center}.message-preview section{display:grid;gap:.55rem}.graph-panel{margin-block:1.75rem}.node-summary.branded .node-app-icon{color:var(--color-font-button)}@media(max-width:730px){.output-fields>div{grid-template-columns:1fr;gap:.35rem}}
+  .node-summary{width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem;gap:.55rem}
   .node-summary.expanded{width:min(42rem,100%);border-radius:1rem 1rem 0 0}.node-summary.expanded+.editor{border-radius:0 0 1rem 1rem}.check-source{font-size:14px;color:var(--color-font-secondary)}
   .branch-label{display:flex;align-items:center;justify-content:center;gap:.4rem}
   .type{background:#315aef;color:white}.type[data-value-type="number"]{background:#b3213c}.type[data-value-type="date"]{background:#eb9d00}.type[data-value-type="boolean"]{background:#7651b5}
@@ -468,7 +488,7 @@
   .skill-editor .input-heading,
   .skill-editor .output-heading,
   .skill-editor .output-fields,
-  .skill-editor :global(.schema-fields) { box-sizing:border-box; width:min(34rem,100%); justify-self:center; }
+  .skill-editor :global(.schema-fields) { box-sizing:border-box; width:min(44rem,100%); justify-self:center; }
   .skill-editor .input-heading,
   .skill-editor .output-heading h4 { display:flex; align-items:center; gap:.35rem; }
   .section-icon { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; }
@@ -498,8 +518,7 @@
   .chat-destination .card-scroll { box-sizing:border-box; padding-inline:calc(50% - 8.96875rem); }
   .new-chat-destination { display:inline-flex; align-items:center; justify-content:center; gap:var(--spacing-4); min-height:2.5625rem; border-radius:var(--radius-full); }
   .new-chat-destination :global(.new-chat-icon) { width:20px; height:20px; flex:0 0 auto; background:var(--color-font-button); }
-  .save-row .primary, .save-row .quiet { margin:0; }
-  .save-row .quiet { min-width:0; }
+  .save-row .primary { margin:0; }
   .card-scroll :global(.resume-chat-large-card) { width:17.9375rem; min-width:17.9375rem; max-width:17.9375rem; height:9.9375rem; min-height:9.9375rem; max-height:9.9375rem; }
   @media(max-width:730px) {
     .graph-panel { width:calc(100% - 1rem); }

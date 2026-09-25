@@ -1,6 +1,7 @@
-import { dailyWeatherNewsGraph } from "./workflowExamples";
+import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowExamples";
 import type { WorkflowGraph } from "../../stores/workflowWorkspaceStore";
 import type { Chat } from "../../types/chat";
+import type { Capability } from "./workflowBuilder";
 
 function previewChat(
   chatId: string,
@@ -185,6 +186,192 @@ function aiCheckGraph(): WorkflowGraph {
   return graph;
 }
 
+const eventsSearchCapability: Capability = {
+  id: "events.search",
+  type: "app_skill",
+  enabled: true,
+  title: "Search",
+  metadata: {
+    app_id: "events",
+    skill_id: "search",
+    cost: { per_unit: { credits: 30 } },
+    workflow: {
+      test_allowed: true,
+      test_example_input: {
+        requests: [
+          { query: "OpenMates meetup Berlin", location: "Berlin", count: 3 },
+        ],
+      },
+    },
+    input_schema: {
+      type: "object",
+      properties: {
+        provider: {
+          type: "string",
+          enum: [
+            "auto",
+            "Meetup",
+            "Luma",
+            "Eventbrite",
+            "Resident Advisor",
+            "Siegessäule",
+            "Berlin Philharmonic",
+            "GPN24",
+            "39C3",
+            "38C3",
+            "37C3",
+          ],
+        },
+        requests: {
+          type: "array",
+          items: {
+            type: "object",
+            "x-ui": {
+              control: "date-range",
+              start_field: "start_date",
+              end_field: "end_date",
+              max_offset_days: 365,
+              basic: false,
+            },
+            properties: {
+              query: { type: "string" },
+              location: { type: "string" },
+              lat: { type: "number" },
+              lon: { type: "number" },
+              start_date: { type: "string" },
+              end_date: { type: "string" },
+              event_type: {
+                type: "string",
+                enum: ["PHYSICAL", "ONLINE"],
+                "x-ui": { basic: false },
+              },
+              radius_miles: { type: "number", default: 25 },
+              count: {
+                type: "integer",
+                minimum: 1,
+                maximum: 50,
+                default: 10,
+              },
+              relevance_criteria: { type: "string" },
+              provider: {
+                type: "string",
+                enum: [
+                  "auto",
+                  "Meetup",
+                  "Luma",
+                  "Eventbrite",
+                  "Resident Advisor",
+                  "Siegessäule",
+                  "Berlin Philharmonic",
+                  "GPN24",
+                  "39C3",
+                  "38C3",
+                  "37C3",
+                ],
+              },
+              providers: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: [
+                    "Meetup",
+                    "Luma",
+                    "Eventbrite",
+                    "Resident Advisor",
+                    "Siegessäule",
+                    "Berlin Philharmonic",
+                    "GPN24",
+                    "39C3",
+                    "38C3",
+                    "37C3",
+                  ],
+                },
+              },
+              conference: {
+                type: "string",
+                enum: ["GPN24", "39C3", "38C3", "37C3"],
+              },
+              past_events: { type: "boolean", default: false },
+              concert_tags: { type: "array", items: { type: "string" } },
+            },
+            required: ["query"],
+          },
+        },
+      },
+      required: ["requests"],
+    },
+    output_schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string", example: "Events search completed" },
+        result_count: { type: "integer", example: 1 },
+        provider: { type: "string", example: "Example events provider" },
+        results: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string", example: "example-event" },
+              title: { type: "string", example: "AI community meetup" },
+              url: {
+                type: "string",
+                example: "https://example.invalid/events/ai",
+              },
+              provider: {
+                type: "string",
+                example: "Example events provider",
+              },
+              description: {
+                type: "string",
+                example: "An example meetup for people working with AI.",
+              },
+              date_start: {
+                type: "string",
+                example: "2026-09-23T18:00:00+02:00",
+              },
+              date_end: {
+                type: "string",
+                example: "2026-09-23T20:00:00+02:00",
+              },
+              location: { type: "string", example: "Berlin" },
+              event_type: { type: "string", example: "PHYSICAL" },
+              price_amount: { type: "number", example: 0 },
+            },
+          },
+        },
+        warnings: { type: "array", items: { type: "string" }, example: [] },
+        partial: { type: "boolean", example: false },
+      },
+    },
+  },
+};
+
+function skillVariant(graph: WorkflowGraph, capability: Capability) {
+  return { ...defaultProps, graph, capabilityFixtures: [capability] };
+}
+
+function defaultCapability(id: string): Capability {
+  const capability = defaultProps.capabilityFixtures.find(
+    (candidate) => candidate.id === id,
+  );
+  if (!capability) throw new Error(`Missing preview capability: ${id}`);
+  return capability as Capability;
+}
+
+function singleSkillGraph(nodeId: "weather" | "news"): WorkflowGraph {
+  const source = dailyWeatherNewsGraph();
+  const trigger = source.nodes.find((node) => node.id === "trigger");
+  const skill = source.nodes.find((node) => node.id === nodeId);
+  if (!trigger || !skill)
+    throw new Error(`Missing preview graph node: ${nodeId}`);
+  return {
+    version: source.version,
+    trigger_node_id: trigger.id,
+    nodes: [trigger, skill],
+    edges: [{ from: trigger.id, to: skill.id }],
+  };
+}
+
 export default defaultProps;
 export const variants = {
   empty: {
@@ -192,5 +379,14 @@ export const variants = {
     graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] },
   },
   aiCheck: { ...defaultProps, graph: aiCheckGraph() },
+  weatherForecast: skillVariant(
+    singleSkillGraph("weather"),
+    defaultCapability("weather.forecast"),
+  ),
+  newsSearch: skillVariant(
+    singleSkillGraph("news"),
+    defaultCapability("news.search"),
+  ),
+  eventsSearch: skillVariant(weeklyEventsGraph(), eventsSearchCapability),
   readonly: { ...defaultProps, readOnly: true, onSave: null },
 };

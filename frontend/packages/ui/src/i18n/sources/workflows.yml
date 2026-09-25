@@ -613,6 +613,16 @@ builder.remove:
   en: "Remove"
   verified_by_human: []
 
+builder.delete_node:
+  context: Accessible label for the delete button in a Workflow node header
+  en: "Delete step"
+  verified_by_human: []
+
+builder.confirm_delete_node:
+  context: Confirmation revealed after the first press of a Workflow node delete button
+  en: "Press again to confirm delete"
+  verified_by_human: []
+
 builder.add_item:
   context: Workflow progressive builder control
   en: "Add item"
@@ -636,6 +646,11 @@ builder.false:
 builder.today:
   context: Workflow progressive builder control
   en: "Today"
+  verified_by_human: []
+
+builder.next_week:
+  context: Relative date range option in a Workflow App skill input
+  en: "Next week"
   verified_by_human: []
 
 builder.next_week_start:

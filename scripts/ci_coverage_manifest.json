@@ -216,6 +216,7 @@
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-graph-skill-variants.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/map-load-recovery.spec.ts",
