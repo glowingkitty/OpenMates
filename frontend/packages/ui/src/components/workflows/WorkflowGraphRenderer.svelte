@@ -345,8 +345,8 @@
           {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<Coin size={16}/><span>{tr('variable_cost')}</span></button>{/if}
         </div>
-        <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4></div>
-        <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? { answer: { type: 'string', title: tr('answer') } }) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div class="output-field" data-testid="workflow-output-field"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong class="output-name">{spec.title || label(key)}</strong><div class="output-example"><span class="output-example-label" data-testid="workflow-output-example-label">{tr(testOutputs[draft.id] ? 'test_output' : 'example')}:</span><WorkflowValueView {value} schema={spec} appId="ai" path={`${draft.id}.${key}`}/></div></div>{/each}</div>
+        <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4><span data-testid="workflow-output-example-heading">{tr(testOutputs[draft.id] ? 'test_output' : 'example')}:</span></div>
+        <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? { answer: { type: 'string', title: tr('answer') } }) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div class="output-field" data-testid="workflow-output-field"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong class="output-name">{spec.title || label(key)}</strong><div class="output-example"><WorkflowValueView {value} schema={spec} appId="ai" path={`${draft.id}.${key}`}/></div></div>{/each}</div>
       {:else if draft.type === 'app_skill_action'}
         <h4 class="input-heading" data-testid="workflow-input-heading"><span class="section-icon" data-testid="workflow-input-icon"><Download size={18} aria-hidden="true"/></span>{tr('input')}</h4>
         {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
@@ -354,8 +354,8 @@
           {#if testStatus === 'processing'}<span aria-live="polite">{tr('processing')}</span>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || draftCapability?.metadata.workflow?.test_allowed === false || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<Coin size={16}/><span>{draftCapability?.metadata.cost?.fixed ?? draftCapability?.metadata.cost?.per_unit?.credits ?? tr('variable_cost')}</span></button>{/if}
         </div>
-        <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4></div>
-        <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? {}) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div class="output-field" data-testid="workflow-output-field"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong class="output-name">{spec.title || label(key)}</strong><div class="output-example"><span class="output-example-label" data-testid="workflow-output-example-label">{tr(testOutputs[draft.id] ? 'test_output' : 'example')}:</span><WorkflowValueView {value} schema={spec} appId={String(draft.config?.app_id ?? '')} path={`${draft.id}.${key}`}/></div></div>{/each}</div>
+        <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4><span data-testid="workflow-output-example-heading">{tr(testOutputs[draft.id] ? 'test_output' : 'example')}:</span></div>
+        <div class="output-fields" data-testid="workflow-output-fields">{#each outputFields(draftCapability?.metadata.output_schema?.properties ?? {}) as [key, spec]}{@const value = testOutputs[draft.id] ? testOutputs[draft.id][key] : exampleValue(spec)}<div class="output-field" data-testid="workflow-output-field"><span class="type" data-value-type={valueType(spec, value)}>{tr(`output_type_${valueType(spec, value)}`)}</span><strong class="output-name">{spec.title || label(key)}</strong><div class="output-example"><WorkflowValueView {value} schema={spec} appId={String(draft.config?.app_id ?? '')} path={`${draft.id}.${key}`}/></div></div>{/each}</div>
       {:else if isCheck(draft)}
         <h3>{tr('check_question')}</h3>
         <div class="check-mode"><SettingsDropdown value={String(draft.config?.mode ?? 'exact')} options={[{value:'exact',label:tr('exact_rule')},{value:'ai',label:tr('ai_judgment')}]} ariaLabel={tr('check_mode')} onChange={value => checkMode(value as 'exact' | 'ai')}/></div>
@@ -472,13 +472,16 @@
   .skill-editor .input-heading,
   .skill-editor .output-heading h4 { display:flex; align-items:center; gap:.35rem; }
   .section-icon { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; }
-  .skill-editor .output-heading { display:block; }
-  .skill-editor .output-fields { grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.25rem 1.5rem; }
-  .skill-editor .output-fields > .output-field { display:grid; grid-template-columns:minmax(0,1fr); align-content:start; gap:.25rem; min-width:0; }
+  .skill-editor .output-heading,
+  .skill-editor .output-fields { width:100%; }
+  .skill-editor .output-heading { display:grid; grid-template-columns:5.5rem minmax(0,1fr) minmax(0,1fr); column-gap:.6rem; align-items:center; }
+  .skill-editor .output-heading h4 { grid-column:1/3; }
+  .skill-editor .output-heading > span { grid-column:3; font-weight:650; }
+  .skill-editor .output-fields { grid-template-columns:minmax(0,1fr); row-gap:1rem; }
+  .skill-editor .output-fields > .output-field { display:grid; grid-template-columns:5.5rem minmax(0,1fr) minmax(0,1fr); align-items:start; column-gap:.6rem; row-gap:.25rem; min-width:0; }
   .skill-editor .output-field > .type { justify-self:start; }
   .skill-editor .output-name { min-width:0; overflow-wrap:anywhere; font-size:1rem; line-height:1.35; }
-  .skill-editor .output-example { display:grid; grid-template-columns:max-content minmax(0,1fr); align-items:baseline; gap:.35rem; min-width:0; }
-  .skill-editor .output-example-label { color:var(--color-font-secondary); font-weight:650; }
+  .skill-editor .output-example { min-width:0; overflow-wrap:anywhere; }
   .skill-editor .output-fields :global(.workflow-value .scalar) { color:var(--color-font-secondary); }
   .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-location"]),
   .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-date-range"]) { grid-column:auto; }
@@ -505,7 +508,13 @@
     .graph-canvas { padding:1.25rem .5rem; }
     .graph-canvas.blank { padding-block:.5rem; }
     .editor { width:100%; }
-    .skill-editor .output-fields { grid-template-columns:minmax(0,1fr); row-gap:1rem; }
+    .skill-editor .output-heading,
+    .skill-editor .output-fields > .output-field { grid-template-columns:minmax(0,1fr) 6.75rem; column-gap:.5rem; }
+    .skill-editor .output-heading h4 { grid-column:1; }
+    .skill-editor .output-heading > span { grid-column:2; }
+    .skill-editor .output-field > .type { grid-column:1; grid-row:1; }
+    .skill-editor .output-name { grid-column:1; grid-row:2; }
+    .skill-editor .output-example { grid-column:2; grid-row:1/3; align-self:center; }
     .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-location"]),
     .weather-editor :global(.schema-fields > [data-testid="workflow-schema-field-date-range"]) { grid-column:1/-1; }
     .choice { width:8.625rem; min-width:8.625rem; min-height:5.5rem; }

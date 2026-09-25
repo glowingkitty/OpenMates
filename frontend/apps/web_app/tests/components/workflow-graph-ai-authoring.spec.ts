@@ -303,20 +303,24 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		const outputFields = editor.getByTestId('workflow-output-field');
 		await expect(outputFields).toHaveCount(4);
 		const firstOutput = outputFields.first();
-		await expect(firstOutput.getByTestId('workflow-output-example-label')).toHaveText('Example:');
-		const [firstTypeBox, firstNameBox, firstExampleBox, firstOutputBox, secondOutputBox] = await Promise.all([
+		const exampleHeading = editor.getByTestId('workflow-output-example-heading');
+		await expect(exampleHeading).toHaveText('Example:');
+		const [firstTypeBox, firstNameBox, firstExampleBox, firstOutputBox, secondOutputBox, exampleHeadingBox] = await Promise.all([
 			firstOutput.locator('.type').boundingBox(),
 			firstOutput.locator('.output-name').boundingBox(),
 			firstOutput.locator('.output-example').boundingBox(),
 			firstOutput.boundingBox(),
-			outputFields.nth(1).boundingBox()
+			outputFields.nth(1).boundingBox(),
+			exampleHeading.boundingBox()
 		]);
-		expect(firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox).not.toBeNull();
-		if (firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox) {
-			expect(firstTypeBox.y + firstTypeBox.height).toBeLessThanOrEqual(firstNameBox.y + 1);
-			expect(firstNameBox.y + firstNameBox.height).toBeLessThanOrEqual(firstExampleBox.y + 1);
-			expect(secondOutputBox.x).toBeGreaterThan(firstOutputBox.x + firstOutputBox.width);
-			expect(Math.abs(secondOutputBox.y - firstOutputBox.y)).toBeLessThan(2);
+		expect(firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox && exampleHeadingBox).not.toBeNull();
+		if (firstTypeBox && firstNameBox && firstExampleBox && firstOutputBox && secondOutputBox && exampleHeadingBox) {
+			expect(firstTypeBox.x + firstTypeBox.width).toBeLessThan(firstNameBox.x);
+			expect(firstNameBox.x + firstNameBox.width).toBeLessThan(firstExampleBox.x);
+			expect(Math.abs(firstTypeBox.y - firstNameBox.y)).toBeLessThan(4);
+			expect(Math.abs(firstExampleBox.x - exampleHeadingBox.x)).toBeLessThan(2);
+			expect(Math.abs(secondOutputBox.x - firstOutputBox.x)).toBeLessThan(2);
+			expect(secondOutputBox.y - firstOutputBox.y - firstOutputBox.height).toBeGreaterThanOrEqual(14);
 		}
 		const boolOutput = outputFields.filter({ hasText: 'Rain Expected' });
 		await expect(boolOutput.locator('.type')).toHaveText('Bool');
@@ -417,7 +421,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		];
 		const editor = page.getByTestId('workflow-node-expanded');
 		const previewViewport = page.getByTestId('component-preview-viewport');
-		const example = editor.getByTestId('workflow-output-example-label').first();
+		const example = editor.getByTestId('workflow-output-example-heading');
 		const back = header.getByRole('button', { name: 'App skill' });
 		const backLabel = back.locator('span');
 		const save = editor.getByTestId('workflow-node-save');
@@ -497,7 +501,7 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		]);
 		expect(mobileFirstOutputNameBox && mobileOutputExampleBox && mobileFirstOutputBox && mobileSecondOutputBox).not.toBeNull();
 		if (mobileFirstOutputNameBox && mobileOutputExampleBox && mobileFirstOutputBox && mobileSecondOutputBox) {
-			expect(mobileFirstOutputNameBox.y + mobileFirstOutputNameBox.height).toBeLessThanOrEqual(mobileOutputExampleBox.y + 1);
+			expect(mobileOutputExampleBox.x).toBeGreaterThan(mobileFirstOutputNameBox.x + mobileFirstOutputNameBox.width);
 			expect(mobileSecondOutputBox.y - mobileFirstOutputBox.y - mobileFirstOutputBox.height).toBeGreaterThanOrEqual(14);
 		}
 		await expect(save).toBeVisible();
