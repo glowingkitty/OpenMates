@@ -1,0 +1,4107 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-24'
+generated_at: '2026-09-25T00:20:22+00:00'
+range:
+  since: '2026-09-24T00:00:00+00:00'
+  until: '2026-09-25T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 35
+  section_counts:
+    features: 4
+    bug_fixes: 21
+    improvements: 1
+    docs: 7
+    tests: 1
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 25
+  dev_only_items: 35
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: Match Apple Watch Figma flows'
+    section: features
+    commits:
+    - 904e9540a
+    authored_at: '2026-09-25T00:37:51+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchItemOpenModel.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPhoneOpenPayload.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WatchItemOpenModelTests.swift
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - apple/OpenMatesTests/WatchPhoneOpenPayloadTests.swift
+    - apple/OpenMatesWatch/Assets.xcassets/WatchPairLoginIcon.imageset/Contents.json
+    - apple/OpenMatesWatch/Assets.xcassets/WatchPairLoginIcon.imageset/openmates-login-icon.png
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatch/Sources/WatchLocalization.swift
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+    - apple/project.yml
+    - backend/core/api/app/routes/chats.py
+    - backend/tests/test_native_chats_api.py
+    - docs/plans/apple-watch-figma-parity/plan.yml
+    - specifications/features/apple-watch/examples.yml
+    - specifications/features/apple-watch/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: Generate assistant speech on playback demand'
+    section: features
+    commits:
+    - a8c379909
+    authored_at: '2026-09-24T17:57:19+00:00'
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/audio/assistant_speech/billing_task.py
+    - backend/apps/audio/assistant_speech/persistence.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/directus/schemas/assistant_speech.yml
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_ai_skill_schemas.py
+    - backend/tests/test_assistant_speech_api.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_worker.py
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    - frontend/apps/web_app/static/audio/assistant-speech-pending.wav
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/features/assistant-response-speech/examples.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add AI checks and Ask AI to workflows'
+    section: features
+    commits:
+    - 05fc991f3
+    authored_at: '2026-09-24T17:53:25+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_ai_check_and_ask.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - docs/plans/workflows-ai-check-and-ask/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: rank repository and 3D searches by relevance'
+    section: features
+    commits:
+    - 24c49f1b6
+    authored_at: '2026-09-24T00:18:37+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/apps/models3d/app.yml
+    - backend/apps/models3d/skills/search_skill.py
+    - backend/scripts/test_search_relevance_ranking.py
+    - backend/shared/providers/github/repo_metadata.py
+    - backend/shared/providers/models3d_catalogs.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_code_search_repos_skill.py
+    - backend/tests/test_github_repo_metadata.py
+    - backend/tests/test_models3d_search_providers.py
+    - backend/tests/test_models3d_search_skill.py
+    - backend/tests/test_search_relevance.py
+    - backend/tests/test_skill_preview_metadata.py
+    - docs/apis/typesafe-jev.md
+    - docs/plans/jev-repository-models3d-relevance/plan.yml
+    - frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/audit_search_parent_preview_metadata.py
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: skill:code:search_repos
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:models3d:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, app:models3d, embed:code:search_repos, embed:models3d:search, skill:code:search_repos,
+      skill:models3d:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: Guard Watch notification handoff on macOS'
+    section: bug_fixes
+    commits:
+    - bc9f8c5c6
+    authored_at: '2026-09-25T00:46:37+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align workflow builder UI with Figma'
+    section: bug_fixes
+    commits:
+    - 2b4237b4a
+    authored_at: '2026-09-24T20:41:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: report macOS background state through shared socket'
+    section: bug_fixes
+    commits:
+    - 275829e39
+    authored_at: '2026-09-24T20:13:23+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: trace dev notification routing'
+    section: bug_fixes
+    commits:
+    - 33118a274
+    authored_at: '2026-09-24T20:02:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete Apple typing and composer parity'
+    section: bug_fixes
+    commits:
+    - 48768e09d
+    authored_at: '2026-09-24T19:15:07+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align Apple composer, typing, and Mac push'
+    section: bug_fixes
+    commits:
+    - fdecda30e
+    authored_at: '2026-09-24T19:10:17+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize Apple chat windows and key reuse'
+    section: bug_fixes
+    commits:
+    - bfd5dbb56
+    authored_at: '2026-09-24T18:22:54+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore macOS chat window and push parity'
+    section: bug_fixes
+    commits:
+    - 7160debf6
+    authored_at: '2026-09-24T17:11:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retire Suki and Welcome across clients'
+    section: bug_fixes
+    commits:
+    - 95bb565b1
+    authored_at: '2026-09-24T16:14:44+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMatesTests/EventsEmbedParityTests.swift
+    - apple/OpenMatesTests/SettingsMemoriesMatesParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/openmates/__init__.py
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ar.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.cs.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.de.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.es.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.fr.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.he.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.hi.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.id.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.it.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ja.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ko.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.nl.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.pl.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.pt.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ru.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.sv.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.th.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.tr.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.vi.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.zh.md
+    - backend/tests/test_news_follow_up_routing.py
+    - frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/data/matesMetadata.ts
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/openmates.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/openmates_welcome.yml
+    - frontend/packages/ui/src/i18n/sources/mate_descriptions.yml
+    - frontend/packages/ui/src/i18n/sources/mates.yml
+    - frontend/packages/ui/src/i18n/sources/mates/onboarding_support.yml
+    - frontend/packages/ui/src/i18n/sources/onboarding.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/debugUtils.ts
+    - frontend/packages/ui/src/services/onboardingChatService.ts
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:openmates, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retire deprecated Google Events search provider'
+    section: bug_fixes
+    commits:
+    - 13857ffef
+    authored_at: '2026-09-24T15:13:46+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/google_events.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/provider_routing.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/providers/google_events.yml
+    - backend/tests/test_events_provider_quality.py
+    - backend/tests/test_events_provider_routing.py
+    - docs/architecture/events-search-providers.md
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reconcile Apple chat and embed parity'
+    section: bug_fixes
+    commits:
+    - 0bb337ef3
+    authored_at: '2026-09-24T16:46:35+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventsSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/EventsEmbedParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+    - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/images/skills/view_skill.py
+    - backend/tests/test_bedrock_image_multimodal.py
+    - backend/tests/test_image_question_route.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:view
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:images:view
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:images, embed:images:view, platform:ios, platform:macos, skill:images:view'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prepare Apple signing keychain during TestFlight release'
+    section: bug_fixes
+    commits:
+    - 5771efd68
+    authored_at: '2026-09-24T14:59:23+02:00'
+    changed_paths:
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reconcile Apple chat and media parity'
+    section: bug_fixes
+    commits:
+    - 72943fb3c
+    authored_at: '2026-09-24T14:36:10+02:00'
+    changed_paths:
+    - .gitignore
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesTests/PendingUploadStoreTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - scripts/apple_cross_client_e2e.py
+    - scripts/tests/test_apple_cross_client_e2e.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: omit weak News Search padding'
+    section: bug_fixes
+    commits:
+    - d7843f0ac
+    authored_at: '2026-09-24T09:41:47+00:00'
+    changed_paths:
+    - backend/apps/news/app.yml
+    - backend/apps/news/skills/search_skill.py
+    - backend/tests/test_search_relevance.py
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/features/app-skills/news-search/examples.yml
+    - specifications/features/app-skills/news-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:news, embed:news:search, skill:news:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(apple): restore quick action and composer parity'
+    section: bug_fixes
+    commits:
+    - 24b07c442
+    authored_at: '2026-09-24T05:01:07+02:00'
+    changed_paths:
+    - .agents/skills/define-specification/SKILL.md
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/define-specification/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/DeviceShakeReportTrigger.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesTests/ProgressiveMarkdownRenderTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SettingsMemoriesMatesParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - scripts/apple_testflight_release.py
+    - scripts/specification_approval_yaml.py
+    - scripts/specifications.py
+    - scripts/tests/test_apple_testflight_release.py
+    - scripts/tests/test_specification_approval_yaml.py
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry blocked Siegessaeule proxy exits'
+    section: bug_fixes
+    commits:
+    - d7e6bdfb0
+    authored_at: '2026-09-24T02:45:43+00:00'
+    changed_paths:
+    - backend/apps/events/providers/siegessaeule.py
+    - backend/tests/test_events_provider_quality.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: improve events search result quality'
+    section: bug_fixes
+    commits:
+    - 68c39e1f0
+    authored_at: '2026-09-24T02:19:06+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/berlin_philharmonic.py
+    - backend/apps/events/providers/google_events.py
+    - backend/apps/events/providers/siegessaeule.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_events_provider_quality.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_search_relevance.py
+    - docs/plans/search-result-quality-floor/plan.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/features/app-skills/events-search/examples.yml
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve neutral GitHub discovery'
+    section: bug_fixes
+    commits:
+    - e06e3dae5
+    authored_at: '2026-09-24T00:54:44+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: cover generic repository ranking synonyms'
+    section: bug_fixes
+    commits:
+    - 6c0ff2438
+    authored_at: '2026-09-24T00:50:17+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject invented repository ranking defaults'
+    section: bug_fixes
+    commits:
+    - 94d61ff57
+    authored_at: '2026-09-24T00:46:26+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep neutral search relevance criteria empty'
+    section: bug_fixes
+    commits:
+    - 0ea92a1ab
+    authored_at: '2026-09-24T00:36:40+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/tests/test_code_search_repos_skill.py
+    - backend/tests/test_models3d_search_skill.py
+    - backend/tests/test_search_relevance.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, app:models3d'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: route event providers and defer enrichment'
+    section: improvements
+    commits:
+    - 2a598990c
+    authored_at: '2026-09-24T14:37:38+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/eventbrite.py
+    - backend/apps/events/providers/luma.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/provider_routing.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_auto_optimization.py
+    - docs/plans/event-search-routing-latency/plan.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - specifications/features/app-skills/events-search/examples.yml
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: verify workflow AI implementation plan'
+    section: docs
+    commits:
+    - 4973c85b3
+    authored_at: '2026-09-24T18:15:14+00:00'
+    changed_paths:
+    - docs/plans/workflows-ai-check-and-ask/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record event search comparison and E2E blocker'
+    section: docs
+    commits:
+    - 86f8eae56
+    authored_at: '2026-09-24T14:50:40+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - docs/plans/event-search-routing-latency/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: app:events'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: cover existing speech charges in rollout'
+    section: docs
+    commits:
+    - 6dc19a796
+    authored_at: '2026-09-24T14:22:43+00:00'
+    changed_paths:
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: plan demand-driven assistant speech'
+    section: docs
+    commits:
+    - 3a2423b35
+    authored_at: '2026-09-24T14:21:31+00:00'
+    changed_paths:
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record search quality verification'
+    section: docs
+    commits:
+    - 1c5e24c75
+    authored_at: '2026-09-24T09:48:11+00:00'
+    changed_paths:
+    - docs/plans/search-result-quality-floor/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: restore verified relevance plan'
+    section: docs
+    commits:
+    - c3982339b
+    authored_at: '2026-09-24T01:00:49+00:00'
+    changed_paths:
+    - docs/plans/jev-repository-models3d-relevance/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: verify search relevance expansion'
+    section: docs
+    commits:
+    - 1f143532c
+    authored_at: '2026-09-24T00:59:29+00:00'
+    changed_paths:
+    - docs/plans/jev-repository-models3d-relevance/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: Bound assistant speech browser recording'
+    section: tests
+    commits:
+    - f45e32932
+    authored_at: '2026-09-24T18:28:15+00:00'
+    changed_paths:
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: remove dev notification routing probe'
+    section: infrastructure
+    commits:
+    - 9be29ea5d
+    authored_at: '2026-09-24T20:54:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: Guard Watch notification handoff on macOS'
+    commits:
+    - bc9f8c5c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: Match Apple Watch Figma flows'
+    commits:
+    - 904e9540a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'chore: remove dev notification routing probe'
+    commits:
+    - 9be29ea5d
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align workflow builder UI with Figma'
+    commits:
+    - 2b4237b4a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: report macOS background state through shared socket'
+    commits:
+    - 275829e39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: trace dev notification routing'
+    commits:
+    - 33118a274
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete Apple typing and composer parity'
+    commits:
+    - 48768e09d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: align Apple composer, typing, and Mac push'
+    commits:
+    - fdecda30e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: Bound assistant speech browser recording'
+    commits:
+    - f45e32932
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize Apple chat windows and key reuse'
+    commits:
+    - bfd5dbb56
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: verify workflow AI implementation plan'
+    commits:
+    - 4973c85b3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: Generate assistant speech on playback demand'
+    commits:
+    - a8c379909
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat: add AI checks and Ask AI to workflows'
+    commits:
+    - 05fc991f3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore macOS chat window and push parity'
+    commits:
+    - 7160debf6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: retire Suki and Welcome across clients'
+    commits:
+    - 95bb565b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: retire deprecated Google Events search provider'
+    commits:
+    - 13857ffef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'docs: record event search comparison and E2E blocker'
+    commits:
+    - 86f8eae56
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'fix: reconcile Apple chat and embed parity'
+    commits:
+    - 0bb337ef3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:view
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:images:view
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+  - title: 'perf: route event providers and defer enrichment'
+    commits:
+    - 2a598990c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'docs: cover existing speech charges in rollout'
+    commits:
+    - 6dc19a796
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: plan demand-driven assistant speech'
+    commits:
+    - 3a2423b35
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: prepare Apple signing keychain during TestFlight release'
+    commits:
+    - 5771efd68
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reconcile Apple chat and media parity'
+    commits:
+    - 72943fb3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: record search quality verification'
+    commits:
+    - 1c5e24c75
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: omit weak News Search padding'
+    commits:
+    - d7843f0ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - title: 'fix(apple): restore quick action and composer parity'
+    commits:
+    - 24b07c442
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: retry blocked Siegessaeule proxy exits'
+    commits:
+    - d7e6bdfb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'fix: improve events search result quality'
+    commits:
+    - 68c39e1f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'docs: restore verified relevance plan'
+    commits:
+    - c3982339b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: verify search relevance expansion'
+    commits:
+    - 1f143532c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve neutral GitHub discovery'
+    commits:
+    - e06e3dae5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: cover generic repository ranking synonyms'
+    commits:
+    - 6c0ff2438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: reject invented repository ranking defaults'
+    commits:
+    - 94d61ff57
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep neutral search relevance criteria empty'
+    commits:
+    - 0ea92a1ab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+  - title: 'feat: rank repository and 3D searches by relevance'
+    commits:
+    - 24c49f1b6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: skill:code:search_repos
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:models3d:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add AI checks and Ask AI to workflows'
+    commits:
+    - 05fc991f3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: retire Suki and Welcome across clients'
+    commits:
+    - 95bb565b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: retire deprecated Google Events search provider'
+    commits:
+    - 13857ffef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'docs: record event search comparison and E2E blocker'
+    commits:
+    - 86f8eae56
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'perf: route event providers and defer enrichment'
+    commits:
+    - 2a598990c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: omit weak News Search padding'
+    commits:
+    - d7843f0ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - title: 'fix: improve events search result quality'
+    commits:
+    - 68c39e1f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: keep neutral search relevance criteria empty'
+    commits:
+    - 0ea92a1ab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+  - title: 'feat: rank repository and 3D searches by relevance'
+    commits:
+    - 24c49f1b6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: skill:code:search_repos
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:models3d:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: Guard Watch notification handoff on macOS'
+    commits:
+    - bc9f8c5c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: Match Apple Watch Figma flows'
+    commits:
+    - 904e9540a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align workflow builder UI with Figma'
+    commits:
+    - 2b4237b4a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: report macOS background state through shared socket'
+    commits:
+    - 275829e39
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: trace dev notification routing'
+    commits:
+    - 33118a274
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete Apple typing and composer parity'
+    commits:
+    - 48768e09d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align Apple composer, typing, and Mac push'
+    commits:
+    - fdecda30e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stabilize Apple chat windows and key reuse'
+    commits:
+    - bfd5dbb56
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: Generate assistant speech on playback demand'
+    commits:
+    - a8c379909
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: add AI checks and Ask AI to workflows'
+    commits:
+    - 05fc991f3
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore macOS chat window and push parity'
+    commits:
+    - 7160debf6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: retire Suki and Welcome across clients'
+    commits:
+    - 95bb565b1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: retire deprecated Google Events search provider'
+    commits:
+    - 13857ffef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: reconcile Apple chat and embed parity'
+    commits:
+    - 0bb337ef3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:view
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:images:view
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'perf: route event providers and defer enrichment'
+    commits:
+    - 2a598990c
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: reconcile Apple chat and media parity'
+    commits:
+    - 72943fb3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: omit weak News Search padding'
+    commits:
+    - d7843f0ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    newsletter_ready: false
+  - title: 'fix(apple): restore quick action and composer parity'
+    commits:
+    - 24b07c442
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: retry blocked Siegessaeule proxy exits'
+    commits:
+    - d7e6bdfb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: improve events search result quality'
+    commits:
+    - 68c39e1f0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve neutral GitHub discovery'
+    commits:
+    - e06e3dae5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: cover generic repository ranking synonyms'
+    commits:
+    - 6c0ff2438
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: reject invented repository ranking defaults'
+    commits:
+    - 94d61ff57
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep neutral search relevance criteria empty'
+    commits:
+    - 0ea92a1ab
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    newsletter_ready: false
+  - title: 'feat: rank repository and 3D searches by relevance'
+    commits:
+    - 24c49f1b6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: skill:code:search_repos
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:models3d:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: bc9f8c5c6b12a80aa75511294f14aeabc35043db
+    short_sha: bc9f8c5c6
+    authored_at: '2026-09-25T00:46:37+02:00'
+    subject: 'fix: Guard Watch notification handoff on macOS'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 904e9540a656179d7a2f6bb35851ed4ef902146c
+    short_sha: 904e9540a
+    authored_at: '2026-09-25T00:37:51+02:00'
+    subject: 'feat: Match Apple Watch Figma flows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchItemOpenModel.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchPhoneOpenPayload.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesTests/WatchItemOpenModelTests.swift
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - apple/OpenMatesTests/WatchPhoneOpenPayloadTests.swift
+    - apple/OpenMatesWatch/Assets.xcassets/WatchPairLoginIcon.imageset/Contents.json
+    - apple/OpenMatesWatch/Assets.xcassets/WatchPairLoginIcon.imageset/openmates-login-icon.png
+    - apple/OpenMatesWatch/Sources/OpenMatesWatchApp.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchEmbedViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatch/Sources/WatchLocalization.swift
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatchUITests/WatchChatLayoutUITests.swift
+    - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+    - apple/project.yml
+    - backend/core/api/app/routes/chats.py
+    - backend/tests/test_native_chats_api.py
+    - docs/plans/apple-watch-figma-parity/plan.yml
+    - specifications/features/apple-watch/examples.yml
+    - specifications/features/apple-watch/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 9be29ea5d66a5832c204cf8ddcfec5469285eac6
+    short_sha: 9be29ea5d
+    authored_at: '2026-09-24T20:54:21+00:00'
+    subject: 'chore: remove dev notification routing probe'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    related_feature_ids: []
+  - sha: 2b4237b4adf75c2db2421caa404f07233e9cd494
+    short_sha: 2b4237b4a
+    authored_at: '2026-09-24T20:41:00+00:00'
+    subject: 'fix: align workflow builder UI with Figma'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 275829e39ed70bccc583009deff874689a9cfcc6
+    short_sha: 275829e39
+    authored_at: '2026-09-24T20:13:23+00:00'
+    subject: 'fix: report macOS background state through shared socket'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 33118a274274674870a7e8a96b5b1d25293fcc10
+    short_sha: 33118a274
+    authored_at: '2026-09-24T20:02:57+00:00'
+    subject: 'fix: trace dev notification routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    related_feature_ids: []
+  - sha: 48768e09d7323bc28e0661e6913499be548fcb3d
+    short_sha: 48768e09d
+    authored_at: '2026-09-24T19:15:07+00:00'
+    subject: 'fix: complete Apple typing and composer parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fdecda30eb6f2efafdf5d8098ea8e7c1280e5fa0
+    short_sha: fdecda30e
+    authored_at: '2026-09-24T19:10:17+00:00'
+    subject: 'fix: align Apple composer, typing, and Mac push'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f45e329324f8f8577d55ca9f0fe3dd86508b86c3
+    short_sha: f45e32932
+    authored_at: '2026-09-24T18:28:15+00:00'
+    subject: 'test: Bound assistant speech browser recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: bfd5dbb569cb5d3d8c0b00dd3e0332e9d32bc5ef
+    short_sha: bfd5dbb56
+    authored_at: '2026-09-24T18:22:54+00:00'
+    subject: 'fix: stabilize Apple chat windows and key reuse'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4973c85b33654c658889a8d9c472ee0bfa2b5b48
+    short_sha: 4973c85b3
+    authored_at: '2026-09-24T18:15:14+00:00'
+    subject: 'docs: verify workflow AI implementation plan'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/workflows-ai-check-and-ask/plan.yml
+    related_feature_ids: []
+  - sha: a8c3799093fdfa40ec6910ae95a02a5e85684699
+    short_sha: a8c379909
+    authored_at: '2026-09-24T17:57:19+00:00'
+    subject: 'feat: Generate assistant speech on playback demand'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/audio/assistant_speech/billing_task.py
+    - backend/apps/audio/assistant_speech/persistence.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/directus/schemas/assistant_speech.yml
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_ai_skill_schemas.py
+    - backend/tests/test_assistant_speech_api.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_worker.py
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    - frontend/apps/web_app/static/audio/assistant-speech-pending.wav
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechController.test.ts
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/features/assistant-response-speech/examples.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - skill:ai:ask
+  - sha: 05fc991f33e8d81d7ba143ced7bc59dd77847951
+    short_sha: 05fc991f3
+    authored_at: '2026-09-24T17:53:25+00:00'
+    subject: 'feat: add AI checks and Ask AI to workflows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_ai_service.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_ai_check_and_ask.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - docs/plans/workflows-ai-check-and-ask/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+  - sha: 7160debf627cfdb8b0f24cb6384b9d0b0fccd621
+    short_sha: 7160debf6
+    authored_at: '2026-09-24T17:11:22+00:00'
+    subject: 'fix: restore macOS chat window and push parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerEditorView.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 95bb565b1502a3cee97b6cb1beea8345d5ed8b57
+    short_sha: 95bb565b1
+    authored_at: '2026-09-24T16:14:44+00:00'
+    subject: 'fix: retire Suki and Welcome across clients'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMatesTests/EventsEmbedParityTests.swift
+    - apple/OpenMatesTests/SettingsMemoriesMatesParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/openmates/__init__.py
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ar.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.cs.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.de.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.es.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.fr.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.he.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.hi.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.id.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.it.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ja.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ko.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.nl.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.pl.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.pt.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.ru.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.sv.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.th.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.tr.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.vi.md
+    - backend/apps/openmates/focus_modes/welcome/SKILL.zh.md
+    - backend/tests/test_news_follow_up_routing.py
+    - frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/data/matesMetadata.ts
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/openmates.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/openmates_welcome.yml
+    - frontend/packages/ui/src/i18n/sources/mate_descriptions.yml
+    - frontend/packages/ui/src/i18n/sources/mates.yml
+    - frontend/packages/ui/src/i18n/sources/mates/onboarding_support.yml
+    - frontend/packages/ui/src/i18n/sources/onboarding.yml
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/debugUtils.ts
+    - frontend/packages/ui/src/services/onboardingChatService.ts
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:openmates
+    - platform:ios
+    - platform:macos
+  - sha: 13857ffef057bf5964a76e6452ca06da522786d9
+    short_sha: 13857ffef
+    authored_at: '2026-09-24T15:13:46+00:00'
+    subject: 'fix: retire deprecated Google Events search provider'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/google_events.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/provider_routing.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/providers/google_events.yml
+    - backend/tests/test_events_provider_quality.py
+    - backend/tests/test_events_provider_routing.py
+    - docs/architecture/events-search-providers.md
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/ui/src/data/product_features.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/ci_coverage_manifest.json
+    - shared/docs/privacy_policy.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: 86f8eae566b4d99ba0c56d55c069531f07462c3f
+    short_sha: 86f8eae56
+    authored_at: '2026-09-24T14:50:40+00:00'
+    subject: 'docs: record event search comparison and E2E blocker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - docs/plans/event-search-routing-latency/plan.yml
+    related_feature_ids:
+    - app:events
+  - sha: 0bb337ef322298c6b59aae2222c0e07ab2d32dba
+    short_sha: 0bb337ef3
+    authored_at: '2026-09-24T16:46:35+02:00'
+    subject: 'fix: reconcile Apple chat and embed parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventsSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/EventsEmbedParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+    - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/images/skills/view_skill.py
+    - backend/tests/test_bedrock_image_multimodal.py
+    - backend/tests/test_image_question_route.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:images
+    - embed:images:view
+    - platform:ios
+    - platform:macos
+    - skill:images:view
+  - sha: 2a598990ccc91a4db9dbf062e62b89ac3f705465
+    short_sha: 2a598990c
+    authored_at: '2026-09-24T14:37:38+00:00'
+    subject: 'perf: route event providers and defer enrichment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/eventbrite.py
+    - backend/apps/events/providers/luma.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/provider_routing.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_auto_optimization.py
+    - docs/plans/event-search-routing-latency/plan.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - specifications/features/app-skills/events-search/examples.yml
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: 6dc19a796094a1f216eeec3bc89c518767adbb00
+    short_sha: 6dc19a796
+    authored_at: '2026-09-24T14:22:43+00:00'
+    subject: 'docs: cover existing speech charges in rollout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    related_feature_ids: []
+  - sha: 3a2423b3535853606e2808e8049c6b0f75fb45b4
+    short_sha: 3a2423b35
+    authored_at: '2026-09-24T14:21:31+00:00'
+    subject: 'docs: plan demand-driven assistant speech'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/assistant-speech-efficient-playback/plan.yml
+    related_feature_ids: []
+  - sha: 5771efd68e562f1b7e10ccc067a40a402e9a7c1d
+    short_sha: 5771efd68
+    authored_at: '2026-09-24T14:59:23+02:00'
+    subject: 'fix: prepare Apple signing keychain during TestFlight release'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/apple_testflight_release.py
+    - scripts/tests/test_apple_testflight_release.py
+    related_feature_ids: []
+  - sha: 72943fb3c667d48ced64b5ae3dfd697034c7982e
+    short_sha: 72943fb3c
+    authored_at: '2026-09-24T14:36:10+02:00'
+    subject: 'fix: reconcile Apple chat and media parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .gitignore
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesTests/APIClientUploadTransportTests.swift
+    - apple/OpenMatesTests/ChatAudioPipelineTests.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesTests/PendingUploadStoreTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesTests/StreamingClientFanoutTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - scripts/apple_cross_client_e2e.py
+    - scripts/tests/test_apple_cross_client_e2e.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 1c5e24c757d7d553dc7e823c268b743b9b188183
+    short_sha: 1c5e24c75
+    authored_at: '2026-09-24T09:48:11+00:00'
+    subject: 'docs: record search quality verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/search-result-quality-floor/plan.yml
+    related_feature_ids: []
+  - sha: d7843f0acf31e6f97e6d41923451bf5502031e70
+    short_sha: d7843f0ac
+    authored_at: '2026-09-24T09:41:47+00:00'
+    subject: 'fix: omit weak News Search padding'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/news/app.yml
+    - backend/apps/news/skills/search_skill.py
+    - backend/tests/test_search_relevance.py
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/features/app-skills/news-search/examples.yml
+    - specifications/features/app-skills/news-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:news
+    - embed:news:search
+    - skill:news:search
+  - sha: 24b07c442b806cdac13aeeba3a74b0bc73202c05
+    short_sha: 24b07c442
+    authored_at: '2026-09-24T05:01:07+02:00'
+    subject: 'fix(apple): restore quick action and composer parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/define-specification/SKILL.md
+    - .agents/skills/ios/SKILL.md
+    - .claude/skills/define-specification/SKILL.md
+    - .claude/skills/ios/SKILL.md
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Core/Services/DraftSyncCoordinator.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevHistoryWelcomeFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchResultsRenderer.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/DeviceShakeReportTrigger.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
+    - apple/OpenMatesTests/NativeModelCatalogTests.swift
+    - apple/OpenMatesTests/ProgressiveMarkdownRenderTests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SettingsMemoriesMatesParityTests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/HistoryWelcomeComponentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - scripts/apple_testflight_release.py
+    - scripts/specification_approval_yaml.py
+    - scripts/specifications.py
+    - scripts/tests/test_apple_testflight_release.py
+    - scripts/tests/test_specification_approval_yaml.py
+    - specifications/features/issue-reporting/examples.yml
+    - specifications/features/issue-reporting/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d7e6bdfb070ad51005c9df871f6b736575b7f80e
+    short_sha: d7e6bdfb0
+    authored_at: '2026-09-24T02:45:43+00:00'
+    subject: 'fix: retry blocked Siegessaeule proxy exits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/providers/siegessaeule.py
+    - backend/tests/test_events_provider_quality.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:events
+  - sha: 68c39e1f0c9344ebb73cee3b0470ea985025b5f0
+    short_sha: 68c39e1f0
+    authored_at: '2026-09-24T02:19:06+00:00'
+    subject: 'fix: improve events search result quality'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/berlin_philharmonic.py
+    - backend/apps/events/providers/google_events.py
+    - backend/apps/events/providers/siegessaeule.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_events_provider_quality.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_search_relevance.py
+    - docs/plans/search-result-quality-floor/plan.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/features/app-skills/events-search/examples.yml
+    - specifications/features/app-skills/events-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: c3982339bba86273f6131fbc0df8d474ddb9a4fb
+    short_sha: c3982339b
+    authored_at: '2026-09-24T01:00:49+00:00'
+    subject: 'docs: restore verified relevance plan'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/jev-repository-models3d-relevance/plan.yml
+    related_feature_ids: []
+  - sha: 1f143532c084ee31c72252c6017aa24f4b763cd7
+    short_sha: 1f143532c
+    authored_at: '2026-09-24T00:59:29+00:00'
+    subject: 'docs: verify search relevance expansion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/jev-repository-models3d-relevance/plan.yml
+    related_feature_ids: []
+  - sha: e06e3dae5524d5895e0007a339452bd55f3c67aa
+    short_sha: e06e3dae5
+    authored_at: '2026-09-24T00:54:44+00:00'
+    subject: 'fix: preserve neutral GitHub discovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 6c0ff24386ed54b524d29c9dca949294bba5618d
+    short_sha: 6c0ff2438
+    authored_at: '2026-09-24T00:50:17+00:00'
+    subject: 'fix: cover generic repository ranking synonyms'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 94d61ff5728a3fbcd839da185c3550cdea22d3ac
+    short_sha: 94d61ff57
+    authored_at: '2026-09-24T00:46:26+00:00'
+    subject: 'fix: reject invented repository ranking defaults'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/search_skill_reliability.py
+    - backend/apps/ai/tests/test_search_skill_reliability.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 0ea92a1aba6c4bfc33b8edac5f054605cae5c6d7
+    short_sha: 0ea92a1ab
+    authored_at: '2026-09-24T00:36:40+00:00'
+    subject: 'fix: keep neutral search relevance criteria empty'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/tests/test_code_search_repos_skill.py
+    - backend/tests/test_models3d_search_skill.py
+    - backend/tests/test_search_relevance.py
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:code
+    - app:models3d
+  - sha: 24c49f1b6cd7e700c8754215488944c74199ceeb
+    short_sha: 24c49f1b6
+    authored_at: '2026-09-24T00:18:37+00:00'
+    subject: 'feat: rank repository and 3D searches by relevance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/apps/models3d/app.yml
+    - backend/apps/models3d/skills/search_skill.py
+    - backend/scripts/test_search_relevance_ranking.py
+    - backend/shared/providers/github/repo_metadata.py
+    - backend/shared/providers/models3d_catalogs.py
+    - backend/shared/python_utils/search_relevance.py
+    - backend/tests/test_code_search_repos_skill.py
+    - backend/tests/test_github_repo_metadata.py
+    - backend/tests/test_models3d_search_providers.py
+    - backend/tests/test_models3d_search_skill.py
+    - backend/tests/test_search_relevance.py
+    - backend/tests/test_skill_preview_metadata.py
+    - docs/apis/typesafe-jev.md
+    - docs/plans/jev-repository-models3d-relevance/plan.yml
+    - frontend/apps/web_app/tests/skill-search-relevance-parity.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/audit_search_parent_preview_metadata.py
+    - specifications/architecture/app-skill-execution/examples.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:code
+    - app:models3d
+    - embed:code:search_repos
+    - embed:models3d:search
+    - skill:code:search_repos
+    - skill:models3d:search
+llm_summary:
+  overview: OpenMates focused on cross-platform parity for Apple devices, refined search relevance across multiple domains,
+    and introduced a more efficient demand-driven model for assistant speech generation.
+  released_changes: []
+  bug_fixes:
+  - text: Stabilized the Apple ecosystem experience by fixing macOS background state reporting, chat window management, and
+      push notification handoff.
+    evidence:
+      commits:
+      - bc9f8c5c6
+      - 275829e39
+      - bfd5dbb56
+      - 7160debf6
+    release_status: dev_only
+  - text: Refined search reliability for repositories and events by rejecting invented ranking defaults and improving proxy
+      exit handling.
+    evidence:
+      commits:
+      - e06e3dae5
+      - 94d61ff57
+      - d7e6bdfb0
+      - 6c0ff2438
+    release_status: dev_only
+  - text: Aligned the workflow builder UI and Apple composer components with Figma design specifications.
+    evidence:
+      commits:
+      - 2b4237b4a
+      - 48768e09d
+      - fdecda30e
+      - 24b07c442
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added new Apple Watch flows to match Figma designs, including pairing runtimes and chat layout logic.
+    evidence:
+      commits:
+      - 904e9540a
+    release_status: dev_only
+  - text: Development began on demand-driven assistant speech, which generates audio only when playback is requested to optimize
+      resource usage.
+    evidence:
+      commits:
+      - a8c379909
+      - f45e32932
+    release_status: dev_only
+  - text: Workflows now support AI-powered checks and 'Ask AI' steps for automated decision-making.
+    evidence:
+      commits:
+      - 05fc991f3
+    release_status: dev_only
+  - text: Search relevance ranking was implemented for repository and 3D model searches, alongside optimized event provider
+      routing.
+    evidence:
+      commits:
+      - 24c49f1b6
+      - 0ea92a1ab
+      - 2a598990c
+    release_status: dev_only
+  - text: The project retired the Suki and Welcome focus modes and deprecated the Google Events search provider in favor of
+      more relevant sources.
+    evidence:
+      commits:
+      - 95bb565b1
+      - 13857ffef
+    release_status: dev_only
+  internal_progress:
+  - text: Updated Apple TestFlight release scripts to automate signing keychain preparation.
+    evidence:
+      commits:
+      - 5771efd68
+    release_status: dev_only
+  - text: Conducted temporary tracing of notification routing within the development environment.
+    evidence:
+      commits:
+      - 33118a274
+      - 9be29ea5d
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Apple Watch Figma parity flows.
+      evidence:
+        commits:
+        - 904e9540a
+      reason: Platform is currently disabled in feature availability.
+    - text: AI checks and Ask AI integration for workflows.
+      evidence:
+        commits:
+        - 05fc991f3
+      reason: Feature is currently disabled in feature availability.
+    - text: Demand-driven assistant speech generation.
+      evidence:
+        commits:
+        - a8c379909
+      reason: Commit is not reachable from main and is marked dev_only.
+    rationale: No items from this period are both released to main and marked as ready for public communication. All user-facing
+      improvements are currently in development or tied to disabled feature gates.
+  social_video_recommendations:
+  - idea: A preview of OpenMates on Apple Watch, highlighting the pairing and chat synchronization flows.
+    priority: medium
+    reason: The Apple Watch parity work represents a significant expansion of the ecosystem, even while unreleased.
+    evidence:
+      commits:
+      - 904e9540a
+  quality_notes:
+  - Extensive use of parity tests (ChatSyncParity, SettingsFullParity) to ensure consistency across web and native clients.
+  - Significant focus on search result quality floors and relevance ranking verification.
+  validation_warnings: []
