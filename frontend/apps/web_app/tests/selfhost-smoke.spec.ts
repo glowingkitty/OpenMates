@@ -133,6 +133,7 @@ async function waitForAdminStatus(page: any, expected: boolean): Promise<any> {
  return latestSession;
 }
 
+// contract-test: supporting surface=cli assertions=server-management.update.safety-sequence
 test('self-hosted install starts, signs up a user, and promotes admin', async ({ page, request }) => {
 	test.slow();
 	test.setTimeout(180000);
@@ -148,6 +149,11 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
   );
 
  assertCliDefaultsToInstalledSelfHost();
+ // Verify the running image-mode CMS, not merely the source Compose file.
+ const cacheSettings = execFileSync('docker', ['exec', 'cms', 'printenv',
+  'CACHE_SKIP_ALLOWED', 'CACHE_AUTO_PURGE'], { encoding: 'utf-8' }).trim().split('\n');
+ expect(cacheSettings, 'installed CMS must honor fresh reads and invalidate cached writes').toEqual(['true', 'true']);
+
 
   const signupEmail = `selfhost-${Date.now()}@example.test`;
  const signupUsername = `selfhost_${Date.now().toString(36).slice(-8)}`;

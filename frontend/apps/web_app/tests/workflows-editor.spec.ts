@@ -13,6 +13,39 @@ function apiUrl(): string {
 }
 
 test.describe('Workflows editor', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
+	test('mobile input creates a workflow that loads again in a fresh page', async ({ page }) => {
+		test.setTimeout(120000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, () => {}, async () => {});
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+		const title = `Workflow input regression ${Date.now()}`;
+		await page.getByTestId('workflow-input-textarea').fill(title);
+		const created = page.waitForResponse((response) =>
+			response.url().endsWith('/v1/workflows') && response.request().method() === 'POST'
+		);
+		await page.getByTestId('workflow-input-submit').click();
+		const response = await created;
+		expect(response.ok(), 'workflow creation must complete both persistence writes').toBe(true);
+		const { workflow } = await response.json();
+		try {
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
+			const freshPage = await page.context().newPage();
+			try {
+				await freshPage.goto(page.url(), { waitUntil: 'domcontentloaded' });
+				await expect(freshPage.getByTestId('workspace-detail-title')).toHaveText(title);
+				const detail = await freshPage.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`);
+				expect(detail.ok()).toBe(true);
+				expect((await detail.json()).workflow.title).toBe(title);
+			} finally { await freshPage.close(); }
+		} finally {
+			await page.request.delete(`${apiUrl()}/v1/workflows/${workflow.id}`);
+		}
+	});
+
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new,workflows.activation.reachable-side-effect,workflows-ui.schedule.preview,workflows-ui.mvp.authoring
 	test('node Save persists, while testing current inputs leaves the definition unchanged', async ({
 		page

@@ -565,7 +565,7 @@ export function planUpdate(input: {
   const steps = ["preflight"];
   const backupName = runtime.dataBearing && input.skipBackup !== true ? `latest-pre-update-${runtime.role}.tar.gz` : null;
   if (backupName) steps.push("backup:latest-pre-update");
-  steps.push("pull", "up", "health-check");
+  steps.push("pull", "up", "health-check", "caddy-update", "runtime-verification");
 
   return {
     role: runtime.role,

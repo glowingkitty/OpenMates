@@ -883,7 +883,7 @@ describe("role-based server planning", () => {
 
   it("plans image updates with backup before pull/up and without git", () => {
     const plan = planUpdate({ role: "core", selectedServices: ["api"], dryRun: true });
-    assert.deepEqual(plan.steps, ["preflight", "backup:latest-pre-update", "pull", "up", "health-check"]);
+    assert.deepEqual(plan.steps, ["preflight", "backup:latest-pre-update", "pull", "up", "health-check", "caddy-update", "runtime-verification"]);
     assert.equal(plan.commands.some((command) => command.includes("git pull")), false);
     assert.equal(plan.backupName, "latest-pre-update-core.tar.gz");
   });
