@@ -1,0 +1,3585 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-25'
+generated_at: '2026-09-26T00:20:21+00:00'
+range:
+  since: '2026-09-25T00:00:00+00:00'
+  until: '2026-09-26T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 21
+  section_counts:
+    features: 3
+    bug_fixes: 17
+    improvements: 0
+    docs: 0
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 13
+  user_facing_items: 20
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: enable Workflows in production config'
+    section: features
+    commits:
+    - 3933ffcbf
+    authored_at: '2026-09-25T20:15:06+00:00'
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/tests/test_feature_availability_service.py
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: align Projects and Tasks with Figma and integrate Plans'
+    section: features
+    commits:
+    - 201f98cbd
+    authored_at: '2026-09-25T15:20:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/workspace_history.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/workspace_change_history_service.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_plans_route_detail.py
+    - backend/tests/test_workspace_change_history.py
+    - docs/plans/plans-in-task-board/plan.yml
+    - docs/plans/projects-tasks-figma-parity/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.ts
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/project-readme-figma.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-cleartext-boundary.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectReadme.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/PlanTaskCard.preview.ts
+    - frontend/packages/ui/src/components/tasks/PlanTaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.preview.ts
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.preview.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectCreationNavigation.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectReadmeUpload.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/services/projectCreationNavigation.ts
+    - frontend/packages/ui/src/services/projectReadme.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - frontend/packages/ui/src/stores/pendingMentionStore.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_cleartext_boundary.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/project_remote_access_live.mjs
+    - scripts/tests/test_ci_results.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:code, platform:plans, platform:projects, platform:tasks, platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:plans, platform:projects, platform:tasks,
+      platform:workflows'
+  - title: 'feat: enforce anonymous inline skill limits'
+    section: features
+    commits:
+    - 3c2800021
+    authored_at: '2026-09-25T11:01:21+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/audio/app.yml
+    - backend/apps/books/app.yml
+    - backend/apps/business/app.yml
+    - backend/apps/calendar/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/mail/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/plans/app.yml
+    - backend/apps/projects/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/tasks/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/apps/workflows/app.yml
+    - backend/core/api/app/routes/anonymous.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/anonymous_skill_policy.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/apps/rest-api.md
+    - docs/plans/anonymous-free-usage-budget/plan.yml
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, app:books, app:business, app:calendar, app:code, app:design,
+      app:electronics, app:events, app:finance, app:fitness, app:health, app:home, app:images, app:mail, app:maps, app:math,
+      app:models3d, app:music, app:news, app:nutrition, app:openmates, app:pdf, app:plans, app:projects, app:reminder, app:shopping,
+      app:social_media, app:tasks, app:travel, app:videos, app:weather, app:web, app:workflows, platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:plans, app:projects, app:tasks, platform:workflows'
+  bug_fixes:
+  - title: 'fix: count clipped news requests before budget enforcement'
+    section: bug_fixes
+    commits:
+    - f7499b9fe
+    authored_at: '2026-09-25T21:14:29+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: execute news searches up to the research limit'
+    section: bug_fixes
+    commits:
+    - 83e022a41
+    authored_at: '2026-09-25T21:11:29+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: recover silent answer-only model turns'
+    section: bug_fixes
+    commits:
+    - 48c95c68e
+    authored_at: '2026-09-25T20:57:26+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: align workflow builder and workspace navigation'
+    section: bug_fixes
+    commits:
+    - 59e84672d
+    authored_at: '2026-09-25T19:49:25+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/business/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_template_expressions.py
+    - backend/tests/test_feature_availability_service.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_app_ui_metadata.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflow_template_expressions.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workspace-root-hash-routing/plan.yml
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.test.ts
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.ts
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.ts
+    - frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.ts
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.ts
+    - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-skill-variants.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/apps/web_app/tests/workspace-hash-routing.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/IconTabBar.svelte
+    - frontend/packages/ui/src/components/plans/PlanCard.svelte
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/PlanTaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDateRangeField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowLocationField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowOutputField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowOutputFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowValueView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowOutputExamples.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowSkillSummary.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowValuePresentation.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowFieldIcon.ts
+    - frontend/packages/ui/src/components/workflows/workflowOutputExamples.ts
+    - frontend/packages/ui/src/components/workflows/workflowSkillSummary.ts
+    - frontend/packages/ui/src/components/workflows/workflowValuePresentation.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/workspacePrefetchService.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.workspace.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, app:business, app:code, app:design, app:electronics, app:events,
+      app:finance, app:fitness, app:health, app:home, app:images, app:maps, app:math, app:models3d, app:music, app:news, app:nutrition,
+      app:openmates, app:shopping, app:social_media, app:travel, app:videos, app:weather, app:web, platform:projects, platform:tasks,
+      platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects, platform:tasks, platform:workflows'
+  - title: 'fix: finish chat turns when Gemini exceeds tool limit'
+    section: bug_fixes
+    commits:
+    - 3e55f4aad
+    authored_at: '2026-09-25T18:54:36+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: align workflow builder with real skill inputs'
+    section: bug_fixes
+    commits:
+    - cc8862ca7
+    authored_at: '2026-09-25T17:04:23+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/core/api/app/services/workflow_runtime_values.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-skill-variants.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDateRangeField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowLocationField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:events, platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: show embed type labels in draft previews'
+    section: bug_fixes
+    commits:
+    - a2f31ca19
+    authored_at: '2026-09-25T13:20:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/utils/__tests__/draftPreview.test.ts
+    - frontend/packages/ui/src/utils/draftPreview.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover Watch chats and pin section header'
+    section: bug_fixes
+    commits:
+    - eca1d63a0
+    authored_at: '2026-09-25T14:20:59+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'fix: align workflow output and input widths'
+    section: bug_fixes
+    commits:
+    - acd69a69a
+    authored_at: '2026-09-25T11:42:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep anonymous skills inline under provider limits'
+    section: bug_fixes
+    commits:
+    - c7621fe0a
+    authored_at: '2026-09-25T11:24:22+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/rate_limiting.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/shared/python_utils/anonymous_inline_execution.py
+    - backend/shared/python_utils/anonymous_skill_policy.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/apps/rest-api.md
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: align workflow output table columns'
+    section: bug_fixes
+    commits:
+    - 69dd07812
+    authored_at: '2026-09-25T11:21:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align workflow output field groups'
+    section: bug_fixes
+    commits:
+    - 1d7fa4ce3
+    authored_at: '2026-09-25T10:58:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover zero-text protocol-guard chat turns'
+    section: bug_fixes
+    commits:
+    - cbf3b7180
+    authored_at: '2026-09-25T10:55:00+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/tool_protocol_guard.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_tool_protocol_guard.py
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: wait for Apple Watch chat socket before sending'
+    section: bug_fixes
+    commits:
+    - 4143ddc6e
+    authored_at: '2026-09-25T12:33:12+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'fix: align workflow skill input and output'
+    section: bug_fixes
+    commits:
+    - 92d2c63fe
+    authored_at: '2026-09-25T10:30:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: load Apple Watch account lists after pairing'
+    section: bug_fixes
+    commits:
+    - b7d52a746
+    authored_at: '2026-09-25T12:12:04+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchHubDataServiceTests.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'fix: refine workflow builder editors'
+    section: bug_fixes
+    commits:
+    - b5d454d04
+    authored_at: '2026-09-25T09:52:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: exercise real guard in protocol recovery regression'
+    section: tests
+    commits:
+    - ff815ae57
+    authored_at: '2026-09-25T11:22:20+00:00'
+    changed_paths:
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: enable Workflows in production config'
+    commits:
+    - 3933ffcbf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align workflow builder and workspace navigation'
+    commits:
+    - 59e84672d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: align workflow builder with real skill inputs'
+    commits:
+    - cc8862ca7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: show embed type labels in draft previews'
+    commits:
+    - a2f31ca19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: enforce anonymous inline skill limits'
+    commits:
+    - 3c2800021
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter:
+  - title: 'fix: count clipped news requests before budget enforcement'
+    commits:
+    - f7499b9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: execute news searches up to the research limit'
+    commits:
+    - 83e022a41
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: recover silent answer-only model turns'
+    commits:
+    - 48c95c68e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: enable Workflows in production config'
+    commits:
+    - 3933ffcbf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: finish chat turns when Gemini exceeds tool limit'
+    commits:
+    - 3e55f4aad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: show embed type labels in draft previews'
+    commits:
+    - a2f31ca19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align workflow output and input widths'
+    commits:
+    - acd69a69a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep anonymous skills inline under provider limits'
+    commits:
+    - c7621fe0a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: align workflow output table columns'
+    commits:
+    - 69dd07812
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align workflow output field groups'
+    commits:
+    - 1d7fa4ce3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover zero-text protocol-guard chat turns'
+    commits:
+    - cbf3b7180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: align workflow skill input and output'
+    commits:
+    - 92d2c63fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refine workflow builder editors'
+    commits:
+    - b5d454d04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: count clipped news requests before budget enforcement'
+    commits:
+    - f7499b9fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: execute news searches up to the research limit'
+    commits:
+    - 83e022a41
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: recover silent answer-only model turns'
+    commits:
+    - 48c95c68e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat: enable Workflows in production config'
+    commits:
+    - 3933ffcbf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align workflow builder and workspace navigation'
+    commits:
+    - 59e84672d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: finish chat turns when Gemini exceeds tool limit'
+    commits:
+    - 3e55f4aad
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: align workflow builder with real skill inputs'
+    commits:
+    - cc8862ca7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: align Projects and Tasks with Figma and integrate Plans'
+    commits:
+    - 201f98cbd
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show embed type labels in draft previews'
+    commits:
+    - a2f31ca19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover Watch chats and pin section header'
+    commits:
+    - eca1d63a0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align workflow output and input widths'
+    commits:
+    - acd69a69a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep anonymous skills inline under provider limits'
+    commits:
+    - c7621fe0a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: align workflow output table columns'
+    commits:
+    - 69dd07812
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: enforce anonymous inline skill limits'
+    commits:
+    - 3c2800021
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:openmates
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/openmates/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:plans
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/plans/app.yml
+    - id: app:projects
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/projects/app.yml
+    - id: app:reminder
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/reminder/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:tasks
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/tasks/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: app:workflows
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align workflow output field groups'
+    commits:
+    - 1d7fa4ce3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover zero-text protocol-guard chat turns'
+    commits:
+    - cbf3b7180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: wait for Apple Watch chat socket before sending'
+    commits:
+    - 4143ddc6e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align workflow skill input and output'
+    commits:
+    - 92d2c63fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: load Apple Watch account lists after pairing'
+    commits:
+    - b7d52a746
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: refine workflow builder editors'
+    commits:
+    - b5d454d04
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: f7499b9fe894fe93fa75dd66be6d8995d1774d2a
+    short_sha: f7499b9fe
+    authored_at: '2026-09-25T21:14:29+00:00'
+    subject: 'fix: count clipped news requests before budget enforcement'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids:
+    - app:ai
+  - sha: 83e022a415e815b18cab9fe536eeccc1dca9787c
+    short_sha: 83e022a41
+    authored_at: '2026-09-25T21:11:29+00:00'
+    subject: 'fix: execute news searches up to the research limit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 48c95c68e201a71aad329309d19a792f1ee2a100
+    short_sha: 48c95c68e
+    authored_at: '2026-09-25T20:57:26+00:00'
+    subject: 'fix: recover silent answer-only model turns'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 3933ffcbfa0621326e143a66ac3d65dff6dce7fd
+    short_sha: 3933ffcbf
+    authored_at: '2026-09-25T20:15:06+00:00'
+    subject: 'feat: enable Workflows in production config'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/tests/test_feature_availability_service.py
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 59e84672dd66b7c23cbc204ceabf2792cf8b0df0
+    short_sha: 59e84672d
+    authored_at: '2026-09-25T19:49:25+00:00'
+    subject: 'fix: align workflow builder and workspace navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/business/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/config/backend_config.yml
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_capabilities.yml
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_template_expressions.py
+    - backend/tests/test_feature_availability_service.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_app_ui_metadata.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_step_test.py
+    - backend/tests/test_workflow_template_expressions.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workspace-root-hash-routing/plan.yml
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.test.ts
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.ts
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/[project_id]/+page.ts
+    - frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.ts
+    - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.ts
+    - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-skill-variants.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    - frontend/apps/web_app/tests/workspace-hash-routing.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/IconTabBar.svelte
+    - frontend/packages/ui/src/components/plans/PlanCard.svelte
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/PlanTaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDateRangeField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowLocationField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowOutputField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowOutputFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowValueView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowBuilder.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowOutputExamples.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowSkillSummary.test.ts
+    - frontend/packages/ui/src/components/workflows/__tests__/workflowValuePresentation.test.ts
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowFieldIcon.ts
+    - frontend/packages/ui/src/components/workflows/workflowOutputExamples.ts
+    - frontend/packages/ui/src/components/workflows/workflowSkillSummary.ts
+    - frontend/packages/ui/src/components/workflows/workflowValuePresentation.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/services/workspacePrefetchService.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.ts
+    - frontend/packages/ui/src/utils/settingsHashUtils.workspace.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - app:business
+    - app:code
+    - app:design
+    - app:electronics
+    - app:events
+    - app:finance
+    - app:fitness
+    - app:health
+    - app:home
+    - app:images
+    - app:maps
+    - app:math
+    - app:models3d
+    - app:music
+    - app:news
+    - app:nutrition
+    - app:openmates
+    - app:shopping
+    - app:social_media
+    - app:travel
+    - app:videos
+    - app:weather
+    - app:web
+    - platform:projects
+    - platform:tasks
+    - platform:workflows
+  - sha: 3e55f4aaddaca596fce0f4f17e9e3afe72192afe
+    short_sha: 3e55f4aad
+    authored_at: '2026-09-25T18:54:36+00:00'
+    subject: 'fix: finish chat turns when Gemini exceeds tool limit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: cc8862ca74fc1fb3e8871d79d6fb0b6ebcdfbbc7
+    short_sha: cc8862ca7
+    authored_at: '2026-09-25T17:04:23+00:00'
+    subject: 'fix: align workflow builder with real skill inputs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/core/api/app/services/workflow_runtime_values.py
+    - backend/tests/test_workflow_demo_inputs.py
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-skill-variants.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDateRangeField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.preview.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowLocationField.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:events
+    - platform:workflows
+  - sha: 201f98cbdc47a9babc9970255093ed3d9c44ad37
+    short_sha: 201f98cbd
+    authored_at: '2026-09-25T15:20:31+00:00'
+    subject: 'feat: align Projects and Tasks with Figma and integrate Plans'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/workspace_history.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/workspace_change_history_service.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_plans_route_detail.py
+    - backend/tests/test_workspace_change_history.py
+    - docs/plans/plans-in-task-board/plan.yml
+    - docs/plans/projects-tasks-figma-parity/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.ts
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/components/project-readme-figma.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-cleartext-boundary.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/HeaderActionMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/projects/ProjectReadme.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/PlanTaskCard.preview.ts
+    - frontend/packages/ui/src/components/tasks/PlanTaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.preview.ts
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.preview.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectCreationNavigation.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectReadmeUpload.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/services/projectCreationNavigation.ts
+    - frontend/packages/ui/src/services/projectReadme.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - frontend/packages/ui/src/stores/pendingMentionStore.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_cleartext_boundary.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/ci_results.py
+    - scripts/ci_run_tests.py
+    - scripts/project_remote_access_live.mjs
+    - scripts/tests/test_ci_results.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - embed:code:code
+    - platform:plans
+    - platform:projects
+    - platform:tasks
+    - platform:workflows
+  - sha: a2f31ca19a455cd38715c3135d0437342c7701e2
+    short_sha: a2f31ca19
+    authored_at: '2026-09-25T13:20:52+00:00'
+    subject: 'fix: show embed type labels in draft previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/draft-embed-preview.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    - frontend/packages/ui/src/services/e2eTestHooks.ts
+    - frontend/packages/ui/src/utils/__tests__/draftPreview.test.ts
+    - frontend/packages/ui/src/utils/draftPreview.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: eca1d63a0ab103f318546bbfc1776fd1a7da4db9
+    short_sha: eca1d63a0
+    authored_at: '2026-09-25T14:20:59+02:00'
+    subject: 'fix: recover Watch chats and pin section header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubView.swift
+    - apple/OpenMatesWatchUITests/WatchFlowUITests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: acd69a69add52468f9db1ad7fb5bcf4a0d1befd1
+    short_sha: acd69a69a
+    authored_at: '2026-09-25T11:42:04+00:00'
+    subject: 'fix: align workflow output and input widths'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c7621fe0a8e68e48f783765e83d30d93041e23e2
+    short_sha: c7621fe0a
+    authored_at: '2026-09-25T11:24:22+00:00'
+    subject: 'fix: keep anonymous skills inline under provider limits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/rate_limiting.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/shared/python_utils/anonymous_inline_execution.py
+    - backend/shared/python_utils/anonymous_skill_policy.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/apps/rest-api.md
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: ff815ae57486de795d41e10f98a3821c5e575fde
+    short_sha: ff815ae57
+    authored_at: '2026-09-25T11:22:20+00:00'
+    subject: 'test: exercise real guard in protocol recovery regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 69dd07812d83feb7ed804a77adff7dcea1e61519
+    short_sha: 69dd07812
+    authored_at: '2026-09-25T11:21:27+00:00'
+    subject: 'fix: align workflow output table columns'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3c2800021fbf6f37d0bfe8e00d5270f866c957e6
+    short_sha: 3c2800021
+    authored_at: '2026-09-25T11:01:21+00:00'
+    subject: 'feat: enforce anonymous inline skill limits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/audio/app.yml
+    - backend/apps/books/app.yml
+    - backend/apps/business/app.yml
+    - backend/apps/calendar/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/mail/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/openmates/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/plans/app.yml
+    - backend/apps/projects/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/tasks/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - backend/apps/workflows/app.yml
+    - backend/core/api/app/routes/anonymous.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/anonymous_skill_policy.py
+    - backend/tests/test_anonymous_skill_access.py
+    - docs/architecture/apps/rest-api.md
+    - docs/plans/anonymous-free-usage-budget/plan.yml
+    - frontend/apps/web_app/tests/anonymous-cli-skill.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - app:books
+    - app:business
+    - app:calendar
+    - app:code
+    - app:design
+    - app:electronics
+    - app:events
+    - app:finance
+    - app:fitness
+    - app:health
+    - app:home
+    - app:images
+    - app:mail
+    - app:maps
+    - app:math
+    - app:models3d
+    - app:music
+    - app:news
+    - app:nutrition
+    - app:openmates
+    - app:pdf
+    - app:plans
+    - app:projects
+    - app:reminder
+    - app:shopping
+    - app:social_media
+    - app:tasks
+    - app:travel
+    - app:videos
+    - app:weather
+    - app:web
+    - app:workflows
+    - platform:workflows
+  - sha: 1d7fa4ce3e03f00a0fc7d8e2ca46bdb621a734d8
+    short_sha: 1d7fa4ce3
+    authored_at: '2026-09-25T10:58:36+00:00'
+    subject: 'fix: align workflow output field groups'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: cbf3b7180cfecaac870c16009622647ff6fdde2e
+    short_sha: cbf3b7180
+    authored_at: '2026-09-25T10:55:00+00:00'
+    subject: 'fix: recover zero-text protocol-guard chat turns'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/tool_protocol_guard.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_tool_protocol_guard.py
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 4143ddc6e51008f8f1fb3fd6c9efb94a7e327f3c
+    short_sha: 4143ddc6e
+    authored_at: '2026-09-25T12:33:12+02:00'
+    subject: 'fix: wait for Apple Watch chat socket before sending'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 92d2c63fe82c0650b19dd0827d098325b4437bd0
+    short_sha: 92d2c63fe
+    authored_at: '2026-09-25T10:30:56+00:00'
+    subject: 'fix: align workflow skill input and output'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b7d52a7463f32bed3b91543df27fd38fba0e0178
+    short_sha: b7d52a746
+    authored_at: '2026-09-25T12:12:04+02:00'
+    subject: 'fix: load Apple Watch account lists after pairing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchHubDataServiceTests.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchChatViews.swift
+    - apple/OpenMatesWatch/Sources/WatchHubDataService.swift
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: b5d454d043b5a89726f267a3251d4a78246138b0
+    short_sha: b5d454d04
+    authored_at: '2026-09-25T09:52:42+00:00'
+    subject: 'fix: refine workflow builder editors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowEditorHeader.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates enabled Workflows in production and implemented significant stability improvements for AI chat processing,
+    including better handling of tool limits and anonymous skill execution.
+  released_changes:
+  - text: Workflows have been enabled in the production configuration.
+    evidence:
+      commits:
+      - 3933ffcbf
+    release_status: released_main
+  - text: The Workflow builder received several UI refinements, including better alignment for input/output fields and improved
+      table column grouping.
+    evidence:
+      commits:
+      - acd69a69a
+      - 69dd07812
+      - 1d7fa4ce3
+      - 92d2c63fe
+      - b5d454d04
+    release_status: released_main
+  - text: Draft previews now display embed type labels for better clarity during message composition.
+    evidence:
+      commits:
+      - a2f31ca19
+    release_status: released_main
+  bug_fixes:
+  - text: AI chat processing now more reliably handles complex turns, including news research budget enforcement, tool limit
+      recovery for Gemini, and silent answer-only model turns.
+    evidence:
+      commits:
+      - f7499b9fe
+      - 83e022a41
+      - 48c95c68e
+      - 3e55f4aad
+      - cbf3b7180
+    release_status: released_main
+  - text: Anonymous skill execution has been updated to keep requests inline when under provider rate limits.
+    evidence:
+      commits:
+      - c7621fe0a
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continues on aligning Projects and Tasks with Figma designs and integrating user Plans.
+    evidence:
+      commits:
+      - 201f98cbd
+    release_status: released_main
+  - text: Anonymous usage budget enforcement is in development to manage inline skill limits.
+    evidence:
+      commits:
+      - 3c2800021
+    release_status: released_main
+  - text: Apple Watch support is being refined with fixes for chat socket connectivity and account list loading.
+    evidence:
+      commits:
+      - eca1d63a0
+      - 4143ddc6e
+      - b7d52a746
+    release_status: released_main
+  - text: Internal updates to the workflow builder are aligning navigation and skill input adapters.
+    evidence:
+      commits:
+      - 59e84672d
+      - cc8862ca7
+    release_status: released_main
+  internal_progress:
+  - text: Regression testing was added to exercise protocol guards during chat recovery.
+    evidence:
+      commits:
+      - ff815ae57
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Workflows are now enabled in production.
+      evidence:
+        commits:
+        - 3933ffcbf
+      reason: Workflows have been enabled in the production configuration and are ready for public communication.
+    - text: Enhanced AI chat reliability and tool-calling recovery.
+      evidence:
+        commits:
+        - f7499b9fe
+        - 83e022a41
+        - 48c95c68e
+        - 3e55f4aad
+        - cbf3b7180
+      reason: Significant improvements to AI reliability and tool-calling recovery.
+    - text: Embed type labels are now visible in draft previews.
+      evidence:
+        commits:
+        - a2f31ca19
+      reason: User-facing UI improvement for chat drafts.
+    - text: Workflow builder UI refinements for better alignment and field grouping.
+      evidence:
+        commits:
+        - acd69a69a
+        - 69dd07812
+        - 1d7fa4ce3
+        - 92d2c63fe
+        - b5d454d04
+      reason: UI refinements for the newly released Workflow builder.
+    exclude:
+    - text: Integration of Projects, Tasks, and Plans with Figma parity.
+      evidence:
+        commits:
+        - 201f98cbd
+      reason: Projects, Tasks, and Plans remain disabled in the production environment.
+    - text: Enforcement of anonymous inline skill limits.
+      evidence:
+        commits:
+        - 3c2800021
+      reason: Anonymous budget enforcement is currently an unreleased feature.
+    - text: Stability improvements for Apple Watch chat sockets and account syncing.
+      evidence:
+        commits:
+        - eca1d63a0
+        - 4143ddc6e
+        - b7d52a746
+      reason: Apple Watch platform support is currently disabled.
+    rationale: The primary story is the production release of Workflows alongside critical stability fixes for AI chat processing
+      and anonymous usage.
+  social_video_recommendations:
+  - idea: A walkthrough of the now-live Workflow builder, showing how to create and refine automated tasks.
+    priority: high
+    reason: Workflows are a major feature now enabled for production users.
+    evidence:
+      commits:
+      - 3933ffcbf
+      - b5d454d04
+  quality_notes:
+  - Workflows transitioned to production status today.
+  - AI processing logic saw a high volume of edge-case fixes for tool-calling and turn recovery.
+  validation_warnings: []
