@@ -22,6 +22,9 @@ def test_web_openmates_events_are_generated_from_shared_registry() -> None:
 
     registry = load_openmates_events()
     for event in registry["events"]:
+        if event["status"] != "published":
+            assert event["slug"] not in after
+            continue
         content = event["localized_content"]["en"]
         static_image = STATIC_ASSET_DIR / f"{event['slug']}.jpg"
         assert event["slug"] in after

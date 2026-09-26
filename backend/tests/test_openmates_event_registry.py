@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from backend.shared.python_utils.openmates_event_registry import load_openmates_events
 
@@ -18,19 +19,19 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 EXPECTED_EVENT_IDS = {
-    "openmates-community-hour-2026-08-25",
-    "ai-everyday-tasks-webinar-2026-08-27",
-    "openmates-berlin-meetup-2026-08-29",
-    "everyday-workflows-webinar-2026-09-01",
-    "openmates-teams-webinar-2026-09-03",
-    "spec-driven-development-webinar-2026-09-08",
-    "cli-sdk-webinar-2026-09-10",
-    "self-hosting-webinar-2026-09-15",
+    "openmates-community-hour-2026-09-29",
+    "openmates-community-hour-2026-10-27",
+    "openmates-berlin-meetup-2026-09-26",
+    "everyday-workflows-webinar-2026-09-30",
+    "openmates-teams-webinar-2026-10-14",
+    "spec-driven-development-webinar-2026-10-28",
+    "cli-sdk-webinar-2026-11-11",
+    "self-hosting-webinar-2026-11-25",
 }
 
 
 # contract-test: direct surface=cli assertions=newsletter.campaign.deterministic-event-window
-def test_openmates_events_registry_contains_only_launch_newsletter_events() -> None:
+def test_openmates_events_registry_contains_scheduled_events() -> None:
     registry = load_openmates_events()
 
     assert registry["schema_version"] == 1
@@ -62,7 +63,7 @@ def test_openmates_events_registry_schema_is_complete_and_safe() -> None:
         assert event["id"] == event["slug"]
         assert event["slug"] not in seen_slugs
         seen_slugs.add(event["slug"])
-        assert event["status"] == "published"
+        assert event["status"] in {"published", "cancelled"}
         assert event["timezone"] == "Europe/Berlin"
 
         starts_at = datetime.fromisoformat(event["starts_at"])
@@ -90,3 +91,23 @@ def test_openmates_events_registry_schema_is_complete_and_safe() -> None:
             assert asset_path.suffix == ".png"
             assert (REPO_ROOT / asset_path).exists()
             assert asset["alt"]
+
+
+# contract-test: direct surface=cli assertions=newsletter.campaign.deterministic-event-window
+def test_published_events_are_online_with_october_community_hour() -> None:
+    events = load_openmates_events()["events"]
+    published = [event for event in events if event["status"] == "published"]
+    assert len(published) == 7
+    assert all(event["event_type"] != "in_person_meetup" for event in published)
+    assert all(event["online_url"] == "https://meet.openmates.org" for event in published)
+
+    october = next(event for event in published if event["id"] == "openmates-community-hour-2026-10-27")
+    start = datetime.fromisoformat(october["starts_at"])
+    end = datetime.fromisoformat(october["ends_at"])
+    berlin_start = start.astimezone(ZoneInfo("Europe/Berlin"))
+    assert berlin_start.isoformat() == "2026-10-27T19:00:00+01:00"
+    assert berlin_start.weekday() == 1
+    assert (end - start).total_seconds() == 3600
+
+    meetup = next(event for event in events if event["id"] == "openmates-berlin-meetup-2026-09-26")
+    assert meetup["status"] == "cancelled"

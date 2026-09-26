@@ -39,39 +39,6 @@ export interface OpenMatesEvent {
 
 export const OPENMATES_EVENTS: OpenMatesEvent[] = [
   {
-    "embed_id": "openmates-berlin-meetup-2026-09-26",
-    "id": "openmates-berlin-meetup-2026-09-26",
-    "slug": "openmates-berlin-meetup-2026-09-26",
-    "provider": "luma",
-    "title": "OpenMates Monthly Meetup Berlin",
-    "description": "Join a relaxed monthly meetup for people seeking a European alternative to big-tech AI or already using OpenMates. Bring questions, issues, and feature wishes while meeting other people over a drink.",
-    "url": "https://luma.com/dtz982h1",
-    "date_start": "2026-09-26T16:00:00+02:00",
-    "date_end": "2026-09-26T18:00:00+02:00",
-    "timezone": "Europe/Berlin",
-    "event_type": "PHYSICAL",
-    "venue": {
-      "name": "xHain Glitch",
-      "address": "Grünberger Str. 20, 10243 Berlin",
-      "city": "Berlin",
-      "country": "Germany"
-    },
-    "organizer": {
-      "name": "OpenMates Events",
-      "slug": "openmates"
-    },
-    "is_paid": false,
-    "image_url": "/event-assets/openmates/openmates-berlin-meetup-2026-09-26.jpg",
-    "keywords": [
-      "OpenMates",
-      "OpenMates Events",
-      "OpenMates Monthly Meetup Berlin",
-      "In Person Meetup"
-    ],
-    "summary": "Meet OpenMates users and contributors in Berlin, learn how to use it better, and directly influence development.",
-    "online_url": null
-  },
-  {
     "embed_id": "openmates-community-hour-2026-09-29",
     "id": "openmates-community-hour-2026-09-29",
     "slug": "openmates-community-hour-2026-09-29",
@@ -168,6 +135,39 @@ export const OPENMATES_EVENTS: OpenMatesEvent[] = [
       "Webinar"
     ],
     "summary": "Learn how freelancers and small teams can collaborate on projects, chats, workflows, and tasks with privacy-focused encryption.",
+    "online_url": "https://meet.openmates.org"
+  },
+  {
+    "embed_id": "openmates-community-hour-2026-10-27",
+    "id": "openmates-community-hour-2026-10-27",
+    "slug": "openmates-community-hour-2026-10-27",
+    "provider": "luma",
+    "title": "OpenMates Monthly Community Hour",
+    "description": "Tired of big-tech AI chatbots and agents, or already using OpenMates for everyday tasks and learning? Join the monthly community video call with questions, discovered issues, and wishes that can improve OpenMates for everyone.",
+    "url": "https://luma.com/openmates",
+    "date_start": "2026-10-27T19:00:00+01:00",
+    "date_end": "2026-10-27T20:00:00+01:00",
+    "timezone": "Europe/Berlin",
+    "event_type": "ONLINE",
+    "venue": {
+      "name": "OpenMates online event",
+      "address": "https://meet.openmates.org",
+      "city": "Online",
+      "country": ""
+    },
+    "organizer": {
+      "name": "OpenMates Events",
+      "slug": "openmates"
+    },
+    "is_paid": false,
+    "image_url": "/event-assets/openmates/openmates-community-hour-2026-10-27.jpg",
+    "keywords": [
+      "OpenMates",
+      "OpenMates Events",
+      "OpenMates Monthly Community Hour",
+      "Online Community Hour"
+    ],
+    "summary": "Join the monthly OpenMates video call to learn, ask questions, report issues, and directly shape development.",
     "online_url": "https://meet.openmates.org"
   },
   {

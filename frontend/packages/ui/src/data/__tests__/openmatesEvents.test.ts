@@ -10,7 +10,7 @@ import { getAllOpenMatesEvents, getOpenMatesEventBySlug } from '../openmatesEven
 
 describe('OPENMATES_EVENTS generated bundle', () => {
 	// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity
-	it('contains the published launch event set with served static images', () => {
+	it('contains the published event set with served static images', () => {
 		const events = getAllOpenMatesEvents();
 
 		expect(events).toHaveLength(7);
@@ -23,6 +23,19 @@ describe('OPENMATES_EVENTS generated bundle', () => {
 			expect(new Date(event.date_end).getTime()).toBeGreaterThan(new Date(event.date_start).getTime());
 			expect(event.summary.length).toBeGreaterThan(24);
 		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity
+	it('publishes online events and the October community hour at Berlin winter time', () => {
+		expect(getAllOpenMatesEvents().every((event) => event.event_type === 'ONLINE')).toBe(true);
+		expect(getOpenMatesEventBySlug('openmates-berlin-meetup-2026-09-26')).toBeUndefined();
+		expect(getOpenMatesEventBySlug('openmates-community-hour-2026-10-27')).toMatchObject({
+			title: 'OpenMates Monthly Community Hour',
+			date_start: '2026-10-27T19:00:00+01:00',
+			date_end: '2026-10-27T20:00:00+01:00',
+			timezone: 'Europe/Berlin',
+			online_url: 'https://meet.openmates.org',
+		});
 	});
 
 	// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity

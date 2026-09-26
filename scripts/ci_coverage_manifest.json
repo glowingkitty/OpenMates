@@ -255,6 +255,7 @@
         "notification-mobile.spec.ts",
         "notification-stack.spec.ts",
         "openmates-events.spec.ts",
+        "online-community-meetups.spec.ts",
         "page-load-performance.spec.ts",
         "paste-classification.spec.ts",
         "plumber-privacy-example.spec.ts",

@@ -37,9 +37,33 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour.png, alt: OpenMates Monthly Community Hour event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour.png, alt: OpenMates monatlicher Community Call Eventkarte}
+  - id: openmates-community-hour-2026-10-27
+    slug: openmates-community-hour-2026-10-27
+    status: published
+    event_type: online_community_hour
+    starts_at: "2026-10-27T19:00:00+01:00"
+    ends_at: "2026-10-27T20:00:00+01:00"
+    timezone: Europe/Berlin
+    localized_content:
+      en:
+        title: OpenMates Monthly Community Hour
+        summary: Join the monthly OpenMates video call to learn, ask questions, report issues, and directly shape development.
+        description: Tired of big-tech AI chatbots and agents, or already using OpenMates for everyday tasks and learning? Join the monthly community video call with questions, discovered issues, and wishes that can improve OpenMates for everyone.
+      de:
+        title: OpenMates Monatlicher Community Call
+        summary: Komm zum monatlichen OpenMates Video Call, stelle Fragen, melde Probleme und gestalte die Entwicklung direkt mit.
+        description: Du suchst eine Alternative zu Big-Tech KI Chatbots und Agenten oder nutzt OpenMates bereits im Alltag? Komm zum monatlichen Community Video Call mit Fragen, gefundenen Problemen und Wünschen, die OpenMates für alle verbessern können.
+    online_url: https://meet.openmates.org
+    # Use the public calendar until the event-specific registration URL is available.
+    luma_url: https://luma.com/openmates
+    openmates_url:
+    assets:
+      card:
+        en: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour_2026-10-27.png, alt: OpenMates Monthly Community Hour event card}
+        de: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour_2026-10-27.png, alt: OpenMates monatlicher Community Call Eventkarte}
   - id: openmates-berlin-meetup-2026-09-26
     slug: openmates-berlin-meetup-2026-09-26
-    status: published
+    status: cancelled
     event_type: in_person_meetup
     starts_at: "2026-09-26T16:00:00+02:00"
     ends_at: "2026-09-26T18:00:00+02:00"
