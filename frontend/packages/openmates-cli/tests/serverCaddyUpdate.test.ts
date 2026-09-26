@@ -53,7 +53,7 @@ async function withHostFixture(run: (configPath: string, trace: string) => Promi
   const configPath = join(root, "Caddyfile"), trace = join(root, "calls");
   writeFileSync(configPath, current, { mode: 0o640 });
   const caddy = join(root, "caddy"), systemctl = join(root, "systemctl");
-  writeFileSync(caddy, `#!/bin/sh\nprintf 'validate\\n' >> '${trace}'\n! rg -q INVALID "$3"\n`);
+  writeFileSync(caddy, `#!${process.execPath}\nconst fs = require('node:fs');\nfs.appendFileSync(${JSON.stringify(trace)}, 'validate\\n');\nprocess.exit(fs.readFileSync(process.argv[4], 'utf8').includes('INVALID') ? 1 : 0);\n`);
   writeFileSync(systemctl, `#!/bin/sh\nprintf '%s\\n' "$1" >> '${trace}'\nif [ "$1" = reload ] && [ -f '${root}/fail-reload' ]; then rm '${root}/fail-reload'; exit 1; fi\n`);
   chmodSync(caddy, 0o700); chmodSync(systemctl, 0o700);
   const oldPath = process.env.PATH;
