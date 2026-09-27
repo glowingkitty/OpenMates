@@ -1,0 +1,429 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-26'
+generated_at: '2026-09-27T00:20:19+00:00'
+range:
+  since: '2026-09-26T00:00:00+00:00'
+  until: '2026-09-27T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 3
+  section_counts:
+    features: 1
+    bug_fixes: 2
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 3
+  dev_only_items: 3
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: focus community meetups online and add October community hour'
+    section: features
+    commits:
+    - f4882d4ab
+    authored_at: '2026-09-26T15:17:07+00:00'
+    changed_paths:
+    - backend/tests/test_openmates_event_registry.py
+    - backend/tests/test_openmates_events_web_generation.py
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-10-27.jpg
+    - frontend/apps/web_app/tests/online-community-meetups.spec.ts
+    - frontend/packages/ui/src/data/__tests__/openmatesEvents.test.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - scripts/ci_coverage_manifest.json
+    - shared/events/assets/newsletter/events-newsletter-card_community_hour_2026-10-27.png
+    - shared/events/openmates_events.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: make Caddy validator fixture portable'
+    section: bug_fixes
+    commits:
+    - 0df036b0b
+    authored_at: '2026-09-26T11:41:36+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep workflow routes and CMS cache settings current'
+    section: bug_fixes
+    commits:
+    - d039b3a6a
+    authored_at: '2026-09-26T11:37:44+00:00'
+    changed_paths:
+    - backend/tests/test_workflow_runtime_directus_deployment.py
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'feat: focus community meetups online and add October community hour'
+    commits:
+    - f4882d4ab
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: make Caddy validator fixture portable'
+    commits:
+    - 0df036b0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep workflow routes and CMS cache settings current'
+    commits:
+    - d039b3a6a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: focus community meetups online and add October community hour'
+    commits:
+    - f4882d4ab
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make Caddy validator fixture portable'
+    commits:
+    - 0df036b0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep workflow routes and CMS cache settings current'
+    commits:
+    - d039b3a6a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: f4882d4ab9ca7e4288201408729e895d8e5acf89
+    short_sha: f4882d4ab
+    authored_at: '2026-09-26T15:17:07+00:00'
+    subject: 'feat: focus community meetups online and add October community hour'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_openmates_event_registry.py
+    - backend/tests/test_openmates_events_web_generation.py
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-10-27.jpg
+    - frontend/apps/web_app/tests/online-community-meetups.spec.ts
+    - frontend/packages/ui/src/data/__tests__/openmatesEvents.test.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - scripts/ci_coverage_manifest.json
+    - shared/events/assets/newsletter/events-newsletter-card_community_hour_2026-10-27.png
+    - shared/events/openmates_events.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0df036b0bce9dbe1ffa66dff03ee5dc73b4da697
+    short_sha: 0df036b0b
+    authored_at: '2026-09-26T11:41:36+00:00'
+    subject: 'fix: make Caddy validator fixture portable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
+    related_feature_ids: []
+  - sha: d039b3a6a84db082412c25b6cbe1c02b4d1dd192
+    short_sha: d039b3a6a
+    authored_at: '2026-09-26T11:37:44+00:00'
+    subject: 'fix: keep workflow routes and CMS cache settings current'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_workflow_runtime_directus_deployment.py
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverCaddyUpdate.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/openmates-cli/tests/serverCaddyUpdate.test.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:workflows
+llm_summary:
+  overview: OpenMates focused on community engagement planning and backend infrastructure maintenance. Key activities included
+    preparations for an October community event and technical refinements to the CLI and workflow routing systems.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates is preparing for the October community hour and shifting the focus of community meetups to an online format.
+    evidence:
+      commits:
+      - f4882d4ab
+    release_status: dev_only
+  - text: Updates to workflow routes and CMS cache settings are in progress to maintain consistency within the platform.
+    evidence:
+      commits:
+      - d039b3a6a
+    release_status: dev_only
+  - text: Refinements to the OpenMates CLI are underway to improve the portability of server validation fixtures.
+    evidence:
+      commits:
+      - 0df036b0b
+    release_status: dev_only
+  internal_progress:
+  - text: The OpenMates CLI test suite was updated to make the Caddy validator fixture more portable across different environments.
+    evidence:
+      commits:
+      - 0df036b0b
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: October community hour and online meetup focus
+      evidence:
+        commits:
+        - f4882d4ab
+      reason: This event preparation is currently in development and not yet merged to the main branch.
+    - text: Workflow routing and CMS cache updates
+      evidence:
+        commits:
+        - d039b3a6a
+      reason: Workflows are a disabled feature and this fix is currently dev-only.
+    - text: CLI Caddy validator portability fix
+      evidence:
+        commits:
+        - 0df036b0b
+      reason: This is a developer-facing fix for test infrastructure.
+    rationale: No changes from this period have been merged to the main branch or marked as ready for public communication.
+  social_video_recommendations:
+  - idea: A short teaser for the upcoming October Community Hour, highlighting the shift to online-focused meetups.
+    priority: low
+    reason: New event assets were added, providing a concrete visual story for community engagement.
+    evidence:
+      commits:
+      - f4882d4ab
+  quality_notes:
+  - All changes from this period are currently in development and have not yet been merged into the main release branch.
+  validation_warnings: []
