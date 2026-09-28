@@ -580,8 +580,6 @@ async function performAuthCheck(
           );
         }
 
-        await userDB.saveUserData(data.user);
-        if (!isCurrentSession()) return currentAuthResult();
         const tfa_enabled = !!data.user.tfa_enabled;
         const consent_privacy =
           !!data.user.consent_privacy_and_apps_default_settings;
@@ -718,6 +716,16 @@ async function performAuthCheck(
         // manual preference in localStorage, so local choices always win.
         applyServerDarkMode(userDarkMode);
         applyServerUiFont(userUiFont);
+
+        // The server has authenticated this session and supplied its profile.
+        // A blocked or damaged local IndexedDB must not leave settings showing
+        // the previous guest profile after a successful login.
+        try {
+          await userDB.saveUserData(data.user);
+          if (!isCurrentSession()) return currentAuthResult();
+        } catch (dbError) {
+          console.error("Failed to save user data to database:", dbError);
+        }
 
         try {
           await promoteGuestTopicPreferencesIfNeeded();

@@ -14,7 +14,6 @@ class UserDatabaseService {
   public db: IDBDatabase | null = null;
   public readonly DB_NAME = "user_db";
   public readonly STORE_NAME = "user_data";
-  private readonly VERSION = 2;
 
   // Flag to prevent new operations during database deletion
   // This ensures that no new transactions are started while we're trying to delete the database
@@ -22,6 +21,7 @@ class UserDatabaseService {
   // Promise that resolves when an in-progress deleteDatabase() finishes.
   // Used by init() to wait for deletion instead of throwing permanently.
   private deletionPromise: Promise<void> | null = null;
+  private initializationPromise: Promise<void> | null = null;
   // Tracks which resume timestamp was already logged for the grace period skip.
   // Prevents log spam from repeated init() calls within the same grace window.
   private _lastGraceLogTimestamp = 0;
@@ -37,68 +37,51 @@ class UserDatabaseService {
    * detects the "orphaned database" scenario (profile exists but no master key) and sets
    * the flag itself, ensuring cleanup happens even if this is the first database operation.
    */
-  async init(): Promise<void> {
+  init(): Promise<void> {
+    if (!this.initializationPromise) {
+      const initialization = this.initialize();
+      this.initializationPromise = initialization;
+      void initialization.finally(() => {
+        if (this.initializationPromise === initialization) {
+          this.initializationPromise = null;
+        }
+      }).catch(() => undefined);
+    }
+    return this.initializationPromise;
+  }
+
+  private async initialize(): Promise<void> {
     // FAST PATH: If the database is already open and no deletion/logout is pending,
     // skip orphan detection entirely. Eliminates log spam from repeated init() calls
     // triggered by getChat, getAllChats, etc. after tab resume.
+    if (this.db && !this.db.objectStoreNames.contains(this.STORE_NAME)) {
+      this.db.close();
+      this.db = null;
+    }
     if (this.db && !this.isDeleting && !get(forcedLogoutInProgress) && !get(isLoggingOut)) {
       return;
     }
 
     // If a deletion was in progress, complete it before re-opening the database.
-    // A pending indexedDB.deleteDatabase() request blocks all subsequent open() calls
-    // per the IDB spec — the open handlers never fire while a delete is pending.
+    // Never issue a competing delete/open while the browser still has a pending
+    // delete request. An onblocked event does not cancel that request.
     if (this.isDeleting) {
-      console.warn(
-        "[UserDatabase] Deletion was in progress — completing before re-init",
-      );
-      this.isDeleting = false;
-      this.deletionPromise = null;
-
-      // Close any lingering connection that might block the pending deletion
-      if (this.db) {
-        this.db.close();
-        this.db = null;
+      const pendingDeletion = this.deletionPromise;
+      if (!pendingDeletion) throw new Error("User database deletion is pending");
+      let waitTimeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          pendingDeletion,
+          new Promise<never>((_, reject) => {
+            waitTimeout = setTimeout(
+              () => reject(new Error("User database deletion is still blocked")),
+              3000,
+            );
+          }),
+        ]);
+      } finally {
+        if (waitTimeout) clearTimeout(waitTimeout);
       }
-
-      // Complete the pending deletion (or timeout) before proceeding to open()
-      await new Promise<void>((resolve) => {
-        const DB_DELETE_TIMEOUT_MS = 3000;
-        const timeout = setTimeout(() => {
-          console.warn(
-            `[UserDatabase] Pending deletion timed out (${DB_DELETE_TIMEOUT_MS}ms) — proceeding with open`,
-          );
-          resolve();
-        }, DB_DELETE_TIMEOUT_MS);
-
-        try {
-          const req = indexedDB.deleteDatabase(this.DB_NAME);
-          req.onsuccess = () => {
-            console.warn(
-              "[UserDatabase] Pending deletion completed successfully",
-            );
-            clearTimeout(timeout);
-            resolve();
-          };
-          req.onerror = () => {
-            console.warn(
-              "[UserDatabase] Pending deletion errored — proceeding",
-            );
-            clearTimeout(timeout);
-            resolve();
-          };
-          req.onblocked = () => {
-            console.warn(
-              "[UserDatabase] Deletion blocked by another connection — proceeding",
-            );
-            clearTimeout(timeout);
-            resolve();
-          };
-        } catch {
-          clearTimeout(timeout);
-          resolve();
-        }
-      });
     }
 
     // CRITICAL: Detect "orphaned database" scenario BEFORE checking flags or opening DB
@@ -157,7 +140,7 @@ class UserDatabaseService {
               // updateProfile() during initial page load and do NOT indicate
               // orphaned data from a previous authenticated session.
               try {
-                const checkRequest = indexedDB.open(this.DB_NAME, this.VERSION);
+                const checkRequest = indexedDB.open(this.DB_NAME);
 
                 checkRequest.onsuccess = (event) => {
                   const db = (event.target as IDBOpenDBRequest).result;
@@ -249,7 +232,10 @@ class UserDatabaseService {
 
     console.warn("[UserDatabase] Initializing user database");
     return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.VERSION);
+      // Open the latest version: a previous repair may already have advanced
+      // beyond the original schema version in another tab.
+      const request = indexedDB.open(this.DB_NAME);
+      let abandoned = false;
 
       request.onerror = () => {
         console.error("[UserDatabase] Error opening database:", request.error);
@@ -271,19 +257,43 @@ class UserDatabaseService {
             "Rejecting to unblock the login flow.",
           event,
         );
+        abandoned = true;
         reject(new Error("Database open request is blocked"));
       };
 
       request.onsuccess = () => {
-        console.warn("[UserDatabase] Database opened successfully");
-        this.db = request.result;
-
-        // Set marker in localStorage to indicate database has been initialized
-        // This is used by orphaned database detection to know if cleanup is needed
-        if (typeof localStorage !== "undefined") {
-          localStorage.setItem("openmates_user_db_initialized", "true");
+        if (abandoned || this.isDeleting) {
+          request.result.close();
+          reject(new Error("Database opened during pending deletion"));
+          return;
         }
-
+        if (!request.result.objectStoreNames.contains(this.STORE_NAME)) {
+          const nextVersion = Math.max(request.result.version + 1, 2);
+          request.result.close();
+          const repair = indexedDB.open(this.DB_NAME, nextVersion);
+          repair.onupgradeneeded = () => {
+            if (!repair.result.objectStoreNames.contains(this.STORE_NAME)) {
+              repair.result.createObjectStore(this.STORE_NAME);
+            }
+          };
+          repair.onblocked = () => {
+            abandoned = true;
+            reject(new Error("User database schema repair is blocked"));
+          };
+          repair.onerror = () => reject(repair.error);
+          repair.onsuccess = () => {
+            if (abandoned || this.isDeleting) {
+              repair.result.close();
+              reject(new Error("Database repaired during pending deletion"));
+              return;
+            }
+            this.acceptConnection(repair.result);
+            resolve();
+          };
+          return;
+        }
+        console.warn("[UserDatabase] Database opened successfully");
+        this.acceptConnection(request.result);
         resolve();
       };
 
@@ -298,24 +308,34 @@ class UserDatabaseService {
     });
   }
 
+  private acceptConnection(db: IDBDatabase): void {
+    this.db = db;
+    db.onversionchange = () => {
+      db.close();
+      if (this.db === db) this.db = null;
+    };
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("openmates_user_db_initialized", "true");
+    }
+  }
+
   /**
    * Save user data to IndexedDB
    */
   async saveUserData(userData: User): Promise<void> {
     // Prevent operations during deletion
     if (this.isDeleting) {
-      console.warn(
-        "[UserDatabase] Skipping saveUserData - database is being deleted",
-      );
-      return;
+      throw new Error("User database deletion is pending");
     }
 
-    if (!this.db) {
-      await this.init();
+    await this.init();
+    const db = this.db;
+    if (this.isDeleting || !db) {
+      throw new Error("User database is unavailable during deletion");
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
+      const transaction = db.transaction([this.STORE_NAME], "readwrite");
       const store = transaction.objectStore(this.STORE_NAME);
 
       // console.warn(userData);
@@ -713,12 +733,12 @@ class UserDatabaseService {
       return null;
     }
 
-    if (!this.db) {
-      await this.init();
-    }
+    await this.init();
+    const db = this.db;
+    if (this.isDeleting || !db) return null;
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([this.STORE_NAME], "readonly");
+      const transaction = db.transaction([this.STORE_NAME], "readonly");
       const store = transaction.objectStore(this.STORE_NAME);
 
       // Get username
@@ -1529,14 +1549,13 @@ class UserDatabaseService {
   /**
    * Deletes the entire user database.
    *
-   * This method sets the isDeleting flag to prevent new operations from starting,
-   * closes the existing connection, and waits a short delay before attempting deletion.
-   * The delay allows any pending transactions to complete before the deletion request.
-   *
-   * NOTE: This rejects on onblocked so logout callers keep cleanup retry markers
-   * instead of treating private local data as safely deleted.
+   * A blocked IndexedDB delete request remains pending in the browser. Keep
+   * operations fenced until that original request actually succeeds or fails.
+   * The caller is notified promptly when another tab blocks deletion so the
+   * remaining logout cleanup can proceed and retain its retry marker.
    */
   async deleteDatabase(): Promise<void> {
+    if (this.deletionPromise) return this.deletionPromise;
     console.warn(
       `[UserDatabase] Attempting to delete database: ${this.DB_NAME}`,
     );
@@ -1544,7 +1563,17 @@ class UserDatabaseService {
     // Set flag to prevent new operations during deletion
     this.isDeleting = true;
 
-    this.deletionPromise = new Promise((resolve, reject) => {
+    let completeDeletion!: () => void;
+    let failDeletion!: (error: unknown) => void;
+    this.deletionPromise = new Promise<void>((resolve, reject) => {
+      completeDeletion = resolve;
+      failDeletion = reject;
+    });
+    // The caller may have already received the onblocked error before the
+    // browser later reports a terminal failure.
+    void this.deletionPromise.catch(() => undefined);
+
+    const caller = new Promise<void>((resolve, reject) => {
       if (this.db) {
         this.db.close(); // Close the connection before deleting
         this.db = null;
@@ -1553,10 +1582,17 @@ class UserDatabaseService {
         );
       }
 
-      // Use setTimeout to give pending transactions time to complete
-      // This matches the implementation in chatDB for consistency
       setTimeout(() => {
-        const request = indexedDB.deleteDatabase(this.DB_NAME);
+        let request: IDBOpenDBRequest;
+        try {
+          request = indexedDB.deleteDatabase(this.DB_NAME);
+        } catch (error) {
+          this.isDeleting = false;
+          this.deletionPromise = null;
+          failDeletion(error);
+          reject(error);
+          return;
+        }
 
         request.onsuccess = () => {
           console.warn(
@@ -1576,6 +1612,7 @@ class UserDatabaseService {
             );
           }
 
+          completeDeletion();
           resolve();
         };
 
@@ -1586,7 +1623,9 @@ class UserDatabaseService {
           );
           this.isDeleting = false;
           this.deletionPromise = null;
-          reject((event.target as IDBOpenDBRequest).error);
+          const error = (event.target as IDBOpenDBRequest).error;
+          failDeletion(error);
+          reject(error);
         };
 
         request.onblocked = (event) => {
@@ -1594,17 +1633,14 @@ class UserDatabaseService {
             `[UserDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close.`,
             event,
           );
-          // Reset isDeleting so init() is not permanently blocked if deletion
-          // gets stuck (e.g. another tab holds an open connection). Reject so
-          // cleanup retry markers are not cleared prematurely.
-          this.isDeleting = false;
-          this.deletionPromise = null;
+          // The request can still succeed when the other tab closes. Do not
+          // clear isDeleting or launch a competing open/delete request here.
           reject(new Error(`Deletion of database ${this.DB_NAME} is blocked`));
         };
       }, 100); // Small delay to allow pending transactions to complete
     });
 
-    return this.deletionPromise;
+    return caller;
   }
 }
 
