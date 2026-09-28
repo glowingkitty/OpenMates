@@ -50,7 +50,9 @@ async function typeMessage(page: any, text: string): Promise<void> {
 async function sendAndAwaitAnswer(page: any, text: string, expected?: RegExp): Promise<number> {
 	await typeMessage(page, text);
 	const startedAt = Date.now();
-	await page.locator('[data-action="send-message"]').click();
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton, 'Anonymous free usage must be active on dev for this live test').toBeVisible({ timeout: 5_000 });
+	await sendButton.click();
 
 	const assistant = page.getByTestId('message-assistant').last();
 	await expect(assistant).toBeVisible({ timeout: 120_000 });
@@ -147,9 +149,11 @@ test.describe('Anonymous production repair', () => {
 		const assistantCountBeforeSearch = await page.getByTestId('message-assistant').count();
 		await typeMessage(
 			page,
-			`Search the web for the official OpenMates website and answer with its domain from the result. Reliability check ${Date.now()}`
+			'Search the web for the official OpenMates website and answer with its domain from the result.'
 		);
-		await page.locator('[data-action="send-message"]').click();
+		const sendButton = page.locator('[data-action="send-message"]');
+		await expect(sendButton, 'Anonymous free usage must be active on dev for this live test').toBeVisible({ timeout: 5_000 });
+		await sendButton.click();
 
 		const assistantMessages = page.getByTestId('message-assistant');
 		await expect(assistantMessages).toHaveCount(assistantCountBeforeSearch + 1, { timeout: 120_000 });

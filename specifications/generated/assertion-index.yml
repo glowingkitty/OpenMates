@@ -29031,22 +29031,22 @@ assertions:
       surface: rest_api
     - &id3455
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 105
+      line: 107
       name: completes reported CLO3D prompt and follow-up on phone
       surface: gui.web
     - &id3456
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 116
+      line: 118
       name: completes plain-language prompt and follow-up on phone
       surface: gui.web
     - &id3457
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 127
+      line: 129
       name: completes troubleshooting prompt and follow-up on laptop
       surface: gui.web
     - &id3458
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 138
+      line: 140
       name: completes anonymous web search and preserves its final answer on laptop
       surface: gui.web
     supporting_tests:
@@ -31154,22 +31154,22 @@ assertions:
       surface: gui.apple
     - &id3874
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 105
+      line: 107
       name: completes reported CLO3D prompt and follow-up on phone
       surface: gui.web
     - &id3875
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 116
+      line: 118
       name: completes plain-language prompt and follow-up on phone
       surface: gui.web
     - &id3876
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 127
+      line: 129
       name: completes troubleshooting prompt and follow-up on laptop
       surface: gui.web
     - &id3877
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 138
+      line: 140
       name: completes anonymous web search and preserves its final answer on laptop
       surface: gui.web
     - &id3878
