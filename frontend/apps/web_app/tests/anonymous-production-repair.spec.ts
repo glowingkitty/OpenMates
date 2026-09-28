@@ -10,6 +10,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
+const { openFullscreen, verifySearchGrid, closeFullscreen } = require('./helpers/embed-test-helpers');
 
 const REPORTED_PROMPT =
 	'is it practical to run clo3d in a VM in virtual box? heard there is a 256mb vram max for vms? is that true? if so, this would be a no go...';
@@ -169,6 +170,13 @@ test.describe('Anonymous production repair', () => {
 		await expect(finishedSearchEmbed).toBeVisible({ timeout: 120_000 });
 		const embedId = await finishedSearchEmbed.getAttribute('data-embed-id');
 		expect(embedId).toBeTruthy();
+		const fullscreen = await openFullscreen(page, finishedSearchEmbed);
+		const childResults = await verifySearchGrid(fullscreen);
+		const childEmbedId = await childResults.first().getAttribute('data-embed-id');
+		expect(childEmbedId).toBeTruthy();
+		expect(childEmbedId).not.toBe(embedId);
+		await expect(childResults.first()).toHaveAttribute('data-status', 'finished');
+		await closeFullscreen(page, fullscreen);
 		const authoritativeText = (await messageContent.innerText()).trim();
 		expect(authoritativeText.length).toBeGreaterThan(20);
 		await expect(page.getByTestId('chat-processing-indicator')).toBeHidden();
@@ -182,6 +190,12 @@ test.describe('Anonymous production repair', () => {
 		await expect(reloadedAssistant.locator(
 			`[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-status="finished"][data-embed-id="${embedId}"]`
 		).first()).toBeVisible({ timeout: 30_000 });
+		const reloadedFullscreen = await openFullscreen(page, reloadedAssistant.locator(
+			`[data-testid="embed-preview"][data-embed-id="${embedId}"]`
+		).first());
+		const reloadedChildren = await verifySearchGrid(reloadedFullscreen);
+		await expect(reloadedChildren.locator(`[data-embed-id="${childEmbedId}"]`)).toBeVisible();
+		await closeFullscreen(page, reloadedFullscreen);
 		await assertNoMissingTranslations(page);
 	});
 });

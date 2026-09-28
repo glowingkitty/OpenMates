@@ -4,7 +4,8 @@
 // the chat's persisted key metadata.
 
 import { notificationStore } from "../stores/notificationStore";
-import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
+import { unwrapAnonymousChatKey } from "./anonymousChatKeyWrapping";
+import { chatKeysEqual, encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
 import { chatDB } from "./db";
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
@@ -18,7 +19,7 @@ interface ChatKeyWriteGuardOptions {
 
 function recordChatKeyGuardFailure(
   reason: string,
-  chat: { team_id?: string | null; candidate_encrypted_keys?: string[] } | null,
+  chat: { team_id?: string | null; candidate_encrypted_keys?: string[] | null } | null,
 ): void {
   if (typeof window === "undefined") return;
   (window as Window & { __openmatesLastChatKeyGuardDebug?: Record<string, unknown> })
@@ -72,6 +73,34 @@ export async function ensureChatKeySafeForWrite(
       );
     }
     return false;
+  }
+
+  // Logged-out chats persist their key under a session wrapper, not the account
+  // master-key wrapper. Validate that wrapper before accepting any local write.
+  if (chat?.is_anonymous && !encryptedChatKey) {
+    const anonymousKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
+    if (!anonymousKey) {
+      recordChatKeyGuardFailure("anonymous_key_unwrap_failed", chat);
+      if (reportFailure) {
+        console.error(
+          `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: anonymous chat key could not be validated`,
+        );
+      }
+      return false;
+    }
+    if (!chatKeysEqual(rawChatKey, anonymousKey)) {
+      recordChatKeyGuardFailure("anonymous_key_mismatch", chat);
+      if (reportFailure) {
+        console.error(
+          `[ChatKeyWriteGuard] Refusing ${context} for ${chatId}: raw key does not match anonymous chat key`,
+        );
+        notificationStore.error(
+          "We could not safely store this update because this chat has conflicting encryption keys. Please reload and try again.",
+        );
+      }
+      return false;
+    }
+    return true;
   }
 
   if (!encryptedChatKey) {
