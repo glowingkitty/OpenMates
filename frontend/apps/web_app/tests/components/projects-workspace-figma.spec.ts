@@ -400,6 +400,18 @@ test('opens a connected source inside the Files grid with shared folder previews
   await testInfo.attach('projects-connected-source-scrolled', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
 });
 
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews
+test('opens the only connected local folder directly in Files', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'localFolderSource'));
+  await waitForProjectsPreview(page);
+
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
+  await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
+  await expect(page.getByLabel('Project folder path').getByText('OpenMates repository')).toBeVisible();
+});
+
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
 test('loads one-level children for both connected source folder cards', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 921 });

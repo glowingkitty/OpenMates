@@ -130,6 +130,22 @@ export const variants = {
       ],
     },
   },
+  localFolderSource: {
+    ...overviewProps,
+    initialTab: 'folders' as const,
+    previewState: {
+      ...overviewProps.previewState,
+      sources: [{
+        ...connectedSource,
+        source_type: 'local_folder' as const,
+        encrypted: { ...connectedSource.encrypted, source_type: 'local_folder' as const },
+      }],
+      remoteEntries: [
+        { path: 'frontend', kind: 'directory' as const },
+        { path: 'README.md', kind: 'file' as const, sizeBytes: 1024 },
+      ],
+    },
+  },
   multipleSources: {
     ...overviewProps,
     initialTab: 'folders' as const,

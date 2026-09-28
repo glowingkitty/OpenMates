@@ -193,6 +193,12 @@
     }
     readmeState = next;
   }
+
+  function defaultConnectedSource(sourceList: ProjectSourceViewModel[]): ProjectSourceViewModel | null {
+    const connected = sourceList.filter((source) => source.status === 'connected');
+    return connected.find((source) => source.source_type === 'local_git_repository')
+      ?? (connected.length === 1 ? connected[0] : null);
+  }
   let folderSearchQuery = $state('');
   let sortNewestFirst = $state(true);
   let showCreateMenu = $state(false);
@@ -206,7 +212,7 @@
     if (activeTab !== 'folders' || !selectedProject || activeRemoteSourceId || currentFolder || currentVirtualPath) return;
     if (!previewState?.remoteEntries && !$userProfile.user_id) return;
     if (autoBrowsedProjectId === selectedProject.project_id) return;
-    const source = sources.find((candidate) => candidate.status === 'connected' && candidate.source_type === 'local_git_repository');
+    const source = defaultConnectedSource(sources);
     if (source) {
       autoBrowsedProjectId = selectedProject.project_id;
       void browseRemoteSource(source);
@@ -218,7 +224,7 @@
     const project = selectedProject;
     const ownerId = $userProfile.user_id;
     if (activeTab !== 'folders' || !project || (!previewState?.remoteEntries && !ownerId) || rootPrefetchInFlight) return;
-    const autoSource = sources.find((candidate) => candidate.status === 'connected' && candidate.source_type === 'local_git_repository');
+    const autoSource = defaultConnectedSource(sources);
     const remaining = Math.max(0, 12 - rootPrefetchCount);
     const candidates = sources.filter((source) => source.status === 'connected'
       && (activeRemoteSourceId === null || source.source_id !== autoSource?.source_id)
