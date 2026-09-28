@@ -104,6 +104,9 @@ function assistantMessageIdFromResponse(
   if (!response.messageId || response.messageId === userMessageId) {
     return createMessageId(chatId);
   }
+  // Stream chunks are persisted under the server's message ID by ActiveChat.
+  // Reuse that ID when saving the final response so reload cannot show both rows.
+  if (response.streamed) return response.messageId;
   return response.messageId.startsWith(`${chatId}-`)
     ? response.messageId
     : `${chatId}-${response.messageId}`;
