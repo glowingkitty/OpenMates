@@ -148,7 +148,7 @@ test.describe('Projects remote sources', () => {
     await loginToTestAccount(page);
   });
 
-  // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority,projects.surface.semantic-parity,projects.uploads.project-wrapped,projects.items.responsive-embeds,projects.files.ignored-exact-inclusion,projects.files.private-path-deny,projects.files.connected-embed-previews
+  // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority,projects.surface.semantic-parity,projects.uploads.project-wrapped,projects.items.responsive-embeds,projects.files.ignored-exact-inclusion,projects.files.private-path-deny,projects.files.connected-embed-previews,workspace-shell.nav.released-surfaces-visible
   test('browses nested connected files transiently and imports only after an explicit action', async ({ page }, testInfo) => {
     test.setTimeout(360000);
     await page.setViewportSize({ width: 1512, height: 921 });
@@ -213,6 +213,8 @@ test.describe('Projects remote sources', () => {
       await connectedProject.click();
       await expect(page).toHaveURL(projectHashUrlPattern(fixture.project_id));
       await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('projects-nav-link')).toHaveAttribute('aria-current', 'page');
+      await expect(page.getByTestId('chats-nav-link')).not.toHaveAttribute('aria-current', 'page');
       const readme = page.getByTestId('project-readme-content');
       const readmeImage = readme.getByRole('img', { name: 'Connected diagram' });
       await expect(readmeImage).toHaveAttribute('src', /^blob:/, { timeout: 30000 });
@@ -308,7 +310,9 @@ test.describe('Projects remote sources', () => {
       const fullscreenOverlay = page.getByTestId('project-remote-fullscreen-overlay');
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
       await expect(fullscreenOverlay).toContainText('Remote fullscreen end marker');
-      const codeDownloadPromise = page.waitForEvent('download');
+      await fullscreenOverlay.getByRole('button', { name: 'More' }).click();
+      await expect(fullscreenOverlay.getByTestId('embed-download-button')).toBeVisible();
+      const codeDownloadPromise = page.waitForEvent('download', { timeout: 30000 });
       await fullscreenOverlay.getByTestId('embed-download-button').click();
       const codeDownload = await codeDownloadPromise;
       expect(codeDownload.suggestedFilename()).toBe('large-demo.ts');

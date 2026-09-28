@@ -3,7 +3,7 @@
   - apple/OpenMates/Sources/App/MainAppView.swift
 -->
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { externalLinks, routes } from "../config/links";
   import { isPageVisible } from "../config/pages";
@@ -100,11 +100,11 @@
     disabled: boolean;
   };
 
-  // Native hash changes do not always update SvelteKit's page store. Keep the
-  // switcher in sync with the URL used by the root workspace router.
-  let workspaceHash = $state($page.url.hash);
+  // SvelteKit shallow history updates change page.url without firing hashchange.
+  // Native hash changes still use the listeners below.
+  let workspaceHash = $state(page.url.hash);
   $effect(() => {
-    const pageHash = $page.url.hash;
+    const pageHash = page.url.hash;
     workspaceHash = typeof window === "undefined" ? pageHash : window.location.hash;
   });
   let workspaceHashParams = $derived(
@@ -114,25 +114,25 @@
     workspaceHash.replace(/^#\/?/, "").split("&", 1)[0],
   );
   let isProjectsRoute = $derived(
-    $page.url.pathname.startsWith("/projects") ||
+    page.url.pathname.startsWith("/projects") ||
       workspaceHashMarker === "projects" ||
       workspaceHashParams.has("project-id"),
   );
   let isWorkflowsRoute = $derived(
-    $page.url.pathname.startsWith("/workflows") ||
+    page.url.pathname.startsWith("/workflows") ||
       workspaceHashMarker === "workflows" ||
       workspaceHashParams.has("workflow-id"),
   );
   let isTasksRoute = $derived(
-    $page.url.pathname.startsWith("/tasks") ||
-      $page.url.pathname.startsWith("/plans") ||
+    page.url.pathname.startsWith("/tasks") ||
+      page.url.pathname.startsWith("/plans") ||
       workspaceHashMarker === "tasks" ||
       workspaceHashMarker === "plans" ||
       workspaceHashParams.has("task-id") ||
       workspaceHashParams.has("plan-id"),
   );
   let isChatsRoute = $derived(
-    $page.url.pathname === "/" &&
+    page.url.pathname === "/" &&
       !isProjectsRoute &&
       !isWorkflowsRoute &&
       !isTasksRoute,
@@ -284,10 +284,10 @@
 
     // For docs section, check if current path starts with docs path
     if (path === routes.docs.main) {
-      return $page.url.pathname.startsWith(path);
+      return page.url.pathname.startsWith(path);
     }
     // For other paths, keep exact matching
-    return $page.url.pathname === path;
+    return page.url.pathname === path;
   };
 
   const handleClick = async (
@@ -353,7 +353,7 @@
 
   // Close mobile menu when route changes using Svelte 5 runes
   $effect(() => {
-    if ($page.url.pathname) {
+    if (page.url.pathname) {
       isMobileMenuOpen = false;
     }
   });
