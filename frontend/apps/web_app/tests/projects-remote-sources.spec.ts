@@ -148,6 +148,65 @@ test.describe('Projects remote sources', () => {
     await loginToTestAccount(page);
   });
 
+  // contract-test: direct surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority
+  test('offers a deliberate re-login when the browser device binding is unavailable', async ({ page }) => {
+    test.setTimeout(180000);
+    const fixtureStateDir = mkdtempSync(join(tmpdir(), 'openmates-browser-project-relogin-'));
+    chmodSync(fixtureStateDir, 0o700);
+    const fixtureEnvironment = { ...process.env, OPENMATES_STATE_DIR: fixtureStateDir };
+    let bridge = null;
+    try {
+      runChecked('npm', ['--prefix', CLI_DIR, 'run', 'build']);
+      runChecked('node', [
+        'scripts/openmates_cli_test_account.mjs', 'login', '--api-url', API_BASE_URL,
+        '--web-origin', new URL(BASE_URL).origin,
+      ], REPO_ROOT, {
+        ...fixtureEnvironment,
+        OPENMATES_TEST_ACCOUNT_EMAIL: TEST_EMAIL,
+        OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
+        OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
+      });
+      bridge = spawn('node', [
+        '--experimental-strip-types', '--loader',
+        './frontend/packages/openmates-cli/tests/loader.mjs',
+        'scripts/project_remote_access_live.mjs', 'serve', API_BASE_URL,
+      ], {
+        cwd: REPO_ROOT,
+        env: { ...fixtureEnvironment, OPENMATES_REMOTE_HOST_SESSION: join(fixtureStateDir, 'session.json') },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      const fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
+      let refused = false;
+      await page.route(/\/projects\/[^/]+\/sources\/[^/]+\/requests(?:\?|$)/, async (route) => {
+        const request = route.request();
+        if (!refused && request.method() === 'POST' && request.postDataJSON()?.operation === 'list') {
+          refused = true;
+          await route.fulfill({
+            status: 409,
+            contentType: 'application/json',
+            body: JSON.stringify({ detail: 'REQUESTER_DEVICE_IDENTITY_UNAVAILABLE' }),
+          });
+          return;
+        }
+        await route.continue();
+      });
+      await page.goto('/projects');
+      await page.getByTestId('project-landing-card').filter({ hasText: fixture.project_name }).click();
+      await page.getByTestId('project-tab-folders').click();
+      await expect(page.getByTestId('project-remote-error')).toContainText('fresh sign-in');
+      await expect(page.getByTestId('project-remote-error')).not.toContainText('disconnected');
+      await expect(page.getByTestId('project-source-relogin')).toBeVisible();
+      await expect(page).toHaveURL(projectHashUrlPattern(fixture.project_id));
+      await page.getByTestId('project-source-relogin').click();
+      await expect(page).toHaveURL(projectHashUrlPattern(fixture.project_id));
+      await expect(page.getByTestId('login-email-input')).toBeVisible({ timeout: 30000 });
+    } finally {
+      if (bridge) await stopFixtureProcess(bridge);
+      rmSync(fixtureStateDir, { recursive: true, force: true });
+    }
+  });
+
   // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority,projects.surface.semantic-parity,projects.uploads.project-wrapped,projects.items.responsive-embeds,projects.files.ignored-exact-inclusion,projects.files.private-path-deny,projects.files.connected-embed-previews,workspace-shell.nav.released-surfaces-visible
   test('browses nested connected files transiently and imports only after an explicit action', async ({ page }, testInfo) => {
     test.setTimeout(360000);
@@ -227,7 +286,8 @@ test.describe('Projects remote sources', () => {
       await page.getByTestId('project-tab-folders').click();
       await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
       const sourceRoot = page.getByLabel('Project folder path').getByRole('button', { name: 'Live remote source' });
-      await expect(page.getByLabel('Project folder path').getByText('Live remote source')).toBeVisible({ timeout: 30000 });
+      await expect(page.getByLabel('Project folder path')).toHaveCount(0);
+      await expect(page.getByTestId('project-folders-panel').locator('.section-title')).toHaveCount(0);
       await expect(page.getByTestId('project-remote-entry').filter({ hasText: 'docs' })).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
       await page.getByTestId('project-tab-overview').click();
@@ -241,12 +301,11 @@ test.describe('Projects remote sources', () => {
       const remoteEntries = directoryResults.getByTestId('project-remote-entry');
       await expect(remoteEntries.first()).toBeVisible();
       const actionTile = page.getByTestId('project-folder-actions');
-      const breadcrumb = page.getByLabel('Project folder path');
-      const [actionsBox, breadcrumbBox, firstTileBox, secondTileBox] = await Promise.all([
-        actionTile.boundingBox(), breadcrumb.boundingBox(), remoteEntries.nth(0).boundingBox(), remoteEntries.nth(1).boundingBox(),
+      const [actionsBox, firstTileBox, secondTileBox] = await Promise.all([
+        actionTile.boundingBox(), remoteEntries.nth(0).boundingBox(), remoteEntries.nth(1).boundingBox(),
       ]);
-      expect(actionsBox && breadcrumbBox && firstTileBox && secondTileBox).toBeTruthy();
-      expect(breadcrumbBox!.y + breadcrumbBox!.height).toBeLessThan(actionsBox!.y);
+      expect(actionsBox && firstTileBox && secondTileBox).toBeTruthy();
+      await expect(page.getByLabel('Project folder path')).toHaveCount(0);
       expect(Math.abs(actionsBox!.y - firstTileBox!.y)).toBeLessThanOrEqual(2);
       expect(Math.abs(firstTileBox!.y - secondTileBox!.y)).toBeLessThanOrEqual(2);
       expect(actionsBox!.x).toBeLessThan(firstTileBox!.x);
@@ -311,14 +370,17 @@ test.describe('Projects remote sources', () => {
       await expect(readmeFile.getByTestId('project-remote-preview-pending')).toContainText('Open to render preview');
       await expect(readmeFile.getByTestId('project-remote-preview-pending')).not.toContainText('Connected project');
       await docsFolder.click();
+      await expect(page.getByLabel('Project folder path').getByText('docs', { exact: true })).toBeVisible();
+      await expect(page.getByLabel('Project folder path').getByText('.', { exact: true })).toHaveCount(0);
+      await expect(sourceRoot).toBeVisible();
       const rasterFile = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'readme-image.png' });
       await rasterFile.locator('.unified-embed-preview').click();
       await expect(page.getByTestId('project-remote-fullscreen-overlay').locator('img.full-image')).toHaveAttribute('src', /^blob:/, { timeout: 30000 });
       await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
       await sourceRoot.click();
+      await expect(page.getByLabel('Project folder path')).toHaveCount(0);
       await directoryResults.getByTestId('project-remote-entry').filter({ hasText: 'src' }).click();
       await expect(sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'remote-demo.ts' })).toBeVisible();
-
       await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\blib\b/ }).click();
       await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bdeep\b/ }).click();
       const largeFile = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'large-demo.ts' });

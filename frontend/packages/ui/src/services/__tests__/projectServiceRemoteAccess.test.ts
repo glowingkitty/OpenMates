@@ -157,6 +157,23 @@ describe("Project browser remote-access transport", () => {
     )).rejects.toMatchObject({ code: "operation_failed" });
   });
 
+  // contract-test: direct surface=gui.web assertions=projects.access.explicit-context
+  it("identifies only the missing requester device binding as requiring a fresh login", async () => {
+    const personalSource = { ...source, sourceSessionId: "session-1", keyEpoch: 1 };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      Response.json({ detail: "REQUESTER_DEVICE_IDENTITY_UNAVAILABLE" }, { status: 409 }),
+    );
+    await expect(requestProjectRemoteAccess(
+      project, personalSource, { ownerId: "user-1" }, "list", { path: "." },
+    )).rejects.toMatchObject({ code: "requester_device_identity_unavailable" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fetchMock.mockResolvedValueOnce(Response.json({ detail: "key_epoch_mismatch" }, { status: 409 }));
+    await expect(requestProjectRemoteAccess(
+      project, personalSource, { ownerId: "user-1" }, "list", { path: "." },
+    )).rejects.toMatchObject({ code: "source_offline" });
+  });
+
   // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority
   it("removes the abort listener after a completed poll delay", async () => {
     const controller = new AbortController();

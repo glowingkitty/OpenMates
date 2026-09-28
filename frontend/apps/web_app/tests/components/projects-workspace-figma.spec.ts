@@ -305,12 +305,7 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await expect(page.getByTestId('project-folder-actions')).toBeVisible();
   await expect(page.getByTestId('project-folder-actions').getByRole('button')).toHaveCount(3);
   await expect(page.getByTestId('project-folder-actions').getByRole('button').first()).toHaveCSS('filter', 'none');
-  const [breadcrumbBox, actionsBox] = await Promise.all([
-    page.getByLabel('Project folder path').boundingBox(),
-    page.getByTestId('project-folder-actions').boundingBox(),
-  ]);
-  expect(breadcrumbBox && actionsBox).toBeTruthy();
-  expect(breadcrumbBox!.y + breadcrumbBox!.height).toBeLessThan(actionsBox!.y);
+  await expect(page.getByLabel('Project folder path')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-parent')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
   await expect(page.getByTestId('project-connected-source-root')).toBeHidden();
@@ -350,7 +345,8 @@ test('opens a connected source inside the Files grid with shared folder previews
   await expect(connectedFolder).toContainText('src');
   await expect(connectedFolder).toContainText('app.ts');
   await expect(connectedFolder).toContainText('1 file, 1 folder · 2.0 KiB in files');
-  await expect(page.getByLabel('Project folder path').getByText('OpenMates repository')).toBeVisible();
+  await expect(page.getByLabel('Project folder path')).toHaveCount(0);
+  await expect(page.getByTestId('project-folders-panel').locator('.section-title')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
   await expect(page.getByTestId('project-folder-search')).toBeVisible();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
@@ -361,6 +357,13 @@ test('opens a connected source inside the Files grid with shared folder previews
   expect(remoteFileCardBox).not.toBeNull();
   expect(remoteFileCardBox!.width).toBeLessThanOrEqual(301);
 
+  await connectedFolder.locator('.unified-embed-preview').click();
+  const nestedPath = page.getByLabel('Project folder path');
+  await expect(nestedPath.getByText('frontend', { exact: true })).toBeVisible();
+  await expect(nestedPath.getByText('.', { exact: true })).toHaveCount(0);
+  await nestedPath.getByRole('button', { name: 'OpenMates repository' }).click();
+  await expect(nestedPath).toHaveCount(0);
+  await connectedFolder.locator('.unified-embed-preview').click();
   await page.getByRole('button', { name: 'Project root' }).click();
   await page.getByTestId('project-folder-card').first().locator('.unified-embed-preview').click();
   await expect(page.getByTestId('project-remote-browser')).toHaveCount(0);
@@ -379,12 +382,13 @@ test('opens a connected source inside the Files grid with shared folder previews
 
   const projectMain = page.getByTestId('project-management');
   const projectTabs = page.getByTestId('project-tabs');
-  const initialTabsBox = await projectTabs.boundingBox();
-  expect(initialTabsBox).not.toBeNull();
   await expect(projectTabs).toHaveCSS('position', 'relative');
   await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
   const remoteBrowser = page.getByTestId('project-remote-browser');
   await expect(remoteBrowser).toBeAttached();
+  await projectMain.evaluate((element) => { element.scrollTop = 0; });
+  const initialTabsBox = await projectTabs.boundingBox();
+  expect(initialTabsBox).not.toBeNull();
   await projectMain.evaluate((element) => { element.scrollTop = Math.min(500, element.scrollHeight - element.clientHeight); });
   await expect.poll(() => projectMain.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   const scrolledTabsBox = await projectTabs.boundingBox();
@@ -409,7 +413,8 @@ test('opens the only connected local folder directly in Files', async ({ page })
   await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-browser')).toBeAttached();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
-  await expect(page.getByLabel('Project folder path').getByText('OpenMates repository')).toBeVisible();
+  await expect(page.getByLabel('Project folder path')).toHaveCount(0);
+  await expect(page.getByTestId('project-folders-panel').locator('.section-title')).toHaveCount(0);
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
@@ -418,6 +423,7 @@ test('loads one-level children for both connected source folder cards', async ({
   await page.goto(preview(1512, 'multipleSources'));
   await waitForProjectsPreview(page);
   await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await page.getByTestId('project-remote-entry').filter({ hasText: 'docs' }).locator('.unified-embed-preview').click();
   await page.getByRole('button', { name: 'Project root' }).click();
   const firstSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'OpenMates repository' });
   const secondSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'Second repository' });

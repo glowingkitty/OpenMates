@@ -829,7 +829,20 @@ async function requestRemoteJson<T>(path: string, init: RequestInit): Promise<T>
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ProjectRemoteAccessError("source_offline", "The Project source request could not be sent");
   }
-  if (!response.ok) throw remoteAccessHttpError(response.status);
+  if (!response.ok) {
+    if (response.status === 409) {
+      // A valid login can outlive its server-side per-session device binding.
+      // Only this exact backend code should ask the user to establish a new login.
+      const body = await response.json().catch(() => null) as { detail?: unknown } | null;
+      if (body?.detail === "REQUESTER_DEVICE_IDENTITY_UNAVAILABLE") {
+        throw new ProjectRemoteAccessError(
+          "requester_device_identity_unavailable",
+          "Sign out and sign in again to reconnect this Project source",
+        );
+      }
+    }
+    throw remoteAccessHttpError(response.status);
+  }
   try {
     return (await response.json()) as T;
   } catch {

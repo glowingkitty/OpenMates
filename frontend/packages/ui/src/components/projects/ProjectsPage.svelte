@@ -24,6 +24,7 @@
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { notificationStore } from '../../stores/notificationStore';
+  import { authStore } from '../../stores/authStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { userProfile } from '../../stores/userProfile';
@@ -166,6 +167,7 @@
   let projectHashId = $state<string | null>(null);
   let activeRemoteSourceId = $state<string | null>(null);
   let remotePath = $state('.');
+  let remotePathParts = $derived(remotePath.split('/').filter((part) => part && part !== '.'));
   let remoteEntries = $state<ProjectRemoteDirectoryEntry[]>([]);
   let remoteRootEntries = $state<Record<string, ProjectRemoteDirectoryEntry[]>>({});
   let remoteRootOmitted = $state<Record<string, number>>({});
@@ -180,6 +182,7 @@
   let remoteOmittedCount = $state(0);
   let remotePreviewEntries = $state<RemotePreviewEntry[]>([]);
   let remoteError = $state('');
+  let remoteNeedsSignIn = $state(false);
   let isRemoteLoading = $state(false);
   let remoteRequestController: AbortController | null = null;
   let remoteRequestGeneration = 0;
@@ -923,6 +926,7 @@
     remoteOmittedCount = 0;
     remotePreviewEntries = [];
     remoteError = '';
+    remoteNeedsSignIn = false;
     isRemoteLoading = false;
   }
 
@@ -943,6 +947,7 @@
     remoteOmittedCount = 0;
     remotePreviewEntries = [];
     remoteError = '';
+    remoteNeedsSignIn = false;
     isRemoteLoading = false;
   }
 
@@ -959,6 +964,7 @@
 
   function beginRemoteRequest(): { controller: AbortController; generation: number; projectId: string | null } {
     remoteRequestController?.abort();
+    remoteNeedsSignIn = false;
     const controller = new AbortController();
     remoteRequestController = controller;
     remoteRequestGeneration += 1;
@@ -983,7 +989,19 @@
 
   function remoteRequestError(error: unknown, fallback: string): string | null {
     if (error instanceof DOMException && error.name === 'AbortError') return null;
+    remoteNeedsSignIn = error instanceof ProjectRemoteAccessError
+      && error.code === 'requester_device_identity_unavailable';
+    if (remoteNeedsSignIn) return $text('projects.source_session_reconnect');
     return error instanceof Error ? error.message : fallback;
+  }
+
+  async function signOutToReconnectSource(): Promise<void> {
+    const returnUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    await authStore.logout({
+      // Standard logout clears the hash; restore this Project route before login.
+      afterLocalLogout: () => replaceState(returnUrl, {}),
+      afterServerCleanup: () => window.dispatchEvent(new Event('openLoginInterface')),
+    });
   }
 
   async function refreshRemoteSourceStatus(): Promise<void> {
@@ -1027,6 +1045,7 @@
         remoteOmittedCount = 0;
         isRemoteLoading = false;
         remoteError = active ? 'This Project source is offline' : 'This Project source is no longer available';
+        remoteNeedsSignIn = false;
         activeRemoteSourceId = null;
       }
     } catch (error) {
@@ -1602,9 +1621,10 @@
 
       <section class="project-section">
         {#if currentFolder || currentVirtualPath !== null || activeRemoteSource}
+          {#if !activeRemoteSource || remotePathParts.length > 0}
           <div class="section-title">
             <div>
-              <h3>{activeRemoteSource ? remotePath === '.' ? activeRemoteSource.displayName || 'Source root' : remotePath.split('/').at(-1) : currentVirtualPath?.split('/').at(-1) || currentFolder?.name || 'Untitled folder'}</h3>
+              <h3>{activeRemoteSource ? remotePathParts.at(-1) : currentVirtualPath?.split('/').at(-1) || currentFolder?.name || 'Untitled folder'}</h3>
             <nav class="project-breadcrumbs" aria-label="Project folder path">
               <button class="breadcrumb-button" type="button" onclick={openRoot}>{$text('projects.project_root')}</button>
               {#each currentFolderTrail as folder, index (folder.folder_id)}
@@ -1625,23 +1645,20 @@
               {/each}
               {#if activeRemoteSource}
                 <span class="breadcrumb-separator">/</span>
-                {#if remotePath === '.'}
-                  <span class="breadcrumb-current" aria-current="page">{activeRemoteSource.displayName || 'Source root'}</span>
-                {:else}
-                  <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, '.')}>{activeRemoteSource.displayName || 'Source root'}</button>
-                {/if}
-                {#each remotePath.split('/').filter(Boolean) as part, index}
+                <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, '.')}>{activeRemoteSource.displayName || 'Source root'}</button>
+                {#each remotePathParts as part, index}
                   <span class="breadcrumb-separator">/</span>
-                  {#if index === remotePath.split('/').filter(Boolean).length - 1}
+                  {#if index === remotePathParts.length - 1}
                     <span class="breadcrumb-current" aria-current="page">{part}</span>
                   {:else}
-                    <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, remotePath.split('/').slice(0, index + 1).join('/'))}>{part}</button>
+                    <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, remotePathParts.slice(0, index + 1).join('/'))}>{part}</button>
                   {/if}
                 {/each}
               {/if}
               </nav>
             </div>
           </div>
+          {/if}
 
           <div class="browser-toolbar">
             <span class="muted">{activeRemoteSource ? remoteEntries.length : browserFolders.length + browserVirtualFolders.length + browserItems.length + browserSources.length} entries</span>
@@ -1813,6 +1830,11 @@
           <div class="remote-browser" data-testid="project-remote-browser">
             {#if remoteError}
               <p class="remote-error" data-testid="project-remote-error">{remoteError}</p>
+              {#if remoteNeedsSignIn}
+                <button type="button" data-testid="project-source-relogin" onclick={() => void signOutToReconnectSource()}>
+                  {$text('projects.source_session_relogin')}
+                </button>
+              {/if}
             {/if}
             {#if remoteOmittedCount > 0}
               <p class="remote-limit-notice" data-testid="project-remote-results-truncated">{$text('projects.remote_results_limited')}</p>

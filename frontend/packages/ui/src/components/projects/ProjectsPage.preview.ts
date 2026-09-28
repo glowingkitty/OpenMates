@@ -157,7 +157,10 @@ export const variants = {
         displayName: 'Second repository',
         encrypted: { ...connectedSource.encrypted, source_id: 'source-second' },
       }],
-      remoteEntries: [{ path: 'README.md', kind: 'file' as const, sizeBytes: 1024 }],
+      remoteEntries: [
+        { path: 'docs', kind: 'directory' as const },
+        { path: 'README.md', kind: 'file' as const, sizeBytes: 1024 },
+      ],
     },
   },
   sidebar: { ...overviewProps, variant: 'sidebar' as const },
