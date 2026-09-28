@@ -19,6 +19,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BEGIN = "# BEGIN OpenMates managed test schedule"
 END = "# END OpenMates managed test schedule"
 LEGACY_COMMAND_MARKERS = (
+    "scripts/run-tests-daily.sh --detach",
+    "scripts/daily_ci_notification.py --send",
     "scripts/run_tests.py --hourly-dev",
     "scripts/run_tests.py --hourly-prod",
     "scripts/tests.py run --daily",
@@ -32,19 +34,21 @@ LEGACY_COMMAND_MARKERS = (
 
 def managed_block(root: Path = PROJECT_ROOT) -> str:
     quoted_root = str(root)
-    prefix = f"bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} &&"
     log_root = f"{quoted_root}/logs"
     return "\n".join([
         BEGIN,
+        "CRON_TZ=UTC",
         "# Nightly full suite at 03:00 UTC.",
-        f"0 3 * * * {prefix} python3 scripts/tests.py run --daily --no-fail-fast' >> {log_root}/daily-tests.log 2>&1",
+        f"0 3 * * * /bin/bash {quoted_root}/scripts/run-tests-daily.sh --detach >> {log_root}/daily-tests.log 2>&1",
+        "# Reconcile terminal receipts and retry only undelivered notification channels.",
+        f"15 * * * * /usr/bin/python3 {quoted_root}/scripts/daily_ci_notification.py --send >> {log_root}/daily-tests-notification.log 2>&1",
         "# Hourly dev core journeys during the existing 08:00-18:00 UTC window.",
-        f"0 8-18 * * * {prefix} python3 scripts/tests.py run --hourly-dev' >> {log_root}/hourly-dev-tests.log 2>&1",
+        "# CI migration HOLD --hourly-dev: legacy shared-runtime execution retired; explicit isolated coverage disposition pending.",
         "CRON_TZ=Europe/Berlin",
         "# Production monitoring is GitHub-hosted and independent of dev Docker state.",
-        f"5 6-23 * * * {prefix} python3 scripts/tests.py run --prod-free-hourly' >> {log_root}/hourly-prod-tests.log 2>&1",
-        f"10 7,13,19 * * * {prefix} python3 scripts/tests.py run --prod-paid-chat' >> {log_root}/prod-paid-chat-tests.log 2>&1",
-        f"15 9 * * * {prefix} python3 scripts/tests.py run --prod-app-skill' >> {log_root}/prod-app-skill-tests.log 2>&1",
+        "# CI migration HOLD --prod-free-hourly: legacy shared-runtime execution retired; explicit isolated coverage disposition pending.",
+        "# CI migration HOLD --prod-paid-chat: legacy shared-runtime execution retired; explicit isolated coverage disposition pending.",
+        "# CI migration HOLD --prod-app-skill: legacy shared-runtime execution retired; explicit isolated coverage disposition pending.",
         "CRON_TZ=UTC",
         END,
     ])

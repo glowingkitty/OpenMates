@@ -6,6 +6,7 @@
 
 import logging
 import os
+import re
 import time
 import yaml
 from collections import Counter
@@ -1974,7 +1975,7 @@ async def dispatch_test_summary_email(
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
 
-        celery_app.send_task(
+        task_result = celery_app.send_task(
             name="app.tasks.email_tasks.test_run_summary_email_task.send_test_run_summary",
             args=[
                 payload.recipient_email,
@@ -2001,10 +2002,30 @@ async def dispatch_test_summary_email(
         )
 
         logger.info("[InternalAPI] Test run summary email task dispatched successfully")
-        return {"status": "dispatched"}
+        return {"status": "dispatched", "task_id": getattr(task_result, "id", "")}
     except Exception as e:
         logger.error(f"[InternalAPI] Failed to dispatch test summary email: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
+
+
+@router.get("/test-summary-email-status/{task_id}")
+async def test_summary_email_status(task_id: str) -> Dict[str, Any]:
+    """Internal-only delivery result for the scheduled notifier.
+
+    The router's shared service token is required; this route has no public
+    Caddy mapping, owner scope, paid work, or client-encrypted data. It returns
+    only a task state and the task's boolean provider-acceptance result.
+    """
+    if not re.fullmatch(r"[0-9a-f-]{36}", task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    result = celery_app.AsyncResult(task_id)
+    state = result.state
+    return {
+        "state": state,
+        "provider_accepted": bool(result.result) if state == "SUCCESS" else False,
+    }
 
 
 @router.post("/openobserve/push-test-run")

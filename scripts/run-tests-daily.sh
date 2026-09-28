@@ -19,4 +19,13 @@ if ! timeout 240 python3 "$CI_CANONICAL/scripts/signup_email_live_smoke.py" --de
   --report "$CI_CANONICAL/logs/nightly-reports/signup-email-live-smoke.json"; then
   echo 'Dev-host signup email health failed; inspect the redacted local report. Continuing isolated daily tests.' >&2
 fi
-exec python3 "$CI_CANONICAL/scripts/ci_dispatch.py" --worktree "$CI_WORKTREE" --daily "$@"
+set +e
+python3 "$CI_CANONICAL/scripts/ci_dispatch.py" --worktree "$CI_WORKTREE" --daily "$@"
+dispatch_status=$?
+set -e
+if [[ "$dispatch_status" -ne 0 ]]; then
+  # A selection/preflight abort is a real nightly failure even when no CI job
+  # or legacy last-run.json exists. The notifier deduplicates channel sends.
+  python3 "$CI_CANONICAL/scripts/daily_ci_notification.py" --send || true
+fi
+exit "$dispatch_status"

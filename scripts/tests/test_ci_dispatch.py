@@ -89,10 +89,33 @@ def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, cap
     manifests = list((root / "test-results/daily-runs").glob("*.json"))
     assert len(manifests) == 1
     manifest = json.loads(manifests[0].read_text())
-    assert manifest["notifications"] == "not_wired" and manifest["held_specs"]
+    assert manifest["status"] == "queued" and manifest["held_specs"]
+    assert manifest["selected_specs"] == ["held.spec.ts"]
     assert "held.spec.ts" in capsys.readouterr().out
     jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
     assert sorted(job["mode"] for job in jobs) == ["pytest", "vitest"]
+
+
+def test_daily_selection_abort_records_blocker_before_any_job_is_queued(tmp_path, monkeypatch):
+    import json
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    monkeypatch.setattr(
+        ci_dispatch, "select_specs",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("Unclassified AI spec cannot enter scheduled discovery: new.spec.ts")),
+    )
+    with pytest.raises(RuntimeError, match="Unclassified AI spec"):
+        ci_dispatch.run(["--worktree", str(root), "--daily", "--expected-commit", source, "--detach"])
+    manifest_path, = (root / "test-results/daily-runs").glob("*.json")
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["status"] == "blocked"
+    assert manifest["jobs"] == []
+    assert manifest["source_commit"] == source
+    assert "new.spec.ts" in manifest["selection_error"]
+    assert Queue(root / "logs/ci-coordinator/queue.sqlite3").status() == []
 
 
 def test_focused_pytest_target_is_queued_without_e2e_coercion(tmp_path, monkeypatch):

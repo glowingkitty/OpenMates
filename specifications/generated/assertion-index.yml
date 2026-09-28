@@ -6076,17 +6076,17 @@ assertions:
       surface: rest_api
     - &id713
       path: backend/tests/test_internal_api.py
-      line: 52
+      line: 72
       name: test_upload_record_is_not_visible_before_replication_intent
       surface: rest_api
     - &id714
       path: backend/tests/test_internal_api.py
-      line: 91
+      line: 111
       name: test_upload_record_trusts_upload_service_active_regions
       surface: rest_api
     - &id715
       path: backend/tests/test_internal_api.py
-      line: 142
+      line: 162
       name: test_upload_record_rejects_mismatched_active_region_metadata
       surface: rest_api
     - &id716
@@ -6413,12 +6413,12 @@ assertions:
     direct_tests:
     - &id756
       path: backend/tests/test_internal_api.py
-      line: 91
+      line: 111
       name: test_upload_record_trusts_upload_service_active_regions
       surface: rest_api
     - &id757
       path: backend/tests/test_internal_api.py
-      line: 142
+      line: 162
       name: test_upload_record_rejects_mismatched_active_region_metadata
       surface: rest_api
     - &id758

@@ -127,6 +127,37 @@ def select_snapshot_specs(root: Path, args) -> list[str]:
     return names
 
 
+def write_daily_manifest(
+    canonical: Path, source: str, attempt: str, args, jobs: list[dict],
+    selected_specs: list[str], held_specs: list[str], held_reasons: dict,
+    *, selection_error: str = "",
+) -> Path:
+    """Keep a source-bound daily inventory, including failed selection."""
+    import hashlib
+
+    manifest_dir = canonical / "test-results/daily-runs"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_id = hashlib.sha256(
+        json.dumps([source, attempt, args.suite, args.spec], sort_keys=True).encode()
+    ).hexdigest()
+    path = manifest_dir / (manifest_id + ".json")
+    if path.exists():
+        return path
+    data = {
+        "created": time.time(), "run_date": datetime.now(timezone.utc).date().isoformat(),
+        "source_commit": source, "suite": args.suite,
+        "jobs": [job["id"] for job in jobs],
+        "selected_specs": selected_specs, "held_specs": held_specs,
+        "held_reasons": held_reasons,
+        "status": "blocked" if selection_error else "queued",
+        "selection_error": selection_error,
+    }
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(data, indent=2) + "\n")
+    temporary.replace(path)
+    return path
+
+
 def run(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worktree", type=Path)
@@ -259,6 +290,19 @@ def run(argv: list[str]) -> int:
     jobs = []
     held_specs = []
     held_reasons = {}
+    selected_specs = []
+    # Validate scheduled browser selection before queuing units. Previously a
+    # newly unclassified AI spec left two orphan unit jobs and no daily record.
+    if args.spec or args.suite in ("all", "playwright", "cli"):
+        try:
+            selected_specs = select_specs(root, args, source)
+        except Exception as exc:
+            if args.daily:
+                write_daily_manifest(
+                    canonical, source, attempt, args, [], [], [], {},
+                    selection_error=f"{type(exc).__name__}: {exc}",
+                )
+            raise
     if pytest_targets:
         # The runner validates existence against the immutable candidate before
         # invoking pytest; the queue retains these exact node IDs unchanged.
@@ -271,7 +315,7 @@ def run(argv: list[str]) -> int:
         for mode in ("pytest", "vitest") if args.suite == "all" else (args.suite,):
             jobs.append(queue.enqueue(owner, source, [], mode, attempt, candidate=candidate))
     if args.spec or args.suite in ("all", "playwright", "cli"):
-        specs = select_specs(root, args, source)
+        specs = selected_specs
         if args.suite == "cli":
             specs = [s for s in specs if s.startswith("cli-")]
         if not specs:
@@ -316,19 +360,10 @@ def run(argv: list[str]) -> int:
                         attempt, args.proof_video_profile, candidate,
                     ))
     if args.daily:
-        # Persist the selected/held inventory before detaching, including zero-job
-        # runs. The meeting must not infer coverage from job batch counts.
-        manifest_dir = canonical / "test-results/daily-runs"
-        manifest_dir.mkdir(parents=True, exist_ok=True)
-        import hashlib
-        manifest_id = hashlib.sha256(json.dumps([source, attempt, args.suite, args.spec], sort_keys=True).encode()).hexdigest()
-        manifest_path = manifest_dir / (manifest_id + ".json")
-        if not manifest_path.exists():
-            manifest_path.write_text(json.dumps({
-                "created": time.time(), "source_commit": source, "suite": args.suite,
-                "jobs": [j["id"] for j in jobs], "held_specs": held_specs,
-                "held_reasons": held_reasons, "notifications": "not_wired",
-            }, indent=2))
+        write_daily_manifest(
+            canonical, source, attempt, args, jobs, selected_specs,
+            held_specs, held_reasons,
+        )
     ensure_coordinator(canonical)
     print(
         json.dumps(

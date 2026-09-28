@@ -9,11 +9,13 @@ from scripts.test_schedule_setup import BEGIN, END, managed_block, replace_manag
 
 def test_managed_schedule_contains_all_test_lanes() -> None:
     block = managed_block(Path("/srv/OpenMates"))
-    assert "tests.py run --daily --no-fail-fast" in block
-    assert "tests.py run --hourly-dev" in block
-    assert "tests.py run --prod-free-hourly" in block
-    assert "tests.py run --prod-paid-chat" in block
-    assert "tests.py run --prod-app-skill" in block
+    assert "run-tests-daily.sh --detach" in block
+    assert "daily_ci_notification.py --send" in block
+    assert "# CI migration HOLD --hourly-dev" in block
+    assert "# CI migration HOLD --prod-free-hourly" in block
+    assert "# CI migration HOLD --prod-paid-chat" in block
+    assert "# CI migration HOLD --prod-app-skill" in block
+    assert "scripts/tests.py run" not in block
     assert "CRON_TZ=Europe/Berlin" in block
 
 
@@ -37,5 +39,5 @@ def test_replacement_can_target_the_canonical_checkout() -> None:
 
     rendered = replace_managed_schedule("", canonical)
 
-    assert f"cd {canonical}" in rendered
+    assert f"{canonical}/scripts/run-tests-daily.sh" in rendered
     assert ".openmates-agent-worktrees" not in rendered
