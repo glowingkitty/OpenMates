@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-22'
-generated_at: '2026-09-23T00:20:19+00:00'
+generated_at: '2026-09-28T00:45:39+00:00'
 range:
   since: '2026-09-22T00:00:00+00:00'
   until: '2026-09-23T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 0
     internal: 0
     other: 0
-  newsletter_ready_items: 11
+  newsletter_ready_items: 14
   user_facing_items: 14
-  dev_only_items: 5
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,13 +60,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
-  - id: app:workflows
-    kind: app
-    default_enabled: true
-    effective_enabled: false
-    override: disabled
-    parent_id: null
-    source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
@@ -148,7 +141,7 @@ feature_availability:
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: disabled
+    override: null
     parent_id: null
     source: platform
   - id: skill:models3d:generate
@@ -396,16 +389,16 @@ sections:
     - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
     - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
     section: bug_fixes
     commits:
@@ -425,16 +418,16 @@ sections:
     - frontend/packages/ui/src/services/sendersChatMessages.ts
     - scripts/ci_coverage.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: prioritize audio websocket proxy routes before encoded app routes'
     section: bug_fixes
     commits:
@@ -445,7 +438,7 @@ sections:
     - deployment/dev_server/Caddyfile
     - deployment/prod_server/Caddyfile
     - scripts/tests/test_verify_caddyfile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -453,7 +446,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: prevent blank container logs from rejecting telemetry batches'
     section: bug_fixes
     commits:
@@ -462,7 +455,7 @@ sections:
     changed_paths:
     - backend/core/monitoring/promtail/promtail-config.yaml
     - backend/tests/test_promtail_pipeline.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -470,7 +463,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: recover chat failures and preserve Gemini provider affinity'
     section: bug_fixes
     commits:
@@ -498,9 +491,9 @@ sections:
     - scripts/sessions.py
     - scripts/tests/test_sessions_docker_orchestration.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -515,7 +508,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: include optimized publication fallback'
     section: bug_fixes
     commits:
@@ -712,49 +705,7 @@ sections:
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: preserve send clicks during first draft activation'
-    commits:
-    - c2f505a5a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
-    commits:
-    - e9ec8a1bf
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: prioritize audio websocket proxy routes before encoded app routes'
-    commits:
-    - 1898cc216
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: prevent blank container logs from rejecting telemetry batches'
-    commits:
-    - dcfa1a495
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: recover chat failures and preserve Gemini provider affinity'
-    commits:
-    - 124d8c18f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'feat: add Jev decision processing'
@@ -780,6 +731,34 @@ unreleased_progress:
       source: backend/apps/ai/app.yml
 marketing_candidates:
   newsletter:
+  - title: 'fix: preserve send clicks during first draft activation'
+    commits:
+    - c2f505a5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
+    commits:
+    - e9ec8a1bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover chat failures and preserve Gemini provider affinity'
+    commits:
+    - 124d8c18f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
   - title: 'fix: include optimized publication fallback'
     commits:
     - 91853cfcf
@@ -918,24 +897,24 @@ marketing_candidates:
     commits:
     - c2f505a5a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: recover recorder cleanup and defer voice-first chat metadata'
     commits:
     - e9ec8a1bf
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: recover chat failures and preserve Gemini provider affinity'
     commits:
     - 124d8c18f
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -944,7 +923,7 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: include optimized publication fallback'
     commits:
     - 91853cfcf
@@ -1100,7 +1079,7 @@ sources:
     short_sha: c2f505a5a
     authored_at: '2026-09-22T18:45:20+00:00'
     subject: 'fix: preserve send clicks during first draft activation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/component-message-input-performance.spec.ts
@@ -1112,7 +1091,7 @@ sources:
     short_sha: e9ec8a1bf
     authored_at: '2026-09-22T16:54:13+00:00'
     subject: 'fix: recover recorder cleanup and defer voice-first chat metadata'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/chat-failure-incident-2026-09-22/plan.yml
@@ -1133,7 +1112,7 @@ sources:
     short_sha: 1898cc216
     authored_at: '2026-09-22T16:39:02+00:00'
     subject: 'fix: prioritize audio websocket proxy routes before encoded app routes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - deployment/Caddyfile.example
@@ -1145,7 +1124,7 @@ sources:
     short_sha: dcfa1a495
     authored_at: '2026-09-22T16:13:21+00:00'
     subject: 'fix: prevent blank container logs from rejecting telemetry batches'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/monitoring/promtail/promtail-config.yaml
@@ -1155,7 +1134,7 @@ sources:
     short_sha: 124d8c18f
     authored_at: '2026-09-22T15:36:08+00:00'
     subject: 'fix: recover chat failures and preserve Gemini provider affinity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/google_client.py
@@ -1424,133 +1403,143 @@ sources:
     - app:ai
     - skill:ai:ask
 llm_summary:
-  overview: OpenMates introduced major updates to its AI execution engine, Jev, focusing on safety, model-aware routing, and
-    artifact persistence. The project also launched a new illustrated blog series and refined the public publication interface.
+  overview: OpenMates introduced Jev decision processing and model-aware routing to improve how the AI handles long-form conversations
+    and context. The project also launched a new illustrated blog series on agentic coding and delivered several stability
+    fixes for chat interactions, voice recording, and artifact management.
   released_changes:
-  - text: OpenMates added Jev decision processing, which introduces automated safety checks and content sanitization for AI
-      interactions.
+  - text: OpenMates added Jev decision processing and model-aware routing, enabling more intelligent handling of long chat
+      histories.
     evidence:
       commits:
       - cfdbda23a
-    release_status: released_main
-  - text: The AI engine now utilizes model-aware routing to better manage context in long conversations.
-    evidence:
-      commits:
       - b8dc581d0
     release_status: released_main
-  - text: Artifacts are now preserved across chat compression cycles, ensuring they remain available as the conversation grows.
+  - text: The AI system now preserves artifacts across chat compression, ensuring important context remains available in extended
+      sessions.
     evidence:
       commits:
       - 94ea315d5
     release_status: released_main
-  - text: The project published a new illustrated article on agentic coding and refined the UI for all public blog posts.
+  - text: A new illustrated blog post regarding agentic coding was published, supported by refinements to the public article
+      reading experience.
     evidence:
       commits:
       - b8d87173f
       - 0af9760d0
     release_status: released_main
   bug_fixes:
-  - text: The AI inference context is now capped at 200k tokens to ensure stability during long conversations.
+  - text: AI context management was improved by capping main inference at 200k tokens and ensuring artifacts from inline uploads
+      or compressed chats are correctly recovered.
     evidence:
       commits:
       - 680b6f39c
-    release_status: released_main
-  - text: Resolved issues where inline upload artifacts and compressed references were not being correctly recovered or matched.
-    evidence:
-      commits:
       - 6f8eb0a60
       - 54ad87899
     release_status: released_main
-  - text: Improved the public blog experience with better navigation, loading states, and optimized fallback images.
+  - text: Chat reliability was enhanced with better failure recovery and preserved provider affinity for Gemini models.
+    evidence:
+      commits:
+      - 124d8c18f
+    release_status: released_main
+  - text: User interface stability was addressed by preserving send clicks during draft activation and fixing recorder cleanup
+      for voice-first interactions.
+    evidence:
+      commits:
+      - c2f505a5a
+      - e9ec8a1bf
+    release_status: released_main
+  - text: Publication navigation and loading were optimized, including the addition of a fallback UI for optimized images.
     evidence:
       commits:
       - 0c78b960c
       - 91853cfcf
     release_status: released_main
-  - text: The CLI now correctly persists generated chat titles.
+  - text: The OpenMates CLI now correctly persists generated chat titles.
     evidence:
       commits:
       - 8457d59e2
     release_status: released_main
   unreleased_progress:
-  - text: Development is underway to improve recovery from chat failures and maintain provider affinity for Gemini models.
+  - text: AI application and skill metadata were updated to support Jev decision processing.
     evidence:
       commits:
-      - 124d8c18f
-    release_status: dev_only
-  - text: Ongoing work includes refining audio recorder cleanup and optimizing message input performance during draft activation.
+      - cfdbda23a
+    release_status: released_main
+  - text: Internal verification plans for Jev routing and decision processing were recorded.
     evidence:
       commits:
-      - e9ec8a1bf
-      - c2f505a5a
-    release_status: dev_only
+      - 2eceda13d
+      - 6e6e30623
+    release_status: released_main
   internal_progress:
-  - text: Adjusted Caddyfile routing to prioritize audio websocket proxies.
+  - text: Caddyfile routing was updated to prioritize audio websocket proxy routes.
     evidence:
       commits:
       - 1898cc216
-    release_status: dev_only
-  - text: Updated telemetry pipelines to prevent blank container logs from rejecting data batches.
+    release_status: released_main
+  - text: Telemetry processing was hardened to prevent blank container logs from rejecting batches.
     evidence:
       commits:
       - dcfa1a495
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
     include:
-    - text: New Jev decision processing for enhanced AI safety and content sanitization.
+    - text: Introduction of Jev decision processing and model-aware routing for long-form conversations.
       evidence:
         commits:
         - cfdbda23a
-      reason: Introduces critical safety and sanitization logic for the AI engine.
-    - text: Model-aware routing for long-chat history management.
-      evidence:
-        commits:
         - b8dc581d0
-      reason: Improves the efficiency of long-running AI conversations.
-    - text: Artifact preservation across AI chat compression cycles.
-      evidence:
-        commits:
-        - 94ea315d5
-      reason: Ensures user data remains accessible even as chat history is compressed.
-    - text: Launch of the illustrated agentic coding blog series and refined reading experience.
+      reason: Major architectural update to AI decision making and context routing.
+    - text: Launch of the illustrated 'Agentic Coding' blog series and refined publication UI.
       evidence:
         commits:
         - b8d87173f
         - 0af9760d0
-      reason: New public-facing content and UI improvements for the project blog.
-    exclude:
-    - text: Internal fixes for chat failures and audio recording cleanup.
+      reason: New public-facing content and improved reading experience.
+    - text: Preservation of chat artifacts across context compression.
       evidence:
         commits:
-        - 124d8c18f
-        - e9ec8a1bf
+        - 94ea315d5
+      reason: Directly improves AI utility in long chats.
+    - text: Stability improvements for message sending and voice recording.
+      evidence:
+        commits:
         - c2f505a5a
-      reason: These items are currently dev_only and have not reached the main release branch.
-    - text: Internal documentation and verification plans.
+        - e9ec8a1bf
+      reason: Fixes common friction points in chat and voice input.
+    exclude:
+    - text: Infrastructure routing and telemetry hardening.
+      evidence:
+        commits:
+        - 1898cc216
+        - dcfa1a495
+      reason: Internal infrastructure and telemetry configuration.
+    - text: Internal planning and verification documentation.
       evidence:
         commits:
         - a366af6aa
         - 2eceda13d
         - 6e6e30623
-      reason: These are internal documentation and verification records not intended for public consumption.
-    rationale: The selected items represent significant functional improvements to the AI engine and new public-facing content
-      that is ready for communication.
+      reason: Internal documentation and verification records.
+    rationale: The update features a significant leap in AI context handling via the Jev system and the launch of a high-quality
+      illustrated blog, which are the primary stories for users.
   social_video_recommendations:
-  - idea: A visual tour of the new illustrated blog post and the refined reading interface.
+  - idea: A walkthrough of the new illustrated blog post and the refined publication UI.
     priority: high
-    reason: The new blog content is highly visual and demonstrates the project's thought leadership in agentic coding.
+    reason: Visual content is ideal for social engagement and showcases the project's thought leadership.
     evidence:
       commits:
       - b8d87173f
       - 0af9760d0
-  - idea: A technical deep dive or demo showing how OpenMates maintains context and artifacts in very long chat sessions.
+  - idea: A demonstration of 'Jev' in action, showing how artifacts persist even as a chat grows long and undergoes compression.
     priority: medium
-    reason: Demonstrates the robustness of the Jev engine for power users.
+    reason: Demonstrates technical sophistication and solves a common user pain point with AI context.
     evidence:
       commits:
       - b8dc581d0
       - 94ea315d5
   quality_notes:
-  - Commit cfdbda23a includes updates to the privacy policy and provider training policies.
-  - Several AI improvements focus on maintaining context and artifact integrity during long-running sessions.
+  - Significant focus on AI context reliability and artifact persistence.
+  - Infrastructure hardening for telemetry and routing stability.
+  - Expansion of public-facing educational content.
   validation_warnings: []

@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-25'
-generated_at: '2026-09-26T00:20:21+00:00'
+generated_at: '2026-09-28T00:47:45+00:00'
 range:
   since: '2026-09-25T00:00:00+00:00'
   until: '2026-09-26T00:00:00+00:00'
@@ -3452,16 +3452,16 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates enabled Workflows in production and implemented significant stability improvements for AI chat processing,
-    including better handling of tool limits and anonymous skill execution.
+  overview: OpenMates enabled Workflows in the production configuration and introduced significant reliability fixes for AI
+    chat processing, news research, and anonymous skill execution. The update also includes several UI refinements for the
+    workflow builder and message drafts.
   released_changes:
-  - text: Workflows have been enabled in the production configuration.
+  - text: Workflows are now enabled in the production configuration.
     evidence:
       commits:
       - 3933ffcbf
     release_status: released_main
-  - text: The Workflow builder received several UI refinements, including better alignment for input/output fields and improved
-      table column grouping.
+  - text: The workflow builder received UI refinements for field alignment, table columns, and editor groups.
     evidence:
       commits:
       - acd69a69a
@@ -3470,53 +3470,58 @@ llm_summary:
       - 92d2c63fe
       - b5d454d04
     release_status: released_main
-  - text: Draft previews now display embed type labels for better clarity during message composition.
-    evidence:
-      commits:
-      - a2f31ca19
-    release_status: released_main
   bug_fixes:
-  - text: AI chat processing now more reliably handles complex turns, including news research budget enforcement, tool limit
-      recovery for Gemini, and silent answer-only model turns.
+  - text: AI news searches now correctly count clipped requests before budget enforcement and execute searches up to the research
+      limit.
     evidence:
       commits:
       - f7499b9fe
       - 83e022a41
+    release_status: released_main
+  - text: Chat reliability improved with fixes for silent answer-only model turns, Gemini tool limit handling, and zero-text
+      protocol-guard recovery.
+    evidence:
+      commits:
       - 48c95c68e
       - 3e55f4aad
       - cbf3b7180
     release_status: released_main
-  - text: Anonymous skill execution has been updated to keep requests inline when under provider rate limits.
+  - text: Anonymous skill execution is now maintained inline when under provider rate limits.
     evidence:
       commits:
       - c7621fe0a
     release_status: released_main
+  - text: Draft previews now display embed type labels for better clarity.
+    evidence:
+      commits:
+      - a2f31ca19
+    release_status: released_main
   unreleased_progress:
-  - text: Work continues on aligning Projects and Tasks with Figma designs and integrating user Plans.
+  - text: Work continues on aligning Projects and Tasks with design specifications and integrating Plans.
     evidence:
       commits:
       - 201f98cbd
     release_status: released_main
-  - text: Anonymous usage budget enforcement is in development to manage inline skill limits.
+  - text: Anonymous usage budget enforcement and skill limit policies are being implemented.
     evidence:
       commits:
       - 3c2800021
     release_status: released_main
-  - text: Apple Watch support is being refined with fixes for chat socket connectivity and account list loading.
+  - text: The Apple Watch app is being updated with fixes for chat recovery, socket management, and account pairing.
     evidence:
       commits:
       - eca1d63a0
       - 4143ddc6e
       - b7d52a746
     release_status: released_main
-  - text: Internal updates to the workflow builder are aligning navigation and skill input adapters.
+  - text: Workflow builder navigation and skill input alignment are undergoing further refinement.
     evidence:
       commits:
       - 59e84672d
       - cc8862ca7
     release_status: released_main
   internal_progress:
-  - text: Regression testing was added to exercise protocol guards during chat recovery.
+  - text: Regression tests were added to exercise the protocol guard during chat recovery.
     evidence:
       commits:
       - ff815ae57
@@ -3527,22 +3532,21 @@ llm_summary:
       evidence:
         commits:
         - 3933ffcbf
-      reason: Workflows have been enabled in the production configuration and are ready for public communication.
-    - text: Enhanced AI chat reliability and tool-calling recovery.
+      reason: Workflows have been enabled in the production configuration and are ready for public use.
+    - text: Improved AI news search accuracy and budget handling.
       evidence:
         commits:
         - f7499b9fe
         - 83e022a41
+      reason: Significant improvements to the accuracy and reliability of AI-driven news research.
+    - text: Enhanced chat reliability and tool-call recovery.
+      evidence:
+        commits:
         - 48c95c68e
         - 3e55f4aad
         - cbf3b7180
-      reason: Significant improvements to AI reliability and tool-calling recovery.
-    - text: Embed type labels are now visible in draft previews.
-      evidence:
-        commits:
-        - a2f31ca19
-      reason: User-facing UI improvement for chat drafts.
-    - text: Workflow builder UI refinements for better alignment and field grouping.
+      reason: Enhancements to chat stability and error recovery for various LLM providers.
+    - text: Workflow builder UI refinements and alignment fixes.
       evidence:
         commits:
         - acd69a69a
@@ -3550,36 +3554,62 @@ llm_summary:
         - 1d7fa4ce3
         - 92d2c63fe
         - b5d454d04
-      reason: UI refinements for the newly released Workflow builder.
+      reason: A series of UI refinements that improve the usability of the workflow builder.
+    - text: Embed type labels in draft previews.
+      evidence:
+        commits:
+        - a2f31ca19
+      reason: Improves the user experience when reviewing message drafts.
+    - text: Optimized anonymous skill execution.
+      evidence:
+        commits:
+        - c7621fe0a
+      reason: Ensures smoother skill execution for anonymous users.
     exclude:
-    - text: Integration of Projects, Tasks, and Plans with Figma parity.
+    - text: Projects and Tasks alignment with Figma and Plans integration.
       evidence:
         commits:
         - 201f98cbd
-      reason: Projects, Tasks, and Plans remain disabled in the production environment.
-    - text: Enforcement of anonymous inline skill limits.
+      reason: Projects, Tasks, and Plans are currently disabled in the production environment.
+    - text: Anonymous inline skill limit enforcement.
       evidence:
         commits:
         - 3c2800021
-      reason: Anonymous budget enforcement is currently an unreleased feature.
-    - text: Stability improvements for Apple Watch chat sockets and account syncing.
+      reason: Anonymous budget enforcement is linked to disabled features like Plans and Projects.
+    - text: Apple Watch chat recovery and account loading fixes.
       evidence:
         commits:
         - eca1d63a0
         - 4143ddc6e
         - b7d52a746
-      reason: Apple Watch platform support is currently disabled.
-    rationale: The primary story is the production release of Workflows alongside critical stability fixes for AI chat processing
-      and anonymous usage.
+      reason: Apple Watch, iOS, and macOS platforms are currently disabled.
+    - text: Workflow builder navigation and skill input alignment.
+      evidence:
+        commits:
+        - 59e84672d
+        - cc8862ca7
+      reason: Workflow builder navigation and skill input alignment are gated behind the unreleased platform:workflows feature.
+    rationale: The primary focus for public communication is the official enablement of Workflows in production and the substantial
+      reliability improvements made to AI chat processing and news research. Features related to Projects, Tasks, and mobile
+      platforms remain disabled and should be excluded.
   social_video_recommendations:
-  - idea: A walkthrough of the now-live Workflow builder, showing how to create and refine automated tasks.
+  - idea: A walkthrough of the newly enabled Workflow builder, highlighting the refined UI and field alignment.
     priority: high
-    reason: Workflows are a major feature now enabled for production users.
+    reason: Workflows are a major feature now available in production.
     evidence:
       commits:
       - 3933ffcbf
+      - acd69a69a
       - b5d454d04
+  - idea: A demonstration of AI news research handling complex queries within research limits.
+    priority: medium
+    reason: Shows concrete improvements to AI skill reliability.
+    evidence:
+      commits:
+      - 83e022a41
+      - f7499b9fe
   quality_notes:
-  - Workflows transitioned to production status today.
-  - AI processing logic saw a high volume of edge-case fixes for tool-calling and turn recovery.
+  - Workflows are now officially enabled in production config.
+  - AI processing logic for news searches and tool limits was significantly hardened.
+  - Mobile and desktop platform work remains unreleased.
   validation_warnings: []

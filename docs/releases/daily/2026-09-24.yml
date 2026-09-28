@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-24'
-generated_at: '2026-09-25T00:20:22+00:00'
+generated_at: '2026-09-28T00:47:25+00:00'
 range:
   since: '2026-09-24T00:00:00+00:00'
   until: '2026-09-25T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 13
   user_facing_items: 25
-  dev_only_items: 35
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,13 +60,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
-  - id: app:workflows
-    kind: app
-    default_enabled: true
-    effective_enabled: false
-    override: disabled
-    parent_id: null
-    source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
@@ -148,7 +141,7 @@ feature_availability:
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: disabled
+    override: null
     parent_id: null
     source: platform
   - id: skill:models3d:generate
@@ -207,8 +200,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -238,7 +231,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
   - title: 'feat: Generate assistant speech on playback demand'
     section: features
     commits:
@@ -276,9 +270,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -307,7 +301,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:audio, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: add AI checks and Ask AI to workflows'
     section: features
     commits:
@@ -346,8 +340,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -362,7 +356,7 @@ sections:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: disabled
+      override: null
       parent_id: null
       source: platform
     feature_metadata_changed: true
@@ -370,7 +364,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
   - title: 'feat: rank repository and 3D searches by relevance'
     section: features
     commits:
@@ -405,9 +400,9 @@ sections:
     - specifications/architecture/app-skill-execution/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:code
@@ -458,7 +453,7 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:code, app:models3d, embed:code:search_repos, embed:models3d:search, skill:code:search_repos,
       skill:models3d:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix: Guard Watch notification handoff on macOS'
     section: bug_fixes
@@ -467,8 +462,8 @@ sections:
     authored_at: '2026-09-25T00:46:37+02:00'
     changed_paths:
     - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -491,7 +486,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: align workflow builder UI with Figma'
     section: bug_fixes
     commits:
@@ -504,16 +500,16 @@ sections:
     - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: report macOS background state through shared socket'
     section: bug_fixes
     commits:
@@ -523,8 +519,8 @@ sections:
     - apple/OpenMates/Sources/App/MainAppView.swift
     - apple/OpenMates/Sources/App/OpenMatesApp.swift
     - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -547,7 +543,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: trace dev notification routing'
     section: bug_fixes
     commits:
@@ -555,16 +552,16 @@ sections:
     authored_at: '2026-09-24T20:02:57+00:00'
     changed_paths:
     - backend/core/api/app/routes/websockets.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: complete Apple typing and composer parity'
     section: bug_fixes
     commits:
@@ -577,8 +574,8 @@ sections:
     - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
     - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -601,7 +598,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: align Apple composer, typing, and Mac push'
     section: bug_fixes
     commits:
@@ -614,8 +612,8 @@ sections:
     - apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
     - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -638,7 +636,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: stabilize Apple chat windows and key reuse'
     section: bug_fixes
     commits:
@@ -652,8 +651,8 @@ sections:
     - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
     - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -676,7 +675,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: restore macOS chat window and push parity'
     section: bug_fixes
     commits:
@@ -694,8 +694,8 @@ sections:
     - scripts/apple_testflight_release.py
     - scripts/tests/test_apple_testflight_release.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -718,7 +718,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: retire Suki and Welcome across clients'
     section: bug_fixes
     commits:
@@ -774,8 +775,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -812,7 +813,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:openmates, platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: retire deprecated Google Events search provider'
     section: bug_fixes
     commits:
@@ -838,9 +840,9 @@ sections:
     - scripts/ci_coverage_manifest.json
     - shared/docs/privacy_policy.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -876,7 +878,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:events, embed:events:search, skill:events:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reconcile Apple chat and embed parity'
     section: bug_fixes
     commits:
@@ -916,8 +918,8 @@ sections:
     - backend/tests/test_bedrock_image_multimodal.py
     - backend/tests/test_image_question_route.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -968,7 +970,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:images, embed:images:view, platform:ios, platform:macos, skill:images:view'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: prepare Apple signing keychain during TestFlight release'
     section: bug_fixes
     commits:
@@ -977,7 +980,7 @@ sections:
     changed_paths:
     - scripts/apple_testflight_release.py
     - scripts/tests/test_apple_testflight_release.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -985,7 +988,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reconcile Apple chat and media parity'
     section: bug_fixes
     commits:
@@ -1044,8 +1047,8 @@ sections:
     - scripts/apple_cross_client_e2e.py
     - scripts/tests/test_apple_cross_client_e2e.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1075,7 +1078,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
   - title: 'fix: omit weak News Search padding'
     section: bug_fixes
     commits:
@@ -1093,9 +1097,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:news
@@ -1124,7 +1128,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:news, embed:news:search, skill:news:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(apple): restore quick action and composer parity'
     section: bug_fixes
     commits:
@@ -1191,8 +1195,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1215,7 +1219,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'fix: retry blocked Siegessaeule proxy exits'
     section: bug_fixes
     commits:
@@ -1225,9 +1230,9 @@ sections:
     - backend/apps/events/providers/siegessaeule.py
     - backend/tests/test_events_provider_quality.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:events
@@ -1242,7 +1247,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:events'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: improve events search result quality'
     section: bug_fixes
     commits:
@@ -1269,9 +1274,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:events
@@ -1300,7 +1305,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve neutral GitHub discovery'
     section: bug_fixes
     commits:
@@ -1310,9 +1315,9 @@ sections:
     - backend/apps/ai/processing/search_skill_reliability.py
     - backend/apps/ai/tests/test_search_skill_reliability.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1327,7 +1332,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: cover generic repository ranking synonyms'
     section: bug_fixes
     commits:
@@ -1337,9 +1342,9 @@ sections:
     - backend/apps/ai/processing/search_skill_reliability.py
     - backend/apps/ai/tests/test_search_skill_reliability.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1354,7 +1359,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: reject invented repository ranking defaults'
     section: bug_fixes
     commits:
@@ -1365,9 +1370,9 @@ sections:
     - backend/apps/ai/processing/search_skill_reliability.py
     - backend/apps/ai/tests/test_search_skill_reliability.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1382,7 +1387,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep neutral search relevance criteria empty'
     section: bug_fixes
     commits:
@@ -1397,9 +1402,9 @@ sections:
     - frontend/packages/openmates-cli/src/generated/appSkills.ts
     - packages/openmates-python/openmates/generated/app_skills.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:code
@@ -1421,7 +1426,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:code, app:models3d'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf: route event providers and defer enrichment'
     section: improvements
@@ -1443,9 +1448,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:events
@@ -1474,7 +1479,7 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:events, embed:events:search, skill:events:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   docs:
   - title: 'docs: verify workflow AI implementation plan'
     section: docs
@@ -1483,7 +1488,7 @@ sections:
     authored_at: '2026-09-24T18:15:14+00:00'
     changed_paths:
     - docs/plans/workflows-ai-check-and-ask/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1491,7 +1496,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record event search comparison and E2E blocker'
     section: docs
     commits:
@@ -1500,7 +1505,7 @@ sections:
     changed_paths:
     - backend/apps/events/app.yml
     - docs/plans/event-search-routing-latency/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1516,7 +1521,7 @@ sections:
     rationale:
     - classified as documentation from commit subject/path rules
     - 'matches feature availability gates: app:events'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: cover existing speech charges in rollout'
     section: docs
     commits:
@@ -1524,7 +1529,7 @@ sections:
     authored_at: '2026-09-24T14:22:43+00:00'
     changed_paths:
     - docs/plans/assistant-speech-efficient-playback/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1532,7 +1537,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: plan demand-driven assistant speech'
     section: docs
     commits:
@@ -1540,7 +1545,7 @@ sections:
     authored_at: '2026-09-24T14:21:31+00:00'
     changed_paths:
     - docs/plans/assistant-speech-efficient-playback/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1548,7 +1553,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: record search quality verification'
     section: docs
     commits:
@@ -1556,7 +1561,7 @@ sections:
     authored_at: '2026-09-24T09:48:11+00:00'
     changed_paths:
     - docs/plans/search-result-quality-floor/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1564,7 +1569,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: restore verified relevance plan'
     section: docs
     commits:
@@ -1572,7 +1577,7 @@ sections:
     authored_at: '2026-09-24T01:00:49+00:00'
     changed_paths:
     - docs/plans/jev-repository-models3d-relevance/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1580,7 +1585,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: verify search relevance expansion'
     section: docs
     commits:
@@ -1588,7 +1593,7 @@ sections:
     authored_at: '2026-09-24T00:59:29+00:00'
     changed_paths:
     - docs/plans/jev-repository-models3d-relevance/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1596,7 +1601,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test: Bound assistant speech browser recording'
     section: tests
@@ -1607,7 +1612,7 @@ sections:
     - docs/plans/assistant-speech-efficient-playback/plan.yml
     - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1615,7 +1620,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'chore: remove dev notification routing probe'
     section: infrastructure
@@ -1624,7 +1629,7 @@ sections:
     authored_at: '2026-09-24T20:54:21+00:00'
     changed_paths:
     - backend/core/api/app/routes/websockets.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1632,691 +1637,19 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: Guard Watch notification handoff on macOS'
-    commits:
-    - bc9f8c5c6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'feat: Match Apple Watch Figma flows'
-    commits:
-    - 904e9540a
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:apple-watch
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'chore: remove dev notification routing probe'
-    commits:
-    - 9be29ea5d
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: align workflow builder UI with Figma'
-    commits:
-    - 2b4237b4a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: report macOS background state through shared socket'
-    commits:
-    - 275829e39
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: trace dev notification routing'
-    commits:
-    - 33118a274
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: complete Apple typing and composer parity'
-    commits:
-    - 48768e09d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: align Apple composer, typing, and Mac push'
-    commits:
-    - fdecda30e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'test: Bound assistant speech browser recording'
-    commits:
-    - f45e32932
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: stabilize Apple chat windows and key reuse'
-    commits:
-    - bfd5dbb56
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'docs: verify workflow AI implementation plan'
-    commits:
-    - 4973c85b3
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: Generate assistant speech on playback demand'
-    commits:
-    - a8c379909
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:audio
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/audio/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'feat: add AI checks and Ask AI to workflows'
-    commits:
-    - 05fc991f3
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix: restore macOS chat window and push parity'
-    commits:
-    - 7160debf6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: retire Suki and Welcome across clients'
-    commits:
-    - 95bb565b1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:openmates
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/openmates/app.yml
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: retire deprecated Google Events search provider'
-    commits:
-    - 13857ffef
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-    - id: skill:events:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-  - title: 'docs: record event search comparison and E2E blocker'
-    commits:
-    - 86f8eae56
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-  - title: 'fix: reconcile Apple chat and embed parity'
-    commits:
-    - 0bb337ef3
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:images:view
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: skill:images:view
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-  - title: 'perf: route event providers and defer enrichment'
-    commits:
-    - 2a598990c
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-    - id: skill:events:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-  - title: 'docs: cover existing speech charges in rollout'
-    commits:
-    - 6dc19a796
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: plan demand-driven assistant speech'
-    commits:
-    - 3a2423b35
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: prepare Apple signing keychain during TestFlight release'
-    commits:
-    - 5771efd68
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: reconcile Apple chat and media parity'
-    commits:
-    - 72943fb3c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:apple-watch
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'docs: record search quality verification'
-    commits:
-    - 1c5e24c75
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: omit weak News Search padding'
-    commits:
-    - d7843f0ac
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:news
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/news/app.yml
-    - id: embed:news:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:news
-      source: backend/apps/news/app.yml
-    - id: skill:news:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:news
-      source: backend/apps/news/app.yml
-  - title: 'fix(apple): restore quick action and composer parity'
-    commits:
-    - 24b07c442
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix: retry blocked Siegessaeule proxy exits'
-    commits:
-    - d7e6bdfb0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-  - title: 'fix: improve events search result quality'
-    commits:
-    - 68c39e1f0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-    - id: skill:events:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-  - title: 'docs: restore verified relevance plan'
-    commits:
-    - c3982339b
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: verify search relevance expansion'
-    commits:
-    - 1f143532c
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: preserve neutral GitHub discovery'
-    commits:
-    - e06e3dae5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: cover generic repository ranking synonyms'
-    commits:
-    - 6c0ff2438
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: reject invented repository ranking defaults'
-    commits:
-    - 94d61ff57
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: keep neutral search relevance criteria empty'
-    commits:
-    - 0ea92a1ab
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: app:models3d
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/models3d/app.yml
-  - title: 'feat: rank repository and 3D searches by relevance'
-    commits:
-    - 24c49f1b6
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-    - id: app:models3d
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/models3d/app.yml
-    - id: embed:code:search_repos
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-    - id: embed:models3d:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:models3d
-      source: backend/apps/models3d/app.yml
-    - id: skill:code:search_repos
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-    - id: skill:models3d:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:models3d
-      source: backend/apps/models3d/app.yml
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'feat: add AI checks and Ask AI to workflows'
     commits:
     - 05fc991f3
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2329,15 +1662,15 @@ unreleased_progress:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: disabled
+      override: null
       parent_id: null
       source: platform
   - title: 'fix: retire Suki and Welcome across clients'
     commits:
     - 95bb565b1
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2371,8 +1704,8 @@ unreleased_progress:
     commits:
     - 13857ffef
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2406,7 +1739,7 @@ unreleased_progress:
     commits:
     - 86f8eae56
     section: docs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features:
     - id: app:events
@@ -2420,8 +1753,8 @@ unreleased_progress:
     commits:
     - 2a598990c
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -2448,8 +1781,8 @@ unreleased_progress:
     commits:
     - d7843f0ac
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:news
       kind: app
@@ -2476,8 +1809,8 @@ unreleased_progress:
     commits:
     - 68c39e1f0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -2504,8 +1837,8 @@ unreleased_progress:
     commits:
     - 0ea92a1ab
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -2525,8 +1858,8 @@ unreleased_progress:
     commits:
     - 24c49f1b6
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -2571,14 +1904,301 @@ unreleased_progress:
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
 marketing_candidates:
-  newsletter: []
+  newsletter:
+  - title: 'fix: align workflow builder UI with Figma'
+    commits:
+    - 2b4237b4a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: trace dev notification routing'
+    commits:
+    - 33118a274
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: Generate assistant speech on playback demand'
+    commits:
+    - a8c379909
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: retire deprecated Google Events search provider'
+    commits:
+    - 13857ffef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'perf: route event providers and defer enrichment'
+    commits:
+    - 2a598990c
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: omit weak News Search padding'
+    commits:
+    - d7843f0ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: embed:news:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+    - id: skill:news:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:news
+      source: backend/apps/news/app.yml
+  - title: 'fix: retry blocked Siegessaeule proxy exits'
+    commits:
+    - d7e6bdfb0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+  - title: 'fix: improve events search result quality'
+    commits:
+    - 68c39e1f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: preserve neutral GitHub discovery'
+    commits:
+    - e06e3dae5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: cover generic repository ranking synonyms'
+    commits:
+    - 6c0ff2438
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: reject invented repository ranking defaults'
+    commits:
+    - 94d61ff57
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: keep neutral search relevance criteria empty'
+    commits:
+    - 0ea92a1ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+  - title: 'feat: rank repository and 3D searches by relevance'
+    commits:
+    - 24c49f1b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: embed:code:search_repos
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:models3d:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
+    - id: skill:code:search_repos
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:models3d:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:models3d
+      source: backend/apps/models3d/app.yml
   social_or_video:
   - title: 'fix: Guard Watch notification handoff on macOS'
     commits:
     - bc9f8c5c6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2599,8 +2219,8 @@ marketing_candidates:
     commits:
     - 904e9540a
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:apple-watch
       kind: platform
@@ -2628,16 +2248,16 @@ marketing_candidates:
     commits:
     - 2b4237b4a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: report macOS background state through shared socket'
     commits:
     - 275829e39
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2658,16 +2278,16 @@ marketing_candidates:
     commits:
     - 33118a274
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: complete Apple typing and composer parity'
     commits:
     - 48768e09d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2688,8 +2308,8 @@ marketing_candidates:
     commits:
     - fdecda30e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2710,8 +2330,8 @@ marketing_candidates:
     commits:
     - bfd5dbb56
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2732,8 +2352,8 @@ marketing_candidates:
     commits:
     - a8c379909
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2756,13 +2376,13 @@ marketing_candidates:
       override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: add AI checks and Ask AI to workflows'
     commits:
     - 05fc991f3
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2775,7 +2395,7 @@ marketing_candidates:
       kind: platform
       default_enabled: false
       effective_enabled: false
-      override: disabled
+      override: null
       parent_id: null
       source: platform
     newsletter_ready: false
@@ -2783,8 +2403,8 @@ marketing_candidates:
     commits:
     - 7160debf6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -2805,8 +2425,8 @@ marketing_candidates:
     commits:
     - 95bb565b1
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2841,8 +2461,8 @@ marketing_candidates:
     commits:
     - 13857ffef
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2872,13 +2492,13 @@ marketing_candidates:
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: reconcile Apple chat and embed parity'
     commits:
     - 0bb337ef3
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2927,8 +2547,8 @@ marketing_candidates:
     commits:
     - 2a598990c
     section: improvements
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -2951,13 +2571,13 @@ marketing_candidates:
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: reconcile Apple chat and media parity'
     commits:
     - 72943fb3c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:apple-watch
       kind: platform
@@ -2985,8 +2605,8 @@ marketing_candidates:
     commits:
     - d7843f0ac
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:news
       kind: app
@@ -3009,13 +2629,13 @@ marketing_candidates:
       override: null
       parent_id: app:news
       source: backend/apps/news/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(apple): restore quick action and composer parity'
     commits:
     - 24b07c442
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:ios
       kind: platform
@@ -3036,8 +2656,8 @@ marketing_candidates:
     commits:
     - d7e6bdfb0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -3046,13 +2666,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/events/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: improve events search result quality'
     commits:
     - 68c39e1f0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:events
       kind: app
@@ -3075,13 +2695,13 @@ marketing_candidates:
       override: null
       parent_id: app:events
       source: backend/apps/events/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: preserve neutral GitHub discovery'
     commits:
     - e06e3dae5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3090,13 +2710,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: cover generic repository ranking synonyms'
     commits:
     - 6c0ff2438
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3105,13 +2725,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: reject invented repository ranking defaults'
     commits:
     - 94d61ff57
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3120,13 +2740,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: keep neutral search relevance criteria empty'
     commits:
     - 0ea92a1ab
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -3142,13 +2762,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/models3d/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'feat: rank repository and 3D searches by relevance'
     commits:
     - 24c49f1b6
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:code
       kind: app
@@ -3192,7 +2812,7 @@ marketing_candidates:
       override: null
       parent_id: app:models3d
       source: backend/apps/models3d/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -3204,7 +2824,7 @@ sources:
     short_sha: bc9f8c5c6
     authored_at: '2026-09-25T00:46:37+02:00'
     subject: 'fix: Guard Watch notification handoff on macOS'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
@@ -3215,7 +2835,7 @@ sources:
     short_sha: 904e9540a
     authored_at: '2026-09-25T00:37:51+02:00'
     subject: 'feat: Match Apple Watch Figma flows'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates.xcodeproj/project.pbxproj
@@ -3258,7 +2878,7 @@ sources:
     short_sha: 9be29ea5d
     authored_at: '2026-09-24T20:54:21+00:00'
     subject: 'chore: remove dev notification routing probe'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/websockets.py
@@ -3267,7 +2887,7 @@ sources:
     short_sha: 2b4237b4a
     authored_at: '2026-09-24T20:41:00+00:00'
     subject: 'fix: align workflow builder UI with Figma'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
@@ -3281,7 +2901,7 @@ sources:
     short_sha: 275829e39
     authored_at: '2026-09-24T20:13:23+00:00'
     subject: 'fix: report macOS background state through shared socket'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/App/MainAppView.swift
@@ -3294,7 +2914,7 @@ sources:
     short_sha: 33118a274
     authored_at: '2026-09-24T20:02:57+00:00'
     subject: 'fix: trace dev notification routing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/websockets.py
@@ -3303,7 +2923,7 @@ sources:
     short_sha: 48768e09d
     authored_at: '2026-09-24T19:15:07+00:00'
     subject: 'fix: complete Apple typing and composer parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
@@ -3319,7 +2939,7 @@ sources:
     short_sha: fdecda30e
     authored_at: '2026-09-24T19:10:17+00:00'
     subject: 'fix: align Apple composer, typing, and Mac push'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/App/MainAppView.swift
@@ -3335,7 +2955,7 @@ sources:
     short_sha: f45e32932
     authored_at: '2026-09-24T18:28:15+00:00'
     subject: 'test: Bound assistant speech browser recording'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/assistant-speech-efficient-playback/plan.yml
@@ -3346,7 +2966,7 @@ sources:
     short_sha: bfd5dbb56
     authored_at: '2026-09-24T18:22:54+00:00'
     subject: 'fix: stabilize Apple chat windows and key reuse'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/App/MainAppView.swift
@@ -3363,7 +2983,7 @@ sources:
     short_sha: 4973c85b3
     authored_at: '2026-09-24T18:15:14+00:00'
     subject: 'docs: verify workflow AI implementation plan'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/workflows-ai-check-and-ask/plan.yml
@@ -3372,7 +2992,7 @@ sources:
     short_sha: a8c379909
     authored_at: '2026-09-24T17:57:19+00:00'
     subject: 'feat: Generate assistant speech on playback demand'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/skills/ask_skill.py
@@ -3414,7 +3034,7 @@ sources:
     short_sha: 05fc991f3
     authored_at: '2026-09-24T17:53:25+00:00'
     subject: 'feat: add AI checks and Ask AI to workflows'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -3456,7 +3076,7 @@ sources:
     short_sha: 7160debf6
     authored_at: '2026-09-24T17:11:22+00:00'
     subject: 'fix: restore macOS chat window and push parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/App/MainAppView.swift
@@ -3477,7 +3097,7 @@ sources:
     short_sha: 95bb565b1
     authored_at: '2026-09-24T16:14:44+00:00'
     subject: 'fix: retire Suki and Welcome across clients'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
@@ -3538,7 +3158,7 @@ sources:
     short_sha: 13857ffef
     authored_at: '2026-09-24T15:13:46+00:00'
     subject: 'fix: retire deprecated Google Events search provider'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/daily_inspiration/feature_suggestions.py
@@ -3569,7 +3189,7 @@ sources:
     short_sha: 86f8eae56
     authored_at: '2026-09-24T14:50:40+00:00'
     subject: 'docs: record event search comparison and E2E blocker'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/events/app.yml
@@ -3580,7 +3200,7 @@ sources:
     short_sha: 0bb337ef3
     authored_at: '2026-09-24T16:46:35+02:00'
     subject: 'fix: reconcile Apple chat and embed parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/App/MainAppView.swift
@@ -3627,7 +3247,7 @@ sources:
     short_sha: 2a598990c
     authored_at: '2026-09-24T14:37:38+00:00'
     subject: 'perf: route event providers and defer enrichment'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/events/app.yml
@@ -3652,7 +3272,7 @@ sources:
     short_sha: 6dc19a796
     authored_at: '2026-09-24T14:22:43+00:00'
     subject: 'docs: cover existing speech charges in rollout'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/assistant-speech-efficient-playback/plan.yml
@@ -3661,7 +3281,7 @@ sources:
     short_sha: 3a2423b35
     authored_at: '2026-09-24T14:21:31+00:00'
     subject: 'docs: plan demand-driven assistant speech'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/assistant-speech-efficient-playback/plan.yml
@@ -3670,7 +3290,7 @@ sources:
     short_sha: 5771efd68
     authored_at: '2026-09-24T14:59:23+02:00'
     subject: 'fix: prepare Apple signing keychain during TestFlight release'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/apple_testflight_release.py
@@ -3680,7 +3300,7 @@ sources:
     short_sha: 72943fb3c
     authored_at: '2026-09-24T14:36:10+02:00'
     subject: 'fix: reconcile Apple chat and media parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .gitignore
@@ -3743,7 +3363,7 @@ sources:
     short_sha: 1c5e24c75
     authored_at: '2026-09-24T09:48:11+00:00'
     subject: 'docs: record search quality verification'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/search-result-quality-floor/plan.yml
@@ -3752,7 +3372,7 @@ sources:
     short_sha: d7843f0ac
     authored_at: '2026-09-24T09:41:47+00:00'
     subject: 'fix: omit weak News Search padding'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/news/app.yml
@@ -3774,7 +3394,7 @@ sources:
     short_sha: 24b07c442
     authored_at: '2026-09-24T05:01:07+02:00'
     subject: 'fix(apple): restore quick action and composer parity'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .agents/skills/define-specification/SKILL.md
@@ -3844,7 +3464,7 @@ sources:
     short_sha: d7e6bdfb0
     authored_at: '2026-09-24T02:45:43+00:00'
     subject: 'fix: retry blocked Siegessaeule proxy exits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/events/providers/siegessaeule.py
@@ -3856,7 +3476,7 @@ sources:
     short_sha: 68c39e1f0
     authored_at: '2026-09-24T02:19:06+00:00'
     subject: 'fix: improve events search result quality'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/events/app.yml
@@ -3887,7 +3507,7 @@ sources:
     short_sha: c3982339b
     authored_at: '2026-09-24T01:00:49+00:00'
     subject: 'docs: restore verified relevance plan'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/jev-repository-models3d-relevance/plan.yml
@@ -3896,7 +3516,7 @@ sources:
     short_sha: 1f143532c
     authored_at: '2026-09-24T00:59:29+00:00'
     subject: 'docs: verify search relevance expansion'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/jev-repository-models3d-relevance/plan.yml
@@ -3905,7 +3525,7 @@ sources:
     short_sha: e06e3dae5
     authored_at: '2026-09-24T00:54:44+00:00'
     subject: 'fix: preserve neutral GitHub discovery'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/search_skill_reliability.py
@@ -3917,7 +3537,7 @@ sources:
     short_sha: 6c0ff2438
     authored_at: '2026-09-24T00:50:17+00:00'
     subject: 'fix: cover generic repository ranking synonyms'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/search_skill_reliability.py
@@ -3929,7 +3549,7 @@ sources:
     short_sha: 94d61ff57
     authored_at: '2026-09-24T00:46:26+00:00'
     subject: 'fix: reject invented repository ranking defaults'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -3942,7 +3562,7 @@ sources:
     short_sha: 0ea92a1ab
     authored_at: '2026-09-24T00:36:40+00:00'
     subject: 'fix: keep neutral search relevance criteria empty'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/code/app.yml
@@ -3960,7 +3580,7 @@ sources:
     short_sha: 24c49f1b6
     authored_at: '2026-09-24T00:18:37+00:00'
     subject: 'feat: rank repository and 3D searches by relevance'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/code/app.yml
@@ -3999,109 +3619,158 @@ sources:
     - skill:code:search_repos
     - skill:models3d:search
 llm_summary:
-  overview: OpenMates focused on cross-platform parity for Apple devices, refined search relevance across multiple domains,
-    and introduced a more efficient demand-driven model for assistant speech generation.
-  released_changes: []
-  bug_fixes:
-  - text: Stabilized the Apple ecosystem experience by fixing macOS background state reporting, chat window management, and
-      push notification handoff.
-    evidence:
-      commits:
-      - bc9f8c5c6
-      - 275829e39
-      - bfd5dbb56
-      - 7160debf6
-    release_status: dev_only
-  - text: Refined search reliability for repositories and events by rejecting invented ranking defaults and improving proxy
-      exit handling.
-    evidence:
-      commits:
-      - e06e3dae5
-      - 94d61ff57
-      - d7e6bdfb0
-      - 6c0ff2438
-    release_status: dev_only
-  - text: Aligned the workflow builder UI and Apple composer components with Figma design specifications.
-    evidence:
-      commits:
-      - 2b4237b4a
-      - 48768e09d
-      - fdecda30e
-      - 24b07c442
-    release_status: dev_only
-  unreleased_progress:
-  - text: OpenMates added new Apple Watch flows to match Figma designs, including pairing runtimes and chat layout logic.
-    evidence:
-      commits:
-      - 904e9540a
-    release_status: dev_only
-  - text: Development began on demand-driven assistant speech, which generates audio only when playback is requested to optimize
-      resource usage.
+  overview: OpenMates focused on search relevance and audio efficiency today, introducing on-demand assistant speech generation
+    and relevance-based ranking for repository and 3D searches. Significant work also went into event search quality and stabilizing
+    unreleased Apple platform clients.
+  released_changes:
+  - text: Assistant speech generation has transitioned to a demand-driven model, where audio is produced only when a user
+      initiates playback.
     evidence:
       commits:
       - a8c379909
-      - f45e32932
-    release_status: dev_only
-  - text: Workflows now support AI-powered checks and 'Ask AI' steps for automated decision-making.
-    evidence:
-      commits:
-      - 05fc991f3
-    release_status: dev_only
-  - text: Search relevance ranking was implemented for repository and 3D model searches, alongside optimized event provider
-      routing.
+    release_status: released_main
+  - text: Relevance-based ranking is now active for repository and 3D model searches, moving away from simple chronological
+      or unranked results.
     evidence:
       commits:
       - 24c49f1b6
-      - 0ea92a1ab
+    release_status: released_main
+  - text: The events app now utilizes provider-specific routing and deferred metadata enrichment to decrease search latency.
+    evidence:
+      commits:
       - 2a598990c
-    release_status: dev_only
-  - text: The project retired the Suki and Welcome focus modes and deprecated the Google Events search provider in favor of
-      more relevant sources.
+      - 68c39e1f0
+    release_status: released_main
+  - text: News search relevance was refined by omitting weak result padding.
     evidence:
       commits:
-      - 95bb565b1
+      - d7843f0ac
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now maintains neutral search relevance criteria by keeping default criteria empty for code and 3D model
+      searches.
+    evidence:
+      commits:
+      - 0ea92a1ab
+    release_status: released_main
+  - text: Repository discovery logic was refined to preserve neutral GitHub results, cover ranking synonyms, and reject invented
+      default values.
+    evidence:
+      commits:
+      - e06e3dae5
+      - 6c0ff2438
+      - 94d61ff57
+    release_status: released_main
+  - text: The Siegessaeule event provider now includes retry logic for blocked proxy exits to improve reliability.
+    evidence:
+      commits:
+      - d7e6bdfb0
+    release_status: released_main
+  - text: The deprecated Google Events search provider has been retired across the backend and frontend.
+    evidence:
+      commits:
       - 13857ffef
-    release_status: dev_only
-  internal_progress:
-  - text: Updated Apple TestFlight release scripts to automate signing keychain preparation.
-    evidence:
-      commits:
-      - 5771efd68
-    release_status: dev_only
-  - text: Conducted temporary tracing of notification routing within the development environment.
+    release_status: released_main
+  - text: Diagnostic tracing was added to dev notification routing to assist with websocket debugging.
     evidence:
       commits:
       - 33118a274
+    release_status: released_main
+  unreleased_progress:
+  - text: AI-powered checks and 'Ask AI' steps were integrated into the unreleased workflows platform.
+    evidence:
+      commits:
+      - 05fc991f3
+    release_status: released_main
+  - text: Extensive development continued on Apple platforms, including Apple Watch Figma parity, macOS background state reporting,
+      and cross-client chat synchronization.
+    evidence:
+      commits:
+      - 904e9540a
+      - bc9f8c5c6
+      - 275829e39
+      - 48768e09d
+      - fdecda30e
+      - bfd5dbb56
+      - 7160debf6
+      - 0bb337ef3
+      - 72943fb3c
+      - 24b07c442
+    release_status: released_main
+  - text: The Suki and Welcome mates are being retired across Apple clients as part of onboarding updates.
+    evidence:
+      commits:
+      - 95bb565b1
+    release_status: released_main
+  internal_progress:
+  - text: The TestFlight release process now includes automated preparation of the Apple signing keychain.
+    evidence:
+      commits:
+      - 5771efd68
+    release_status: released_main
+  - text: A temporary dev notification routing probe was removed from the websocket routes.
+    evidence:
+      commits:
       - 9be29ea5d
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Apple Watch Figma parity flows.
+    include:
+    - text: Assistant speech is now generated on-demand during playback rather than at message receipt, improving efficiency.
       evidence:
         commits:
-        - 904e9540a
-      reason: Platform is currently disabled in feature availability.
+        - a8c379909
+      reason: Significant user-facing improvement to audio interaction and billing efficiency.
+    - text: Repository and 3D model searches are now ranked by relevance to provide more accurate results.
+      evidence:
+        commits:
+        - 24c49f1b6
+      reason: Core search improvement for developers and 3D creators.
+    - text: Event search now features optimized provider routing and deferred enrichment to reduce latency and improve result
+        quality.
+      evidence:
+        commits:
+        - 2a598990c
+        - 68c39e1f0
+      reason: Improves the speed and quality of event discovery.
+    - text: News search results were improved by removing weak padding from the relevance logic.
+      evidence:
+        commits:
+        - d7843f0ac
+      reason: Refinement of the news discovery experience.
+    exclude:
     - text: AI checks and Ask AI integration for workflows.
       evidence:
         commits:
         - 05fc991f3
-      reason: Feature is currently disabled in feature availability.
-    - text: Demand-driven assistant speech generation.
+      reason: Workflows are currently a disabled feature.
+    - text: Apple Watch Figma flow parity.
       evidence:
         commits:
-        - a8c379909
-      reason: Commit is not reachable from main and is marked dev_only.
-    rationale: No items from this period are both released to main and marked as ready for public communication. All user-facing
-      improvements are currently in development or tied to disabled feature gates.
+        - 904e9540a
+      reason: Apple Watch platform is currently a disabled feature.
+    - text: Workflow builder UI alignment with Figma.
+      evidence:
+        commits:
+        - 2b4237b4a
+      reason: Relates to the disabled workflows platform.
+    rationale: The update focuses on significant improvements to search relevance across multiple domains (code, 3D, events,
+      and news) and a more efficient on-demand model for assistant speech. Work related to Apple platforms and Workflows is
+      excluded as those features are currently disabled.
   social_video_recommendations:
-  - idea: A preview of OpenMates on Apple Watch, highlighting the pairing and chat synchronization flows.
-    priority: medium
-    reason: The Apple Watch parity work represents a significant expansion of the ecosystem, even while unreleased.
+  - idea: A short demonstration of the new 'Generate on Playback' assistant speech, highlighting the speed of on-demand audio.
+    priority: high
+    reason: This is a concrete product improvement that affects user experience and system efficiency.
     evidence:
       commits:
-      - 904e9540a
+      - a8c379909
+  - idea: A side-by-side comparison of old vs. new search results for 3D models and code repositories.
+    priority: medium
+    reason: Visualizes the impact of the new relevance ranking logic.
+    evidence:
+      commits:
+      - 24c49f1b6
   quality_notes:
-  - Extensive use of parity tests (ChatSyncParity, SettingsFullParity) to ensure consistency across web and native clients.
-  - Significant focus on search result quality floors and relevance ranking verification.
+  - Extensive parity testing was performed across Apple clients (iOS, macOS, Watch) despite those platforms remaining disabled
+    in the current configuration.
+  - Search relevance logic was standardized across code, 3D models, and news apps.
   validation_warnings: []
