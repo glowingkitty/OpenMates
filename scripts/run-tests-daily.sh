@@ -24,8 +24,8 @@ python3 "$CI_CANONICAL/scripts/ci_dispatch.py" --worktree "$CI_WORKTREE" --daily
 dispatch_status=$?
 set -e
 if [[ "$dispatch_status" -ne 0 ]]; then
-  # A selection/preflight abort is a real nightly failure even when no CI job
-  # or legacy last-run.json exists. The notifier deduplicates channel sends.
-  python3 "$CI_CANONICAL/scripts/daily_ci_notification.py" --send || true
+  # An actual dispatch blocker gets a concise immediate alert. The daily
+  # digest waits for validated results or its reporting deadline.
+  python3 "$CI_CANONICAL/scripts/daily_ci_notification.py" --alert || true
 fi
 exit "$dispatch_status"

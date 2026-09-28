@@ -1933,6 +1933,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
     summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
     failure_groups: Optional[List[Dict[str, str]]] = None  # Canonical suite/product-area email grouping
+    daily_digest: Optional[Dict[str, Any]] = None  # Structured, compact nightly CI email
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1997,6 +1998,7 @@ async def dispatch_test_summary_email(
                 "subject_override": payload.subject_override,
                 "summary_copy": payload.summary_copy,
                 "failure_groups": payload.failure_groups,
+                "daily_digest": payload.daily_digest,
             },
             queue="email",
         )

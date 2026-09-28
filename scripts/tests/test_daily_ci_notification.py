@@ -50,7 +50,7 @@ def test_aborted_selection_reports_actual_unit_failures_without_inventing_browse
     ])
     monkeypatch.setattr(notice, "selection_diagnostic", lambda *_: "Unclassified AI spec: new.spec.ts")
     report = notice.build_report(tmp_path, day, datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
-    assert report["status"] == "blocked" and report["ready"]
+    assert report["status"] == "blocked" and not report["ready"]
     assert report["source_commit"] == source
     assert report["selected_specs"] is None and report["held_specs"] is None
     assert report["admitted_specs"] == 0
@@ -59,7 +59,9 @@ def test_aborted_selection_reports_actual_unit_failures_without_inventing_browse
     assert report["known_total_tests"] == 3 and report["known_failed_tests"] == 2
     assert report["failed_case_files"] == [("test_workflow.py", 2)]
     assert report["failing_vitest_workspaces"] == ["frontend/apps/web_app"]
-    assert "Browser inventory: unknown" in notice.format_report(report)[1]
+    assert "Web spec inventory: unknown" in notice.format_report(report)[1]
+    assert report["areas"]["unit"]["executed"] == 3
+    assert report["apple_e2e"]["status"] == "not_scheduled"
 
 
 def test_notification_retries_only_failed_channel_for_same_revision(tmp_path, monkeypatch):
@@ -101,6 +103,8 @@ def test_email_dispatch_uses_internal_vault_backed_task_and_confirms_result(tmp_
     report = {
         "date": "2026-09-28", "status": "blocked", "source_commit": "a" * 40,
         "job_count": 2, "job_states": {"failure": 2},
+        "known_total_tests": 3, "known_passed_tests": 1,
+        "known_failed_tests": 2, "known_skipped_tests": 0,
     }
     monkeypatch.setattr(notice, "configured_value", lambda _root, key: {
         "ADMIN_NOTIFY_EMAIL": "admin@example.test",
@@ -130,5 +134,56 @@ def test_email_dispatch_uses_internal_vault_backed_task_and_confirms_result(tmp_
     result = notice.deliver_email(tmp_path, "Daily CI blocked", "real report body", report)
     assert result["status"] == "provider_accepted"
     assert seen["url"].endswith("/internal/dispatch-test-summary-email")
-    assert seen["payload"]["total"] == 2 and seen["payload"]["failed"] == 2
-    assert seen["payload"]["failure_groups"][0]["description"] == "real report body"
+    assert seen["payload"]["total"] == 3 and seen["payload"]["failed"] == 2
+    assert seen["payload"]["daily_digest"]["rows"][2]["name"] == "Web E2E"
+    assert "failure_groups" not in seen["payload"]
+
+
+def test_rollup_separates_skips_and_flaky_execution() -> None:
+    rows = [
+        {"total": 5, "passed": 2, "failed": 1, "skipped": 2},
+        {"total": 4, "passed": 1, "failed": 1, "skipped": 1, "flaky": 1},
+    ]
+    assert notice.rollup(rows) == {
+        "collected": 9, "executed": 6, "passed": 3,
+        "failed": 2, "skipped": 3, "flaky": 1,
+    }
+
+
+def test_apple_receipt_requires_exact_source_and_case_arithmetic(tmp_path) -> None:
+    day = date(2026, 9, 28)
+    path = tmp_path / "test-results/daily-runs/apple/2026-09-28.json"
+    path.parent.mkdir(parents=True)
+    payload = {"date": day.isoformat(), "source_commit": "a" * 40, "status": "passed",
+               "targets": [{"platform": "ios", "counts": {"total": 4, "passed": 3, "failed": 0, "skipped": 1}}]}
+    path.write_text(json.dumps(payload))
+    assert notice.apple_daily_result(tmp_path, day, "b" * 40)["status"] == "invalid_receipt"
+    assert notice.apple_daily_result(tmp_path, day, "a" * 40)["counts"]["executed"] == 3
+    payload["targets"][0]["counts"]["total"] = 5
+    path.write_text(json.dumps(payload))
+    assert notice.apple_daily_result(tmp_path, day, "a" * 40)["status"] == "invalid_receipt"
+
+
+def test_finalizer_waits_for_apple_or_deadline_and_counts_native_failure(tmp_path):
+    day = date(2026, 9, 28)
+    source = "a" * 40
+    daily = tmp_path / "test-results/daily-runs"
+    daily.mkdir(parents=True)
+    (daily / "run.json").write_text(json.dumps({
+        "created": datetime(2026, 9, 28, 3, tzinfo=timezone.utc).timestamp(),
+        "run_date": day.isoformat(), "source_commit": source, "jobs": ["pytest"],
+        "selected_specs": [], "held_specs": [],
+    }))
+    fixture_job(tmp_path, day=day, job_id="pytest", mode="pytest", source=source, state="success", run_id=11)
+    fixture_receipt(tmp_path, "pytest", source, 11, [])
+    early = notice.build_report(tmp_path, day, datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
+    assert early["status"] == "incomplete" and not early["ready"]
+    apple_path = daily / "apple/2026-09-28.json"
+    apple_path.parent.mkdir()
+    apple_path.write_text(json.dumps({
+        "date": day.isoformat(), "source_commit": source, "status": "failed",
+        "targets": [{"platform": "ios", "counts": {"total": 2, "passed": 1, "failed": 1, "skipped": 0}}],
+    }))
+    final = notice.build_report(tmp_path, day, datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
+    assert final["status"] == "failed_or_held" and final["ready"]
+    assert final["apple_e2e"]["counts"]["executed"] == 2

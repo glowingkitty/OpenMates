@@ -18,7 +18,9 @@ Architecture: run-tests-daily.sh → dispatches this task via celery_dispatch_ta
 import logging
 import asyncio
 import re
+from html import escape
 from typing import List, Dict, Any, Optional
+from urllib.parse import urlparse
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -98,6 +100,41 @@ def _sanitize_failure_groups(failure_groups: List[Dict[str, str]]) -> List[Dict[
     ]
 
 
+def _sanitize_daily_digest(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Bound the structured nightly email without accepting arbitrary HTML or links."""
+    def safe(value: Any, limit: int = 180) -> str:
+        return escape(_sanitize_email_text(value, limit=limit))
+
+    def count(value: Any) -> int:
+        return value if type(value) is int and 0 <= value <= 10_000_000 else 0
+
+    url = str(raw.get("report_url") or "")
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc != "api.dev.openmates.org" or not parsed.path.startswith("/v1/status/tests/daily/"):
+        url = ""
+    rows = []
+    for item in (raw.get("rows") or [])[:5]:
+        if not isinstance(item, dict):
+            continue
+        rows.append({
+            "name": safe(item.get("name"), 50),
+            "detail": safe(item.get("detail"), 180),
+            "executed": count(item.get("executed")),
+            "passed": count(item.get("passed")),
+            "failed": count(item.get("failed")),
+            "skipped": count(item.get("skipped")),
+        })
+    return {
+        "date": safe(raw.get("date"), 20),
+        "status": safe(raw.get("status"), 20),
+        "source": safe(raw.get("source"), 12),
+        "rows": rows,
+        "signup": safe(raw.get("signup"), 180),
+        "highlights": [safe(item, 160) for item in (raw.get("highlights") or [])[:3]],
+        "report_url": escape(url, quote=True),
+    }
+
+
 @app.task(
     name="app.tasks.email_tasks.test_run_summary_email_task.send_test_run_summary",
     base=BaseServiceTask,
@@ -122,6 +159,7 @@ def send_test_run_summary(
     subject_override: str = None,
     summary_copy: Dict[str, str] = None,
     failure_groups: List[Dict[str, str]] = None,
+    daily_digest: Dict[str, Any] = None,
 ) -> bool:
     """
     Celery task to send a single daily test run summary email to the admin.
@@ -180,6 +218,7 @@ def send_test_run_summary(
                 subject_override=subject_override,
                 summary_copy=summary_copy,
                 failure_groups=failure_groups,
+                daily_digest=daily_digest,
             )
         )
         if result:
@@ -221,6 +260,7 @@ async def _async_send_test_run_summary(
     subject_override: str = None,
     summary_copy: Dict[str, str] = None,
     failure_groups: List[Dict[str, str]] = None,
+    daily_digest: Dict[str, Any] = None,
 ) -> bool:
     """
     Async implementation for sending the daily test run summary email.
@@ -381,6 +421,7 @@ async def _async_send_test_run_summary(
             "all_tests_omitted_count": all_tests_omitted_count,
             "all_tests_limit": MAX_ALL_TESTS_IN_EMAIL,
             "summary_copy": sanitized_summary_copy,
+            "daily_digest": _sanitize_daily_digest(daily_digest) if daily_digest else None,
         }
 
         logger.info(
@@ -389,7 +430,7 @@ async def _async_send_test_run_summary(
         )
 
         email_success = await task.email_template_service.send_email(
-            template="test_run_summary",
+            template="daily_ci_digest" if daily_digest else "test_run_summary",
             recipient_email=admin_email,
             context=email_context,
             subject=subject,

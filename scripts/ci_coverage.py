@@ -12,6 +12,10 @@ from pathlib import Path
 
 CORE_SPECS = frozenset({
     # Reviewed ordinary suites use core auth/state only; assertion failures are results.
+    # The nightly digest preview and status route use only static fixtures and
+    # mocked public status data; neither needs provider credentials.
+    "components/daily-test-digest.spec.ts",
+    "status-page-daily-report.spec.ts",
     "a11y-keyboard-nav.spec.ts",
     "a11y-modal-dialogs.spec.ts",
     "a11y-pages.spec.ts",

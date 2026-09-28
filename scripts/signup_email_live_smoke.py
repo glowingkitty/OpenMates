@@ -229,7 +229,9 @@ def main():
     parser.add_argument("--observe-since", type=float, help="Read-only recheck of this alias since an existing attempt's Unix timestamp; never sends")
     parser.add_argument("--dev-host", action="store_true", required=True, help="Explicit dev-server-only live health layer")
     args = parser.parse_args()
-    report = {"passed": False, "queue_acknowledged": False, "provider_acceptance": "not_attempted", "inbox_arrival": "not_attempted", "execution_surface": "dev_host_global_cli", "cleanup": "no_account_created; isolated_cli_state_removed; scoped_cache_keys_expire; inbox_readonly"}
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", args.run_id):
+        parser.error("invalid_run_id")
+    report = {"run_id": args.run_id, "passed": False, "queue_acknowledged": False, "provider_acceptance": "not_attempted", "inbox_arrival": "not_attempted", "execution_surface": "dev_host_global_cli", "cleanup": "no_account_created; isolated_cli_state_removed; scoped_cache_keys_expire; inbox_readonly"}
     try:
         require_dev_host()
         # Reuse the established local configuration reader; never move secrets
@@ -249,6 +251,9 @@ def main():
         report["error"] = "unexpected_probe_error"
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + "\n")
+    daily_path = args.report.parent / "signup-email-reports" / f"{args.run_id}.json"
+    daily_path.parent.mkdir(parents=True, exist_ok=True)
+    daily_path.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report))
     return 0 if report["passed"] else 1
 
