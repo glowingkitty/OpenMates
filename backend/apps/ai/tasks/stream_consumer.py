@@ -74,9 +74,9 @@ from backend.apps.ai.utils.embeds_map_view import (
 from backend.shared.python_utils.billing_utils import (
     calculate_credits_from_tokens,
     calculate_real_and_charged_costs,
-    calculate_total_credits,
     get_usd_per_credit,
 )
+from backend.apps.ai.processing.model_usage_tracker import calculate_model_usage_credits
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions
@@ -3199,7 +3199,6 @@ async def _handle_normal_billing(
             "system_prompt_tokens": system_prompt_tokens or 0,
         }]
 
-    raw_credits = 0.0
     real_cost_usd = 0.0
     all_models_local = True
     for bucket in model_usage_buckets:
@@ -3238,7 +3237,6 @@ async def _handle_normal_billing(
             total_credits_charged=0,
             pricing_config=pricing_config,
         )
-        raw_credits += bucket_raw_credits
         real_cost_usd += bucket_costs["real_cost_usd"]
         all_models_local = all_models_local and bool(
             model_pricing_details.get("local") or model_pricing_details.get("self_hosted")
@@ -3252,7 +3250,11 @@ async def _handle_normal_billing(
     # This is one user-visible AI usage charge even when provider fallback creates
     # several pricing buckets. Sum fractional credits first, then apply the normal
     # floor/minimum exactly once to avoid per-provider rounding distortion.
-    credits_charged = calculate_total_credits(pricing_config={"fixed": raw_credits})
+    credits_charged = calculate_model_usage_credits(
+        model_usage_buckets,
+        celery_config.config_manager.get_model_pricing,
+        default_provider=usage_provider_name,
+    )
     charged_cost_usd = credits_charged * get_usd_per_credit()
     costs = {
         "real_cost_usd": real_cost_usd,
@@ -8467,6 +8469,9 @@ async def _consume_main_processing_stream(
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
+        else:
+            terminal_failure_reason = terminal_failure_reason or "stream_error"
+            debug_metadata["main_processing_failure_reason"] = terminal_failure_reason
     finally:
         if pre_main_open:
             pre_main_scope.__exit__(None, None, None)

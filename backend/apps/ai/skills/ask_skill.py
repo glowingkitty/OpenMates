@@ -1,6 +1,7 @@
 # backend/apps/ai/skills/ask_skill.py
 # Defines the AskSkill for the AI App, which handles user queries.
 
+import asyncio
 import logging
 from typing import List, Dict, Any, Optional, Union
 from fastapi import HTTPException
@@ -13,8 +14,13 @@ from celery import Celery # For sending tasks
 
 from backend.apps.base_skill import BaseSkill # Adjusted import path
 from backend.core.api.app.schemas.chat import AIHistoryMessage # Import the message model
+from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
 
 logger = logging.getLogger(__name__)
+
+# The AI worker request is bounded at 1,800 seconds. Allow a short delivery
+# grace period before declaring a missing terminal Redis frame.
+OPENAI_STREAM_COMPLETION_TIMEOUT_SECONDS = 1830.0
 
 # The Celery producer instance (self.celery_producer) is now expected to be passed
 # by BaseApp during skill instantiation and stored in BaseSkill.
@@ -196,6 +202,8 @@ class OpenAICompletionRequest(BaseModel):
     ctx_api_key_hash: Optional[str] = Field(default=None, alias="_api_key_hash", description="SHA-256 hash of API key (injected by API)")
     ctx_device_hash: Optional[str] = Field(default=None, alias="_device_hash", description="SHA-256 hash of device (injected by API)")
     ctx_api_key_encrypted_name: Optional[str] = Field(default=None, alias="_api_key_name", description="Encrypted name of API key (injected by API)")
+    ctx_chat_id: Optional[str] = Field(default=None, alias="_chat_id", description="Server-supplied chat identity for internal request correlation.")
+    ctx_message_id: Optional[str] = Field(default=None, alias="_message_id", description="Server-supplied message identity for internal request correlation.")
     
     # Allow extra fields to be passed through (for future context metadata) and populate by field name
     model_config = {"extra": "allow", "populate_by_name": True}
@@ -254,6 +262,10 @@ class OpenAIStreamResponse(BaseModel):
     model: str = Field(..., description="The model used for completion.")
     choices: List[OpenAIStreamChoice] = Field(..., description="A list of completion choices.")
     usage: Optional[OpenAIUsage] = Field(default=None, description="Usage statistics for the completion request (only in final chunk).")
+    # OpenMates extension: the final frame carries the authoritative cumulative
+    # snapshot. Standard OpenAI clients can ignore this top-level field while
+    # internal adapters use it to apply stream-time prefix rewrites safely.
+    full_content: Optional[str] = Field(default=None, description="Authoritative final response snapshot (OpenMates extension).")
     
     # Exclude null fields from JSON output
     model_config = {"from_attributes": True}
@@ -354,8 +366,14 @@ class AskSkill(BaseSkill):
 
         if not self.celery_producer:
             logger.error(f"Celery producer not available in AskSkill '{self.skill_name}'. Cannot dispatch task.")
+            await notify_chat_failure(
+                f"{request.chat_id}:{request.message_id}",
+                stage="dispatch",
+                category="unexpected_error",
+            )
             raise HTTPException(status_code=500, detail="AI processing service (Celery producer) is not configured correctly.")
 
+        task_id = None
         try:
             # Use the shared Celery app from celery_config and import the task directly
             # This ensures we use the registered task object, which is more reliable than send_task
@@ -380,6 +398,11 @@ class AskSkill(BaseSkill):
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
         except Exception as e:
             logger.error(f"AskSkill failed to dispatch Celery task 'apps.ai.tasks.skill_ask': {e}", exc_info=True)
+            await notify_chat_failure(
+                f"{request.chat_id}:{request.message_id}",
+                stage="dispatch",
+                category="unexpected_error",
+            )
             # It's important to ensure the broker is reachable from the app-ai container.
             # Check CELERY_BROKER_URL env var in app-ai's docker-compose service definition.
             raise HTTPException(status_code=500, detail="Failed to initiate AI processing via AskSkill. Ensure Celery broker is reachable.")
@@ -419,8 +442,16 @@ class AskSkill(BaseSkill):
         for proper cache lookups and billing. Otherwise falls back to synthetic user.
         """
         # Generate required IDs for stateless operation
-        chat_id = f"openai-{uuid.uuid4()}" if not openai_request.is_incognito else "incognito"
-        message_id = f"msg-{uuid.uuid4()}"
+        chat_id = (
+            openai_request.ctx_chat_id
+            if openai_request.is_anonymous and openai_request.ctx_chat_id
+            else (f"openai-{uuid.uuid4()}" if not openai_request.is_incognito else "incognito")
+        )
+        message_id = (
+            openai_request.ctx_message_id
+            if openai_request.is_anonymous and openai_request.ctx_message_id
+            else f"msg-{uuid.uuid4()}"
+        )
         
         # Use real user ID from API authentication if available, otherwise use synthetic user
         # The _user_id is injected by the external API handler from the API key's authenticated user
@@ -512,6 +543,7 @@ class AskSkill(BaseSkill):
         completion_id = f"chatcmpl-{uuid.uuid4()}"
         created_timestamp = int(time.time())
         model_name = openai_request.model or "openmates-ai"
+        task_id = None
 
         try:
             # Execute the internal request (this dispatches to Celery)
@@ -575,6 +607,9 @@ class AskSkill(BaseSkill):
                     # Final chunk or error marker
                     is_error = chunk_info["type"] == "error"
                     actual_model_name = chunk_info.get("model_name") or model_name
+                    final_full_content = chunk_info.get("full_content")
+                    if isinstance(final_full_content, str):
+                        full_response_content = final_full_content
 
                     # Extract embeds after streaming is complete
                     embeds_content = chunk_info.get("anonymous_embeds") or await self._extract_and_resolve_embeds(
@@ -598,6 +633,13 @@ class AskSkill(BaseSkill):
                             ]
                         )
                         yield f"data: {embed_chunk.model_dump_json(exclude_none=True)}\n\n"
+
+                    if is_error:
+                        await notify_chat_failure(
+                            f"{internal_request.chat_id}:{internal_request.message_id}",
+                            stage="inference",
+                            category="processing_error",
+                        )
 
                     # Send final chunk with stop reason and usage
                     prompt_tokens = chunk_info.get("prompt_tokens")
@@ -639,7 +681,8 @@ class AskSkill(BaseSkill):
                                 finish_reason="error" if is_error else "stop"
                             )
                         ],
-                        usage=usage_data
+                        usage=usage_data,
+                        full_content=full_response_content,
                     )
                     yield f"data: {final_chunk.model_dump_json(exclude_none=True)}\n\n"
                     yield "data: [DONE]\n\n"
@@ -647,6 +690,11 @@ class AskSkill(BaseSkill):
 
         except Exception as e:
             logger.error(f"Error in OpenAI streaming response: {e}", exc_info=True)
+            await notify_chat_failure(
+                f"{internal_request.chat_id}:{internal_request.message_id}",
+                stage="streaming",
+                category="delivery_error",
+            )
             error_chunk = OpenAIStreamResponse(
                 id=completion_id,
                 created=created_timestamp,
@@ -662,23 +710,6 @@ class AskSkill(BaseSkill):
             yield f"data: {error_chunk.model_dump_json(exclude_none=True)}\n\n"
             yield "data: [DONE]\n\n"
 
-        except Exception as e:
-            logger.error(f"Error in OpenAI streaming response: {e}", exc_info=True)
-            error_chunk = OpenAIStreamResponse(
-                id=completion_id,
-                created=created_timestamp,
-                model=model_name,
-                choices=[
-                    OpenAIStreamChoice(
-                        index=0,
-                        delta=OpenAIDelta(content=f"Error: {str(e)}"),
-                        finish_reason="error"
-                    )
-                ]
-            )
-            yield f"data: {error_chunk.model_dump_json()}\n\n"
-            yield "data: [DONE]\n\n"
-
     async def _listen_to_redis_stream(self, cache_service, redis_channel: str, task_id: str):
         """
         Listen to Redis stream for real-time updates from the Celery task.
@@ -691,12 +722,26 @@ class AskSkill(BaseSkill):
 
         # Track task completion and content
         task_completed = False
-        last_content_length = 0
         full_content = ""
 
         try:
-            # Subscribe to the specific channel using the same pattern as WebSocket handler
-            async for message in cache_service.subscribe_to_channel(redis_channel):
+            # cache_base reconnects indefinitely, so bound the total wait to the
+            # worker hard limit plus the terminal-frame delivery grace period.
+            subscription = cache_service.subscribe_to_channel(redis_channel).__aiter__()
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + OPENAI_STREAM_COMPLETION_TIMEOUT_SECONDS
+            while True:
+                try:
+                    message = await asyncio.wait_for(
+                        anext(subscription),
+                        timeout=max(0.001, deadline - loop.time()),
+                    )
+                except StopAsyncIteration:
+                    break
+                except TimeoutError as exc:
+                    raise RuntimeError(
+                        "AI stream timed out before receiving a terminal frame"
+                    ) from exc
                 if message is None:
                     continue
 
@@ -716,24 +761,29 @@ class AskSkill(BaseSkill):
                         # Only process messages for our specific task
                         if message_task_id == task_id:
                             # Extract full content so far (standardized key in stream_consumer.py)
-                            current_full_content = data.get("full_content_so_far", "")
+                            snapshot = data.get("full_content_so_far")
+                            current_full_content = snapshot if isinstance(snapshot, str) else full_content
                             # Use standardized final marker key from stream_consumer.py
                             is_final = data.get("is_final_chunk", False)
                             is_error = data.get("error", False)
                             
                             logger.info(f"DEBUG_STREAM: Received chunk for task {task_id}. Length: {len(current_full_content)}, Final: {is_final}, Error: {is_error}")
                             
-                            # Calculate and yield the delta (new content) if available
-                            if current_full_content and len(current_full_content) > last_content_length:
-                                new_chunk = current_full_content[last_content_length:]
-                                yield {"type": "content", "content": new_chunk}
-                                last_content_length = len(current_full_content)
+                            # Preserve standard OpenAI delta semantics only when
+                            # the cumulative snapshot is a strict append. Prefix
+                            # rewrites cannot be represented as a delta, so retain
+                            # the new snapshot for the authoritative final frame.
+                            if current_full_content != full_content:
+                                if current_full_content.startswith(full_content):
+                                    new_chunk = current_full_content[len(full_content):]
+                                    if new_chunk:
+                                        yield {"type": "content", "content": new_chunk}
                                 full_content = current_full_content
 
                             if is_final or is_error:
                                 logger.info(f"DEBUG_STREAM: Received {'error' if is_error else 'final'} marker for task: {task_id}. Total length: {len(full_content)}")
                                 yield {
-                                    "type": "final" if is_final else "error",
+                                    "type": "error" if is_error else "final",
                                     "full_content": full_content,
                                     "model_name": data.get("model_name"),
                                     "prompt_tokens": data.get("prompt_tokens"),
@@ -754,8 +804,12 @@ class AskSkill(BaseSkill):
                 if task_completed:
                     break
 
+            if not task_completed:
+                raise RuntimeError("AI stream ended without a terminal frame")
+
         except Exception as e:
             logger.error(f"Error in Redis stream listener: {e}", exc_info=True)
+            raise
 
         logger.info(f"DEBUG_STREAM: Finished listening to Redis stream for task: {task_id}, received {len(full_content)} characters")
 
@@ -778,6 +832,7 @@ class AskSkill(BaseSkill):
         completion_id = f"chatcmpl-{uuid.uuid4()}"
         created_timestamp = int(time.time())
         model_name = openai_request.model or "openmates-ai"
+        task_id = None
 
         try:
             # Execute the internal request (this dispatches to Celery)
@@ -805,7 +860,9 @@ class AskSkill(BaseSkill):
                     response_content += chunk_data
                 elif chunk_info["type"] in ["final", "error"]:
                     final_metadata = chunk_info
-                    # response_content was already accumulated from chunks
+                    final_full_content = chunk_info.get("full_content")
+                    if isinstance(final_full_content, str):
+                        response_content = final_full_content
 
             logger.info(f"OPENAI_SYNC: Finished listening. Total content length: {len(response_content)}")
 
@@ -938,6 +995,11 @@ class AskSkill(BaseSkill):
             raise
         except Exception as e:
             logger.error(f"OPENAI_SYNC: Error in OpenAI sync response: {e}", exc_info=True)
+            await notify_chat_failure(
+                f"{internal_request.chat_id}:{internal_request.message_id}",
+                stage="streaming",
+                category="delivery_error",
+            )
             # Return proper OpenAI error format for unexpected exceptions
             raise HTTPException(
                 status_code=500,

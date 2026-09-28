@@ -62,6 +62,7 @@ _install_stub("backend.apps.ai.utils.mate_utils", mate_utils_stub)
 llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
 llm_utils_stub.call_main_llm_stream = object
 llm_utils_stub.truncate_message_history_to_token_budget = object
+llm_utils_stub._transform_message_history_for_llm = lambda history: history
 llm_utils_stub.AllServersFailedError = Exception
 llm_utils_stub.STANDARDIZED_USER_ERROR_MESSAGE = "Model unavailable."
 _install_stub("backend.apps.ai.utils.llm_utils", llm_utils_stub)
@@ -422,7 +423,7 @@ async def test_final_no_tools_turn_recovers_from_provider_tool_call_without_exec
 
     assert len(calls) == 2
     assert all(call["tool_choice"] == "none" and call["tools"] is None for call in calls)
-    assert "previous answer-only attempt" in calls[1]["system_prompt"]
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]["system_prompt"]
     if recovery_succeeds:
         assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
         assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
@@ -589,10 +590,8 @@ def test_empty_post_tool_turn_requires_answer_recovery() -> None:
     assert _is_empty_post_tool_turn(1, True) is False
     assert _is_empty_post_tool_turn(0, False) is False
 
-    source = inspect.getsource(main_processor.handle_main_processing)
-    assert "[POST_TOOL_RECOVERY] Tool continuation produced no answer" in source
-    assert "empty_post_tool_recovery_attempted" in source
-    assert 'yield main_processing_failure("empty_post_tool_response")' in source
+    # The composed recovery behavior is exercised with the real provider wrapper
+    # in test_answer_recovery_integration.py, rather than asserting source strings.
 
 
 def test_skill_dedup_does_not_cache_explicit_error_wrappers() -> None:

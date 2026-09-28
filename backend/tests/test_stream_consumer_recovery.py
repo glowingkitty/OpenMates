@@ -762,7 +762,8 @@ def test_memory_continuation_seals_under_original_inference_identity():
 
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
-def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch):
+@pytest.mark.parametrize("failure_reason", ["provider_exhausted", "anonymous_usage_limit"])
+def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch, failure_reason):
     from backend.shared.python_utils.chat_failure_notifications import terminal_class
 
     async def failed_stream(**kwargs):
@@ -772,7 +773,7 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
             completion_tokens=2,
             total_tokens=22,
         )
-        yield main_processing_failure("provider_exhausted")
+        yield main_processing_failure(failure_reason)
 
     billing = AsyncMock(return_value={"total_credits": 22})
     aggregate_log = Mock()
@@ -799,9 +800,9 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
 
     assert result[0].startswith("A partial answer that must not make the turn look successful.")
     assert result[0].endswith(stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE)
-    assert result[4]["main_processing_failure_reason"] == "provider_exhausted"
+    assert result[4]["main_processing_failure_reason"] == failure_reason
     billing.assert_not_awaited()
-    assert aggregate_log.call_args.kwargs["error_message"] == "Main processing failed: provider_exhausted."
+    assert aggregate_log.call_args.kwargs["error_message"] == f"Main processing failed: {failure_reason}."
     final_payloads = [
         call.args[2]
         for call in publish.await_args_list
@@ -809,6 +810,70 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
     ]
     assert len(final_payloads) == 1
     assert final_payloads[0]["full_content_so_far"] == result[0]
+    assert final_payloads[0].get("total_credits") is None
+    assert terminal_class(
+        {"main_processing_output": result[0]},
+        stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE,
+    ) == "failed_during_main"
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
+def test_app_skill_output_followed_by_stream_exception_is_failed_and_not_billed(monkeypatch):
+    from backend.shared.python_utils.chat_failure_notifications import terminal_class
+
+    app_skill_reference = (
+        '```json\n{"type":"app_skill_use","embed_id":"search-result-1",'
+        '"app_id":"web","skill_id":"search"}\n```\n\n'
+    )
+
+    async def failed_stream(**kwargs):
+        yield app_skill_reference
+        yield stream_consumer.MistralUsage(
+            prompt_tokens=20,
+            completion_tokens=2,
+            total_tokens=22,
+        )
+        raise RuntimeError("upstream stream failed after completed app output")
+
+    billing = AsyncMock(return_value={"total_credits": 22})
+    aggregate_log = Mock()
+    publish = AsyncMock()
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", failed_stream)
+    monkeypatch.setattr(stream_consumer, "_handle_normal_billing", billing)
+    monkeypatch.setattr(stream_consumer, "log_main_llm_stream_aggregated_output", aggregate_log)
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", publish)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="hash-1",
+        message_history=[],
+        is_incognito=True,
+    )
+
+    result = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
+    ))
+
+    assert app_skill_reference.strip() in result[0]
+    assert result[0].endswith(stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE)
+    assert result[0].count(stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE) == 1
+    assert result[4]["main_processing_failure_reason"] == "stream_error"
+    billing.assert_not_awaited()
+    assert aggregate_log.call_args.kwargs["error_message"] == "Main processing failed: stream_error."
+    final_payloads = [
+        call.args[2]
+        for call in publish.await_args_list
+        if call.args[2].get("is_final_chunk")
+    ]
+    assert len(final_payloads) == 1
+    assert final_payloads[0]["full_content_so_far"] == result[0]
+    assert final_payloads[0]["full_content_so_far"].endswith(
+        stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE
+    )
     assert final_payloads[0].get("total_credits") is None
     assert terminal_class(
         {"main_processing_output": result[0]},

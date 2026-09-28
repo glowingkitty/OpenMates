@@ -49,7 +49,7 @@ specifications:
     version: 3
     status: draft
     path: architecture/operational-monitoring
-    fingerprint: 5809705a199bfc279eb33393031b83ced565689134dd983fce569a6fb60e9e5c
+    fingerprint: d16c4836db881e89ea515ffd8c39c7b467c80371b524b8f94d4d70a771cf2c19
     required_applies_to:
     - cli
   architecture.security-reporting:
@@ -1063,14 +1063,14 @@ assertions:
     specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: invariant
-    fingerprint: ccdf5cdf8d10e2727f6fdad03138f177e0ab22dd90533f8686031016f81d7317
+    fingerprint: d7fd6e6026bec8e179a80b52d5766d4022b2267af530b4138675c287caf67cf6
     required_applies_to:
     - cli
   operational-monitoring.chat-failures.safe-delivery:
     specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: privacy
-    fingerprint: e5d9fc2f68a00758f5f8cb0a5dfd980858b37532d2a3e4dcf44354dbc3919be7
+    fingerprint: f9cb27771403c3b5cf7ccb32ef2d4f8af1e7d1a7111fdeb85712fa385be77a2d
     required_applies_to:
     - cli
   operational-monitoring.digest.real-24h-snapshot:

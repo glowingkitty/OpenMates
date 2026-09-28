@@ -11,8 +11,10 @@
 # are registered with and executed by that worker.
 
 from backend.shared.python_utils.chat_failure_notifications import (
+    EXPECTED_REJECTIONS,
     failure_stage,
     notify_chat_failure,
+    notify_chat_failure_sync,
     terminal_class as classify_terminal_result,
 )
 
@@ -95,6 +97,73 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
 logger = logging.getLogger(__name__)
+
+
+def _bounded_identity_component(value: object) -> Optional[str]:
+    if not isinstance(value, str) or not value or len(value) > 255:
+        return None
+    return value
+
+
+def _bounded_recovery_failure_category(value: object) -> Optional[str]:
+    if not isinstance(value, str) or not value or len(value) > 64:
+        return None
+    allowed = "abcdefghijklmnopqrstuvwxyz0123456789_:-"
+    if value[0] not in "abcdefghijklmnopqrstuvwxyz0123456789" or any(
+        character not in allowed for character in value
+    ):
+        return None
+    return value
+
+
+def _validation_failure_identity(
+    request_data_dict: object,
+    task_id: object,
+) -> Optional[str]:
+    """Build a content-free notification identity from unvalidated task input."""
+    if isinstance(request_data_dict, dict):
+        chat_id = _bounded_identity_component(request_data_dict.get("chat_id"))
+        message_id = _bounded_identity_component(request_data_dict.get("message_id"))
+        if chat_id and message_id:
+            return f"{chat_id}:{message_id}"
+    return _bounded_identity_component(task_id)
+
+
+def _recovery_unclaimed_result(claim: dict[str, Any]) -> dict[str, Any]:
+    """Classify a durable recovery claim that another operation settled."""
+    if claim.get("state") == "FAILED":
+        failure_category = _bounded_recovery_failure_category(
+            claim.get("failure_category")
+        )
+        failure_category = failure_category or "unclassified"
+        was_cancelled = failure_category == "user_cancelled"
+        is_expected = failure_category in EXPECTED_REJECTIONS
+        failure_reason = (
+            "recovery_claim_excluded" if is_expected else "recovery_claim_failed"
+        )
+        if was_cancelled:
+            failure_reason = "recovery_claim_cancelled"
+        result = {
+            "status": "recovery_inference_failed",
+            "failure_reason": failure_reason,
+            "failure_category": failure_category,
+            "preprocessing_summary": {},
+            "main_processing_output": None,
+            "postprocessing_summary": {},
+            "interrupted_by_soft_time_limit": False,
+            "interrupted_by_revocation": was_cancelled,
+            "_celery_task_state": "FAILURE",
+        }
+        return result
+    return {
+        "status": "duplicate_recovery_task_ignored",
+        "preprocessing_summary": {},
+        "main_processing_output": None,
+        "postprocessing_summary": {},
+        "interrupted_by_soft_time_limit": False,
+        "interrupted_by_revocation": False,
+        "_celery_task_state": "SUCCESS",
+    }
 
 
 # Note: per-task_id dedup is now performed by `DedupedTask.__call__` (the
@@ -947,15 +1016,7 @@ async def _async_process_ai_skill_ask_task(
                     task_id,
                     claim.get("state"),
                 )
-                return {
-                    "status": "duplicate_recovery_task_ignored",
-                    "preprocessing_summary": {},
-                    "main_processing_output": None,
-                    "postprocessing_summary": {},
-                    "interrupted_by_soft_time_limit": False,
-                    "interrupted_by_revocation": False,
-                    "_celery_task_state": "SUCCESS",
-                }
+                return _recovery_unclaimed_result(claim)
 
         user_task_claimed = await _update_user_task_execution_state(
             request_data,
@@ -2678,6 +2739,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     except ValidationError as e:
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
+        notification_identity = _validation_failure_identity(request_data_dict, task_id)
+        if notification_identity:
+            notify_chat_failure_sync(
+                notification_identity,
+                stage="preprocessing",
+                category="unexpected_error",
+            )
         record_ai_completion_timing(
             turn_span,
             worker_tail_ms=completion_timing.worker_tail_ms(),
@@ -2817,7 +2885,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as sub_chat_err:
             logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after soft time limit: {sub_chat_err}")
         try:
-            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "soft_time_limit"))
+            loop.run_until_complete(_mark_recovery_inference_failed(
+                request_data,
+                task_id,
+                "user_cancelled" if was_revoked else "soft_time_limit",
+            ))
         except Exception as recovery_err:
             logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
         try:
@@ -2861,6 +2933,12 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
+        if not was_revoked:
+            loop.run_until_complete(notify_chat_failure(
+                f"{request_data.chat_id}:{request_data.message_id}",
+                stage="finalization" if completion_timing.first_token_ms is not None else "preprocessing",
+                category="unexpected_error",
+            ))
         try:
             loop.run_until_complete(_mark_sub_chat_terminal_failure(
                 request_data,
@@ -2870,7 +2948,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as sub_chat_err:
             logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after RuntimeError: {sub_chat_err}")
         try:
-            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "runtime_error"))
+            loop.run_until_complete(_mark_recovery_inference_failed(
+                request_data,
+                task_id,
+                "user_cancelled" if was_revoked else "runtime_error",
+            ))
         except Exception as recovery_err:
             logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
         try:
@@ -2927,7 +3009,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as sub_chat_err:
             logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after exception: {sub_chat_err}")
         try:
-            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "unhandled_error"))
+            loop.run_until_complete(_mark_recovery_inference_failed(
+                request_data,
+                task_id,
+                "user_cancelled" if was_revoked else "unhandled_error",
+            ))
         except Exception as recovery_err:
             logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
         try:

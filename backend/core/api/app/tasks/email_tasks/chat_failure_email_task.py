@@ -1,7 +1,6 @@
-# Capped internal admin email for technical chat failures on managed servers.
-# Redis atomically deduplicates requests and reserves a daily transport attempt
-# across all email workers. Reservations are never refunded after ambiguous
-# transport results: avoiding duplicate mail takes precedence over filling slots.
+# Internal admin email for technical chat failures on managed servers.
+# Redis atomically deduplicates request identities and counts daily failures
+# across all email workers. Each distinct terminal failure remains eligible.
 # Self-hosted servers never send this category of notification.
 # Architecture: docs/architecture/core/chat-failure-notifications.md.
 
@@ -17,22 +16,15 @@ from backend.core.api.app.tasks.celery_config import app
 from backend.shared.python_utils.chat_failure_notifications import CATEGORIES, EMAIL_TASK, STAGES, notification_environment
 
 logger = logging.getLogger(__name__)
-DAILY_LIMIT = 5
 DEDUP_SECONDS = 7 * 24 * 60 * 60
 COUNTER_SECONDS = 2 * 24 * 60 * 60
 # No content/identifiers in values or logs; only a one-way deduplication key.
-RESERVE_LUA = """
-if redis.call('EXISTS', KEYS[1]) == 1 then return {0, 0, 0} end
+DEDUPE_AND_COUNT_LUA = """
+if redis.call('EXISTS', KEYS[1]) == 1 then return {0, 0} end
 redis.call('SET', KEYS[1], 'seen', 'EX', ARGV[1])
 local failures = redis.call('HINCRBY', KEYS[2], 'failures', 1)
 redis.call('EXPIRE', KEYS[2], ARGV[2])
-local attempts = tonumber(redis.call('HGET', KEYS[2], 'attempts') or '0')
-if attempts >= tonumber(ARGV[3]) then
-  local suppressed = redis.call('HINCRBY', KEYS[2], 'suppressed', 1)
-  return {-1, failures, suppressed}
-end
-local slot = redis.call('HINCRBY', KEYS[2], 'attempts', 1)
-return {slot, failures, tonumber(redis.call('HGET', KEYS[2], 'suppressed') or '0')}
+return {1, failures}
 """
 
 
@@ -54,18 +46,15 @@ async def deliver_chat_failure(failure_fingerprint: str, stage: str, category: s
         prefix = f"chat_failure_email:{edition}"
         try:
             redis = await cache.client
-            slot, failures, suppressed = await redis.eval(
-                RESERVE_LUA, 2, f"{prefix}:seen:{failure_fingerprint}", f"{prefix}:day:{day}",
-                DEDUP_SECONDS, COUNTER_SECONDS, DAILY_LIMIT,
+            is_new, failures = await redis.eval(
+                DEDUPE_AND_COUNT_LUA, 2, f"{prefix}:seen:{failure_fingerprint}", f"{prefix}:day:{day}",
+                DEDUP_SECONDS, COUNTER_SECONDS,
             )
         except Exception:
-            logger.error("[CHAT_FAILURE_EMAIL] limiter_unavailable environment=%s", edition)
-            return "limiter_unavailable"
-        if slot == 0:
+            logger.error("[CHAT_FAILURE_EMAIL] dedupe_unavailable environment=%s", edition)
+            return "dedupe_unavailable"
+        if is_new == 0:
             return "duplicate"
-        if slot < 0:
-            logger.warning("[CHAT_FAILURE_EMAIL] suppressed environment=%s failures=%s suppressed=%s", edition, failures, suppressed)
-            return "suppressed"
         recipient = os.getenv("SERVER_OWNER_EMAIL") or os.getenv("ADMIN_NOTIFY_EMAIL")
         if not recipient:
             logger.error("[CHAT_FAILURE_EMAIL] missing_admin_email environment=%s", edition)
@@ -77,15 +66,14 @@ async def deliver_chat_failure(failure_fingerprint: str, stage: str, category: s
         service = EmailTemplateService(secrets_manager=secrets)
         accepted = await service.send_email(
             template="chat-failure-alert", recipient_email=recipient,
-            subject=f"OpenMates {edition}: chat processing failed ({slot}/{DAILY_LIMIT})",
+            subject=f"OpenMates {edition}: chat processing failed",
             context={"darkmode": True, "environment": edition, "stage": stage, "category": category,
-                     "revision": revision, "failures": failures, "suppressed": suppressed,
-                     "slot": slot, "daily_limit": DAILY_LIMIT, "cap_reached": slot == DAILY_LIMIT},
+                     "revision": revision, "failures": failures},
             lang="en",
         )
         outcome = "accepted" if accepted else "rejected"
         logger.log(logging.INFO if accepted else logging.ERROR,
-                   "[CHAT_FAILURE_EMAIL] %s environment=%s slot=%s", outcome, edition, slot)
+                   "[CHAT_FAILURE_EMAIL] %s environment=%s failure_number=%s", outcome, edition, failures)
         return outcome
     except Exception:
         logger.error("[CHAT_FAILURE_EMAIL] delivery_unknown environment=%s", edition)
@@ -102,5 +90,5 @@ async def deliver_chat_failure(failure_fingerprint: str, stage: str, category: s
 
 @app.task(name=EMAIL_TASK, ignore_result=True)
 def send_chat_failure_email(failure_fingerprint: str, stage: str, category: str) -> str:
-    """No automatic mail retries after ambiguous delivery; reserve before send."""
+    """Send once per fingerprint; ambiguous delivery remains deduplicated."""
     return asyncio.run(deliver_chat_failure(failure_fingerprint, stage, category))

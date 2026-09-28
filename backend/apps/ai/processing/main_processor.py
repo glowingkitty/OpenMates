@@ -36,6 +36,11 @@ from backend.apps.ai.processing.search_skill_reliability import (
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
+from backend.apps.ai.utils.answer_recovery import (
+    ANSWER_RECOVERY_INSTRUCTION,
+    AnswerRecoveryState,
+    build_answer_recovery_history,
+)
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
     apply_learning_mode_policy_to_skill_result,
@@ -49,6 +54,7 @@ from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
     AllServersFailedError,
+    _transform_message_history_for_llm,
 )
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
@@ -122,7 +128,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     task_tool_skill_id,
     task_tool_name_variants,
 )
-from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker
+from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker, calculate_model_usage_credits
 from backend.apps.ai.processing.chat_compressor import model_history_token_budget
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
@@ -611,10 +617,11 @@ def _build_pending_app_settings_memories_context(
         "chat_key_version": getattr(request_data, "chat_key_version", None),
     }
 
-# Four tool-enabled passes followed by one answer-only pass. A silent answer-only
-# recovery below may add one more provider call, but can never execute a skill.
+# Four tool-enabled passes followed by one answer-only pass. Recovery first
+# retries the same model with clean evidence, then permits one configured alternate.
+# Neither recovery attempt can execute a skill.
 MAX_TOOL_CALL_ITERATIONS = 5
-MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 1
+MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 2
 
 # === SKILL CALL BUDGET LIMITS ===
 # These limits prevent runaway research loops where the AI keeps requesting more and more searches.
@@ -1549,6 +1556,36 @@ def _skill_operation_id(app_id: str, skill_id: str, task_id: str, execution_id: 
     return f"{app_id}.{skill_id}:{task_id}:{execution_id}:{index}"
 
 
+class AnonymousUsageAccountingError(RuntimeError):
+    """An anonymous accounting failure must not trigger model fallback."""
+
+
+class AnonymousUsageLimitError(AnonymousUsageAccountingError):
+    """The authoritative anonymous allowance cannot fund another operation."""
+
+
+ANONYMOUS_ACCOUNTING_MAX_ATTEMPTS = 2
+ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM = 1
+
+
+async def _anonymous_accounting_request(endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Retry a lost acknowledgement once with the same immutable operation payload."""
+    for attempt in range(ANONYMOUS_ACCOUNTING_MAX_ATTEMPTS):
+        try:
+            return await _make_internal_api_request("POST", endpoint, payload)
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 429:
+                raise AnonymousUsageLimitError("Anonymous operation allowance exhausted") from error
+            raise AnonymousUsageAccountingError("Anonymous operation accounting rejected") from error
+        except httpx.RequestError as error:
+            if attempt == 0:
+                continue
+            raise AnonymousUsageAccountingError("Anonymous operation acknowledgement unavailable") from error
+        except Exception as error:
+            raise AnonymousUsageAccountingError("Anonymous operation response is invalid") from error
+    raise AssertionError("Unreachable anonymous accounting retry state")
+
+
 async def _reserve_anonymous_operation(
     *,
     request_data: AskSkillRequest,
@@ -1558,9 +1595,8 @@ async def _reserve_anonymous_operation(
 ) -> None:
     parent_request_id = request_data.anonymous_reservation_id
     if not parent_request_id:
-        raise RuntimeError("Anonymous operation is missing its request reservation")
-    await _make_internal_api_request(
-        "POST",
+        raise AnonymousUsageAccountingError("Anonymous operation is missing its request reservation")
+    await _anonymous_accounting_request(
         "internal/anonymous-usage/reserve-operation",
         {
             "parent_request_id": parent_request_id,
@@ -1584,6 +1620,14 @@ async def _release_anonymous_operation(*, operation_id: str, reason: str) -> Non
         "POST",
         "internal/anonymous-usage/release-operation",
         {"operation_id": operation_id, "reason": reason},
+    )
+
+
+async def _checkpoint_anonymous_ai_operation(*, operation_id: str, checkpoint_credits: int) -> None:
+    """Release unused quote capacity while keeping AI billing reversible."""
+    await _anonymous_accounting_request(
+        "internal/anonymous-usage/checkpoint-operation",
+        {"operation_id": operation_id, "checkpoint_credits": checkpoint_credits},
     )
 
 
@@ -1826,6 +1870,7 @@ def _quote_ai_iteration_credits(
     tools: Optional[List[Dict[str, Any]]],
     output_token_limit: Optional[int] = None,
     input_envelope_tokens: int = 0,
+    credit_rounding_headroom: int = 0,
 ) -> int:
     if "/" not in model_id:
         raise RuntimeError("AI reservation requires a provider-qualified model id")
@@ -1853,11 +1898,14 @@ def _quote_ai_iteration_credits(
         1,
         len(serialized_input.encode("utf-8")) + max(0, input_envelope_tokens),
     )
-    return calculate_total_credits(
+    quote = calculate_total_credits(
         pricing_config=model_config,
         input_tokens=estimated_input_tokens,
         output_tokens=max_output_tokens,
     )
+    # A cumulative rounded charge can carry one fractional credit from an
+    # earlier operation. Reserve that capacity up front; never clamp usage.
+    return quote + credit_rounding_headroom if quote > 0 else 0
 
 
 def _max_affordable_ai_output_tokens(
@@ -1868,6 +1916,8 @@ def _max_affordable_ai_output_tokens(
     tools: Optional[List[Dict[str, Any]]],
     requested_output_token_limit: int,
     available_credits: int,
+    input_envelope_tokens: int = 0,
+    credit_rounding_headroom: int = 0,
 ) -> Optional[int]:
     if requested_output_token_limit <= 0 or available_credits <= 0:
         return None
@@ -1877,6 +1927,8 @@ def _max_affordable_ai_output_tokens(
         "system_prompt": system_prompt,
         "message_history": message_history,
         "tools": tools,
+        "input_envelope_tokens": input_envelope_tokens,
+        "credit_rounding_headroom": credit_rounding_headroom,
     }
     if _quote_ai_iteration_credits(
         **quote_kwargs,
@@ -1896,6 +1948,42 @@ def _max_affordable_ai_output_tokens(
         else:
             high = candidate - 1
     return affordable_limit
+
+
+async def _fit_anonymous_output_token_limit(
+    *,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: Optional[int],
+    request_data: AskSkillRequest,
+) -> Optional[int]:
+    """Fit the next anonymous call to current capacity, then reserve atomically."""
+    if not getattr(request_data, "is_anonymous", False):
+        return requested_output_token_limit
+    if not request_data.anonymous_reservation_id or requested_output_token_limit is None:
+        raise AnonymousUsageAccountingError("Anonymous inference is missing its reservation or output limit")
+    budget = await _anonymous_accounting_request(
+        "internal/anonymous-usage/request-budget",
+        {"parent_request_id": request_data.anonymous_reservation_id},
+    )
+    available = budget.get("available_credits")
+    if not isinstance(available, int) or isinstance(available, bool) or available < 0:
+        raise AnonymousUsageAccountingError("Anonymous allowance response is invalid")
+    fitted = _max_affordable_ai_output_tokens(
+        model_id=model_id,
+        system_prompt=system_prompt,
+        message_history=message_history,
+        tools=tools,
+        requested_output_token_limit=requested_output_token_limit,
+        available_credits=available,
+        input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS,
+        credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM,
+    )
+    if fitted is None:
+        raise AnonymousUsageLimitError("Anonymous allowance cannot cover inference input")
+    return fitted
 
 
 async def _fit_parent_continuation_output_token_limit(
@@ -1997,6 +2085,7 @@ async def _reserve_ai_iteration(
         tools=tools,
         output_token_limit=output_token_limit,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS if is_anonymous else 0,
+        credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM if is_anonymous else 0,
     )
     if quote <= 0:
         return None
@@ -2827,6 +2916,9 @@ async def handle_main_processing(
             return
 
     prompt_parts = []
+    # Explicit research/dispatch requirements apply to the tool phase. Keep all
+    # safety, focus, output-format and user constraints in the synthesis prompt.
+    research_only_prompt_parts: set[str] = set()
     now_utc = datetime.datetime.now(datetime.timezone.utc)
 
     if request_data.historical_artifact_context:
@@ -3148,6 +3240,7 @@ async def handle_main_processing(
             f"you MUST call at least one of them: {mandatory_skills_list}. Do not use other tools unless the user's request clearly requires them."
         )
         prompt_parts.append(mandatory_instruction)
+        research_only_prompt_parts.add(mandatory_instruction)
         logger.info(f"{log_prefix} [USER_SKILLS] Added mandatory skill instruction for: {mandatory_skills_list}")
 
     # === DYNAMIC APP-SPECIFIC INSTRUCTIONS ===
@@ -3255,7 +3348,9 @@ async def handle_main_processing(
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
     if discovered_apps_metadata:
-        prompt_parts.append(base_instructions.get("base_proactive_skill_usage_instruction", ""))
+        proactive_skill_instruction = base_instructions.get("base_proactive_skill_usage_instruction", "")
+        prompt_parts.append(proactive_skill_instruction)
+        research_only_prompt_parts.add(proactive_skill_instruction)
     else:
         # When no apps available, skip the proactive skill usage instruction
         # to avoid confusing the AI about capabilities it doesn't have
@@ -3508,6 +3603,7 @@ async def handle_main_processing(
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
         prompt_parts.append(sub_chats_instruction)
+        research_only_prompt_parts.add(sub_chats_instruction)
         logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
 
     if getattr(request_data, "is_anonymous", False):
@@ -3517,6 +3613,9 @@ async def handle_main_processing(
             "or an account-connected action, explain that creating an account is required."
         )
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+    answer_recovery_system_prompt = "\n\n".join(
+        part for part in prompt_parts if part and part not in research_only_prompt_parts
+    )
     
     # Generate tool definitions from discovered apps using the tool generator
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
@@ -4203,6 +4302,11 @@ async def handle_main_processing(
     # entry so users can see it in Settings → Usage detail view.
     tool_inference_iterations: int = 0  # Number of extra LLM calls caused by tool use
     model_usage_tracker = ModelUsageTracker()
+    # Only conclusively completed attempts may release conservative holds.
+    # Reported usage from interrupted streams remains in terminal billing's
+    # tracker above, but its uncertain reservation stays intact until then.
+    anonymous_completed_usage = ModelUsageTracker()
+    anonymous_checkpointed_credits = 0
 
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
@@ -4215,8 +4319,8 @@ async def handle_main_processing(
     pending_protocol_recovery_messages: Optional[List[Dict[str, str]]] = None
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
-    empty_post_tool_recovery_attempted = False
-    answer_only_recovery_attempted = False
+    answer_recovery = AnswerRecoveryState()
+    published_answer_text: List[str] = []
     omitted_news_search_requests = 0
     
     # === SKILL CALL DEDUPLICATION ===
@@ -4227,10 +4331,31 @@ async def handle_main_processing(
     # Key: hash of (app_id, skill_id, arguments), Value: dict with results and embed_id
     completed_skill_calls: Dict[str, Dict[str, Any]] = {}
     pending_project_operation_id: Optional[str] = None
+
+    def schedule_answer_recovery(reason: str) -> bool:
+        """Spend one bounded synthesis attempt, keeping the first on this model."""
+        nonlocal current_model_index, force_no_tools, pending_protocol_recovery_messages
+        recovery_model = answer_recovery.next_model(current_model_id, models_to_try)
+        if recovery_model is None:
+            return False
+        current_model_index = models_to_try.index(recovery_model)
+        force_no_tools = True
+        pending_protocol_recovery_messages = None
+        logger.warning(
+            "%s [ANSWER_ONLY_RECOVERY] reason=%s attempt=%s model=%s; "
+            "rebuilding final-answer context from completed evidence with tools disabled.",
+            log_prefix, reason, answer_recovery.attempts, recovery_model,
+        )
+        return True
     
     max_iterations_with_recovery = MAX_TOOL_CALL_ITERATIONS + MAX_ANSWER_ONLY_RECOVERY_ITERATIONS
     for iteration in range(max_iterations_with_recovery):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
+        # Capture newly completed results before context fitting can drop older
+        # tool turns. Recovery projects from this preserved evidence, never from
+        # another model's already-truncated recovery request.
+        if not answer_recovery.active:
+            answer_recovery.observe(current_message_history)
         
         # The fifth and optional recovery calls are answer-only, regardless of
         # remaining skill budget or Deep research routing.
@@ -4269,7 +4394,7 @@ async def handle_main_processing(
         iteration_tools = available_tools_for_llm if not force_no_tools else None
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
-        iteration_system_prompt = full_system_prompt
+        iteration_system_prompt = answer_recovery_system_prompt if answer_recovery.active else full_system_prompt
         if budget_warning_injected:
             if follow_up_suggestions_enabled:
                 budget_guidance = (
@@ -4288,15 +4413,11 @@ async def handle_main_processing(
                 f"{budget_guidance}"
                 "--- End Research Budget Warning ---\n"
             )
-            iteration_system_prompt = full_system_prompt + budget_warning
+            iteration_system_prompt += budget_warning
             logger.info(f"{log_prefix} [SKILL_BUDGET] Injected budget warning into system prompt")
 
-        if answer_only_recovery_attempted:
-            iteration_system_prompt += (
-                "\n\nThe previous answer-only attempt did not produce a usable answer. "
-                "Answer the user's request now using the completed results in this conversation. "
-                "Do not request tools or mention this retry."
-            )
+        if answer_recovery.active:
+            iteration_system_prompt += "\n\n" + ANSWER_RECOVERY_INSTRUCTION
 
         if omitted_news_search_requests:
             iteration_system_prompt += (
@@ -4323,6 +4444,7 @@ async def handle_main_processing(
         # Try models in sequence until one succeeds or all fail
         # This handles transient API errors, rate limits, and model availability issues
         llm_stream = None
+        preparation_failure_reason: Optional[str] = None
         model_fallback_attempts = 0
         last_model_error = None
         current_ai_operation_id: Optional[str] = None
@@ -4340,10 +4462,20 @@ async def handle_main_processing(
                     system_prompt=iteration_system_prompt,
                     tools=iteration_tools,
                 )
-                current_message_history = truncate_message_history_to_token_budget(
-                    current_message_history,
-                    max_tokens=current_history_budget,
-                )
+                if answer_recovery.active:
+                    # Normalize tool results through the existing content-safety
+                    # and ignore-fields path before converting them to evidence.
+                    current_message_history = build_answer_recovery_history(
+                        _transform_message_history_for_llm(answer_recovery.recovery_history()),
+                        request_data.current_user_content,
+                        max_tokens=current_history_budget,
+                        published_prefix="".join(published_answer_text),
+                    )
+                else:
+                    current_message_history = truncate_message_history_to_token_budget(
+                        current_message_history,
+                        max_tokens=current_history_budget,
+                    )
                 if (
                     pending_protocol_recovery_messages is not None
                     and current_message_history[-len(pending_protocol_recovery_messages):]
@@ -4370,6 +4502,14 @@ async def handle_main_processing(
                     request_data=request_data,
                     directus_service=directus_service,
                     log_prefix=log_prefix,
+                )
+                current_output_token_limit = await _fit_anonymous_output_token_limit(
+                    model_id=current_model_id,
+                    system_prompt=iteration_system_prompt,
+                    message_history=current_message_history,
+                    tools=iteration_tools,
+                    requested_output_token_limit=current_output_token_limit,
+                    request_data=request_data,
                 )
 
                 if model_fallback_attempts > 1:
@@ -4399,10 +4539,20 @@ async def handle_main_processing(
                     tools=iteration_tools,
                     tool_choice=current_tool_choice,
                     max_tokens=current_output_token_limit,
+                    recoverable_attempt=answer_recovery.active,
+                    stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
                 )
                 # Stream created successfully - break out of retry loop
                 break
 
+            except AnonymousUsageLimitError:
+                logger.warning("%s Anonymous inference allowance exhausted before provider dispatch", log_prefix)
+                preparation_failure_reason = "anonymous_usage_limit"
+                break
+            except AnonymousUsageAccountingError:
+                logger.error("%s Anonymous inference accounting failed before provider dispatch", log_prefix, exc_info=True)
+                preparation_failure_reason = "stream_error"
+                break
             except Exception as model_error:
                 await _fail_reserved_operation(
                     operation_id=current_ai_operation_id,
@@ -4415,6 +4565,10 @@ async def handle_main_processing(
                     f"{log_prefix} MODEL_FALLBACK: Model {current_model_id} failed: {model_error}. "
                     f"Trying next model..."
                 )
+                if answer_recovery.active:
+                    if schedule_answer_recovery("recovery_preparation_failed"):
+                        continue
+                    break
                 current_model_index += 1
 
                 # If we've exhausted all models, raise the last error
@@ -4426,6 +4580,10 @@ async def handle_main_processing(
                     raise RuntimeError(
                         f"All models failed. Tried: {models_to_try}. Last error: {last_model_error}"
                     ) from model_error
+
+        if llm_stream is None:
+            yield main_processing_failure(preparation_failure_reason or "empty_post_tool_response")
+            break
 
         protocol_guard = ToolProtocolGuard()
         current_turn_text_buffer = []
@@ -5021,6 +5179,7 @@ async def handle_main_processing(
                         llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
                         yield chunk.content
                         current_turn_text_buffer.append(chunk.content)
+                        published_answer_text.append(chunk.content)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
@@ -5033,6 +5192,7 @@ async def handle_main_processing(
                     # Retain every safe, published chunk. Besides tool history, this
                     # lets a guarded partial answer continue without replaying it.
                     current_turn_text_buffer.append(chunk)
+                    published_answer_text.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except AllServersFailedError as asf_err:
@@ -5057,6 +5217,11 @@ async def handle_main_processing(
                 preserve_anonymous_reservation=True,
             )
             current_ai_operation_id = None
+            if answer_recovery.active or force_no_tools or tool_inference_iterations > 0:
+                if schedule_answer_recovery("provider_exhausted"):
+                    continue
+                yield main_processing_failure("provider_exhausted")
+                break
             current_model_index += 1
             if current_model_index < len(models_to_try):
                 next_model = models_to_try[current_model_index]
@@ -5081,7 +5246,33 @@ async def handle_main_processing(
         if iteration_usage is not None:
             usage = iteration_usage
             successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
-            if successful_model_id:
+            if getattr(request_data, "is_anonymous", False) and current_ai_operation_id:
+                anonymous_completed_usage.record_reported_usage(
+                    model_id=current_model_id,
+                    input_tokens=iteration_input_tokens,
+                    output_tokens=iteration_output_tokens,
+                )
+                try:
+                    cumulative_credits = calculate_model_usage_credits(
+                        anonymous_completed_usage.usage_by_model,
+                        config_manager.get_model_pricing,
+                    )
+                    checkpoint_credits = cumulative_credits - anonymous_checkpointed_credits
+                    if checkpoint_credits < 0:
+                        raise AnonymousUsageAccountingError("Cumulative anonymous usage decreased")
+                    await _checkpoint_anonymous_ai_operation(
+                        operation_id=current_ai_operation_id,
+                        checkpoint_credits=checkpoint_credits,
+                    )
+                    anonymous_checkpointed_credits = cumulative_credits
+                except Exception:
+                    # The request may have reached the ledger despite a lost
+                    # acknowledgement. Do not dispatch more work or switch models
+                    # until accounting is known; the live hold remains reversible.
+                    logger.error("%s Anonymous usage checkpoint failed", log_prefix, exc_info=True)
+                    yield main_processing_failure("stream_error")
+                    break
+            if successful_model_id and (llm_turn_had_content or tool_calls_for_this_turn):
                 model_usage_tracker.mark_successful_model(successful_model_id)
             logger.debug(
                 f"{log_prefix} [CUMULATIVE_TOKENS] Successful model for iteration: "
@@ -5090,6 +5281,12 @@ async def handle_main_processing(
             )
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+
+        if answer_recovery.active and protocol_guard.detected and not tool_calls_for_this_turn:
+            if schedule_answer_recovery("protocol_guard"):
+                continue
+            yield main_processing_failure("protocol_guard")
+            break
 
         protocol_recovery_action = protocol_guard_recovery.action(
             detected=protocol_guard.detected,
@@ -5212,28 +5409,12 @@ async def handle_main_processing(
                     TASK_QUEUE_GUARD_MAX_RETRIES,
                 )
                 continue
-            if force_no_tools and not llm_turn_had_content and iteration == MAX_TOOL_CALL_ITERATIONS - 1:
-                answer_only_recovery_attempted = True
-                logger.warning(
-                    "%s [ANSWER_ONLY_RECOVERY] Final answer attempt produced no visible text; "
-                    "retrying once without tools in the same assistant turn.",
-                    log_prefix,
-                )
-                continue
-
             if (
                 (forbidden_tool_call_seen and not llm_turn_had_content)
                 or _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content)
                 or (force_no_tools and not llm_turn_had_content)
             ):
-                has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
-                if has_retry_iteration and not empty_post_tool_recovery_attempted:
-                    empty_post_tool_recovery_attempted = True
-                    force_no_tools = True
-                    logger.warning(
-                        f"{log_prefix} [POST_TOOL_RECOVERY] Tool continuation produced no answer. "
-                        "Retrying once with tools disabled."
-                    )
+                if schedule_answer_recovery("empty_post_tool_response"):
                     continue
 
                 logger.error(

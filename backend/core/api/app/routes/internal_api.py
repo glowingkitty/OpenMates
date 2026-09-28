@@ -750,6 +750,15 @@ class AnonymousChargeFinalizePayload(BaseModel):
     actual_credits: int = Field(..., ge=0)
 
 
+class AnonymousOperationCheckpointPayload(BaseModel):
+    operation_id: str = Field(..., min_length=1, max_length=255)
+    checkpoint_credits: int = Field(..., ge=0)
+
+
+class AnonymousRequestBudgetPayload(BaseModel):
+    parent_request_id: str = Field(..., min_length=1, max_length=255)
+
+
 class AnonymousOperationReleasePayload(BaseModel):
     operation_id: str = Field(..., min_length=1, max_length=255)
     reason: str = Field(default="provider_failed", min_length=1, max_length=128)
@@ -785,6 +794,54 @@ async def reserve_anonymous_operation(
         "operation_id": result.request_id,
         "reserved_credits": result.reserved_credits,
         "idempotent": result.reason in {"reserved", "finalized"},
+    }
+
+
+@router.post("/anonymous-usage/checkpoint-operation")
+async def checkpoint_anonymous_operation(
+    payload: AnonymousOperationCheckpointPayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    try:
+        result = await _anonymous_usage_service(directus_service, cache_service).checkpoint_operation(
+            payload.operation_id,
+            checkpoint_credits=payload.checkpoint_credits,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "anonymous_checkpoint_conflict", "message": str(exc)},
+        ) from exc
+    return {
+        "status": result.status,
+        "operation_id": result.operation_id,
+        "reserved_credits": result.reserved_credits,
+        "checkpoint_credits": result.checkpoint_credits,
+        "effective_hold_credits": result.effective_hold_credits,
+        "idempotent": result.idempotent,
+    }
+
+
+@router.post("/anonymous-usage/request-budget")
+async def get_anonymous_request_budget(
+    payload: AnonymousRequestBudgetPayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    try:
+        available = await _anonymous_usage_service(directus_service, cache_service).get_request_budget(
+            payload.parent_request_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "anonymous_request_closed", "message": str(exc)},
+        ) from exc
+    return {
+        "status": "available",
+        "parent_request_id": payload.parent_request_id,
+        "available_credits": available,
     }
 
 

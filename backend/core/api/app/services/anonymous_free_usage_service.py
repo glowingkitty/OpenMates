@@ -73,6 +73,16 @@ class AnonymousReservationResult:
     reason: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class AnonymousCheckpointResult:
+    operation_id: str
+    reserved_credits: int
+    checkpoint_credits: int
+    effective_hold_credits: int
+    status: str
+    idempotent: bool
+
+
 class AnonymousFreeUsageService:
     """Owns anonymous free-usage budget and reservation accounting."""
 
@@ -347,6 +357,7 @@ class AnonymousFreeUsageService:
                     "local_id_hash": self._hmac_identity("local", anonymous_id),
                     "ip_hash": self._hmac_identity("ip", ip_address),
                     "reserved_credits": 0,
+                    "checkpoint_credits": None,
                     "finalized_credits": 0,
                     "status": "request_open",
                     "created_at": self._now_iso(),
@@ -470,8 +481,12 @@ class AnonymousFreeUsageService:
                     "local_id_hash": local_hash,
                     "ip_hash": ip_hash,
                     "reserved_credits": int(estimated_credits),
+                    "checkpoint_credits": None,
                     "finalized_credits": 0,
                     "status": "reserved",
+                    "daily_window_date": self._today_key(),
+                    "weekly_window_start": self._week_start_key(),
+                    "monthly_window_month": self._month_key(),
                     "created_at": self._now_iso(),
                     "updated_at": self._now_iso(),
                     "expires_at": self._future_iso(minutes=60),
@@ -493,6 +508,111 @@ class AnonymousFreeUsageService:
             reserved_credits=int(estimated_credits),
         )
 
+    async def checkpoint_operation(
+        self,
+        operation_id: str,
+        *,
+        checkpoint_credits: int,
+    ) -> AnonymousCheckpointResult:
+        if checkpoint_credits < 0:
+            raise ValueError("checkpoint_credits must be >= 0")
+        if self.require_distributed_lock:
+            try:
+                row = await self._execute_transaction(
+                    "checkpoint_operation",
+                    {
+                        "operation_id": operation_id,
+                        "checkpoint_credits": int(checkpoint_credits),
+                    },
+                )
+            except AnonymousUsageTransactionError as exc:
+                messages = {
+                    "reservation_not_found": "reservation not found",
+                    "checkpoint_exceeds_quote": "checkpoint credits exceed reserved quote",
+                    "operation_checkpoint_mismatch": "operation checkpoint does not match existing checkpoint",
+                    "operation_state_mismatch": "operation is not open for checkpointing",
+                }
+                if exc.code in messages:
+                    raise ValueError(messages[exc.code]) from exc
+                raise
+            return self._checkpoint_result(row, operation_id)
+
+        async with self._budget_lock():
+            await self._release_expired_reservations_locked()
+            row = await self._get_reservation(operation_id)
+            if not row:
+                raise ValueError("reservation not found")
+            existing = row.get("checkpoint_credits")
+            if existing is not None:
+                if _safe_nonnegative_int(existing) != checkpoint_credits:
+                    raise ValueError("operation checkpoint does not match existing checkpoint")
+                return self._checkpoint_result({**row, "idempotent": True}, operation_id)
+            if row.get("status") != "reserved":
+                raise ValueError("operation is not open for checkpointing")
+            quoted = _safe_nonnegative_int(row.get("reserved_credits"))
+            if checkpoint_credits > quoted:
+                raise ValueError("checkpoint credits exceed reserved quote")
+            updated = await self.directus.update_item(
+                ANONYMOUS_RESERVATIONS_COLLECTION,
+                row["id"],
+                {"checkpoint_credits": int(checkpoint_credits), "updated_at": self._now_iso()},
+                admin_required=True,
+            )
+            if not updated:
+                raise RuntimeError("Failed to checkpoint anonymous usage reservation")
+            await self._refund_reservation_hold_locked(row, quoted - checkpoint_credits)
+            return self._checkpoint_result({**updated, "idempotent": False}, operation_id)
+
+    async def get_request_budget(self, parent_request_id: str) -> int:
+        """Return an advisory live-cap snapshot for an open anonymous request."""
+        if self.require_distributed_lock:
+            try:
+                row = await self._execute_transaction(
+                    "get_request_budget",
+                    {"parent_request_id": parent_request_id},
+                )
+            except AnonymousUsageTransactionError as exc:
+                if exc.code == "request_closed":
+                    raise ValueError("request is not open") from exc
+                raise
+            return _safe_nonnegative_int(row.get("available_credits"))
+
+        async with self._budget_lock():
+            await self._release_expired_reservations_locked()
+            parent = await self._get_reservation(parent_request_id)
+            if not parent or parent.get("status") != "request_open":
+                raise ValueError("request is not open")
+            budget = await self._get_current_budget_row_locked()
+            status = self._status_from_row(budget)
+            if not status.enabled:
+                return 0
+            identity_remaining = []
+            for identity_hash in {str(parent.get("local_id_hash") or ""), str(parent.get("ip_hash") or "")}:
+                if not identity_hash:
+                    return 0
+                identity = await self._get_identity_row(identity_hash)
+                identity_remaining.append(
+                    max(0, status.per_identity_daily_cap_credits - _safe_nonnegative_int((identity or {}).get("used_credits")))
+                )
+            return min(
+                status.daily_remaining_credits,
+                status.weekly_remaining_credits,
+                status.monthly_remaining_credits,
+                *identity_remaining,
+            )
+
+    @staticmethod
+    def _checkpoint_result(row: dict[str, Any], operation_id: str) -> AnonymousCheckpointResult:
+        checkpoint = _safe_nonnegative_int(row.get("checkpoint_credits"))
+        return AnonymousCheckpointResult(
+            operation_id=operation_id,
+            reserved_credits=_safe_nonnegative_int(row.get("reserved_credits")),
+            checkpoint_credits=checkpoint,
+            effective_hold_credits=checkpoint if row.get("status") == "reserved" else 0,
+            status=str(row.get("status") or ""),
+            idempotent=bool(row.get("idempotent")),
+        )
+
     async def finalize_reservation(self, request_id: str, *, actual_credits: int) -> None:
         await self.finalize_charge(request_id, actual_credits=actual_credits)
 
@@ -510,6 +630,8 @@ class AnonymousFreeUsageService:
                     raise ValueError("reservation not found") from exc
                 if exc.code == "actual_exceeds_quote":
                     raise ValueError("actual credits exceed reserved quote") from exc
+                if exc.code == "actual_exceeds_hold":
+                    raise ValueError("actual credits exceed live reservation hold") from exc
                 raise
             return
         async with self._budget_lock():
@@ -526,22 +648,23 @@ class AnonymousFreeUsageService:
                 if row.get("status") == "finalized"
             )
             reserved_rows = [row for row in rows if row.get("status") == "reserved"]
-            reserved_total = sum(_safe_nonnegative_int(row.get("reserved_credits")) for row in reserved_rows)
-            if actual_credits > finalized_total + reserved_total:
+            total_quote = sum(_safe_nonnegative_int(row.get("reserved_credits")) for row in rows)
+            if actual_credits > total_quote:
                 raise ValueError("actual credits exceed reserved quote")
             if not reserved_rows:
                 if actual_credits != finalized_total:
                     raise ValueError("finalized charge does not match existing settlement")
                 return
 
+            live_hold = sum(_effective_reservation_hold(row) for row in reserved_rows)
+            if actual_credits > finalized_total + live_hold:
+                raise ValueError("actual credits exceed live reservation hold")
+
             remaining_actual = max(0, actual_credits - finalized_total)
             for row in reserved_rows:
-                reserved = _safe_nonnegative_int(row.get("reserved_credits"))
-                row_actual = min(reserved, remaining_actual)
+                hold = _effective_reservation_hold(row)
+                row_actual = min(hold, remaining_actual)
                 remaining_actual -= row_actual
-                delta = row_actual - reserved
-                local_hash = row.get("local_id_hash")
-                ip_hash = row.get("ip_hash")
                 updated = await self.directus.update_item(
                     ANONYMOUS_RESERVATIONS_COLLECTION,
                     row["id"],
@@ -554,12 +677,7 @@ class AnonymousFreeUsageService:
                 )
                 if not updated:
                     raise RuntimeError("Failed to finalize anonymous usage reservation")
-                if delta:
-                    await self._increment_budget_usage(delta)
-                    if local_hash:
-                        await self._increment_identity_usage(str(local_hash), delta)
-                    if ip_hash and ip_hash != local_hash:
-                        await self._increment_identity_usage(str(ip_hash), delta)
+                await self._refund_reservation_hold_locked(row, hold - row_actual)
 
     async def release_reservation(self, request_id: str, *, reason: str) -> None:
         if self.require_distributed_lock:
@@ -668,9 +786,7 @@ class AnonymousFreeUsageService:
         reason: str,
         status: str = "released",
     ) -> None:
-        reserved = _safe_nonnegative_int(row.get("reserved_credits"))
-        local_hash = row.get("local_id_hash")
-        ip_hash = row.get("ip_hash")
+        hold = _effective_reservation_hold(row)
         updated = await self.directus.update_item(
             ANONYMOUS_RESERVATIONS_COLLECTION,
             row["id"],
@@ -679,12 +795,37 @@ class AnonymousFreeUsageService:
         )
         if not updated:
             raise RuntimeError("Failed to release anonymous usage reservation")
-        if reserved:
-            await self._increment_budget_usage(-reserved)
+        await self._refund_reservation_hold_locked(row, hold)
+
+    async def _refund_reservation_hold_locked(self, row: dict[str, Any], amount: int) -> None:
+        if amount <= 0:
+            return
+        budget = await self._get_current_budget_row_locked()
+        if not budget or not budget.get("id"):
+            raise RuntimeError("Anonymous budget row missing")
+        updates: dict[str, Any] = {"updated_at": self._now_iso()}
+        if row.get("daily_window_date") == budget.get("daily_window_date"):
+            updates["daily_used_credits"] = max(0, _safe_nonnegative_int(budget.get("daily_used_credits")) - amount)
+        if row.get("weekly_window_start") == budget.get("weekly_window_start"):
+            updates["weekly_used_credits"] = max(0, _safe_nonnegative_int(budget.get("weekly_used_credits")) - amount)
+        if row.get("monthly_window_month") == budget.get("monthly_window_month"):
+            updates["monthly_used_credits"] = max(0, _safe_nonnegative_int(budget.get("monthly_used_credits")) - amount)
+        if len(updates) > 1:
+            updated = await self.directus.update_item(
+                ANONYMOUS_BUDGET_COLLECTION,
+                budget["id"],
+                updates,
+                admin_required=True,
+            )
+            if not updated:
+                raise RuntimeError("Failed to refund anonymous budget hold")
+        if row.get("daily_window_date") == budget.get("daily_window_date"):
+            local_hash = row.get("local_id_hash")
+            ip_hash = row.get("ip_hash")
             if local_hash:
-                await self._increment_identity_usage(str(local_hash), -reserved)
+                await self._increment_identity_usage(str(local_hash), -amount)
             if ip_hash and ip_hash != local_hash:
-                await self._increment_identity_usage(str(ip_hash), -reserved)
+                await self._increment_identity_usage(str(ip_hash), -amount)
 
     async def _identity_would_exceed(self, identity_hash: str, estimated_credits: int, cap: int) -> bool:
         if cap <= 0:
@@ -884,6 +1025,17 @@ def _safe_int(value: Any) -> int:
 
 def _safe_nonnegative_int(value: Any) -> int:
     return max(0, _safe_int(value))
+
+
+def _effective_reservation_hold(row: dict[str, Any]) -> int:
+    quoted = _safe_nonnegative_int(row.get("reserved_credits"))
+    checkpoint = row.get("checkpoint_credits")
+    if checkpoint is None:
+        return quoted
+    effective = _safe_nonnegative_int(checkpoint)
+    if effective > quoted:
+        raise RuntimeError("Anonymous usage checkpoint exceeds its immutable quote")
+    return effective
 
 
 class _AnonymousBudgetLock:

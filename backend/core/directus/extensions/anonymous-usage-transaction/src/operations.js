@@ -22,6 +22,8 @@ const FIELDS = Object.freeze({
   save_budget: new Set(['protocol_version', 'enabled', 'monthly_budget_credits', 'daily_hard_cap_percent', 'weekly_cap_percent', 'per_identity_daily_cap_credits', 'updated_by_admin_user_id']),
   open_request: new Set(['protocol_version', 'request_id', 'local_id_hash', 'ip_hash']),
   reserve_operation: new Set(['protocol_version', 'parent_request_id', 'operation_id', 'charge_id', 'quoted_credits']),
+  checkpoint_operation: new Set(['protocol_version', 'operation_id', 'checkpoint_credits']),
+  get_request_budget: new Set(['protocol_version', 'parent_request_id']),
   finalize_charge: new Set(['protocol_version', 'charge_id', 'actual_credits']),
   release_operation: new Set(['protocol_version', 'operation_id', 'reason']),
   close_request: new Set(['protocol_version', 'request_id']),
@@ -48,6 +50,9 @@ const boolean = (value, code) => {
   return value;
 };
 const count = (value) => Number.isSafeInteger(value) && value > 0 ? value : 0;
+const effectiveHold = (row) => row.checkpoint_credits == null
+  ? count(row.reserved_credits)
+  : integer(row.checkpoint_credits, 'invalid_stored_checkpoint');
 const request = (raw, operation) => {
   const body = validObject(raw); const allowed = FIELDS[operation];
   if (!allowed || Object.keys(body).some((key) => !allowed.has(key))) fail(400, 'invalid_request');
@@ -71,6 +76,8 @@ const budgetResponse = (row) => ({
 });
 const reservationResponse = (row, idempotent) => ({
   request_id: row.request_id, charge_id: row.charge_id, reserved_credits: count(row.reserved_credits),
+  checkpoint_credits: row.checkpoint_credits == null ? null : integer(row.checkpoint_credits, 'invalid_stored_checkpoint'),
+  effective_hold_credits: row.status === 'reserved' ? effectiveHold(row) : 0,
   finalized_credits: count(row.finalized_credits), status: row.status, idempotent,
 });
 const caps = (row) => {
@@ -100,7 +107,7 @@ async function lockedBudget(trx, now) {
 async function expireReservations(trx, budget, now) {
   const reservations = await trx(RESERVATIONS).where({ status: 'reserved' }).andWhere('expires_at', '<=', now).forUpdate();
   for (const row of reservations) {
-    const amount = count(row.reserved_credits); const refund = currentRefund(row, budget, amount);
+    const amount = effectiveHold(row); const refund = currentRefund(row, budget, amount);
     await trx(BUDGET).where({ id: budget.id }).update({
       daily_used_credits: Math.max(0, count(budget.daily_used_credits) - refund.daily),
       weekly_used_credits: Math.max(0, count(budget.weekly_used_credits) - refund.weekly),
@@ -185,7 +192,7 @@ async function openRequest(database, raw, now) {
     const limit = caps(budget);
     if (!budget.enabled) fail(409, 'budget_inactive');
     if (!limit.monthly || !limit.daily || !limit.weekly || !limit.identity || count(budget.monthly_used_credits) >= limit.monthly || count(budget.daily_used_credits) >= limit.daily || count(budget.weekly_used_credits) >= limit.weekly) fail(409, 'budget_exhausted');
-    const row = { id: randomUUID(), request_id: requestId, parent_request_id: null, charge_id: null, local_id_hash: local, ip_hash: ip, reserved_credits: 0, finalized_credits: 0, status: 'request_open', created_at: now, updated_at: now, expires_at: new Date(now.getTime() + REQUEST_TTL_MS) };
+    const row = { id: randomUUID(), request_id: requestId, parent_request_id: null, charge_id: null, local_id_hash: local, ip_hash: ip, reserved_credits: 0, checkpoint_credits: null, finalized_credits: 0, status: 'request_open', created_at: now, updated_at: now, expires_at: new Date(now.getTime() + REQUEST_TTL_MS) };
     try { await trx(RESERVATIONS).insert(row); } catch (error) {
       const raced = await trx(RESERVATIONS).where({ request_id: requestId }).forUpdate().first(); if (!raced) throw error; return reservationResponse(raced, true);
     }
@@ -213,7 +220,7 @@ async function reserveOperation(database, raw, now) {
     const budgetUpdate = { daily_used_credits: count(budget.daily_used_credits) + quoted, weekly_used_credits: count(budget.weekly_used_credits) + quoted, monthly_used_credits: count(budget.monthly_used_credits) + quoted, updated_at: now };
     await trx(BUDGET).where({ id: budget.id }).update(budgetUpdate);
     for (const row of identities.values()) await trx(IDENTITIES).where({ id: row.id }).update({ used_credits: count(row.used_credits) + quoted, updated_at: now });
-    const row = { id: randomUUID(), request_id: operationId, parent_request_id: parentId, charge_id: chargeId, local_id_hash: parent.local_id_hash, ip_hash: parent.ip_hash, reserved_credits: quoted, finalized_credits: 0, status: 'reserved', daily_window_date: budget.daily_window_date, weekly_window_start: budget.weekly_window_start, monthly_window_month: budget.monthly_window_month, created_at: now, updated_at: now, expires_at: new Date(now.getTime() + REQUEST_TTL_MS) };
+    const row = { id: randomUUID(), request_id: operationId, parent_request_id: parentId, charge_id: chargeId, local_id_hash: parent.local_id_hash, ip_hash: parent.ip_hash, reserved_credits: quoted, checkpoint_credits: null, finalized_credits: 0, status: 'reserved', daily_window_date: budget.daily_window_date, weekly_window_start: budget.weekly_window_start, monthly_window_month: budget.monthly_window_month, created_at: now, updated_at: now, expires_at: new Date(now.getTime() + REQUEST_TTL_MS) };
     await trx(RESERVATIONS).insert(row);
     await trx(RESERVATIONS).where({ id: parent.id }).update({ expires_at: new Date(now.getTime() + REQUEST_TTL_MS), updated_at: now });
     return reservationResponse(row, false);
@@ -227,6 +234,54 @@ function currentRefund(row, budget, amount) {
     monthly: row.monthly_window_month === budget.monthly_window_month ? amount : 0,
   };
 }
+
+async function checkpointOperation(database, raw, now) {
+  const body = request(raw, 'checkpoint_operation'); const operationId = text(body.operation_id, 'invalid_operation_id');
+  const checkpoint = integer(body.checkpoint_credits, 'invalid_checkpoint_credits');
+  return database.transaction(async (trx) => {
+    const budget = await lockedBudget(trx, now); await expireReservations(trx, budget, now);
+    const row = await trx(RESERVATIONS).where({ request_id: operationId }).forUpdate().first();
+    if (!row) fail(404, 'reservation_not_found');
+    if (row.checkpoint_credits != null) {
+      if (integer(row.checkpoint_credits, 'invalid_stored_checkpoint') !== checkpoint) fail(409, 'operation_checkpoint_mismatch');
+      return reservationResponse(row, true);
+    }
+    if (row.status !== 'reserved') fail(409, 'operation_state_mismatch');
+    const quoted = count(row.reserved_credits); if (checkpoint > quoted) fail(409, 'checkpoint_exceeds_quote');
+    const amount = quoted - checkpoint; const refund = currentRefund(row, budget, amount);
+    await trx(BUDGET).where({ id: budget.id }).update({
+      daily_used_credits: Math.max(0, count(budget.daily_used_credits) - refund.daily),
+      weekly_used_credits: Math.max(0, count(budget.weekly_used_credits) - refund.weekly),
+      monthly_used_credits: Math.max(0, count(budget.monthly_used_credits) - refund.monthly),
+      updated_at: now,
+    });
+    if (row.daily_window_date === budget.daily_window_date && amount) {
+      const identities = await lockedIdentities(trx, [row.local_id_hash, row.ip_hash], budget.daily_window_date);
+      for (const identity of identities.values()) await trx(IDENTITIES).where({ id: identity.id }).update({ used_credits: Math.max(0, count(identity.used_credits) - amount), updated_at: now });
+    }
+    const update = { checkpoint_credits: checkpoint, updated_at: now };
+    await trx(RESERVATIONS).where({ id: row.id, status: 'reserved' }).update(update);
+    return reservationResponse({ ...row, ...update }, false);
+  });
+}
+
+async function getRequestBudget(database, raw, now) {
+  const body = request(raw, 'get_request_budget'); const parentId = text(body.parent_request_id, 'invalid_parent_request_id');
+  return database.transaction(async (trx) => {
+    const budget = await lockedBudget(trx, now); await expireReservations(trx, budget, now);
+    const parent = await trx(RESERVATIONS).where({ request_id: parentId }).forUpdate().first();
+    if (!parent || parent.status !== 'request_open') fail(409, 'request_closed');
+    const limit = caps(budget); const identities = await lockedIdentities(trx, [parent.local_id_hash, parent.ip_hash], budget.daily_window_date);
+    const remaining = [
+      limit.daily - count(budget.daily_used_credits),
+      limit.weekly - count(budget.weekly_used_credits),
+      limit.monthly - count(budget.monthly_used_credits),
+      ...[...identities.values()].map((row) => limit.identity - count(row.used_credits)),
+    ];
+    return { parent_request_id: parentId, available_credits: budget.enabled ? Math.max(0, Math.min(...remaining)) : 0 };
+  });
+}
+
 async function finalizeCharge(database, raw, now) {
   const body = request(raw, 'finalize_charge'); const chargeId = text(body.charge_id, 'invalid_charge_id'); const actual = integer(body.actual_credits, 'invalid_actual_credits');
   return database.transaction(async (trx) => {
@@ -243,11 +298,13 @@ async function finalizeCharge(database, raw, now) {
     }
     if (rows.some((row) => !['reserved', 'finalized'].includes(row.status))) fail(409, 'charge_identity_mismatch');
     if (actual < totalFinal) fail(409, 'charge_identity_mismatch');
+    const liveHold = rows.filter((row) => row.status === 'reserved').reduce((sum, row) => sum + effectiveHold(row), 0);
+    if (actual > totalFinal + liveHold) fail(409, 'actual_exceeds_hold');
     let remaining = actual - totalFinal; let refund = { daily: 0, weekly: 0, monthly: 0 }; let identityRefund = 0;
     for (const row of rows) {
       if (row.status === 'finalized') continue;
-      const finalized = Math.min(count(row.reserved_credits), remaining); remaining -= finalized;
-      const unused = count(row.reserved_credits) - finalized; const delta = currentRefund(row, budget, unused);
+      const hold = effectiveHold(row); const finalized = Math.min(hold, remaining); remaining -= finalized;
+      const unused = hold - finalized; const delta = currentRefund(row, budget, unused);
       refund = { daily: refund.daily + delta.daily, weekly: refund.weekly + delta.weekly, monthly: refund.monthly + delta.monthly };
       if (row.daily_window_date === budget.daily_window_date) identityRefund += unused;
       await trx(RESERVATIONS).where({ id: row.id }).update({ status: 'finalized', finalized_credits: finalized, updated_at: now });
@@ -266,11 +323,11 @@ async function releaseOperation(database, raw, now) {
   return database.transaction(async (trx) => {
     const budget = await lockedBudget(trx, now); const row = await trx(RESERVATIONS).where({ request_id: operationId }).forUpdate().first();
     if (!row) fail(404, 'reservation_not_found'); if (row.status !== 'reserved') return reservationResponse(row, true);
-    const refund = currentRefund(row, budget, count(row.reserved_credits));
+    const hold = effectiveHold(row); const refund = currentRefund(row, budget, hold);
     await trx(BUDGET).where({ id: budget.id }).update({ daily_used_credits: Math.max(0, count(budget.daily_used_credits) - refund.daily), weekly_used_credits: Math.max(0, count(budget.weekly_used_credits) - refund.weekly), monthly_used_credits: Math.max(0, count(budget.monthly_used_credits) - refund.monthly), updated_at: now });
     if (row.daily_window_date === budget.daily_window_date) {
       const identities = await lockedIdentities(trx, [row.local_id_hash, row.ip_hash], budget.daily_window_date);
-      for (const identity of identities.values()) await trx(IDENTITIES).where({ id: identity.id }).update({ used_credits: Math.max(0, count(identity.used_credits) - count(row.reserved_credits)), updated_at: now });
+      for (const identity of identities.values()) await trx(IDENTITIES).where({ id: identity.id }).update({ used_credits: Math.max(0, count(identity.used_credits) - hold), updated_at: now });
     }
     const update = { status: 'released', release_reason: reason, updated_at: now }; await trx(RESERVATIONS).where({ id: row.id }).update(update); return reservationResponse({ ...row, ...update }, false);
   });
@@ -287,8 +344,8 @@ async function closeRequest(database, raw, now) {
 }
 
 export async function executeOperation(database, operation, raw, now = new Date()) {
-  const handlers = { health_check: async () => { request(raw, 'health_check'); await database.raw('SELECT 1'); return { status: 'ok', protocol_version: PROTOCOL_VERSION }; }, get_status: status, save_budget: saveBudget, open_request: openRequest, reserve_operation: reserveOperation, finalize_charge: finalizeCharge, release_operation: releaseOperation, close_request: closeRequest };
+  const handlers = { health_check: async () => { request(raw, 'health_check'); await database.raw('SELECT 1'); return { status: 'ok', protocol_version: PROTOCOL_VERSION }; }, get_status: status, save_budget: saveBudget, open_request: openRequest, reserve_operation: reserveOperation, checkpoint_operation: checkpointOperation, get_request_budget: getRequestBudget, finalize_charge: finalizeCharge, release_operation: releaseOperation, close_request: closeRequest };
   if (!handlers[operation]) fail(400, 'unsupported_operation'); return handlers[operation](database, raw, now);
 }
 
-export const testing = { caps, currentRefund, dayKeys };
+export const testing = { caps, currentRefund, dayKeys, effectiveHold };

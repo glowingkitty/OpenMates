@@ -85,6 +85,14 @@ chat_turn_preflights:
       type: string
       length: 64
       nullable: true
+    failure_alert_pending_at:
+      type: datetime
+      nullable: true
+      note: "Set atomically only for new technical failures eligible for managed alert delivery"
+    failure_alert_queued_at:
+      type: datetime
+      nullable: true
+      note: "Set only after the internal failure-alert broker enqueue is definitely acknowledged"
     terminal_at:
       type: datetime
       nullable: true

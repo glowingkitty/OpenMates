@@ -880,11 +880,14 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                 log_prefix=f"[LLM transform tool msg {idx}] ",
             )
 
-            transformed_messages.append({
+            transformed_tool_message = {
                 "role": "tool",
                 "tool_call_id": tool_call_id,
                 "content": plain_text_content
-            })
+            }
+            if msg.get("name"):
+                transformed_tool_message["name"] = sanitize_text_simple(str(msg["name"]))
+            transformed_messages.append(transformed_tool_message)
             continue
         
         # Handle assistant messages with tool_calls
@@ -906,6 +909,26 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
         
         # Handle regular user/assistant messages
         content_input = msg.get("content", "")
+        # Clean answer recovery re-labels completed multimodal tool results as
+        # evidence in user messages. Preserve canonical content blocks instead
+        # of sending them through the TipTap text extractor (which drops lists).
+        if isinstance(content_input, list) and all(
+            isinstance(block, dict) and block.get("type") in {
+                "text", "image_url", "input_image", "image", "file", "input_file", "document",
+            }
+            for block in content_input
+        ):
+            clean_blocks = _sanitize_llm_content(content_input, f"[LLM transform {role} msg {idx}] ")
+            for block in clean_blocks:
+                if block.get("type") == "text" and role == "assistant":
+                    block["text"] = _sanitize_assistant_history_content(
+                        block.get("text", ""), f"[LLM transform assistant msg {idx}] ",
+                    )
+            if role == "user" and msg.get("sender_name"):
+                sender = sanitize_text_simple(str(msg["sender_name"]))
+                clean_blocks.insert(0, {"type": "text", "text": format_sender_attributed_content("", sender)})
+            transformed_messages.append({"role": role, "content": clean_blocks})
+            continue
         plain_text_content = _extract_text_from_tiptap(content_input)
         if role == "assistant":
             plain_text_content = _sanitize_assistant_history_content(
@@ -1560,7 +1583,14 @@ async def call_main_llm_stream(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     max_tokens: Optional[int] = None,
+    recoverable_attempt: bool = False,
+    stop_after_provider_failure: bool = False,
 ) -> AsyncIterator[str]:
+    # Anonymous accounting reserves one dispatched attempt at a time. Returning
+    # failures to its caller preserves ambiguous holds and makes any retry earn
+    # a separate reservation; a hidden server retry cannot look like clean EOF.
+    if stop_after_provider_failure:
+        recoverable_attempt = True
     log_prefix = f"[{task_id}] LLM Utils (Main Stream - {model_id}):"
     logger.info(f"{log_prefix} Preparing to call. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Choice: {tool_choice}")
 
@@ -1926,6 +1956,7 @@ async def call_main_llm_stream(
     _any_content_yielded = False
     
     for server_model_id in servers_to_try:
+        buffered_usage_chunks: List[Any] = []
         attempted_servers.append(server_model_id)
         attempt_log_prefix = f"{log_prefix} [Attempt {len(attempted_servers)}/{len(servers_to_try)}: {server_model_id}]"
         
@@ -2018,7 +2049,7 @@ async def call_main_llm_stream(
             # If this is the last server to try, signal failure
             if len(attempted_servers) >= len(servers_to_try):
                 logger.error(f"{log_prefix} Technical error (not shown to user): Model provider for '{server_model_id}' not supported. Available: {', '.join(sorted(PROVIDER_CLIENT_REGISTRY.keys()))}")
-                if _any_content_yielded:
+                if _any_content_yielded and not recoverable_attempt:
                     yield STANDARDIZED_USER_ERROR_MESSAGE
                 else:
                     raise AllServersFailedError(original_model_id, attempted_servers, last_error)
@@ -2038,7 +2069,6 @@ async def call_main_llm_stream(
                     f"{inter_chunk_timeout_seconds}s inter-chunk timeout..."
                 )
                 try:
-                    buffered_usage_chunks: List[Any] = []
                     provider_produced_substantive_output = False
                     # Wrap stream with first chunk AND inter-chunk timeout protection
                     # This prevents both dead streams (never starts) and hung streams (stops mid-stream)
@@ -2053,7 +2083,13 @@ async def call_main_llm_stream(
                     # we confirm the provider produced substantive output.
                     async for chunk in timeout_stream:
                         if _is_usage_chunk(chunk):
-                            buffered_usage_chunks.append(chunk)
+                            if recoverable_attempt:
+                                # Recovery may reject output after the provider
+                                # incurred usage. Keep accounting independent of
+                                # acceptance; terminal failure still waives billing.
+                                yield chunk
+                            else:
+                                buffered_usage_chunks.append(chunk)
                             continue
 
                         if _is_provider_error_marker(chunk):
@@ -2062,7 +2098,7 @@ async def call_main_llm_stream(
                                 f"{attempt_log_prefix} Provider emitted stream error marker: {error_msg}"
                             )
                             last_error = error_msg
-                            if _any_content_yielded:
+                            if _any_content_yielded and not recoverable_attempt:
                                 yield STANDARDIZED_USER_ERROR_MESSAGE
                                 return
                             raise ValueError(error_msg)
@@ -2080,6 +2116,8 @@ async def call_main_llm_stream(
                         )
                         logger.error(f"{attempt_log_prefix} {error_msg}")
                         last_error = error_msg
+                        if stop_after_provider_failure:
+                            raise ValueError(error_msg)
                         if len(attempted_servers) < len(servers_to_try):
                             logger.warning(
                                 f"{attempt_log_prefix} Empty-stream failure detected. "
@@ -2098,12 +2136,16 @@ async def call_main_llm_stream(
                     error_msg = f"Stream timeout: {str(timeout_err)}"
                     logger.error(f"{attempt_log_prefix} {error_msg}")
                     last_error = error_msg
+                    if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
+                        # The caller owns the published prefix and must rebuild
+                        # the next request before another provider can continue.
+                        raise AllServersFailedError(original_model_id, attempted_servers, last_error) from timeout_err
                     if len(attempted_servers) < len(servers_to_try):
                         logger.warning(f"{attempt_log_prefix} Timeout error detected. Will try next server if available.")
                         continue
                     else:
                         logger.error(f"{attempt_log_prefix} Technical timeout error (not shown to user): {timeout_err}")
-                        if _any_content_yielded:
+                        if _any_content_yielded and not recoverable_attempt:
                             yield STANDARDIZED_USER_ERROR_MESSAGE
                         else:
                             raise AllServersFailedError(original_model_id, attempted_servers, last_error)
@@ -2112,10 +2154,12 @@ async def call_main_llm_stream(
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
                 logger.error(f"{attempt_log_prefix} {error_msg}")
                 last_error = error_msg
+                if stop_after_provider_failure:
+                    raise ValueError(error_msg)
                 # If this is the last server to try, signal failure
                 if len(attempted_servers) >= len(servers_to_try):
                     logger.error(f"{attempt_log_prefix} Technical stream error (not shown to user): Expected a stream but received {type(raw_chunk_stream)}")
-                    if _any_content_yielded:
+                    if _any_content_yielded and not recoverable_attempt:
                         yield STANDARDIZED_USER_ERROR_MESSAGE
                     else:
                         raise AllServersFailedError(original_model_id, attempted_servers, last_error)
@@ -2125,6 +2169,10 @@ async def call_main_llm_stream(
             error_msg = str(e)
             logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
             last_error = error_msg
+            if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
+                for usage_chunk in buffered_usage_chunks:
+                    yield usage_chunk
+                raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
             # Special case: Gemini rejected its replayed thought-signature state.
             # Strip thought_signature fields from the message history and retry via shared helper.
@@ -2163,7 +2211,7 @@ async def call_main_llm_stream(
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
                 logger.error(f"{attempt_log_prefix} Technical error (not shown to user): {e}")
-                if _any_content_yielded:
+                if _any_content_yielded and not recoverable_attempt:
                     yield STANDARDIZED_USER_ERROR_MESSAGE
                 else:
                     raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
@@ -2173,6 +2221,10 @@ async def call_main_llm_stream(
             error_msg = str(e)
             logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
             last_error = error_msg
+            if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
+                for usage_chunk in buffered_usage_chunks:
+                    yield usage_chunk
+                raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
             # Special case: Gemini rejected its replayed thought-signature state.
             # Delegate to the shared helper which prefers OpenRouter first.
@@ -2207,7 +2259,7 @@ async def call_main_llm_stream(
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
                 logger.error(f"{attempt_log_prefix} Technical unexpected error (not shown to user): {e}")
-                if _any_content_yielded:
+                if _any_content_yielded and not recoverable_attempt:
                     yield STANDARDIZED_USER_ERROR_MESSAGE
                 else:
                     raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
@@ -2216,7 +2268,7 @@ async def call_main_llm_stream(
     # All servers failed — raise so the caller (main_processor) can try the next model
     error_summary = f"All {len(servers_to_try)} server(s) failed. Attempted servers: {', '.join(attempted_servers)}. Last error: {last_error}"
     logger.error(f"{log_prefix} {error_summary}")
-    if _any_content_yielded:
+    if _any_content_yielded and not recoverable_attempt:
         yield STANDARDIZED_USER_ERROR_MESSAGE
     else:
         raise AllServersFailedError(original_model_id, attempted_servers, last_error)

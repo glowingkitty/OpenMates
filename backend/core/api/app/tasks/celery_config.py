@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from celery import Celery, signals
+from celery.exceptions import Ignore, Reject, Retry, SoftTimeLimitExceeded, Terminated, TimeLimitExceeded
 from kombu import Queue
 import os
 import logging
@@ -22,12 +23,56 @@ from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService as _CacheService
 from backend.core.api.app.tasks.push_worker_service import initialize_push_services
+from backend.core.api.app.tasks.base_task import (
+    AI_CHAT_TASK_NAME,
+    ai_chat_failure_identity,
+)
+from backend.shared.python_utils.chat_failure_notifications import (
+    notify_chat_failure_sync,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
+
+
+def _decoded_task_message_call(message: object) -> tuple[object, object, object, object]:
+    """Read only decoded Celery metadata; never deserialize or log raw message bodies."""
+    headers = getattr(message, "headers", None)
+    task_name = headers.get("task") if isinstance(headers, dict) else None
+    task_id = headers.get("id") if isinstance(headers, dict) else None
+    args: object = []
+    kwargs: object = {}
+    try:
+        payload = getattr(message, "payload", None)
+    except Exception:
+        payload = None
+    if isinstance(payload, dict):
+        task_name = task_name or payload.get("task")
+        task_id = task_id or payload.get("id")
+        args = payload.get("args", [])
+        kwargs = payload.get("kwargs", {})
+    elif isinstance(payload, (list, tuple)) and len(payload) >= 2:
+        args, kwargs = payload[0], payload[1]
+    return task_name, task_id, args, kwargs
+
+
+def _notify_ai_task_boundary(
+    *,
+    task_name: object,
+    task_id: object,
+    args: object,
+    kwargs: object,
+    stage: str,
+    category: str,
+) -> None:
+    if task_name != AI_CHAT_TASK_NAME:
+        return
+    identity = ai_chat_failure_identity(args, kwargs, task_id)
+    if identity:
+        notify_chat_failure_sync(identity, stage=stage, category=category)
 
 # ---------------------------------------------------------------------------
 # Celery Prometheus metrics
@@ -787,11 +832,35 @@ def task_failure_handler(task_id, exception, args, kwargs, traceback, einfo, **k
         queue = getattr(sender.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
         worker = getattr(sender.request, 'hostname', 'UNKNOWN_WORKER')
     
-    logger.error(
-        f"[TASK_LIFECYCLE] TASK_FAILED: task_id={task_id}, "
-        f"task_name={task_name}, queue={queue}, worker={worker}, "
-        f"exception_type={type(exception).__name__}, exception_msg={str(exception)[:200]}"
-    )
+    if task_name == AI_CHAT_TASK_NAME:
+        logger.error(
+            f"[TASK_LIFECYCLE] TASK_FAILED: task_id={task_id}, "
+            f"task_name={task_name}, queue={queue}, worker={worker}, "
+            f"exception_type={type(exception).__name__}, exception_msg=redacted"
+        )
+        if not isinstance(exception, (Retry, Ignore, Reject, Terminated)):
+            category = (
+                "timeout"
+                if isinstance(
+                    exception,
+                    (TimeoutError, SoftTimeLimitExceeded, TimeLimitExceeded),
+                )
+                else "unexpected_error"
+            )
+            _notify_ai_task_boundary(
+                task_name=task_name,
+                task_id=task_id,
+                args=args,
+                kwargs=kwargs,
+                stage="inference",
+                category=category,
+            )
+    else:
+        logger.error(
+            f"[TASK_LIFECYCLE] TASK_FAILED: task_id={task_id}, "
+            f"task_name={task_name}, queue={queue}, worker={worker}, "
+            f"exception_type={type(exception).__name__}, exception_msg={str(exception)[:200]}"
+        )
 
     # Increment the Prometheus failure counter (no-op if prometheus_client unavailable)
     if _PROM_CLIENT_AVAILABLE and _CELERY_TASK_FAILURES_COUNTER is not None:
@@ -827,11 +896,28 @@ def task_rejected_handler(message, exc, **kwargs):
     CRITICAL: This catches tasks that could NOT be processed!
     This is the key signal to detect unrouted or unknown tasks.
     """
-    logger.error(
-        f"[TASK_LIFECYCLE] TASK_REJECTED: message={message}, "
-        f"exception_type={type(exc).__name__}, exception_msg={str(exc)[:200]}. "
-        f"This task was NOT processed! Check task routing and worker queues."
-    )
+    task_name, task_id, args, task_kwargs = _decoded_task_message_call(message)
+    if task_name == AI_CHAT_TASK_NAME:
+        logger.error(
+            f"[TASK_LIFECYCLE] TASK_REJECTED: task_id={task_id}, "
+            f"task_name={task_name}, exception_type={type(exc).__name__}, "
+            "exception_msg=redacted. This task was NOT processed! "
+            "Check task routing and worker queues."
+        )
+        _notify_ai_task_boundary(
+            task_name=task_name,
+            task_id=task_id,
+            args=args,
+            kwargs=task_kwargs,
+            stage="dispatch",
+            category="unexpected_error",
+        )
+    else:
+        logger.error(
+            f"[TASK_LIFECYCLE] TASK_REJECTED: message={message}, "
+            f"exception_type={type(exc).__name__}, exception_msg={str(exc)[:200]}. "
+            f"This task was NOT processed! Check task routing and worker queues."
+        )
 
 @signals.task_revoked.connect
 def task_revoked_handler(request, terminated, signum, expired, **kwargs):
@@ -869,11 +955,28 @@ def task_unknown_handler(message, exc, name, id, **kwargs):
     CRITICAL: This means a task was sent but no worker knows how to execute it!
     This could indicate a misconfiguration or missing task registration.
     """
-    logger.error(
-        f"[TASK_LIFECYCLE] TASK_UNKNOWN: task_id={id}, "
-        f"task_name={name}, exception={exc}. "
-        f"CRITICAL: No worker can process this task! Check task registration and routing."
-    )
+    _message_name, message_id, args, task_kwargs = _decoded_task_message_call(message)
+    task_id = id or message_id
+    if name == AI_CHAT_TASK_NAME:
+        logger.error(
+            f"[TASK_LIFECYCLE] TASK_UNKNOWN: task_id={task_id}, "
+            f"task_name={name}, exception=redacted. "
+            f"CRITICAL: No worker can process this task! Check task registration and routing."
+        )
+        _notify_ai_task_boundary(
+            task_name=name,
+            task_id=task_id,
+            args=args,
+            kwargs=task_kwargs,
+            stage="dispatch",
+            category="unexpected_error",
+        )
+    else:
+        logger.error(
+            f"[TASK_LIFECYCLE] TASK_UNKNOWN: task_id={task_id}, "
+            f"task_name={name}, exception={exc}. "
+            f"CRITICAL: No worker can process this task! Check task registration and routing."
+        )
 
 
 # ===========================================================================

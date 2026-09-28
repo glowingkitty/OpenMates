@@ -22,6 +22,7 @@ from backend.core.api.app.services.anonymous_free_usage_service import Anonymous
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
 from backend.core.api.app.utils.server_mode import validate_request_domain
 from backend.shared.python_utils.learning_mode import build_anonymous_request_learning_mode_context
+from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
 
 try:
     from backend.core.api.app.services.limiter import limiter
@@ -487,6 +488,8 @@ async def anonymous_chat_stream(
                     "is_incognito": True,
                     "is_anonymous": True,
                     "anonymous_reservation_id": reservation.request_id,
+                    "_chat_id": payload.client_chat_id,
+                    "_message_id": payload.client_message_id,
                     "apps_enabled": True,
                     "learning_mode": learning_mode_context,
                 },
@@ -501,6 +504,11 @@ async def anonymous_chat_stream(
             raise
         except Exception as exc:
             logger.exception("Anonymous non-streaming inference failed")
+            await notify_chat_failure(
+                f"{payload.client_chat_id}:{payload.client_message_id}",
+                stage="streaming",
+                category="delivery_error",
+            )
             raise HTTPException(
                 status_code=500,
                 detail={"code": "anonymous_inference_failed", "message": ANONYMOUS_INFERENCE_ERROR_MESSAGE},
@@ -526,6 +534,8 @@ async def anonymous_chat_stream(
         full_content = ""
         sequence = 0
         reservation = None
+        upstream_error_frame = False
+        upstream_error_snapshot = None
 
         yield _anonymous_sse_event({
             "type": "ai_task_initiated",
@@ -584,6 +594,8 @@ async def anonymous_chat_stream(
                     "is_incognito": True,
                     "is_anonymous": True,
                     "anonymous_reservation_id": reservation.request_id,
+                    "_chat_id": payload.client_chat_id,
+                    "_message_id": payload.client_message_id,
                     "apps_enabled": True,
                     "learning_mode": learning_mode_context,
                 },
@@ -597,7 +609,22 @@ async def anonymous_chat_stream(
                 async for openai_payload in _iter_openai_sse_payloads(result):
                     if isinstance(openai_payload.get("model"), str):
                         model_name = openai_payload["model"]
+                    # OpenMates streaming extension: the final top-level snapshot
+                    # is authoritative when upstream cumulative content was
+                    # rewritten and could not be represented by OpenAI deltas.
+                    authoritative_content = openai_payload.get("full_content")
+                    has_authoritative_content = isinstance(authoritative_content, str)
+                    if has_authoritative_content:
+                        full_content = authoritative_content
                     for choice in openai_payload.get("choices") or []:
+                        if choice.get("finish_reason") == "error":
+                            # AskSkill already records delivery failures before
+                            # producing this frame. Preserve only its explicit,
+                            # sanitized snapshot; never promote a raw error delta.
+                            upstream_error_frame = True
+                            if has_authoritative_content and authoritative_content:
+                                upstream_error_snapshot = authoritative_content
+                            raise RuntimeError("Anonymous upstream stream ended with an error")
                         delta = choice.get("delta") or {}
                         for embed in delta.get("embeds") or []:
                             if not isinstance(embed, dict) or not embed.get("embed_id"):
@@ -613,7 +640,7 @@ async def anonymous_chat_stream(
                                 },
                             })
                         content_delta = delta.get("content")
-                        if content_delta:
+                        if content_delta and not has_authoritative_content:
                             full_content += str(content_delta)
                             sequence += 1
                             yield _anonymous_sse_event({
@@ -654,13 +681,20 @@ async def anonymous_chat_stream(
             ))
         except Exception:
             logger.exception("Anonymous streaming inference failed")
+            if reservation is not None and reservation.accepted and not upstream_error_frame:
+                await notify_chat_failure(
+                    f"{payload.client_chat_id}:{payload.client_message_id}",
+                    stage="streaming",
+                    category="delivery_error",
+                )
+            terminal_content = upstream_error_snapshot or ANONYMOUS_INFERENCE_ERROR_MESSAGE
             yield _anonymous_sse_event({
                 "type": "ai_message_chunk",
                 "task_id": task_id,
                 "chat_id": payload.client_chat_id,
                 "message_id": assistant_message_id,
                 "user_message_id": payload.client_message_id,
-                "full_content_so_far": ANONYMOUS_INFERENCE_ERROR_MESSAGE,
+                "full_content_so_far": terminal_content,
                 "sequence": sequence + 1,
                 "is_final_chunk": True,
                 "model_name": model_name,

@@ -15,6 +15,10 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
 )
+from backend.shared.python_utils.chat_failure_notifications import (
+    notification_environment,
+    notify_chat_failure,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -146,10 +150,56 @@ async def invalidate_recovery_jobs_for_account_deletion(
 
 
 async def cleanup_expired_recovery_jobs(*, directus_service: Any) -> dict[str, Any]:
-    return await ChatRecoveryService(directus_service).execute(
+    service = ChatRecoveryService(directus_service)
+    result = await service.execute(
         "cleanup_expired",
-        {"protocol_version": 1},
+        {
+            "protocol_version": 1,
+            "failure_alerts_enabled": notification_environment()
+            in {"development", "production"},
+        },
     )
+    raw_candidates = result.pop("failure_alert_candidates", [])
+    candidates = raw_candidates if isinstance(raw_candidates, list) else []
+    queued = 0
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        preflight_id = candidate.get("preflight_id")
+        inference_task_id = candidate.get("inference_task_id")
+        chat_id = candidate.get("chat_id")
+        user_message_id = candidate.get("user_message_id")
+        failure_category = candidate.get("failure_category")
+        metadata = {
+            "claim_expired": ("dispatch", "timeout"),
+            "dispatch_failed": ("dispatch", "processing_error"),
+            "soft_time_limit": ("inference", "timeout"),
+            "worker_timeout": ("inference", "timeout"),
+        }.get(failure_category, ("inference", "processing_error"))
+        if not all(isinstance(value, str) and value for value in (
+            preflight_id, inference_task_id, chat_id, user_message_id,
+        )) or metadata is None:
+            continue
+        stage, category = metadata
+        if not await notify_chat_failure(
+            f"{chat_id}:{user_message_id}",
+            stage=stage,
+            category=category,
+        ):
+            continue
+        await service.execute(
+            "acknowledge_failure_alert",
+            {
+                "protocol_version": 1,
+                "preflight_id": preflight_id,
+                "inference_task_id": inference_task_id,
+                "failure_category": failure_category,
+            },
+        )
+        queued += 1
+    result["failure_alerts_queued"] = queued
+    result["failure_alerts_pending"] = max(0, len(candidates) - queued)
+    return result
 
 
 async def send_available_recovery_jobs(

@@ -1,25 +1,25 @@
 schema_version: 2
-goal: Notify the admin when backend chat processing fails on official dev and production,
-  capped at five emails per server per UTC day and disabled on self-hosting.
+goal: Notify the admin for every distinct eligible terminal backend chat failure on
+  official dev and production, with per-request deduplication and no daily suppression,
+  while remaining disabled on self-hosting.
 specifications:
 - architecture.operational-monitoring@3
 decisions:
 - id: D-1
-  status: active
-  decision: User approved the exact notification PDF on 2026-09-10 and requested implementation
-    and dev deploy.
+  status: superseded
+  decision: Historically, the user approved the exact capped-notification PDF on
+    2026-09-10 and requested implementation and dev deploy.
   reason: User-approved scope and existing architecture
   decided_at: '2026-09-10'
 - id: D-2
-  status: active
-  decision: User explicitly waived E2E testing; run focused unit and lint checks only.
-  reason: User-approved scope and existing architecture
+  status: superseded
+  decision: The 2026-09-10 scope waived E2E testing; this historical waiver does not apply to the 2026-09-28 work.
+  reason: Verification for the current changes is recorded separately.
   decided_at: '2026-09-10'
 - id: D-3
-  status: active
-  decision: No new endpoint, client behavior, billing, or encrypted-data access. Email
-    contains allowlisted operational metadata only.
-  reason: User-approved scope and existing architecture
+  status: superseded
+  decision: The original implementation introduced no schema or client changes; the current work also covers response delivery and durable recovery notification acknowledgement. Email still contains only allowlisted operational metadata.
+  reason: The current request covers every failed server chat.
   decided_at: '2026-09-10'
 - id: D-4
   status: active
@@ -27,6 +27,13 @@ decisions:
     do not infer live reliability from units.
   reason: User-approved scope and existing architecture
   decided_at: '2026-09-10'
+- id: D-5
+  status: active
+  decision: On 2026-09-28 the user required notification for every failed server
+    chat, removing the five-per-day suppression while retaining per-request deduplication,
+    privacy allowlists, explicit delivery states, and bounded queue submission retries.
+  reason: Latest explicit user requirement supersedes the historical daily cap.
+  decided_at: '2026-09-28'
 scenarios:
 - id: S-1
   title: A terminal technical failure queues an email even when its result envelope
@@ -38,8 +45,9 @@ scenarios:
   then:
   - The scenario title describes the required outcome.
 - id: S-2
-  title: Concurrent workers share five reservations per UTC day; duplicate jobs and
-    restarts cannot send extra emails.
+  title: Every distinct eligible failure remains immediately eligible, including
+    the sixth and later failures of a UTC day; duplicate jobs and restarts cannot
+    send extra emails for the same request.
   given:
   - The approved managed-server notification policy is active.
   when:
@@ -57,8 +65,9 @@ scenarios:
   - The scenario title describes the required outcome.
 acceptance_criteria:
 - id: AC-1
-  text: Focused tests cover trigger classification, cap, duplicates, environment isolation,
-    privacy and failed delivery.
+  text: Focused tests cover trigger classification, complete distinct-failure coverage,
+    duplicates, environment isolation, privacy, bounded queue submission retries,
+    and failed delivery.
   scenario: S-1
   required: true
   status: pending
@@ -67,8 +76,7 @@ acceptance_criteria:
   verification_ids:
   - T-ALERTS
 - id: AC-2
-  text: Scoped source is linted and deployed to dev; E2E and actual email delivery
-    remain explicitly unverified under the waiver.
+  text: Scoped source is linted and relevant tests run in isolated CI. Real inference checks run only on dev. Actual transport acceptance and production deployment must be reported separately from mocked email tests.
   scenario: S-2
   required: true
   status: pending
@@ -77,27 +85,29 @@ acceptance_criteria:
   verification_ids:
   - T-ALERTS
 implementation:
-- Add a shared notification dispatcher and atomic email-worker allowance using existing
-  Redis and mail services.
+- Add a shared notification dispatcher and atomic email-worker deduplication and
+  daily counting using existing Redis and mail services.
 - Connect worker terminal outcomes and WebSocket dispatch/handler failures.
-- Run focused checks, document limitations, and deploy through session 7742.
+- Cover pre-wrapper admission failures and canonicalize turn identity across notification boundaries.
+- Retain durable recovery failure alerts until definite broker acknowledgement, then acknowledge the exact failed record idempotently.
+- Run focused checks and report dev and production runtime verification separately.
 id: chat-failure-alerts
-title: Capped chat failure emails
+title: Complete deduplicated chat failure emails
 status: implementing
 scope:
   in:
   - Internal managed-server failure emails and focused validation
   out:
-  - E2E tests by user waiver
   - Production rollout
-  - Client UI changes
+  - Email delivery guarantees beyond the configured provider's acceptance
 tests:
 - id: T-ALERTS
   type: pytest
   file: backend/tests/test_chat_failure_notifications.py
   command: python -m pytest backend/tests/test_chat_failure_notifications.py -q
   assertions:
-  - Atomic cap, deduplication, exclusion and privacy hold.
+  - Every distinct eligible failure remains eligible without a daily cap.
+  - Atomic deduplication, exclusion, privacy, and bounded queue submission hold.
   covers:
   - AC-1
   - AC-2
@@ -119,9 +129,11 @@ tests:
         -q
       timestamp: '2026-09-10T15:43:00Z'
       subject_commit: 36750c21afc3a6076dba32df1948fabba14dafe7
+      notes: Historical evidence for the superseded five-per-day implementation;
+        it does not prove the 2026-09-28 complete-coverage revision.
 tasks:
 - id: TASK-1
-  title: Implement and deploy approved alerts
+  title: Implement approved alerts
   status: in_progress
   phase: working_tasks
   expected_files:
@@ -147,9 +159,8 @@ implementation_state:
   subject_commit: 36750c21afc3a6076dba32df1948fabba14dafe7
 approvals:
   specification:
-    status: approved
-    approved_at: '2026-09-10'
-    fingerprint: 5809705a199bfc279eb33393031b83ced565689134dd983fce569a6fb60e9e5c
+    status: pending
+    fingerprint: d16c4836db881e89ea515ffd8c39c7b467c80371b524b8f94d4d70a771cf2c19
   plan:
     status: approved
     approved_at: '2026-09-10'
@@ -160,11 +171,35 @@ attempts:
   outcome: planned
   approach: Focused tests and scoped deploy; E2E waived
   recorded_at: '2026-09-10'
+- id: A-2
+  task_id: TASK-1
+  outcome: succeeded
+  approach: Remove daily suppression, retain seven-day fingerprint deduplication
+    and daily counts, add bounded producer retry, and verify with mocked mail transport.
+  recorded_at: '2026-09-28'
+  evidence:
+  - command: uv run --with aiohttp==3.14.3 --with 'fakeredis[lua]==2.38.0'
+      python -m pytest -q backend/tests/test_chat_failure_notifications.py
+    result: 25 passed; no email or runtime service was contacted.
+  - command: uv run --with aiohttp==3.14.3 python -m pytest -q backend/tests/test_stream_consumer_recovery.py
+      -k 'partial_text_followed_by_terminal_failure or app_skill_output_followed_by_stream_exception
+      or normal_text_with_usage_remains_successful'
+    result: 4 passed and 23 deselected; no email or runtime service was contacted.
+- id: A-3
+  task_id: TASK-1
+  outcome: succeeded
+  approach: Verify typed terminal failures, safe sync and async producers, Celery boundaries, response delivery, and durable recovery alert replay together.
+  recorded_at: '2026-09-28'
+  evidence:
+  - result: 173 focused Python tests passed locally, including the three clean-answer retry cases and three anonymous continuation cases.
+    notes: Fake providers and mail transport; no claim of production or live email verification.
+  - command: node --test backend/core/directus/extensions/anonymous-usage-transaction/test/operations.test.js backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    result: 64 transaction tests passed locally.
 handoff:
   current_task_id: TASK-1
-  next_action: Run lint and deploy
-  command: python3 scripts/sessions.py prepare-deploy --session 7742
-  expected_outcome: Scoped reviewed deploy
+  next_action: Review and integrate the scoped source and documentation changes.
+  command: git diff --check
+  expected_outcome: Scoped reviewed change ready for the parent task.
   last_verified_commit: 36750c21afc3a6076dba32df1948fabba14dafe7
   blocker: null
 demonstration:
@@ -172,7 +207,7 @@ demonstration:
     status: not_applicable
     surface: non_visual
     reason: Internal notification plumbing; user explicitly waived E2E tests. No browser
-      or CLI product surface changed.
+      or CLI product surface changed in the historical 2026-09-10 scope. Current response-delivery coverage is tracked with the 2PUJ3 repair.
     verification_ids:
     - T-ALERTS
     classified_at: '2026-09-10'

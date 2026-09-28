@@ -24,12 +24,66 @@ from backend.shared.python_utils.celery_dedup import (
     acquire_celery_task_dedup_lock,
     release_celery_task_dedup_lock,
 )
+from backend.shared.python_utils.chat_failure_notifications import (
+    notify_chat_failure_sync,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
     from backend.core.api.app.services.payment.payment_service import PaymentService
 
 logger = logging.getLogger(__name__)
+
+AI_CHAT_TASK_NAME = "apps.ai.tasks.skill_ask"
+_MAX_FAILURE_IDENTITY_COMPONENT_LENGTH = 255
+
+
+def _bounded_failure_identity_component(value: object) -> Optional[str]:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > _MAX_FAILURE_IDENTITY_COMPONENT_LENGTH
+    ):
+        return None
+    return value
+
+
+def ai_chat_failure_identity(
+    args: object,
+    kwargs: object,
+    task_id: object,
+) -> Optional[str]:
+    """Extract a content-free chat identity from the AI task call envelope."""
+    request_data: object = None
+    if isinstance(kwargs, dict):
+        request_data = kwargs.get("request_data_dict")
+    if request_data is None and isinstance(args, (list, tuple)) and args:
+        request_data = args[0]
+
+    if isinstance(request_data, dict):
+        chat_id = _bounded_failure_identity_component(request_data.get("chat_id"))
+        message_id = _bounded_failure_identity_component(request_data.get("message_id"))
+        if chat_id and message_id:
+            return f"{chat_id}:{message_id}"
+    return _bounded_failure_identity_component(task_id)
+
+
+def _notify_ai_dispatch_failure(
+    *,
+    task_name: object,
+    task_id: object,
+    args: object,
+    kwargs: object,
+) -> None:
+    if task_name != AI_CHAT_TASK_NAME:
+        return
+    identity = ai_chat_failure_identity(args, kwargs, task_id)
+    if identity:
+        notify_chat_failure_sync(
+            identity,
+            stage="dispatch",
+            category="unexpected_error",
+        )
 
 
 # --- Deduplicated Task Base ---------------------------------------------------
@@ -97,13 +151,19 @@ class DedupedTask(Task):
             # processing and double-charging is worse than dropping one task.
             logger.error(
                 f"[Task {self.name} ID:{task_id}] DEDUP: lock acquisition "
-                f"failed ({dedup_err}). Refusing to proceed; task will be "
+                f"failed ({type(dedup_err).__name__}). Refusing to proceed; task will be "
                 f"dropped. Investigate cache health."
+            )
+            _notify_ai_dispatch_failure(
+                task_name=self.name,
+                task_id=task_id,
+                args=args,
+                kwargs=kwargs,
             )
             try:
                 self.update_state(state="FAILURE", meta={
                     "exc_type": "DedupLockUnavailable",
-                    "exc_message": str(dedup_err),
+                    "exc_message": "Celery dedup lock unavailable",
                 })
             except Exception:
                 pass

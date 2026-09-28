@@ -98,3 +98,54 @@ test('mixed finalized and reserved charge settlement allocates only remaining ac
   assert.equal(database.rows.anonymous_free_usage_reservations[1].finalized_credits, 5);
   assert.equal(database.rows.anonymous_free_usage_budget[0].daily_used_credits, 15);
 });
+
+test('checkpoint reclaims capacity for the next reservation without weakening hard caps', async () => {
+  const database = fakeDatabase({ anonymous_free_usage_budget: [budget()], anonymous_free_usage_reservations: [], anonymous_free_usage_identity_daily: [] }); await open(database);
+  await executeOperation(database, 'reserve_operation', payload({ parent_request_id: 'request', operation_id: 'ai-1', charge_id: 'ai-main', quoted_credits: 400 }), NOW);
+  const checkpoint = await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'ai-1', checkpoint_credits: 20 }), NOW);
+  assert.deepEqual([checkpoint.reserved_credits, checkpoint.checkpoint_credits, checkpoint.effective_hold_credits], [400, 20, 20]);
+  assert.equal((await executeOperation(database, 'get_request_budget', payload({ parent_request_id: 'request' }), NOW)).available_credits, 380);
+  await executeOperation(database, 'reserve_operation', payload({ parent_request_id: 'request', operation_id: 'ai-2', charge_id: 'ai-main', quoted_credits: 380 }), NOW);
+  await assert.rejects(executeOperation(database, 'reserve_operation', payload({ parent_request_id: 'request', operation_id: 'extra', charge_id: 'extra', quoted_credits: 1 }), NOW), (error) => error.code === 'identity_budget_exhausted');
+  assert.equal((await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'ai-1', checkpoint_credits: 20 }), NOW)).idempotent, true);
+  await assert.rejects(executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'ai-1', checkpoint_credits: 21 }), NOW), (error) => error.code === 'operation_checkpoint_mismatch');
+  assert.equal(database.rows.anonymous_free_usage_reservations.find((row) => row.request_id === 'ai-2').checkpoint_credits, null);
+  assert.equal(database.rows.anonymous_free_usage_budget[0].daily_used_credits, 400);
+  await assert.rejects(executeOperation(database, 'get_request_budget', payload({ parent_request_id: 'missing' }), NOW), (error) => error.code === 'request_closed');
+});
+
+test('zero and partial checkpoints remain reversible until idempotent terminal settlement', async () => {
+  const database = fakeDatabase({ anonymous_free_usage_budget: [budget()], anonymous_free_usage_reservations: [], anonymous_free_usage_identity_daily: [] }); await open(database);
+  await executeOperation(database, 'reserve_operation', payload({ parent_request_id: 'request', operation_id: 'one', charge_id: 'shared', quoted_credits: 100 }), NOW);
+  await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'one', checkpoint_credits: 0 }), NOW);
+  await executeOperation(database, 'reserve_operation', payload({ parent_request_id: 'request', operation_id: 'two', charge_id: 'shared', quoted_credits: 100 }), NOW);
+  await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'two', checkpoint_credits: 5 }), NOW);
+  await assert.rejects(executeOperation(database, 'finalize_charge', payload({ charge_id: 'shared', actual_credits: 6 }), NOW), (error) => error.code === 'actual_exceeds_hold');
+  const finalized = await executeOperation(database, 'finalize_charge', payload({ charge_id: 'shared', actual_credits: 5 }), NOW);
+  assert.equal(finalized.idempotent, false);
+  assert.deepEqual(database.rows.anonymous_free_usage_reservations.filter((row) => row.charge_id === 'shared').map((row) => row.finalized_credits), [0, 5]);
+  assert.equal(database.rows.anonymous_free_usage_budget[0].daily_used_credits, 5);
+  assert.equal((await executeOperation(database, 'finalize_charge', payload({ charge_id: 'shared', actual_credits: 5 }), NOW)).idempotent, true);
+});
+
+test('checkpointed holds release or expire once and refunds stay within their original windows', async () => {
+  const database = fakeDatabase({ anonymous_free_usage_budget: [budget()], anonymous_free_usage_reservations: [], anonymous_free_usage_identity_daily: [] }); await open(database);
+  await executeOperation(database, 'reserve_operation', payload({ parent_request_id: 'request', operation_id: 'waived', charge_id: 'waived', quoted_credits: 30 }), NOW);
+  await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'waived', checkpoint_credits: 10 }), NOW);
+  await executeOperation(database, 'release_operation', payload({ operation_id: 'waived', reason: 'terminal_server_error' }), NOW);
+  assert.equal(database.rows.anonymous_free_usage_budget[0].daily_used_credits, 0);
+  assert.equal((await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'waived', checkpoint_credits: 10 }), NOW)).idempotent, true);
+  await assert.rejects(executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'waived', checkpoint_credits: 9 }), NOW), (error) => error.code === 'operation_checkpoint_mismatch');
+
+  const budgetRow = database.rows.anonymous_free_usage_budget[0];
+  Object.assign(budgetRow, { daily_used_credits: 30, weekly_used_credits: 30, monthly_used_credits: 30 });
+  database.rows.anonymous_free_usage_identity_daily.forEach((row) => { row.used_credits = 30; });
+  database.rows.anonymous_free_usage_reservations.push({ id: 'old-window', request_id: 'old-window', charge_id: 'old-window', local_id_hash: 'local', ip_hash: 'ip', reserved_credits: 30, checkpoint_credits: null, finalized_credits: 0, status: 'reserved', daily_window_date: '2026-08-24', weekly_window_start: '2026-08-24', monthly_window_month: '2026-08', expires_at: new Date('2026-08-25T14:00:00Z') });
+  await executeOperation(database, 'checkpoint_operation', payload({ operation_id: 'old-window', checkpoint_credits: 10 }), NOW);
+  assert.deepEqual([budgetRow.daily_used_credits, budgetRow.weekly_used_credits, budgetRow.monthly_used_credits], [30, 10, 10]);
+  assert.deepEqual(database.rows.anonymous_free_usage_identity_daily.map((row) => row.used_credits), [30, 30]);
+  database.rows.anonymous_free_usage_reservations.find((row) => row.request_id === 'old-window').expires_at = new Date('2026-08-25T10:00:00Z');
+  await executeOperation(database, 'get_status', payload({}), NOW);
+  assert.deepEqual([budgetRow.daily_used_credits, budgetRow.weekly_used_credits, budgetRow.monthly_used_credits], [30, 0, 0]);
+  assert.equal(database.rows.anonymous_free_usage_reservations.find((row) => row.request_id === 'old-window').status, 'expired');
+});

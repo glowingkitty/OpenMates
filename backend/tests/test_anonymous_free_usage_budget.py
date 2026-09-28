@@ -47,8 +47,14 @@ class FakeDirectus:
             return [self.budget] if self.budget else []
         if collection == ANONYMOUS_IDENTITY_DAILY_COLLECTION:
             identity_hash = params.get("filter[identity_hash][_eq]")
+            window_date = params.get("filter[window_date][_eq]")
             if identity_hash:
-                return [row for row in self.identity_rows.values() if row["identity_hash"] == identity_hash]
+                return [
+                    row
+                    for row in self.identity_rows.values()
+                    if row["identity_hash"] == identity_hash
+                    and (not window_date or row.get("window_date") == window_date)
+                ]
             return list(self.identity_rows.values())
         if collection == ANONYMOUS_RESERVATIONS_COLLECTION:
             request_id = params.get("filter[request_id][_eq]")
@@ -647,6 +653,103 @@ async def test_operation_settlement_cannot_exceed_reserved_quote() -> None:
     assert directus.budget is not None
     assert directus.budget["daily_used_credits"] == 10
     assert directus.reservations["reservation-2"]["status"] == "reserved"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_checkpoint_reclaims_capacity_and_old_replays_cannot_change_new_holds() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=60_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    await service.open_request(request_id="request", anonymous_id="anon", ip_address="203.0.113.7")
+    await service.reserve_operation(parent_request_id="request", operation_id="one", charge_id="main", quoted_credits=400)
+
+    checkpoint = await service.checkpoint_operation("one", checkpoint_credits=20)
+    assert (checkpoint.reserved_credits, checkpoint.checkpoint_credits, checkpoint.effective_hold_credits) == (400, 20, 20)
+    assert await service.get_request_budget("request") == 380
+    assert (await service.reserve_operation(parent_request_id="request", operation_id="two", charge_id="main", quoted_credits=380)).accepted
+    denied = await service.reserve_operation(parent_request_id="request", operation_id="three", charge_id="main", quoted_credits=1)
+    assert denied.reason == "per_identity_exhausted"
+    assert (await service.checkpoint_operation("one", checkpoint_credits=20)).idempotent is True
+    with pytest.raises(ValueError, match="does not match"):
+        await service.checkpoint_operation("one", checkpoint_credits=21)
+    with pytest.raises(ValueError, match="not open"):
+        await service.get_request_budget("missing")
+    assert directus.reservations["reservation-3"]["checkpoint_credits"] is None
+    assert directus.budget is not None and directus.budget["daily_used_credits"] == 400
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_zero_and_partial_checkpoints_settle_cumulative_charge_idempotently() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=60_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    await service.open_request(request_id="request", anonymous_id="anon", ip_address="203.0.113.7")
+    await service.reserve_operation(parent_request_id="request", operation_id="one", charge_id="main", quoted_credits=100)
+    await service.checkpoint_operation("one", checkpoint_credits=0)
+    await service.reserve_operation(parent_request_id="request", operation_id="two", charge_id="main", quoted_credits=100)
+    await service.checkpoint_operation("two", checkpoint_credits=5)
+
+    with pytest.raises(ValueError, match="live reservation hold"):
+        await service.finalize_charge("main", actual_credits=6)
+    await service.finalize_charge("main", actual_credits=5)
+    await service.finalize_charge("main", actual_credits=5)
+
+    charged = [row["finalized_credits"] for row in directus.reservations.values() if row.get("charge_id") == "main"]
+    assert charged == [0, 5]
+    assert directus.budget is not None and directus.budget["daily_used_credits"] == 5
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_checkpointed_failure_waiver_expiry_and_window_rollover_refund_effective_hold_once() -> None:
+    current_time = datetime(2026, 8, 31, 23, 50, tzinfo=timezone.utc)
+    service, directus = make_service()
+    service.now_provider = lambda: current_time
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=60_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    await service.open_request(request_id="request", anonymous_id="anon", ip_address="203.0.113.7")
+    await service.reserve_operation(parent_request_id="request", operation_id="waived", charge_id="waived", quoted_credits=30)
+    await service.checkpoint_operation("waived", checkpoint_credits=10)
+    await service.release_reservation("waived", reason="terminal_server_error")
+    assert directus.budget is not None and directus.budget["daily_used_credits"] == 0
+    assert (await service.checkpoint_operation("waived", checkpoint_credits=10)).idempotent is True
+
+    await service.reserve_operation(parent_request_id="request", operation_id="expired", charge_id="expired", quoted_credits=30)
+    await service.checkpoint_operation("expired", checkpoint_credits=10)
+    directus.reservations["reservation-3"]["expires_at"] = "2026-08-31T22:00:00+00:00"
+    await service.get_budget_status()
+    assert directus.reservations["reservation-3"]["status"] == "expired"
+    assert directus.budget["daily_used_credits"] == 0
+
+    await service.reserve_operation(parent_request_id="request", operation_id="old-window", charge_id="old-window", quoted_credits=30)
+    await service.checkpoint_operation("old-window", checkpoint_credits=10)
+    current_time = datetime(2026, 9, 1, 0, 10, tzinfo=timezone.utc)
+    await service.get_budget_status()
+    assert directus.budget["daily_used_credits"] == 0
+    assert directus.budget["monthly_used_credits"] == 0
+    assert directus.budget["weekly_used_credits"] == 10
+    await service.release_reservation("old-window", reason="terminal_server_error")
+    assert directus.budget["weekly_used_credits"] == 0
 
 
 @pytest.mark.asyncio
