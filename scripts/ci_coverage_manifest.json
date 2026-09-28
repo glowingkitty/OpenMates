@@ -223,6 +223,7 @@
         "components/workflow-graph-skill-variants.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
+        "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/report-issue-confirmation.spec.ts",

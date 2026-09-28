@@ -833,7 +833,8 @@ async function loginToTestAccount(
 async function submitPasswordAndHandleOtp(
 	page: any,
 	otpKey: string,
-	log: (msg: string) => void = () => {}
+	log: (msg: string) => void = () => {},
+	options: { pasteFormattedOtp?: boolean } = {}
 ): Promise<void> {
 	const loginResponses: LoginResponseDiagnostic[] = [];
 	const stopCapturingLoginResponses = captureLoginResponseDiagnostics(page, loginResponses);
@@ -891,7 +892,16 @@ async function submitPasswordAndHandleOtp(
 			}
 
 			const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
-			await otpInput.fill(otpCode);
+			if (attempt === 1 && options.pasteFormattedOtp) {
+				await page.evaluate((code: string) =>
+					navigator.clipboard.writeText(`${code.slice(0, 3)} ${code.slice(3)}`), otpCode);
+				await otpInput.focus();
+				await otpInput.press('ControlOrMeta+V');
+				await expect(otpInput).toHaveValue(otpCode);
+				await expect(submitBtn).toBeEnabled();
+			} else {
+				await otpInput.fill(otpCode);
+			}
 			log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
 
 			await expect(submitBtn).toBeVisible();

@@ -40,8 +40,7 @@
         tfaAppName = null,
         previewMode = false,
         previewTfaAppName = 'Google Authenticator',
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        tfa_required = false, // Accepted from callers but ignored — OTP visibility is driven by handleSubmit response, not lookup
+        tfa_required = false, // Used only by component previews; real login waits for the password response.
         highlight = []
     }: {
         email?: string,
@@ -113,7 +112,6 @@
     // Reactive statements for backup mode using Svelte 5 runes
     let inputPlaceholder = $derived(isBackupMode ? $text('login.enter_backup_code') : $text('signup.enter_one_time_code'));
     let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app') : $text('login.login_with_backup_code'));
-    let inputMaxLength = $derived(isBackupMode ? 14 : 6);
 
     // Validation using Svelte 5 runes - use local state variable
     let isPasswordValid = $derived(password.length > 0);
@@ -151,6 +149,7 @@
 
     // Start animation in preview mode if no app name is selected
     onMount(() => {
+        if (previewMode && tfa_required) tfaRequiredState = true;
         if (previewMode && !tfaAppName) {
             animationInterval = setInterval(() => {
                 currentAppIndex = (currentAppIndex + 1) % appNames.length;
@@ -184,6 +183,9 @@
 
     // Handle form submission - makes single request to /login
     async function handleSubmit() {
+        // Some browser/password-manager autofills update the DOM without firing input.
+        // Read the visible code before validating an Enter or button submission.
+        if (tfaRequiredState && tfaInput) syncTfaInput(tfaInput);
         if (!isPasswordValid || (tfaRequiredState && !isTfaValid) || isLoading) return;
 
         isLoading = true;
@@ -697,8 +699,7 @@
     }
 
     // Handle input for TFA code (supports both OTP and backup codes)
-    function handleTfaInput(event: Event) {
-        const input = event.target as HTMLInputElement;
+    function syncTfaInput(input: HTMLInputElement) {
         let value = input.value;
 
         if (isBackupMode) {
@@ -718,6 +719,10 @@
         }
         
         input.value = tfaCode; // Ensure input reflects sanitized value
+    }
+
+    function handleTfaInput(event: Event) {
+        syncTfaInput(event.target as HTMLInputElement);
 
         // Dispatch activity events whenever input changes
         dispatch('tfaActivity');
@@ -881,7 +886,7 @@
                             oninput={handleTfaInput}
                             placeholder={inputPlaceholder}
                             inputmode="text"
-                            maxlength={inputMaxLength}
+                            maxlength="14"
                             autocomplete="one-time-code"
                             class:error={!!errorMessage}
                             onkeypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
@@ -895,9 +900,9 @@
                             type="text"
                             bind:value={tfaCode}
                             oninput={handleTfaInput}
+                            onblur={handleTfaInput}
                             placeholder={inputPlaceholder}
                             inputmode="numeric"
-                            maxlength={inputMaxLength}
                             autocomplete="one-time-code"
                             class:error={!!errorMessage}
                             onkeypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
