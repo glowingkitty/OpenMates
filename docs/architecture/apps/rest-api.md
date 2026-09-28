@@ -90,6 +90,13 @@ endpoint. Anonymous calls pass no user, chat, message, embed, or upload context
 to skills and create no permanent Directus content records. The anonymous route
 is intentionally outside the authenticated developer OpenAPI schema.
 
+`GET /v1/anonymous/free-usage/status?anonymous_id=<guest-id>` returns the
+guest's `daily_remaining_percent` as a whole number from 0 to 100. It uses the
+tightest remaining daily allowance across the local identity, IP identity, and
+shared daily pool. Without a guest ID, the percentage is `null`. The public
+response does not expose credit counts or identity hashes; `can_send_text` and
+`reason` also reflect weekly and monthly limits.
+
 ### Auto-Registration
 
 REST routes are **auto-registered per discovered app** at `api` startup by `register_app_and_skill_routes()` in [apps_api.py](../../backend/core/api/app/routes/apps_api.py). There is no manual registration step and no hardcoded app/hostname map.

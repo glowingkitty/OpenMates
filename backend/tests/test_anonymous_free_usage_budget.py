@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
@@ -207,7 +208,7 @@ async def test_distributed_budget_lock_renews_owned_lease(monkeypatch: pytest.Mo
 
 
 @pytest.mark.asyncio
-# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering,billing.anonymous.daily-remaining-percent
 async def test_admin_budget_save_derives_caps_and_public_status_is_safe() -> None:
     service, directus = make_service()
 
@@ -232,7 +233,8 @@ async def test_admin_budget_save_derives_caps_and_public_status_is_safe() -> Non
     assert status.active is True
     assert public["active"] is True
     assert public["can_send_text"] is True
-    assert set(public) == {"active", "can_send_text", "reason", "reset_at", "cta"}
+    assert set(public) == {"active", "can_send_text", "reason", "reset_at", "cta", "daily_remaining_percent"}
+    assert public["daily_remaining_percent"] is None
     assert directus.created_payloads[0][0] == ANONYMOUS_BUDGET_COLLECTION
     created_id = directus.created_payloads[0][1]["id"]
     assert created_id != "default"
@@ -310,6 +312,103 @@ async def test_public_status_checks_per_identity_remaining_budget() -> None:
     assert public["active"] is False
     assert public["can_send_text"] is False
     assert public["reason"] == "per_identity_exhausted"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.daily-remaining-percent
+async def test_public_status_reports_tightest_daily_allowance_as_percentage() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=2_200,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=100,
+        admin_user_id="admin-1",
+    )
+    first = await service.reserve_budget(
+        request_id="request-1",
+        anonymous_id="anon-1",
+        ip_address="203.0.113.7",
+        estimated_credits=25,
+    )
+    second = await service.reserve_budget(
+        request_id="request-2",
+        anonymous_id="anon-2",
+        ip_address="203.0.113.7",
+        estimated_credits=15,
+    )
+    assert first.accepted and second.accepted
+
+    public = await service.get_public_status(
+        anonymous_id="anon-1",
+        ip_address="203.0.113.7",
+    )
+
+    assert public["daily_remaining_percent"] == 60
+    assert public["can_send_text"] is True
+    assert "daily_remaining_credits" not in public
+    assert "per_identity_daily_cap_credits" not in public
+    assert all("anon-1" not in row["identity_hash"] for row in directus.identity_rows.values())
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.daily-remaining-percent
+async def test_public_status_percentage_reaches_zero_at_shared_daily_cap() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=2_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=100,
+        admin_user_id="admin-1",
+    )
+    assert directus.budget is not None
+    directus.budget["daily_used_credits"] = 100
+
+    public = await service.get_public_status(
+        anonymous_id="anon-1",
+        ip_address="203.0.113.7",
+    )
+
+    assert public["daily_remaining_percent"] == 0
+    assert public["can_send_text"] is False
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.daily-remaining-percent
+async def test_guest_status_route_serializes_percentage_without_identity_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.core.api.app.routes import anonymous as anonymous_routes
+
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=2_200,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=100,
+        admin_user_id="admin-1",
+    )
+
+    async def allow_rate_limit(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(anonymous_routes, "_require_official_cloud", lambda _request: None)
+    monkeypatch.setattr(anonymous_routes, "_anonymous_usage_service", lambda *_args: service)
+    monkeypatch.setattr(anonymous_routes, "_enforce_local_rate_limit", allow_rate_limit)
+    request = SimpleNamespace(headers={}, client=SimpleNamespace(host="203.0.113.7"))
+
+    response = await anonymous_routes.get_anonymous_free_usage_status(
+        request,
+        anonymous_id="anon-1",
+        directus_service=directus,
+        cache_service=None,
+    )
+
+    assert response.model_dump()["daily_remaining_percent"] == 100
+    assert "identity_hash" not in response.model_dump()
+    assert "daily_remaining_credits" not in response.model_dump()
 
 
 @pytest.mark.asyncio

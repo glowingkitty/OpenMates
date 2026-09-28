@@ -17,6 +17,7 @@ scope:
     - Billing usage overview, detail, export, and receipt-style token breakdowns.
     - First-party REST, CLI, SDK, web, and Apple semantic parity for billing usage surfaces.
     - Official-cloud anonymous virtual-budget admission and provider-operation settlement.
+    - Public percentage of an identified guest's remaining daily anonymous allowance.
   excludes:
     - Provider-specific accounting outside persisted OpenMates usage rows.
     - External processor dashboard workflows not exposed through OpenMates.
@@ -136,6 +137,13 @@ models:
       required: true
       constraints: {only_when_target_exists: true}
 
+  AnonymousDailyAllowanceStatus:
+    daily_remaining_percent:
+      type: integer
+      required: false
+      nullable: true
+      constraints: {minimum: 0, maximum: 100, exposes_credit_counts: false}
+
 assertions:
   - id: billing.access.authenticated-first-party
     type: security
@@ -165,6 +173,10 @@ assertions:
     type: behavior
     must: Exhausting any shared anonymous daily, weekly, or monthly limit rejects further unauthenticated paid work, while an authenticated user with sufficient account credits may continue through normal account billing.
     depends_on: [examples.anonymous_paid]
+  - id: billing.anonymous.daily-remaining-percent
+    type: behavior
+    must: The public anonymous free-usage status for an identified guest reports a whole-number daily_remaining_percent from 0 to 100, calculated from the smaller of that guest's remaining local-identity allowance, IP-identity allowance, and the server's remaining shared daily allowance, divided by the configured per-identity daily cap and rounded down. An absent guest identity yields no per-user percentage. The response exposes no credit counts, identity hashes, or other guests' usage.
+    depends_on: [models.AnonymousDailyAllowanceStatus, examples.anonymous_remaining_percentage]
   - id: billing.anonymous.local-only-content
     type: privacy
     must: Before signup, anonymous chat and eligible app-skill content and result embeds remain transient on the server and may be stored only in the client's anonymous scope. File-generating skills require authentication. Directus receives no permanent chat, message, embed, or upload-file records for anonymous requests. Anonymous budget counters and operation reservations may be stored without content.

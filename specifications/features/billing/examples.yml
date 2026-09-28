@@ -17,6 +17,16 @@ anonymous_paid:
     when: A guest and that signed-in user each request a chat.
     then: The guest request is rejected, and the signed-in user's request can run against their own account credits.
 
+anonymous_remaining_percentage:
+  - id: remaining-allowance-follows-tightest-daily-limit
+    given: A guest has a daily allowance of 100 credits, has used 25 on this device and 40 from this IP, while 70 remain in the server's shared daily pool.
+    when: The guest checks their anonymous free-usage status.
+    then: The public response reports 60% remaining, without reporting credit counts or identity hashes.
+  - id: no-guest-identity-has-no-personal-percentage
+    given: A visitor has not supplied a guest identity.
+    when: They check the public anonymous free-usage status.
+    then: The response gives no personal daily remaining percentage.
+
 anonymous_storage:
   - id: guest-chat-and-skill-results-stay-local
     given: A guest has not signed up and can use chat and account-free search skills.

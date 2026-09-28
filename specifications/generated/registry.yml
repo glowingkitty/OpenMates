@@ -306,7 +306,7 @@ specifications:
     version: 5
     status: draft
     path: features/billing
-    fingerprint: c733b3b5b85bc02b2055fabaf1eef7338b84a0405a91b89947a4850ff3dc5768
+    fingerprint: a42141c0997e10d9cd4b09449b5a24ed96921c50c9d67ca767b46380e9a50d53
     required_applies_to:
     - rest_api
     - cli
@@ -4093,6 +4093,18 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  billing.anonymous.daily-remaining-percent:
+    specification: feature.billing@5
+    specification_id: feature.billing
+    type: behavior
+    fingerprint: 0da1220e00e8a5915692c3b700796db15ccb8ed17c0b438709211d0373f3fb56
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   billing.anonymous.local-only-content:
     specification: feature.billing@5
     specification_id: feature.billing
@@ -4193,7 +4205,7 @@ assertions:
     specification: feature.billing@5
     specification_id: feature.billing
     type: parity
-    fingerprint: dff31c02e04d1b00270c6832d378b0474ec1ef37a0ed65cfebec7691f15b5eaf
+    fingerprint: c459aa2bfc62e9e74430f58c7bf8c01a2b55a6eb6ed5a6d8b276cfe1e5c0b66c
     required_applies_to:
     - rest_api
     - cli

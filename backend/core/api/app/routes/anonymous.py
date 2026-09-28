@@ -87,6 +87,7 @@ class AnonymousStatusResponse(BaseModel):
     reason: Optional[str] = None
     reset_at: str
     cta: str
+    daily_remaining_percent: Optional[int] = Field(default=None, ge=0, le=100)
 
 
 class AnonymousChatResponse(BaseModel):

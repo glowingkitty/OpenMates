@@ -37,6 +37,7 @@ interface ServerStatus {
         reason?: string | null;
         reset_at?: string | null;
         cta?: string | null;
+        daily_remaining_percent?: number | null;
     } | null;
 }
 

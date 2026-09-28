@@ -169,6 +169,7 @@
       "specs": [
         "anonymous-cli-skill.spec.ts",
         "anonymous-free-chat.spec.ts",
+        "anonymous-free-usage-status.spec.ts",
         "anonymous-production-repair.spec.ts",
         "billing-settlement-recovery.spec.ts",
         "buy-credits-flow.spec.ts",
@@ -448,6 +449,12 @@
       "source_environment_names": [
         "OPENMATES_LIVE_ANONYMOUS_CHAT_E2E"
       ]
+    },
+    "anonymous-free-usage-status.spec.ts": {
+      "dependency": "official_cloud_anonymous_budget",
+      "next_action": "Run the guest status contract in an isolated official-cloud billing profile. The public self-host runner does not expose this cloud-only route.",
+      "user_input_required": false,
+      "source_environment_names": []
     },
     "anonymous-production-repair.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",

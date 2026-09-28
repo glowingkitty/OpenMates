@@ -164,6 +164,23 @@ class AnonymousFreeUsageService:
     ) -> dict[str, Any]:
         active = status.active
         reason = status.reason
+        daily_remaining_percent: int | None = None
+        identity_remaining: int | None = None
+        if anonymous_id and ip_address:
+            cap = status.per_identity_daily_cap_credits
+            if cap > 0:
+                local_hash = self._hmac_identity("local", anonymous_id)
+                ip_hash = self._hmac_identity("ip", ip_address)
+                local_row = await self._get_identity_row(local_hash)
+                ip_row = await self._get_identity_row(ip_hash)
+                identity_remaining = min(
+                    max(0, cap - _safe_nonnegative_int((local_row or {}).get("used_credits"))),
+                    max(0, cap - _safe_nonnegative_int((ip_row or {}).get("used_credits"))),
+                )
+                available_today = min(identity_remaining, status.daily_remaining_credits)
+                daily_remaining_percent = min(100, available_today * 100 // cap)
+            else:
+                daily_remaining_percent = 0
         if active and estimated_credits > 0 and (
             estimated_credits > status.daily_remaining_credits
             or estimated_credits > status.weekly_remaining_credits
@@ -171,21 +188,16 @@ class AnonymousFreeUsageService:
         ):
             active = False
             reason = "budget_exhausted"
-        if active and anonymous_id and ip_address and estimated_credits > 0:
-            local_hash = self._hmac_identity("local", anonymous_id)
-            ip_hash = self._hmac_identity("ip", ip_address)
-            if await self._identity_would_exceed(local_hash, estimated_credits, status.per_identity_daily_cap_credits):
-                active = False
-                reason = "per_identity_exhausted"
-            elif await self._identity_would_exceed(ip_hash, estimated_credits, status.per_identity_daily_cap_credits):
-                active = False
-                reason = "per_identity_exhausted"
+        if active and identity_remaining is not None and estimated_credits > identity_remaining:
+            active = False
+            reason = "per_identity_exhausted"
         return {
             "active": active,
             "can_send_text": active,
             "reason": reason,
             "reset_at": status.reset_at,
             "cta": DEFAULT_ANONYMOUS_CTA,
+            "daily_remaining_percent": daily_remaining_percent,
         }
 
     async def save_budget(
