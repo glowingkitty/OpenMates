@@ -123,6 +123,8 @@ test.describe('Anonymous child embeds', () => {
 
 		const answer = page.getByTestId('message-assistant').last();
 		await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 30_000 });
+		await expect(page.getByTestId('message-assistant')).toHaveCount(1);
+		await expect(answer).toHaveAttribute('data-message-id', 'anonymous-embed-assistant');
 		await expect.poll(() => storedEmbedIds(page), { timeout: 15_000 }).toEqual([PARENT_ID, CHILD_ID]);
 		const source = answer.getByRole('link', { name: 'OpenMates source' });
 		await expect(source).toBeVisible();
@@ -132,8 +134,11 @@ test.describe('Anonymous child embeds', () => {
 		await closeFullscreen(page, fullscreen);
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant')).toHaveCount(1, { timeout: 15_000 });
 		await expect.poll(() => storedEmbedIds(page), { timeout: 15_000 }).toEqual([PARENT_ID, CHILD_ID]);
-		const reloadedSource = page.getByTestId('message-assistant').last().getByRole('link', { name: 'OpenMates source' });
+		const reloadedAnswer = page.getByTestId('message-assistant').last();
+		await expect(reloadedAnswer).toHaveAttribute('data-message-id', 'anonymous-embed-assistant');
+		const reloadedSource = reloadedAnswer.getByRole('link', { name: 'OpenMates source' });
 		await expect(reloadedSource).toBeVisible({ timeout: 15_000 });
 		await reloadedSource.click();
 		await expect(page.getByTestId('embed-fullscreen-overlay')).toContainText('OpenMates', { timeout: 10_000 });
