@@ -38,6 +38,24 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  unsupported: {
+    ...defaultProps,
+    preview: {
+      ...completePreview,
+      embed: {
+        ...completePreview.embed,
+        embed_id: 'remote:preview-source:diagram.png',
+        content: {
+          ...completePreview.embed.content,
+          path: 'diagram.png',
+          display_name: 'diagram.png',
+          snippet: '',
+          preview_policy: 'unsupported_binary',
+        },
+      },
+    },
+    canUpload: false,
+  },
   truncated: {
     ...defaultProps,
     preview: {

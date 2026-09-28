@@ -851,6 +851,7 @@ async function runServeFixture(client, fixture) {
       + 'export const completeRemoteFile = "Remote fullscreen end marker";\n');
   writeFileSync(join(rootPath, ".env"), "REMOTE_ACCESS_SECRET=not-for-server\n");
   if (mode === "serve" || mode === "serve-team") {
+    writeFileSync(join(rootPath, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00]));
     writeFileSync(join(rootPath, ".gitignore"), "*.log\n");
     writeFileSync(join(rootPath, "debug.log"), "remoteDemo: disposable ignored log\n");
     writeFileSync(join(rootPath, "other.log"), "remoteDemo: another excluded log\n");

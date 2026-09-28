@@ -215,7 +215,11 @@ test.describe('Projects remote sources', () => {
       const remoteEntries = directoryResults.getByTestId('project-remote-entry');
       await expect(remoteEntries.first()).toBeVisible();
       await expect(remoteEntries.getByTestId('project-remote-cloud-badge')).toHaveCount(await remoteEntries.count());
-      await expect(directoryResults.getByTestId('project-remote-entry').filter({ hasText: /debug\.log|other\.log|customer-export|^private$/ })).toHaveCount(0);
+      await expect(directoryResults.getByTestId('project-remote-entry').filter({ hasText: /debug\.log|other\.log|customer-export|^private$|\.env|\.gitignore|\.openmates/ })).toHaveCount(0);
+      const binaryFile = directoryResults.getByTestId('project-remote-preview-card').filter({ hasText: 'diagram.png' });
+      await expect(binaryFile.getByTestId('project-remote-preview-unsupported')).toBeVisible();
+      await expect(binaryFile.getByTestId('project-remote-preview-open')).toBeDisabled();
+      await expect(binaryFile.getByTestId('project-remote-preview-upload')).toBeDisabled();
       await directoryResults.getByTestId('project-remote-entry').filter({ hasText: 'src' }).click();
       await expect(sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'remote-demo.ts' })).toBeVisible();
 

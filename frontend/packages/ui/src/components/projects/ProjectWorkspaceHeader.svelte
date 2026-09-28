@@ -7,7 +7,6 @@
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
-  import { headerOverlayControls } from '../../actions/headerOverlayControls';
   import { tooltip } from '../../actions/tooltip';
 
   interface Props {
@@ -46,10 +45,53 @@
       : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
     return `Started ${day}, ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
   }
+
+  function projectHeaderControls(node: HTMLElement) {
+    const header = node.closest<HTMLElement>('.project-workspace-header');
+    if (!header) return {};
+
+    let frame: number | null = null;
+    const resizeObserver = new ResizeObserver(schedule);
+    const mutations = new MutationObserver(schedule);
+
+    function measure() {
+      const banner = header!.getBoundingClientRect();
+      for (const control of node.querySelectorAll<HTMLElement>('.new-chat-button-wrapper, .button-wrapper')) {
+        const bounds = control.getBoundingClientRect();
+        const overlaps = !control.closest('[data-header-overlay-disabled]') &&
+          bounds.bottom > banner.top && bounds.top < banner.bottom &&
+          bounds.right > banner.left && bounds.left < banner.right;
+        control.toggleAttribute('data-header-overlay', overlaps);
+      }
+    }
+
+    function schedule() {
+      if (frame === null) frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    }
+
+    resizeObserver.observe(header);
+    mutations.observe(node, { childList: true, subtree: true });
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    measure();
+
+    return {
+      destroy() {
+        if (frame !== null) cancelAnimationFrame(frame);
+        resizeObserver.disconnect();
+        mutations.disconnect();
+        window.removeEventListener('scroll', schedule, true);
+        window.removeEventListener('resize', schedule);
+      },
+    };
+  }
 </script>
 
 <section class="project-workspace-header" data-testid="project-workspace-header" data-header-system="workspace-detail">
-  <div class="project-header-actions" use:headerOverlayControls>
+  <div class="project-header-actions" data-testid="project-header-actions" use:projectHeaderControls>
     <HeaderActionMenu hasShare={false} actionCount={2} forceOverflow triggerTestId="project-more-button" resetKey={title}>
       {#snippet report()}<WorkspaceReportIssueButton toolbar />{/snippet}
       {#snippet share()}{/snippet}
@@ -96,6 +138,7 @@
 <style>
   .project-workspace-header {
     position: relative;
+    z-index: var(--z-index-raised-3);
     display: grid;
     min-height: clamp(18rem, 46vh, 26.25rem);
     place-items: center;
@@ -127,10 +170,12 @@
   }
 
   .project-header-actions {
-    position: absolute;
+    /* .projects-page is the fixed containing block, so the toolbar stays at
+       the top of that pane while .project-main scrolls beneath it. */
+    position: fixed;
     inset-block-start: var(--spacing-6);
     inset-inline: var(--spacing-6);
-    z-index: 2;
+    z-index: var(--z-index-dropdown-1);
     pointer-events: none;
   }
 

@@ -146,6 +146,13 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  manyBacklog: {
+    ...defaultProps,
+    tasks: [
+      ...tasks,
+      ...Array.from({ length: 53 }, (_, index) => task(`preview-extra-${index}`, `Extra backlog task ${index + 1}`, 'backlog', index + 2)),
+    ],
+  },
   emptyDone: {
     ...defaultProps,
     tasks: tasks.filter((item) => item.status !== 'done'),

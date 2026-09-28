@@ -168,6 +168,7 @@ export interface RemoteAccessRepositoryCandidate {
 export interface RemoteAccessDirectoryEntry {
   path: string;
   kind: "file" | "directory";
+  previewable?: false;
 }
 
 export interface LiveRemoteAccessBinding {
@@ -275,12 +276,11 @@ export function listRemoteAccessDirectory(options: {
   for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     const entryPath = relative(root, join(directory, entry.name)).replace(/\\/g, "/");
     if (
-      entry.name === ".git"
+      entry.name.startsWith(".")
       || entry.isSymbolicLink()
       || policy.isIgnored(entryPath, entry.isDirectory())
       || policy.isPrivate(entryPath, entry.isDirectory())
       || (entry.isFile() && lstatSync(join(directory, entry.name)).nlink > 1)
-      || (entry.isFile() && isBinaryFile(join(directory, entry.name)))
     ) {
       excluded += 1;
       continue;
@@ -293,7 +293,11 @@ export function listRemoteAccessDirectory(options: {
       omitted += 1;
       continue;
     }
-    entries.push({ path: entryPath, kind: entry.isDirectory() ? "directory" : "file" });
+    entries.push({
+      path: entryPath,
+      kind: entry.isDirectory() ? "directory" : "file",
+      ...(entry.isFile() && isBinaryFile(join(directory, entry.name)) ? { previewable: false as const } : {}),
+    });
   }
   return { entries, omitted, excluded, truncated: omitted > 0 };
 }

@@ -442,8 +442,11 @@ const timer = setInterval(() => {
     writeFileSync(join(root, "binary.dat"), Buffer.from([0, 1, 2, 3]));
     try {
       const listing = listRemoteAccessDirectory({ sourceRoot: root, relativePath: ".", maxEntries: 10 });
-      assert.deepEqual(listing.entries.map((entry) => entry.path), ["src"]);
-      assert.equal(listing.excluded, 2);
+      assert.deepEqual(listing.entries, [
+        { path: "binary.dat", kind: "file", previewable: false },
+        { path: "src", kind: "directory" },
+      ]);
+      assert.equal(listing.excluded, 1);
       const read = readRemoteAccessTextFile({ sourceRoot: root, relativePath: "src/safe.ts", maxBytes: 200_000, maxLines: 4_000 });
       assert.equal(read.content, "export const safe = true;\n");
       assert.throws(
@@ -466,7 +469,7 @@ const timer = setInterval(() => {
     writeFileSync(join(root, "visible.txt"), "visible plaintext\n");
     try {
       const listing = listRemoteAccessDirectory({ sourceRoot: root, relativePath: "." });
-      assert.deepEqual(listing.entries.map((entry) => entry.path), [".gitignore", "visible.txt"]);
+      assert.deepEqual(listing.entries.map((entry) => entry.path), ["visible.txt"]);
       assert.throws(
         () => readRemoteAccessTextFile({ sourceRoot: root, relativePath: "private-notes.txt" }),
         /ignored/,

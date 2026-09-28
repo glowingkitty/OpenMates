@@ -97,6 +97,7 @@ const overviewProps = {
 
 export default overviewProps;
 export const variants = {
+  landing: { ...overviewProps, previewState: { ...overviewProps.previewState, startAtHome: true } },
   folders: { ...overviewProps, initialTab: 'folders' as const },
   readme: {
     ...overviewProps,

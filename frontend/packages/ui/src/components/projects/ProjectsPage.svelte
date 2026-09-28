@@ -83,6 +83,7 @@
 
   interface PreviewState {
     project: ProjectViewModel;
+    startAtHome?: boolean;
     folders?: ProjectFolderViewModel[];
     items?: ProjectItemViewModel[];
     sources?: ProjectSourceViewModel[];
@@ -173,7 +174,21 @@
   let showCreateMenu = $state(false);
   let workspaceWidth = $state(0);
   let projectMainElement = $state<HTMLElement>();
+  let autoBrowsedProjectId: string | null = null;
   let viewerSplitOpen = $derived(workspaceWidth >= 1024 && (!!activeRemoteFullscreen || !!activeStoredFullscreen));
+
+  // The connected repository is part of the Files root, so load its first
+  // directory when the tab opens instead of requiring a click on its source tile.
+  $effect(() => {
+    if (activeTab !== 'folders' || !selectedProject || activeRemoteSourceId || currentFolder || currentVirtualPath) return;
+    if (!previewState?.remoteEntries && !$userProfile.user_id) return;
+    if (autoBrowsedProjectId === selectedProject.project_id) return;
+    const source = sources.find((candidate) => candidate.status === 'connected' && candidate.source_type === 'local_git_repository');
+    if (source) {
+      autoBrowsedProjectId = selectedProject.project_id;
+      void browseRemoteSource(source);
+    }
+  });
 
   $effect(() => {
     if (!viewerSplitOpen || activeTab !== 'folders') return;
@@ -210,8 +225,6 @@
   let projectLandingItems = $derived<ProjectContinueItem[]>(recentProjects.map((project) => ({
     id: project.project_id,
     title: project.name || 'Untitled project',
-    summary: `${project.encrypted.item_count ?? 0} items`,
-    badge: 'Project',
     category: 'productivity',
     appId: 'projects',
     icon: 'folder',
@@ -694,6 +707,7 @@
   }
 
   function resetRemoteBrowser(): void {
+    autoBrowsedProjectId = null;
     remoteRequestController?.abort();
     remoteRequestController = null;
     remoteRequestGeneration += 1;
@@ -766,6 +780,7 @@
       sources = refreshed;
       const active = refreshed.find((source) => source.source_id === activeRemoteSourceId);
       if (activeRemoteSourceId && (!active || active.status !== 'connected')) {
+        autoBrowsedProjectId = null;
         remoteRequestController?.abort();
         remoteRequestController = null;
         remoteRequestGeneration += 1;
@@ -777,6 +792,7 @@
         remoteExcludedCount = 0;
         isRemoteLoading = false;
         remoteError = active ? 'This Project source is offline' : 'This Project source is no longer available';
+        activeRemoteSourceId = null;
       }
     } catch (error) {
       console.error('[ProjectsPage] Failed to refresh remote source status:', error);
@@ -956,7 +972,8 @@
       && candidate.preview.embed.content.path === entry.path);
     if (loaded) return loaded;
     const classification = classifyRemotePreviewPath(entry.path);
-    const componentPreviewContent = previewState?.remoteEntries
+    const isUnsupported = entry.previewable === false || classification.kind === 'unsupported';
+    const componentPreviewContent = previewState?.remoteEntries && !isUnsupported
       ? (entry.path.endsWith('.md')
         ? '# Connected project file\n\nThis preview is loaded from the connected source.'
         : 'export const connectedProjectFile = true;')
@@ -971,7 +988,7 @@
         snippetTruncated: false,
         sizeBytes: componentPreviewContent ? new TextEncoder().encode(componentPreviewContent).byteLength : undefined,
         lineCount: componentPreviewContent ? componentPreviewContent.split('\n').length : undefined,
-        previewPolicy: 'bounded_full_text',
+        previewPolicy: isUnsupported ? 'unsupported_binary' : 'bounded_full_text',
         safetyFlags: [],
       }),
       readResult: null,
@@ -1101,7 +1118,7 @@
   onMount(() => {
     if (previewState) {
       projects = [previewState.project];
-      selectedProject = previewState.project;
+      selectedProject = previewState.startAtHome ? null : previewState.project;
       folders = previewState.folders ?? [];
       items = previewState.items ?? [];
       sources = previewState.sources ?? [];
@@ -1271,7 +1288,7 @@
       {:else if activeTab === 'folders'}
       <section class="project-panel folders-panel" class:viewer-split-open={viewerSplitOpen} role="tabpanel" id="tabpanel-folders" data-testid="project-folders-panel">
         <div class="folder-summary-row">
-          <strong>{browserFolders.length + browserVirtualFolders.length} folders, {browserItems.length} embeds</strong>
+          <strong>{browserFolders.length + browserVirtualFolders.length + (remotePath === '.' ? remoteEntries.filter((entry) => entry.kind === 'directory').length : 0)} folders, {browserItems.length + (remotePath === '.' ? remoteEntries.filter((entry) => entry.kind === 'file').length : 0)} files and embeds</strong>
           <label class="folder-search">
             <span class="search-icon" aria-hidden="true"></span>
             <span class="sr-only">Search project files</span>
@@ -1282,14 +1299,6 @@
             <span class="sort-icon" aria-hidden="true"></span>
           </button>
         </div>
-
-        {#if showCreateMenu}
-          <div class="create-menu folder-create-menu" data-testid="project-create-menu">
-            <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
-            <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
-            <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
-          </div>
-        {/if}
 
       <section class="project-section">
         {#if currentFolder || currentVirtualPath !== null}
@@ -1328,6 +1337,7 @@
         {/if}
 
         <div class:browser-grid={viewMode === 'tile'} class:browser-list={viewMode === 'list'} data-testid="project-browser-list">
+            <div class="project-action-expander" class:expanded={showCreateMenu} data-testid="project-action-expander">
             <div class="project-actions" data-testid="project-folder-actions">
               <button type="button" onclick={() => void refreshSelectedProject()} disabled={isSaving}>
                 <span class="tray-icon sync-icon" aria-hidden="true"></span><span>Sync</span>
@@ -1335,9 +1345,17 @@
               <button type="button" onclick={() => uploadInput?.click()} disabled={isSaving} data-testid="project-upload-button">
                 <span class="tray-icon upload-icon" aria-hidden="true"></span><span>Upload</span>
               </button>
-              <button type="button" onclick={() => (showCreateMenu = !showCreateMenu)} data-testid="project-folder-create-menu-button">
+              <button type="button" onclick={() => (showCreateMenu = !showCreateMenu)} aria-expanded={showCreateMenu} aria-controls="project-folder-create-menu" data-testid="project-folder-create-menu-button">
                 <span class="clickable-icon icon_create project-create-action-icon" aria-hidden="true"></span><span>Create</span>
               </button>
+            </div>
+            {#if showCreateMenu}
+              <div class="create-menu folder-create-menu" id="project-folder-create-menu" data-testid="project-create-menu">
+                <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
+                <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
+                <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
+              </div>
+            {/if}
             </div>
             {#if visibleBrowserFolders.length === 0 && visibleVirtualFolders.length === 0 && visibleBrowserItems.length === 0 && visibleBrowserSources.length === 0}
               <div class="empty-state" data-testid="project-empty-items">
@@ -2162,6 +2180,28 @@
     background: var(--color-grey-10);
   }
 
+  .project-action-expander {
+    display: grid;
+    min-width: 0;
+    width: fit-content;
+  }
+
+  .browser-grid > .project-action-expander.expanded {
+    grid-column: 1 / -1;
+    width: 100%;
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    overflow: hidden;
+  }
+
+  .browser-list > .project-action-expander.expanded {
+    width: 100%;
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+  }
+
   .project-actions button {
     display: grid;
     min-width: 6rem;
@@ -2214,13 +2254,34 @@
   }
 
   .create-menu.folder-create-menu {
-    position: relative;
+    position: static;
     inset: auto;
     width: 100%;
-    margin-bottom: var(--spacing-8);
+    margin: 0;
     transform: none;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    min-height: 10rem;
+    border: 0;
+    border-inline-start: 1px solid var(--color-grey-30);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
+
+  .create-menu.folder-create-menu button {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    align-content: center;
+    gap: var(--spacing-4);
+    min-width: 0;
+    min-height: 10rem;
+    color: var(--color-font-secondary);
+    text-align: center;
+  }
+
+  .create-menu.folder-create-menu .menu-icon { width: 1.75rem; height: 1.75rem; }
 
   .create-menu button {
     display: flex;
@@ -2652,8 +2713,10 @@
     .folder-search input { text-align: start; }
     .project-actions { width: 100%; min-height: 8rem; }
     .project-actions button { min-width: 0; min-height: 6rem; flex: 1; }
-    .create-menu.folder-create-menu { grid-template-columns: 1fr; }
-    .create-menu.folder-create-menu button + button { border-inline-start: 0; border-top: 1px solid var(--color-grey-25); }
+    .browser-grid > .project-action-expander.expanded,
+    .browser-list > .project-action-expander.expanded { grid-template-columns: 1fr; }
+    .create-menu.folder-create-menu { min-height: 7rem; border-inline-start: 0; border-top: 1px solid var(--color-grey-30); }
+    .create-menu.folder-create-menu button { min-height: 7rem; }
 
     .remote-path-row,
     .remote-search {

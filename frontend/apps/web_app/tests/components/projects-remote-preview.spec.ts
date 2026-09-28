@@ -60,3 +60,13 @@ test('an incomplete remote preview explains its limit and cannot be imported', a
   await waitForComponentPreview(page);
   await expect(page.getByTestId('project-remote-preview-upload')).toBeDisabled();
 });
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.files.no-server-decryption-authority
+test('a listed binary file retains its name without offering a text preview or import', async ({ page }) => {
+  await page.goto(`${PREVIEW}&variant=unsupported&width=420`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('project-remote-preview-unsupported')).toContainText('diagram.png');
+  await expect(page.getByTestId('project-remote-preview-open')).toBeDisabled();
+  await expect(page.getByTestId('project-remote-preview-upload')).toBeDisabled();
+  await expect(page.locator('html')).not.toHaveAttribute('data-project-preview-actions', /open|import/);
+});

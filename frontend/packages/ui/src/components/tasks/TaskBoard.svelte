@@ -47,6 +47,9 @@
   ];
   let recentlyDroppedTaskId = $state<string | null>(null);
   let recentlyDroppedPlanId = $state<string | null>(null);
+  const initialVisibleCount = 30;
+  const additionalVisibleCount = 20;
+  let visibleCounts = $state<Partial<Record<UserTaskStatus, number>>>({});
   let clearDropTimer: ReturnType<typeof setTimeout> | null = null;
 
   function tasksFor(status: UserTaskStatus): TasksBoardItem[] {
@@ -70,6 +73,14 @@
 
   function itemCount(status: UserTaskStatus): number {
     return tasksFor(status).length + plansFor(status).length;
+  }
+
+  function visibleCount(status: UserTaskStatus): number {
+    return visibleCounts[status] ?? initialVisibleCount;
+  }
+
+  function showMore(status: UserTaskStatus): void {
+    visibleCounts[status] = visibleCount(status) + additionalVisibleCount;
   }
 
   function handleDrop(event: DragEvent, status: UserTaskStatus): void {
@@ -115,7 +126,7 @@
       </header>
 
       <div class="task-column-list">
-        {#each tasksFor(column.status) as task (task.task_id)}
+        {#each tasksFor(column.status).slice(0, visibleCount(column.status)) as task (task.task_id)}
           <TaskCard
             {task}
             {onMove}
@@ -129,7 +140,7 @@
             wasRecentlyDropped={recentlyDroppedTaskId === task.task_id}
           />
         {/each}
-        {#each plansFor(column.status) as plan (plan.plan_id)}
+        {#each plansFor(column.status).slice(0, Math.max(0, visibleCount(column.status) - tasksFor(column.status).length)) as plan (plan.plan_id)}
           <PlanTaskCard
             {plan}
             column={column.status}
@@ -139,6 +150,14 @@
             wasRecentlyDropped={recentlyDroppedPlanId === plan.plan_id}
           />
         {/each}
+        {#if itemCount(column.status) > visibleCount(column.status)}
+          <button
+            type="button"
+            class="task-column-show-more"
+            data-testid={`task-column-show-more-${column.status}`}
+            onclick={() => showMore(column.status)}
+          >Show more</button>
+        {/if}
         {#if itemCount(column.status) === 0}
           <div class="task-column-empty" data-testid="task-column-empty">
             <span>No tasks or plans here.</span>
@@ -157,8 +176,7 @@
     width: 100%;
     min-width: 0;
     min-height: 20rem;
-    max-height: min(62vh, 720px);
-    overflow: auto;
+    overflow-x: auto;
     padding: var(--spacing-2) var(--spacing-2) var(--spacing-8);
     scroll-snap-type: x proximity;
     scrollbar-color: var(--color-grey-30) transparent;
@@ -211,6 +229,16 @@
   }
 
   .task-column-list { display: flex; flex-direction: column; gap: var(--spacing-6); }
+  .task-column-show-more {
+    align-self: flex-start;
+    border: 0;
+    background: transparent;
+    color: var(--color-font-secondary);
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .task-column-show-more:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
   .task-column-empty {
     min-height: var(--spacing-8);
   }
@@ -228,7 +256,6 @@
   @media (max-width: 900px) {
     .task-board {
       grid-template-columns: repeat(5, minmax(15rem, 16rem));
-      max-height: 58vh;
       padding-inline: 0;
       scroll-padding-inline: var(--spacing-4);
     }

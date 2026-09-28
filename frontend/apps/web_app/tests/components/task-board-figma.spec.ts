@@ -225,6 +225,29 @@ test('shows zero beside an empty task category', async ({ page }) => {
   await expect(page.getByTestId('task-column-done').getByTestId('task-column-empty')).toBeAttached();
 });
 
+// contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity,tasks.lifecycle.visible
+test('reveals 30 then 20 items per status while keeping the full count and page scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(`${preview(1320)}&variant=manyBacklog`);
+  await waitForComponentPreview(page);
+
+  const board = page.getByTestId('task-board');
+  const backlog = page.getByTestId('task-column-backlog');
+  const cards = backlog.locator('[data-testid="task-card"], [data-testid="task-board-plan-card"]');
+  const more = page.getByTestId('task-column-show-more-backlog');
+  await expect(page.getByTestId('task-column-count-backlog')).toHaveText('(56)');
+  await expect(cards).toHaveCount(30);
+  await expect(more).toBeVisible();
+  await more.click();
+  await expect(cards).toHaveCount(50);
+  await more.click();
+  await expect(cards).toHaveCount(56);
+  await expect(more).toHaveCount(0);
+  await expect(page.getByTestId('task-column-count-backlog')).toHaveText('(56)');
+  const boardScroll = await board.evaluate((element) => ({ height: element.clientHeight, contentHeight: element.scrollHeight }));
+  expect(boardScroll.contentHeight).toBeLessThanOrEqual(boardScroll.height + 1);
+});
+
 // contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity
 test('keeps task titles and the Blocked column readable in dark mode', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1512, height: 921 });

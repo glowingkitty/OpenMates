@@ -31,12 +31,19 @@
   let content = $derived(preview.embed.content);
   let sizeLabel = $derived(content.size_bytes !== undefined ? `${content.size_bytes.toLocaleString()} bytes` : 'Virtual preview');
   let isTruncated = $derived(content.safety_flags.includes('truncated'));
+  let isUnsupported = $derived(content.preview_policy === 'unsupported_binary');
 </script>
 
 <article class="remote-preview-card" class:preview-only={previewOnly} data-testid="project-remote-preview-card" data-remote-path={content.path}>
   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
   <div class="remote-preview-shell">
-    {#if content.snippet}
+    {#if isUnsupported}
+      <div class="remote-preview-placeholder" data-testid="project-remote-preview-unsupported">
+        <span>File</span>
+        <strong>{content.display_name}</strong>
+        <small>Preview unavailable for this file type</small>
+      </div>
+    {:else if content.snippet}
       <CodeEmbedPreview
         id={preview.embed.embed_id}
         language={content.language}
@@ -69,14 +76,14 @@
       {/if}
     </div>
     <div class="remote-preview-actions">
-      <button type="button" data-testid="project-remote-preview-open" onclick={onOpenFullscreen}>
+      <button type="button" data-testid="project-remote-preview-open" disabled={isUnsupported} onclick={onOpenFullscreen}>
         Open preview
       </button>
       <button
         type="button"
         data-testid="project-remote-preview-upload"
-        disabled={!canUpload || isUploading}
-        title={canUpload ? $text('projects.import_to_openmates') : $text('projects.import_requires_complete_read')}
+        disabled={!canUpload || isUploading || isUnsupported}
+        title={canUpload && !isUnsupported ? $text('projects.import_to_openmates') : $text('projects.import_requires_complete_read')}
         onclick={onUpload}
       >
         {canUpload ? $text('projects.import_to_openmates') : $text('projects.import_unavailable')}
@@ -158,6 +165,10 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
+  }
+
+  div.remote-preview-placeholder {
+    cursor: default;
   }
 
   .remote-preview-placeholder span,

@@ -176,6 +176,7 @@ export class ProjectRemoteAccessError extends Error {
 export interface ProjectRemoteDirectoryEntry {
   path: string;
   kind: "file" | "directory";
+  previewable?: false;
 }
 
 export interface ProjectRemoteDirectoryResult {

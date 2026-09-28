@@ -32,6 +32,26 @@ test.beforeEach(async ({ page }) => {
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('uses the shared chat preview sizes for project landing cards without project metadata', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'landing'));
+  await waitForProjectsPreview(page);
+  const card = page.getByTestId('project-landing-card');
+  await expect(card).toBeVisible();
+  await expect(card).toHaveClass(/workspace-continue-card/);
+  await expect(card).not.toContainText('Project');
+  await expect(card).not.toContainText('items');
+  await expect(card).toHaveCSS('height', '200px');
+
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto(preview(900, 'landing'));
+  await waitForProjectsPreview(page);
+  await expect(page.getByTestId('project-landing-card')).toHaveClass(/resume-chat-card/);
+  await expect(page.getByTestId('project-landing-card')).not.toContainText('Project');
+  await expect(page.getByTestId('project-landing-card')).not.toContainText('items');
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
 test('keeps the Figma project header and icon tabs while switching workspace panels', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(preview(1512));
@@ -155,6 +175,25 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   await folderPreviews.first().click();
   await expect(page.getByLabel('Project folder path').getByText('Backend', { exact: true })).toBeVisible();
   await page.getByTestId('project-folder-create-menu-button').click();
+  const expandedActions = page.getByTestId('project-action-expander');
+  const createMenu = page.getByTestId('project-create-menu');
+  await expect(page.getByTestId('project-folder-create-menu-button')).toHaveAttribute('aria-expanded', 'true');
+  await expect(createMenu.getByRole('button')).toHaveCount(3);
+  const actionsBox = await page.getByTestId('project-folder-actions').boundingBox();
+  const menuBox = await createMenu.boundingBox();
+  expect(actionsBox).not.toBeNull();
+  expect(menuBox).not.toBeNull();
+  expect(menuBox!.x).toBeGreaterThanOrEqual(actionsBox!.x + actionsBox!.width - 1);
+  expect(Math.abs(menuBox!.y - actionsBox!.y)).toBeLessThanOrEqual(1);
+  for (const button of await createMenu.getByRole('button').all()) {
+    const iconBox = await button.locator('.menu-icon').boundingBox();
+    const labelBox = await button.locator('strong').boundingBox();
+    expect(iconBox).not.toBeNull();
+    expect(labelBox).not.toBeNull();
+    expect(iconBox!.y).toBeGreaterThanOrEqual(menuBox!.y + 2);
+    expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(menuBox!.y + menuBox!.height - 2);
+  }
+  await testInfo.attach('project-create-expanded', { body: await expandedActions.screenshot(), contentType: 'image/png' });
   await page.getByTestId('project-create-chat').click();
   await expect(page.locator('html')).toHaveAttribute('data-project-workspace-action', 'chat');
   await expect(page.locator('html')).toHaveAttribute('data-project-workspace-target', /"folderId":"backend"/);
@@ -293,6 +332,8 @@ test('opens a connected source inside the Files grid with shared folder previews
   const sourceRoot = page.getByTestId('project-connected-source-root');
   await expect(sourceRoot.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'files');
   await expect(sourceRoot.getByTestId('project-remote-cloud-badge')).toBeVisible();
+  await expect(page.getByTestId('project-remote-browser')).toBeVisible();
+  await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
   await sourceRoot.locator('.unified-embed-preview').click();
   await expect(page.getByTestId('project-remote-browser')).toBeVisible();
   await expect(page.getByTestId('project-remote-search-input')).toBeVisible();
@@ -423,3 +464,46 @@ test('uses the chat sidebar list pattern for project navigation', async ({ page 
   await expect(page.getByTestId('project-detail-link')).toHaveAttribute('aria-label', 'Open OpenMates');
   await expect(page.getByTestId('project-management')).toHaveCount(0);
 });
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+for (const width of [393, 1512]) {
+  test(`keeps project header controls visible while scrolling at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto(preview(width, 'folders'));
+    await waitForProjectsPreview(page);
+    await page.locator('.component-mount').evaluate((element) => {
+      element.style.height = '520px';
+    });
+
+    const main = page.getByTestId('project-management');
+    const actions = page.getByTestId('project-header-actions');
+    const report = page.getByTestId('report-issue-button-shell');
+    const more = page.getByTestId('project-more-button');
+    const close = page.getByTestId('project-detail-back');
+    await expect(actions).toHaveCSS('position', 'fixed');
+    await expect(report).toHaveAttribute('data-header-overlay', '');
+    await expect(more.locator('..')).toHaveAttribute('data-header-overlay', '');
+    await expect(close.locator('..')).toHaveAttribute('data-header-overlay', '');
+    for (const pill of [report, more.locator('..'), close.locator('..')]) {
+      await expect(pill).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.2)');
+    }
+
+    const before = await actions.boundingBox();
+    expect(before).not.toBeNull();
+    const scrollTop = await main.evaluate((element) => {
+      element.scrollTop = 500;
+      return element.scrollTop;
+    });
+    expect(scrollTop).toBeGreaterThan(100);
+    await expect.poll(async () => (await actions.boundingBox())?.y).toBeCloseTo(before!.y, 0);
+    await expect(report).not.toHaveAttribute('data-header-overlay', '');
+    await expect(more.locator('..')).not.toHaveAttribute('data-header-overlay', '');
+    await expect(close.locator('..')).not.toHaveAttribute('data-header-overlay', '');
+    await expect(report).not.toHaveCSS('background-color', 'rgba(255, 255, 255, 0.2)');
+    await expect(report).toBeVisible();
+    await expect(more).toBeVisible();
+    await expect(close).toBeVisible();
+    await more.click();
+    await expect(page.getByTestId('project-settings-button')).toBeVisible();
+  });
+}
