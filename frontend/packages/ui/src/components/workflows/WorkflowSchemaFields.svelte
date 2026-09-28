@@ -9,6 +9,7 @@
   import { workflowFieldIcon } from './workflowFieldIcon';
   import { record, label, schemaDefault, type Schema, type Output } from './workflowBuilder';
   import { outputTemplateSyntax } from './workflowMessageTokens';
+  import { workflowVariableGradient } from './workflowVariableGradient';
   import { presentedItems } from './workflowValuePresentation';
 
   type UiMetadata = { control?: string; start_field?: string; end_field?: string; max_offset_days?: number; hidden?: boolean; basic?: boolean };
@@ -281,7 +282,7 @@
         <div class="variable-picker">
           <div class="variable-chips" data-testid={`workflow-input-variable-chips-${id}`} aria-label={`${tr('use_output')} ${label(name)}`}>
             {#each visibleVariables as output}
-              <button type="button" class="chip" onclick={() => stringVariableInput ? stringEditors[id]?.insertReference(output) : void replaceVariable(output, change, id)}>+ {output.label}</button>
+              <button type="button" class="chip" style={workflowVariableGradient(output)} onclick={() => stringVariableInput ? stringEditors[id]?.insertReference(output) : void replaceVariable(output, change, id)}>+ {output.label}</button>
             {/each}
           </div>
           {#if variableGroups.advanced.length}
@@ -355,7 +356,7 @@
   .field :global(.settings-dropdown) { min-height:3.375rem; }
   .variable-picker { display:grid; min-width:0; gap:var(--spacing-2); }
   .variable-chips { display:flex; flex-wrap:nowrap; min-width:0; max-width:100%; gap:var(--spacing-2); justify-content:flex-start; overflow-x:auto; padding:var(--spacing-2); }
-  .chip { flex:0 0 auto; border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); background:var(--color-primary); color:var(--color-font-button); font:inherit; font-size:max(16px, 1rem); cursor:pointer; }
+  .chip { flex:0 0 auto; border:0; border-radius:var(--radius-full); padding:var(--spacing-2) var(--spacing-4); background:linear-gradient(135deg,var(--variable-start,var(--color-primary-start)),var(--variable-end,var(--color-primary-end))); color:var(--color-font-button); font:inherit; font-size:max(16px, 1rem); cursor:pointer; }
   .variable-toggle { justify-self:center; border:0; padding:var(--spacing-2) var(--spacing-4); background:transparent; color:var(--color-font-secondary); font:inherit; font-size:var(--font-size-small); cursor:pointer; }
   .object { grid-column:1/-1; min-width:0; border:1px solid var(--color-grey-20); border-radius:.8rem; padding:.75rem; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
   .object legend { padding:0 var(--spacing-2); }

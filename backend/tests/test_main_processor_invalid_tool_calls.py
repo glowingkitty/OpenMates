@@ -209,7 +209,12 @@ _install_stub("backend.apps.ai.processing.skill_executor", skill_executor_stub)
 
 billing_stub = types.ModuleType("backend.shared.python_utils.billing_utils")
 billing_stub.calculate_total_credits = lambda *_args, **_kwargs: 0
+billing_stub.calculate_credits_from_tokens = lambda *_args, **_kwargs: 0
 billing_stub.MINIMUM_CREDITS_CHARGED = 1
+billing_stub.BillingError = type("BillingError", (Exception,), {})
+async def _noop_credit_headroom(**_kwargs):
+    return None
+billing_stub.ensure_credit_headroom = _noop_credit_headroom
 _install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
 main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")

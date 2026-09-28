@@ -53,6 +53,8 @@
   import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
+  import WorkflowRunEmbedPreview from './embeds/workflows/WorkflowRunEmbedPreview.svelte';
+  import { workflowRunProvenance } from './embeds/workflows/workflowRunProvenance';
   import { assistantSpeechController } from '../services/assistantSpeechController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
@@ -877,6 +879,18 @@
   let originalMarkdownContent = $derived(
     typeof original_message?.content === 'string' ? original_message.content : ''
   );
+  let workflowRun = $derived(role === 'assistant'
+    ? workflowRunProvenance(originalMarkdownContent || (typeof content === 'string' ? content : ''))
+    : null);
+  function openWorkflowRun() {
+    if (!workflowRun) return;
+    dispatchEmbedFullscreen({
+      embedId: workflowRun.runId,
+      embedType: 'workflow-run',
+      decodedContent: { workflow_id: workflowRun.workflowId, run_id: workflowRun.runId },
+      hasChatContext: true,
+    });
+  }
 
   // Raw content displayed in debug mode — shows the original stored text (JSON/markdown)
   // without any rendering, so embed placeholders and raw structure are visible.
@@ -3344,7 +3358,12 @@
              and resolution use this narrow element so overlay/toolbar/popover
              text, thinking content, and truncation controls never leak into
              the TreeWalker that computes text-quote anchors. -->
-        <div class="chat-message-body" bind:this={messageBodyElement}>
+        {#if workflowRun && !$chatDebugStore.rawTextMode}
+          <div class="workflow-run-provenance" data-testid="workflow-run-provenance">
+            <WorkflowRunEmbedPreview runId={workflowRun.runId} onFullscreen={openWorkflowRun} />
+          </div>
+        {/if}
+        <div class="chat-message-body" class:has-workflow-run={!!workflowRun} bind:this={messageBodyElement}>
           <!-- Highlight overlay: yellow boxes drawn over rendered text. Nested
                inside messageBodyElement so the overlay's inset:0 layer and the
                per-box coordinates share the same origin. -->
@@ -4677,4 +4696,6 @@
     color: var(--color-font-primary) !important;
     padding-left: var(--spacing-12, 12px) !important;
   }
+  .workflow-run-provenance { display:flex; margin:var(--spacing-4) 0; }
+  .chat-message-body.has-workflow-run :global(a[href^="/workflows#workflow-id="][href*="workflow-tab=runs"][href*="run-id="]) { display:none; }
 </style>

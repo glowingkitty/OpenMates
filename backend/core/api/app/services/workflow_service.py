@@ -42,6 +42,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowValidationError,
     WorkflowVersionDetail,
     WorkflowVersionSummary,
+    validate_workflow_composition_refs,
     validate_workflow_readiness,
 )
 from backend.core.api.app.services.workflow_identity_service import (
@@ -1208,6 +1209,7 @@ class WorkflowService:
         self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash)
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
+        validate_workflow_composition_refs(workflow_graph)
         if enabled:
             validate_workflow_readiness(workflow_graph, require_schedule=True)
         identity = (
@@ -1325,6 +1327,9 @@ class WorkflowService:
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph) if graph is not None else None
+        if workflow_graph is not None:
+            prior_graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
+            validate_workflow_composition_refs(workflow_graph, prior_graph)
         effective_enabled = record["enabled"] if enabled is None else enabled
         if effective_enabled:
             validate_workflow_readiness(

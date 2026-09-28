@@ -1,7 +1,7 @@
 """Focused builder validation: manual readiness, deterministic nodes, unsafe graphs."""
 import pytest
 from pydantic import ValidationError
-from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowValidationError, validate_manual_run_input, validate_workflow_readiness
+from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowValidationError, validate_manual_run_input, validate_workflow_readiness, validate_workflow_composition_refs
 
 
 def graph_data():
@@ -156,3 +156,36 @@ def test_nullable_weather_flag_is_valid_as_optional_message_condition():
         {"id": "send", "type": "send_chat_message", "config": {"title": "Weather", "blocks": [{"id": "rain", "source": "$nodes.weather.output.rain_summary", "include_if": "$nodes.weather.output.rain_expected"}]}},
     ], "edges": [{"from": "weather", "to": "send"}]}
     validate_workflow_readiness(WorkflowGraph.model_validate(data))
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference
+def test_message_save_requires_visible_earlier_action_variable_and_allows_static_without_action():
+    data = graph_data()
+    data["nodes"][2]["config"]["message"] = "Here are the results"
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    data["nodes"][2]["config"]["message"] = "Here are the results {{steps.search}}"
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    data["nodes"][2]["config"]["message"] += " {{ $nodes.search.output.results }}"
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+
+    static = {"version": 2, "trigger_node_id": "start", "nodes": [
+        {"id": "start", "type": "manual_trigger", "config": {}},
+        {"id": "send", "type": "send_chat_message", "config": {"title": "Reminder", "message": "Remember to stretch"}},
+    ], "edges": [{"from": "start", "to": "send"}]}
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(static))
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference,workflows.control.ai-check
+def test_ask_and_ai_check_require_visible_source_in_their_authored_text():
+    data = graph_data()
+    data["nodes"] = [data["nodes"][0],
+        {"id": "ask", "type": "app_skill_action", "config": {"app_id": "ai", "skill_id": "ask", "input": {"prompt": "Summarize the results"}}},
+        {"id": "send", "type": "send_chat_message", "config": {"title": "News", "message": "{{ $nodes.ask.output.answer }}"}},
+    ]
+    data["edges"] = [{"from": "search", "to": "ask"}, {"from": "ask", "to": "send"}]
+    with pytest.raises(WorkflowValidationError, match="Step ask"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    data["nodes"][1]["config"]["input"]["prompt"] = "Summarize {{ $nodes.search.output.results }}"
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(data))

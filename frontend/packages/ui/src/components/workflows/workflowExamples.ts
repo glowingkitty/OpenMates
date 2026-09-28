@@ -58,7 +58,7 @@ export function dailyWeatherNewsGraph(): WorkflowGraph {
       title: "Send morning report",
       config: {
         title: "Morning weather and news",
-        message: "Your morning update",
+        message: "Your morning update\n{{steps.weather.rain_periods}}\n{{steps.news.results}}",
         blocks: [
           {
             id: "weather",
@@ -96,13 +96,7 @@ export function weeklyEventsGraph(): WorkflowGraph {
       title: "Send AI events",
       config: {
         title: "AI events for the upcoming week",
-        blocks: [
-          {
-            id: "events",
-            source: "$nodes.events.output.results",
-            only_new_results: true,
-          },
-        ],
+        message: "Here are the upcoming events: {{steps.events.results}}",
       },
     },
   ]);
@@ -129,13 +123,7 @@ export function hourlyApartmentsGraph(): WorkflowGraph {
       title: "Send new apartments",
       config: {
         title: "New apartments",
-        blocks: [
-          {
-            id: "apartments",
-            source: "$nodes.apartments.output.results",
-            only_new_results: true,
-          },
-        ],
+        message: "Here are the new apartments: {{steps.apartments.results}}",
       },
     },
   ]);

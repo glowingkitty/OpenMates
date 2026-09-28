@@ -1,0 +1,123 @@
+schema_version: 2
+id: workflow-rich-delivery
+title: Polished workflow messages and grounded AI answers
+status: verified
+goal: >
+  A workflow-created chat should show useful structured results and a clear link
+  to its originating run. Authors should build messages with visible inline
+  variables, and Ask AI should describe only selected new results using the
+  same safe embed references and presentation rules as regular chat.
+
+scope:
+  in:
+    - Shared variable composer for Send message, Ask AI, AI judgment, and variable-enabled app text inputs.
+    - Save and test validation of earlier action references across web, REST, CLI, and SDK.
+    - Typed inline result rendering with automatic new-result selection and legacy block compatibility.
+    - Destination-scoped selection before Ask AI, empty-selection skip, and hard no-tools enforcement.
+    - Deterministic presentation instructions and validated event cards, inline links, and map views.
+    - Workflow-run previews in the chat embed area, including legacy deliveries and responsive run detail.
+    - Focused regression and end-to-end coverage for the weekly AI events case.
+  out:
+    - Ask AI execution of app skills.
+    - New provider-specific result formats or new embed types beyond workflow-run provenance.
+
+scenarios:
+  - id: S-1
+    title: The weekly AI events workflow sends a useful chat
+    given: [An Events search finds identifiable results and the workflow sends a message.]
+    when: [The owner opens the delivered chat.]
+    then: [Only unsent results appear as event previews at the inline variable, with a workflow-run preview in the embed area.]
+  - id: S-2
+    title: Ask AI describes selected new events
+    given: [An Events search precedes Ask AI and Send message.]
+    when: [Some results were sent before and new results remain.]
+    then: [Ask AI receives only new event data and presentation rules, cannot call tools, and its full answer can show validated event links and views.]
+  - id: S-3
+    title: Every variable-enabled message editor inserts visible references
+    given: [A workflow node has an earlier action output.]
+    when: [The author clicks a source variable and saves the node.]
+    then: [The variable appears at the cursor with its source gradient and Save requires at least one earlier-action reference.]
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Deterministic delivery renders selected result previews at the inline token and shows run provenance in the app embed area, including legacy chat links.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-WORKFLOWS]
+  - id: AC-2
+    scenario: S-2
+    text: Destination-scoped selection occurs before Ask AI, skips empty selections without a charge, and allows only selected references and maps while denying tools.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WORKFLOWS]
+  - id: AC-3
+    scenario: S-3
+    text: Workflow variable-enabled editors insert gradient tokens and both client and server reject missing earlier-action references.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-WORKFLOWS]
+
+tests:
+  - id: T-WORKFLOWS
+    type: manual
+    covers: [AC-1, AC-2, AC-3]
+    assertions: [Focused local checks and isolated GitHub CI product and browser E2E cover the three scenarios.]
+    red_phase: {required: false, expected: fail, evidence: {status: skipped, reason: Existing run and code inspection establish the failures.}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        reason: Focused backend and YAML tests passed on this implementation; isolated component previews and workflow authoring E2E passed on the same UI and delivery code before the final YAML-validation change (CI runs 36453306912 and 36455781890).
+        command: python3 -m pytest -q backend/tests/test_workflow_yaml_news_readiness.py backend/tests/test_workflow_yaml_typed_readiness.py backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_builder_v1.py
+        run_id: local-workflow-pytest-2026-09-28
+        subject_commit: f068685407cb792ee6e2a0200dcb2361b0b8952b
+        timestamp: '2026-09-28T17:12:00Z'
+
+implementation_state:
+  subject_commit: f068685407cb792ee6e2a0200dcb2361b0b8952b
+approvals:
+  specification: {status: approved, approved_at: '2026-09-28', source: User confirmed both exact review fingerprints.}
+  plan: {status: approved, approved_at: '2026-09-28', source: User approved the implementation plan.}
+decisions:
+  - id: D-1
+    status: active
+    decision: Select presentation rules from known upstream app and skill metadata without another AI routing request.
+    reason: The action node already establishes the source and type.
+    decided_at: '2026-09-28'
+  - id: D-2
+    status: active
+    decision: Preserve delivery reservations and owner-device encryption; interpret compatible legacy blocks at runtime.
+    reason: Existing messages and retries need to remain safe and readable.
+    decided_at: '2026-09-28'
+tasks:
+  - id: TASK-1
+    title: Implement the approved workflow delivery and editor contract tracked in OpenMates Tasks.
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    expected_files: [backend/core/api/app/services/workflow_action_adapter.py, frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte]
+    verification_ids: [T-WORKFLOWS]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {owner: efee, files: [backend/core/api/app/services/workflow_action_adapter.py, frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte], shared_files: []}
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Implement the approved scenarios against existing workflow and chat embed contracts.
+    recorded_at: '2026-09-28'
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the reviewed workflow implementation to dev.
+  command: python3 scripts/plan_validate.py docs/plans/workflow-rich-delivery/plan.yml
+  expected_outcome: A valid plan and tested workflow behavior.
+  last_verified_commit: f068685407cb792ee6e2a0200dcb2361b0b8952b

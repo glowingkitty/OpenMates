@@ -78,6 +78,7 @@ test.describe('Workflows editor', () => {
 					type: 'send_chat_message',
 					config: {
 						title: 'Daily report',
+						message: 'Forecast: {{steps.weather.forecast_day}}',
 						blocks: [{ id: 'weather', source: '$nodes.weather.output.forecast_day' }]
 					}
 				}

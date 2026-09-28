@@ -201,6 +201,8 @@ def _prepare_workflow_skill_request(
     # authoritative even when authoring validation was unavailable or bypassed.
     skill_request["apps_enabled"] = False
     skill_request["allowed_apps"] = []
+    skill_request["workflow_ai"] = True
+    skill_request["workflow_presentation_sources"] = request.get("workflow_presentation_sources", [])
     if user_id:
         skill_request["_user_id"] = user_id
     skill_request["_external_request"] = True

@@ -913,6 +913,11 @@ builder.ask_ai_instruction_required:
   en: "Enter an instruction for Ask AI."
   verified_by_human: []
 
+builder.earlier_action_variable_required:
+  context: Workflow message field requires a visible earlier action reference
+  en: "Insert a variable from an earlier action into this text before saving."
+  verified_by_human: []
+
 builder.answer:
   context: Workflow Ask AI output label
   en: "Answer"
@@ -1601,4 +1606,29 @@ runs.status_unavailable:
 builder.sharing_soon:
   context: Notification shown when workflow sharing is requested before the feature is available
   en: "Workflow sharing is coming soon."
+  verified_by_human: []
+
+run_embed.title:
+  context: Preview and fullscreen title for a workflow execution linked from its delivered chat message
+  en: "Workflow run"
+  verified_by_human: []
+
+run_embed.open_detail:
+  context: Workflow run preview summary
+  en: "Open the steps and results of this run"
+  verified_by_human: []
+
+run_embed.detail:
+  context: Workflow run fullscreen subtitle
+  en: "Run details"
+  verified_by_human: []
+
+run_embed.loading:
+  context: Workflow run fullscreen loading message
+  en: "Loading run…"
+  verified_by_human: []
+
+run_embed.unavailable:
+  context: Workflow run fullscreen message when owner data has expired or been deleted
+  en: "This workflow run is no longer available."
   verified_by_human: []

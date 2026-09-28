@@ -2200,7 +2200,26 @@ async def handle_preprocessing(
 
     decision_model = getattr(skill_config.default_llms, "decision_model", None)
     llm_call_result: Optional[LLMPreprocessingCallResult] = None
-    if decision_model:
+    if (request_data.user_preferences or {}).get("workflow_ai") is True:
+        # The Workflow graph already chose the source app and values. Keep credit,
+        # safety, model, and language handling below, but skip classification AI.
+        llm_call_result = LLMPreprocessingCallResult(
+            arguments={
+                "harmful_or_illegal": 0,
+                "misuse_risk": 0,
+                "category": "general_knowledge",
+                "topic_area": "general",
+                "complexity": "simple",
+                "relevant_app_skills": [],
+                "relevant_focus_modes": [],
+                "relevant_embedded_previews": [],
+                "load_app_settings_and_memories": [],
+                "output_language": user_system_language,
+                "llm_response_temp": 0.4,
+            },
+            raw_provider_response_summary={"purpose": "workflow_deterministic_preprocessing", "generated_text": False},
+        )
+    elif decision_model:
         try:
             logger.info(f"{log_prefix} Firing Jev bounded preprocessing decisions via {decision_model}.")
             decision_arguments = await decide_preprocessing_with_jev(

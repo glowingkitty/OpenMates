@@ -831,4 +831,24 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 			'Keep this unsaved weather and news draft.'
 		);
 	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.editor.inline-action-variables,workflows-ui.message-and-budget
+	test('inserts a branded results variable in Send message without a separate results section', async ({ page }: { page: Page }) => {
+		await page.goto(preview(), { waitUntil: 'networkidle' });
+		const editor = page.locator('[data-node-id="message"]');
+		await editor.getByTestId('workflow-node-summary').click();
+		const body = editor.getByTestId('workflow-message-template');
+		await body.fill('Here are the stories: ');
+		await expect(editor.getByTestId('workflow-node-save')).toBeDisabled();
+		await expect(editor.getByTestId('workflow-variable-required')).toBeVisible();
+		await expect(editor.locator('.message-block')).toHaveCount(0);
+		await expect(editor.getByText('Only results not previously sent')).toHaveCount(0);
+		const resultChip = editor.getByTestId('workflow-message-variable-chips').getByRole('button', { name: /Results/ }).first();
+		await expect(resultChip).toBeVisible();
+		expect(await resultChip.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
+		await resultChip.click();
+		await expect(body.locator('.generic-mention')).toHaveCount(1);
+		await expect(body).toContainText('Results');
+		await expect(editor.getByTestId('workflow-node-save')).toBeEnabled();
+	});
 });

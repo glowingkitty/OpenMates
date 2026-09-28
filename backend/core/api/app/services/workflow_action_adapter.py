@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import json
 import logging
+import re
 import time
 from typing import Any
 
@@ -22,6 +23,20 @@ from backend.core.api.app.services.workflow_chat_delivery_service import (
 
 
 logger = logging.getLogger(__name__)
+_INLINE_VARIABLE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
+
+
+def _source_reference(expression: str) -> str:
+    path = expression.split("|", 1)[0].strip()
+    return re.sub(r"^steps\.([^.]+)\.", r"$nodes.\1.output.", path)
+
+
+def _with_run_link(message: str, context: dict[str, Any]) -> str:
+    execution = context.get("workflow") or {}
+    workflow_id, run_id = execution.get("workflow_id"), execution.get("run_id")
+    if workflow_id and run_id and not execution.get("step_test"):
+        return message + f"\n\n[View workflow run](/workflows#workflow-id={workflow_id}&workflow-tab=runs&run-id={run_id})"
+    return message
 
 
 class WorkflowActionExecutionError(RuntimeError):
@@ -54,33 +69,71 @@ class WorkflowActionAdapter:
         """Render authored output selections without reservation, persistence or delivery."""
         from backend.core.api.app.services.workflow_template_expressions import resolve_workflow_template
         title = resolve_workflow_template(config.get("title") or "Workflow results", context)
-        message = resolve_workflow_template(config.get("message") or "", context)
+        message = config.get("message") or ""
         if not isinstance(title, str) or not isinstance(message, str):
             raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Message title and text must resolve to text")
-        blocks = []
+        blocks: list[dict[str, Any]] = []
+        for index, match in enumerate(_INLINE_VARIABLE.finditer(message)):
+            token = match.group(0)
+            source = _source_reference(match.group(1))
+            value = resolve_workflow_template(source if source.startswith("$nodes.") else token, context)
+            if value is None:
+                raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Selected message output is unavailable")
+            blocks.append({"id": f"inline_{index}", "source": source,
+                           "label": "", "value": value, "token": token, "inline": True,
+                           "only_new_results": isinstance(value, list)})
         for index, block in enumerate(config.get("blocks") or []):
+            source = block["source"]
+            matching_inline = next((item for item in blocks if item["source"] == source), None)
             condition = block.get("include_if")
             if condition is not None:
                 include = resolve_workflow_template(condition, context)
                 if include is None:
+                    if matching_inline:
+                        matching_inline["value"] = []
                     continue
                 if not isinstance(include, bool):
                     raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Optional message blocks require a boolean value")
                 if not include:
+                    if matching_inline:
+                        matching_inline["value"] = []
                     continue
-            value = resolve_workflow_template(block["source"], context)
+            if matching_inline:
+                matching_inline["include_if"] = block.get("include_if")
+                continue
+            value = resolve_workflow_template(source, context)
             if value is None:
                 raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Selected message output is unavailable")
             if block.get("only_new_results") and (not isinstance(value, list) or any(not isinstance(item, dict) for item in value)):
                 raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONFIG", "Only new results requires a selected result list")
-            blocks.append({"id": block.get("id") or str(index), "source": block["source"],
+            blocks.append({"id": block.get("id") or str(index), "source": source,
                            "label": block.get("label") or "", "value": value,
-                           "only_new_results": bool(block.get("only_new_results"))})
+                           "only_new_results": isinstance(value, list), "inline": False})
         return {"title": title, "message": message, "blocks": blocks,
-                "text": self._render_message(message, blocks), "dispatches": False}
+                "text": self._render_message(message, blocks), "parts": self._preview_parts(message, blocks, context), "dispatches": False}
 
     @staticmethod
-    def _render_message(message: str, blocks: list[dict[str, Any]]) -> str:
+    def _preview_parts(message: str, blocks: list[dict[str, Any]], context: dict[str, Any]) -> list[dict[str, Any]]:
+        parts: list[dict[str, Any]] = []
+        offset = 0
+        for match in _INLINE_VARIABLE.finditer(message):
+            if match.start() > offset:
+                parts.append({"text": message[offset:match.start()]})
+            block = next((item for item in blocks if item.get("token") == match.group(0)), None)
+            if block:
+                source_node = block["source"].split(".")[1] if block["source"].startswith("$nodes.") else ""
+                parts.append({"value": block["value"], "app_id": (context.get("nodes", {}).get(source_node) or {}).get("app_id")})
+            offset = match.end()
+        if offset < len(message):
+            parts.append({"text": message[offset:]})
+        for block in blocks:
+            if not block.get("inline"):
+                parts.append({"value": block["value"], "app_id": ""})
+        return parts
+
+    @staticmethod
+    def _render_message(message: str, blocks: list[dict[str, Any]], embed_ids: dict[tuple[int, int], str] | None = None) -> str:
+        embed_ids = embed_ids or {}
         def render(value: Any) -> str:
             if value is None:
                 return ""
@@ -99,9 +152,22 @@ class WorkflowActionAdapter:
             if isinstance(value, list):
                 return "\n\n".join(render(item) for item in value)
             return str(value)
-        sections = [message.strip()] if message.strip() else []
-        for block in blocks:
-            content = render(block["value"])
+        def render_block(index: int, block: dict[str, Any]) -> str:
+            value = block["value"]
+            if isinstance(value, list):
+                refs = [embed_ids[(index, item_index)] for item_index in range(len(value)) if (index, item_index) in embed_ids]
+                if refs:
+                    return "\n\n" + "```embeds_results_view\nembeds: " + ", ".join(refs) + "\n```" + "\n\n"
+            return render(value)
+        rendered = message
+        for index, block in reversed(list(enumerate(blocks))):
+            if block.get("inline"):
+                rendered = rendered.replace(block["token"], render_block(index, block), 1)
+        sections = [rendered.strip()] if rendered.strip() else []
+        for index, block in enumerate(blocks):
+            if block.get("inline"):
+                continue
+            content = render_block(index, block)
             if content:
                 sections.append((f"{block['label']}\n" if block.get("label") else "") + content)
         return "\n\n".join(sections)
@@ -114,6 +180,17 @@ class WorkflowActionAdapter:
         workflow_id, run_id, node_id = (execution.get(key) for key in ("workflow_id", "run_id", "node_id"))
         if not all((workflow_id, run_id, node_id)) or execution.get("step_test"):
             raise WorkflowActionExecutionError("WORKFLOW_ACTION_INVALID_CONTEXT", "Message delivery requires a full workflow run")
+        prepared = (execution.get("prepared") or {}).get(node_id)
+        if prepared:
+            if prepared.get("skip"):
+                return {"type": "send_chat_message", "status": "no_new_results", "message": "No new results", "selected_count": 0}
+            from backend.core.api.app.services.workflow_result_selection import selected_context
+            ask_node_id = prepared.get("ask_node_id")
+            answers = ((context.get("nodes", {}).get(ask_node_id) or {}).get("output") or {}).get("answers_by_destination") or {}
+            if node_id not in answers:
+                raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_UNAVAILABLE", "Ask AI answer is unavailable for this chat")
+            context = selected_context(context, prepared.get("selected_lists") or {},
+                                       answer=answers.get(node_id), ask_node_id=ask_node_id)
         preview = await self.preview_message(config, context)
         delivery_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{run_id}:{node_id}:delivery"))
         chat_id = config.get("chat_id") or str(uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:workflow:{run_id}:{node_id}:chat"))
@@ -135,42 +212,63 @@ class WorkflowActionAdapter:
                 try:
                     identity = canonical_result_identity(item)
                 except Exception:
-                    if block["only_new_results"]:
-                        raise WorkflowActionExecutionError("WORKFLOW_RESULT_IDENTITY_MISSING", "Only new results requires a provider ID or URL on each selected result")
-                    # Weather periods and non-result typed objects do not acquire result membership.
+                    # Non-result typed arrays are still usable; only stable identities enter delivery memory.
                     continue
                 fingerprint = keyed_fingerprint(key, identity)
-                candidates.append({"index": len(candidates), "fingerprint": fingerprint, "only_new": block["only_new_results"]})
+                candidates.append({"index": len(candidates), "fingerprint": fingerprint, "only_new": True})
                 candidate_values.append((block_index, item_index, item, fingerprint))
-        selected = set(await run_in_threadpool(history.reserve, user_id=user_id, workflow_id=workflow_id,
+        selected = (set(range(len(candidate_values))) if prepared else set(await run_in_threadpool(
+            history.reserve, user_id=user_id, workflow_id=workflow_id,
             run_id=run_id, node_id=node_id, delivery_id=delivery_id, destination_hash=destination,
-            candidates=candidates, expires_at=expires_at))
+            candidates=candidates, expires_at=expires_at)))
         keep = {(candidate_values[i][0], candidate_values[i][1]) for i in selected}
         considered = {(b, i) for b, i, _, _ in candidate_values}
         blocks = []
+        retained_original_indexes: dict[int, list[int]] = {}
         for b, block in enumerate(preview["blocks"]):
             block = dict(block)
             if isinstance(block["value"], list):
-                block["value"] = [item for i, item in enumerate(block["value"]) if (b, i) not in considered or (b, i) in keep]
+                retained_original_indexes[b] = [i for i in range(len(block["value"]))
+                                                if (b, i) not in considered or (b, i) in keep]
+                block["value"] = [block["value"][i] for i in retained_original_indexes[b]]
             blocks.append(block)
-        text = self._render_message(preview["message"], blocks)
         # A header alone should not produce an empty new chat after list deduplication.
-        has_content = any(block["value"] not in (None, [], {}, "") for block in blocks) if config.get("blocks") else bool(preview["message"].strip())
+        has_content = any(block["value"] not in (None, [], {}, "") for block in blocks) if blocks or config.get("blocks") else bool(preview["message"].strip())
+        if candidates and not selected and not any(
+            block["value"] not in (None, [], {}, "") and not isinstance(block["value"], list)
+            for block in blocks
+        ):
+            has_content = False
         if not has_content:
             await run_in_threadpool(history.release, delivery_id, workflow_id, user_id)
             return {"type": "send_chat_message", "status": "no_new_results", "message": "No new results", "selected_count": 0}
         embeds = []
+        embed_ids_by_original_position: dict[tuple[int, int], str] = {}
         for i in sorted(selected):
-            b, _, item, fingerprint = candidate_values[i]
+            b, original_index, item, fingerprint = candidate_values[i]
             source = blocks[b]["source"]
             source_node = source.split(".")[1] if source.startswith("$nodes.") else ""
             app_id = (context.get("nodes", {}).get(source_node) or {}).get("app_id")
-            content_type = {"news": "website", "events": "event", "home": "listing"}.get(app_id, "workflow-result")
-            embeds.append({"embed_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{delivery_id}:embed:{fingerprint}")),
+            content_type = {"news": "website", "events": "event", "home": "listing"}.get(app_id)
+            if content_type is None:
+                continue
+            embed_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{delivery_id}:embed:{fingerprint}"))
+            embed_ids_by_original_position[(b, original_index)] = embed_id
+            embeds.append({"embed_id": embed_id,
                            "content_type": content_type, "content": item})
-        text += f"\n\n[View workflow run](/workflows#workflow-id={workflow_id}&workflow-tab=runs&run-id={run_id})"
-        for embed in embeds:
-            text += "\n\n```json\n" + json.dumps({"type": embed["content_type"], "embed_id": embed["embed_id"]}, separators=(",", ":")) + "\n```"
+        embed_ids: dict[tuple[int, int], str] = {}
+        for b, indexes in retained_original_indexes.items():
+            embed_ids.update({(b, index): embed_ids_by_original_position[(b, original)]
+                              for index, original in enumerate(indexes)
+                              if (b, original) in embed_ids_by_original_position})
+        text = self._render_message(preview["message"], blocks, embed_ids)
+        if prepared:
+            already_embedded = {embed["embed_id"] for embed in embeds}
+            for embed in prepared.get("embeds") or []:
+                if embed["embed_id"] in text and embed["embed_id"] not in already_embedded:
+                    embeds.append(embed)
+                    already_embedded.add(embed["embed_id"])
+        text = _with_run_link(text, context)
         delivery_service = self._get_chat_delivery_service()
         if self._chat_delivery_service_injected:
             delivery_service._delivery_history = history
@@ -190,7 +288,7 @@ class WorkflowActionAdapter:
         if not self._chat_delivery_service_injected or self._cache_service_factory is not None:
             await self._publish_workflow_chat_delivery_available(user_id=user_id, delivery=delivery)
         return {"type": "send_chat_message", "status": delivery.status, "delivery_id": delivery.delivery_id,
-                "chat_id": delivery.chat_id, "message_id": delivery.message_id, "selected_count": len(selected),
+                "chat_id": delivery.chat_id, "message_id": delivery.message_id, "selected_count": len(prepared.get("embeds") or []) if prepared else len(selected),
                 "embed_ids": [embed["embed_id"] for embed in embeds]}
 
     async def create_chat_report(self, config: dict[str, Any], context: dict[str, Any], user_id: str) -> dict[str, Any]:
@@ -217,7 +315,6 @@ class WorkflowActionAdapter:
         return delivery
 
     async def start_new_chat(self, config: dict[str, Any], context: dict[str, Any], user_id: str) -> dict[str, Any]:
-        del context
         title = config.get("title")
         message = config.get("message") or config.get("initial_message")
         chat_id = config.get("chat_id")
@@ -232,13 +329,14 @@ class WorkflowActionAdapter:
                 "Send chat message actions require a non-empty message and a title for new chats.",
             )
         title_text = title.strip() if isinstance(title, str) and title.strip() else "Workflow message"
+        message_text = _with_run_link(message.strip(), context)
         expires_at = int(time.time()) + int(config.get("expires_in_seconds") or 7 * 24 * 60 * 60)
         delivery_service = self._get_chat_delivery_service()
         if self._chat_delivery_service_injected:
             delivery = delivery_service.create_delivery(
                 owner_id=user_id,
                 title=title_text,
-                message=message.strip(),
+                message=message_text,
                 expires_at=expires_at,
                 chat_id=chat_id.strip() if isinstance(chat_id, str) else None,
             )
@@ -246,7 +344,7 @@ class WorkflowActionAdapter:
             encrypted_payload = await self._encrypt_chat_delivery_payload(
                 user_id=user_id,
                 title=title_text,
-                message=message.strip(),
+                message=message_text,
             )
             delivery = delivery_service.create_encrypted_delivery(
                 owner_id=user_id,

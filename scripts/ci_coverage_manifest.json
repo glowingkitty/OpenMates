@@ -218,6 +218,7 @@
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
         "components/memory-consent.spec.ts",

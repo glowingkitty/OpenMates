@@ -3029,7 +3029,7 @@ async def handle_main_processing(
      
     # Add app deep linking instruction so the AI uses correct relative hash links
     # Only include when apps are available (no point linking to apps that don't exist)
-    if discovered_apps_metadata:
+    if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
     
     # Add settings/memories deep link instruction so the AI can suggest creating/updating
@@ -3274,6 +3274,16 @@ async def handle_main_processing(
             if p in PREVIEW_TO_EMBED_TYPE:
                 normalized_previews.add(PREVIEW_TO_EMBED_TYPE[p])
 
+        workflow_presentation_only = (request_data.user_preferences or {}).get("workflow_ai") is True
+        workflow_known_sources = {
+            source for source in (request_data.user_preferences or {}).get("workflow_presentation_sources", [])
+            if isinstance(source, str) and "-" in source
+        } if workflow_presentation_only else set()
+        if workflow_presentation_only:
+            normalized_previews.update(
+                source.split("-", 1)[1] for source in workflow_known_sources
+            )
+
         for app_id, app_metadata in discovered_apps_metadata.items():
             if not app_metadata.instructions:
                 continue
@@ -3287,6 +3297,13 @@ async def handle_main_processing(
                 )
 
             for instruction_def in app_metadata.instructions:
+                if workflow_presentation_only and (
+                    not instruction_def.for_embed_types
+                    or not any(source.startswith(f"{app_id}-") for source in workflow_known_sources)
+                ):
+                    # Search instructions may direct the model to invoke a skill.
+                    # Workflow Ask may reuse presentation guidance only.
+                    continue
                 # Instructions with for_embed_types bypass skill preselection gating.
                 # They are injected when the preprocessor identified any matching embed
                 # preview type as relevant (e.g., email drafting format instructions
@@ -3347,7 +3364,7 @@ async def handle_main_processing(
     
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
-    if discovered_apps_metadata:
+    if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         proactive_skill_instruction = base_instructions.get("base_proactive_skill_usage_instruction", "")
         prompt_parts.append(proactive_skill_instruction)
         research_only_prompt_parts.add(proactive_skill_instruction)
@@ -3378,6 +3395,10 @@ async def handle_main_processing(
     # Subset whose results contain quotable text (web/news search results with
     # title/description/snippets that the source-quote verification can check against):
     _QUOTABLE_PRESELECTED_IDS = {"web-search", "news-search", "web-read"}
+    _workflow_presentation_sources = set(
+        source for source in (request_data.user_preferences or {}).get("workflow_presentation_sources", [])
+        if isinstance(source, str) and source in _EMBED_PRODUCING_PRESELECTED_IDS
+    )
 
     # Determine whether embeds already exist in chat history (from prior turns).
     # Uses the same lightweight substring checks as the preprocessor's skill-forcing logic.
@@ -3415,7 +3436,7 @@ async def handle_main_processing(
 
     # Inject inline/preview embed instruction only when the LLM will actually have embed_refs
     # to reference — either from history or from skills running this turn.
-    _include_embed_referencing = _has_any_embeds_in_history or _current_turn_produces_embeds
+    _include_embed_referencing = _has_any_embeds_in_history or _current_turn_produces_embeds or bool(_workflow_presentation_sources)
     if _include_embed_referencing:
         prompt_parts.append(base_instructions.get("base_embed_referencing_instruction", ""))
         logger.debug(
@@ -3426,7 +3447,7 @@ async def handle_main_processing(
         logger.debug(f"{log_prefix} [EMBED_PROMPT] Skipped embed referencing instruction — no embeds in history or preselected skills")
 
     _include_results_view_instruction = should_include_embeds_results_view_instruction(
-        preselected_skills,
+        (preselected_skills or set()) | _workflow_presentation_sources,
         _iter_user_request_texts(request_data),
         _embed_history_texts,
     )
@@ -3589,6 +3610,8 @@ async def handle_main_processing(
 
     # --- Add sub-chats usage instructions for LLM ---
     enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
+    if (request_data.user_preferences or {}).get("apps_enabled") is False:
+        enable_subchats_results = False
     if enable_subchats_results:
         sub_chats_instruction = (
             "### Sub-Chats (Sub-Agents) Orchestration Instruction:\n"
@@ -3922,13 +3945,19 @@ async def handle_main_processing(
             _canonicalize_tool_name,
         )
 
+    if (request_data.user_preferences or {}).get("apps_enabled") is False:
+        # This is the authoritative tool boundary for Workflow Ask AI and API
+        # requests that disable apps. The later allow-list also rejects invented
+        # provider tool calls before any dispatcher can see them.
+        available_tools_for_llm = []
+
     if not request_data.orchestration_id and any(
         tool.get("function", {}).get("name") == "start_sub_chats"
         for tool in available_tools_for_llm
     ):
         await create_orchestration_root(directus_service, request_data)
     
-    if chat_depth > 0 and not getattr(request_data, "is_anonymous", False):
+    if chat_depth > 0 and not getattr(request_data, "is_anonymous", False) and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         available_tools_for_llm.append(ask_user_input_tool)
         logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
     

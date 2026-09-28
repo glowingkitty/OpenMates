@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 import uuid
 from typing import Any
@@ -18,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
 from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt
+from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, sanitize_workflow_ai_answer, selected_context
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
     WorkflowNode,
@@ -138,6 +140,24 @@ class WorkflowRunner:
                     status=WorkflowNodeRunStatus.RUNNING, started_at=int(time.time()))], output_summary=context)
             await run_in_threadpool(self.workflow_service.save_run, user_id, progress, vault_key_id)
             reusable = reusable_ai_outputs.get(node.id)
+            if reusable is None and node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask":
+                descendants: set[str] = set()
+                pending = [node.id]
+                while pending:
+                    for edge in outgoing_edges.get(pending.pop(), []):
+                        if edge.to_node not in descendants:
+                            descendants.add(edge.to_node)
+                            pending.append(edge.to_node)
+                send_nodes = [candidate for candidate in workflow.graph.nodes
+                              if candidate.id in descendants and candidate.type == WorkflowNodeType.SEND_CHAT_MESSAGE
+                              and re.search(r"\{\{\s*(?:steps\." + re.escape(node.id) + r"\.|\$nodes\." + re.escape(node.id) + r"\.output\.)answer\s*\}\}", str(candidate.config.get("message") or ""))]
+                prepared = await prepare_ask_destinations(
+                    workflow_service=self.workflow_service, workflow_id=workflow.id, run_id=run_id,
+                    ask_node_id=node.id, prompt=str((node.config.get("input") or {}).get("prompt") or ""),
+                    context=context, user_id=user_id, send_nodes=send_nodes,
+                )
+                if prepared:
+                    context["workflow"].setdefault("prepared", {}).update(prepared)
             if reusable is not None:
                 reusable_output, reusable_credit_cost = reusable
                 node_run = WorkflowNodeRun(
@@ -155,10 +175,13 @@ class WorkflowRunner:
             else:
                 node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
             node_runs.append(node_run)
+            if reusable is not None and isinstance(node_run.output_summary.get("prepared"), dict):
+                context["workflow"].setdefault("prepared", {}).update(node_run.output_summary["prepared"])
             context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value, "app_id": node.config.get("app_id"), "skill_id": node.config.get("skill_id")}
             if accepted_run and await run_in_threadpool(self.workflow_service.is_run_cancellation_requested, workflow.id, run_id, user_id):
                 return await self._save_cancelled_run(run_id, workflow.id, version_id, trigger_type, started_at, node_runs, context, user_id, vault_key_id)
             if node_run.status == WorkflowNodeRunStatus.FAILED:
+                await self._release_undelivered_prepared(context, node_runs, user_id)
                 run = WorkflowRunDetail(
                     id=run_id,
                     workflow_id=workflow.id,
@@ -193,6 +216,7 @@ class WorkflowRunner:
                     continuations.append(continuation)
             current_node_id = next_node_id or (continuations.pop() if continuations else None)
 
+        await self._release_undelivered_prepared(context, node_runs, user_id)
         run = WorkflowRunDetail(
             id=run_id,
             workflow_id=workflow.id,
@@ -232,8 +256,12 @@ class WorkflowRunner:
         if node.type.value in {"send_chat_message", "start_new_chat", "create_chat_report"}:
             raise ValueError("Send message supports preview; use a full run for actual delivery")
         trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
+        source_nodes = {item.id: item for item in workflow.graph.nodes}
         context: dict[str, Any] = {"trigger": {"step_test": True},
-            "nodes": {key: {"output": value} for key, value in (upstream_outputs or {}).items()},
+            "nodes": {key: {"output": value,
+                             "app_id": source_nodes[key].config.get("app_id") if key in source_nodes else None,
+                             "skill_id": source_nodes[key].config.get("skill_id") if key in source_nodes else None}
+                      for key, value in (upstream_outputs or {}).items()},
             "workflow": {"workflow_id": workflow.id, "run_id": run_id, "node_id": node.id,
                          "started_at": started_at, "step_test": True,
                          "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC"}}
@@ -270,6 +298,7 @@ class WorkflowRunner:
         vault_key_id: str | None,
     ) -> WorkflowRunDetail:
         """Finish cooperatively after a checkpoint without changing a started call."""
+        await self._release_undelivered_prepared(context, node_runs, user_id)
         now = int(time.time())
         run = WorkflowRunDetail(
             id=run_id,
@@ -286,6 +315,31 @@ class WorkflowRunner:
             output_summary=context,
         )
         return await run_in_threadpool(self.workflow_service.save_run, user_id, run, vault_key_id)
+
+    async def _release_undelivered_prepared(
+        self, context: dict[str, Any], node_runs: list[WorkflowNodeRun], user_id: str,
+    ) -> None:
+        prepared = context.get("workflow", {}).get("prepared") or {}
+        if not prepared:
+            return
+        from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistory
+        completed_deliveries = {
+            str(item.output_summary.get("delivery_id")) for item in node_runs
+            if item.node_type == WorkflowNodeType.SEND_CHAT_MESSAGE
+            and item.status == WorkflowNodeRunStatus.COMPLETED
+            and item.output_summary.get("delivery_id")
+        }
+        uncertain_send_nodes = {
+            item.node_id for item in node_runs
+            if item.node_type == WorkflowNodeType.SEND_CHAT_MESSAGE
+            and item.status == WorkflowNodeRunStatus.FAILED
+        }
+        history = WorkflowDeliveryHistory(self.workflow_service)
+        for send_id, selection in prepared.items():
+            delivery_id = selection.get("delivery_id")
+            if delivery_id and delivery_id not in completed_deliveries and send_id not in uncertain_send_nodes:
+                await run_in_threadpool(history.release, delivery_id,
+                                        context["workflow"]["workflow_id"], user_id)
 
     def _next_node_id(self, node: WorkflowNode, output: dict[str, Any], outgoing_edges: dict[str, list[Any]]) -> str | None:
         candidates = outgoing_edges.get(node.id, [])
@@ -444,7 +498,53 @@ class WorkflowRunner:
             prompt = authored_input.get("prompt") if isinstance(authored_input, dict) else None
             if not isinstance(prompt, str):
                 raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_INVALID", "Ask AI requires an instruction")
-            request = {"prompt": render_bounded_ask_ai_prompt(prompt, context)}
+            referenced_nodes = set(re.findall(r"\{\{\s*(?:steps\.|\$nodes\.)([A-Za-z0-9_-]+)\.", prompt))
+            presentation_sources = sorted({
+                f"{source['app_id']}-{source['skill_id']}"
+                for node_id in referenced_nodes
+                if isinstance(source := context.get("nodes", {}).get(node_id), dict)
+                and isinstance(source.get("app_id"), str) and isinstance(source.get("skill_id"), str)
+                and source["app_id"] != "ai"
+            })
+            prepared = {send_id: selection for send_id, selection in (context.get("workflow", {}).get("prepared") or {}).items()
+                        if selection.get("ask_node_id") == node.id}
+            if prepared and not context.get("workflow", {}).get("step_test"):
+                answers: dict[str, str] = {}
+                total_credit_cost = 0
+                try:
+                    for send_id, selection in prepared.items():
+                        if selection.get("skip"):
+                            continue
+                        projected = selected_context(context, selection["ai_lists"])
+                        result = await self.app_skill_adapter.execute(
+                            app_id, skill_id,
+                            {"prompt": render_bounded_ask_ai_prompt(prompt, projected),
+                             "workflow_presentation_sources": presentation_sources},
+                            user_id=user_id,
+                            billing_context={"workflow_id": context["workflow"].get("workflow_id"),
+                                             "run_id": context["workflow"].get("run_id"),
+                                             "node_id": f"{node.id}:{send_id}", "source": "workflow"},
+                        )
+                        if result.get("error") or not isinstance(result.get("answer"), str):
+                            raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "Ask AI could not complete this destination")
+                        allowed_refs = {embed["embed_id"] for embed in selection.get("embeds", [])}
+                        answers[send_id] = sanitize_workflow_ai_answer(result["answer"], allowed_refs)
+                        total_credit_cost += int(result.get("_workflow_credit_cost") or 0)
+                except Exception:
+                    # A failed Ask has produced no chat delivery. Free every destination
+                    # so the next run can retry the same results.
+                    from starlette.concurrency import run_in_threadpool
+                    from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistory
+                    history = WorkflowDeliveryHistory(self.workflow_service)
+                    for selection in prepared.values():
+                        await run_in_threadpool(history.release, selection["delivery_id"],
+                                                context["workflow"]["workflow_id"], user_id)
+                    raise
+                return {"app_id": "ai", "skill_id": "ask", "answer": next(iter(answers.values()), ""),
+                        "answers_by_destination": answers, "prepared": prepared,
+                        "skipped": not answers, "_workflow_credit_cost": total_credit_cost}
+            request = {"prompt": render_bounded_ask_ai_prompt(prompt, context),
+                       "workflow_presentation_sources": presentation_sources}
         else:
             request = _resolve_template(authored_input, context)
         request.update(_resolve_template(node.input_mapping, context))

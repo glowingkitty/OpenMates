@@ -44,6 +44,15 @@ export const variants = {
 		isFirstMessage: false
 	},
 
+	workflowRun: {
+		role: 'assistant' as const,
+		content: 'Here are the upcoming events.\n\n[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93)',
+		status: 'synced' as const,
+		messageParts: [],
+		containerWidth: 800,
+		isFirstMessage: false
+	},
+
 	/** Streaming message */
 	streaming: {
 		role: 'assistant' as const,

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 4
-status: approved
+version: 5
+status: draft
 title: Workflows Web UI
 summary: >
   The authenticated Workflows web workspace presents a calm, visual automation
@@ -84,7 +84,7 @@ models:
       type: bounded_boolean_question_builder
       required: true
       constraints:
-        visible_fields: [decision_question, selected_earlier_values]
+        visible_fields: [decision_question_with_inserted_earlier_values]
         selected_value_preview: required
         advanced_provider_or_prompt_controls: forbidden
         outcomes: [if_true, if_false, unsure]
@@ -108,6 +108,16 @@ models:
       type: inline_validation
       required: true
       constraints: {position: below_instruction, reliable_illicit_request_blocks_save: true, uncertain_or_unavailable_verdict_allows_save_with_neutral_reminder: true}
+
+  WorkflowVariableComposer:
+    insertion:
+      type: shared_inline_editor_behavior
+      required: true
+      constraints: {click_adds_visible_token_at_cursor: true, source_app_gradient_on_picker_and_token: true, applies_to: [send_message, ask_ai, ai_judgment, variable_enabled_app_text_inputs]}
+    result_lists:
+      type: inline_typed_reference
+      required: true
+      constraints: {separate_result_section: forbidden, only_new_toggle: forbidden, message_preview_uses_result_cards: true}
 
   WorkflowValuePresentation:
     readable_values:
@@ -474,7 +484,7 @@ assertions:
   - id: workflows-ui.mvp.ask-ai
     type: behavior
     must: >
-      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, insertable chips for accessible earlier outputs including app-result lists, a preview of bounded selected values, an optional unsaved Test, and one text Answer available to later steps. After one second without an instruction change, web authoring automatically requests Jev-powered suggestion and app-skill-intent hints; suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. A reliable request to invoke an app skill shows the warning "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill" below the field and blocks Save; processing an existing app output remains allowed. An unavailable or uncertain hint shows a neutral reminder and allows Save, while server-side save validation still uses Jev and Gemini 3.8 Flash fallback. Stale hint responses cannot change the current instruction's warning or suggestions. Provider controls stay out of the basic editor, and CLI/SDK authoring does not run this typing-time hint flow.
+      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, insertable chips for accessible earlier outputs including app-result lists, a preview of bounded selected values, an optional unsaved Test, and one answer containing its complete validated text and visual references for later steps. After one second without an instruction change, web authoring automatically requests Jev-powered suggestion and app-skill-intent hints; these authoring hints do not select runtime presentation instructions for a known earlier app action. Suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. A reliable request to invoke an app skill shows the warning "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill" below the field and blocks Save; processing an existing app output remains allowed. An unavailable or uncertain hint shows a neutral reminder and allows Save, while server-side save validation still uses Jev and Gemini 3.8 Flash fallback. Stale hint responses cannot change the current instruction's warning or suggestions. Provider controls stay out of the basic editor, and CLI/SDK authoring does not run this typing-time hint flow.
     depends_on: [models.WorkflowAskAiAuthoring, examples.ask_ai_authoring]
   - id: workflows-ui.schedule.preview
     type: behavior
@@ -483,9 +493,13 @@ assertions:
     - examples.schedule_preview
   - id: workflows-ui.message-and-budget
     type: behavior
-    must: Send message chooses an existing owner chat or names a new chat, edits deterministic text with typed upstream references and result blocks, and offers Only new results per selected list. Optional boolean inclusion supports conditional weather plus unconditional news in one message. Preview renders the intended message and selected result cards without raw JSON/debug schemas and does not send or save. Show known skill costs and visibly distinguish pending delivery from acknowledged persistence; do not promise deferred budget caps.
+    must: Send message chooses an existing owner chat or names a new chat and edits deterministic text with typed upstream references in one field. Clicking an array result chip inserts it visibly in that field; no separate result section or Only results not previously sent toggle appears. Identifiable result lists use new results automatically. Optional boolean inclusion still supports conditional weather plus unconditional news in one message. Preview renders the intended text and selected result cards in authored order without raw JSON/debug schemas and does not send or save. Show known skill costs and visibly distinguish pending delivery from acknowledged persistence; do not promise deferred budget caps.
     depends_on:
     - examples.message_budget
+  - id: workflows-ui.editor.inline-action-variables
+    type: behavior
+    must: Every variable-enabled Workflow text editor, including Send message, Ask AI, AI judgment and app action text inputs, inserts a visible variable token at the cursor when its chip is clicked or selected with a keyboard. Each picker chip and inserted token uses the source action app's existing gradient, remains readable in light and dark themes, and can be removed and reinserted without changing nearby text. Save explains the missing earlier-action reference in the affected message field; no variable is required when no earlier action exists.
+    depends_on: [models.WorkflowVariableComposer, examples.inline_action_variables]
   - id: workflows-ui.run-deletion-forgetting
     type: behavior
     must: Run detail exposes its remembered delivered-result count and destination without leaking private data

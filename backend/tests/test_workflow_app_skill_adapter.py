@@ -214,7 +214,8 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
     result = await adapter.execute(
         "ai",
         "ask",
-        {"prompt": "Reply with exactly: Workflow AI OK", "conversation": "e2e-local", "temperature": 0},
+        {"prompt": "Reply with exactly: Workflow AI OK", "conversation": "e2e-local", "temperature": 0,
+         "workflow_presentation_sources": ["events-search"]},
         user_id="alice",
     )
 
@@ -226,6 +227,8 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
                 "messages": [{"role": "user", "content": "Reply with exactly: Workflow AI OK"}],
                 "apps_enabled": False,
                 "allowed_apps": [],
+                "workflow_ai": True,
+                "workflow_presentation_sources": ["events-search"],
                 "_user_id": "alice",
                 "_external_request": True,
             },
@@ -252,6 +255,8 @@ async def test_ai_ask_preserves_only_messages_and_forces_tools_off() -> None:
         "messages": [{"role": "system", "content": "Keep it short"}],
         "apps_enabled": False,
         "allowed_apps": [],
+        "workflow_ai": True,
+        "workflow_presentation_sources": [],
         "_user_id": "alice",
         "_external_request": True,
     }

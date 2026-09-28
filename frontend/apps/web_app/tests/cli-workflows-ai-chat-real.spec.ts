@@ -28,6 +28,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 test.describe('CLI Workflows AI, chat, and user input', () => {
 	test.setTimeout(420_000);
 
+	// contract-test: supporting surface=cli assertions=workflows.ai-ask.execution,workflows.chat-delivery.pending-private,workflows.message.standard
 	test('runs AI mode, delivers chat through a client claim, waits, and resumes through CLI respond', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -52,7 +53,7 @@ steps:
   - id: chat
     send_chat_message:
       title: "${chatTitle}"
-      message: "Workflow delivery from CLI E2E"
+      message: "Workflow delivery from CLI E2E: {{steps.ask_ai.answer}}"
   - id: ask_user
     ask_for_user_input:
       prompt: "Which city should this Workflow use next?"

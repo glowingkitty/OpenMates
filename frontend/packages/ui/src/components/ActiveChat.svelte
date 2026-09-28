@@ -44,6 +44,7 @@
     import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
+    import WorkflowRunEmbedFullscreen from './embeds/workflows/WorkflowRunEmbedFullscreen.svelte';
     import type { AudioWaveformData } from '../utils/audioWaveform';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
@@ -1814,7 +1815,7 @@
         //
         // Moving the call here, synchronously, ensures the guard is live before the hash write,
         // so the resulting hashchange is blocked immediately.
-        if (embedId) {
+        if (embedId && embedType !== 'workflow-run') {
             setCanonicalFullscreenRoute(embedId, {
                 chatId: hasChatContext ? (currentChat?.chat_id ?? null) : null,
                 origin: 'direct'
@@ -1839,7 +1840,7 @@
         let finalDecodedContent = decodedContent;
         let parentResolved = false;
         
-        if (embedId) {
+        if (embedId && embedType !== 'workflow-run') {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
                 const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
@@ -14394,7 +14395,12 @@
                     fullscreenData.embedType === 'models3d-model-result' ||
                     fullscreenData.embedData?.type === 'model_result' ||
                     fullscreenData.decodedContent?.type === 'model_result'}
-                {#if isModel3DResultFullscreen}
+                {#if fullscreenData.embedType === 'workflow-run'}
+                    <WorkflowRunEmbedFullscreen
+                        data={{ decodedContent: registryContent }}
+                        onClose={handleCloseEmbedFullscreen}
+                    />
+                {:else if isModel3DResultFullscreen}
                     <Model3DResultEmbedFullscreen
                         data={{
                             decodedContent: registryContent,

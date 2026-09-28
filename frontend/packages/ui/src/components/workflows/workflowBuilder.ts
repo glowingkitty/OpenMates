@@ -44,6 +44,7 @@ export type Output = {
   nodeId: string;
   label: string;
   schema: Schema;
+  appId?: string;
 };
 export type Insertion = { after: string | null; branch?: string };
 
@@ -224,7 +225,7 @@ export function outputsBefore(
         node.id,
         node.title || label(String(node.config?.app_id ?? node.type)),
         properties,
-      );
+      ).map(output => ({ ...output, appId: String(node.config?.app_id ?? (node.type === 'app_skill_action' ? '' : 'ai')) }));
     });
 }
 

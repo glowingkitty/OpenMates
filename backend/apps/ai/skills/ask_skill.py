@@ -185,6 +185,8 @@ class OpenAICompletionRequest(BaseModel):
     # OpenMates-specific extensions
     apps_enabled: Optional[bool] = Field(default=True, description="Whether to enable app skills (tools).")
     allowed_apps: Optional[List[str]] = Field(default=None, description="List of app IDs to allow. If None, all apps are allowed.")
+    workflow_ai: bool = Field(default=False, description="Isolated Workflow Ask AI request without app tools or AI routing.")
+    workflow_presentation_sources: List[str] = Field(default_factory=list, description="Known upstream skill IDs for presentation only.")
     mate_id: Optional[str] = Field(default=None, description="ID of the Mate to use. If None, AI will select.")
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
     focus_mode: Optional[str] = Field(default=None, description="Focus mode ID to use.")
@@ -529,7 +531,9 @@ class AskSkill(BaseSkill):
                 "presence_penalty": openai_request.presence_penalty,
                 "stop": openai_request.stop,
                 "apps_enabled": openai_request.apps_enabled,
-                "allowed_apps": openai_request.allowed_apps
+                "allowed_apps": openai_request.allowed_apps,
+                "workflow_ai": openai_request.workflow_ai,
+                "workflow_presentation_sources": openai_request.workflow_presentation_sources,
             }
         )
 

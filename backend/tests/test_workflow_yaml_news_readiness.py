@@ -26,6 +26,7 @@ steps:
   - id: report
     send_chat_message:
       title: Latest news
+      message: "Latest news: {{steps.news.results}}"
       blocks:
         - id: news
           source: $nodes.news.output.results
@@ -35,6 +36,31 @@ steps:
     assert result.draft_valid is True
     assert result.enable_ready is True
     assert result.diagnostics == []
+
+
+# contract-test: direct surface=cli assertions=workflows.composition.earlier-action-reference
+def test_news_yaml_requires_visible_result_variable_before_create() -> None:
+    result = validate_workflow_yaml(
+        """
+title: News workflow
+start_when:
+  manual: {}
+steps:
+  - id: news
+    use_app_skill: news.search
+    input:
+      requests:
+        - query: OpenMates
+          count: 1
+  - id: report
+    send_chat_message:
+      title: Latest news
+      message: Latest news
+"""
+    )
+    assert result.draft_valid is False
+    assert result.enable_ready is False
+    assert result.diagnostics[0].code == "ACTION_VARIABLE_REQUIRED"
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract,workflows.activation.reachable-side-effect
