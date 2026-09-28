@@ -975,7 +975,10 @@ async def update_project_source_capabilities(
 
 
 @router.post("/{project_id}/sources/{source_id}/requests", status_code=202)
-@limiter.limit("60/minute")
+# This coarse IP limit must accommodate the service's separate per-user budgets:
+# 60 ordinary requests and 256 file chunks per minute. Multiple authenticated
+# users may also share an IP; the service enforces the tighter user limits.
+@limiter.limit("1000/minute")
 async def create_project_remote_access_request(
     project_id: str,
     source_id: str,
