@@ -291,6 +291,9 @@ describe("Project remote source helpers", () => {
   // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
   it("classifies supported preview paths without reading their content", () => {
     assert.deepEqual(classifyRemotePreviewPath("docs/README.md"), { kind: "markdown", language: "markdown" });
+    assert.deepEqual(classifyRemotePreviewPath("src/main.py"), { kind: "code", language: "python" });
+    assert.deepEqual(classifyRemotePreviewPath("config/settings.yml"), { kind: "code", language: "yaml" });
+    assert.deepEqual(classifyRemotePreviewPath("macos/Info.plist"), { kind: "code", language: "plist" });
     assert.deepEqual(classifyRemotePreviewPath("src/data.json"), { kind: "json", language: "json" });
     assert.deepEqual(classifyRemotePreviewPath("src/App.svelte"), { kind: "code", language: "svelte" });
     assert.deepEqual(classifyRemotePreviewPath("Dockerfile"), { kind: "code", language: "dockerfile" });

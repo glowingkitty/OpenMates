@@ -163,10 +163,11 @@ export interface RemotePreviewClassification {
 }
 
 const REMOTE_CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
-  c: "c", cpp: "cpp", css: "css", go: "go", h: "c", html: "html", java: "java",
-  js: "javascript", jsx: "javascript", py: "python", rs: "rust", sh: "bash", sql: "sql",
-  svelte: "svelte", swift: "swift", toml: "toml", ts: "typescript", tsx: "typescript",
-  xml: "xml", yaml: "yaml", yml: "yaml",
+  c: "c", cjs: "javascript", cpp: "cpp", css: "css", entitlements: "entitlements", go: "go",
+  gradle: "gradle", h: "c", hpp: "cpp", html: "html", java: "java", js: "javascript",
+  jsx: "javascript", kt: "kotlin", mjs: "javascript", php: "php", plist: "plist", py: "python",
+  rb: "ruby", rs: "rust", sh: "bash", sql: "sql", svelte: "svelte", swift: "swift",
+  toml: "toml", ts: "typescript", tsx: "typescript", xml: "xml", yaml: "yaml", yml: "yaml",
 };
 const REMOTE_BINARY_PREVIEW_EXTENSIONS = new Set([
   "7z", "avi", "bin", "bmp", "dmg", "doc", "docx", "dylib", "exe", "gif", "gz", "ico", "jar",

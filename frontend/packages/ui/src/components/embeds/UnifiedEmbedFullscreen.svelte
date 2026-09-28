@@ -97,6 +97,9 @@
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
     onDownload?: () => void;
+    /** Optional connected-file import action, shown in the fullscreen More menu. */
+    onImport?: () => Promise<void>;
+    isImporting?: boolean;
     /** Optional prepared download URL. When set, the top-bar download action is a native anchor. */
     downloadHref?: string | null;
     /** Suggested filename for prepared native-anchor downloads. */
@@ -339,6 +342,8 @@
     onClose,
     onCopy,
     onDownload,
+    onImport,
+    isImporting = false,
     downloadHref = null,
     downloadFilename = 'download',
     onCalendar,
@@ -1456,6 +1461,8 @@
       onShare={handleShare}
       onCopy={handleCopy}
       onDownload={handleDownload}
+      {onImport}
+      {isImporting}
       onCalendar={handleCalendar}
       onRun={handleRun}
       onReportIssue={handleReportIssue}

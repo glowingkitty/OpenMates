@@ -40169,18 +40169,17 @@ assertions:
     - &id4797
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
       line: 19
-      name: a virtual file preview keeps viewing and deliberate import as distinct
-        actions
+      name: a virtual file preview opens without an import action on the card
       surface: gui.web
     - &id4798
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 67
+      line: 63
       name: a listed binary file uses the regular file embed with metadata and an
         open action
       surface: gui.web
     - &id4799
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 80
+      line: 76
       name: unread files render typed embed cards with size and an open prompt
       surface: gui.web
     - &id4801
@@ -41921,7 +41920,7 @@ assertions:
       surface: rest_api
     - &id5007
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 67
+      line: 63
       name: a listed binary file uses the regular file embed with metadata and an
         open action
       surface: gui.web
@@ -42009,7 +42008,7 @@ assertions:
     supporting_tests:
     - &id5016
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 44
+      line: 43
       name: an incomplete remote preview explains its limit and cannot be imported
       surface: gui.web
     - &id5017
@@ -42155,23 +42154,22 @@ assertions:
     - &id5026
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
       line: 19
-      name: a virtual file preview keeps viewing and deliberate import as distinct
-        actions
+      name: a virtual file preview opens without an import action on the card
       surface: gui.web
     - &id5027
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 44
+      line: 43
       name: an incomplete remote preview explains its limit and cannot be imported
       surface: gui.web
     - &id5028
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 67
+      line: 63
       name: a listed binary file uses the regular file embed with metadata and an
         open action
       surface: gui.web
     - &id5029
       path: frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
-      line: 80
+      line: 76
       name: unread files render typed embed cards with size and an open prompt
       surface: gui.web
     - &id5030
@@ -42203,37 +42201,37 @@ assertions:
       surface: gui.web
     - &id5035
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 342
+      line: 340
       name: opens a connected source inside the Files grid with shared folder previews
       surface: gui.web
     - &id5036
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 408
+      line: 404
       name: loads one-level children for both connected source folder cards
       surface: gui.web
     - &id5037
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 423
+      line: 421
       name: keeps the Project overview readable in dark mode
       surface: gui.web
     - &id5038
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 436
+      line: 434
       name: keeps shared folder and embed previews readable in dark mode
       surface: gui.web
     - &id5039
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 456
+      line: 454
       name: embeds the same five-status task board without legacy compact forms
       surface: gui.web
     - &id5040
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 491
+      line: 489
       name: uses the chat sidebar list pattern for project navigation
       surface: gui.web
     - &id5041
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 506
+      line: 504
       name: keeps project header controls visible while scrolling at ${width}px
       surface: gui.web
     - &id5042
@@ -45217,7 +45215,7 @@ assertions:
       surface: rest_api
     - &id5406
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 456
+      line: 454
       name: embeds the same five-status task board without legacy compact forms
       surface: gui.web
     - &id5407
@@ -47809,7 +47807,7 @@ assertions:
       surface: rest_api
     - &id5704
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 456
+      line: 454
       name: embeds the same five-status task board without legacy compact forms
       surface: gui.web
     - &id5705

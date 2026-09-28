@@ -56,6 +56,8 @@
     onShare?: () => void;
     onCopy?: () => void;
     onDownload?: () => void;
+    onImport?: () => Promise<void>;
+    isImporting?: boolean;
     onCalendar?: () => void;
     onRun?: () => void;
     onTogglePreview?: () => void;
@@ -90,6 +92,8 @@
     onShare,
     onCopy,
     onDownload,
+    onImport,
+    isImporting = false,
     onCalendar,
     onRun,
     onTogglePreview,
@@ -104,9 +108,20 @@
   const chatContext = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
   const canRestoreChat = $derived(chatContext?.showChatButton ?? showChatButton);
   const restoreChatHandler = $derived(chatContext?.onShowChat ?? onShowChat);
+  let importPending = $state(false);
+  async function handleImport(): Promise<void> {
+    if (!onImport || isImporting || importPending) return;
+    importPending = true;
+    try {
+      await onImport();
+    } finally {
+      importPending = false;
+    }
+  }
   const secondaryActionCount = $derived([
     (showCopy && onCopy),
     (showDownload && onDownload),
+    onImport,
     (showCalendar && onCalendar),
     (showRun && onRun),
     (showPreview && onTogglePreview),
@@ -116,7 +131,7 @@
 </script>
 
 <div class="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean(showPIIToggle && onTogglePII)} actionCount={secondaryActionCount}>
+  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean(showPIIToggle && onTogglePII)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
@@ -201,6 +216,19 @@
 
     {/snippet}
     {#snippet actions()}
+      {#if onImport}
+        <div class="button-wrapper">
+          <button
+            class="header-action"
+            type="button"
+            use:tooltip
+            data-testid="project-remote-fullscreen-import"
+            onclick={() => void handleImport()}
+            disabled={isImporting || importPending}
+            aria-label={$text('projects.import_to_openmates')}
+          ><span class="clickable-icon import-icon top-button" aria-hidden="true"></span><span class="action-label">{$text('projects.import_to_openmates')}</span></button>
+        </div>
+      {/if}
       <!-- Copy -->
       {#if showCopy && onCopy}
         <div class="button-wrapper">
@@ -363,6 +391,7 @@
 </div>
 
 <style>
+  .import-icon { -webkit-mask-image: var(--icon-url-upload); mask-image: var(--icon-url-upload); }
   /* Top bar overlays the gradient header — position absolute so the header
      remains fully visible beneath it. No background on the row itself.
      Buttons use the same pill-wrapper + circular-icon design as the

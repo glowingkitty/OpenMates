@@ -1,7 +1,6 @@
 <!-- Safe, GitHub-like renderer for a Project's root README.md. -->
 <script lang="ts">
   import {
-    releaseProjectReadmeImages,
     safeProjectReadmeImageUrl,
     type ProjectReadmeState,
   } from '../../services/projectReadme';
@@ -97,12 +96,6 @@
       renderGeneration += 1;
       rendered = '';
     }
-  });
-
-  $effect(() => {
-    if (readmeState.status !== 'ready') return;
-    const document = readmeState.document;
-    return () => releaseProjectReadmeImages(document);
   });
 </script>
 

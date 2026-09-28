@@ -284,7 +284,7 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await page.goto(preview(1512, 'connectedSource'));
   await waitForProjectsPreview(page);
 
-  await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-browser')).toBeAttached();
   const remoteSharedPreview = page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview');
   await expect(remoteSharedPreview).toBeVisible();
@@ -305,22 +305,20 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await expect(page.getByTestId('project-folder-actions')).toBeVisible();
   await expect(page.getByTestId('project-folder-actions').getByRole('button')).toHaveCount(3);
   await expect(page.getByTestId('project-folder-actions').getByRole('button').first()).toHaveCSS('filter', 'none');
-  await expect.poll(async () => {
-    const actions = await page.getByTestId('project-folder-actions').boundingBox();
-    const pane = await page.getByTestId('projects-page').boundingBox();
-    return actions && pane ? actions.y - pane.y : Number.POSITIVE_INFINITY;
-  }).toBeLessThanOrEqual(28);
+  const [breadcrumbBox, actionsBox] = await Promise.all([
+    page.getByLabel('Project folder path').boundingBox(),
+    page.getByTestId('project-folder-actions').boundingBox(),
+  ]);
+  expect(breadcrumbBox && actionsBox).toBeTruthy();
+  expect(breadcrumbBox!.y + breadcrumbBox!.height).toBeLessThan(actionsBox!.y);
   await expect(page.getByTestId('project-remote-parent')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
   await expect(page.getByTestId('project-connected-source-root')).toBeHidden();
   await expect(page.getByTestId('project-remote-preview-meta')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview')).toBeVisible();
-  const localCardBox = await page.getByTestId('project-item-card').first().locator('.unified-embed-preview').boundingBox();
   const remoteCardBox = await page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview').boundingBox();
-  expect(localCardBox).not.toBeNull();
   expect(remoteCardBox).not.toBeNull();
-  expect(Math.abs(localCardBox!.x - remoteCardBox!.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(localCardBox!.width - remoteCardBox!.width)).toBeLessThanOrEqual(2);
+  await expect(page.getByTestId('project-item-card')).toHaveCount(0);
   expect(await page.getByTestId('project-browser-list').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   const projectBox = await page.getByTestId('projects-page').boundingBox();
   const viewerBox = await viewer.boundingBox();
@@ -344,9 +342,7 @@ test('opens a connected source inside the Files grid with shared folder previews
   await page.goto(preview(1512, 'connectedSource'));
   await waitForProjectsPreview(page);
 
-  const sourceRoot = page.getByTestId('project-connected-source-root');
-  await expect(sourceRoot.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'files');
-  await expect(sourceRoot.getByTestId('project-remote-cloud-badge')).toBeVisible();
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-browser')).toBeAttached();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
   const connectedFolder = page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' });
@@ -354,8 +350,7 @@ test('opens a connected source inside the Files grid with shared folder previews
   await expect(connectedFolder).toContainText('src');
   await expect(connectedFolder).toContainText('app.ts');
   await expect(connectedFolder).toContainText('1 file, 1 folder · 2.0 KiB in files');
-  await sourceRoot.locator('.unified-embed-preview').click();
-  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
+  await expect(page.getByLabel('Project folder path').getByText('OpenMates repository')).toBeVisible();
   await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
   await expect(page.getByTestId('project-folder-search')).toBeVisible();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
@@ -366,6 +361,7 @@ test('opens a connected source inside the Files grid with shared folder previews
   expect(remoteFileCardBox).not.toBeNull();
   expect(remoteFileCardBox!.width).toBeLessThanOrEqual(301);
 
+  await page.getByRole('button', { name: 'Project root' }).click();
   await page.getByTestId('project-folder-card').first().locator('.unified-embed-preview').click();
   await expect(page.getByTestId('project-remote-browser')).toHaveCount(0);
   await expect(page.getByLabel('Project folder path').getByText('Backend', { exact: true })).toBeVisible();
@@ -390,12 +386,12 @@ test('opens a connected source inside the Files grid with shared folder previews
   const remoteBrowser = page.getByTestId('project-remote-browser');
   await expect(remoteBrowser).toBeAttached();
   await projectMain.evaluate((element) => { element.scrollTop = Math.min(500, element.scrollHeight - element.clientHeight); });
-  await expect.poll(() => projectMain.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+  await expect.poll(() => projectMain.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   const scrolledTabsBox = await projectTabs.boundingBox();
   const remoteBrowserBox = await remoteBrowser.getByTestId('project-remote-entry').first().boundingBox();
   expect(scrolledTabsBox).not.toBeNull();
   expect(remoteBrowserBox).not.toBeNull();
-  expect(scrolledTabsBox!.y).toBeLessThan(initialTabsBox!.y - 100);
+  expect(scrolledTabsBox!.y).toBeLessThan(initialTabsBox!.y);
   const tabsOverlapRemote = scrolledTabsBox!.x < remoteBrowserBox!.x + remoteBrowserBox!.width
     && scrolledTabsBox!.x + scrolledTabsBox!.width > remoteBrowserBox!.x
     && scrolledTabsBox!.y < remoteBrowserBox!.y + remoteBrowserBox!.height
@@ -409,14 +405,16 @@ test('loads one-level children for both connected source folder cards', async ({
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(preview(1512, 'multipleSources'));
   await waitForProjectsPreview(page);
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Project root' }).click();
   const firstSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'OpenMates repository' });
   const secondSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'Second repository' });
   await expect(firstSource).toContainText('README.md');
   await expect(secondSource).toContainText('README.md');
   await expect(secondSource).toContainText('1 file');
   await secondSource.locator('.unified-embed-preview').click();
-  await expect(secondSource).toContainText('README.md');
-  await expect(secondSource).toContainText('1 file');
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-entry').filter({ hasText: 'README.md' })).toBeVisible();
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity

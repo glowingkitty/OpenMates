@@ -121,6 +121,11 @@ export function formatLanguageName(language: string | undefined): string {
     xml: "XML",
     html: "HTML",
     css: "CSS",
+    plist: "Property list",
+    entitlements: "Entitlements",
+    gradle: "Gradle",
+    toml: "TOML",
+    svelte: "Svelte",
   };
 
   if (map[lang]) return map[lang];

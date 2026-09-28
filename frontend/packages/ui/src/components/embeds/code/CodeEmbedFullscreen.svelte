@@ -86,6 +86,10 @@
     onClose: () => void;
     /** Exact source download for virtual connected files. */
     onDownloadOverride?: () => Promise<void>;
+    /** Import a complete virtual connected file into the current Project. */
+    onImport?: () => Promise<void>;
+    /** Whether that import is already running in the parent. */
+    isImporting?: boolean;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
     /** Whether there is a previous embed to navigate to */
@@ -123,6 +127,8 @@
     data,
     onClose,
     onDownloadOverride,
+    onImport,
+    isImporting = false,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -1524,6 +1530,8 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  {onImport}
+  {isImporting}
   currentEmbedId={embedId}
   embedIds={runArtifactChildIds}
   childEmbedTransformer={transformArtifactChild}

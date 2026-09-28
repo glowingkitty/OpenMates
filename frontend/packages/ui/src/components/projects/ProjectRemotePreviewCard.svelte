@@ -1,38 +1,34 @@
 <!-- Connected files stay virtual until explicitly imported. The shared embed preview owns the tile. -->
 <script lang="ts">
   import { text } from '@repo/ui';
+  import { formatLanguageName } from '../embeds/code/codeEmbedContent';
   import CodeEmbedPreview from '../embeds/code/CodeEmbedPreview.svelte';
   import FileEmbedPreview from '../embeds/file/FileEmbedPreview.svelte';
   import ImageEmbedPreview from '../embeds/images/ImageEmbedPreview.svelte';
   import UnifiedEmbedPreview from '../embeds/UnifiedEmbedPreview.svelte';
-  import type { VirtualRemoteFilePreview } from '../../services/projectRemoteSources';
+  import { classifyRemotePreviewPath, type VirtualRemoteFilePreview } from '../../services/projectRemoteSources';
   type FileKind = 'image' | 'pdf' | 'sheet' | 'document' | 'code' | 'file';
 
   let {
     preview,
     sourceLabel,
-    canUpload,
-    isUploading,
     previewOnly = false,
     imageSrc,
     onOpenFullscreen,
     onOpenFile,
-    onUpload,
   }: {
     preview: VirtualRemoteFilePreview;
     sourceLabel: string;
-    canUpload: boolean;
-    isUploading: boolean;
     previewOnly?: boolean;
     imageSrc?: string;
     onOpenFullscreen: () => void;
     onOpenFile?: () => void;
-    onUpload: () => void;
   } = $props();
 
   let content = $derived(preview.embed.content);
   let isTruncated = $derived(content.safety_flags.includes('truncated'));
   let isUnsupported = $derived(content.preview_policy === 'unsupported_binary');
+  let inferredLanguage = $derived(classifyRemotePreviewPath(content.display_name).language);
   let fileKind = $derived.by((): FileKind => {
     const name = content.display_name.toLocaleLowerCase();
     if (/\.(png|jpe?g|gif|webp|avif|svg)$/.test(name)) return 'image';
@@ -44,7 +40,21 @@
     return 'file';
   });
   let useGenericFile = $derived(isUnsupported || !['code', 'document'].includes(fileKind));
-  let kindLabel = $derived(({ image: 'Image', pdf: 'PDF', sheet: 'Sheet', document: 'Document', code: 'Code', file: 'File' } as const)[fileKind]);
+  let kindLabel = $derived.by(() => {
+    const name = content.display_name.toLowerCase();
+    const extension = name.includes('.') ? name.split('.').pop() ?? '' : '';
+    const fileTypeNames: Record<string, string> = {
+      md: 'Markdown', mdx: 'Markdown', rst: 'reStructuredText', txt: 'Text',
+      csv: 'CSV', xls: 'Excel spreadsheet', xlsx: 'Excel workbook', ods: 'OpenDocument spreadsheet',
+      png: 'PNG image', jpg: 'JPEG image', jpeg: 'JPEG image', gif: 'GIF image',
+      webp: 'WebP image', avif: 'AVIF image', svg: 'SVG image', pdf: 'PDF',
+      plist: 'Property list', entitlements: 'Entitlements', gradle: 'Gradle',
+    };
+    if (fileTypeNames[extension]) return fileTypeNames[extension];
+    const specificLanguage = formatLanguageName(inferredLanguage === 'text' ? content.language : inferredLanguage);
+    if (specificLanguage) return specificLanguage;
+    return ({ image: 'Image', pdf: 'PDF', sheet: 'Sheet', document: 'Document', code: 'Code', file: 'File' } as const)[fileKind];
+  });
   let fileMimeType = $derived.by(() => {
     const name = content.display_name.toLocaleLowerCase();
     if (name.endsWith('.png')) return 'image/png';
@@ -65,11 +75,6 @@
     ? `${content.size_bytes} B` : content.size_bytes < 1024 * 1024
       ? `${(content.size_bytes / 1024).toFixed(1)} KiB` : `${(content.size_bytes / (1024 * 1024)).toFixed(1)} MiB`);
 
-  function activateImport(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    if (canUpload && !isUploading && !isUnsupported) onUpload();
-  }
 </script>
 
 <article class="remote-preview-card" class:preview-only={previewOnly} data-testid="project-remote-preview-card" data-remote-path={content.path} data-file-kind={fileKind} aria-label={`${content.display_name}, from connected source ${sourceLabel}`}>
@@ -97,7 +102,7 @@
   {:else if content.snippet}
     <CodeEmbedPreview
       id={preview.embed.embed_id}
-      language={content.language}
+      language={inferredLanguage === 'text' ? content.language : inferredLanguage}
       filename={content.display_name}
       lineCount={content.line_count ?? 0}
       status="finished"
@@ -133,17 +138,6 @@
   {#if isTruncated}
     <span class="preview-limit" data-testid="project-remote-preview-truncated" title={$text('projects.remote_preview_truncated')}>Preview limited</span>
   {/if}
-  {#if canUpload && !previewOnly && !isUnsupported}
-    <button
-      class="import-action"
-      type="button"
-      data-testid="project-remote-preview-upload"
-      aria-label={$text('projects.import_to_openmates')}
-      title={$text('projects.import_to_openmates')}
-      disabled={isUploading}
-      onclick={activateImport}
-    ><span aria-hidden="true"></span></button>
-  {/if}
 </article>
 
 <style>
@@ -155,8 +149,4 @@
   .file-details small { color: var(--color-font-secondary); }
   .file-kind-label { color: var(--color-font-secondary); font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
   .preview-limit { position: absolute; inset-block-start: var(--spacing-3); inset-inline-start: var(--spacing-3); z-index: 2; padding: 2px 6px; border-radius: var(--radius-2); background: var(--color-grey-0); color: var(--color-font-secondary); font-size: var(--font-size-xs); }
-  .import-action { position: absolute; inset-block-end: var(--spacing-4); inset-inline-end: var(--spacing-4); z-index: 3; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: var(--radius-full); background: var(--color-grey-0); color: var(--color-font-primary); cursor: pointer; }
-  .import-action:focus-visible { outline: 2px solid var(--color-focus, var(--color-font-primary)); }
-  .import-action:disabled { opacity: 0.5; cursor: not-allowed; }
-  .import-action span { width: 1rem; height: 1rem; background: currentColor; -webkit-mask: var(--icon-url-upload) center / contain no-repeat; mask: var(--icon-url-upload) center / contain no-repeat; }
 </style>

@@ -225,19 +225,40 @@ test.describe('Projects remote sources', () => {
       await expect(externalDocs).toHaveAttribute('rel', /noreferrer/);
       observeFileReads = true;
       await page.getByTestId('project-tab-folders').click();
-      const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
-      await expect(sourceCard).toBeVisible({ timeout: 30000 });
-      await expect(sourceCard).toContainText('docs', { timeout: 30000 });
-      await expect(sourceCard.getByTestId('project-remote-cloud-badge')).toBeVisible();
+      await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+      const sourceRoot = page.getByLabel('Project folder path').getByRole('button', { name: 'Live remote source' });
+      await expect(page.getByLabel('Project folder path').getByText('Live remote source')).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('project-remote-entry').filter({ hasText: 'docs' })).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
-
-      await sourceCard.click();
-      await expect(sourceCard).toContainText(/\d+ files?/);
+      await page.getByTestId('project-tab-overview').click();
+      const returnedImage = page.getByTestId('project-readme-content').getByRole('img', { name: 'Connected diagram' });
+      await expect(returnedImage).toHaveAttribute('src', /^blob:/);
+      await expect.poll(() => returnedImage.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+      await page.getByTestId('project-tab-folders').click();
       const sourceBrowser = page.getByTestId('project-remote-browser');
       const directoryResults = sourceBrowser.getByTestId('project-remote-directory-results');
       await expect(directoryResults).toBeAttached({ timeout: 30000 });
       const remoteEntries = directoryResults.getByTestId('project-remote-entry');
       await expect(remoteEntries.first()).toBeVisible();
+      const actionTile = page.getByTestId('project-folder-actions');
+      const breadcrumb = page.getByLabel('Project folder path');
+      const [actionsBox, breadcrumbBox, firstTileBox, secondTileBox] = await Promise.all([
+        actionTile.boundingBox(), breadcrumb.boundingBox(), remoteEntries.nth(0).boundingBox(), remoteEntries.nth(1).boundingBox(),
+      ]);
+      expect(actionsBox && breadcrumbBox && firstTileBox && secondTileBox).toBeTruthy();
+      expect(breadcrumbBox!.y + breadcrumbBox!.height).toBeLessThan(actionsBox!.y);
+      expect(Math.abs(actionsBox!.y - firstTileBox!.y)).toBeLessThanOrEqual(2);
+      expect(Math.abs(firstTileBox!.y - secondTileBox!.y)).toBeLessThanOrEqual(2);
+      expect(actionsBox!.x).toBeLessThan(firstTileBox!.x);
+      expect(firstTileBox!.x).toBeLessThan(secondTileBox!.x);
+      await testInfo.attach('connected-project-root-tiles', { body: await page.getByTestId('project-browser-list').screenshot(), contentType: 'image/png' });
+      await page.getByRole('button', { name: 'List', exact: true }).click();
+      const [firstRowBox, secondRowBox] = await Promise.all([remoteEntries.nth(0).boundingBox(), remoteEntries.nth(1).boundingBox()]);
+      expect(firstRowBox && secondRowBox).toBeTruthy();
+      expect(firstRowBox!.width).toBeGreaterThan(firstTileBox!.width * 2);
+      expect(secondRowBox!.y).toBeGreaterThanOrEqual(firstRowBox!.y + firstRowBox!.height);
+      await testInfo.attach('connected-project-root-list', { body: await page.getByTestId('project-browser-list').screenshot(), contentType: 'image/png' });
+      await page.getByRole('button', { name: 'Tile', exact: true }).click();
       await expect(remoteEntries.getByTestId('project-remote-cloud-badge')).toHaveCount(await remoteEntries.count());
       expect(fileReadOperations).toEqual([]);
       await expect(directoryResults.getByTestId('project-remote-entry').filter({ hasText: /debug\.log|other\.log|customer-export|^private$|\.env|\.gitignore|\.openmates/ })).toHaveCount(0);
@@ -294,7 +315,7 @@ test.describe('Projects remote sources', () => {
       await rasterFile.locator('.unified-embed-preview').click();
       await expect(page.getByTestId('project-remote-fullscreen-overlay').locator('img.full-image')).toHaveAttribute('src', /^blob:/, { timeout: 30000 });
       await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
-      await sourceCard.click();
+      await sourceRoot.click();
       await directoryResults.getByTestId('project-remote-entry').filter({ hasText: 'src' }).click();
       await expect(sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'remote-demo.ts' })).toBeVisible();
 
@@ -342,7 +363,7 @@ test.describe('Projects remote sources', () => {
       expect(persistenceRequests).toEqual([]);
 
       // Search from the source root after exercising multiple nested directories.
-      await sourceCard.click();
+      await sourceRoot.click();
 
       await page.getByTestId('project-folder-search').fill('remoteDemo');
       await page.getByTestId('project-folder-search').press('Enter');
@@ -361,19 +382,19 @@ test.describe('Projects remote sources', () => {
       // Reload must reconstruct source metadata, not a durable copy of any previewed file.
       await page.reload();
       await page.getByTestId('project-tab-folders').click();
-      await expect(sourceCard).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('project-remote-entry').first()).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
       await expect(page.getByTestId('project-remote-fullscreen-overlay')).toHaveCount(0);
       expect(persistenceRequests).toEqual([]);
 
       // Preserve the existing deliberate import behavior after proving viewing is transient.
-      await sourceCard.click();
       await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
       await sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).locator('.unified-embed-preview').click();
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
+      await fullscreenOverlay.getByRole('button', { name: 'More' }).click();
+      await fullscreenOverlay.getByTestId('project-remote-fullscreen-import').click();
       await closeFullscreen(page, fullscreenOverlay);
-      const remotePreview = page.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).first();
-      await remotePreview.getByTestId('project-remote-preview-upload').click();
+      await page.getByLabel('Project folder path').getByRole('button', { name: 'Project root' }).click();
       const importedFile = page.getByTestId('project-item-card').filter({ hasText: 'remote-demo.ts' }).first();
       await expect(importedFile).toBeVisible({ timeout: 30000 });
       await expect(importedFile.getByTestId('project-remote-cloud-badge')).toHaveCount(0);
@@ -392,7 +413,7 @@ test.describe('Projects remote sources', () => {
       await closeFullscreen(page, storedFullscreen);
 
       // A source going offline must close its decrypted image and revoke cached blob URLs.
-      await sourceCard.click();
+      await page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' }).click();
       await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'docs' }).click();
       await sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'readme-image.png' })
         .locator('.unified-embed-preview').click();
@@ -404,10 +425,11 @@ test.describe('Projects remote sources', () => {
       const stopped = waitForFixtureEvent(bridge, 'bridge_stopped');
       bridge.kill('SIGUSR1');
       await stopped;
-      await expect(sourceCard).toContainText('offline', { timeout: 30000 });
-      await expect(sourceCard).toHaveAttribute('data-status', 'offline');
-      await expect(page.getByTestId('project-remote-fullscreen-overlay')).toHaveCount(0);
-      await expect(sourceCard).not.toContainText('docs');
+      await expect(page.getByTestId('project-remote-fullscreen-overlay')).toHaveCount(0, { timeout: 30000 });
+      const offlineSourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
+      await expect(offlineSourceCard).toContainText('offline', { timeout: 30000 });
+      await expect(offlineSourceCard).toHaveAttribute('data-status', 'offline');
+      await expect(offlineSourceCard).not.toContainText('docs');
       await expect.poll(() => page.evaluate(async (url) => {
         try { return (await fetch(url)).ok; } catch { return false; }
       }, activeImageUrl!)).toBe(false);
