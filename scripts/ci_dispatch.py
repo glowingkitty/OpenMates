@@ -42,26 +42,12 @@ def spec_source(root: Path, source: str, spec: str) -> str:
 
 
 def ensure_coordinator(root: Path):
-    unit = "openmates-ci-coordinator.service"
-    state = subprocess.run(["systemctl", "--user", "is-active", "--quiet", unit])
-    if state.returncode == 0:
-        return
-    subprocess.run(
-        [
-            "systemd-run",
-            "--user",
-            "--collect",
-            "--unit=" + unit,
-            "--property=Restart=on-failure",
-            "--property=RestartSec=10",
-            "--property=MemoryMax=256M",
-            "--working-directory=" + str(root),
-            sys.executable,
-            str(root / "scripts/ci_coordinator.py"),
-            "serve",
-        ],
-        check=True,
-    )
+    """Observe the installed service using the linger bus, including from cron."""
+    try:
+        from scripts.ci_coordinator_service import UNIT_NAME, manager
+    except ModuleNotFoundError:
+        from ci_coordinator_service import UNIT_NAME, manager
+    return manager("is-active", "--quiet", UNIT_NAME).returncode == 0
 
 
 def select_specs(root: Path, args, source: str) -> list[str]:
@@ -364,7 +350,22 @@ def run(argv: list[str]) -> int:
             canonical, source, attempt, args, jobs, selected_specs,
             held_specs, held_reasons,
         )
-    ensure_coordinator(canonical)
+    if not ensure_coordinator(canonical):
+        if args.daily:
+            daily_manifest_path = write_daily_manifest(
+                canonical, source, attempt, args, jobs, selected_specs,
+                held_specs, held_reasons,
+            )
+            data = json.loads(daily_manifest_path.read_text())
+            data.update(
+                status="blocked",
+                coordinator_error="Persistent coordinator unavailable; queued jobs preserved",
+            )
+            temporary = daily_manifest_path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(data, indent=2) + "\n")
+            temporary.replace(daily_manifest_path)
+        print("Persistent CI coordinator unavailable; queued jobs preserved", file=sys.stderr)
+        return 2
     print(
         json.dumps(
             {

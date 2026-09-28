@@ -81,7 +81,7 @@ def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, cap
         ["git", "rev-parse", "HEAD"], cwd=root, text=True
     ).strip()
     monkeypatch.setattr(ci_dispatch, "select_specs", lambda *_: ["held.spec.ts"])
-    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: True)
     result = ci_dispatch.run(
         ["--worktree", str(root), "--daily", "--expected-commit", source, "--detach"]
     )
@@ -118,6 +118,26 @@ def test_daily_selection_abort_records_blocker_before_any_job_is_queued(tmp_path
     assert Queue(root / "logs/ci-coordinator/queue.sqlite3").status() == []
 
 
+def test_daily_coordinator_outage_preserves_queued_jobs_and_marks_manifest_blocked(tmp_path, monkeypatch):
+    import json
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    monkeypatch.setattr(ci_dispatch, "select_specs", lambda *_: ["held.spec.ts"])
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: False)
+    assert ci_dispatch.run([
+        "--worktree", str(root), "--daily", "--expected-commit", source, "--detach",
+    ]) == 2
+    manifest_path, = (root / "test-results/daily-runs").glob("*.json")
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["status"] == "blocked"
+    assert "queued jobs preserved" in manifest["coordinator_error"]
+    assert len(manifest["jobs"]) == 2
+    assert len(Queue(root / "logs/ci-coordinator/queue.sqlite3").status()) == 2
+
+
 def test_focused_pytest_target_is_queued_without_e2e_coercion(tmp_path, monkeypatch):
     import json
     from scripts import ci_dispatch
@@ -129,7 +149,7 @@ def test_focused_pytest_target_is_queued_without_e2e_coercion(tmp_path, monkeypa
     cutover = root / "logs/ci-coordinator/cutover.json"
     cutover.parent.mkdir(parents=True)
     cutover.write_text(json.dumps({"ready": True}))
-    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: True)
     queued = []
 
     class RecordingQueue:
@@ -163,7 +183,7 @@ def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatc
     monkeypatch.setattr(ci_dispatch, "select_specs", lambda *_: [
         "tasks-flow.spec.ts", "anonymous-production-repair.spec.ts"
     ])
-    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: True)
     monkeypatch.setattr(ci_dispatch, "spec_source", lambda *_: "")
     result = ci_dispatch.run([
         "--worktree", str(root), "--expected-commit", source,
@@ -194,7 +214,7 @@ def test_e2e_selection_queues_one_runner_job_per_spec(tmp_path, monkeypatch):
         "select_specs",
         lambda *_: ["account-interests-settings.spec.ts", "import-account-v1.spec.ts"],
     )
-    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: True)
     monkeypatch.setattr(ci_dispatch, "spec_source", lambda *_: "")
     assert (
         ci_dispatch.run(
@@ -237,7 +257,7 @@ def test_component_selection_uses_one_github_job_without_backend(tmp_path, monke
         ci_dispatch, "select_specs", lambda *_: ["component-message-input.spec.ts"]
     )
     monkeypatch.setattr(ci_dispatch, "spec_source", lambda *_: COMPONENT_MARKER)
-    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: True)
     assert ci_dispatch.run([
         "--worktree", str(root), "--expected-commit", source,
         "--spec", "component-message-input.spec.ts", "--detach",

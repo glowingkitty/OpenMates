@@ -234,7 +234,7 @@ def build_report(root: Path, day: date, now: datetime | None = None) -> dict:
                 failing_workspaces.append(result.get("suite", "unknown"))
             if result.get("exit_code", 0) != 0 and result.get("spec"):
                 failed_specs.append(result["spec"])
-    error = (manifest or {}).get("selection_error", "")
+    error = (manifest or {}).get("selection_error", "") or (manifest or {}).get("coordinator_error", "")
     if not manifest and jobs:
         error = selection_diagnostic(root, source)
     if error or not manifest:
