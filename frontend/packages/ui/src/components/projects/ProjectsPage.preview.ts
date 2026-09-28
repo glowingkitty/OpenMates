@@ -122,9 +122,26 @@ export const variants = {
       ...overviewProps.previewState,
       sources: [connectedSource],
       remoteEntries: [
-        { path: 'frontend', kind: 'directory' as const },
-        { path: 'README.md', kind: 'file' as const },
+        { path: 'frontend', kind: 'directory' as const, children: [
+          { path: 'frontend/src', kind: 'directory' as const },
+          { path: 'frontend/app.ts', kind: 'file' as const },
+        ], childFileCount: 1, childFolderCount: 1, childFileSizeBytes: 2048, childSummaryTruncated: false },
+        { path: 'README.md', kind: 'file' as const, sizeBytes: 1024 },
       ],
+    },
+  },
+  multipleSources: {
+    ...overviewProps,
+    initialTab: 'folders' as const,
+    previewState: {
+      ...overviewProps.previewState,
+      sources: [connectedSource, {
+        ...connectedSource,
+        source_id: 'source-second',
+        displayName: 'Second repository',
+        encrypted: { ...connectedSource.encrypted, source_id: 'source-second' },
+      }],
+      remoteEntries: [{ path: 'README.md', kind: 'file' as const, sizeBytes: 1024 }],
     },
   },
   sidebar: { ...overviewProps, variant: 'sidebar' as const },

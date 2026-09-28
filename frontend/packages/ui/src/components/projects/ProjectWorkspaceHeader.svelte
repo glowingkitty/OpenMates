@@ -48,13 +48,21 @@
 
   function projectHeaderControls(node: HTMLElement) {
     const header = node.closest<HTMLElement>('.project-workspace-header');
-    if (!header) return {};
+    const pane = node.closest<HTMLElement>('.projects-page');
+    if (!header || !pane) return {};
 
     let frame: number | null = null;
     const resizeObserver = new ResizeObserver(schedule);
     const mutations = new MutationObserver(schedule);
 
     function measure() {
+      const paneBounds = pane!.getBoundingClientRect();
+      // Fixed descendants use viewport coordinates here. Keep the toolbar
+      // aligned with the project pane as the app shell or split view moves it.
+      node.style.setProperty('--project-pane-top', `${paneBounds.top}px`);
+      node.style.left = `${paneBounds.left}px`;
+      node.style.width = `${paneBounds.width}px`;
+
       const banner = header!.getBoundingClientRect();
       for (const control of node.querySelectorAll<HTMLElement>('.new-chat-button-wrapper, .button-wrapper')) {
         const bounds = control.getBoundingClientRect();
@@ -72,8 +80,20 @@
       });
     }
 
-    resizeObserver.observe(header);
     mutations.observe(node, { childList: true, subtree: true });
+    resizeObserver.observe(header);
+    // Pane position can move without its size changing (for example when the
+    // app shell or a side-by-side viewer changes layout). Watch only its
+    // ancestor chain so those layout changes remeasure the fixed coordinates.
+    for (let ancestor: HTMLElement | null = pane; ancestor; ancestor = ancestor.parentElement) {
+      resizeObserver.observe(ancestor);
+      mutations.observe(ancestor, {
+        attributes: true,
+        attributeFilter: ['class', 'style'],
+        childList: ancestor !== document.body,
+      });
+      if (ancestor === document.body) break;
+    }
     window.addEventListener('scroll', schedule, { capture: true, passive: true });
     window.addEventListener('resize', schedule);
     measure();
@@ -170,12 +190,11 @@
   }
 
   .project-header-actions {
-    /* .projects-page is the fixed containing block, so the toolbar stays at
-       the top of that pane while .project-main scrolls beneath it. */
     position: fixed;
-    inset-block-start: var(--spacing-6);
-    inset-inline: var(--spacing-6);
+    top: calc(var(--project-pane-top, 0px) + var(--spacing-6));
     z-index: var(--z-index-dropdown-1);
+    box-sizing: border-box;
+    padding-inline: var(--spacing-6);
     pointer-events: none;
   }
 
@@ -224,7 +243,7 @@
       border-radius: 0 0 var(--radius-5) var(--radius-5);
     }
 
-    .project-header-actions { inset-block-start: var(--spacing-4); inset-inline: var(--spacing-4); }
+    .project-header-actions { top: calc(var(--project-pane-top, 0px) + var(--spacing-4)); padding-inline: var(--spacing-4); }
     .project-kicker { inset-block-start: var(--spacing-5); }
     .header-details { width: calc(100% - 2rem); gap: var(--spacing-8); padding-top: var(--spacing-8); }
     .header-details :global(.header-content) { gap: var(--spacing-4); }

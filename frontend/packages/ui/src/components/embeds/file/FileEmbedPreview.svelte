@@ -19,6 +19,7 @@
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     isMobile?: boolean;
     onFullscreen: () => void;
+    previewDescription?: string;
   }
 
   let {
@@ -30,6 +31,7 @@
     status,
     isMobile = false,
     onFullscreen,
+    previewDescription,
   }: Props = $props();
 
   let displayName = $derived(filename || path || 'File');
@@ -52,8 +54,13 @@
   {#snippet details()}
     <div class="file-preview-details">
       <span class="file-preview-icon icon files" aria-hidden="true"></span>
-      <span class="file-preview-name">{displayName}</span>
-      {#if metadata}<span class="file-preview-meta">{metadata}</span>{/if}
+      {#if previewDescription}
+        <span class="file-preview-meta">{previewDescription}</span>
+        {#if sizeBytes !== undefined}<span class="file-preview-meta">{formatCodeRunArtifactSize(sizeBytes)}</span>{/if}
+      {:else}
+        <span class="file-preview-name">{displayName}</span>
+        {#if metadata}<span class="file-preview-meta">{metadata}</span>{/if}
+      {/if}
     </div>
   {/snippet}
 </UnifiedEmbedPreview>

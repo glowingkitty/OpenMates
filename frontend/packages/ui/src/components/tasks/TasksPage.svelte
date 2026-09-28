@@ -6,7 +6,6 @@
 
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import TaskBoard from './TaskBoard.svelte';
   import TaskDetailFullscreen from './TaskDetailFullscreen.svelte';
   import WorkflowRunTaskDetail from './WorkflowRunTaskDetail.svelte';
@@ -59,7 +58,6 @@
     projectId = null,
     chatId = null,
     compact = false,
-    focus = 'tasks',
     previewTasks = null,
     previewPlans = null,
     previewProjectNames = {},
@@ -68,7 +66,6 @@
     projectId?: string | null;
     chatId?: string | null;
     compact?: boolean;
-    focus?: 'tasks' | 'plans';
     previewTasks?: TasksBoardItem[] | null;
     previewPlans?: UserPlanViewModel[] | null;
     previewProjectNames?: Record<string, string>;
@@ -105,15 +102,10 @@
   let hasPreviewData = $derived(previewTasks !== null || previewPlans !== null);
   let tasksEnabled = $derived(previewTasks !== null || (featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true));
   let plansEnabled = $derived(previewPlans !== null || (!hasPreviewData && featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true));
-  let isCentralTasksWorkspace = $derived(!compact && focus === 'tasks');
+  let isCentralTasksWorkspace = $derived(!compact);
   let isNarrowTasksWorkspace = $derived(tasksPageWidth <= 900);
 
   const boardPlans = $derived(plans.filter((plan) => plan.status !== 'archived'));
-  const totalCount = $derived(tasks.length + boardPlans.length);
-  const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length + plans.filter((plan) => plan.status === 'executing' || plan.status === 'running_checks').length);
-  const doneCount = $derived(tasks.filter((task) => task.status === 'done').length + plans.filter((plan) => plan.status === 'completed').length);
-  const activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
-  const completedPlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
   const greetingName = $derived(formatGreetingName($userProfile.username));
   const taskFilterChips = $derived(resolveTaskFilterChips(tasks));
   const visibleTasks = $derived(filterTasks(tasks, searchTerm));
@@ -708,40 +700,12 @@
 {#if !tasksEnabled && !plansEnabled}
   <section class="tasks-page" class:compact data-testid="tasks-feature-disabled">
     <div class="tasks-state">
-      <h2>{focus === 'plans' ? 'Plans unavailable' : 'Tasks unavailable'}</h2>
-      <p>{focus === 'plans' ? 'Plans are disabled on this server.' : 'Tasks are disabled on this server.'}</p>
+      <h2>Tasks unavailable</h2>
+      <p>Tasks and Plans are disabled on this server.</p>
     </div>
   </section>
 {:else}
-<section class="tasks-page" class:compact class:figma-layout={isCentralTasksWorkspace} data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
-  {#if !compact && !isCentralTasksWorkspace}
-    <div class="daily-inspiration-area tasks-daily-inspiration-area" data-testid="tasks-daily-inspiration-area">
-      <DailyInspirationBanner
-        surface="tasks"
-        onStartChat={handleStartTaskInspiration}
-        containerWidth={Math.min(tasksPageWidth || 900, 1320)}
-      />
-    </div>
-
-    <header class="tasks-hero">
-      <div>
-        <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
-        <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Manage tasks for you and your AI mates.'}</h1>
-        <p>{focus === 'plans' ? 'Create private encrypted plans, keep active work aligned, and connect verification tasks when execution starts.' : 'Create private encrypted tasks, move them through a Kanban flow, and hand focused work to AI when it is ready.'}</p>
-      </div>
-      <div class="task-stats" aria-label="Task summary">
-        {#if focus === 'plans'}
-          <span><strong>{plans.length}</strong> total</span>
-          <span><strong>{activePlans.length}</strong> active</span>
-          <span><strong>{completedPlanCount}</strong> done</span>
-        {:else}
-          <span><strong>{totalCount}</strong> total</span>
-          <span><strong>{activeCount}</strong> active</span>
-          <span><strong>{doneCount}</strong> done</span>
-        {/if}
-      </div>
-    </header>
-  {/if}
+<section class="tasks-page" class:compact class:figma-layout={isCentralTasksWorkspace} data-testid={compact ? 'project-tasks-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
 
   {#if isCentralTasksWorkspace}
     <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
@@ -1138,7 +1102,6 @@
     box-sizing: border-box;
   }
 
-  .tasks-hero,
   .task-create-card,
   .task-extract-card,
   .tasks-state {
@@ -1146,23 +1109,6 @@
     border: 1px solid var(--color-grey-20);
     background: linear-gradient(135deg, var(--color-grey-10), var(--color-grey-0));
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  }
-
-  .tasks-hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 24px;
-    padding: clamp(24px, 5vw, 54px);
-    margin-bottom: 18px;
-  }
-
-  .tasks-daily-inspiration-area {
-    margin-bottom: 18px;
-  }
-
-  .tasks-page.figma-layout .tasks-daily-inspiration-area {
-    margin-bottom: clamp(18px, 3vw, 34px);
   }
 
   .tasks-figma-workspace {
@@ -1553,43 +1499,15 @@
     font-weight: 700;
   }
 
-  h1,
   h2,
   p {
     margin: 0;
   }
 
-  h1 {
-    max-width: 980px;
-    font-size: clamp(2.6rem, 5.6vw, 5rem);
-    line-height: 1.03;
-    letter-spacing: -0.055em;
-  }
-
-  .tasks-hero p:not(.eyebrow),
   .tasks-state p {
     max-width: 650px;
     margin-top: 12px;
     color: var(--color-font-secondary);
-  }
-
-  .task-stats {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 10px;
-  }
-
-  .task-stats span {
-    border-radius: 999px;
-    padding: 8px 12px;
-    background: var(--color-grey-0);
-    color: var(--color-font-secondary);
-    white-space: nowrap;
-  }
-
-  .task-stats strong {
-    color: var(--color-font-primary);
   }
 
   .task-create-card {
@@ -1717,7 +1635,6 @@
   }
 
   @media (max-width: 900px) {
-    .tasks-hero,
     .task-create-card {
       grid-template-columns: 1fr;
       flex-direction: column;
@@ -1798,10 +1715,6 @@
 
     .task-board-stage :global(.task-column) {
       min-height: auto;
-    }
-
-    .task-stats {
-      justify-content: flex-start;
     }
   }
 </style>

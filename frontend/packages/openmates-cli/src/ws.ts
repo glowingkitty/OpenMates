@@ -34,7 +34,7 @@ export interface ProjectRemoteAccessRequestFrame {
   source_id: string;
   source_session_id: string;
   requesting_client_id: string;
-  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
+  operation: "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file";
   key_epoch: number;
   encrypted_envelope: string;
   chat_id?: string;
@@ -576,7 +576,7 @@ export class OpenMatesWsClient {
           || typeof payload.source_id !== "string"
           || typeof payload.source_session_id !== "string"
           || typeof payload.requesting_client_id !== "string"
-          || !["list", "search", "read_text", "create_file", "update_file"].includes(String(payload.operation))
+          || !["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file"].includes(String(payload.operation))
           || typeof payload.key_epoch !== "number"
           || typeof payload.encrypted_envelope !== "string"
         ) return;

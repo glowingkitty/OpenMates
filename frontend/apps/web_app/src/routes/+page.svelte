@@ -34,6 +34,7 @@
 		chatDB,
 		chatListCache,
 		chatSyncService,
+		cleanupStaleConnectedProjectDownloads,
 		LOCAL_CHAT_LIST_CHANGED_EVENT,
 		webSocketService, // Import WebSocket service to listen for auth errors
 		mostUsedAppsStore, // Import most used apps store to fetch on app load
@@ -92,7 +93,7 @@
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
 	import ProjectsRoute from './projects/+page.svelte';
-	import PlansRoute from './plans/+page.svelte';
+	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
 	import { readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
 
@@ -1634,6 +1635,8 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+		// Sweep browser-local download staging left by a closed or crashed Projects tab.
+		void cleanupStaleConnectedProjectDownloads().catch(() => {});
 		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
 		window.addEventListener('popstate', handleHashChange);
@@ -3563,9 +3566,9 @@
 	<WorkflowsRoute />
 {:else if workspaceHashRoute.workspace === 'projects'}
 	<ProjectsRoute />
-{:else if workspaceHashRoute.workspace === 'plans'}
+{:else if workspaceHashRoute.workspace === 'plan-detail'}
 	{#key workspaceHashRoute.itemId}
-		<PlansRoute planId={workspaceHashRoute.itemId} />
+		<PlanDetailRoute planId={workspaceHashRoute.itemId} />
 	{/key}
 {:else if workspaceHashRoute.workspace === 'tasks'}
 	{#key workspaceHashRoute.itemId}

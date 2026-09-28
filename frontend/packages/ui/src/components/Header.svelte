@@ -100,11 +100,18 @@
     disabled: boolean;
   };
 
+  // Native hash changes do not always update SvelteKit's page store. Keep the
+  // switcher in sync with the URL used by the root workspace router.
+  let workspaceHash = $state($page.url.hash);
+  $effect(() => {
+    const pageHash = $page.url.hash;
+    workspaceHash = typeof window === "undefined" ? pageHash : window.location.hash;
+  });
   let workspaceHashParams = $derived(
-    new URLSearchParams($page.url.hash.replace(/^#\/?(?:workflows|projects|plans|tasks)&?/, "")),
+    new URLSearchParams(workspaceHash.replace(/^#\/?(?:workflows|projects|plans|tasks)&?/, "")),
   );
   let workspaceHashMarker = $derived(
-    $page.url.hash.replace(/^#\/?/, "").split("&", 1)[0],
+    workspaceHash.replace(/^#\/?/, "").split("&", 1)[0],
   );
   let isProjectsRoute = $derived(
     $page.url.pathname.startsWith("/projects") ||
@@ -116,20 +123,17 @@
       workspaceHashMarker === "workflows" ||
       workspaceHashParams.has("workflow-id"),
   );
-  let isPlansRoute = $derived(
-    $page.url.pathname.startsWith("/plans") ||
-      workspaceHashMarker === "plans" ||
-      workspaceHashParams.has("plan-id"),
-  );
   let isTasksRoute = $derived(
     $page.url.pathname.startsWith("/tasks") ||
+      $page.url.pathname.startsWith("/plans") ||
       workspaceHashMarker === "tasks" ||
-      workspaceHashParams.has("task-id"),
+      workspaceHashMarker === "plans" ||
+      workspaceHashParams.has("task-id") ||
+      workspaceHashParams.has("plan-id"),
   );
   let isChatsRoute = $derived(
     $page.url.pathname === "/" &&
       !isProjectsRoute &&
-      !isPlansRoute &&
       !isWorkflowsRoute &&
       !isTasksRoute,
   );
@@ -143,11 +147,9 @@
   let workflowsEnabled = $derived(
     isWorkspaceFeatureAvailable("platform:workflows", disabledFeatures),
   );
-  let plansEnabled = $derived(
-    isWorkspaceFeatureAvailable("platform:plans", disabledFeatures),
-  );
   let tasksEnabled = $derived(
-    isWorkspaceFeatureAvailable("platform:tasks", disabledFeatures),
+    isWorkspaceFeatureAvailable("platform:tasks", disabledFeatures) ||
+      isWorkspaceFeatureAvailable("platform:plans", disabledFeatures),
   );
   let webappWorkspaceTabs: WorkspaceTab[] = $derived([
     ...(chatsEnabled
@@ -172,19 +174,6 @@
             label: $text("navigation.projects"),
             iconClass: "project-icon" as const,
             active: isProjectsRoute,
-            disabled: false,
-          },
-        ]
-      : []),
-    ...(plansEnabled
-      ? [
-          {
-            id: "/#plans",
-            href: "/#plans",
-            testId: "plans-nav-link",
-            label: $text("navigation.plans"),
-            iconClass: "plan-icon" as const,
-            active: isPlansRoute,
             disabled: false,
           },
         ]
@@ -376,6 +365,13 @@
   onMount(() => {
     lastAuthMethod = getLastAuthMethod();
 
+    const syncWorkspaceHash = () => {
+      workspaceHash = window.location.hash;
+    };
+    syncWorkspaceHash();
+    window.addEventListener("hashchange", syncWorkspaceHash);
+    window.addEventListener("popstate", syncWorkspaceHash);
+
     const checkMobile = () => {
       isMobile = window.innerWidth < 895;
     };
@@ -413,6 +409,8 @@
 
     return () => {
       window.removeEventListener("resize", checkMobile);
+      window.removeEventListener("hashchange", syncWorkspaceHash);
+      window.removeEventListener("popstate", syncWorkspaceHash);
     };
   });
 

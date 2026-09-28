@@ -1,6 +1,6 @@
 export type WorkspaceHashRoute =
 	| { workspace: 'chats'; itemId: null }
-	| { workspace: 'plans'; itemId: string | null }
+	| { workspace: 'plan-detail'; itemId: string }
 	| { workspace: 'projects'; itemId: string | null }
 	| { workspace: 'tasks'; itemId: string | null }
 	| { workspace: 'workflows'; itemId: string | null };
@@ -48,8 +48,11 @@ export function readWorkspaceHashRoute(hash: string): WorkspaceHashRoute {
 	}
 
 	const planId = params.get('plan-id')?.trim();
-	if (planId || marker === 'plans') {
-		return { workspace: 'plans', itemId: planId || null };
+	if (planId) {
+		return { workspace: 'plan-detail', itemId: planId };
+	}
+	if (marker === 'plans') {
+		return { workspace: 'tasks', itemId: null };
 	}
 
 	const taskId = params.get('task-id')?.trim();

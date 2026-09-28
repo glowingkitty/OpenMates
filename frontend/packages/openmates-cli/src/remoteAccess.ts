@@ -25,6 +25,7 @@ import {
   fstatSync,
   lstatSync,
   mkdirSync,
+  opendirSync,
   openSync,
   readFileSync,
   readdirSync,
@@ -35,7 +36,7 @@ import {
 } from "node:fs";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { join, resolve, relative } from "node:path";
+import { extname, join, resolve, relative } from "node:path";
 
 import { canonicalProjectSourceRoot } from "./projectSourceRootPolicy.js";
 import {
@@ -143,6 +144,9 @@ const DEFAULT_MAX_DIRECTORY_ENTRIES = 500;
 const DEFAULT_MAX_READ_BYTES = 200 * 1024;
 const DEFAULT_MAX_READ_LINES = 4_000;
 const REMOTE_ACCESS_RESULT_MAX_BYTES = 200 * 1024;
+const MAX_REMOTE_IMAGE_BYTES = 2 * 1024 * 1024;
+const REMOTE_IMAGE_CHUNK_BYTES = 128 * 1024;
+const REMOTE_DOWNLOAD_CHUNK_BYTES = 128 * 1024;
 const BINARY_PROBE_BYTES = 8 * 1024;
 const MAX_SOURCE_ID_LENGTH = 128;
 const BINARY_EXTENSIONS = new Set([
@@ -151,6 +155,7 @@ const BINARY_EXTENSIONS = new Set([
   ".jpeg",
   ".gif",
   ".webp",
+  ".avif",
   ".pdf",
   ".zip",
   ".gz",
@@ -169,6 +174,12 @@ export interface RemoteAccessDirectoryEntry {
   path: string;
   kind: "file" | "directory";
   previewable?: false;
+  sizeBytes?: number;
+  children?: Array<{ path: string; kind: "file" | "directory" }>;
+  childFileCount?: number;
+  childFolderCount?: number;
+  childFileSizeBytes?: number;
+  childSummaryTruncated?: boolean;
 }
 
 export interface LiveRemoteAccessBinding {
@@ -273,6 +284,57 @@ export function listRemoteAccessDirectory(options: {
   const entries: RemoteAccessDirectoryEntry[] = [];
   let omitted = 0;
   let excluded = 0;
+  const MAX_CHILD_SUMMARY_ENTRIES = 200;
+  let remainingChildSummaryEntries = 2_000;
+  let remainingFolderSummaries = 100;
+  const summarizeChildren = (folderPath: string): Pick<RemoteAccessDirectoryEntry,
+    "children" | "childFileCount" | "childFolderCount" | "childFileSizeBytes" | "childSummaryTruncated"> => {
+    const summary: NonNullable<RemoteAccessDirectoryEntry["children"]> = [];
+    let childFileCount = 0;
+    let childFolderCount = 0;
+    let childFileSizeBytes = 0;
+    let childSummaryTruncated = false;
+    if (remainingFolderSummaries <= 0 || remainingChildSummaryEntries <= 0) return { childSummaryTruncated: true };
+    remainingFolderSummaries -= 1;
+    try {
+      const absoluteFolder = resolveApprovedPath(root, folderPath);
+      const childPolicy = loadProjectPathPolicy(root, {
+        trustedPrivatePaths: options.userProtectedPatterns,
+        stateDirectory: options.stateDirectory,
+        targetPaths: [folderPath],
+      });
+      const childDirectory = opendirSync(absoluteFolder);
+      try {
+      let child;
+      while ((child = childDirectory.readSync()) !== null) {
+        if (remainingChildSummaryEntries <= 0 || childFileCount + childFolderCount >= MAX_CHILD_SUMMARY_ENTRIES) {
+          childSummaryTruncated = true;
+          break;
+        }
+        remainingChildSummaryEntries -= 1;
+        const childPath = `${folderPath}/${child.name}`;
+        if (child.name.startsWith(".") || child.isSymbolicLink()
+          || (!child.isFile() && !child.isDirectory())
+          || childPolicy.isIgnored(childPath, child.isDirectory())
+          || childPolicy.isPrivate(childPath, child.isDirectory())) continue;
+        const fileStat = child.isFile() ? lstatSync(join(absoluteFolder, child.name)) : null;
+        if (fileStat && fileStat.nlink > 1) continue;
+        if (child.isDirectory()) childFolderCount += 1;
+        else {
+          childFileCount += 1;
+          childFileSizeBytes += fileStat?.size ?? 0;
+        }
+        summary.push({ path: childPath, kind: child.isDirectory() ? "directory" : "file" });
+      }
+      } finally {
+        childDirectory.closeSync();
+      }
+    } catch {
+      return { childSummaryTruncated: true };
+    }
+    summary.sort((a, b) => (a.kind === b.kind ? a.path.localeCompare(b.path) : a.kind === "directory" ? -1 : 1));
+    return { children: summary.slice(0, 3), childFileCount, childFolderCount, childFileSizeBytes, childSummaryTruncated };
+  };
   for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     const entryPath = relative(root, join(directory, entry.name)).replace(/\\/g, "/");
     if (
@@ -293,10 +355,13 @@ export function listRemoteAccessDirectory(options: {
       omitted += 1;
       continue;
     }
+    const fileSize = entry.isFile() ? lstatSync(join(directory, entry.name)).size : undefined;
     entries.push({
       path: entryPath,
       kind: entry.isDirectory() ? "directory" : "file",
-      ...(entry.isFile() && isBinaryFile(join(directory, entry.name)) ? { previewable: false as const } : {}),
+      ...(entry.isFile() && BINARY_EXTENSIONS.has(extname(entry.name).toLowerCase()) ? { previewable: false as const } : {}),
+      ...(fileSize !== undefined && Number.isSafeInteger(fileSize) && fileSize >= 0 ? { sizeBytes: fileSize } : {}),
+      ...(entry.isDirectory() ? summarizeChildren(entryPath) : {}),
     });
   }
   return { entries, omitted, excluded, truncated: omitted > 0 };
@@ -355,6 +420,135 @@ export function readRemoteAccessTextFile(options: {
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
   }
+}
+
+/** A single encrypted response chunk for a policy-approved raster image. */
+export function readRemoteAccessImageChunk(options: {
+  sourceRoot: string;
+  relativePath: string;
+  offset: number;
+  stateDirectory?: string;
+  userProtectedPatterns?: string[];
+}): { content_base64: string; mime_type: string; size_bytes: number; offset: number; content_hash: string } {
+  const root = canonicalProjectSourceRoot(options.sourceRoot, { stateDirectory: options.stateDirectory });
+  const path = options.relativePath.replace(/\\/g, "/");
+  const policy = loadProjectPathPolicy(root, {
+    trustedPrivatePaths: options.userProtectedPatterns,
+    stateDirectory: options.stateDirectory,
+    targetPaths: [path],
+  });
+  policy.assertReadablePath(path);
+  const requested = resolveApprovedPath(root, path);
+  if (lstatSync(requested).nlink > 1) throw new Error("Remote source file is a protected hardlink");
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(requested, constants.O_RDONLY | constants.O_NOFOLLOW);
+    assertInsideRoot(root, openedDescriptorPath(descriptor, requested));
+    const stats = fstatSync(descriptor);
+    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_REMOTE_IMAGE_BYTES) {
+      throw new Error("Remote source image is unsupported or exceeds the safe image limit");
+    }
+    if (!Number.isSafeInteger(options.offset) || options.offset < 0 || options.offset >= stats.size
+      || options.offset % REMOTE_IMAGE_CHUNK_BYTES !== 0) {
+      throw new Error("Remote source image offset is invalid");
+    }
+    const bytes = Buffer.alloc(stats.size);
+    let bytesRead = 0;
+    while (bytesRead < stats.size) {
+      const count = readSync(descriptor, bytes, bytesRead, stats.size - bytesRead, bytesRead);
+      if (count <= 0) break;
+      bytesRead += count;
+    }
+    const afterRead = fstatSync(descriptor);
+    if (bytesRead !== stats.size || afterRead.size !== stats.size || afterRead.mtimeMs !== stats.mtimeMs
+      || afterRead.ino !== stats.ino || afterRead.dev !== stats.dev) {
+      throw new Error("Remote source image changed");
+    }
+    const mimeType = rasterImageMimeType(bytes);
+    if (!mimeType) throw new Error("Remote source image is binary or unsupported");
+    return {
+      content_base64: bytes.subarray(options.offset, options.offset + REMOTE_IMAGE_CHUNK_BYTES).toString("base64"),
+      mime_type: mimeType,
+      size_bytes: stats.size,
+      offset: options.offset,
+      content_hash: createHash("sha256").update(bytes).digest("hex"),
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ELOOP") throw new Error("Remote source path is a symbolic link");
+    throw error;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+/** Exact bytes for an explicit user download; never used while listing or previewing. */
+export function readRemoteAccessFileChunk(options: {
+  sourceRoot: string;
+  relativePath: string;
+  offset: number;
+  stateDirectory?: string;
+  userProtectedPatterns?: string[];
+}): { content_base64: string; size_bytes: number; offset: number; file_identity: string; chunk_hash: string } {
+  const root = canonicalProjectSourceRoot(options.sourceRoot, { stateDirectory: options.stateDirectory });
+  const path = options.relativePath.replace(/\\/g, "/");
+  const policy = loadProjectPathPolicy(root, {
+    trustedPrivatePaths: options.userProtectedPatterns,
+    stateDirectory: options.stateDirectory,
+    targetPaths: [path],
+  });
+  policy.assertReadablePath(path);
+  const requested = resolveApprovedPath(root, path);
+  if (lstatSync(requested).nlink > 1) throw new Error("Remote source file is a protected hardlink");
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(requested, constants.O_RDONLY | constants.O_NOFOLLOW);
+    assertInsideRoot(root, openedDescriptorPath(descriptor, requested));
+    const stats = fstatSync(descriptor);
+    if (!stats.isFile()) throw new Error("Remote source path is not a regular file");
+    if (!Number.isSafeInteger(stats.size) || stats.size < 0) {
+      throw new Error("Remote source file size is invalid");
+    }
+    if (!Number.isSafeInteger(options.offset) || options.offset < 0 || (stats.size > 0 && options.offset >= stats.size)
+      || options.offset % REMOTE_DOWNLOAD_CHUNK_BYTES !== 0) {
+      throw new Error("Remote source file offset is invalid");
+    }
+    const length = Math.min(REMOTE_DOWNLOAD_CHUNK_BYTES, stats.size - options.offset);
+    const bytes = Buffer.alloc(length);
+    let bytesRead = 0;
+    while (bytesRead < length) {
+      const count = readSync(descriptor, bytes, bytesRead, length - bytesRead, options.offset + bytesRead);
+      if (count <= 0) break;
+      bytesRead += count;
+    }
+    const afterRead = fstatSync(descriptor);
+    if (bytesRead !== length || afterRead.size !== stats.size || afterRead.mtimeMs !== stats.mtimeMs
+      || afterRead.ctimeMs !== stats.ctimeMs || afterRead.ino !== stats.ino || afterRead.dev !== stats.dev) {
+      throw new Error("Remote source file changed during download");
+    }
+    return {
+      content_base64: bytes.toString("base64"),
+      size_bytes: stats.size,
+      offset: options.offset,
+      file_identity: createHash("sha256").update(`${stats.dev}:${stats.ino}:${stats.size}:${stats.mtimeMs}:${stats.ctimeMs}`).digest("hex"),
+      chunk_hash: createHash("sha256").update(bytes).digest("hex"),
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ELOOP") throw new Error("Remote source path is a symbolic link");
+    throw error;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function rasterImageMimeType(bytes: Uint8Array): string | null {
+  const header = Buffer.from(bytes);
+  if (bytes.length >= 8 && header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
+  if (bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return "image/jpeg";
+  if (header.subarray(0, 6).toString("ascii") === "GIF87a" || header.subarray(0, 6).toString("ascii") === "GIF89a") return "image/gif";
+  if (header.subarray(0, 4).toString("ascii") === "RIFF" && header.subarray(8, 12).toString("ascii") === "WEBP") return "image/webp";
+  if (header.subarray(4, 8).toString("ascii") === "ftyp"
+    && ["avif", "avis"].includes(header.subarray(8, 12).toString("ascii"))) return "image/avif";
+  return null;
 }
 
 export function remoteAccessReadLimits(args: Record<string, unknown>): { maxBytes: number; maxLines: number } {
@@ -790,6 +984,16 @@ async function executeRemoteAccessOperation(
       ...limits,
       isIgnoredReadApproved: trustedOptions.isIgnoredReadApproved,
     });
+  }
+  if (operation === "read_image_chunk") {
+    return readRemoteAccessImageChunk({
+      sourceRoot,
+      relativePath,
+      offset: args.offset as number,
+    });
+  }
+  if (operation === "read_file_chunk") {
+    return readRemoteAccessFileChunk({ sourceRoot, relativePath, offset: args.offset as number });
   }
   if (operation !== "search") throw new Error("unsupported_operation");
   return searchRemoteSource({

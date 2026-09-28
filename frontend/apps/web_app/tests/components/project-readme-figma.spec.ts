@@ -37,6 +37,14 @@ test('renders GitHub-like README content with safe images', async ({ page }) => 
   await expect(root.getByRole('heading', { name: 'Aurora project' })).toBeVisible();
   await expect(root.getByRole('table')).toBeVisible();
   await expect(root.locator('pre code')).toContainText('pnpm dev');
+  const paragraph = root.locator('.markdown-body p').first();
+  await expect(paragraph).toHaveCSS('user-select', 'text');
+  await expect(paragraph).toHaveCSS('-webkit-user-select', 'text');
+  await paragraph.dblclick();
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString() ?? '')).not.toBe('');
+  const externalLink = root.getByRole('link', { name: 'public documentation' });
+  await expect(externalLink).toHaveAttribute('target', '_blank');
+  await expect(externalLink).toHaveAttribute('rel', 'noopener noreferrer');
   const image = root.getByRole('img', { name: 'Project overview' });
   await expect(image).toHaveAttribute('src', '/favicon.png');
   await expect(root.locator('script')).toHaveCount(0);

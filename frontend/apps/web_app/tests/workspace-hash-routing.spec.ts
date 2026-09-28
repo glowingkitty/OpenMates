@@ -28,14 +28,13 @@ test.describe('Root hash workspace routing', () => {
 		page: any;
 	}) => {
 		const projectsTab = page.getByTestId('projects-nav-link');
-		const plansTab = page.getByTestId('plans-nav-link');
 		const tasksTab = page.getByTestId('tasks-nav-link');
 		const workflowsTab = page.getByTestId('workflows-nav-link');
 
 		await expect(projectsTab).toHaveAttribute('href', '/#projects');
-		await expect(plansTab).toHaveAttribute('href', '/#plans');
 		await expect(tasksTab).toHaveAttribute('href', '/#tasks');
 		await expect(workflowsTab).toHaveAttribute('href', '/#workflows');
+		await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
 
 		await projectsTab.click();
 		await expect(page).toHaveURL(/\/#projects$/);
@@ -46,17 +45,13 @@ test.describe('Root hash workspace routing', () => {
 		await expect(page).toHaveURL(/\/#tasks$/);
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 
-		await page.getByTestId('plans-nav-link').click();
-		await expect(page).toHaveURL(/\/#plans$/);
-		await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
-
 		await page.getByTestId('workflows-nav-link').click();
 		await expect(page).toHaveURL(/\/#workflows$/);
 		await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goBack();
-		await expect(page).toHaveURL(/\/#plans$/);
-		await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
+		await expect(page).toHaveURL(/\/#tasks$/);
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goForward();
 		await expect(page).toHaveURL(/\/#workflows$/);
@@ -71,7 +66,6 @@ test.describe('Root hash workspace routing', () => {
 	}) => {
 		for (const [workspace, testId] of [
 			['projects', 'projects-page'],
-			['plans', 'plans-page'],
 			['tasks', 'tasks-page'],
 			['workflows', 'workflows-page']
 		] as const) {
@@ -87,9 +81,33 @@ test.describe('Root hash workspace routing', () => {
 	}: {
 		page: any;
 	}) => {
-		for (const workspace of ['projects', 'plans', 'tasks', 'workflows']) {
+		for (const workspace of ['projects', 'tasks', 'workflows']) {
 			await page.goto(`/${workspace}`, { waitUntil: 'domcontentloaded' });
 			await expect(page).toHaveURL(new RegExp(`/#${workspace}$`));
+		}
+		await page.goto('/plans', { waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(/\/#tasks$/);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
+	test('tracks detail hashes and keeps the active workspace in the header', async ({ page }: { page: any }) => {
+		for (const width of [1512, 390]) {
+			await page.setViewportSize({ width, height: 844 });
+			for (const [hash, activeTestId] of [
+				['#project-id=preview-project', 'projects-nav-link'],
+				['#workflow-id=preview-workflow', 'workflows-nav-link'],
+				['#plan-id=preview-plan', 'tasks-nav-link'],
+				['#tasks', 'tasks-nav-link']
+			] as const) {
+				await page.evaluate((nextHash: string) => {
+					window.history.replaceState(null, '', `/${nextHash}`);
+					window.dispatchEvent(new HashChangeEvent('hashchange'));
+				}, hash);
+				await expect(page.getByTestId(activeTestId)).toHaveAttribute('aria-current', 'page');
+				await expect(page.getByTestId('chats-nav-link')).not.toHaveAttribute('aria-current', 'page');
+				const activeHref = await page.getByTestId(activeTestId).getAttribute('href');
+				await expect(page.getByTestId('workspace-mobile-select')).toHaveValue(activeHref!);
+			}
 		}
 	});
 });

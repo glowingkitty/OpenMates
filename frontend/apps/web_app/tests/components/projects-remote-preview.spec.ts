@@ -23,11 +23,13 @@ test('a virtual file preview keeps viewing and deliberate import as distinct act
   const card = page.getByTestId('project-remote-preview-card');
   await expect(card).toBeVisible();
   await expect(card).toContainText('example.ts');
-  await expect(card).toContainText('Example repository');
-  await expect(card).toContainText('Remote preview · loaded on demand · not stored in OpenMates');
-  await expect(page.getByTestId('project-remote-preview-upload')).toHaveText('Import to OpenMates');
+  await expect(card).toHaveAttribute('aria-label', /from connected source Example repository/);
+  await expect(card.locator('.unified-embed-preview')).toBeVisible();
+  await expect(card).not.toContainText('Remote preview · loaded on demand · not stored in OpenMates');
+  await expect(page.getByTestId('project-remote-preview-meta')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-preview-upload')).toHaveAttribute('aria-label', 'Import to OpenMates');
   await expect(page.getByTestId('project-remote-preview-truncated')).toHaveCount(0);
-  const open = page.getByTestId('project-remote-preview-open');
+  const open = card.locator('.unified-embed-preview');
   await open.hover();
   await open.focus();
   await expect(open).toBeFocused();
@@ -46,14 +48,14 @@ test('an incomplete remote preview explains its limit and cannot be imported', a
   const card = page.getByTestId('project-remote-preview-card');
   await expect(card).toBeVisible();
   await expect(page.getByTestId('project-remote-preview-truncated')).toBeVisible();
-  await expect(page.getByTestId('project-remote-preview-truncated')).toHaveText('Preview is truncated at the safe read limit.');
-  await expect(page.getByTestId('project-remote-preview-upload')).toBeDisabled();
+  await expect(page.getByTestId('project-remote-preview-truncated')).toHaveText('Preview limited');
+  await expect(page.getByTestId('project-remote-preview-upload')).toHaveCount(0);
   const previewBounds = await card.locator('.unified-embed-preview').boundingBox();
-  const shellBounds = await card.locator('.remote-preview-shell').boundingBox();
+  const shellBounds = await card.boundingBox();
   expect(previewBounds).not.toBeNull();
   expect(shellBounds).not.toBeNull();
   expect(previewBounds!.y + previewBounds!.height).toBeLessThanOrEqual(shellBounds!.y + shellBounds!.height + 1);
-  await page.getByTestId('project-remote-preview-open').click();
+  await card.locator('.unified-embed-preview').click();
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.projectPreviewActions)).toBe('["open"]');
   await testInfo.attach('remote-preview-mobile-incomplete', { body: await card.screenshot(), contentType: 'image/png' });
   await page.goto(`${PREVIEW}&variant=loadingImport&width=350`);
@@ -61,12 +63,43 @@ test('an incomplete remote preview explains its limit and cannot be imported', a
   await expect(page.getByTestId('project-remote-preview-upload')).toBeDisabled();
 });
 
-// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.files.no-server-decryption-authority
-test('a listed binary file retains its name without offering a text preview or import', async ({ page }) => {
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.files.no-server-decryption-authority,projects.files.connected-embed-previews
+test('a listed binary file uses the regular file embed with metadata and an open action', async ({ page }) => {
   await page.goto(`${PREVIEW}&variant=unsupported&width=420`);
   await waitForComponentPreview(page);
-  await expect(page.getByTestId('project-remote-preview-unsupported')).toContainText('diagram.png');
-  await expect(page.getByTestId('project-remote-preview-open')).toBeDisabled();
-  await expect(page.getByTestId('project-remote-preview-upload')).toBeDisabled();
-  await expect(page.locator('html')).not.toHaveAttribute('data-project-preview-actions', /open|import/);
+  await expect(page.getByTestId('project-remote-preview-card')).toContainText('diagram.png');
+  await expect(page.getByTestId('project-remote-preview-open')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-preview-upload')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-preview-card')).toContainText('Open for file details and download');
+  await expect(page.getByTestId('project-remote-preview-card')).toHaveAttribute('data-file-kind', 'image');
+  await page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview').click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.projectPreviewActions)).toBe('["open"]');
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.files.no-server-decryption-authority
+test('unread files render typed embed cards with size and an open prompt', async ({ page }) => {
+  await page.goto(`${PREVIEW}&variant=pending&width=420`);
+  await waitForComponentPreview(page);
+  const codeCard = page.getByTestId('project-remote-preview-card');
+  await expect(codeCard).toHaveAttribute('data-file-kind', 'code');
+  await expect(codeCard.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'code');
+  await expect(codeCard).toContainText('example.ts');
+  await expect(codeCard.getByTestId('project-remote-preview-pending')).toContainText('2.0 KiB');
+  await expect(codeCard.getByTestId('project-remote-preview-pending')).toContainText('Open to render preview');
+  await expect(codeCard.getByTestId('project-remote-preview-pending')).not.toContainText('example.ts');
+  await expect(page.getByTestId('project-remote-preview-upload')).toHaveCount(0);
+  await page.goto(`${PREVIEW}&variant=sheet&width=420`);
+  await waitForComponentPreview(page);
+  const sheetCard = page.getByTestId('project-remote-preview-card');
+  await expect(sheetCard).toHaveAttribute('data-file-kind', 'sheet');
+  await expect(sheetCard.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'files');
+  await expect(sheetCard).toContainText('budget.xlsx');
+  await expect(sheetCard).toContainText('4.0 KiB');
+  await page.goto(`${PREVIEW}&variant=plist&width=420`);
+  await waitForComponentPreview(page);
+  const plistCard = page.getByTestId('project-remote-preview-card');
+  await expect(plistCard).toHaveAttribute('data-file-kind', 'code');
+  await expect(plistCard.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'code');
+  await expect(plistCard).toContainText('Info.plist');
+  await expect(plistCard).toContainText('1.2 KiB');
 });

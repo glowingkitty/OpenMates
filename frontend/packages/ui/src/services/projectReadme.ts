@@ -1,7 +1,8 @@
 // Loads the root README.md shown on a Project's Overview tab.
 // Stored files use the existing project-key decryption path, including legacy Markdown uploads.
 // Connected sources use the bounded encrypted remote read protocol.
-// Public image URLs are proxied, while project-relative images resolve only through encrypted items.
+// Public image URLs are proxied; relative images use encrypted Project items or
+// bounded encrypted reads from the connected source.
 // The service returns renderer-ready content without granting raw HTML or network access.
 
 import { proxyImage, MAX_WIDTH_CONTENT_IMAGE } from "../utils/imageProxy";
@@ -12,6 +13,7 @@ import {
   type ProjectItemViewModel,
   type ProjectRemoteAccessContext,
   type ProjectRemoteDirectoryResult,
+  type ProjectRemoteImageChunkResult,
   type ProjectRemoteTextResult,
   type ProjectSourceViewModel,
   type ProjectViewModel,
@@ -43,6 +45,9 @@ interface LoadProjectReadmeInput {
 
 const README_PATH = "README.md" as const;
 const CONTENT_FIELDS = ["code", "content", "markdown", "text"] as const;
+const REMOTE_IMAGE_CHUNK_BYTES = 128 * 1024;
+const MAX_REMOTE_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_REMOTE_README_IMAGES = 8;
 
 function basename(path: string): string {
   const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
@@ -82,11 +87,14 @@ export function projectReadmeText(content: Record<string, unknown>): string | nu
   return null;
 }
 
-/** Only public HTTP(S) images are rendered. Private and relative paths stay text-only. */
+/** External images always pass through the privacy-preserving image proxy. */
 export function safeProjectReadmeImageUrl(value: string): string | null {
   try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    const url = new URL(value.startsWith("//") ? `https:${value}` : value);
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) return null;
+    const hostname = url.hostname.toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".localhost")
+      || hostname.startsWith("[") || /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname)) return null;
     return proxyImage(url.href, MAX_WIDTH_CONTENT_IMAGE);
   } catch {
     return null;
@@ -186,29 +194,88 @@ async function resolveReadmeImages(
   project: ProjectViewModel,
   items: readonly ProjectItemViewModel[],
   teamId?: string | null,
+  remote?: { source: ProjectSourceViewModel; context: ProjectRemoteAccessContext; signal?: AbortSignal },
 ): Promise<Record<string, string>> {
   const urls: Record<string, string> = {};
-  for (const source of projectReadmeImageSources(markdown)) {
-    const external = safeProjectReadmeImageUrl(source);
-    if (external) {
-      urls[source] = external;
-      continue;
+  let remoteImages = 0;
+  try {
+    for (const source of projectReadmeImageSources(markdown)) {
+      const external = safeProjectReadmeImageUrl(source);
+      if (external) {
+        urls[source] = external;
+        continue;
+      }
+      const path = relativeImagePath(source);
+      if (!path) continue;
+      if (remote) {
+        if (remoteImages >= MAX_REMOTE_README_IMAGES) continue;
+        remoteImages += 1;
+        try {
+          const url = await readConnectedProjectImage(project, remote.source, remote.context, path, remote.signal);
+          if (url) urls[source] = url;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") throw error;
+          // Protected, ignored, oversized, changed, and unsupported source files stay placeholders.
+        }
+        continue;
+      }
+      const item = items.find((candidate) =>
+        candidate.item_type === "embed" && !candidate.encrypted.hashed_folder_id && projectItemPath(candidate) === path,
+      );
+      if (item) {
+        try {
+          const head = await readEncryptedProjectFile(project, item.target_id, { teamId });
+          const url = await internalImageUrl(head.content);
+          if (url) urls[source] = url;
+        } catch {
+          // Missing keys or unsupported legacy media remain a visible text placeholder.
+        }
+      }
     }
-    const path = relativeImagePath(source);
-    if (!path) continue;
-    const item = items.find((candidate) =>
-      candidate.item_type === "embed" && !candidate.encrypted.hashed_folder_id && projectItemPath(candidate) === path,
-    );
-    if (!item) continue;
-    try {
-      const head = await readEncryptedProjectFile(project, item.target_id, { teamId });
-      const url = await internalImageUrl(head.content);
-      if (url) urls[source] = url;
-    } catch {
-      // Missing keys or unsupported legacy media remain a visible text placeholder.
+    return urls;
+  } catch (error) {
+    for (const url of Object.values(urls)) {
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
     }
+    throw error;
   }
-  return urls;
+}
+
+export async function readConnectedProjectImage(
+  project: ProjectViewModel,
+  source: ProjectSourceViewModel,
+  context: ProjectRemoteAccessContext,
+  path: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  let mime = "";
+  let hash = "";
+  for (let offset = 0; offset === 0 || offset < size; offset += REMOTE_IMAGE_CHUNK_BYTES) {
+    const result = await requestProjectRemoteAccess<ProjectRemoteImageChunkResult>(
+      project, source, context, "read_image_chunk", { path, offset }, signal,
+    );
+    if (result.offset !== offset || result.size_bytes <= 0 || result.size_bytes > MAX_REMOTE_IMAGE_BYTES
+      || (offset > 0 && (result.size_bytes !== size || result.mime_type !== mime || result.content_hash !== hash))) {
+      return null;
+    }
+    size = result.size_bytes;
+    mime = result.mime_type;
+    hash = result.content_hash;
+    const binary = atob(result.content_base64);
+    const chunk = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    if (chunk.length !== Math.min(REMOTE_IMAGE_CHUNK_BYTES, size - offset)) return null;
+    chunks.push(chunk);
+  }
+  const bytes = new Uint8Array(size);
+  let written = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, written);
+    written += chunk.length;
+  }
+  if (written !== size) return null;
+  return URL.createObjectURL(new Blob([bytes.buffer], { type: mime }));
 }
 
 export function releaseProjectReadmeImages(document: ProjectReadmeDocument): void {
@@ -263,7 +330,9 @@ export async function loadProjectReadme(input: LoadProjectReadmeInput): Promise<
         { path: readme.path },
         input.signal,
       );
-      const imageUrls = await resolveReadmeImages(result.content, input.project, input.items, input.remoteContext.teamId);
+      const imageUrls = await resolveReadmeImages(result.content, input.project, input.items, input.remoteContext.teamId, {
+        source, context: input.remoteContext, signal: input.signal,
+      });
       return {
         status: "ready",
         document: {

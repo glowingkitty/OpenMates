@@ -29,10 +29,11 @@ MAX_ENVELOPE_BYTES = 256 * 1024
 MAX_IN_FLIGHT = 4
 MAX_QUEUED = 16
 MAX_REQUESTS_PER_MINUTE = 60
+MAX_FILE_CHUNKS_PER_MINUTE = 256
 STATE_LOCK_TTL_SECONDS = 10
 STATE_LOCK_WAIT_SECONDS = 5
 WRITE_OPERATIONS = {"create_file", "update_file"}
-ALLOWED_OPERATIONS = {"list", "search", "read_text", *WRITE_OPERATIONS}
+ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS}
 RELEASE_LOCK_SCRIPT = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -386,7 +387,7 @@ class ProjectRemoteAccessService:
                 raise ProjectRemoteAccessError("source_capability_denied", status_code=403)
             if int(binding.get("key_epoch") or 0) != key_epoch:
                 raise ProjectRemoteAccessError("key_epoch_mismatch", status_code=409)
-            await self._consume_rate_limit(user_id, now)
+            await self._consume_rate_limit(user_id, now, operation)
 
             request_key = self._request_key(context_id, request_id, context_type)
             if await self.cache.get(request_key) or await self.cache.get(
@@ -619,11 +620,12 @@ class ProjectRemoteAccessService:
                 await self._remove_request_indexes(context_id, user_id, request_id)
             return response
 
-    async def _consume_rate_limit(self, user_id: str, now: int) -> None:
+    async def _consume_rate_limit(self, user_id: str, now: int, operation: str) -> None:
         minute = now // 60
-        key = f"project_remote:rate:{_hash(user_id)}:{minute}"
+        is_file_chunk = operation == "read_file_chunk"
+        key = f"project_remote:rate:{_hash(user_id)}:{minute}{':file_chunk' if is_file_chunk else ''}"
         current = int(await self.cache.get(key) or 0)
-        if current >= MAX_REQUESTS_PER_MINUTE:
+        if current >= (MAX_FILE_CHUNKS_PER_MINUTE if is_file_chunk else MAX_REQUESTS_PER_MINUTE):
             raise ProjectRemoteAccessError("request_rate_limited", status_code=429)
         await self.cache.set(key, current + 1, ttl=120)
 

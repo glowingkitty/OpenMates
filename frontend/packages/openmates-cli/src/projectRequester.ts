@@ -53,7 +53,7 @@ export async function requestProjectRemoteOperation(options: {
   projectId: string;
   projectKey: Uint8Array;
   source: ProjectSourceRecord;
-  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
+  operation: "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file";
   arguments: Record<string, unknown>;
   context: TeamContextOptions;
   timeoutMs?: number;

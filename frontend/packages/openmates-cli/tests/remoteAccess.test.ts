@@ -13,6 +13,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -25,6 +26,8 @@ import {
   discoverRemoteAccessRepositories,
   listRemoteAccessDirectory,
   projectRemoteAccessLifecyclePayload,
+  readRemoteAccessImageChunk,
+  readRemoteAccessFileChunk,
   readRemoteAccessTextFile,
   remoteAccessOperationErrorCode,
   remoteAccessSourceType,
@@ -181,7 +184,7 @@ describe("Project remote-access bridge primitives", () => {
       );
       assert.deepEqual(
         listRemoteAccessDirectory({ sourceRoot: project, relativePath: "." }).entries,
-        [{ path: "source.ts", kind: "file" }],
+        [{ path: "source.ts", kind: "file", sizeBytes: Buffer.byteLength("export const safe = true;\n") }],
       );
     } finally {
       if (previousState === undefined) delete process.env.OPENMATES_STATE_DIR;
@@ -437,14 +440,20 @@ const timer = setInterval(() => {
     const home = join(tmpdir(), `openmates-remote-read-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     const root = join(home, "repo");
     mkdirSync(join(root, "src"), { recursive: true });
+    mkdirSync(join(root, "src", "nested"));
     writeFileSync(join(root, "src", "safe.ts"), "export const safe = true;\n");
+    writeFileSync(join(root, "src", ".hidden"), "PRIVATE_CHILD_SENTINEL\n");
+    writeFileSync(join(root, "src", ".gitignore"), "secret.txt\n");
+    writeFileSync(join(root, "src", "secret.txt"), "NESTED_IGNORED_SENTINEL\n");
     writeFileSync(join(root, ".env"), "SECRET=value\n");
     writeFileSync(join(root, "binary.dat"), Buffer.from([0, 1, 2, 3]));
+    writeFileSync(join(root, "image.png"), Buffer.from([137, 80, 78, 71, 0]));
     try {
       const listing = listRemoteAccessDirectory({ sourceRoot: root, relativePath: ".", maxEntries: 10 });
       assert.deepEqual(listing.entries, [
-        { path: "binary.dat", kind: "file", previewable: false },
-        { path: "src", kind: "directory" },
+        { path: "binary.dat", kind: "file", sizeBytes: 4 },
+        { path: "image.png", kind: "file", previewable: false, sizeBytes: 5 },
+        { path: "src", kind: "directory", children: [{ path: "src/nested", kind: "directory" }, { path: "src/safe.ts", kind: "file" }], childFileCount: 1, childFolderCount: 1, childFileSizeBytes: Buffer.byteLength("export const safe = true;\n"), childSummaryTruncated: false },
       ]);
       assert.equal(listing.excluded, 1);
       const read = readRemoteAccessTextFile({ sourceRoot: root, relativePath: "src/safe.ts", maxBytes: 200_000, maxLines: 4_000 });
@@ -455,6 +464,90 @@ const timer = setInterval(() => {
       );
     } finally {
       rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("bounds immediate folder summaries without reading file contents", () => {
+    const root = join(tmpdir(), `openmates-folder-summary-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(root, "bulk"), { recursive: true });
+    try {
+      for (let index = 0; index < 201; index += 1) {
+        writeFileSync(join(root, "bulk", `file-${String(index).padStart(3, "0")}.txt`), "x");
+      }
+      const folder = listRemoteAccessDirectory({ sourceRoot: root, relativePath: "." }).entries.find((entry) => entry.path === "bulk");
+      assert.equal(folder?.childFileCount, 200);
+      assert.equal(folder?.childFolderCount, 0);
+      assert.equal(folder?.childFileSizeBytes, 200);
+      assert.equal(folder?.children?.length, 3);
+      assert.equal(folder?.childSummaryTruncated, true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.files.private-path-deny,projects.files.no-server-decryption-authority
+  it("reads a large raster image in bounded chunks and denies ignored or unsupported files", () => {
+    const root = join(tmpdir(), `openmates-remote-image-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(root, { recursive: true });
+    const png = Buffer.alloc(300_000, 7);
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(png);
+    writeFileSync(join(root, "diagram.png"), png);
+    writeFileSync(join(root, "unsafe.svg"), '<svg onload="alert(1)"/>');
+    writeFileSync(join(root, ".gitignore"), "ignored.png\n");
+    writeFileSync(join(root, "ignored.png"), png);
+    writeFileSync(join(root, "oversized.png"), Buffer.concat([png.subarray(0, 8), Buffer.alloc(2 * 1024 * 1024)]));
+    try {
+      const first = readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "diagram.png", offset: 0 });
+      const second = readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "diagram.png", offset: 128 * 1024 });
+      const third = readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "diagram.png", offset: 256 * 1024 });
+      assert.equal(first.mime_type, "image/png");
+      assert.equal(first.size_bytes, png.length);
+      assert.equal(first.content_hash, second.content_hash);
+      assert.equal(second.content_hash, third.content_hash);
+      assert.deepEqual(Buffer.concat([first, second, third].map((chunk) => Buffer.from(chunk.content_base64, "base64"))), png);
+      assert.throws(() => readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "diagram.png", offset: 1 }), /offset is invalid/);
+      assert.throws(() => readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "unsafe.svg", offset: 0 }), /unsupported/);
+      assert.throws(() => readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "oversized.png", offset: 0 }), /safe image limit/);
+      assert.throws(() => readRemoteAccessImageChunk({ sourceRoot: root, relativePath: "ignored.png", offset: 0 }), /ignored/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=projects.files.connected-embed-previews,projects.files.private-path-deny
+  it("downloads exact binary and empty files in bounded chunks under the source path policy", () => {
+    const root = join(tmpdir(), `openmates-remote-download-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(root, { recursive: true });
+    const binary = Buffer.alloc(280_000);
+    for (let index = 0; index < binary.length; index += 1) binary[index] = index % 251;
+    writeFileSync(join(root, "unknown.dat"), binary);
+    writeFileSync(join(root, "empty.dat"), Buffer.alloc(0));
+    writeFileSync(join(root, ".gitignore"), "ignored.dat\n");
+    writeFileSync(join(root, "ignored.dat"), binary);
+    const large = Buffer.alloc(5 * 1024 * 1024 + 17);
+    for (let index = 0; index < large.length; index += 1) large[index] = index % 251;
+    writeFileSync(join(root, "large.dat"), large);
+    try {
+      const chunks = [0, 128 * 1024, 256 * 1024].map((offset) =>
+        readRemoteAccessFileChunk({ sourceRoot: root, relativePath: "unknown.dat", offset }));
+      assert.equal(new Set(chunks.map((chunk) => chunk.file_identity)).size, 1);
+      assert.deepEqual(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk.content_base64, "base64"))), binary);
+      const empty = readRemoteAccessFileChunk({ sourceRoot: root, relativePath: "empty.dat", offset: 0 });
+      assert.equal(empty.size_bytes, 0);
+      assert.equal(empty.content_base64, "");
+      assert.throws(() => readRemoteAccessFileChunk({ sourceRoot: root, relativePath: "unknown.dat", offset: 1 }), /offset is invalid/);
+      assert.throws(() => readRemoteAccessFileChunk({ sourceRoot: root, relativePath: "ignored.dat", offset: 0 }), /ignored/);
+      const largeChunks = Array.from({ length: Math.ceil(large.length / (128 * 1024)) }, (_, index) =>
+        readRemoteAccessFileChunk({ sourceRoot: root, relativePath: "large.dat", offset: index * 128 * 1024 }));
+      assert.equal(new Set(largeChunks.map((chunk) => chunk.file_identity)).size, 1);
+      assert.ok(largeChunks.every((chunk) => chunk.size_bytes === large.length));
+      assert.ok(largeChunks.every((chunk) => Buffer.from(chunk.content_base64, "base64").length <= 128 * 1024));
+      assert.ok(largeChunks.every((chunk) => chunk.chunk_hash === createHash("sha256")
+        .update(Buffer.from(chunk.content_base64, "base64")).digest("hex")));
+      assert.deepEqual(Buffer.concat(largeChunks.map((chunk) => Buffer.from(chunk.content_base64, "base64"))), large);
+      assert.throws(() => readRemoteAccessFileChunk({ sourceRoot: root, relativePath: "large.dat", offset: largeChunks.length * 128 * 1024 }), /offset is invalid/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

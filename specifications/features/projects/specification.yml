@@ -20,6 +20,7 @@ scope:
     - Project folders and encrypted links to chats, embeds, uploads, workflows, Specifications, Plans, Tasks, and materialized Checks.
     - One encrypted Project Surface Catalog with stable definitions such as REST API, CLI, npm SDK, pip SDK, web, Apple, or custom delivery surfaces, reused by every Specification and Check in that Project.
     - File-like preview cards and responsive fullscreen detail routing for linked object types.
+    - Connected source files and folders shown as file-like previews, with explicit on-demand file opening and download.
     - Object-owned lifecycle: Projects organize links but do not copy or own Specification approval, Plan execution, Task status, or Check results.
     - Project key wrappers, encrypted item ids/metadata, encrypted Project associations, and explicit Personal/Team context.
     - Search, filtering, grouping, and recent activity over privacy-safe local/decrypted metadata.
@@ -234,6 +235,10 @@ assertions:
     type: behavior
     must: Linked Specifications, Plans, Tasks, and Checks have type-appropriate previews and open stable nested fullscreen detail; larger viewports may use split detail and compact viewports use accessible fullscreen overlays without losing Project state.
     depends_on: [models.ProjectItemPresentation, examples.project_item_presentation, applies_to.gui]
+  - id: projects.files.connected-embed-previews
+    type: behavior
+    must: A connected source's visible files and folders appear as embed-style cards in the Project Files view. Folder cards show a bounded preview of their immediate children and clearly qualify partial counts and file sizes. File cards show their filename and size without reading content until opened. Supported types use their matching embed preview; other types use a regular file preview whose detail shows metadata and offers an explicit download of the original bytes, never a truncated preview. Downloads can exceed the preview size through verified bounded chunks and disk-backed writes where the browser supports them; storage or browser limitations are explained instead of presenting a partial download as complete. Protected, hidden, and ignored paths remain unavailable.
+    depends_on: [examples.project_remote_file_previews, applies_to.gui]
   - id: projects.uploads.project-wrapped
     type: privacy
     must: Files imported into a Project remain client-encrypted embeds with owner and Project wrappers before their item link is accepted.

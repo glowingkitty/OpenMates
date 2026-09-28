@@ -24,6 +24,7 @@ import {
   loadProjectReadme,
   projectReadmeImageSources,
   projectReadmeText,
+  releaseProjectReadmeImages,
   safeProjectReadmeImageUrl,
 } from '../projectReadme';
 
@@ -81,8 +82,12 @@ describe('project README loading', () => {
   // contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.surface.semantic-parity
   it('proxies public images and rejects executable or internal network URLs', () => {
     expect(safeProjectReadmeImageUrl('https://cdn.example.test/a.png')).toContain('/image-proxy?');
+    expect(safeProjectReadmeImageUrl('//cdn.example.test/a.png')).toContain('https%3A%2F%2Fcdn.example.test');
     expect(safeProjectReadmeImageUrl('javascript:alert(1)')).toBeNull();
     expect(safeProjectReadmeImageUrl('data:image/png;base64,AAAA')).toBeNull();
+    expect(safeProjectReadmeImageUrl('https://user:secret@cdn.example.test/a.png')).toBeNull();
+    expect(safeProjectReadmeImageUrl('http://localhost/a.png')).toBeNull();
+    expect(safeProjectReadmeImageUrl('http://127.0.0.1/a.png')).toBeNull();
     expect(safeProjectReadmeImageUrl('../private.png')).toBeNull();
     expect(projectReadmeImageSources(
       '![one](a.png) ![two](<docs/b.png> "Title")\n![Diagram][ARCH]\n\n[arch]: docs/architecture.png "Architecture"',
@@ -122,6 +127,38 @@ describe('project README loading', () => {
     expect(mocks.requestProjectRemoteAccess).toHaveBeenNthCalledWith(
       2, project, source, { ownerId: 'user-1', teamId: 'team-1' }, 'read_text', { path: 'ReadMe.md' }, undefined,
     );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.private-path-deny
+  it('assembles a connected relative PNG larger than one bridge result and revokes its object URL', async () => {
+    const bytes = new Uint8Array(300_000);
+    bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
+    const hash = 'a'.repeat(64);
+    const createObjectURL = vi.fn(() => 'blob:connected-image');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL });
+    mocks.requestProjectRemoteAccess.mockImplementation(async (_project, _source, _context, operation, args) => {
+      if (operation === 'list') return { entries: [{ path: 'README.md', kind: 'file' }], omitted: 0, excluded: 0 };
+      if (operation === 'read_text') return { content: '# Demo\n![Diagram](./docs/diagram.png)', truncated: false, sizeBytes: 37, lineCount: 2, expectedBase: null };
+      const offset = args.offset as number;
+      return {
+        content_base64: Buffer.from(bytes.subarray(offset, offset + 128 * 1024)).toString('base64'),
+        mime_type: 'image/png', size_bytes: bytes.length, offset, content_hash: hash,
+      };
+    });
+    const result = await loadProjectReadme({ project, items: [], sources: [source], remoteContext: { ownerId: 'user-1' } });
+    expect(result.status).toBe('ready');
+    if (result.status !== 'ready') return;
+    expect(result.document.imageUrls['./docs/diagram.png']).toBe('blob:connected-image');
+    expect(mocks.requestProjectRemoteAccess.mock.calls.filter((call) => call[3] === 'read_image_chunk').map((call) => call[4])).toEqual([
+      { path: 'docs/diagram.png', offset: 0 },
+      { path: 'docs/diagram.png', offset: 128 * 1024 },
+      { path: 'docs/diagram.png', offset: 256 * 1024 },
+    ]);
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    releaseProjectReadmeImages(result.document);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:connected-image');
   });
 
   // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.surface.semantic-parity

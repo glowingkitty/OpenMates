@@ -2,7 +2,7 @@
 export {};
 
 const { spawn, spawnSync } = require('node:child_process');
-const { chmodSync, mkdtempSync, rmSync } = require('node:fs');
+const { chmodSync, mkdtempSync, readFileSync, rmSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 const { test, expect } = require('./helpers/cookie-audit');
@@ -148,7 +148,7 @@ test.describe('Projects remote sources', () => {
     await loginToTestAccount(page);
   });
 
-  // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority,projects.surface.semantic-parity,projects.uploads.project-wrapped,projects.items.responsive-embeds,projects.files.ignored-exact-inclusion,projects.files.private-path-deny
+  // contract-test: supporting surface=gui.web assertions=projects.access.explicit-context,projects.files.no-server-decryption-authority,projects.surface.semantic-parity,projects.uploads.project-wrapped,projects.items.responsive-embeds,projects.files.ignored-exact-inclusion,projects.files.private-path-deny,projects.files.connected-embed-previews
   test('browses nested connected files transiently and imports only after an explicit action', async ({ page }, testInfo) => {
     test.setTimeout(360000);
     await page.setViewportSize({ width: 1512, height: 921 });
@@ -158,7 +158,15 @@ test.describe('Projects remote sources', () => {
     let bridge = null;
     let fixture: RemoteFixtureEvent | null = null;
     const persistenceRequests: string[] = [];
+    const fileReadOperations: string[] = [];
+    let observeFileReads = false;
     page.on('request', (request) => {
+      if (observeFileReads && request.method() === 'POST' && /\/projects\/[^/]+\/sources\/[^/]+\/requests/.test(request.url())) {
+        const operation = request.postDataJSON()?.operation;
+        if (operation === 'read_text' || operation === 'read_file_chunk' || operation === 'read_image_chunk') {
+          fileReadOperations.push(operation);
+        }
+      }
       if (request.method() === 'POST' && /\/(?:upload-embed|embeds)(?:\/|\?|$)|\/projects\/[^/]+\/items(?:\?|$)/.test(request.url())) {
         persistenceRequests.push(new URL(request.url()).pathname);
       }
@@ -195,31 +203,96 @@ test.describe('Projects remote sources', () => {
       );
       fixture = await waitForFixtureEvent(bridge, 'fixture_ready');
       expect(fixture.path_privacy_verified).toBe(true);
+      // Exercise the browser download fallback deterministically in headless CI.
+      await page.addInitScript(() => {
+        Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined });
+      });
       await page.goto('/projects');
       const connectedProject = page.getByTestId('project-landing-card').filter({ hasText: fixture.project_name });
       await expect(connectedProject).toBeVisible({ timeout: 30000 });
       await connectedProject.click();
       await expect(page).toHaveURL(projectHashUrlPattern(fixture.project_id));
       await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+      const readme = page.getByTestId('project-readme-content');
+      const readmeImage = readme.getByRole('img', { name: 'Connected diagram' });
+      await expect(readmeImage).toHaveAttribute('src', /^blob:/, { timeout: 30000 });
+      await expect.poll(() => readmeImage.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+      const externalDocs = readme.getByRole('link', { name: 'External docs' });
+      await expect(externalDocs).toHaveAttribute('target', '_blank');
+      await expect(externalDocs).toHaveAttribute('rel', /noopener/);
+      await expect(externalDocs).toHaveAttribute('rel', /noreferrer/);
+      observeFileReads = true;
       await page.getByTestId('project-tab-folders').click();
       const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
       await expect(sourceCard).toBeVisible({ timeout: 30000 });
-      await expect(sourceCard).toContainText('connected');
+      await expect(sourceCard).toContainText('docs', { timeout: 30000 });
       await expect(sourceCard.getByTestId('project-remote-cloud-badge')).toBeVisible();
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
 
       await sourceCard.click();
+      await expect(sourceCard).toContainText(/\d+ files?/);
       const sourceBrowser = page.getByTestId('project-remote-browser');
       const directoryResults = sourceBrowser.getByTestId('project-remote-directory-results');
-      await expect(directoryResults).toBeVisible({ timeout: 30000 });
+      await expect(directoryResults).toBeAttached({ timeout: 30000 });
       const remoteEntries = directoryResults.getByTestId('project-remote-entry');
       await expect(remoteEntries.first()).toBeVisible();
       await expect(remoteEntries.getByTestId('project-remote-cloud-badge')).toHaveCount(await remoteEntries.count());
+      expect(fileReadOperations).toEqual([]);
       await expect(directoryResults.getByTestId('project-remote-entry').filter({ hasText: /debug\.log|other\.log|customer-export|^private$|\.env|\.gitignore|\.openmates/ })).toHaveCount(0);
+      const srcFolder = remoteEntries.filter({ hasText: 'src' });
+      await expect(srcFolder.getByTestId('project-remote-folder-child')).toHaveCount(2);
+      await expect(srcFolder).toContainText('lib');
+      await expect(srcFolder).toContainText('remote-demo.ts');
+      await expect(srcFolder).toContainText(/1 file, 1 folder.*in files/);
+      await expect(srcFolder).not.toContainText('PRIVATE_DUMMY_CANARY');
+      const docsFolder = remoteEntries.filter({ hasText: 'docs' });
+      await expect(docsFolder.getByTestId('project-remote-folder-child')).toContainText('readme-image.png');
+      await expect(docsFolder).toContainText(/1 file.*KiB in files/);
       const binaryFile = directoryResults.getByTestId('project-remote-preview-card').filter({ hasText: 'diagram.png' });
-      await expect(binaryFile.getByTestId('project-remote-preview-unsupported')).toBeVisible();
-      await expect(binaryFile.getByTestId('project-remote-preview-open')).toBeDisabled();
-      await expect(binaryFile.getByTestId('project-remote-preview-upload')).toBeDisabled();
+      await expect(binaryFile).toHaveAttribute('data-file-kind', 'image');
+      await expect(binaryFile).toContainText('5 B');
+      await expect(binaryFile.getByTestId('project-remote-preview-upload')).toHaveCount(0);
+      await binaryFile.locator('.unified-embed-preview').click();
+      await expect(page.getByTestId('file-embed-fullscreen')).toContainText('diagram.png', { timeout: 30000 });
+      await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
+      const unknownBinary = directoryResults.getByTestId('project-remote-preview-card').filter({ hasText: 'mystery.dat' });
+      await expect(unknownBinary).toContainText('Open for file details and download');
+      await unknownBinary.locator('.unified-embed-preview').click();
+      await expect(page.getByTestId('file-embed-fullscreen')).toContainText('mystery.dat');
+      const binaryDownloadPromise = page.waitForEvent('download');
+      await page.getByTestId('file-embed-fullscreen').getByTestId('embed-download-button').click();
+      const binaryDownload = await binaryDownloadPromise;
+      expect(binaryDownload.suggestedFilename()).toBe('mystery.dat');
+      expect(readFileSync(await binaryDownload.path())).toEqual(Buffer.from([0x41, 0x00, 0x42, 0x43]));
+      await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
+      const emptyFile = directoryResults.getByTestId('project-remote-preview-card').filter({ hasText: 'empty.dat' });
+      await emptyFile.locator('.unified-embed-preview').click();
+      const emptyDownloadPromise = page.waitForEvent('download');
+      await page.getByTestId('file-embed-fullscreen').getByTestId('embed-download-button').click();
+      expect(readFileSync(await (await emptyDownloadPromise).path())).toHaveLength(0);
+      await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
+      const largeBinaryFile = directoryResults.getByTestId('project-remote-preview-card').filter({ hasText: 'large-binary.dat' });
+      await largeBinaryFile.locator('.unified-embed-preview').click();
+      const largeDownloadPromise = page.waitForEvent('download');
+      await page.getByTestId('file-embed-fullscreen').getByTestId('embed-download-button').click();
+      await expect(page.getByTestId('project-remote-download-status')).toContainText('large-binary.dat');
+      const largeDownload = await largeDownloadPromise;
+      expect(largeDownload.suggestedFilename()).toBe('large-binary.dat');
+      const expectedLargeBytes = Buffer.alloc(4 * 1024 * 1024 + 1);
+      for (let index = 0; index < expectedLargeBytes.length; index += 1) expectedLargeBytes[index] = index % 251;
+      expect(readFileSync(await largeDownload.path())).toEqual(expectedLargeBytes);
+      await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
+      await expect(unknownBinary.getByTestId('project-remote-preview-upload')).toHaveCount(0);
+      await expect(page.getByTestId('project-remote-error')).toHaveCount(0);
+      const readmeFile = directoryResults.getByTestId('project-remote-preview-card').filter({ hasText: 'README.md' });
+      await expect(readmeFile.getByTestId('project-remote-preview-pending')).toContainText('Open to render preview');
+      await expect(readmeFile.getByTestId('project-remote-preview-pending')).not.toContainText('Connected project');
+      await docsFolder.click();
+      const rasterFile = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'readme-image.png' });
+      await rasterFile.locator('.unified-embed-preview').click();
+      await expect(page.getByTestId('project-remote-fullscreen-overlay').locator('img.full-image')).toHaveAttribute('src', /^blob:/, { timeout: 30000 });
+      await closeFullscreen(page, page.getByTestId('project-remote-fullscreen-overlay'));
+      await sourceCard.click();
       await directoryResults.getByTestId('project-remote-entry').filter({ hasText: 'src' }).click();
       await expect(sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'remote-demo.ts' })).toBeVisible();
 
@@ -228,11 +301,20 @@ test.describe('Projects remote sources', () => {
       const largeFile = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'large-demo.ts' });
       await expect(largeFile).toBeVisible();
       await expect(largeFile.getByTestId('project-remote-cloud-badge')).toBeVisible();
-      await testInfo.attach('connected-project-nested-files', { body: await sourceBrowser.screenshot(), contentType: 'image/png' });
-      await largeFile.getByTestId('project-remote-preview-open').click();
+      await testInfo.attach('connected-project-nested-files', { body: await page.getByTestId('project-browser-list').screenshot(), contentType: 'image/png' });
+      await expect(largeFile.getByTestId('project-remote-preview-pending')).toContainText('Open to render preview');
+      await expect(largeFile.getByTestId('project-remote-preview-pending')).not.toContainText('Remote fullscreen end marker');
+      await largeFile.locator('.unified-embed-preview').click();
       const fullscreenOverlay = page.getByTestId('project-remote-fullscreen-overlay');
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
       await expect(fullscreenOverlay).toContainText('Remote fullscreen end marker');
+      const codeDownloadPromise = page.waitForEvent('download');
+      await fullscreenOverlay.getByTestId('embed-download-button').click();
+      const codeDownload = await codeDownloadPromise;
+      expect(codeDownload.suggestedFilename()).toBe('large-demo.ts');
+      expect(readFileSync(await codeDownload.path(), 'utf8')).toBe(
+        '// Bounded remote text fixture\n'.repeat(1_500)
+          + 'export const completeRemoteFile = "Remote fullscreen end marker";\n');
       const provenance = fullscreenOverlay.getByTestId('embed-header-provenance');
       const lineCount = fullscreenOverlay.getByTestId('embed-header-subtitle');
       await expect(provenance).toHaveText('Streamed from Live remote source');
@@ -245,8 +327,8 @@ test.describe('Projects remote sources', () => {
       expect(provenanceBox!.y + provenanceBox!.height).toBeLessThanOrEqual(lineCountBox!.y + 1);
       await expect(page.getByTestId('project-folder-actions').getByRole('button')).toHaveCount(3);
       await expect(page.getByTestId('project-folder-actions').getByRole('button').first()).toHaveCSS('filter', 'none');
-      await expect(page.getByTestId('project-remote-parent')).toBeHidden();
-      await expect(page.getByTestId('project-remote-search-input')).toBeHidden();
+      await expect(page.getByTestId('project-remote-parent')).toHaveCount(0);
+      await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
       await expect(page.getByTestId('project-remote-preview-meta')).toHaveCount(0);
       await expectDesktopProjectSplit(page);
       await testInfo.attach('connected-project-fullscreen-split', { body: await page.locator('.projects-workspace-layout').screenshot(), contentType: 'image/png' });
@@ -258,13 +340,13 @@ test.describe('Projects remote sources', () => {
       // Search from the source root after exercising multiple nested directories.
       await sourceCard.click();
 
-      await sourceBrowser.getByTestId('project-remote-search-input').fill('remoteDemo');
-      await sourceBrowser.getByTestId('project-remote-search-submit').click();
+      await page.getByTestId('project-folder-search').fill('remoteDemo');
+      await page.getByTestId('project-folder-search').press('Enter');
       const searchResults = sourceBrowser.getByTestId('project-remote-search-results');
       await expect(searchResults).toContainText('remote-demo.ts', { timeout: 30000 });
       await expect(searchResults).not.toContainText('PRIVATE_DUMMY_CANARY');
       await expect(searchResults).not.toContainText('debug.log');
-      await searchResults.getByRole('button', { name: /remote-demo\.ts/i }).click();
+      await searchResults.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).first().locator('.unified-embed-preview').click();
 
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
       await expect(fullscreenOverlay).toContainText('OpenMates live remote preview');
@@ -283,7 +365,7 @@ test.describe('Projects remote sources', () => {
       // Preserve the existing deliberate import behavior after proving viewing is transient.
       await sourceCard.click();
       await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
-      await sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).getByTestId('project-remote-preview-open').click();
+      await sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).locator('.unified-embed-preview').click();
       await expect(fullscreenOverlay).toBeVisible({ timeout: 30000 });
       await closeFullscreen(page, fullscreenOverlay);
       const remotePreview = page.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' }).first();
@@ -305,11 +387,26 @@ test.describe('Projects remote sources', () => {
       await expect(storedFullscreen).toBeVisible();
       await closeFullscreen(page, storedFullscreen);
 
+      // A source going offline must close its decrypted image and revoke cached blob URLs.
+      await sourceCard.click();
+      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: 'docs' }).click();
+      await sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'readme-image.png' })
+        .locator('.unified-embed-preview').click();
+      const activeImage = page.getByTestId('project-remote-fullscreen-overlay').locator('img.full-image');
+      await expect(activeImage).toHaveAttribute('src', /^blob:/, { timeout: 30000 });
+      const activeImageUrl = await activeImage.getAttribute('src');
+      expect(activeImageUrl).toBeTruthy();
+
       const stopped = waitForFixtureEvent(bridge, 'bridge_stopped');
       bridge.kill('SIGUSR1');
       await stopped;
       await expect(sourceCard).toContainText('offline', { timeout: 30000 });
       await expect(sourceCard).toHaveAttribute('data-status', 'offline');
+      await expect(page.getByTestId('project-remote-fullscreen-overlay')).toHaveCount(0);
+      await expect(sourceCard).not.toContainText('docs');
+      await expect.poll(() => page.evaluate(async (url) => {
+        try { return (await fetch(url)).ok; } catch { return false; }
+      }, activeImageUrl!)).toBe(false);
     } finally {
       if (bridge) await stopFixtureProcess(bridge);
       rmSync(fixtureStateDir, { recursive: true, force: true });

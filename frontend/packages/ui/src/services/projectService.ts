@@ -177,6 +177,12 @@ export interface ProjectRemoteDirectoryEntry {
   path: string;
   kind: "file" | "directory";
   previewable?: false;
+  sizeBytes?: number;
+  children?: Array<{ path: string; kind: "file" | "directory" }>;
+  childFileCount?: number;
+  childFolderCount?: number;
+  childFileSizeBytes?: number;
+  childSummaryTruncated?: boolean;
 }
 
 export interface ProjectRemoteDirectoryResult {
@@ -203,6 +209,22 @@ export interface ProjectRemoteTextResult {
   sizeBytes: number;
   lineCount: number;
   expectedBase: string | null;
+}
+
+export interface ProjectRemoteImageChunkResult {
+  content_base64: string;
+  mime_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif";
+  size_bytes: number;
+  offset: number;
+  content_hash: string;
+}
+
+export interface ProjectRemoteFileChunkResult {
+  content_base64: string;
+  size_bytes: number;
+  offset: number;
+  file_identity: string;
+  chunk_hash: string;
 }
 
 export interface ProjectRemoteAccessContext {
@@ -609,7 +631,9 @@ export async function requestProjectRemoteAccess<T>(
     requester.handshake,
   );
   throwIfRemoteAccessAborted(signal);
-  return (operation === "read_text" ? normalizeProjectRemoteTextResult(opened) : opened) as T;
+  return (operation === "read_text" ? normalizeProjectRemoteTextResult(opened)
+    : operation === "read_image_chunk" ? normalizeProjectRemoteImageChunkResult(opened)
+    : operation === "read_file_chunk" ? normalizeProjectRemoteFileChunkResult(opened) : opened) as T;
 }
 
 async function discoverProjectRemoteRouting(
@@ -859,6 +883,37 @@ function normalizeProjectRemoteTextResult(value: unknown): ProjectRemoteTextResu
     lineCount: result.lineCount,
     expectedBase: expectedBase as string | null,
   };
+}
+
+function normalizeProjectRemoteImageChunkResult(value: unknown): ProjectRemoteImageChunkResult {
+  const result = parseRemoteObject(value, "The Project source returned an invalid image chunk");
+  if (typeof result.content_base64 !== "string" || result.content_base64.length > 175_000
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(result.content_base64)
+    || !["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(String(result.mime_type))
+    || typeof result.size_bytes !== "number" || !Number.isSafeInteger(result.size_bytes)
+    || result.size_bytes <= 0 || result.size_bytes > 2 * 1024 * 1024
+    || typeof result.offset !== "number" || !Number.isSafeInteger(result.offset)
+    || result.offset < 0 || result.offset >= result.size_bytes || result.offset % (128 * 1024) !== 0
+    || typeof result.content_hash !== "string" || !/^[a-f0-9]{64}$/.test(result.content_hash)) {
+    throw new Error("The Project source returned an invalid image chunk");
+  }
+  return result as unknown as ProjectRemoteImageChunkResult;
+}
+
+function normalizeProjectRemoteFileChunkResult(value: unknown): ProjectRemoteFileChunkResult {
+  const result = parseRemoteObject(value, "The Project source returned an invalid file chunk");
+  if (typeof result.content_base64 !== "string" || result.content_base64.length > 175_000
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(result.content_base64)
+    || typeof result.size_bytes !== "number" || !Number.isSafeInteger(result.size_bytes)
+    || result.size_bytes < 0
+    || typeof result.offset !== "number" || !Number.isSafeInteger(result.offset)
+    || result.offset < 0 || (result.size_bytes > 0 && result.offset >= result.size_bytes)
+    || result.offset % (128 * 1024) !== 0
+    || typeof result.file_identity !== "string" || !/^[a-f0-9]{64}$/.test(result.file_identity)
+    || typeof result.chunk_hash !== "string" || !/^[a-f0-9]{64}$/.test(result.chunk_hash)) {
+    throw new Error("The Project source returned an invalid file chunk");
+  }
+  return result as unknown as ProjectRemoteFileChunkResult;
 }
 
 function remoteAccessErrorMessage(code: string | undefined): string {

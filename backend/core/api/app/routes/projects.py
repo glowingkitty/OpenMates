@@ -377,7 +377,7 @@ class ProjectRemoteAccessRequestCreate(BaseModel):
 
     request_id: str = Field(min_length=1, max_length=128)
     requesting_client_id: str = Field(min_length=1, max_length=128)
-    operation: Literal["list", "search", "read_text", "create_file", "update_file"]
+    operation: Literal["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file"]
     key_epoch: int = Field(ge=1)
     encrypted_envelope: str = Field(min_length=1, max_length=350_000)
     chat_id: str | None = Field(default=None, min_length=1, max_length=128)

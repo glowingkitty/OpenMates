@@ -89,7 +89,7 @@ test.describe('Project-linked Plans V1 flow', () => {
 			await planCard.getByTestId('task-board-plan-open').click();
 			await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));
 			await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId('plans-nav-link')).toBeVisible();
+			await expect(page.getByTestId('tasks-nav-link')).toHaveAttribute('aria-current', 'page');
 		} finally {
 			if (planId) await page.request.delete(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}`).catch(() => null);
 			if (projectId) {

@@ -819,7 +819,7 @@ export interface ActiveProjectFocus {
 export interface ProjectRemoteAccessRequestInput {
   request_id: string;
   requesting_client_id: string;
-  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
+  operation: "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file";
   key_epoch: number;
   encrypted_envelope: string;
   chat_id?: string;

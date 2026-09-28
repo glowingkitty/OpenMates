@@ -84,6 +84,8 @@
     data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
+    /** Exact source download for virtual connected files. */
+    onDownloadOverride?: () => Promise<void>;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
     /** Whether there is a previous embed to navigate to */
@@ -120,6 +122,7 @@
   let {
     data,
     onClose,
+    onDownloadOverride,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -346,7 +349,8 @@
   async function handleDownload() {
     try {
       console.debug('[CodeEmbedFullscreen] Starting code file download');
-      await downloadCodeFile(renderCodeContent, renderLanguage, renderFilename);
+      if (onDownloadOverride) await onDownloadOverride();
+      else await downloadCodeFile(renderCodeContent, renderLanguage, renderFilename);
       notificationStore.success($text('embeds.code_file_downloaded'));
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to download code file:', error);

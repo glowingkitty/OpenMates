@@ -7,11 +7,11 @@ describe('readWorkspaceHashRoute', () => {
 	it.each([
 		['#workflows', { workspace: 'workflows', itemId: null }],
 		['#/projects', { workspace: 'projects', itemId: null }],
-		['#plans', { workspace: 'plans', itemId: null }],
+		['#plans', { workspace: 'tasks', itemId: null }],
 		['#tasks&settings=main', { workspace: 'tasks', itemId: null }],
 		['#workflow-id=workflow-1&workflow-tab=runs', { workspace: 'workflows', itemId: 'workflow-1' }],
 		['#project-id=project-1&settings=main', { workspace: 'projects', itemId: 'project-1' }],
-		['#plan-id=plan-1', { workspace: 'plans', itemId: 'plan-1' }],
+		['#plan-id=plan-1', { workspace: 'plan-detail', itemId: 'plan-1' }],
 		['#task-id=task-1', { workspace: 'tasks', itemId: 'task-1' }]
 	] as const)('resolves %s', (hash, expected) => {
 		expect(readWorkspaceHashRoute(hash)).toEqual(expected);

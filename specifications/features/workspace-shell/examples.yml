@@ -3,58 +3,60 @@ specification: feature.workspace-shell@2
 
 released_navigation:
   - id: released-desktop-tabs-visible
-    given: {viewport: desktop, authenticated: true, disabled_feature_ids: [platform:teams, platform:ios]}
-    expect:
-      visible_workspace_tabs: [chats, projects, plans, workflows, tasks]
-      hidden_workspace_tabs: [teams, ios]
-      mobile_selector_visible: false
+    given: A signed-in user has Chats, Projects, Workflows, and Tasks available on desktop.
+    when: The user opens the workspace header.
+    then: The header offers those four workspaces and does not offer a separate Plans, Teams, or iOS tab.
   - id: mobile-navigation-equivalent
-    given: {viewport: mobile, authenticated: true, released_workspaces: [chats, projects, plans, workflows, tasks]}
-    expect: {workspace_selector_available: true, selectable_workspaces: [chats, projects, plans, workflows, tasks]}
+    given: The same user opens OpenMates on a narrow screen.
+    when: The user opens the workspace selector.
+    then: Chats, Projects, Workflows, and Tasks are selectable, and Plans remain within Tasks.
 
 start_shells:
-  - id: chats-start-shell-baseline
-    given: {route: /, authenticated: true, active_chat: none}
-    expect: {visual_baseline: true, daily_inspiration_area_visible: true, report_issue_control_visible: true, composer: chat_input}
-  - id: projects-start-shell
-    given: {route: /projects, authenticated: true}
-    expect: {daily_inspiration_area_visible: true, background_identity_icon: projects, composer: project_input}
-  - id: workflows-start-shell
-    given: {route: /workflows, authenticated: true}
-    expect: {daily_inspiration_area_visible: true, background_identity_icon: workflows, composer: workflow_input}
+  - id: projects-and-workflows-start-shells
+    given: A signed-in user opens the Projects or Workflows start screen.
+    when: The screen finishes loading.
+    then: It shows its own Daily Inspiration content, identity icon, Report Issue control, and bottom composer within the shared workspace shell.
   - id: tasks-start-shell
-    given: {route: /tasks, authenticated: true}
-    expect: {daily_inspiration_area_visible: true, background_identity_icon: tasks, composer: task_input, kanban_board_visible: true}
-  - id: plans-start-shell
-    given: {route: /plans, authenticated: true}
-    expect: {daily_inspiration_area_visible: true, background_identity_icon: plans, composer: plan_input, kanban_board_visible: true}
+    given: A signed-in user opens the Tasks workspace.
+    when: The screen finishes loading.
+    then: It shows Task and Plan content with Tasks-specific inspiration, identity icon, and bottom composer; there is no separate Plans start screen.
 
 visual_parity:
   - id: desktop-workspaces-match-chats
-    given: {routes: [/, /projects, /workflows, /tasks, /plans], viewport: desktop, authenticated: true}
-    expect: {matching_container_surface: true, matching_daily_inspiration_geometry: true, matching_report_issue_control: true, matching_composer_geometry: true}
+    given: A signed-in user views Chats, Projects, Workflows, and Tasks on desktop.
+    when: The user switches between their start screens.
+    then: Container, inspiration, Report Issue, and composer regions keep the Chats start screen geometry while each workspace shows its own content.
   - id: mobile-workspaces-match-chats
-    given: {routes: [/, /projects, /workflows, /tasks, /plans], viewport: mobile, authenticated: true}
-    expect: {matching_container_surface: true, matching_daily_inspiration_geometry: true, matching_report_issue_control: true, matching_composer_geometry: true}
+    given: A signed-in user views the same four workspaces on a narrow screen.
+    when: The user switches between their start screens.
+    then: The same regions remain aligned to the mobile Chats shell without hiding each workspace's own content.
 
 figma_board_controls:
   - id: tasks-desktop-controls
-    given: {route: /tasks, viewport: desktop, figma_node: '5371:46143'}
-    expect: {board_summary_visible: false, compact_search_link: true, tags_below_search: true, filter_control_at_inline_end: true}
-  - id: plans-desktop-controls
-    given: {route: /plans, viewport: desktop, figma_node: '5453:35116'}
-    expect: {board_summary_visible: false, search_visible: false, tags_visible: false, filter_control_at_inline_end: true}
+    given: A user opens the Tasks board on desktop.
+    when: The board renders Task and Plan cards.
+    then: Compact Search and tags sit beside the circular filter at the upper inline end, and no dashboard summary appears.
   - id: mobile-board-controls
-    given: {routes: [/tasks, /plans], viewport: mobile, figma_nodes: ['5371:46315', '5453:35309']}
-    expect: {search_visible: false, tags_visible: false, filter_control_visible: true, horizontal_board_scroll: true}
+    given: A user opens the Tasks board on a narrow screen.
+    when: The user reaches the board controls.
+    then: Search and tags are hidden, the filter remains visible, and the Kanban columns can scroll horizontally.
 
 kanban_scroll:
   - id: tasks-board-scrolls-under-composer
-    given: {route: /tasks, viewport: desktop, content_taller_than_shell: true}
-    expect: {columns_visible: [backlog, todo, in_progress, blocked, done], vertical_scroll_layer_scrolls: true, composer_remains_bottom_mounted: true}
-  - id: plans-board-scrolls-under-composer
-    given: {route: /plans, viewport: desktop, content_taller_than_shell: true}
-    expect: {columns_visible: [backlog, todo, in_progress, blocked, done], vertical_scroll_layer_scrolls: true, composer_remains_bottom_mounted: true}
+    given: A Tasks board with Task and Plan cards is taller than the desktop workspace shell.
+    when: The user scrolls the board.
+    then: Backlog, Todo, In Progress, Blocked, and Done remain reachable beneath a mounted bottom composer.
   - id: narrow-boards-remain-horizontal-kanban
-    given: {routes: [/tasks, /plans], viewport: mobile}
-    expect: {horizontal_board_scroll: true, columns_reachable: true, kanban_replaced_by_list: false}
+    given: A Tasks board with Task and Plan cards is wider than a phone screen.
+    when: The user swipes across the board.
+    then: Every Kanban status column remains reachable without replacing the board with a list.
+
+plan_in_tasks:
+  - id: plan-on-tasks-board
+    given: A user has a Plan linked to several Tasks.
+    when: The user opens the Tasks workspace and opens the Plan preview.
+    then: The Plan appears with Tasks and opens its detail without a separate Plans workspace tab.
+  - id: plan-in-project-tasks
+    given: A Project links a Plan and its Tasks.
+    when: The user opens that Project's Tasks tab.
+    then: The linked Plan appears beside the Tasks and opens its Plan detail within the Tasks context.

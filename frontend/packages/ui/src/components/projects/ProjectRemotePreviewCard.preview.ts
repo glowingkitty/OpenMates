@@ -38,6 +38,41 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  pending: {
+    ...defaultProps,
+    preview: {
+      ...completePreview,
+      embed: {
+        ...completePreview.embed,
+        content: { ...completePreview.embed.content, snippet: '', size_bytes: 2048 },
+      },
+    },
+    canUpload: false,
+  },
+  sheet: {
+    ...defaultProps,
+    preview: {
+      ...completePreview,
+      embed: {
+        ...completePreview.embed,
+        embed_id: 'remote:preview-source:budget.xlsx',
+        content: { ...completePreview.embed.content, path: 'budget.xlsx', display_name: 'budget.xlsx', snippet: '', size_bytes: 4096, preview_policy: 'unsupported_binary' },
+      },
+    },
+    canUpload: false,
+  },
+  plist: {
+    ...defaultProps,
+    preview: {
+      ...completePreview,
+      embed: {
+        ...completePreview.embed,
+        embed_id: 'remote:preview-source:Info.plist',
+        content: { ...completePreview.embed.content, path: 'Info.plist', display_name: 'Info.plist', snippet: '', size_bytes: 1240 },
+      },
+    },
+    canUpload: false,
+  },
   unsupported: {
     ...defaultProps,
     preview: {

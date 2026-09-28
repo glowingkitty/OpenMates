@@ -43,7 +43,7 @@ test.describe('Feature availability', () => {
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('plans-nav-link')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
 		await expect(page.getByTestId('tasks-nav-link')).toBeVisible();
 		await expect(page.getByTestId('teams-nav-link')).toHaveCount(0);
@@ -53,7 +53,8 @@ test.describe('Feature availability', () => {
 		await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/plans', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
+		await expect(page).toHaveURL(/\/#tasks$/);
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/workflows', { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });

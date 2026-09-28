@@ -69,7 +69,17 @@
         ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'src', 'alt', 'loading', 'decoding', 'class'],
         ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|blob:|data:image\/(?:png|jpeg|gif|webp|avif);base64,|\/(?!\/)|#)/i,
       });
-      if (generation === renderGeneration) rendered = clean;
+      // DOMPurify may remove `target` even when it is allowlisted. Set constant
+      // navigation attributes only after sanitizing the links and their URLs.
+      const sanitizedDocument = new DOMParser().parseFromString(clean, 'text/html');
+      for (const link of sanitizedDocument.querySelectorAll('a[href]')) {
+        const href = link.getAttribute('href') ?? '';
+        if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) {
+          link.setAttribute('target', '_blank');
+          link.setAttribute('rel', 'noopener noreferrer');
+        }
+      }
+      if (generation === renderGeneration) rendered = sanitizedDocument.body.innerHTML;
     } catch {
       if (generation !== renderGeneration) return;
       rendered = markdown
@@ -251,6 +261,9 @@
     overflow-wrap: anywhere;
     line-height: 1.65;
     user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
   }
 
   .markdown-body :global(h1),

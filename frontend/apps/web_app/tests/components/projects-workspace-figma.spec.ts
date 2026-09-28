@@ -251,6 +251,10 @@ test('opens a shared embed beside the Project workspace on desktop', async ({ pa
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(preview(1512, 'folders'));
   await waitForProjectsPreview(page);
+  await page.locator('.component-mount').evaluate((element) => {
+    element.style.height = '520px';
+    element.style.marginTop = '72px';
+  });
 
   await page.getByTestId('project-item-card').first().locator('.unified-embed-preview').click();
   const viewer = page.getByTestId('project-embed-viewer');
@@ -259,8 +263,19 @@ test('opens a shared embed beside the Project workspace on desktop', async ({ pa
   const viewerBox = await viewer.boundingBox();
   expect(projectBox).not.toBeNull();
   expect(viewerBox).not.toBeNull();
+  expect(projectBox!.x).toBeGreaterThan(20);
+  expect(projectBox!.y).toBeGreaterThan(60);
   expect(projectBox!.width).toBeLessThanOrEqual(401);
   expect(viewerBox!.x).toBeGreaterThanOrEqual(projectBox!.x + projectBox!.width);
+  await expect.poll(async () => {
+    const pane = await page.getByTestId('projects-page').boundingBox();
+    const actions = await page.getByTestId('project-header-actions').boundingBox();
+    return pane && actions ? Math.abs(actions.x - pane.x) + Math.abs(actions.width - pane.width) : Number.POSITIVE_INFINITY;
+  }).toBeLessThanOrEqual(2);
+  const splitActions = await page.getByTestId('project-header-actions').boundingBox();
+  expect(splitActions).not.toBeNull();
+  expect(splitActions!.y).toBeGreaterThan(projectBox!.y);
+  expect(splitActions!.y).toBeLessThan(projectBox!.y + 40);
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
@@ -270,7 +285,7 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await waitForProjectsPreview(page);
 
   await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
-  await expect(page.getByTestId('project-remote-browser')).toBeVisible();
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
   const remoteSharedPreview = page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview');
   await expect(remoteSharedPreview).toBeVisible();
   await remoteSharedPreview.click();
@@ -286,7 +301,7 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await expect(viewer.getByTestId('embed-header-provenance')).toHaveText('Streamed from OpenMates repository');
   await expect(viewer.getByTestId('embed-header-provenance-icon')).toBeVisible();
   const remoteBrowser = page.getByTestId('project-remote-browser');
-  await expect(remoteBrowser).toBeVisible();
+  await expect(remoteBrowser).toBeAttached();
   await expect(page.getByTestId('project-folder-actions')).toBeVisible();
   await expect(page.getByTestId('project-folder-actions').getByRole('button')).toHaveCount(3);
   await expect(page.getByTestId('project-folder-actions').getByRole('button').first()).toHaveCSS('filter', 'none');
@@ -295,8 +310,8 @@ test('opens a virtual connected-source preview beside the Project workspace', as
     const pane = await page.getByTestId('projects-page').boundingBox();
     return actions && pane ? actions.y - pane.y : Number.POSITIVE_INFINITY;
   }).toBeLessThanOrEqual(28);
-  await expect(page.getByTestId('project-remote-parent')).toBeHidden();
-  await expect(page.getByTestId('project-remote-search-input')).toBeHidden();
+  await expect(page.getByTestId('project-remote-parent')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
   await expect(page.getByTestId('project-connected-source-root')).toBeHidden();
   await expect(page.getByTestId('project-remote-preview-meta')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview')).toBeVisible();
@@ -306,7 +321,7 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   expect(remoteCardBox).not.toBeNull();
   expect(Math.abs(localCardBox!.x - remoteCardBox!.x)).toBeLessThanOrEqual(2);
   expect(Math.abs(localCardBox!.width - remoteCardBox!.width)).toBeLessThanOrEqual(2);
-  expect(await remoteBrowser.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(await page.getByTestId('project-browser-list').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   const projectBox = await page.getByTestId('projects-page').boundingBox();
   const viewerBox = await viewer.boundingBox();
   const overlayBox = await fullscreenOverlay.boundingBox();
@@ -332,11 +347,17 @@ test('opens a connected source inside the Files grid with shared folder previews
   const sourceRoot = page.getByTestId('project-connected-source-root');
   await expect(sourceRoot.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'files');
   await expect(sourceRoot.getByTestId('project-remote-cloud-badge')).toBeVisible();
-  await expect(page.getByTestId('project-remote-browser')).toBeVisible();
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
+  const connectedFolder = page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' });
+  await expect(connectedFolder.getByTestId('project-remote-folder-child')).toHaveCount(2);
+  await expect(connectedFolder).toContainText('src');
+  await expect(connectedFolder).toContainText('app.ts');
+  await expect(connectedFolder).toContainText('1 file, 1 folder · 2.0 KiB in files');
   await sourceRoot.locator('.unified-embed-preview').click();
-  await expect(page.getByTestId('project-remote-browser')).toBeVisible();
-  await expect(page.getByTestId('project-remote-search-input')).toBeVisible();
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
+  await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
+  await expect(page.getByTestId('project-folder-search')).toBeVisible();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
   await expect(page.getByTestId('project-remote-entry').getByTestId('project-remote-cloud-badge')).toHaveCount(2);
   await expect(page.getByTestId('project-remote-entry').filter({ has: page.locator('.unified-embed-preview') })).toHaveCount(2);
@@ -367,11 +388,11 @@ test('opens a connected source inside the Files grid with shared folder previews
   await expect(projectTabs).toHaveCSS('position', 'relative');
   await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
   const remoteBrowser = page.getByTestId('project-remote-browser');
-  await expect(remoteBrowser).toBeVisible();
+  await expect(remoteBrowser).toBeAttached();
   await projectMain.evaluate((element) => { element.scrollTop = Math.min(500, element.scrollHeight - element.clientHeight); });
   await expect.poll(() => projectMain.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
   const scrolledTabsBox = await projectTabs.boundingBox();
-  const remoteBrowserBox = await remoteBrowser.boundingBox();
+  const remoteBrowserBox = await remoteBrowser.getByTestId('project-remote-entry').first().boundingBox();
   expect(scrolledTabsBox).not.toBeNull();
   expect(remoteBrowserBox).not.toBeNull();
   expect(scrolledTabsBox!.y).toBeLessThan(initialTabsBox!.y - 100);
@@ -381,6 +402,21 @@ test('opens a connected source inside the Files grid with shared folder previews
     && scrolledTabsBox!.y + scrolledTabsBox!.height > remoteBrowserBox!.y;
   expect(tabsOverlapRemote).toBe(false);
   await testInfo.attach('projects-connected-source-scrolled', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('loads one-level children for both connected source folder cards', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'multipleSources'));
+  await waitForProjectsPreview(page);
+  const firstSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'OpenMates repository' });
+  const secondSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'Second repository' });
+  await expect(firstSource).toContainText('README.md');
+  await expect(secondSource).toContainText('README.md');
+  await expect(secondSource).toContainText('1 file');
+  await secondSource.locator('.unified-embed-preview').click();
+  await expect(secondSource).toContainText('README.md');
+  await expect(secondSource).toContainText('1 file');
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
@@ -473,14 +509,23 @@ for (const width of [393, 1512]) {
     await waitForProjectsPreview(page);
     await page.locator('.component-mount').evaluate((element) => {
       element.style.height = '520px';
+      // Leave a visible shell-sized band above the pane so viewport-top
+      // positioning cannot pass this regression.
+      element.style.marginTop = '72px';
     });
 
     const main = page.getByTestId('project-management');
+    const pane = page.getByTestId('projects-page');
     const actions = page.getByTestId('project-header-actions');
     const report = page.getByTestId('report-issue-button-shell');
     const more = page.getByTestId('project-more-button');
     const close = page.getByTestId('project-detail-back');
     await expect(actions).toHaveCSS('position', 'fixed');
+    await expect.poll(async () => {
+      const paneBox = await pane.boundingBox();
+      const actionsBox = await actions.boundingBox();
+      return paneBox && actionsBox ? actionsBox.y - paneBox.y : Number.NEGATIVE_INFINITY;
+    }).toBeGreaterThanOrEqual(4);
     await expect(report).toHaveAttribute('data-header-overlay', '');
     await expect(more.locator('..')).toHaveAttribute('data-header-overlay', '');
     await expect(close.locator('..')).toHaveAttribute('data-header-overlay', '');
@@ -488,6 +533,27 @@ for (const width of [393, 1512]) {
       await expect(pill).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.2)');
     }
 
+    async function expectInsidePane() {
+      const paneBox = await pane.boundingBox();
+      const actionsBox = await actions.boundingBox();
+      expect(paneBox).not.toBeNull();
+      expect(actionsBox).not.toBeNull();
+      expect(paneBox!.y).toBeGreaterThan(60);
+      expect(paneBox!.x).toBeGreaterThan(20);
+      expect(actionsBox!.y).toBeGreaterThanOrEqual(paneBox!.y + 4);
+      expect(actionsBox!.y).toBeLessThan(paneBox!.y + 40);
+      expect(actionsBox!.x).toBeGreaterThanOrEqual(paneBox!.x - 1);
+      expect(actionsBox!.x + actionsBox!.width).toBeLessThanOrEqual(paneBox!.x + paneBox!.width + 1);
+      for (const control of [report, more, close]) {
+        const controlBox = await control.boundingBox();
+        expect(controlBox).not.toBeNull();
+        expect(controlBox!.y).toBeGreaterThanOrEqual(paneBox!.y + 4);
+        expect(controlBox!.x).toBeGreaterThanOrEqual(paneBox!.x);
+        expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(paneBox!.x + paneBox!.width);
+      }
+    }
+
+    await expectInsidePane();
     const before = await actions.boundingBox();
     expect(before).not.toBeNull();
     const scrollTop = await main.evaluate((element) => {
@@ -496,6 +562,7 @@ for (const width of [393, 1512]) {
     });
     expect(scrollTop).toBeGreaterThan(100);
     await expect.poll(async () => (await actions.boundingBox())?.y).toBeCloseTo(before!.y, 0);
+    await expectInsidePane();
     await expect(report).not.toHaveAttribute('data-header-overlay', '');
     await expect(more.locator('..')).not.toHaveAttribute('data-header-overlay', '');
     await expect(close.locator('..')).not.toHaveAttribute('data-header-overlay', '');

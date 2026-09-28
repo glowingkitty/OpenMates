@@ -4,7 +4,6 @@ import '@fontsource-variable/lexend-deca';
 import taskBoardPreview from './TaskBoard.preview';
 
 const defaultProps = {
-  focus: 'tasks' as const,
   previewTasks: taskBoardPreview.tasks,
   previewPlans: taskBoardPreview.plans,
   previewProjectNames: taskBoardPreview.projectNames,

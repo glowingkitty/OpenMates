@@ -1,5 +1,5 @@
 <!--
-  Shared Plans workspace for root hash routes and legacy /plans/:plan_id paths.
+  Plan detail route for root hashes and legacy /plans/:plan_id paths.
 -->
 
 <script lang="ts">
@@ -11,7 +11,6 @@
     NotificationStack,
     Settings,
     PlanDetailPage,
-    PlansWorkspacePage,
     authStore,
     featureAvailabilityStore,
     initialize,
@@ -35,35 +34,35 @@
       const legacyPlanId = page.params.plan_id ?? legacyHashPlanId;
       const target = legacyPlanId
         ? `/#plan-id=${encodeURIComponent(legacyPlanId)}`
-        : '/#plans';
+        : '/#tasks';
       void goto(target, { replaceState: true });
       return;
     }
 
     initialize().catch((error) => {
-      console.error('[PlansRoute] Failed to initialize auth:', error);
+      console.error('[PlanDetailRoute] Failed to initialize auth:', error);
     });
 
     initializeFeatureAvailability().catch((error: unknown) => {
-      console.warn('[PlansRoute] Failed to load feature availability:', error);
+      console.warn('[PlanDetailRoute] Failed to load feature availability:', error);
     });
   });
 </script>
 
 {#if !$authStore.isInitialized || !featureAvailabilityLoaded}
-  <main class="plans-route-state" data-testid="plans-auth-loading">Loading plans...</main>
+  <main class="plan-detail-route-state" data-testid="plan-detail-auth-loading">Loading plan...</main>
 {:else if !plansEnabled}
   <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-  <main class="plans-route-state" data-testid="plans-feature-disabled">
-    <h1>Plans unavailable</h1>
+  <main class="plan-detail-route-state" data-testid="plan-detail-feature-disabled">
+    <h1>Plan unavailable</h1>
     <p>Plans are disabled on this server.</p>
   </main>
 {:else if $authStore.isAuthenticated}
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-    <div class="plans-container" class:menu-open={$panelState.isSettingsOpen}>
-      <div class="plans-wrapper" id="main-plans" tabindex="-1">
-        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{:else}<PlansWorkspacePage />{/if}
+    <div class="plan-detail-container" class:menu-open={$panelState.isSettingsOpen}>
+      <div class="plan-detail-wrapper" id="main-plan-detail" tabindex="-1">
+        {#if routePlanId}<PlanDetailPage planId={routePlanId} />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />
@@ -72,16 +71,16 @@
   </div>
 {:else}
   <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-  <main class="plans-route-state" data-testid="plans-auth-required">
-    <h1>Plans</h1>
-    <p>Please log in to coordinate private plans for yourself and your AI mates.</p>
+  <main class="plan-detail-route-state" data-testid="plan-detail-auth-required">
+    <h1>Plan</h1>
+    <p>Please log in to view this private plan.</p>
   </main>
 {/if}
 
 <NotificationStack />
 
 <style>
-  .plans-route-state {
+  .plan-detail-route-state {
     min-height: calc(100vh - 90px);
     display: grid;
     place-content: center;
@@ -109,7 +108,7 @@
     inset-inline-start: var(--sidebar-margin, 10px);
   }
 
-  .plans-container {
+  .plan-detail-container {
     display: flex;
     flex-direction: row;
     height: calc(100vh - 82px);
@@ -119,12 +118,12 @@
   }
 
   @media (min-width: 1100px) {
-    .plans-container.menu-open {
+    .plan-detail-container.menu-open {
       gap: 20px;
     }
   }
 
-  .plans-wrapper {
+  .plan-detail-wrapper {
     flex: 1;
     display: flex;
     min-width: 0;
@@ -147,7 +146,7 @@
       inset-inline-start: 0;
     }
 
-    .plans-container {
+    .plan-detail-container {
       height: calc(100vh - 66px);
       height: calc(100dvh - 66px);
       padding-inline-end: 10px;
@@ -155,12 +154,12 @@
     }
   }
 
-  .plans-route-state h1 {
+  .plan-detail-route-state h1 {
     margin: 0;
     font-size: 2rem;
   }
 
-  .plans-route-state p {
+  .plan-detail-route-state p {
     margin: 0;
     color: var(--color-font-secondary);
   }
