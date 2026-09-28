@@ -158,6 +158,33 @@ Treat container health and `http.role_health` as the primary rollback/update
 health signal. Report any remaining verifier failures as configuration or
 runtime-contract gaps, not as a successful full verification.
 
+After the server update succeeds, smoke-test the production web app as a guest
+in a signed-out browser context with no prior account session. Keep the same
+guest identity for all turns so the daily per-identity allowance is exercised:
+
+1. Read `GET /v1/anonymous/free-usage/status` with that guest identity. Record
+   `can_send_text`, `reason`, and `daily_remaining_percent` when exposed. Check
+   the configured shared daily and per-identity daily caps through the
+   authorized read-only admin budget status.
+2. Create a new chat asking for doctor appointments. Wait for a completed
+   assistant answer, then send a related follow-up in **that same chat** and
+   confirm the answer uses the earlier request's context.
+3. Create a **separate** new chat asking about upcoming AI events in Berlin.
+   Wait for a completed assistant answer and confirm it has a distinct chat ID.
+4. Read the guest status again after each turn. Confirm the guest can send while
+   allowance remains and that the reported daily percentage does not increase
+   within the same UTC day (integer rounding may hide a small charge). If a
+   limit is reached, confirm the status and next attempted send are denied with
+   the appropriate signup path. Do not consume extra production credits solely
+   to force exhaustion; if no limit is reached, check the release's focused
+   shared-daily and per-identity budget-enforcement test evidence and report
+   that the live cap boundary was not observed.
+
+Treat missing or incomplete guest answers, a broken follow-up, an unexpectedly
+blocked guest, or inconsistent allowance reporting as failed post-update
+verification. Record the observed responses and status without guest IDs or
+private chat contents in the completion summary.
+
 Close the prod master connection when finished:
 
 ```bash
@@ -174,4 +201,6 @@ Report:
 - Prod update command and final image tag or rollback tag.
 - `openmates server status` result.
 - `openmates server verify` result, including any remaining failed check IDs.
+- Results of both distinct guest chats, the first chat's follow-up, and the
+  daily allowance and limit checks, including any unobserved live cap boundary.
 - Whether the SSH master was closed.
