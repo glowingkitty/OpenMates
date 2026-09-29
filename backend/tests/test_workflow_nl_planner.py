@@ -172,16 +172,25 @@ def test_tomorrow_runtime_date_rolls_in_schedule_timezone():
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
-def test_selected_workflow_schedule_edit_keeps_enabled_state():
+def test_selected_workflow_schedule_edit_keeps_enabled_state(monkeypatch):
     service, workflows = _input_service()
     created = service.start(user_id="alice", text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if rain is expected")
     assert created.workflow is not None
     edit_service, _ = _input_service(StubJev({"route": "update"}))
     edit_service.workflow_service = workflows
     edit_service.planner.workflow_service = workflows
+    original_get = workflows.get_workflow
+    reads = []
+
+    def tracked_get(*args, **kwargs):
+        reads.append(args[0])
+        return original_get(*args, **kwargs)
+
+    monkeypatch.setattr(workflows, "get_workflow", tracked_get)
     updated = edit_service.start(user_id="alice", selected_workflow_id=created.workflow.id,
                                  text="Move this workflow to 8:30 Berlin time")
     assert updated.status == "executed", updated.error
+    assert reads == [created.workflow.id]
     assert updated.workflow.enabled is False
     trigger = next(node for node in updated.workflow.graph.nodes if node.id == "trigger")
     assert trigger.config["schedule"]["time"] == "08:30"

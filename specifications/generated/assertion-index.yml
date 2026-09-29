@@ -53620,7 +53620,7 @@ assertions:
       surface: rest_api
     - &id6443
       path: backend/tests/test_workflow_nl_planner.py
-      line: 191
+      line: 200
       name: test_ai_undo_preserves_later_manual_edits
       surface: cli
     - &id6456
@@ -54868,12 +54868,12 @@ assertions:
       surface: rest_api
     - &id6574
       path: backend/tests/test_workflow_nl_planner.py
-      line: 204
+      line: 213
       name: test_news_ai_recipe_uses_generated_grounded_instruction
       surface: cli
     - &id6575
       path: backend/tests/test_workflow_nl_planner.py
-      line: 214
+      line: 223
       name: test_gemini_cost_usage_includes_reasoning_tokens
       surface: cli
     supporting_tests:
@@ -55270,7 +55270,7 @@ assertions:
       surface: rest_api
     - &id6624
       path: backend/tests/test_workflow_nl_planner.py
-      line: 204
+      line: 213
       name: test_news_ai_recipe_uses_generated_grounded_instruction
       surface: cli
     - &id6625

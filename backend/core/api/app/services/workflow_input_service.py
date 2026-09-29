@@ -845,7 +845,8 @@ class WorkflowInputService:
         if not workflow_id:
             raise ValueError("update_workflow requires workflow_id or a selected workflow")
         workflow_read_started = time.perf_counter()
-        before = self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
+        cached = session.get("_selected_workflow_detail")
+        before = cached if isinstance(cached, WorkflowDetail) and cached.id == workflow_id else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
         self._record_timing(session, "workflow_read_seconds", workflow_read_started)
         graph = plan.graph or before.graph
         validate_workflow_readiness(graph, require_schedule=before.enabled)
@@ -858,6 +859,8 @@ class WorkflowInputService:
             title=plan.title,
             graph=graph,
             vault_key_id=vault_key_id,
+            expected_record_version=before.version,
+            known_prior=before,
         )
         self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
@@ -938,9 +941,12 @@ class WorkflowInputService:
         )
         selected_workflow_id = session.get("selected_workflow_id")
         selected_workflow = None
+        session.pop("_selected_workflow_detail", None)
         if selected_workflow_id:
             try:
-                selected_workflow = self.workflow_service.get_workflow(selected_workflow_id, session["user_id"], vault_key_id).model_dump(mode="json")
+                detail = self.workflow_service.get_workflow(selected_workflow_id, session["user_id"], vault_key_id)
+                session["_selected_workflow_detail"] = detail
+                selected_workflow = detail.model_dump(mode="json")
             except WorkflowNotFoundError:
                 selected_workflow = None
         return {

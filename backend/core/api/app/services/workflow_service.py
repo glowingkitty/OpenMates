@@ -1347,6 +1347,8 @@ class WorkflowService:
         slug_lookup_hash: str | None = None,
         category: str | None = None,
         icon: str | None = None,
+        expected_record_version: int | None = None,
+        known_prior: WorkflowDetail | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         validate_encrypted_slug_metadata(
@@ -1357,9 +1359,15 @@ class WorkflowService:
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
+        if expected_record_version is not None and int(record.get("version") or 0) != expected_record_version:
+            raise ValueError("Workflow changed while the AI edit was being prepared. Reload it and retry.")
+        if known_prior is not None and (known_prior.id != workflow_id or known_prior.version != int(record.get("version") or 0)):
+            raise ValueError("The selected workflow snapshot is no longer current. Reload it and retry.")
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph) if graph is not None else None
         if workflow_graph is not None:
-            prior_graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
+            prior_graph = known_prior.graph if known_prior is not None else WorkflowGraph.model_validate(
+                self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)
+            )
             validate_workflow_composition_refs(workflow_graph, prior_graph)
         effective_enabled = record["enabled"] if enabled is None else enabled
         if effective_enabled:
@@ -1437,6 +1445,7 @@ class WorkflowService:
         record["version"] = int(record.get("version") or 1) + 1
         record["updated_at"] = int(time.time())
         saved_record = self.repository.save_workflow(record)
+        previous_next_run_at = saved_record.get("next_run_at")
         trigger_graph = workflow_graph if graph is not None else WorkflowGraph.model_validate(
             self._load_encrypted_blob(saved_record["encrypted_graph_ref"], vault_key_id)
         )
@@ -1447,8 +1456,16 @@ class WorkflowService:
             vault_key_id,
             replace_config_refs=graph is not None,
         )
-        saved_record = self.repository.save_workflow(saved_record)
-        return self._detail_from_record(saved_record, vault_key_id)
+        if saved_record.get("next_run_at") != previous_next_run_at:
+            saved_record = self.repository.save_workflow(saved_record)
+        known_payloads = None
+        if known_prior is not None and all(value is None for value in (title, description, category, icon)):
+            known_payloads = {
+                "title": known_prior.title, "description": known_prior.description,
+                "category": known_prior.category, "icon": known_prior.icon,
+                "graph": (workflow_graph or known_prior.graph).model_dump(mode="json", by_alias=True),
+            }
+        return self._detail_from_record(saved_record, vault_key_id, known_payloads=known_payloads)
 
     def initialize_import_binding_requirements(
         self,
