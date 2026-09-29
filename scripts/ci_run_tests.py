@@ -504,6 +504,10 @@ def run_e2e(
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
+                profile = json.loads(COMPOSE_PATH.read_text())
+                if "mailpit" in profile["services"]:
+                    env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
+                    env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                 account_free = component or artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source

@@ -99,8 +99,6 @@
         "proton-bridge-live.spec.ts",
         "reminder-email.spec.ts",
         "settings-change-email.spec.ts",
-        "signup-flow-passkey.spec.ts",
-        "signup-skip-2fa-flow.spec.ts",
         "test-account-preflight.spec.ts"
       ]
     },
@@ -433,6 +431,14 @@
       "enabling_work": "Preserve committed signed chat replay plus original direct CLI credential-free TI WEBENCH calls. API/AI stay on internal network; fixed HTTPS CONNECT allowlist admits only webench.ti.com, with end-to-end TLS and no paid-provider credentials.",
       "specs": [
         "skill-electronics-search-components.spec.ts"
+      ]
+    },
+    "local_email_signup": {
+      "execution": "e2e",
+      "enabling_work": "Run actual signup email tasks and rendered messages through isolated runner-local Mailpit; real Brevo-to-Gmail delivery is verified separately by the dev-host daily smoke.",
+      "specs": [
+        "signup-flow-passkey.spec.ts",
+        "signup-skip-2fa-flow.spec.ts"
       ]
     }
   },
@@ -946,14 +952,6 @@
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
     },
-    "signup-flow-passkey.spec.ts": {
-      "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For signup-flow-passkey.spec.ts, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "SIGNUP_TEST_EMAIL_DOMAINS"
-      ]
-    },
     "signup-flow-stripe-eu.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
       "next_action": "Provision the real private cloud services and dedicated sandbox fixtures for completes signup and EU card purchase from Settings billing; public self-host behavior does not establish this assertion. Private source transfer and any real payment/inference credentials require explicit approval and per-run caps.",
@@ -967,17 +965,6 @@
       "next_action": "Provision the real private cloud services and dedicated sandbox fixtures for completes signup and Managed Payments purchase from Settings billing; public self-host behavior does not establish this assertion. Private source transfer and any real payment/inference credentials require explicit approval and per-run caps.",
       "user_input_required": true,
       "source_environment_names": [
-        "SIGNUP_TEST_EMAIL_DOMAINS"
-      ]
-    },
-    "signup-skip-2fa-flow.spec.ts": {
-      "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For lookup response does not reveal whether an account exists, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_API_URL",
-        "PLAYWRIGHT_TEST_BASE_URL",
         "SIGNUP_TEST_EMAIL_DOMAINS"
       ]
     },

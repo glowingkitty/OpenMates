@@ -41,6 +41,7 @@ POSTGRES_IMAGE = (
     "postgres:13-alpine@sha256:"
     "fb9065b6e3e213bdc07edd372a5b2a26245840b7fb65d1fd8b6700106d51805c"
 )
+MAILPIT_IMAGE = "axllent/mailpit:v1.27.4@sha256:df6c2541907e1be6fac21f509927cf6ed771617a1f4b361ef66d97bd05593d2d"
 VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
 from backend.core.vault.setup.vault_setup.policies import PolicyManager
 from backend.core.api.app.utils.vault_token_check import validate_token_file
@@ -117,12 +118,13 @@ def compose_profile(
     workflows: bool = False,
     account_emails: list[str] | None = None,
     offline_preview: bool = False,
+    mail_capture: bool = False,
     credential_overrides: dict[str, str] | None = None,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     ai_fixtures = ai_fixtures or public_provider
     object_storage = object_storage or uploads
-    isolate_backend = ai_fixtures or object_storage or offline_preview
+    isolate_backend = ai_fixtures or object_storage or offline_preview or mail_capture
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -170,6 +172,8 @@ def compose_profile(
         "E2E_TEST_PROD_ENABLED": "false",
         "CELERY_AUTOSCALE_MAX": "1",
     }
+    if mail_capture:
+        common.update(CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1")
     if object_storage:
         common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
     source_mounts = [
@@ -354,6 +358,15 @@ def compose_profile(
             "depends_on": {"vault": {"condition": "service_healthy"}},
         },
     }
+    if mail_capture:
+        services["mailpit"] = {
+            "image": MAILPIT_IMAGE,
+            "mem_limit": 128 * MIB,
+            "ports": ["127.0.0.1:8025:8025"],
+            "environment": {"MP_MAX_MESSAGES": "1000"},
+        }
+        for name in ("api", "core-worker"):
+            services[name]["depends_on"]["mailpit"] = {"condition": "service_started"}
     if object_storage:
         # Real S3 SDK operations hit a disposable store, never shared buckets.
         services["object-storage"] = {
@@ -616,6 +629,7 @@ def main():
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         needs_uploads = bool(upload_specs.intersection(selected))
         public_specs = set(manifest["groups"].get("ai_cached_public_provider", {}).get("specs", []))
+        mail_specs = set(manifest["groups"].get("local_email_signup", {}).get("specs", []))
         needs_public_provider = bool(public_specs.intersection(selected))
         workflow_specs = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
         needs_workflows = bool(workflow_specs.intersection(selected))
@@ -626,7 +640,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview, mail_capture=bool(mail_specs.intersection(selected)))
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -690,6 +704,17 @@ def main():
             required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:
             required.append("object-storage")
+        if "mailpit" in profile["services"]:
+            required.append("mailpit")
+            network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
+            if network.get("Internal") is not True:
+                raise RuntimeError("Runner-local mail capture requires an internal network")
+            with urllib.request.urlopen("http://127.0.0.1:8025/api/v1/messages", timeout=10) as response:
+                if response.status != 200 or not isinstance(json.load(response).get("messages"), list):
+                    raise RuntimeError("Runner-local mail capture is not ready")
+            if profile["services"]["api"]["environment"].get("OPENMATES_CI_MAIL_CAPTURE") != "1":
+                raise RuntimeError("Mail capture profile must bind the API to local delivery")
+            evidence["email_capture"] = {"provider": "mailpit", "api": "runner-local", "external_delivery": False}
         if "ai-worker" in profile["services"]:
             required.extend(["ai-worker", "runner-gateway"])
             network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]

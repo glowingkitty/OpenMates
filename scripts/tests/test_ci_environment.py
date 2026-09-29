@@ -49,6 +49,23 @@ def test_profile_is_private_and_source_bound():
         assert any(target in str(mount) for mount in api_mounts), target
 
 
+def test_signup_mail_capture_stays_on_disposable_internal_network():
+    normal = compose_profile("a" * 40)
+    assert "mailpit" not in normal["services"]
+    assert "OPENMATES_CI_MAIL_CAPTURE" not in normal["services"]["api"]["environment"]
+
+    profile = compose_profile("a" * 40, mail_capture=True)
+    assert profile["networks"]["default"]["internal"] is True
+    assert profile["services"]["mailpit"]["ports"] == ["127.0.0.1:8025:8025"]
+    assert profile["services"]["mailpit"].get("networks") is None
+    for name in ("api", "core-worker"):
+        service = profile["services"][name]
+        assert service["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
+        assert service["environment"]["OPENMATES_CI_ISOLATED"] == "1"
+        assert service["depends_on"]["mailpit"]["condition"] == "service_started"
+        assert "BREVO_API_KEY" not in service["environment"]
+
+
 def test_fresh_credentials_and_runner_only(monkeypatch):
     a = compose_profile("a" * 40)
     b = compose_profile("a" * 40)
