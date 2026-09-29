@@ -173,7 +173,7 @@ DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-comp
 DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
 DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
 WORKTREE_CLEANUP_IDLE_HOURS = 48
-WORKTREE_HARD_MAX_AGE_HOURS = 72
+WORKTREE_HARD_MAX_AGE_HOURS = 7 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
 WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
 WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
@@ -4377,8 +4377,14 @@ def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     return max(0.0, (now_timestamp - float(timestamp)) / 3600)
 
 
-def _hard_expiry_record_is_live(record: dict, data: dict) -> bool:
-    """Protect a currently executing or explicitly leased session from expiry."""
+def _hard_expiry_record_is_live(
+    record: dict,
+    data: dict,
+    *,
+    now_timestamp: float,
+    idle_hours: int,
+) -> bool:
+    """Protect active work, without treating a stale task binding as a lease."""
     session_id = str(record.get("session_id") or "")
     session = record.get("session") if isinstance(record.get("session"), dict) else {}
     if not session and session_id:
@@ -4396,7 +4402,17 @@ def _hard_expiry_record_is_live(record: dict, data: dict) -> bool:
     docker_lock = data.get("locks", {}).get("docker_rebuild", {})
     if _is_lock_active(docker_lock, "docker_rebuild") and str(docker_lock.get("claimed_by") or "") == session_id:
         return True
-    return bool(session.get("codex_task_id") and (session.get("worktree") or {}).get("status") not in {"merged", "ended"})
+    worktree = session.get("worktree") or {}
+    if worktree.get("status") in {"merged", "ended"}:
+        return False
+    last_active = session.get("last_active") or worktree.get("last_active")
+    if not isinstance(last_active, str) or not last_active.strip():
+        return False
+    try:
+        last_active_timestamp = _parse_iso(last_active).timestamp()
+    except (TypeError, ValueError):
+        return False
+    return now_timestamp - last_active_timestamp < idle_hours * 3600
 
 
 def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
@@ -4480,7 +4496,7 @@ def expire_managed_worktrees(
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
     now_timestamp: float | None = None,
 ) -> dict:
-    """Unconditionally delete managed worktrees after the configured hard lifetime."""
+    """Delete aged, idle worktrees only when their changes are recoverable."""
     if max_age_hours < WORKTREE_HARD_MAX_AGE_HOURS:
         raise ValueError(
             f"max_age_hours below the configured hard lifetime ({WORKTREE_HARD_MAX_AGE_HOURS}) is not allowed"
@@ -4491,8 +4507,12 @@ def expire_managed_worktrees(
     live_session_ids = {
         str(record.get("session_id") or "")
         for record in records
-        if _hard_expiry_record_is_live(record, current_data)
-        or (current_data.get("sessions", {}).get(str(record.get("session_id") or ""), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION
+        if _hard_expiry_record_is_live(
+            record,
+            current_data,
+            now_timestamp=current_timestamp,
+            idle_hours=max_age_hours,
+        )
     }
     expired: list[dict] = []
     protected_unresolved: list[dict] = []

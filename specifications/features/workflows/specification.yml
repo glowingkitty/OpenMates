@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.workflows
-version: 5
-status: approved
+version: 6
+status: draft
 title: Workflows
 summary: >
   OpenMates Workflows execute validated user-authored automation graphs with
@@ -14,9 +14,9 @@ scope:
     - Workflow definitions, validation, runs, step tests, action lifecycle, and visible run detail.
     - Manual execution readiness, optional single-schedule activation, deterministic control flow, visible costs, and run deletion.
     - Encrypted retained Workflow inputs, outputs, pending chat delivery, and indexed run-owned delivery fingerprints.
-    - Date/time recurrence, new-result filtering, selective embed creation, and deterministic chat templates.
+    - Date/time recurrence, new-result filtering before dependent AI, selected-result embeds, and typed inline chat templates.
     - Bounded boolean AI Check decisions over explicitly selected earlier values, with an independent fallback and an explicit Unsure outcome.
-    - Tool-isolated Ask AI text processing over explicit earlier Workflow values, with shared authoring validation across web, CLI and SDKs.
+    - Tool-isolated Ask AI answers over explicit earlier Workflow values, with selected-result preview references and shared authoring validation across web, CLI and SDKs.
     - Workflow send_chat_message delivery for existing or newly routed owner chats.
     - Owner-device claim, encrypted persistence, acknowledgement, retry, expiry, cancellation, and reconnect semantics for chat delivery.
   excludes:
@@ -58,6 +58,7 @@ models:
     answer:
       type: single_reusable_text_output
       required: true
+      constraints: {validated_inline_embed_links_and_results_views_allowed: true, referenced_results_must_be_selected: true}
     runtime:
       type: isolated_workflow_ai_ask
       constraints: {app_skill_or_tool_calls: forbidden, chat_history_and_memories: forbidden, external_text_as_instructions: forbidden}
@@ -79,8 +80,7 @@ models:
       required: true
     selected_inputs:
       type: typed_earlier_value_references
-      required: true
-      constraints: {minimum: 1, explicit_selection_only: true, whole_run_or_chat_context: forbidden}
+      constraints: {explicit_selection_only: true, whole_run_or_chat_context: forbidden, minimum_when_earlier_action_exists: 1, static_question_without_earlier_action_allowed: true}
     result:
       type: enum
       values: [true, false, unsure]
@@ -227,7 +227,7 @@ assertions:
     - examples.skill_billing
   - id: workflows.control.filter
     type: behavior
-    must: General Filter nodes are deferred. Provider criteria belong in supported app-skill inputs; only-new-results is a per-selected-list Send message option, not a general list-transform node.
+    must: General Filter nodes are deferred. Provider criteria belong in supported app-skill inputs. Identifiable result lists use previously unsent results automatically for delivery and dependent Ask AI; this is not a general list-transform node or an author-facing toggle. Typed lists without stable result identities remain usable without claiming duplicate detection.
     depends_on:
     - examples.filter
   - id: workflows.control.check
@@ -242,14 +242,14 @@ assertions:
   - id: workflows.control.ai-check
     type: behavior
     must: >
-      An AI Check answers one bounded boolean question using only the earlier typed values the author explicitly selects. The author can inspect the exact projected values before testing or saving. The runtime minimizes and bounds those values, labels external text as untrusted data, excludes whole-run context, chat history, attachments, credentials and opaque access material, and never lets selected data change the authored question. A complete reliable primary decision chooses If true or If false. Primary unavailability, invalid output, or insufficient confidence invokes one independent structured generative fallback; if that fallback is unavailable, invalid or genuinely uncertain, the Check automatically follows Unsure. The author can configure the Unsure branch with the same supported steps as the true and false branches, or leave it empty to do nothing in that branch. An empty branch still resumes any shared continuation. Retained encrypted run detail shows the question, projected inputs, outcome, confidence band, decision path and whether Unsure arose from uncertain judgment or evaluator failure, without raw provider responses. An accepted completed decision is reused across retries rather than re-inferred or charged twice.
+      An AI Check answers one bounded boolean question using only the earlier typed values visibly inserted in its question; a static question is allowed when no earlier action exists. The author can inspect the exact projected values before testing or saving. The runtime minimizes and bounds those values, labels external text as untrusted data, excludes whole-run context, chat history, attachments, credentials and opaque access material, and never lets selected data change the authored question. A complete reliable primary decision chooses If true or If false. Primary unavailability, invalid output, or insufficient confidence invokes one independent structured generative fallback; if that fallback is unavailable, invalid or genuinely uncertain, the Check automatically follows Unsure. The author can configure the Unsure branch with the same supported steps as the true and false branches, or leave it empty to do nothing in that branch. An empty branch still resumes any shared continuation. Retained encrypted run detail shows the question, projected inputs, outcome, confidence band, decision path and whether Unsure arose from uncertain judgment or evaluator failure, without raw provider responses. An accepted completed decision is reused across retries rather than re-inferred or charged twice.
     depends_on:
     - models.WorkflowAiCheck
     - examples.ai_check
   - id: workflows.ai-ask.execution
     type: behavior
     must: >
-      Ask AI evaluates one multiline authored instruction with only explicitly referenced, accessible earlier Workflow values and returns one text answer that later steps can reference. A prior Use app result, including a bounded result list, may be an input; Ask AI cannot discover or invoke app skills itself. Server-side execution enforces a fresh tool-disabled Workflow context without ordinary chat history or memories, treats upstream text as untrusted data, bounds and previews selected values, and does not expose credentials or opaque access material. Test uses unsaved inputs without committing a graph, and full runs use normal AI usage, credit and idempotency controls. The answer and useful failure detail are encrypted retained run content; failure stops dependent steps rather than inventing an answer or taking the AI Check Unsure branch.
+      Ask AI evaluates one multiline authored instruction with only explicitly referenced, accessible earlier Workflow values and returns one reusable answer that may contain validated inline result links, preview cards and results views. A prior Use app result, including a bounded selected result list, may be an input. The known upstream app and result types select applicable presentation instructions without a separate AI classification request, and the answer receives only stable references for selected results. Ask AI cannot discover or invoke app skills itself: server-side execution enforces a fresh Workflow context with no available tool definitions or dispatch authority, ordinary chat history or memories. It treats upstream text as untrusted data, bounds and previews selected values without dropping fields needed for usable event time/location previews, and does not expose credentials or opaque access material. Test uses unsaved inputs without committing a graph, and full runs use normal AI usage, credit and idempotency controls. The complete answer and useful failure detail are encrypted retained run content; failure stops dependent steps rather than inventing an answer or taking the AI Check Unsure branch.
     depends_on: [models.WorkflowAskAi, examples.ask_ai_execution]
   - id: workflows.ai-ask.authoring-validation
     type: behavior
@@ -261,31 +261,42 @@ assertions:
     must: Declared output schemas drive references to accessible earlier steps before any test run. Incompatible types, forward references, cycles and branch-local references outside their branch are rejected before charged work. App skill Test may execute unsaved inputs with supplied earlier test outputs, stores only temporary test evidence, and never commits the graph or requires a successful test before Save.
     depends_on:
     - examples.typed_data
+  - id: workflows.composition.earlier-action-reference
+    type: invariant
+    must: When an accessible earlier action exists, the visible Send message text, Ask AI instruction or AI judgment question must contain at least one valid reference to an earlier action output before any web, REST, CLI or SDK save succeeds. A hidden result block or separately selected AI judgment input does not satisfy this requirement. Without an earlier action, static text is allowed. Previews and Tests report the same invalid reference as Save before charged work.
+    depends_on: [examples.earlier_action_reference]
   - id: workflows.message.standard
     type: behavior
-    must: Send message selects an existing owner chat or a new chat title, uses deterministic text with typed upstream references and explicit result blocks, and can conditionally include a block using a typed earlier boolean, including a Check result. A nullable boolean condition includes the block only when true; false or unknown omits it. Preview uses unsaved values without sending, reserving identities, creating permanent embeds or saving a graph. A full manual run exercises delivery. Eligible result blocks use the standard result layout and workflow-run link; no AI runs. With no eligible content the run succeeds as No new results and creates no empty chat.
+    must: Send message selects an existing owner chat or a new chat title and compiles deterministic text with typed inline references. A result-list reference renders a group of the app's normal result previews at that position, without stringifying or duplicating raw result objects. Existing saved result blocks remain readable and migrate to inline references without losing order or conditional inclusion; a typed earlier boolean can still conditionally include results, including a Check result, and nullable false or unknown omits them. Preview uses unsaved values and the same presentation rules without sending, reserving identities, creating permanent embeds or saving a graph. A full manual run exercises delivery; no AI runs for a message without Ask AI. With no eligible content the run succeeds as No new results and creates no empty chat.
     depends_on:
     - examples.standard_message
   - id: workflows.results.selective-embeds
     type: behavior
     must: Intermediate search/filter results are bounded-retention encrypted run data, not automatically permanent
-      embeds. Permanent result embeds are created only for items actually handed to chat delivery; future project-save
-      support must apply the same selected-only rule. Message and embed persistence are coordinated so no visible
-      message contains unresolved references; idempotent retries reuse delivery, message and embed identities.
-      Ordinary client-encryption and owner-device fencing remain mandatory; V1 does not introduce offline project
-      write authority.
+      embeds. Selected items receive stable answer references before dependent Ask AI, but permanent result embeds
+      are created only for items actually handed to chat delivery; future project-save support must apply the same
+      selected-only rule. Inline links, preview cards and results views may resolve only to those selected embeds;
+      invalid, invented or excluded references are removed or rejected before delivery without discarding the rest
+      of an otherwise valid answer. Message and embed persistence are coordinated so no visible message contains
+      unresolved references; idempotent retries reuse delivery, message and embed identities. Ordinary client-
+      encryption and owner-device fencing remain mandatory; V1 does not introduce offline project write authority.
     depends_on:
     - examples.selective_embeds
   - id: workflows.history.delivered-membership
     type: behavior
-    must: Only new results compares each selected list against acknowledged deliveries owned by retained runs, scoped to the stable workflow and Send message node so newly created chats share memory; explicitly selected existing-chat destinations remain distinct. Prefer provider plus stable result ID, otherwise normalized canonical URL; no cross-provider semantic matching. Use keyed workflow-scoped batch fingerprints without loading private historic payloads. Unverifiable old examples do not seed membership; reliable memory starts at cutover.
+    must: Previously unsent results are selected by default before dependent Ask AI using acknowledged deliveries owned by retained runs, scoped to the stable workflow and Send message node so newly created chats share memory; explicitly selected existing-chat destinations remain distinct. Prefer provider plus stable result ID, otherwise normalized canonical URL; no cross-provider semantic matching. A shared Ask AI feeding different Send destinations must use the correct destination-specific selection rather than one destination's history. Use keyed workflow-scoped batch fingerprints without loading private historic payloads. Unverifiable old examples do not seed membership; reliable memory starts at cutover.
     depends_on:
     - examples.delivered_membership
   - id: workflows.history.delivery-reservations
     type: behavior
-    must: Run-owned pending reservations atomically cover included result identities for the workflow and Send message node. Only durable acknowledged message and embed persistence commits membership. Failed, expired or cancelled undelivered reservations release; retry IDs stay stable. Fetched, excluded and unsuccessful results do not become permanently suppressed. Step tests do not evict retained full-run evidence.
+    must: Run-owned pending reservations atomically cover included result identities for the workflow and Send message node before a dependent Ask AI call. If no new result remains, dependent Ask AI is skipped without an AI charge and no empty chat is created. Only durable acknowledged message and embed persistence commits membership. Failed, expired or cancelled undelivered reservations release; retry IDs stay stable. Fetched, excluded and unsuccessful results do not become permanently suppressed. Step tests do not evict retained full-run evidence.
     depends_on:
     - examples.delivery_reservations
+  - id: workflows.chat-delivery.run-provenance
+    type: behavior
+    must: Each workflow-delivered chat message shows the run that caused it as a preview in the normal app skill embed area. Selecting the preview opens owner-authorized run detail beside the chat when space permits and in the normal fullscreen layout on a narrow screen. A chat created by a workflow always has this preview; an existing-chat destination shows it on the delivered message. Earlier messages containing the internal run link gain the preview without rewriting encrypted chat content. Expired or deleted run content leaves a readable unavailable state rather than a broken link, and preview metadata never exposes private run payloads to an unauthorized client.
+    depends_on:
+    - examples.run_provenance
   - id: workflows.history.delete-forgets
     type: privacy
     must: Deleting a run removes its retained private inputs/outputs and its duplicate-detection records/reservations

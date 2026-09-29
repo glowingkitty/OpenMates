@@ -2427,6 +2427,44 @@ async def websocket_endpoint(
         supports_remote_command_jobs=supports_remote_command_jobs,
     )
 
+    # A live socket must close at its absolute session deadline even if idle.
+    pair_expiry_task: asyncio.Task | None = None
+    pair_expires_at = auth_data.get("pair_expires_at")
+    session_expires_at = auth_data.get("session_expires_at")
+    deadlines = [int(value) for value in (pair_expires_at, session_expires_at) if value is not None]
+    if deadlines:
+        async def close_at_pair_deadline() -> None:
+            await asyncio.sleep(max(0, min(deadlines) - time.time()))
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session expired")
+
+        pair_expiry_task = asyncio.create_task(close_at_pair_deadline())
+
+    # Revocation can happen without a targetable connection hash, and must
+    # terminate an idle socket as well as reject its next message.
+    session_watch_task: asyncio.Task | None = None
+    session_hash = auth_data.get("session_hash")
+    if session_hash:
+        from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
+        from backend.core.api.app.services.session_security_state import get_session_state_cached
+
+        async def watch_session_authority() -> None:
+            while True:
+                await asyncio.sleep(10)
+                try:
+                    link = await cache_service.get(f"session:{session_hash}")
+                    state = await get_session_state_cached(
+                        directus_service, cache_service, session_hash, user_id=user_id,
+                    )
+                    if (canonical_session_user_id(link) != user_id
+                            or state is None or state.get("risk_pending")):
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session invalid")
+                        return
+                except Exception:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session unavailable")
+                    return
+
+        session_watch_task = asyncio.create_task(watch_session_authority())
+
     phased_sync_tasks: set[asyncio.Task] = set()
     phased_sync_tail_task: asyncio.Task | None = None
     phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
@@ -3732,6 +3770,10 @@ async def websocket_endpoint(
             # Ensure cleanup happens even with unexpected errors, passing the reason.
             manager.disconnect(websocket, reason=unexpected_error_reason)
     finally:
+        if pair_expiry_task is not None:
+            pair_expiry_task.cancel()
+        if session_watch_task is not None:
+            session_watch_task.cancel()
         if hasattr(websocket.app.state, "project_task_sync"):
             websocket.app.state.project_task_sync.disconnect(websocket)
         for task in list(phased_sync_tasks):

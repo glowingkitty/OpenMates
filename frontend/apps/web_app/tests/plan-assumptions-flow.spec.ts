@@ -10,6 +10,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { createProjectPlanForTest } = require('./helpers/create-project-plan');
 
 test.describe('Plans V1 assumptions flow', () => {
 	// contract-test: direct surface=gui.web assertions=plans.execution.gates-evidence
@@ -18,23 +19,12 @@ test.describe('Plans V1 assumptions flow', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
-		const planTitle = `E2E assumption plan ${Date.now()}`;
+		const projectName = `E2E assumption project ${Date.now()}`;
 		const assumptionText = 'Production API quota is already approved';
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page);
-		await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('plans-workspace-home')).toBeVisible({ timeout: 30000 });
-
-		await page.getByTestId('plan-workspace-input').fill(planTitle);
-		await Promise.all([
-			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/v1/user-plans') && response.ok()),
-			page.getByTestId('plan-workspace-submit').click(),
-		]);
-		const planCard = page.getByTestId('plan-card').filter({ hasText: planTitle }).first();
-		await expect(planCard).toBeVisible({ timeout: 30000 });
-		await planCard.getByTestId('plan-detail-link').click();
+		await createProjectPlanForTest(page, projectName);
 
 		await expect(page.getByTestId('plan-detail-page')).toBeVisible({ timeout: 30000 });
 		await page.getByTestId('plan-assumption-input').fill(assumptionText);

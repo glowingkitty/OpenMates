@@ -14,6 +14,8 @@
   interface Props {
     data: EmbedFullscreenRawData;
     onClose: () => void;
+    onDownload?: () => void;
+    downloadUnavailableMessage?: string;
     embedId?: string;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
@@ -27,6 +29,8 @@
   let {
     data,
     onClose,
+    onDownload,
+    downloadUnavailableMessage = 'Download link unavailable or expired.',
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -57,6 +61,7 @@
   let subtitle = $derived([mimeType, formatCodeRunArtifactSize(sizeBytes)].filter(Boolean).join(' · '));
 </script>
 
+<!-- With downloadHref, the shared top bar renders a native anchor; onDownload enables its visibility. -->
 <UnifiedEmbedFullscreen
   testId="file-embed-fullscreen"
   appId="files"
@@ -67,6 +72,7 @@
   skillIconName="files"
   showSkillIcon={false}
   {onClose}
+  onDownload={onDownload ?? (downloadHref ? () => undefined : undefined)}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -84,8 +90,8 @@
       <div class="file-fullscreen-copy">
         <h2>{path}</h2>
         <p>{subtitle}</p>
-        {#if !downloadHref}
-          <p class="file-download-unavailable">Download link unavailable or expired.</p>
+        {#if !downloadHref && !onDownload}
+          <p class="file-download-unavailable">{downloadUnavailableMessage}</p>
         {/if}
       </div>
     </section>

@@ -29,7 +29,7 @@
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v3-sub-chat-batch-inline';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v4-inline-ratio-math';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available

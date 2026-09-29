@@ -134,6 +134,7 @@ _pairSessionData.subscribe((data) => {
 // ---------------------------------------------------------------------------
 
 let _logoutCallback: (() => Promise<void>) | null = null;
+let _autoLogoutInFlight: Promise<void> | null = null;
 
 /**
  * Register the logout callback from the auth system.
@@ -146,20 +147,26 @@ export function registerPairLogoutCallback(
 }
 
 async function _handleAutoLogout(): Promise<void> {
-  // Clear pair session data first so the timer stops
-  _pairSessionData.set(null);
-
-  if (_logoutCallback) {
-    try {
-      await _logoutCallback();
-    } catch (e) {
-      console.error("[PairSession] Auto-logout failed:", e);
-    }
-  } else {
+  if (_autoLogoutInFlight) return _autoLogoutInFlight;
+  if (!_logoutCallback) {
     console.warn(
       "[PairSession] Auto-logout triggered but no logout callback registered",
     );
+    return;
   }
+  _autoLogoutInFlight = (async () => {
+    try {
+      await _logoutCallback!();
+      // Keep restricted mode until key removal and local auth logout finish.
+      _pairSessionData.set(null);
+    } catch (e) {
+      console.error("[PairSession] Auto-logout failed:", e);
+      // The next timer tick retries cleanup while the restriction remains active.
+    } finally {
+      _autoLogoutInFlight = null;
+    }
+  })();
+  return _autoLogoutInFlight;
 }
 
 // ---------------------------------------------------------------------------
@@ -218,10 +225,14 @@ export const isRestrictedSession = derived(
 export function activatePairSession(opts: {
   authorizerDeviceName?: string | null;
   autoLogoutMinutes?: number | null;
+  /** Absolute server deadline in Unix seconds. Numeric pair lifetimes must use this. */
+  pairExpiresAt?: number | null;
 }): void {
   const now = Date.now();
   const autoLogoutAt =
-    opts.autoLogoutMinutes != null
+    opts.pairExpiresAt != null
+      ? opts.pairExpiresAt * 1000
+      : opts.autoLogoutMinutes != null
       ? now + opts.autoLogoutMinutes * 60 * 1000
       : null;
 
@@ -241,25 +252,17 @@ export function activatePairSession(opts: {
  * Called once in +page.svelte after the app mounts.
  * Checks if an auto-logout already expired during the page reload.
  */
-export function rehydratePairSession(): void {
+export async function rehydratePairSession(): Promise<void> {
   const data = _loadFromStorage();
   if (!data?.isPairSession) return;
 
   // If auto-logout already expired while the page was reloading → logout immediately
   if (data.autoLogoutAt && Date.now() >= data.autoLogoutAt) {
-    _pairSessionData.set(null);
-    void _handleAutoLogout();
+    await _handleAutoLogout();
     return;
   }
 
   _pairSessionData.set(data);
-}
-
-/**
- * Clear pair session state (called on logout).
- */
-function clearPairSession(): void {
-  _pairSessionData.set(null);
 }
 
 // ---------------------------------------------------------------------------
@@ -279,12 +282,3 @@ export const pendingPairToken = writable<string | null>(null);
  * Cleared after the sessions list reads it.
  */
 export const newlyPairedSession = writable<boolean>(false);
-
-/**
- * Format remaining seconds as MM:SS string.
- */
-function formatRemainingTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}

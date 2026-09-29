@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 def resolve_workflow_runtime_values(value: Any, *, now: int | float | datetime | None = None, timezone: str = "UTC") -> Any:
-    """Resolve {$date: today|today_end|next_week_start|next_week_end, format: date|datetime}.
+    """Resolve local today, tomorrow, rolling seven-day, and next-week runtime dates.
 
     Upcoming week means the next Monday through Sunday in the workflow timezone.
     End datetimes use an inclusive 23:59:59 boundary, suitable for event search bounds.
@@ -37,6 +37,10 @@ def resolve_workflow_runtime_values(value: Any, *, now: int | float | datetime |
         dates = {
             "today": local.date(),
             "today_end": local.date(),
+            "tomorrow": local.date() + timedelta(days=1),
+            "tomorrow_end": local.date() + timedelta(days=1),
+            "next_seven_days_start": local.date(),
+            "next_seven_days_end": local.date() + timedelta(days=6),
             "next_week_start": next_monday,
             "next_week_end": next_monday + timedelta(days=6),
         }
@@ -45,7 +49,7 @@ def resolve_workflow_runtime_values(value: Any, *, now: int | float | datetime |
         day = dates[name]
         if output_format == "date":
             return day.isoformat()
-        boundary = time(23, 59, 59) if name in {"today_end", "next_week_end"} else time.min
+        boundary = time(23, 59, 59) if name in {"today_end", "tomorrow_end", "next_seven_days_end", "next_week_end"} else time.min
         return datetime.combine(day, boundary, zone).isoformat()
 
     return resolve(value)

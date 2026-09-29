@@ -277,6 +277,8 @@ skills:
               city:
                 x-ui:
                   basic: true
+                  control: location
+                  location_mode: city
                 type: string
                 description: >
                   City where to search for appointments. Supports German and English

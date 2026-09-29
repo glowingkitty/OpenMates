@@ -84,6 +84,7 @@ import {
   assertTrustedAccountId,
   loadTrustedAccountId,
   saveTrustedAccountId,
+  getCredentialStorageMode,
 } from "./storage.js";
 
 import {
@@ -154,7 +155,7 @@ import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
-  discoverRemoteAccessRepositories,
+  remoteAccessHostingCandidates,
   listRemoteAccessSources,
   resolveRemoteAccessRoots,
   remoteAccessSourceType,
@@ -509,6 +510,10 @@ async function main(): Promise<void> {
       }
     }
     console.log("Login successful.");
+    const storageMode = getCredentialStorageMode();
+    console.log(storageMode === "os-keyring"
+      ? "Credential storage: OS keyring."
+      : "Credential storage: owner-only local file (this host can read chat keys).");
     return;
   }
 
@@ -3676,7 +3681,7 @@ async function handleProjectFiles(
     operation = "search";
     const query = requiredStringFlag(rest[2], "search query");
     if (Buffer.byteLength(query, "utf8") > 256) throw new CliContractError("query_too_large", "Search query exceeds 256 bytes.");
-    argumentsValue = { query };
+    argumentsValue = { query, target: "files", mode: "literal", path: "." };
   } else {
     operation = "read_text";
     argumentsValue = { path: safeRelativeProjectPath(requiredStringFlag(rest[2], "relative path")) };
@@ -4612,12 +4617,8 @@ async function handleRemoteAccess(
       ...(hostingContext.teamId ? { team: hostingContext.teamId } : {}),
     };
     const roots = resolveRemoteAccessRoots(typeof flags.path === "string" ? flags.path : undefined);
-    const discovery = discoverRemoteAccessRepositories(roots);
-    const candidateRoots = typeof flags.path === "string"
-      ? roots
-      : discovery.repositories.length > 0
-        ? discovery.repositories.map((candidate) => candidate.rootPath)
-        : roots;
+    const discovery = remoteAccessHostingCandidates(roots, typeof flags.path === "string");
+    const candidateRoots = discovery.candidateRoots;
     const masterKey = client.getMasterKeyBytes();
     const projects = await loadProjects(client, masterKey, hostingFlags, hostingContext);
     const bindings = await resolveRemoteAccessBindings(client, masterKey, projects, candidateRoots, hostingFlags, hostingContext);
@@ -7053,6 +7054,7 @@ async function handleWorkflows(
       text,
       selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
       selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
+      timezone: typeof flags.timezone === "string" ? flags.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     if (flags.json === true) {
       printJson(session);
@@ -7323,6 +7325,10 @@ function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
   if (session.message) kv("Message", session.message);
   if (session.error) kv("Error", session.error);
   if (session.workflow) kv("Workflow", `${session.workflow.title} (${session.workflow.id})`);
+  const metrics = session.authoring_metrics;
+  if (metrics && typeof metrics.total_seconds === "number") kv("AI planning", `${metrics.total_seconds.toFixed(2)}s`);
+  if (metrics && typeof metrics.estimated_cost_usd === "number") kv("Est. AI cost", `$${metrics.estimated_cost_usd.toFixed(5)}`);
+  if (session.workflow && !session.workflow.enabled) kv("Activation", "Disabled; enable it when you are ready.");
 }
 
 function printWorkflowRun(run: WorkflowRunDetail): void {
@@ -8413,22 +8419,11 @@ async function handleCodeRun(
     });
     try {
       finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
-    } catch (err) {
-      try {
-        if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
-        const fallbackUrl = buildCodeRunStreamUrl({
-          apiUrl: client.apiUrl,
-          executionId: result.execution_id,
-          sessionId: streamAuth.sessionId,
-          token: streamAuth.fallbackToken,
-        });
-        finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
-      } catch {
-        // Recover the existing job through the independently authenticated status route.
-        usedStream = false;
-        process.stderr.write(`Code Run live stream unavailable; polling execution ${result.execution_id}. No new run started.\n`);
-        finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
-      }
+    } catch {
+      // Recover the existing job through the independently authenticated status route.
+      usedStream = false;
+      process.stderr.write(`Code Run live stream unavailable; polling execution ${result.execution_id}. No new run started.\n`);
+      finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
     }
   } else {
     finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
@@ -10183,14 +10178,21 @@ async function handleSignup(client: OpenMatesClient, flags: Record<string, strin
 
   await client.requestSignupEmailCode({ email, inviteCode, language });
   const emailCode = process.env.OPENMATES_CLI_SIGNUP_EMAIL_CODE ?? await promptLine("Email verification code: ");
-  await client.verifySignupEmailCode({ email, username, inviteCode, code: emailCode, language });
-  const signup = await client.setupPasswordAccount({ email, username, password, inviteCode, language });
+  const verification = await client.verifySignupEmailCode({ email, username, inviteCode, code: emailCode, language });
+  const signup = await client.setupPasswordAccount({
+    email, username, password, inviteCode, language,
+    signupTransactionToken: verification.signup_transaction_token,
+  });
   const security = await runSecuritySetup(client, flags, options);
 
   let giftCardResult: unknown = null;
   if (typeof flags["gift-card-code"] === "string") {
     giftCardResult = await client.redeemGiftCard(flags["gift-card-code"]);
   }
+
+  // Security setup can rotate the refresh cookie. Persist the final jar so the
+  // next CLI process does not load the retired token saved at account creation.
+  client.getSession();
 
   const response = {
     success: true,
@@ -14874,7 +14876,7 @@ function printWorkflowsHelp(): void {
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
-  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--json]
   openmates workflows input-show <session-id> [--json]
   openmates workflows input-events <session-id> [--after <event-id>] [--json]
   openmates workflows input-follow-up <session-id> <text> [--json]

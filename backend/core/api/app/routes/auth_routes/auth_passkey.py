@@ -93,6 +93,13 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.utils.server_mode import get_server_edition, validate_request_domain
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.routes.auth_routes.signup_transaction import verify_signup_transaction
+from backend.core.api.app.services.credential_verification import (
+    replace_typed_lookup, typed_lookup_method,
+    acquire_credential_change_lock, release_credential_change_lock,
+)
+from backend.core.api.app.services.session_security_state import mark_recent_strong_proof, require_recent_strong_proof
+from backend.core.api.app.routes.auth_routes.auth_signup_cleanup import rollback_incomplete_signup
 # Import Celery app instance for cache warming tasks
 from backend.core.api.app.tasks.celery_config import app
 
@@ -844,6 +851,66 @@ async def passkey_registration_initiate(
             message=f"Failed to initiate passkey registration: {str(e)}"
         )
 
+async def verify_registration_attestation(
+    request: Request, cache_service: CacheService, *, credential_id: str,
+    attestation_response: dict, client_data_json: str,
+    hashed_email: str, challenge_user_id: str | None,
+) -> tuple[str, dict | None, object]:
+    """Consume a bound challenge and verify WebAuthn creation before account writes.
+
+    Recovery can use this helper with its own challenge issued to the recovered
+    identity. The caller must still enforce its own signup/recovery authorization.
+    """
+    try:
+        client_data = json.loads(_decode_base64_from_frontend(client_data_json).decode("utf-8"))
+        challenge = client_data.get("challenge")
+        if client_data.get("type") != "webauthn.create" or not isinstance(challenge, str):
+            raise ValueError("Invalid registration client data")
+        cached = await cache_service.get_and_delete(f"passkey_challenge:{challenge}")
+        if (not isinstance(cached, dict) or cached.get("hashed_email") != hashed_email
+                or cached.get("user_id") != challenge_user_id):
+            raise ValueError("Registration challenge expired or mismatched")
+        attestation_object = attestation_response.get("attestationObject")
+        if not attestation_object:
+            raise ValueError("Missing attestation object")
+        origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
+        verification = verify_registration_response(
+            credential={"id": credential_id, "rawId": credential_id,
+                        "response": {"attestationObject": attestation_object,
+                                     "clientDataJSON": client_data_json,
+                                     "transports": attestation_response.get("transports", [])},
+                        "type": "public-key",
+                        "clientExtensionResults": attestation_response.get("clientExtensionResults", {})},
+            expected_challenge=base64url_to_bytes(challenge),
+            expected_origin=origin, expected_rp_id=get_rp_id_from_request(request),
+            require_user_verification=True,
+        )
+        public_key = base64.urlsafe_b64encode(verification.credential_public_key).decode().rstrip("=")
+        try:
+            jwk, _ = decode_webauthn_attestation(attestation_object)
+        except Exception:
+            jwk = None
+        return public_key, jwk, verification.aaguid
+    except Exception as exc:
+        raise ValueError("Invalid passkey registration") from exc
+
+
+async def _rollback_incomplete_passkey_enrollment(
+    directus_service: DirectusService, *, user_id: str, credential_id: str,
+    hashed_user_id: str, login_method: str | None = None,
+) -> None:
+    """Remove uncommitted authenticator rows so the same credential can retry."""
+    try:
+        if login_method:
+            await directus_service.delete_encryption_key(hashed_user_id, login_method)
+        pending = await directus_service.get_passkey_by_credential_id(credential_id)
+        if pending and pending.get("user_id") == user_id and pending.get("id"):
+            await directus_service.delete_passkey(pending["id"])
+    except Exception as exc:
+        logger.error("Failed to clean up incomplete passkey registration for %s: %s",
+                     user_id[:8], exc)
+
+
 @router.post("/passkey/registration/complete", response_model=PasskeyRegistrationCompleteResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
 async def passkey_registration_complete(
@@ -907,6 +974,7 @@ async def passkey_registration_complete(
                 )
                 user_id = current_user.id
                 logger.info(f"Adding passkey to existing user: {user_id}")
+                await require_recent_strong_proof(directus_service, cache_service, refresh_token, user_id)
                 
                 # Get user profile to get vault_key_id
                 success, user_data, _ = await directus_service.get_user_profile(user_id)
@@ -952,6 +1020,19 @@ async def passkey_registration_complete(
                     user=None
                 )
         
+        try:
+            public_key_cose_b64, public_key_jwk, aaguid = await verify_registration_attestation(
+                request, cache_service, credential_id=credential_id,
+                attestation_response=complete_request.attestation_response,
+                client_data_json=complete_request.client_data_json,
+                hashed_email=complete_request.hashed_email,
+                challenge_user_id=user_id if is_existing_user else complete_request.user_id,
+            )
+        except ValueError:
+            return PasskeyRegistrationCompleteResponse(
+                success=False, message="Invalid passkey registration. Please try again.", user=None,
+            )
+
         # Only process signup flow if this is a new user
         if not is_existing_user:
             # Validate invite code
@@ -965,10 +1046,14 @@ async def passkey_registration_complete(
                 directus_service, cache_service
             )
             
-            verification_cache_key = f"email_verified:{complete_request.hashed_email}"
-            verification_data = await cache_service.get(verification_cache_key)
+            requires_email_verification = get_server_edition() != "self_hosted" or require_domain_restriction
+            verification_data = await verify_signup_transaction(
+                cache_service, hashed_email=complete_request.hashed_email,
+                username=complete_request.username, invite_code=invite_code or "",
+                transaction_token=complete_request.signup_transaction_token,
+            ) if requires_email_verification else {}
 
-            if not verification_data and (get_server_edition() != "self_hosted" or require_domain_restriction):
+            if not verification_data and requires_email_verification:
                 return PasskeyRegistrationCompleteResponse(
                     success=False,
                     message="Email verification required. Please verify your email first.",
@@ -1008,6 +1093,17 @@ async def passkey_registration_complete(
             # privileges are granted separately with `openmates server make-admin`.
             is_admin = False
 
+            if requires_email_verification:
+                verification_data = await verify_signup_transaction(
+                    cache_service, hashed_email=complete_request.hashed_email,
+                    username=complete_request.username, invite_code=invite_code or "",
+                    transaction_token=complete_request.signup_transaction_token, consume=True,
+                )
+                if not verification_data:
+                    return PasskeyRegistrationCompleteResponse(
+                        success=False, message="Email verification expired. Please verify your email again.", user=None,
+                    )
+
             # Create the user account with encrypted email
             success, user_data, create_message = await directus_service.create_user(
                 username=complete_request.username,
@@ -1020,6 +1116,8 @@ async def passkey_registration_complete(
                 darkmode=complete_request.darkmode,
                 is_admin=is_admin,
                 role=None,
+                login_method="passkey",
+                credential_id_hash=hashlib.sha256(credential_id.encode()).hexdigest(),
             )
             
             if not success:
@@ -1047,122 +1145,7 @@ async def passkey_registration_complete(
                     exc_info=True,
                 )
 
-            # Send 'Account created' confirmation email
-            try:
-                if verification_data and verification_data.get("email"):
-                    celery_app.send_task(
-                        name="app.tasks.email_tasks.account_created_email_task.send_account_created_email",
-                        kwargs={
-                            "email": verification_data.get("email"),
-                            "account_id": user_data.get("account_id"),
-                            "language": complete_request.language,
-                            "darkmode": complete_request.darkmode
-                        },
-                        queue="email"
-                    )
-                    logger.info(f"Account created email task submitted for user {user_id}")
-            except Exception as email_err:
-                logger.error(f"Failed to submit account created email task for user {user_id}: {email_err}")
             vault_key_id = user_data.get("vault_key_id")
-        
-        # Verify WebAuthn attestation using py_webauthn
-        attestation_obj = complete_request.attestation_response
-        attestation_object_b64 = attestation_obj.get("attestationObject")
-        client_data_json_b64 = complete_request.client_data_json
-        
-        if not attestation_object_b64 or not client_data_json_b64:
-            logger.error("attestationObject or clientDataJSON not found in attestation response")
-            return PasskeyRegistrationCompleteResponse(
-                success=False,
-                message="Invalid passkey registration data. Please try again.",
-                user=None
-            )
-        
-        # Get expected challenge from cache
-        try:
-            client_data_json_bytes = _decode_base64_from_frontend(client_data_json_b64)
-            client_data = json.loads(client_data_json_bytes.decode('utf-8'))
-            challenge_from_client = client_data.get('challenge', '')
-            challenge_cache_key = f"passkey_challenge:{challenge_from_client}"
-            cached_challenge = await cache_service.get(challenge_cache_key)
-            
-            if not cached_challenge:
-                logger.warning(f"Challenge not found in cache for user {user_id} - may have expired")
-                return PasskeyRegistrationCompleteResponse(
-                    success=False,
-                    message="Registration challenge expired. Please try again.",
-                    user=None
-                )
-            
-            # Verify type is "webauthn.create"
-            if client_data.get("type") != "webauthn.create":
-                logger.error(f"Invalid clientDataJSON type: {client_data.get('type')}")
-                return PasskeyRegistrationCompleteResponse(
-                    success=False,
-                    message="Invalid passkey registration type.",
-                    user=None
-                )
-            
-            expected_challenge = base64url_to_bytes(challenge_from_client)
-        except Exception as e:
-            logger.error(f"Failed to parse clientDataJSON for user {user_id}: {e}", exc_info=True)
-            return PasskeyRegistrationCompleteResponse(
-                success=False,
-                message="Invalid passkey registration data. Please try again.",
-                user=None
-            )
-        
-        # Get origin and rp_id
-        origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
-        rp_id = get_rp_id_from_request(request)
-        
-        # Verify registration response using py_webauthn
-        try:
-            # Build credential dict for py_webauthn
-            credential_dict = {
-                "id": credential_id,
-                "rawId": credential_id,
-                "response": {
-                    "attestationObject": attestation_object_b64,
-                    "clientDataJSON": client_data_json_b64,
-                    "transports": attestation_obj.get("transports", []),
-                },
-                "type": "public-key",
-                "clientExtensionResults": attestation_obj.get("clientExtensionResults", {}),
-            }
-            
-            # Verify registration response
-            registration_verification = verify_registration_response(
-                credential=credential_dict,
-                expected_challenge=expected_challenge,
-                expected_origin=origin,
-                expected_rp_id=rp_id,
-                require_user_verification=True,
-            )
-            
-            # Extract public key in COSE format (bytes) and AAGUID
-            public_key_cose_bytes = registration_verification.credential_public_key
-            aaguid = registration_verification.aaguid
-            
-            # Convert COSE bytes to base64 for storage
-            public_key_cose_b64 = base64.urlsafe_b64encode(public_key_cose_bytes).decode('utf-8').rstrip('=')
-            
-            # Also extract JWK for backward compatibility (using our existing function)
-            try:
-                public_key_jwk, _ = decode_webauthn_attestation(attestation_object_b64)
-            except Exception as e:
-                logger.warning(f"Failed to extract JWK for backward compatibility: {e}")
-                public_key_jwk = None
-            
-            logger.info(f"Successfully verified registration and extracted public key for user {user_id}")
-            
-        except Exception as e:
-            logger.error(f"Failed to verify registration response for user {user_id}: {e}", exc_info=True)
-            return PasskeyRegistrationCompleteResponse(
-                success=False,
-                message="Invalid passkey registration. Please try again.",
-                user=None
-            )
         
         # Device name is already encrypted client-side with master key (zero-knowledge)
         # Server stores it as-is without decrypting
@@ -1195,6 +1178,8 @@ async def passkey_registration_complete(
         
         if not passkey_success:
             logger.error(f"Failed to store passkey for user {user_id}")
+            if not is_existing_user:
+                await rollback_incomplete_signup(directus_service, user_id)
             return PasskeyRegistrationCompleteResponse(
                 success=False,
                 message="Failed to store passkey. Please try again.",
@@ -1204,13 +1189,8 @@ async def passkey_registration_complete(
         logger.info(f"Successfully stored passkey for user {user_id[:8]}... with credential_id prefix {credential_id[:20]}...")
         
         # Create encryption key record (same pattern as password)
+        login_method = f"passkey_{hashlib.sha256(credential_id.encode()).hexdigest()}"
         try:
-            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            # Use unique login method for each passkey to support multiple passkeys with different PRF keys
-            # We hash the credential_id to ensure it fits within the login_method field length limit
-            credential_id_hash = hashlib.sha256(credential_id.encode()).hexdigest()
-            login_method = f"passkey_{credential_id_hash}"
-            
             success = await directus_service.create_encryption_key(
                 hashed_user_id=hashed_user_id,
                 login_method=login_method,
@@ -1222,6 +1202,15 @@ async def passkey_registration_complete(
                 logger.info(f"Successfully created encryption key record for user {user_id} with method {login_method}")
             else:
                 logger.error(f"Failed to create encryption key for user {user_id}")
+                if not is_existing_user:
+                    await _rollback_incomplete_passkey_enrollment(
+                        directus_service, user_id=user_id, credential_id=credential_id,
+                        hashed_user_id=hashed_user_id, login_method=login_method)
+                    await rollback_incomplete_signup(directus_service, user_id)
+                else:
+                    await _rollback_incomplete_passkey_enrollment(
+                        directus_service, user_id=user_id, credential_id=credential_id,
+                        hashed_user_id=hashed_user_id, login_method=login_method)
                 return PasskeyRegistrationCompleteResponse(
                     success=False,
                     message="Failed to set up account encryption. Please try again.",
@@ -1229,71 +1218,84 @@ async def passkey_registration_complete(
                 )
         except Exception as e:
             logger.error(f"Failed to create encryption key for user {user_id}: {e}", exc_info=True)
+            if not is_existing_user:
+                await _rollback_incomplete_passkey_enrollment(
+                    directus_service, user_id=user_id, credential_id=credential_id,
+                    hashed_user_id=hashed_user_id, login_method=login_method)
+                await rollback_incomplete_signup(directus_service, user_id)
+            else:
+                await _rollback_incomplete_passkey_enrollment(
+                    directus_service, user_id=user_id, credential_id=credential_id,
+                    hashed_user_id=hashed_user_id, login_method=login_method)
             return PasskeyRegistrationCompleteResponse(
                 success=False,
                 message="Failed to set up account encryption. Please try again.",
                 user=None
             )
         
-        # For existing users, update encrypted_email_with_master_key to match the master key used for passkey
-        # This ensures that when they login with passkey, they can decrypt the email with the unwrapped master key
-        # CRITICAL: The email must be encrypted with the same master key that's wrapped for the passkey
-        # NOTE: If this update fails, passkey login will NOT work because we can't decrypt the email
+        if not is_existing_user:
+            # Send 'Account created' confirmation email
+            try:
+                if verification_data and verification_data.get("email"):
+                    celery_app.send_task(
+                        name="app.tasks.email_tasks.account_created_email_task.send_account_created_email",
+                        kwargs={
+                            "email": verification_data.get("email"),
+                            "account_id": user_data.get("account_id"),
+                            "language": complete_request.language,
+                            "darkmode": complete_request.darkmode
+                        },
+                        queue="email"
+                    )
+                    logger.info(f"Account created email task submitted for user {user_id}")
+            except Exception as email_err:
+                logger.error(f"Failed to submit account created email task for user {user_id}: {email_err}")
+        # Existing-account enrollment becomes login-capable in one users-row
+        # write. Publishing the lookup hash before its method binding would let
+        # an interrupted registration use it as an untyped password lookup.
         if is_existing_user:
-            if complete_request.encrypted_email_with_master_key:
-                try:
-                    update_success = await directus_service.update_user(
-                        user_id,
-                        {"encrypted_email_with_master_key": complete_request.encrypted_email_with_master_key}
-                    )
-                    if update_success:
-                        logger.info(f"Successfully updated encrypted_email_with_master_key for existing user {user_id}")
-                        # Evict stale profile cache so passkey login picks up the new value
-                        try:
-                            await cache_service.cache.delete(f"user_profile:{user_id}")
-                        except Exception:
-                            pass  # Non-critical — cache will expire naturally
-                    else:
-                        # CRITICAL: This is now a failure condition - passkey login won't work without this
-                        logger.error(
-                            f"Failed to update encrypted_email_with_master_key for user {user_id}. "
-                            "Passkey registration succeeded but login will fail without this field."
-                        )
-                        return PasskeyRegistrationCompleteResponse(
-                            success=False,
-                            message="Passkey was registered but account setup incomplete. Please try again or use password login.",
-                            user=None
-                        )
-                except Exception as e:
-                    logger.error(f"Error updating encrypted_email_with_master_key for user {user_id}: {e}", exc_info=True)
-                    return PasskeyRegistrationCompleteResponse(
-                        success=False,
-                        message="Passkey was registered but account setup failed. Please try again or use password login.",
-                        user=None
-                    )
-            else:
-                # Client didn't send encrypted_email_with_master_key - this is required for passkey login
-                logger.error(
-                    f"Existing user {user_id} adding passkey but encrypted_email_with_master_key not provided. "
-                    "Passkey login will not work without this."
-                )
+            committed = False
+            credential_lock = None
+            try:
+                if not complete_request.encrypted_email_with_master_key or not complete_request.lookup_hash:
+                    raise ValueError("Passkey encryption data incomplete")
+                credential_lock = await acquire_credential_change_lock(
+                    cache_service, user_id, login_method)
+                fields = await directus_service.get_user_fields_direct(
+                    user_id, ["lookup_hashes", "credential_lookup_hashes"])
+                hashes = fields.get("lookup_hashes") if isinstance(fields, dict) else None
+                typed = fields.get("credential_lookup_hashes") if isinstance(fields, dict) else None
+                if isinstance(hashes, str):
+                    hashes = json.loads(hashes)
+                if isinstance(typed, str):
+                    typed = json.loads(typed) if typed.strip() else {}
+                if typed is None:
+                    typed = {}
+                if not isinstance(hashes, list) or not isinstance(typed, dict):
+                    raise ValueError("Passkey credential state unavailable")
+                if complete_request.lookup_hash in hashes or login_method in typed:
+                    raise ValueError("Passkey lookup already exists")
+                committed = bool(await directus_service.update_user(user_id, {
+                    "encrypted_email_with_master_key": complete_request.encrypted_email_with_master_key,
+                    "lookup_hashes": [*hashes, complete_request.lookup_hash],
+                    "credential_lookup_hashes": replace_typed_lookup(
+                        typed, login_method, complete_request.lookup_hash),
+                }))
+            except Exception as exc:
+                logger.error("Passkey account update failed for %s: %s", user_id[:8], exc)
+            finally:
+                await release_credential_change_lock(credential_lock)
+            if not committed:
+                # Neither row grants login without the users-row lookup, but
+                # remove them so a retry can register the same authenticator.
+                await _rollback_incomplete_passkey_enrollment(
+                    directus_service, user_id=user_id, credential_id=credential_id,
+                    hashed_user_id=hashed_user_id, login_method=login_method)
                 return PasskeyRegistrationCompleteResponse(
-                    success=False,
-                    message="Passkey registration failed: missing required encryption data. Please try again.",
-                    user=None
-                )
-
-            # Also add the new lookup_hash to the user's list of valid lookup hashes
-            # This is required for authentication with the new passkey
-            if complete_request.lookup_hash:
-                try:
-                    lookup_hash_success = await directus_service.add_user_lookup_hash(user_id, complete_request.lookup_hash)
-                    if lookup_hash_success:
-                        logger.info(f"Successfully added new lookup_hash for existing user {user_id}")
-                    else:
-                        logger.warning(f"Failed to add new lookup_hash for user {user_id}, but continuing")
-                except Exception as e:
-                    logger.error(f"Error adding lookup_hash for user {user_id}: {e}", exc_info=True)
+                    success=False, message="Passkey account setup incomplete. Please try again.", user=None)
+            await cache_service.delete(f"user_profile:{user_id}")
+            await cache_service.delete(f"login_methods:{user_id}")
+            await cache_service.delete(f"user:{hashed_user_id}:login_methods")
         
         # Only process signup-specific logic for new users
         if not is_existing_user:
@@ -1449,7 +1451,8 @@ async def passkey_registration_complete(
                     login_method="passkey",
                     stay_logged_in=False
                 ),
-                country_code=country_code
+                country_code=country_code,
+                pair_strong_proof=True,
             )
             
             logger.info(f"Passkey registration completed successfully for user {user_id[:6]}...")
@@ -2046,7 +2049,36 @@ async def passkey_assertion_verify(
         # Update passkey sign_count and last_used_at
         passkey_id = passkey.get("id")
         await directus_service.update_passkey_sign_count(passkey_id, new_sign_count)
+        if verify_request.session_id:
+            method = f"passkey_{hashlib.sha256(credential_id.encode()).hexdigest()}"
+            proof_key = f"passkey:login-proof:{user_id}:{verify_request.session_id}:{method}"
+            if not await cache_service.set(proof_key, "verified", ttl=120):
+                return PasskeyAssertionVerifyResponse(
+                    success=False, message="Passkey verification temporarily unavailable.",
+                    user_id=None, hashed_email=None, encrypted_email=None,
+                    encrypted_master_key=None, key_iv=None, salt=None,
+                    user_email_salt=None, auth_session=None,
+                )
         await cache_service.set(f"reauth_recent_passkey:{user_id}", credential_id, ttl=300)
+        # A verified passkey assertion may authorize a sensitive pair action
+        # only on the same already-authenticated logical session. The legacy
+        # per-user recent-passkey marker above is insufficient for pairing.
+        current_refresh = request.cookies.get("auth_refresh_token")
+        if current_refresh:
+            current_session_user = await cache_service.get_user_by_token(current_refresh)
+            if isinstance(current_session_user, dict) and current_session_user.get("user_id") == user_id:
+                try:
+                    await mark_recent_strong_proof(directus_service, cache_service, current_refresh, user_id, method="passkey")
+                except HTTPException:
+                    # A stale cookie cannot block an otherwise valid fresh
+                    # passkey login; it simply gains no sensitive-action proof.
+                    pass
+                current_tokens = await cache_service.get(f"user_tokens:{user_id}")
+                current_hash = hashlib.sha256(current_refresh.encode()).hexdigest()
+                current_meta = current_tokens.get(current_hash) if isinstance(current_tokens, dict) else None
+                binding = current_meta.get("pair_auth_binding") if isinstance(current_meta, dict) else None
+                if isinstance(binding, str) and len(binding) == 64:
+                    await cache_service.set(f"pair:stepup:{binding}", "verified", ttl=300)
         
         # Get user data
         user_profile = await cache_service.get_user_by_id(user_id)
@@ -2283,7 +2315,8 @@ async def passkey_assertion_verify(
                 email_encryption_key=verify_request.email_encryption_key,
                 session_id=session_id
             ),
-            country_code=country_code
+            country_code=country_code,
+            pair_strong_proof=True,
         )
         
         logger.info(f"Passkey assertion verified and authenticated successfully for user {user_id[:6]}...")
@@ -2539,8 +2572,16 @@ async def verify_device_passkey(
                 country_code,
                 stay_logged_in=bool(user_data.get("stay_logged_in", False)),
             )
+            if update_success:
+                await mark_recent_strong_proof(
+                    directus_service, cache_service, refresh_token, user_id,
+                    method="passkey", clear_risk=True,
+                )
         except Exception as e:
             logger.error(f"Failed to update session security country for user {user_id}: {e}", exc_info=True)
+            return PasskeyDeviceVerifyResponse(
+                success=False, message="Device verification temporarily unavailable. Please try again."
+            )
         
         # Step 7: Log compliance event
         compliance_service.log_auth_event_safe(
@@ -2729,7 +2770,14 @@ async def delete_passkey(
     """
     logger.info(f"Processing POST /passkeys/delete for user {current_user.id[:8]}...")
     
+    credential_lock = None
     try:
+        refresh_token = request.cookies.get("auth_refresh_token")
+        if not refresh_token:
+            return PasskeyDeleteResponse(success=False, message="Recent authentication required")
+        await require_recent_strong_proof(directus_service, cache_service, refresh_token, current_user.id)
+        credential_lock = await acquire_credential_change_lock(
+            cache_service, current_user.id, "passkey")
         # Verify the passkey belongs to the current user
         hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
         passkeys = await directus_service.get_user_passkeys(hashed_user_id)
@@ -2743,7 +2791,7 @@ async def delete_passkey(
             )
         
         # Check if user has other secure login methods before deleting
-        # User must have at least: (1 passkey) OR (password + 2FA)
+        # User must retain a passkey or password login method
         
         # Count remaining passkeys (excluding the one being deleted)
         remaining_passkeys = [p for p in passkeys if p.get("id") != delete_request.passkey_id]
@@ -2752,53 +2800,73 @@ async def delete_passkey(
         # Check if user has password login method
         password_encryption_key = await directus_service.get_encryption_key(hashed_user_id, "password")
         has_password = password_encryption_key is not None
-        
-        # Check if user has 2FA enabled
-        user_profile = await cache_service.get_user_by_id(current_user.id)
-        if not user_profile:
-            profile_success, user_profile, _ = await directus_service.get_user_profile(current_user.id)
-            if not profile_success or not user_profile:
-                logger.error(f"Could not fetch user profile for user {current_user.id[:8]}...")
-                return PasskeyDeleteResponse(
-                    success=False,
-                    message="Failed to verify user security settings"
-                )
-        
-        tfa_enabled = user_profile.get("tfa_enabled", False)
-        has_password_with_2fa = has_password and tfa_enabled
+        typed_fields = await directus_service.get_user_fields_direct(current_user.id, ["credential_lookup_hashes"])
+        typed_methods = typed_fields.get("credential_lookup_hashes") if typed_fields else None
+        if isinstance(typed_methods, str):
+            try:
+                typed_methods = json.loads(typed_methods)
+            except ValueError:
+                typed_methods = None
+        has_password = has_password or (isinstance(typed_methods, dict) and "password" in typed_methods)
         
         # Validate: User must have at least one secure login method remaining
-        if not has_other_passkeys and not has_password_with_2fa:
-            logger.warning(f"User {current_user.id[:8]}... attempted to delete last passkey without password+2FA")
+        if not has_other_passkeys and not has_password:
+            logger.warning(f"User {current_user.id[:8]}... attempted to delete last passkey without password")
             return PasskeyDeleteResponse(
                 success=False,
-                message="Cannot delete passkey: You must have at least one passkey or password with 2FA enabled. Please set up password authentication with 2FA first, or add another passkey."
+                message="Cannot delete your last login method. Add a password or another passkey first."
             )
         
-        # Delete the passkey
+        credential_id = passkey_to_delete.get("credential_id")
+        if not credential_id:
+            return PasskeyDeleteResponse(success=False, message="Passkey credential is incomplete")
+        login_method = f"passkey_{hashlib.sha256(credential_id.encode()).hexdigest()}"
+        fields = await directus_service.get_user_fields_direct(
+            current_user.id, ["lookup_hashes", "credential_lookup_hashes"])
+        typed = fields.get("credential_lookup_hashes") if fields else None
+        hashes = fields.get("lookup_hashes") if fields else None
+        if isinstance(typed, str):
+            try:
+                typed = json.loads(typed)
+            except ValueError:
+                typed = None
+        if isinstance(hashes, str):
+            try:
+                hashes = json.loads(hashes)
+            except ValueError:
+                hashes = None
+        if not isinstance(typed, dict) or not isinstance(hashes, list):
+            return PasskeyDeleteResponse(success=False, message="Credential state unavailable")
+        old_record = typed.get(login_method)
+        old_hash = old_record if isinstance(old_record, str) else (
+            old_record.get("lookup_hash") if isinstance(old_record, dict) else None)
+        if not old_hash or typed_lookup_method(typed, old_hash) != login_method:
+            return PasskeyDeleteResponse(success=False, message="Legacy passkey migration required before deletion")
+        updated_typed = dict(typed)
+        del updated_typed[login_method]
+        if not await directus_service.update_user(current_user.id, {
+            "credential_lookup_hashes": updated_typed,
+            "lookup_hashes": [value for value in hashes if value != old_hash],
+        }):
+            return PasskeyDeleteResponse(success=False, message="Failed to revoke passkey credential")
+
+        # The verifier is retired before deleting the authenticator row.
         success = await directus_service.delete_passkey(delete_request.passkey_id)
         
         if success:
             logger.info(f"Successfully deleted passkey {delete_request.passkey_id[:6]}... for user {current_user.id[:8]}...")
             
             # Delete associated encryption key
-            credential_id = passkey_to_delete.get("credential_id")
-            if credential_id:
-                credential_id_hash = hashlib.sha256(credential_id.encode()).hexdigest()
-                login_method = f"passkey_{credential_id_hash}"
-                
-                # Delete the specific encryption key for this passkey
-                key_deleted = await directus_service.delete_encryption_key(hashed_user_id, login_method)
-                if key_deleted:
-                    logger.info(f"Successfully deleted encryption key for method {login_method}")
-                else:
-                    logger.warning(f"Encryption key not found for method {login_method} during passkey deletion")
+            key_deleted = await directus_service.delete_encryption_key(hashed_user_id, login_method)
+            if not key_deleted:
+                logger.warning(f"Encryption key not found for method {login_method} during passkey deletion")
             
             # Clear login methods cache to ensure lookup endpoint reflects the deletion
             # This prevents showing passkey login option when no passkeys exist
             hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
             login_methods_cache_key = f"user:{hashed_user_id}:login_methods" # Fixed cache key format to match auth_login.py
             await cache_service.delete(login_methods_cache_key)
+            await cache_service.delete(f"user_profile:{current_user.id}")
             logger.debug(f"Cleared login methods cache for user {current_user.id[:8]}... after passkey deletion")
             
             return PasskeyDeleteResponse(
@@ -2806,6 +2874,15 @@ async def delete_passkey(
                 message="Passkey deleted successfully"
             )
         else:
+            # The authenticator row is still present. Restore its verifier
+            # while holding the account credential lock so it remains usable.
+            restored = await directus_service.update_user(current_user.id, {
+                "credential_lookup_hashes": typed,
+                "lookup_hashes": hashes,
+            })
+            if not restored:
+                logger.error("Failed to restore passkey verifier after row deletion failed for %s",
+                             current_user.id[:8])
             return PasskeyDeleteResponse(
                 success=False,
                 message="Failed to delete passkey"
@@ -2817,3 +2894,5 @@ async def delete_passkey(
             success=False,
             message=f"Failed to delete passkey: {str(e)}"
         )
+    finally:
+        await release_credential_change_lock(credential_lock)

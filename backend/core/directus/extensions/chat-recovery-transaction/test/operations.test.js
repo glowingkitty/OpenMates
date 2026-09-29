@@ -67,7 +67,9 @@ function fakeDatabase(seed, injectedFailure = null) {
         where(...args) { addWhere(args); return query; },
         andWhere(...args) { addWhere(args); return query; },
         whereNull(field) { predicates.push((row) => row[field] == null); return query; },
+        whereNotNull(field) { predicates.push((row) => row[field] != null); return query; },
         whereIn(field, values) { predicates.push((row) => values.includes(row[field])); return query; },
+        whereNotIn(field, values) { predicates.push((row) => !values.includes(row[field])); return query; },
         forUpdate() { return query; },
         orderBy(field, direction = 'asc') { orders.push([field, direction]); return query; },
         limit(value) { limitCount = value; return query; },
@@ -295,6 +297,7 @@ test('cleanup fails only RUNNING preflights that have no sealed job', () => {
 test('worker lifecycle operations are explicitly registered', () => {
   for (const operation of [
     'claim_inference', 'mark_outbox_dispatched', 'mark_inference_failed', 'list_available_jobs',
+    'acknowledge_failure_alert',
     'mark_legacy_inference_completed', 'acknowledge_legacy_persistence', 'authorize_legacy_completion',
   ]) {
     assert.equal(typeof operations[operation], 'function');
@@ -663,6 +666,34 @@ test('claim_inference atomically claims once and suppresses duplicate delivery',
   assert.equal(duplicate.state, 'RUNNING');
 });
 
+test('claim_inference returns the durable failure category for cancellation-safe classification', async () => {
+  const cancelled = fakeDatabase({
+    chat_turn_preflights: [{
+      id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'FAILED', failure_category: 'user_cancelled',
+    }],
+  });
+  const cancelledResult = await executeOperation(cancelled, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  });
+  assert.deepEqual(cancelledResult, {
+    inference_task_id: TASK_ID, claimed: false, state: 'FAILED', failure_category: 'user_cancelled',
+  });
+
+  const expired = fakeDatabase({
+    chat_turn_preflights: [{
+      id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'ENQUEUED', outbox_id: OUTBOX_ID,
+      expires_at: new Date('2029-01-01T00:00:00Z'),
+    }],
+    chat_inference_outbox: [{ id: OUTBOX_ID, state: 'PENDING' }],
+  });
+  const expiredResult = await executeOperation(expired, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  }, new Date('2029-01-01T00:00:01Z'));
+  assert.deepEqual(expiredResult, {
+    inference_task_id: TASK_ID, claimed: false, state: 'FAILED', failure_category: 'claim_expired',
+  });
+});
+
 test('outbox dispatch and worker failure transitions are idempotent and sanitized', async () => {
   const database = fakeDatabase({
     chat_turn_preflights: [{
@@ -699,6 +730,7 @@ test('outbox dispatch and worker failure transitions are idempotent and sanitize
   assert.equal(failed.failed, true);
   assert.equal(duplicate.failed, false);
   assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.ok(database.rows.chat_turn_preflights[0].failure_alert_pending_at instanceof Date);
   assert.equal(database.rows.chat_inference_outbox[0].state, 'FAILED');
   await assert.rejects(
     executeOperation(database, 'mark_inference_failed', {
@@ -707,6 +739,40 @@ test('outbox dispatch and worker failure transitions are idempotent and sanitize
       failure_category: 'contains plaintext spaces',
     }),
     (error) => error instanceof ProtocolError && error.code === 'invalid_failure_category',
+  );
+});
+
+test('new failure transitions mark unknown technical failures pending but exclude expected cancellation', async () => {
+  const failedDatabase = (taskId) => fakeDatabase({
+    chat_turn_preflights: [{
+      id: PREFLIGHT_ID, inference_task_id: taskId, state: 'RUNNING', outbox_id: OUTBOX_ID,
+      chat_id: CHAT_ID, user_message_id: 'user-message-1',
+    }],
+    chat_inference_outbox: [{ id: OUTBOX_ID, inference_task_id: taskId, state: 'DISPATCHED' }],
+    chat_completion_recovery_jobs: [],
+  });
+  const technical = failedDatabase(TASK_ID);
+  await executeOperation(technical, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, failure_category: 'future_transport_error',
+  });
+  assert.ok(technical.rows.chat_turn_preflights[0].failure_alert_pending_at instanceof Date);
+  assert.deepEqual(
+    (await executeOperation(technical, 'cleanup_expired', {
+      protocol_version: 1, failure_alerts_enabled: true,
+    })).failure_alert_candidates.map((candidate) => candidate.failure_category),
+    ['future_transport_error'],
+  );
+
+  const cancelled = failedDatabase(TASK_ID);
+  await executeOperation(cancelled, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, failure_category: 'user_cancelled',
+  });
+  assert.equal(cancelled.rows.chat_turn_preflights[0].failure_alert_pending_at, null);
+  assert.deepEqual(
+    (await executeOperation(cancelled, 'cleanup_expired', {
+      protocol_version: 1, failure_alerts_enabled: true,
+    })).failure_alert_candidates,
+    [],
   );
 });
 
@@ -1124,6 +1190,154 @@ test('cleanup_expired removes seven-day jobs and 24-hour terminal tombstones at 
   assert.equal(result.expired_jobs, 1);
   assert.equal(result.expired_tombstones, 1);
   assert.deepEqual(database.rows.chat_completion_recovery_jobs.map((row) => row.id), ['018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa']);
+});
+
+test('unacknowledged technical failure alerts replay until an exact idempotent acknowledgement', async () => {
+  const now = new Date('2029-01-02T00:00:00Z');
+  const database = fakeDatabase({
+    chat_turn_preflights: [{
+      id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID,
+      chat_id: CHAT_ID,
+      user_message_id: 'user-message-1',
+      state: 'FAILED',
+      failed_at: new Date('2029-01-01T00:00:00Z'),
+      failure_category: 'claim_expired',
+      failure_alert_pending_at: new Date('2029-01-01T00:00:00Z'),
+      failure_alert_queued_at: null,
+    }],
+    chat_completion_recovery_jobs: [],
+    chat_inference_outbox: [],
+  });
+
+  const disabled = await executeOperation(database, 'cleanup_expired', { protocol_version: 1 }, now);
+  assert.deepEqual(disabled.failure_alert_candidates, []);
+  const cleanupBody = { protocol_version: 1, failure_alerts_enabled: true };
+  const first = await executeOperation(database, 'cleanup_expired', cleanupBody, now);
+  const replay = await executeOperation(database, 'cleanup_expired', cleanupBody, now);
+  assert.deepEqual(first.failure_alert_candidates, replay.failure_alert_candidates);
+  assert.deepEqual(first.failure_alert_candidates, [{
+    preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID,
+    chat_id: CHAT_ID,
+    user_message_id: 'user-message-1',
+    failure_category: 'claim_expired',
+  }]);
+
+  const acknowledged = await executeOperation(database, 'acknowledge_failure_alert', {
+    protocol_version: 1,
+    preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID,
+    failure_category: 'claim_expired',
+  }, now);
+  const duplicate = await executeOperation(database, 'acknowledge_failure_alert', {
+    protocol_version: 1,
+    preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID,
+    failure_category: 'claim_expired',
+  }, new Date(now.getTime() + 1000));
+  assert.deepEqual(acknowledged, { preflight_id: PREFLIGHT_ID, acknowledged: true, idempotent: false });
+  assert.deepEqual(duplicate, { preflight_id: PREFLIGHT_ID, acknowledged: false, idempotent: true });
+  assert.deepEqual(
+    (await executeOperation(database, 'cleanup_expired', cleanupBody, now)).failure_alert_candidates,
+    [],
+  );
+});
+
+test('failure alert replay includes future technical categories and excludes expected outcomes', async () => {
+  const technical = [
+    'claim_expired', 'dispatch_failed', 'runtime_error', 'soft_time_limit',
+    'unhandled_error', 'worker_timeout', 'future_transport_error',
+  ];
+  const rows = [...technical, 'user_cancelled', 'policy_rejection'].map((failureCategory, index) => ({
+    id: `018f1111-1111-7111-8111-11111111111${index}`,
+    inference_task_id: `018f2222-2222-7222-8222-22222222222${index}`,
+    chat_id: CHAT_ID,
+    user_message_id: `user-message-${index}`,
+    state: 'FAILED',
+    failed_at: new Date('2029-01-01T00:00:00Z'),
+    failure_category: failureCategory,
+    failure_alert_pending_at: new Date('2029-01-01T00:00:00Z'),
+    failure_alert_queued_at: null,
+  }));
+  const database = fakeDatabase({
+    chat_turn_preflights: rows,
+    chat_completion_recovery_jobs: [],
+    chat_inference_outbox: [],
+  });
+
+  const result = await executeOperation(database, 'cleanup_expired', {
+    protocol_version: 1, failure_alerts_enabled: true,
+  }, new Date('2029-01-02T00:00:00Z'));
+  assert.deepEqual(
+    result.failure_alert_candidates.map((candidate) => candidate.failure_category).sort(),
+    [...technical].sort(),
+  );
+});
+
+test('sealed recovery wins cleanup and expiring sealed jobs cannot become later timeout alerts', async () => {
+  const now = new Date('2029-01-08T00:00:00Z');
+  const seed = leasedSeed(new Date('2029-01-01T00:00:00Z'));
+  seed.chat_turn_preflights[0].expires_at = new Date('2029-01-02T00:00:00Z');
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_turn_preflights[0].user_message_id = 'user-message-1';
+  seed.chat_completion_recovery_jobs[0].expires_at = now;
+  const database = fakeDatabase(seed);
+
+  const cleanupBody = { protocol_version: 1, failure_alerts_enabled: true };
+  const result = await executeOperation(database, 'cleanup_expired', cleanupBody, now);
+  assert.equal(result.failed_inferences, 0);
+  assert.deepEqual(result.failure_alert_candidates, []);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'ABANDONED');
+  assert.equal(database.rows.chat_completion_recovery_jobs.length, 0);
+  const later = await executeOperation(
+    database, 'cleanup_expired', cleanupBody, new Date(now.getTime() + 60_000),
+  );
+  assert.deepEqual(later.failure_alert_candidates, []);
+});
+
+test('cleanup alerts expired enqueued work but excludes prepared abandonment and rejects stale acknowledgements', async () => {
+  const now = new Date('2029-01-02T00:00:00Z');
+  const preparedId = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+  const database = fakeDatabase({
+    chat_turn_preflights: [
+      {
+        id: preparedId, state: 'PREPARED', chat_id: CHAT_ID, user_message_id: 'prepared-message',
+        expires_at: now, inference_task_id: null,
+      },
+      {
+        id: PREFLIGHT_ID, state: 'ENQUEUED', chat_id: CHAT_ID, user_message_id: 'user-message-1',
+        expires_at: now, inference_task_id: TASK_ID, outbox_id: OUTBOX_ID,
+      },
+    ],
+    chat_completion_recovery_jobs: [],
+    chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID, state: 'PENDING' }],
+  });
+
+  const result = await executeOperation(
+    database, 'cleanup_expired', { protocol_version: 1, failure_alerts_enabled: true }, now,
+  );
+  assert.equal(database.rows.chat_turn_preflights.find((row) => row.id === preparedId).state, 'ABANDONED');
+  assert.equal(database.rows.chat_turn_preflights.find((row) => row.id === PREFLIGHT_ID).state, 'FAILED');
+  assert.deepEqual(result.failure_alert_candidates.map((row) => row.preflight_id), [PREFLIGHT_ID]);
+  await assert.rejects(
+    executeOperation(database, 'acknowledge_failure_alert', {
+      protocol_version: 1,
+      preflight_id: PREFLIGHT_ID,
+      inference_task_id: '018f9999-9999-7999-8999-999999999999',
+      failure_category: 'claim_expired',
+    }, now),
+    (error) => error instanceof ProtocolError && error.code === 'failure_alert_not_found',
+  );
+  await assert.rejects(
+    executeOperation(database, 'acknowledge_failure_alert', {
+      protocol_version: 1,
+      preflight_id: preparedId,
+      inference_task_id: TASK_ID,
+      failure_category: 'claim_expired',
+    }, now),
+    (error) => error instanceof ProtocolError && error.code === 'failure_alert_not_found',
+  );
 });
 
 test('chat deletion invalidates recovery state and rejects a late sealed job', async () => {

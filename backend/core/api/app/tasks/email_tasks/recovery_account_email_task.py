@@ -119,3 +119,25 @@ async def _async_send_account_recovery_email(
         if cache_service:
             await cache_service.close()
         await secrets_manager.aclose()
+
+
+@app.task(name='app.tasks.email_tasks.recovery_email_task.send_recovery_pending_email', bind=True)
+def send_recovery_pending_email(self, email: str, language: str = "en") -> bool:
+    """Notify the account owner of the 24-hour cancellable reset window."""
+    return asyncio.run(_async_send_recovery_pending_email(email, language))
+
+
+async def _async_send_recovery_pending_email(email: str, language: str) -> bool:
+    secrets_manager = SecretsManager()
+    try:
+        await secrets_manager.initialize()
+        service = EmailTemplateService(secrets_manager=secrets_manager)
+        return await service.send_email(
+            template="account-recovery-pending",
+            recipient_email=email,
+            context={"darkmode": False},
+            subject="OpenMates security alert: cancellable request",
+            lang=language,
+        )
+    finally:
+        await secrets_manager.aclose()

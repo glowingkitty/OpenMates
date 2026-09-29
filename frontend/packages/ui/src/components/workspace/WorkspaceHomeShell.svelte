@@ -203,7 +203,7 @@
             {/if}
           </div>
         {/if}
-        <div class="workspace-right-buttons"></div>
+        <div class="workspace-right-buttons"><slot name="top-right" /></div>
       </div>
     {/if}
 
@@ -697,6 +697,10 @@
     width: min(100% - 48px, 1860px);
     margin: clamp(34px, 8vh, 92px) auto 0;
     pointer-events: auto;
+  }
+
+  .workspace-home-shell.content-slot-mode .workspace-content-slot {
+    flex-shrink: 0;
   }
 
   .workspace-home-shell.content-slot-mode .workspace-daily-inspiration-area {

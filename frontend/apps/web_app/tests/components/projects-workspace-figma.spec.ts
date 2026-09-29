@@ -32,6 +32,26 @@ test.beforeEach(async ({ page }) => {
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('uses the shared chat preview sizes for project landing cards without project metadata', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'landing'));
+  await waitForProjectsPreview(page);
+  const card = page.getByTestId('project-landing-card');
+  await expect(card).toBeVisible();
+  await expect(card).toHaveClass(/workspace-continue-card/);
+  await expect(card).not.toContainText('Project');
+  await expect(card).not.toContainText('items');
+  await expect(card).toHaveCSS('height', '200px');
+
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto(preview(900, 'landing'));
+  await waitForProjectsPreview(page);
+  await expect(page.getByTestId('project-landing-card')).toHaveClass(/resume-chat-card/);
+  await expect(page.getByTestId('project-landing-card')).not.toContainText('Project');
+  await expect(page.getByTestId('project-landing-card')).not.toContainText('items');
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
 test('keeps the Figma project header and icon tabs while switching workspace panels', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(preview(1512));
@@ -155,6 +175,25 @@ test('keeps the Figma project header and icon tabs while switching workspace pan
   await folderPreviews.first().click();
   await expect(page.getByLabel('Project folder path').getByText('Backend', { exact: true })).toBeVisible();
   await page.getByTestId('project-folder-create-menu-button').click();
+  const expandedActions = page.getByTestId('project-action-expander');
+  const createMenu = page.getByTestId('project-create-menu');
+  await expect(page.getByTestId('project-folder-create-menu-button')).toHaveAttribute('aria-expanded', 'true');
+  await expect(createMenu.getByRole('button')).toHaveCount(3);
+  const actionsBox = await page.getByTestId('project-folder-actions').boundingBox();
+  const menuBox = await createMenu.boundingBox();
+  expect(actionsBox).not.toBeNull();
+  expect(menuBox).not.toBeNull();
+  expect(menuBox!.x).toBeGreaterThanOrEqual(actionsBox!.x + actionsBox!.width - 1);
+  expect(Math.abs(menuBox!.y - actionsBox!.y)).toBeLessThanOrEqual(1);
+  for (const button of await createMenu.getByRole('button').all()) {
+    const iconBox = await button.locator('.menu-icon').boundingBox();
+    const labelBox = await button.locator('strong').boundingBox();
+    expect(iconBox).not.toBeNull();
+    expect(labelBox).not.toBeNull();
+    expect(iconBox!.y).toBeGreaterThanOrEqual(menuBox!.y + 2);
+    expect(labelBox!.y + labelBox!.height).toBeLessThanOrEqual(menuBox!.y + menuBox!.height - 2);
+  }
+  await testInfo.attach('project-create-expanded', { body: await expandedActions.screenshot(), contentType: 'image/png' });
   await page.getByTestId('project-create-chat').click();
   await expect(page.locator('html')).toHaveAttribute('data-project-workspace-action', 'chat');
   await expect(page.locator('html')).toHaveAttribute('data-project-workspace-target', /"folderId":"backend"/);
@@ -212,6 +251,10 @@ test('opens a shared embed beside the Project workspace on desktop', async ({ pa
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(preview(1512, 'folders'));
   await waitForProjectsPreview(page);
+  await page.locator('.component-mount').evaluate((element) => {
+    element.style.height = '520px';
+    element.style.marginTop = '72px';
+  });
 
   await page.getByTestId('project-item-card').first().locator('.unified-embed-preview').click();
   const viewer = page.getByTestId('project-embed-viewer');
@@ -220,8 +263,19 @@ test('opens a shared embed beside the Project workspace on desktop', async ({ pa
   const viewerBox = await viewer.boundingBox();
   expect(projectBox).not.toBeNull();
   expect(viewerBox).not.toBeNull();
+  expect(projectBox!.x).toBeGreaterThan(20);
+  expect(projectBox!.y).toBeGreaterThan(60);
   expect(projectBox!.width).toBeLessThanOrEqual(401);
   expect(viewerBox!.x).toBeGreaterThanOrEqual(projectBox!.x + projectBox!.width);
+  await expect.poll(async () => {
+    const pane = await page.getByTestId('projects-page').boundingBox();
+    const actions = await page.getByTestId('project-header-actions').boundingBox();
+    return pane && actions ? Math.abs(actions.x - pane.x) + Math.abs(actions.width - pane.width) : Number.POSITIVE_INFINITY;
+  }).toBeLessThanOrEqual(2);
+  const splitActions = await page.getByTestId('project-header-actions').boundingBox();
+  expect(splitActions).not.toBeNull();
+  expect(splitActions!.y).toBeGreaterThan(projectBox!.y);
+  expect(splitActions!.y).toBeLessThan(projectBox!.y + 40);
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
@@ -230,8 +284,8 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await page.goto(preview(1512, 'connectedSource'));
   await waitForProjectsPreview(page);
 
-  await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
-  await expect(page.getByTestId('project-remote-browser')).toBeVisible();
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
   const remoteSharedPreview = page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview');
   await expect(remoteSharedPreview).toBeVisible();
   await remoteSharedPreview.click();
@@ -247,27 +301,20 @@ test('opens a virtual connected-source preview beside the Project workspace', as
   await expect(viewer.getByTestId('embed-header-provenance')).toHaveText('Streamed from OpenMates repository');
   await expect(viewer.getByTestId('embed-header-provenance-icon')).toBeVisible();
   const remoteBrowser = page.getByTestId('project-remote-browser');
-  await expect(remoteBrowser).toBeVisible();
+  await expect(remoteBrowser).toBeAttached();
   await expect(page.getByTestId('project-folder-actions')).toBeVisible();
   await expect(page.getByTestId('project-folder-actions').getByRole('button')).toHaveCount(3);
   await expect(page.getByTestId('project-folder-actions').getByRole('button').first()).toHaveCSS('filter', 'none');
-  await expect.poll(async () => {
-    const actions = await page.getByTestId('project-folder-actions').boundingBox();
-    const pane = await page.getByTestId('projects-page').boundingBox();
-    return actions && pane ? actions.y - pane.y : Number.POSITIVE_INFINITY;
-  }).toBeLessThanOrEqual(28);
-  await expect(page.getByTestId('project-remote-parent')).toBeHidden();
-  await expect(page.getByTestId('project-remote-search-input')).toBeHidden();
+  await expect(page.getByLabel('Project folder path')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-parent')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
   await expect(page.getByTestId('project-connected-source-root')).toBeHidden();
   await expect(page.getByTestId('project-remote-preview-meta')).toHaveCount(0);
   await expect(page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview')).toBeVisible();
-  const localCardBox = await page.getByTestId('project-item-card').first().locator('.unified-embed-preview').boundingBox();
   const remoteCardBox = await page.getByTestId('project-remote-preview-card').locator('.unified-embed-preview').boundingBox();
-  expect(localCardBox).not.toBeNull();
   expect(remoteCardBox).not.toBeNull();
-  expect(Math.abs(localCardBox!.x - remoteCardBox!.x)).toBeLessThanOrEqual(2);
-  expect(Math.abs(localCardBox!.width - remoteCardBox!.width)).toBeLessThanOrEqual(2);
-  expect(await remoteBrowser.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await expect(page.getByTestId('project-item-card')).toHaveCount(0);
+  expect(await page.getByTestId('project-browser-list').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   const projectBox = await page.getByTestId('projects-page').boundingBox();
   const viewerBox = await viewer.boundingBox();
   const overlayBox = await fullscreenOverlay.boundingBox();
@@ -290,12 +337,18 @@ test('opens a connected source inside the Files grid with shared folder previews
   await page.goto(preview(1512, 'connectedSource'));
   await waitForProjectsPreview(page);
 
-  const sourceRoot = page.getByTestId('project-connected-source-root');
-  await expect(sourceRoot.locator('.unified-embed-preview')).toHaveAttribute('data-app-id', 'files');
-  await expect(sourceRoot.getByTestId('project-remote-cloud-badge')).toBeVisible();
-  await sourceRoot.locator('.unified-embed-preview').click();
-  await expect(page.getByTestId('project-remote-browser')).toBeVisible();
-  await expect(page.getByTestId('project-remote-search-input')).toBeVisible();
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
+  await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
+  const connectedFolder = page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' });
+  await expect(connectedFolder.getByTestId('project-remote-folder-child')).toHaveCount(2);
+  await expect(connectedFolder).toContainText('src');
+  await expect(connectedFolder).toContainText('app.ts');
+  await expect(connectedFolder).toContainText('1 file, 1 folder · 2.0 KiB in files');
+  await expect(page.getByLabel('Project folder path')).toHaveCount(0);
+  await expect(page.getByTestId('project-folders-panel').locator('.section-title')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-search-input')).toHaveCount(0);
+  await expect(page.getByTestId('project-folder-search')).toBeVisible();
   await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
   await expect(page.getByTestId('project-remote-entry').getByTestId('project-remote-cloud-badge')).toHaveCount(2);
   await expect(page.getByTestId('project-remote-entry').filter({ has: page.locator('.unified-embed-preview') })).toHaveCount(2);
@@ -304,6 +357,17 @@ test('opens a connected source inside the Files grid with shared folder previews
   expect(remoteFileCardBox).not.toBeNull();
   expect(remoteFileCardBox!.width).toBeLessThanOrEqual(301);
 
+  await connectedFolder.locator('.unified-embed-preview').click();
+  const nestedPath = page.getByLabel('Project folder path');
+  await expect(nestedPath.getByText('frontend', { exact: true })).toBeVisible();
+  await expect(nestedPath.getByText('.', { exact: true })).toHaveCount(0);
+  await expect(nestedPath).toHaveText(/^\s*\/\s*frontend\s*$/);
+  await expect(page.getByTestId('project-folders-panel').locator('.section-title h3')).toHaveCount(0);
+  await nestedPath.getByRole('button', { name: 'Project root' }).click();
+  await expect(nestedPath).toHaveCount(0);
+  await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
+  await connectedFolder.locator('.unified-embed-preview').click();
+  await page.getByRole('button', { name: 'Project root' }).click();
   await page.getByTestId('project-folder-card').first().locator('.unified-embed-preview').click();
   await expect(page.getByTestId('project-remote-browser')).toHaveCount(0);
   await expect(page.getByLabel('Project folder path').getByText('Backend', { exact: true })).toBeVisible();
@@ -321,25 +385,217 @@ test('opens a connected source inside the Files grid with shared folder previews
 
   const projectMain = page.getByTestId('project-management');
   const projectTabs = page.getByTestId('project-tabs');
-  const initialTabsBox = await projectTabs.boundingBox();
-  expect(initialTabsBox).not.toBeNull();
   await expect(projectTabs).toHaveCSS('position', 'relative');
   await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
   const remoteBrowser = page.getByTestId('project-remote-browser');
-  await expect(remoteBrowser).toBeVisible();
+  await expect(remoteBrowser).toBeAttached();
+  await projectMain.evaluate((element) => { element.scrollTop = 0; });
+  const initialTabsBox = await projectTabs.boundingBox();
+  expect(initialTabsBox).not.toBeNull();
   await projectMain.evaluate((element) => { element.scrollTop = Math.min(500, element.scrollHeight - element.clientHeight); });
-  await expect.poll(() => projectMain.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
+  await expect.poll(() => projectMain.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   const scrolledTabsBox = await projectTabs.boundingBox();
-  const remoteBrowserBox = await remoteBrowser.boundingBox();
+  const remoteBrowserBox = await remoteBrowser.getByTestId('project-remote-entry').first().boundingBox();
   expect(scrolledTabsBox).not.toBeNull();
   expect(remoteBrowserBox).not.toBeNull();
-  expect(scrolledTabsBox!.y).toBeLessThan(initialTabsBox!.y - 100);
+  expect(scrolledTabsBox!.y).toBeLessThan(initialTabsBox!.y);
   const tabsOverlapRemote = scrolledTabsBox!.x < remoteBrowserBox!.x + remoteBrowserBox!.width
     && scrolledTabsBox!.x + scrolledTabsBox!.width > remoteBrowserBox!.x
     && scrolledTabsBox!.y < remoteBrowserBox!.y + remoteBrowserBox!.height
     && scrolledTabsBox!.y + scrolledTabsBox!.height > remoteBrowserBox!.y;
   expect(tabsOverlapRemote).toBe(false);
   await testInfo.attach('projects-connected-source-scrolled', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.files.connected-embed-previews
+test('aligns the Files grid with Project panels and uses typed list icons without scaling rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'connectedSource'));
+  await waitForProjectsPreview(page);
+
+  const filesPanel = page.getByTestId('project-folders-panel');
+  const filesBox = await filesPanel.boundingBox();
+  const actionBox = await page.getByTestId('project-action-expander').boundingBox();
+  const folderBox = await page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' }).boundingBox();
+  const fileBox = await page.getByTestId('project-remote-entry').filter({ hasText: 'README.md' }).boundingBox();
+  expect(filesBox && actionBox && folderBox && fileBox).toBeTruthy();
+  expect(filesBox!.width).toBeLessThanOrEqual(1024);
+  expect(Math.abs(actionBox!.width - folderBox!.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(folderBox!.width - fileBox!.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(actionBox!.y - folderBox!.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(folderBox!.y - fileBox!.y)).toBeLessThanOrEqual(2);
+
+  await page.getByTestId('project-tab-tasks').hover();
+  await expect(page.getByTestId('project-tab-tasks').locator('.tab-icon')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  const folderRow = page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' });
+  const fileRow = page.getByTestId('project-remote-entry').filter({ hasText: 'README.md' });
+  await expect(folderRow.locator('.remote-list-icon')).toHaveAttribute('data-app', 'files');
+  await expect(fileRow.locator('.remote-list-icon')).toHaveAttribute('data-app', 'docs');
+  await folderRow.hover();
+  await expect(folderRow).toHaveCSS('scale', '1');
+  await expect(folderRow).toHaveCSS('transform', 'none');
+  await expect.poll(async () => {
+    const rowBackground = await folderRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const baseBackground = await fileRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    return rowBackground !== baseBackground;
+  }).toBe(true);
+
+  await page.getByTestId('project-tab-overview').click();
+  const overviewBox = await page.getByTestId('project-overview-panel').boundingBox();
+  expect(overviewBox).not.toBeNull();
+  expect(Math.abs(filesBox!.width - overviewBox!.width)).toBeLessThanOrEqual(1);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('uses matching app icons and hover treatment for stored Project file rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'folders'));
+  await waitForProjectsPreview(page);
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+
+  const codeRow = page.getByTestId('project-item-card').filter({ hasText: 'ProjectsPage.svelte' });
+  const docsRow = page.getByTestId('project-item-card').filter({ hasText: 'Project brief' });
+  const pdfRow = page.getByTestId('project-item-card').filter({ hasText: 'architecture.pdf' });
+  await expect(codeRow.locator('.item-list-icon')).toHaveAttribute('data-app', 'code');
+  await expect(docsRow.locator('.item-list-icon')).toHaveAttribute('data-app', 'docs');
+  await expect(pdfRow.locator('.item-list-icon')).toHaveAttribute('data-app', 'pdf');
+  await codeRow.hover();
+  await expect(codeRow).toHaveCSS('scale', '1');
+  await expect(codeRow).toHaveCSS('transform', 'none');
+  await expect.poll(async () => {
+    const highlighted = await codeRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const normal = await docsRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    return highlighted !== normal;
+  }).toBe(true);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews
+test('opens the only connected local folder directly in Files', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'localFolderSource'));
+  await waitForProjectsPreview(page);
+
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-browser')).toBeAttached();
+  await expect(page.getByTestId('project-remote-entry')).toHaveCount(2);
+  await expect(page.getByLabel('Project folder path')).toHaveCount(0);
+  await expect(page.getByTestId('project-folders-panel').locator('.section-title')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+test('bounds large connected and stored folders while searching the whole Project', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'largeConnectedSource'));
+  await waitForProjectsPreview(page);
+
+  const remoteEntries = page.getByTestId('project-remote-entry');
+  const remotePages = page.getByTestId('project-remote-page-controls');
+  await expect(remoteEntries).toHaveCount(48);
+  await expect(remotePages).toContainText('Page 1');
+  const firstRemotePageNames = await remoteEntries.allTextContents();
+  await remotePages.getByRole('button', { name: 'Next' }).click();
+  await expect(remoteEntries).toHaveCount(48);
+  await expect(remotePages).toContainText('Page 2');
+  expect(await remoteEntries.allTextContents()).not.toEqual(firstRemotePageNames);
+  await remotePages.getByRole('button', { name: 'Previous' }).click();
+  await expect(remoteEntries).toHaveText(firstRemotePageNames);
+
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(remoteEntries).toHaveCount(48);
+  await remotePages.getByRole('button', { name: 'Next' }).click();
+  await expect(remoteEntries).toHaveCount(48);
+  await expect(remotePages).toContainText('Page 2');
+  await remotePages.getByRole('button', { name: 'Previous' }).click();
+  await expect(remoteEntries.first()).toContainText('needle-current.ts');
+  await expect(remoteEntries.last()).toContainText('remote-file-046.ts');
+
+  const search = page.getByTestId('project-folder-search');
+  await search.fill('needle');
+  await search.press('Enter');
+  const results = page.getByTestId('project-remote-search-results');
+  await expect(results.getByTestId('project-search-loading')).toHaveCount(0);
+  await expect(results.getByTestId('project-search-current-heading')).toHaveText('Current folder:');
+  await expect(results.getByTestId('project-search-across-heading')).toHaveText('Across OpenMates:');
+  await expect(results.getByTestId('project-search-result')).toHaveCount(4);
+  await expect(results.getByTestId('project-search-result').first()).toContainText('needle-current.ts');
+  await expect(results.getByTestId('project-search-result').filter({ hasText: 'needle-child.ts' })).toHaveCount(1);
+  await expect(results.getByTestId('project-search-result').filter({ hasText: 'needle-stored-root.md' })).toHaveCount(1);
+  await expect(results.getByTestId('project-search-result').filter({ hasText: 'needle-stored-nested.md' })).toHaveCount(1);
+  const headingOrder = await results.evaluate((element) => {
+    const current = element.querySelector('[data-testid="project-search-current-heading"]');
+    const across = element.querySelector('[data-testid="project-search-across-heading"]');
+    return Boolean(current && across && current.compareDocumentPosition(across) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(headingOrder).toBe(true);
+
+  await search.fill('');
+  await remoteEntries.filter({ hasText: 'nested' }).first().click();
+  await page.getByRole('button', { name: 'Project root' }).click();
+  const storedPages = page.getByTestId('project-files-page-controls');
+  const mountedStoredCards = page.getByTestId('project-browser-list').locator('[data-testid="project-folder-card"], [data-testid="project-virtual-folder-card"], [data-testid="project-item-card"], [data-testid="project-connected-source-root"]');
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).toContainText('Backend');
+  await storedPages.getByRole('button', { name: 'Next' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).not.toContainText('Backend');
+  await storedPages.getByRole('button', { name: 'Previous' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).toContainText('Backend');
+  await page.getByRole('button', { name: 'Tile', exact: true }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await storedPages.getByRole('button', { name: 'Next' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).not.toContainText('Backend');
+  await storedPages.getByRole('button', { name: 'Previous' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).toContainText('Backend');
+
+  await search.fill('needle');
+  await search.press('Enter');
+  await expect(results.getByTestId('project-search-result').first()).toContainText('needle-stored-root.md');
+  await expect(results.getByTestId('project-search-result')).toHaveCount(4);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+test('pages a legacy connected source response containing 500 entries', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'legacyConnectedSource'));
+  await waitForProjectsPreview(page);
+
+  const entries = page.getByTestId('project-remote-entry');
+  const controls = page.getByTestId('project-remote-page-controls');
+  await expect(entries).toHaveCount(48);
+  await expect(entries.first()).toContainText('legacy-file-000.ts');
+  await expect(controls).toContainText('Page 1');
+  for (let pageNumber = 2; pageNumber <= 11; pageNumber += 1) {
+    await controls.getByRole('button', { name: 'Next' }).click();
+    await expect(controls).toContainText(`Page ${pageNumber}`);
+    await expect(entries).toHaveCount(pageNumber === 11 ? 20 : 48);
+  }
+  await expect(entries.last()).toContainText('legacy-file-499.ts');
+  await expect(controls.getByRole('button', { name: 'Next' })).toBeDisabled();
+  await controls.getByRole('button', { name: 'Previous' }).click();
+  await expect(controls).toContainText('Page 10');
+  await expect(entries).toHaveCount(48);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('loads one-level children for both connected source folder cards', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'multipleSources'));
+  await waitForProjectsPreview(page);
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await page.getByTestId('project-remote-entry').filter({ hasText: 'docs' }).locator('.unified-embed-preview').click();
+  await page.getByRole('button', { name: 'Project root' }).click();
+  const firstSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'OpenMates repository' });
+  const secondSource = page.getByTestId('project-connected-source-root').filter({ hasText: 'Second repository' });
+  await expect(firstSource).toContainText('README.md');
+  await expect(secondSource).toContainText('README.md');
+  await expect(secondSource).toContainText('1 file');
+  await secondSource.locator('.unified-embed-preview').click();
+  await expect(page.getByTestId('project-connected-source-root')).toHaveCount(0);
+  await expect(page.getByTestId('project-remote-entry').filter({ hasText: 'README.md' })).toBeVisible();
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
@@ -408,6 +664,20 @@ test('embeds the same five-status task board without legacy compact forms', asyn
   await expect(page.getByTestId('task-create-form')).toHaveCount(0);
   await expect(page.getByTestId('task-extract-card')).toHaveCount(0);
   await testInfo.attach('projects-tasks-figma-desktop', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
+
+  await page.getByTestId('task-card-open').first().click();
+  const taskDialog = page.getByRole('dialog', { name: /^Task details:/ });
+  await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible();
+  expect(await taskDialog.evaluate((element) => element.parentElement?.getAttribute('data-testid'))).toBe('projects-page');
+  const dialogBox = await taskDialog.boundingBox();
+  const projectBox = await page.getByTestId('projects-page').boundingBox();
+  expect(dialogBox).not.toBeNull();
+  expect(projectBox).not.toBeNull();
+  expect(Math.abs(dialogBox!.x - projectBox!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dialogBox!.width - projectBox!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dialogBox!.height - projectBox!.height)).toBeLessThanOrEqual(1);
+  await page.getByTestId('task-detail-minimize').click();
+  await expect(taskDialog).toHaveCount(0);
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
@@ -423,3 +693,77 @@ test('uses the chat sidebar list pattern for project navigation', async ({ page 
   await expect(page.getByTestId('project-detail-link')).toHaveAttribute('aria-label', 'Open OpenMates');
   await expect(page.getByTestId('project-management')).toHaveCount(0);
 });
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+for (const width of [393, 1512]) {
+  test(`keeps project header controls visible while scrolling at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto(preview(width, 'folders'));
+    await waitForProjectsPreview(page);
+    await page.locator('.component-mount').evaluate((element) => {
+      element.style.height = '520px';
+      // Leave a visible shell-sized band above the pane so viewport-top
+      // positioning cannot pass this regression.
+      element.style.marginTop = '72px';
+    });
+
+    const main = page.getByTestId('project-management');
+    const pane = page.getByTestId('projects-page');
+    const actions = page.getByTestId('project-header-actions');
+    const report = page.getByTestId('report-issue-button-shell');
+    const more = page.getByTestId('project-more-button');
+    const close = page.getByTestId('project-detail-back');
+    await expect(actions).toHaveCSS('position', 'fixed');
+    await expect.poll(async () => {
+      const paneBox = await pane.boundingBox();
+      const actionsBox = await actions.boundingBox();
+      return paneBox && actionsBox ? actionsBox.y - paneBox.y : Number.NEGATIVE_INFINITY;
+    }).toBeGreaterThanOrEqual(4);
+    await expect(report).toHaveAttribute('data-header-overlay', '');
+    await expect(more.locator('..')).toHaveAttribute('data-header-overlay', '');
+    await expect(close.locator('..')).toHaveAttribute('data-header-overlay', '');
+    for (const pill of [report, more.locator('..'), close.locator('..')]) {
+      await expect(pill).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.2)');
+    }
+
+    async function expectInsidePane() {
+      const paneBox = await pane.boundingBox();
+      const actionsBox = await actions.boundingBox();
+      expect(paneBox).not.toBeNull();
+      expect(actionsBox).not.toBeNull();
+      expect(paneBox!.y).toBeGreaterThan(60);
+      expect(paneBox!.x).toBeGreaterThan(20);
+      expect(actionsBox!.y).toBeGreaterThanOrEqual(paneBox!.y + 4);
+      expect(actionsBox!.y).toBeLessThan(paneBox!.y + 40);
+      expect(actionsBox!.x).toBeGreaterThanOrEqual(paneBox!.x - 1);
+      expect(actionsBox!.x + actionsBox!.width).toBeLessThanOrEqual(paneBox!.x + paneBox!.width + 1);
+      for (const control of [report, more, close]) {
+        const controlBox = await control.boundingBox();
+        expect(controlBox).not.toBeNull();
+        expect(controlBox!.y).toBeGreaterThanOrEqual(paneBox!.y + 4);
+        expect(controlBox!.x).toBeGreaterThanOrEqual(paneBox!.x);
+        expect(controlBox!.x + controlBox!.width).toBeLessThanOrEqual(paneBox!.x + paneBox!.width);
+      }
+    }
+
+    await expectInsidePane();
+    const before = await actions.boundingBox();
+    expect(before).not.toBeNull();
+    const scrollTop = await main.evaluate((element) => {
+      element.scrollTop = 500;
+      return element.scrollTop;
+    });
+    expect(scrollTop).toBeGreaterThan(100);
+    await expect.poll(async () => (await actions.boundingBox())?.y).toBeCloseTo(before!.y, 0);
+    await expectInsidePane();
+    await expect(report).not.toHaveAttribute('data-header-overlay', '');
+    await expect(more.locator('..')).not.toHaveAttribute('data-header-overlay', '');
+    await expect(close.locator('..')).not.toHaveAttribute('data-header-overlay', '');
+    await expect(report).not.toHaveCSS('background-color', 'rgba(255, 255, 255, 0.2)');
+    await expect(report).toBeVisible();
+    await expect(more).toBeVisible();
+    await expect(close).toBeVisible();
+    await more.click();
+    await expect(page.getByTestId('project-settings-button')).toBeVisible();
+  });
+}

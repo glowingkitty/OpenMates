@@ -53,6 +53,7 @@ coverage:
 - Server operations are role-aware: use `--role core`, `--role upload`, or `--role preview` for role-specific installs, service filters, backups, updates, and Caddy checks.
 - Image-mode updates create a rotating latest pre-update backup for data-bearing roles before containers are replaced.
 - Install and update provision a five-minute host runtime monitor plus an independent stale watchdog. Installing system units requires root privileges.
+- Updates automatically refresh an installed managed Caddyfile from the running image revision or updated source, validate it, gracefully reload Caddy, and check public routes.
 - Updates run a bounded runtime-contract checklist after container readiness; required failures leave the updated containers running and record a degraded update instead of rolling data back automatically.
 - Self-hosted installations never run billing checks.
 - Image-mode install defaults to invite-only signup; edit `.env` for email-domain allowlists or invite-plus-domain mode.
@@ -81,7 +82,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.21.0
+openmates server install --image-tag v0.22.0
 openmates server install --role core --profile production
 openmates server install --role upload --path /opt/openmates-upload
 openmates server install --role preview --path /opt/openmates-preview
@@ -211,7 +212,7 @@ openmates server logs --services api,task-worker
 ```
 openmates server update
 openmates server update --dry-run
-openmates server update --image-tag v0.21.0
+openmates server update --image-tag v0.22.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
@@ -281,6 +282,26 @@ When a required check fails, the CLI:
 | `--quick-test --confirm-spend-credits` | Core updates | Explicitly run the bounded paid test in non-interactive automation |
 | `install-service --continuous` | Image mode | Install a host-level systemd timer that runs the CLI update path |
 | `--force` | Source mode | Stash local Git changes before `git pull --ff-only` |
+
+### Caddy during updates
+
+`server update` also updates `/etc/caddy/Caddyfile` when it is installed. Use
+`--caddy-config <file>` for another host configuration path. Hosts without Caddy
+continue to use their existing direct API deployment.
+
+The first update adopts the existing named path matchers while preserving other
+host settings. It records the release template as a baseline; subsequent updates
+merge the complete new template with independent operator changes. Overlapping
+edits stop the update visibly. Image installs fetch templates from the running
+image's exact source revision, even when the installed CLI is older.
+
+Caddy validation runs before replacement. Changes receive a restricted backup,
+preserve file ownership and permissions, and use an atomic replacement followed
+by a graceful reload. Failed reloads or public route checks restore and reload
+the previous file. Such failures leave the update degraded and containers
+running. Caddy administration needs root or passwordless sudo; three-way merging
+uses the host's `diff3` utility. The dry-run output includes the Caddy plan.
+
 
 ## Runtime Verification and Monitoring
 

@@ -11,6 +11,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { createProjectPlanForTest } = require('./helpers/create-project-plan');
 
 function deriveApiUrl(baseUrl: string): string {
 	const url = new URL(baseUrl || 'https://app.dev.openmates.org');
@@ -24,6 +25,8 @@ async function expectUnifiedDetail(page, domain: string, itemId: string, headerS
 		? new RegExp(`/#(?:[^#]*&)?project-id=${itemId}(?:&|$)`)
 		: domain === 'workflows'
 			? new RegExp(`/#(?:[^#]*&)?workflow-id=${itemId}(?:&|$)`)
+			: domain === 'plans'
+				? new RegExp(`/#(?:[^#]*&)?plan-id=${itemId}(?:&|$)`)
 			: new RegExp(`/#(?:[^#]*&)?task-id=${itemId}(?:&|$)`);
 	await expect(page).toHaveURL(urlPattern);
 	const header = page.getByTestId('workspace-detail-header');
@@ -102,24 +105,18 @@ test.describe('Unified workspace detail pages', () => {
 	test('Plan cards open a canonical shared-header detail page', async ({ page }) => {
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const title = `Unified detail plan ${Date.now()}-${test.info().workerIndex}`;
+		const title = `Unified detail plan project ${Date.now()}-${test.info().workerIndex}`;
 		let planId = '';
+		let projectId = '';
 
 		try {
-			await page.goto(getE2EDebugUrl('/plans'), { waitUntil: 'domcontentloaded' });
+			({ projectId, planId } = await createProjectPlanForTest(page, title));
 			await expect(page.getByTestId('plan-title-input')).toBeVisible({ timeout: 30000 });
 			await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
-			await page.getByTestId('plan-title-input').fill(title);
-			const created = page.waitForResponse(
-				(response) => response.request().method() === 'POST' && response.url().endsWith('/v1/user-plans') && response.ok()
-			);
-			await page.getByTestId('plan-create-button').click();
-			planId = (await (await created).json()).plan.plan_id;
-			const card = page.getByTestId('linked-plan-card').filter({ hasText: title }).first();
-			await card.getByTestId('plan-detail-link').click();
 			await expectUnifiedDetail(page, 'plans', planId);
 		} finally {
 			if (planId) await page.request.delete(`${apiUrl}/v1/user-plans/${encodeURIComponent(planId)}`).catch(() => null);
+			if (projectId) await page.request.delete(`${apiUrl}/v1/projects/${encodeURIComponent(projectId)}?confirmation_project_id=${encodeURIComponent(projectId)}`).catch(() => null);
 		}
 	});
 

@@ -63,6 +63,8 @@ async def create_user(self,
                       encrypted_email_with_master_key: str = None,
                       user_email_salt: str = None,
                       lookup_hash: str = None,
+                      login_method: str = "password",
+                      credential_id_hash: str = None,
                       hashed_email: str = None,
                       is_admin: bool = False, role: str = None,
                       device_fingerprint: str = None,
@@ -78,6 +80,10 @@ async def create_user(self,
     - Returns (success, user_data, message)
     """
     try:
+        if login_method not in {"password", "password_v2", "passkey"}:
+            return False, None, "Unsupported signup login method"
+        if login_method == "passkey" and not credential_id_hash:
+            return False, None, "Verified passkey credential identifier required"
         # Initialize Vault and ensure transit engine exists
         await self.encryption_service.ensure_keys_exist()
         
@@ -142,7 +148,12 @@ async def create_user(self,
             "hashed_email": hashed_email,  # Store the client-provided hashed email
             "hashed_username": username_hash,  # Lowercase SHA-256 hash for server-wide uniqueness checks
             "user_email_salt": user_email_salt,  # Store the client-provided email salt
-            "lookup_hashes": [lookup_hash],  # Store the client-provided lookup hash in an array
+            "lookup_hashes": [lookup_hash] if login_method != "password_v2" else [],
+            "credential_lookup_hashes": (
+                {} if login_method == "password_v2" else {
+                    (f"passkey_{credential_id_hash}" if login_method == "passkey" else "password"): lookup_hash
+                }
+            ),
             "account_id": account_id  # Store the generated account ID
         }
 

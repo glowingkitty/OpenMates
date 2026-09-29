@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getEncryptedChatKey: vi.fn(),
   decryptChatKeyWithMasterKey: vi.fn(),
   unwrapTeamChatKey: vi.fn(),
+  unwrapAnonymousChatKey: vi.fn(),
   addCandidateKey: vi.fn(),
 }));
 
@@ -39,6 +40,10 @@ vi.mock("../teamService", () => ({
   unwrapTeamChatKey: mocks.unwrapTeamChatKey,
 }));
 
+vi.mock("../anonymousChatKeyWrapping", () => ({
+  unwrapAnonymousChatKey: mocks.unwrapAnonymousChatKey,
+}));
+
 vi.mock("../encryption/ChatKeyManager", () => ({
   computeKeyFingerprint: (key: Uint8Array) => `fp-${key[0]}`,
 }));
@@ -48,6 +53,59 @@ describe("chat key write guard", () => {
     vi.clearAllMocks();
     mocks.addCandidateKey.mockResolvedValue(undefined);
     vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+  it("accepts an anonymous chat key only when its session wrapper matches", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    const chatKey = new Uint8Array([7, 8]);
+    mocks.getChat.mockResolvedValue({
+      chat_id: "anonymous-chat-1",
+      is_anonymous: true,
+      anonymous_encrypted_chat_key: "session-wrapper",
+      encrypted_chat_key: null,
+      key_fingerprint: "fp-7",
+    });
+    mocks.getEncryptedChatKey.mockResolvedValue(null);
+    mocks.unwrapAnonymousChatKey.mockResolvedValue(chatKey);
+
+    expect(await ensureChatKeySafeForWrite("anonymous-chat-1", chatKey, "embed key wrapping")).toBe(true);
+    expect(mocks.unwrapAnonymousChatKey).toHaveBeenCalledWith("session-wrapper");
+    expect(mocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+  it("rejects an anonymous wrapper that unwraps to a different key", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    mocks.getChat.mockResolvedValue({
+      chat_id: "anonymous-chat-1",
+      is_anonymous: true,
+      anonymous_encrypted_chat_key: "session-wrapper",
+      encrypted_chat_key: null,
+      key_fingerprint: "fp-7",
+    });
+    mocks.getEncryptedChatKey.mockResolvedValue(null);
+    mocks.unwrapAnonymousChatKey.mockResolvedValue(new Uint8Array([7, 9]));
+
+    expect(await ensureChatKeySafeForWrite("anonymous-chat-1", new Uint8Array([7, 8]), "embed key wrapping")).toBe(false);
+    expect(mocks.notificationError).toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+  it("rejects an anonymous write when its session key is unavailable", async () => {
+    const { ensureChatKeySafeForWrite } = await import("../chatKeyWriteGuard");
+    mocks.getChat.mockResolvedValue({
+      chat_id: "anonymous-chat-1",
+      is_anonymous: true,
+      anonymous_encrypted_chat_key: "session-wrapper",
+      encrypted_chat_key: null,
+      key_fingerprint: "fp-7",
+    });
+    mocks.getEncryptedChatKey.mockResolvedValue(null);
+    mocks.unwrapAnonymousChatKey.mockResolvedValue(null);
+
+    expect(await ensureChatKeySafeForWrite("anonymous-chat-1", new Uint8Array([7, 8]), "embed key wrapping")).toBe(false);
+    expect(mocks.notificationError).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.persistence.client-encrypted

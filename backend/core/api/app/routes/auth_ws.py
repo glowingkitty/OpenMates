@@ -10,6 +10,10 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.utils.ws_token import verify_ws_token
+from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
+from backend.core.api.app.services.session_security_state import (
+    ensure_legacy_session_hash_state, get_session_state_cached,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +36,13 @@ async def get_current_user_ws(
         if 'safari' in user_agent.lower() and ('ipad' in user_agent.lower() or 'iphone' in user_agent.lower()):
             logger.debug(f"WebSocket auth: Safari iOS/iPad OS detected. User-Agent: {user_agent}")
         
-        # Log query parameters for debugging (sanitized)
+        # Log only parameter presence; credentials and browser identifiers do
+        # not belong in request logs, even as prefixes or suffixes.
         query_params = dict(websocket.query_params) if hasattr(websocket, 'query_params') else {}
         if 'token' in query_params:
-            token_preview = query_params['token'][:8] + '...' if len(query_params['token']) > 8 else query_params['token']
-            logger.debug(f"WebSocket auth: Token in query params (length: {len(query_params['token'])} chars, preview: {token_preview})")
+            logger.debug("WebSocket auth: Token query parameter present")
         if 'sessionId' in query_params:
-            session_preview = query_params['sessionId'][:8] + '...' if len(query_params['sessionId']) > 8 else query_params['sessionId']
-            logger.debug(f"WebSocket auth: SessionId in query params (length: {len(query_params['sessionId'])} chars, preview: {session_preview})")
+            logger.debug("WebSocket auth: SessionId query parameter present")
     except Exception as e:
         logger.debug(f"WebSocket auth: Could not extract headers/query params for logging: {e}")
     
@@ -47,9 +50,10 @@ async def get_current_user_ws(
     cache_service: CacheService = websocket.app.state.cache_service
     directus_service: DirectusService = websocket.app.state.directus_service
 
-    # Access cookies directly from the websocket object
-    # Try cookie first (standard method), then fallback to query parameter (for Safari iOS compatibility)
+    # Access cookies directly from the websocket object. Safari may instead
+    # supply a short-lived signed ws_token in the query string.
     auth_refresh_token = websocket.cookies.get("auth_refresh_token")
+    verified_ws_hash: str | None = None
 
     if not auth_refresh_token:
         # Fallback to query parameter for browsers that don't send cookies in WebSocket upgrade requests.
@@ -61,30 +65,19 @@ async def get_current_user_ws(
             logger.debug("WebSocket auth: Token in query params — verifying as HMAC ws_token")
             verified_token_hash = verify_ws_token(ws_token_param)
             if verified_token_hash:
-                logger.debug(f"WebSocket auth: HMAC ws_token verified, session hash {verified_token_hash[:8]}...")
+                logger.debug("WebSocket auth: HMAC ws_token verified")
                 # Look up session data directly using the token_hash from the verified ws_token
                 session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{verified_token_hash}"
                 session_data = await cache_service.get(session_cache_key)
                 if session_data:
-                    # We have verified session data — skip the normal auth_refresh_token flow.
-                    # Set a synthetic auth_refresh_token to None and use session_data directly below.
-                    # We inject __ws_token_session_data so the code after get_user_by_token can use it.
-                    auth_refresh_token = f"__ws_verified__{verified_token_hash}"
+                    # Only this verified signature may select the cache link.
+                    verified_ws_hash = verified_token_hash
                 else:
                     logger.warning("WebSocket auth: Session not found in cache after ws_token verification")
             else:
-                # HMAC verification failed — try treating the token as a raw refresh token.
-                # This supports the CLI which may send the raw auth_refresh_token when the
-                # HMAC ws_token is expired or unavailable (e.g. INTERNAL_API_SHARED_TOKEN unset).
-                logger.debug("WebSocket auth: HMAC ws_token verification failed, trying raw token lookup")
-                raw_user_data = await cache_service.get_user_by_token(ws_token_param)
-                if raw_user_data:
-                    logger.debug("WebSocket auth: Raw refresh token found in cache — using as fallback")
-                    auth_refresh_token = ws_token_param
-                else:
-                    logger.warning("WebSocket auth: HMAC ws_token verification failed and raw token not in cache")
+                logger.warning("WebSocket auth: Invalid signed ws_token")
 
-    if not auth_refresh_token:
+    if not auth_refresh_token and verified_ws_hash is None:
         logger.warning("WebSocket connection denied: Missing 'auth_refresh_token' in both cookie and query parameters.")
         ComplianceService.log_auth_event_safe(
             event_type="ws_auth_failed",
@@ -100,21 +93,30 @@ async def get_current_user_ws(
 
     try:
         # 1. Get user data from cache using the extracted token
-        # If auth_refresh_token starts with "__ws_verified__", it means we already verified
-        # the HMAC ws_token and extracted the token_hash — look up session data directly.
-        if auth_refresh_token.startswith("__ws_verified__"):
-            verified_hash = auth_refresh_token.replace("__ws_verified__", "")
-            logger.debug(f"WebSocket auth: Using pre-verified ws_token session hash {verified_hash[:8]}...")
+        # Only a verified signature in this request may select a session hash.
+        # A caller-provided cookie that resembles an internal marker is raw
+        # credential input and must never select a hash directly.
+        if verified_ws_hash is not None:
+            verified_hash = verified_ws_hash
+            logger.debug("WebSocket auth: Using verified ws_token session")
             session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{verified_hash}"
             session_data = await cache_service.get(session_cache_key)
+            pair_expires_at = await get_pair_deadline_hash(directus_service, cache_service, verified_hash)
+            session_hash = verified_hash
         else:
-            token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
-            logger.debug(f"WebSocket auth: Checking cache for user with token ending ...{token_suffix}")
             token_hash = hashlib.sha256(auth_refresh_token.encode()).hexdigest()
             session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{token_hash}"
-            logger.debug(f"WebSocket auth: Looking for session key '{session_cache_key}'")
+            logger.debug("WebSocket auth: Looking for cookie session link")
             session_data = await cache_service.get(session_cache_key)
+            pair_expires_at = await get_pair_deadline_hash(directus_service, cache_service, token_hash)
+            session_hash = token_hash
+        security_state = await get_session_state_cached(
+            directus_service, cache_service, session_hash, allow_risk=False,
+        )
         session_user_id = canonical_session_user_id(session_data)
+        if security_state is not None and security_state.get("user_id") != session_user_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            return None
         cached_user_profile = (
             await cache_service.get_user_by_id(session_user_id) if session_user_id else None
         )
@@ -138,6 +140,14 @@ async def get_current_user_ws(
             # Return None to signal authentication failure - connection already closed, no need to raise
             return None
 
+        if security_state is None:
+            # A signed ws_token or cookie plus a matching cached session link
+            # proves this pre-ledger session was already issued. Give it a fixed
+            # durable deadline before admitting the connection.
+            security_state = await ensure_legacy_session_hash_state(
+                directus_service, cache_service, session_hash, user_id,
+            )
+
         # 2. Extract sessionId from query parameters for browser instance uniqueness
         session_id = websocket.query_params.get("sessionId")
         if not session_id:
@@ -145,7 +155,7 @@ async def get_current_user_ws(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session ID required")
             return None
         
-        logger.debug(f"WebSocket auth: SessionId extracted: {session_id[:8]}...")
+        logger.debug("WebSocket auth: SessionId present")
         
         # 3. Generate TWO hashes for different purposes
         try:
@@ -201,12 +211,12 @@ async def get_current_user_ws(
             status="success",
             details={}
         )
-        return {"user_id": user_id, "device_fingerprint_hash": connection_hash, "user_data": user_data}
+        return {"user_id": user_id, "device_fingerprint_hash": connection_hash, "user_data": user_data,
+                "pair_expires_at": pair_expires_at, "session_hash": session_hash,
+                "session_expires_at": security_state.get("expires_at") if security_state else None}
 
     except Exception as e:
-        # Ensure token exists before trying to slice it for logging
-        token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
-        logger.error(f"Unexpected error during WebSocket authentication for token ending ...{token_suffix}: {e}", exc_info=True)
+        logger.error(f"Unexpected error during WebSocket authentication: {e}", exc_info=True)
         # Attempt to close gracefully before returning None
         try:
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Authentication error")

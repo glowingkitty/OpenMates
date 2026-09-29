@@ -11,7 +11,11 @@ For the complete method list, see [SDK Reference](./sdk-reference.md). For the g
 
 ## API Keys
 
-Create an API key in Settings > Developers > API Keys. The guided flow asks for scope, credit limit, and expiration before revealing the key once.
+Create an API key in Settings > Developers > API Keys. The guided flow asks for scope, credit limit, and expiration before revealing the key once. Copy the entire setup credential, including the part after the dot. The SDK sends only the bearer part before the dot; the second part stays in your client and opens client-wrapped encryption keys.
+
+API keys made before this separation are disabled for online SDK access. Revoke each older key in web Settings, create a replacement, and update the applications using it. SDK bearer clients cannot create or revoke other API keys; those methods raise `unavailable_requires_first_party_verification`. Use verified web Settings or an authenticated CLI session for key management.
+
+For a limited key with `project:read`, select the personal Projects it may decrypt during creation. The browser wraps only those selected Project keys with the local setup secret. npm and pip Project `list` and `show` return cleartext for those Projects; unselected Projects are omitted or rejected. A limited key receives no account master key. Existing Project ciphertext needs no migration. Task and Plan contents, Team Projects, and Projects created after the key was issued do not yet receive limited-key grants; create a replacement key with the desired current Projects when its access needs change.
 
 Defaults are intentionally convenient but powerful:
 

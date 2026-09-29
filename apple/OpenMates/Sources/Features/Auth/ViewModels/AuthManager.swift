@@ -7,6 +7,16 @@ import SwiftUI
 import AuthenticationServices
 import CryptoKit
 
+private enum PasswordV2MigrationPendingStore {
+    private static let key = "openmates.apple.password_v2.pending_user"
+
+    static func mark(_ userID: String) { UserDefaults.standard.set(userID, forKey: key) }
+    static func contains(_ userID: String) -> Bool { UserDefaults.standard.string(forKey: key) == userID }
+    static func clear(_ userID: String) {
+        if contains(userID) { UserDefaults.standard.removeObject(forKey: key) }
+    }
+}
+
 @MainActor
 final class AuthManager: ObservableObject {
     @Published var state: AuthState = .initializing
@@ -73,9 +83,8 @@ final class AuthManager: ObservableObject {
         case unauthenticated
     }
 
-    /// Cached password for master key derivation after login.
-    /// Cleared after successful key unwrap. Needed because the login response
-    /// includes the user's encrypted_key which we unwrap with PBKDF2(password, salt).
+    /// Entered password retained only until the versioned master-key wrapper
+    /// has been opened, then cleared from this view model.
     private var pendingPassword: String?
     private var pendingEmail: String?
 
@@ -96,6 +105,18 @@ final class AuthManager: ObservableObject {
         user.lastOpened = chatId
         currentUser = user
         cacheAuthenticatedUser(user)
+    }
+
+    func publishPasswordWrapper(for accountId: String, encryptedKey: String,
+                                keyIv: String, salt: String, version: Int) {
+        guard var user = currentUser, user.id == accountId, version == 2 else { return }
+        user.encryptedKey = encryptedKey
+        user.keyIv = keyIv
+        user.salt = salt
+        user.credentialVersion = version
+        currentUser = user
+        cacheAuthenticatedUser(user)
+        PasswordV2MigrationPendingStore.clear(accountId)
     }
 
     func profilePreservingNewerSelection(_ received: UserProfile, since revision: Int) -> UserProfile {
@@ -171,6 +192,14 @@ final class AuthManager: ObservableObject {
         if ProcessInfo.processInfo.arguments.contains("--ui-test-disable-auth-cache") {
             sessionValidationState = .unauthenticated
             state = .unauthenticated
+            return
+        }
+        if PairPendingAckStore.userID() != nil {
+            await forceLocalLogout(reason: "pair_acknowledgment_incomplete")
+            return
+        }
+        if let cached = Self.cachedUser(), PairSessionDeadlineStore.isExpired(userID: cached.id) {
+            await forceLocalLogout(reason: "pair_session_expired")
             return
         }
         let restoredFromDisk = await restoreCachedSessionForStartup()
@@ -302,13 +331,12 @@ final class AuthManager: ObservableObject {
         }
 
         let hashedEmail = await crypto.hashEmail(email)
-        let lookupHash = await crypto.hashKey(password, salt: saltData)
         let emailEncryptionKey = await crypto.deriveEmailEncryptionKey(
             email: email,
             salt: saltData
         ).base64EncodedString()
 
-        // Store password temporarily for PBKDF2 master key derivation after login
+        // Keep the entered password only until the account's versioned wrapper is opened.
         if let signupProof, let signupSessionId {
             try validateSignupContext(signupProof, sessionId: signupSessionId)
         } else {
@@ -316,9 +344,9 @@ final class AuthManager: ObservableObject {
             pendingEmail = email
         }
 
-        let request = LoginRequest(
+        var request = LoginRequest(
             hashedEmail: hashedEmail,
-            lookupHash: lookupHash,
+            lookupHash: nil,
             loginMethod: "password",
             tfaCode: tfaCode,
             codeType: tfaCode == nil ? nil : (codeType ?? "otp"),
@@ -329,17 +357,62 @@ final class AuthManager: ObservableObject {
         )
 
         NativeDiagnostics.info("phase=passwordLogin.request", category: "auth")
-        let response: LoginResponse
-        if let signupProof, let signupSessionId {
-            try validateSignupContext(signupProof, sessionId: signupSessionId)
-            response = try await api.request(.post, path: "/v1/auth/login",
-                serverProfile: signupProof.serverProfile, body: request)
-            try validateSignupContext(signupProof, sessionId: signupSessionId)
-            guard signupProof.validates(response) else {
-                throw NativeSignupError.sessionProofMismatch
+        var derivedV2Keys: PasswordV2Keys?
+        func send(_ request: LoginRequest) async throws -> LoginResponse {
+            if let signupProof, let signupSessionId {
+                try validateSignupContext(signupProof, sessionId: signupSessionId)
+                let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login",
+                    serverProfile: signupProof.serverProfile, body: request)
+                try validateSignupContext(signupProof, sessionId: signupSessionId)
+                guard signupProof.validates(response) else { throw NativeSignupError.sessionProofMismatch }
+                return response
             }
-        } else {
-            response = try await api.request(.post, path: "/v1/auth/login", body: request)
+            return try await api.request(.post, path: "/v1/auth/login", body: request)
+        }
+
+        let response: LoginResponse
+        do {
+            let keys = try PasswordV2Keys(password: password, emailSalt: saltData)
+            derivedV2Keys = keys
+            let challengeRequest = PasswordV2ChallengeRequest(
+                hashedEmail: hashedEmail, sessionId: Self.sessionId, purpose: "login")
+            let challenge: PasswordV2ChallengeResponse
+            if let signupProof {
+                challenge = try await api.request(.post, path: "/v1/auth/password-v2/challenge",
+                    serverProfile: signupProof.serverProfile, body: challengeRequest)
+            } else {
+                challenge = try await api.request(.post, path: "/v1/auth/password-v2/challenge",
+                    body: challengeRequest)
+            }
+            guard challenge.expiresIn > 0,
+                  let nonce = Data(base64URLEncoded: challenge.nonce), nonce.count == 32 else {
+                throw AuthError.missingAuthData
+            }
+            request.credentialVersion = 2
+            request.challengeId = challenge.challengeId
+            request.passwordProof = try keys.proof(purpose: "login", nonce: nonce)
+            let v2Response = try await send(request)
+            if v2Response.success || v2Response.tfaRequired == true ||
+                v2Response.needsDeviceVerification == true || signupProof != nil {
+                response = v2Response
+            } else {
+                request.credentialVersion = nil
+                request.challengeId = nil
+                request.passwordProof = nil
+                request.lookupHash = await crypto.hashKey(password, salt: saltData)
+                response = try await send(request)
+            }
+        } catch let error as APIError {
+            // A rejected v2 proof can be an existing legacy account. The server
+            // must reject this fallback for any record already upgraded to v2.
+            guard signupProof == nil, case .httpError(let status, _) = error,
+                  status == 401 || status == 403 else { throw error }
+            request.lookupHash = await crypto.hashKey(password, salt: saltData)
+            response = try await send(request)
+        } catch let error as PairOpaqueError {
+            guard signupProof == nil else { throw error }
+            request.lookupHash = await crypto.hashKey(password, salt: saltData)
+            response = try await send(request)
         }
         NativeDiagnostics.info(
             "phase=passwordLogin.response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)",
@@ -359,7 +432,26 @@ final class AuthManager: ObservableObject {
 
         if response.success, response.user != nil {
             NativeDiagnostics.info("phase=passwordLogin.unwrapMasterKey", category: "auth")
+            let migrationBaseline: SymmetricKey?
+            if let user = response.user, user.credentialVersion == 2,
+               PasswordV2MigrationPendingStore.contains(user.id) {
+                migrationBaseline = try? await crypto.loadMasterKey(for: user.id)
+            } else {
+                migrationBaseline = nil
+            }
             try await handleSuccessfulLogin(response: response, password: password, signupProof: signupProof, signupSessionId: signupSessionId)
+            if signupProof == nil, let user = response.user {
+                if user.credentialVersion == 2, let migrationBaseline,
+                   PasswordV2MigrationPendingStore.contains(user.id) {
+                    await completeStagedPasswordMigration(user: user, password: password,
+                                                          expected: migrationBaseline,
+                                                          derivedKeys: derivedV2Keys)
+                } else if user.credentialVersion == nil || user.credentialVersion == 1 {
+                    await migrateLegacyPasswordIfPossible(user: user, password: password,
+                                                          emailSalt: saltData,
+                                                          derivedKeys: derivedV2Keys)
+                }
+            }
             return
         }
 
@@ -404,7 +496,7 @@ final class AuthManager: ObservableObject {
 
         if response.success, response.user != nil {
             // Recovery key uses same PBKDF2 derivation as password
-            try await handleSuccessfulLogin(response: response, password: recoveryKey)
+            try await handleSuccessfulLogin(response: response, password: recoveryKey, wrapperVersion: 1)
             return
         }
 
@@ -419,39 +511,9 @@ final class AuthManager: ObservableObject {
         backupCode: String,
         userEmailSalt: String?
     ) async throws {
-        let hashedEmail = await crypto.hashEmail(email)
-        guard let userEmailSalt,
-              let saltData = Data(base64Encoded: userEmailSalt) else {
-            print("[Auth] Missing user_email_salt from lookup; cannot compute backup-code lookup_hash")
-            throw AuthError.missingAuthData
-        }
-        let lookupHash = await crypto.hashKey(password, salt: saltData)
-        let emailEncryptionKey = await crypto.deriveEmailEncryptionKey(
-            email: email,
-            salt: saltData
-        ).base64EncodedString()
-
-        let request = LoginRequest(
-            hashedEmail: hashedEmail,
-            lookupHash: lookupHash,
-            loginMethod: "backup_code",
-            tfaCode: backupCode,
-            codeType: "backup",
-            emailEncryptionKey: emailEncryptionKey,
-            stayLoggedIn: false,
-            sessionId: Self.sessionId,
-            deviceInfo: makeDeviceInfo()
-        )
-
-        let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
-        print("[Auth] Backup-code login response success=\(response.success) hasUser=\(response.user != nil)")
-
-        if response.success, response.user != nil {
-            try await handleSuccessfulLogin(response: response, password: password)
-            return
-        }
-
-        throw AuthError.invalidCredentials
+        try await loginWithPassword(
+            email: email, password: password, userEmailSalt: userEmailSalt,
+            tfaCode: backupCode, codeType: "backup")
     }
 
     // MARK: - Device verification
@@ -483,6 +545,8 @@ final class AuthManager: ObservableObject {
         try await crypto.saveMasterKey(masterKey, for: user.id)
         await migrateLegacyComposerDrafts()
         cacheAuthenticatedUser(user)
+        PairSessionDeadlineStore.save(userID: user.id, deadline: response.pairExpiresAt)
+        schedulePairDeadline(for: user.id)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
     }
@@ -510,7 +574,8 @@ final class AuthManager: ObservableObject {
         state = .authenticated
     }
 
-    func completePairLogin(response: LoginResponse, masterKey: SymmetricKey) async throws {
+    func completePairLogin(response: LoginResponse, masterKey: SymmetricKey,
+                           acknowledge: () async throws -> Void) async throws {
         validationGeneration = UUID()
         if response.needsDeviceVerification == true,
            let type = response.deviceVerificationType {
@@ -522,12 +587,24 @@ final class AuthManager: ObservableObject {
             throw AuthError.invalidCredentials
         }
 
+        PairPendingAckStore.mark(userID: user.id)
         try await crypto.saveMasterKey(masterKey, for: user.id)
         try activateOfflineScope(for: user)
+        cacheAuthenticatedUser(user)
+        PairSessionDeadlineStore.save(userID: user.id, deadline: response.pairExpiresAt)
+        do {
+            try PairPendingAckStore.flushLocalPairState()
+            try await acknowledge()
+        } catch {
+            currentUser = user
+            await forceLocalLogout(reason: "pair_acknowledgment_failed")
+            throw error
+        }
+        PairPendingAckStore.clear()
         currentUser = user
         await migrateLegacyComposerDrafts()
         webSocketToken = response.wsToken
-        cacheAuthenticatedUser(user)
+        schedulePairDeadline(for: user.id)
         sessionValidationState = .onlineAuthenticated
         state = .authenticated
     }
@@ -559,6 +636,9 @@ final class AuthManager: ObservableObject {
         SpotlightIndexer.shared.removeAllItems()
         Self.resetNativeSessionId()
         Self.clearCachedUser()
+        PairSessionDeadlineStore.clear()
+        PairPendingAckStore.clear()
+        PairVerifiedAccountStore.clear()
 
         webSocketToken = nil
         currentUser = nil
@@ -582,6 +662,12 @@ final class AuthManager: ObservableObject {
         SpotlightIndexer.shared.removeAllItems()
         Self.resetNativeSessionId()
         Self.clearCachedUser()
+        PairSessionDeadlineStore.clear()
+        PairPendingAckStore.clear()
+        PairVerifiedAccountStore.clear()
+        for cookie in OpenMatesSharedEnvironment.cookieStorage.cookies ?? [] {
+            OpenMatesSharedEnvironment.cookieStorage.deleteCookie(cookie)
+        }
         webSocketToken = nil
         currentUser = nil
         sessionValidationState = .unauthenticated
@@ -598,15 +684,113 @@ final class AuthManager: ObservableObject {
         }
     }
 
+    private func migrateLegacyPasswordIfPossible(user: UserProfile, password: String,
+                                                 emailSalt: Data,
+                                                 derivedKeys: PasswordV2Keys?) async {
+        guard currentUser?.id == user.id,
+              let masterKey = try? await crypto.loadMasterKey(for: user.id) else { return }
+        if PasswordV2MigrationPendingStore.contains(user.id) {
+            await completeStagedPasswordMigration(user: user, password: password,
+                                                  expected: masterKey, derivedKeys: derivedKeys)
+            return
+        }
+        do {
+            // A lagging self-hosted server may still have the old migrate route,
+            // which retires typed v1 immediately. Check the staged protocol first.
+            let capabilities: PasswordV2MigrationCapabilities = try await api.request(
+                .get, path: "/v1/auth/password-v2/migration-capabilities")
+            guard capabilities.stagedProtocol == 2, capabilities.confirmRequired else { return }
+            let keys = try derivedKeys ?? PasswordV2Keys(password: password, emailSalt: emailSalt)
+            let encrypted = try await crypto.encrypt(
+                masterKey.withUnsafeBytes { Data($0) }, using: keys.wrappingKey)
+            let body = encrypted.ciphertext.base64EncodedString()
+            let iv = encrypted.nonce.base64EncodedString()
+            try await crypto.verifyMasterKeyRoundTrip(
+                wrappedKeyBase64: body, ivBase64: iv,
+                wrappingKey: keys.wrappingKey, expected: masterKey)
+            let oldHash = await crypto.hashKey(password, salt: emailSalt)
+            let status: PasswordV2MigrationStatus = try await api.request(
+                .post, path: "/v1/auth/password-v2/migrate",
+                body: PasswordV2MigrationRequest(
+                    oldLookupHash: oldHash,
+                    passwordAuthKey: keys.authenticationKey.base64URLEncodedString(),
+                    encryptedMasterKey: body, salt: emailSalt.base64EncodedString(), keyIv: iv))
+            guard status.success else { return }
+            if status.migrationStatus == "pending_confirmation" {
+                PasswordV2MigrationPendingStore.mark(user.id)
+                await completeStagedPasswordMigration(user: user, password: password,
+                                                      expected: masterKey, derivedKeys: keys)
+            }
+        } catch APIError.httpError(let status, let message)
+            where status == 409 || status == 428 ||
+                (status == 401 && (message == "Recent verification required" ||
+                                   message == "Fresh password login required")) {
+            // Migration is optional after a successful legacy login. A typed
+            // account can wait for explicit strong verification, while an
+            // untyped account can wait for its credential methods to be bound.
+            // Keep the locally unlocked master key and authenticated session.
+            NativeDiagnostics.info("Password migration deferred after legacy login", category: "auth")
+        } catch {
+            NativeDiagnostics.error("Password migration staging unavailable", category: "auth")
+        }
+    }
+
+    private func completeStagedPasswordMigration(user: UserProfile, password: String,
+                                                 expected: SymmetricKey,
+                                                 derivedKeys: PasswordV2Keys?) async {
+        guard PasswordV2MigrationPendingStore.contains(user.id), currentUser?.id == user.id,
+              let saltText = user.userEmailSalt,
+              let emailSalt = Data(base64Encoded: saltText) else { return }
+        do {
+            let keys = try derivedKeys ?? PasswordV2Keys(password: password, emailSalt: emailSalt)
+            let challenge: PasswordV2ChallengeResponse = try await api.request(
+                .post, path: "/v1/auth/password-v2/staged-challenge",
+                body: [:] as [String: String])
+            guard challenge.expiresIn > 0,
+                  let nonce = Data(base64URLEncoded: challenge.nonce), nonce.count == 32 else {
+                throw AuthError.missingAuthData
+            }
+            let proof = try keys.proof(purpose: "migration", nonce: nonce)
+            let wrapper: PasswordV2StagedWrapper = try await api.request(
+                .post, path: "/v1/auth/password-v2/verify-staged",
+                body: PasswordV2StagedProofRequest(
+                    challengeId: challenge.challengeId, passwordProof: proof))
+            guard wrapper.credentialVersion == 2, wrapper.salt == saltText else {
+                throw AuthError.missingAuthData
+            }
+            try await crypto.verifyMasterKeyRoundTrip(
+                wrappedKeyBase64: wrapper.encryptedKey, ivBase64: wrapper.keyIv,
+                wrappingKey: keys.wrappingKey, expected: expected)
+            let result: PasswordV2MigrationStatus = try await api.request(
+                .post, path: "/v1/auth/password-v2/confirm-migration",
+                body: [:] as [String: String])
+            guard result.success, result.migrationStatus == "typed_retired" else {
+                throw AuthError.missingAuthData
+            }
+            publishPasswordWrapper(
+                for: user.id, encryptedKey: wrapper.encryptedKey,
+                keyIv: wrapper.keyIv, salt: wrapper.salt, version: 2)
+        } catch APIError.httpError(let status, _) where status == 428 {
+            // The pending v1 credential and locally verified wrapper remain
+            // intact until a later session has fresh strong verification.
+            NativeDiagnostics.info("Password migration confirmation deferred", category: "auth")
+        } catch {
+            // The typed v1 credential remains available until the server sees
+            // an explicit confirm. Retry on the next authenticated login.
+            NativeDiagnostics.error("Password migration confirmation unavailable", category: "auth")
+        }
+    }
+
     private func handleSuccessfulLogin(response: LoginResponse, password: String,
                                        signupProof: NativeSignupLoginProof? = nil,
-                                       signupSessionId: String? = nil) async throws {
+                                       signupSessionId: String? = nil,
+                                       wrapperVersion: Int? = nil) async throws {
         guard let user = response.user else {
             throw AuthError.invalidCredentials
         }
 
-        // Derive PBKDF2 wrapping key from password + salt, then unwrap master key.
-        // Mirrors web: deriveKeyFromPassword(password, salt) → decryptKey(encrypted_key, key_iv, wrappingKey)
+        // The server returns the wrapper version with the account. Never trial
+        // decrypt across KDF versions: unknown versions fail closed.
         guard let encryptedKeyB64 = user.encryptedKey,
               let keyIvB64 = user.keyIv,
               let saltB64 = user.salt,
@@ -614,15 +798,30 @@ final class AuthManager: ObservableObject {
             throw AuthError.missingAuthData
         }
 
-        let wrappingKey = try await crypto.deriveWrappingKeyFromPassword(
-            password: password, salt: saltData
-        )
+        let wrappingKey: SymmetricKey
+        switch wrapperVersion ?? user.credentialVersion ?? 1 {
+        case 1:
+            wrappingKey = try await crypto.deriveWrappingKeyFromPassword(password: password, salt: saltData)
+        case 2:
+            guard let emailSalt = Data(base64Encoded: user.userEmailSalt ?? ""),
+                  emailSalt == saltData else { throw AuthError.missingAuthData }
+            wrappingKey = try PasswordV2Keys(password: password, emailSalt: emailSalt).wrappingKey
+        default:
+            throw AuthError.missingAuthData
+        }
         NativeDiagnostics.info("phase=passwordLogin.wrappingKeyDerived", category: "auth")
         let masterKey = try await crypto.unwrapMasterKey(
             wrappedKeyBase64: encryptedKeyB64,
             ivBase64: keyIvB64,
             wrappingKey: wrappingKey
         )
+        if user.credentialVersion == 2,
+           PasswordV2MigrationPendingStore.contains(user.id),
+           let previous = try? await crypto.loadMasterKey(for: user.id) {
+            guard previous.withUnsafeBytes({ Data($0) }) == masterKey.withUnsafeBytes({ Data($0) }) else {
+                throw CryptoManager.CryptoError.decryptionFailed
+            }
+        }
         NativeDiagnostics.info("phase=passwordLogin.masterKeyUnwrapped", category: "auth")
         if let signupProof, let signupSessionId {
             try validateSignupContext(signupProof, sessionId: signupSessionId)
@@ -679,12 +878,24 @@ final class AuthManager: ObservableObject {
             return false
         }
         currentUser = user
+        schedulePairDeadline(for: user.id)
         await migrateLegacyComposerDrafts()
         webSocketToken = nil
         sessionValidationState = .offlineAuthenticated
         state = .authenticated
         print("[Auth] Restored cached session for offline startup")
         return true
+    }
+
+    private func schedulePairDeadline(for userID: String) {
+        guard let deadline = PairSessionDeadlineStore.deadline(userID: userID) else { return }
+        Task { @MainActor [weak self] in
+            let remaining = max(0, deadline - Int(Date().timeIntervalSince1970))
+            try? await Task.sleep(for: .seconds(Int64(remaining)))
+            guard let self, self.currentUser?.id == userID,
+                  PairSessionDeadlineStore.isExpired(userID: userID) else { return }
+            await self.forceLocalLogout(reason: "pair_session_expired")
+        }
     }
 
     private func activateOfflineScope(for user: UserProfile) throws {

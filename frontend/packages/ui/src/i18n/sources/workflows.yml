@@ -650,7 +650,42 @@ builder.today:
 
 builder.next_week:
   context: Relative date range option in a Workflow App skill input
-  en: "Next week"
+  en: "Next calendar week"
+  verified_by_human: []
+
+builder.next_seven_days:
+  context: Rolling seven-day range beginning today in a Workflow App skill input
+  en: "Next 7 days"
+  verified_by_human: []
+
+builder.next_seven_days_start:
+  context: Rolling seven-day range start in a Workflow App skill input
+  en: "Start of next 7 days"
+  verified_by_human: []
+
+builder.next_seven_days_end:
+  context: Rolling seven-day range end in a Workflow App skill input
+  en: "End of next 7 days"
+  verified_by_human: []
+
+builder.drop_here_move:
+  context: Visible workflow node reorder target shown during drag
+  en: "Drop here to move"
+  verified_by_human: []
+
+builder.previous_result:
+  context: Button to show the previous workflow test result preview
+  en: "Previous result"
+  verified_by_human: []
+
+builder.next_result:
+  context: Button to show the next workflow test result preview
+  en: "Next result"
+  verified_by_human: []
+
+builder.result_position:
+  context: Current position and total number of workflow test result previews
+  en: "{current} of {total}"
   verified_by_human: []
 
 builder.next_week_start:
@@ -913,6 +948,11 @@ builder.ask_ai_instruction_required:
   en: "Enter an instruction for Ask AI."
   verified_by_human: []
 
+builder.earlier_action_variable_required:
+  context: Workflow message field requires a visible earlier action reference
+  en: "Insert a variable from an earlier action into this text before saving."
+  verified_by_human: []
+
 builder.answer:
   context: Workflow Ask AI output label
   en: "Answer"
@@ -936,6 +976,16 @@ builder.choose_skill:
 builder.close:
   context: Workflow progressive builder control
   en: "Close"
+  verified_by_human: []
+
+builder.move_up:
+  context: Move a Workflow node one available position earlier
+  en: "Move step up"
+  verified_by_human: []
+
+builder.move_down:
+  context: Move a Workflow node one available position later
+  en: "Move step down"
   verified_by_human: []
 
 builder.trigger_question:
@@ -1258,6 +1308,11 @@ builder.run_now:
   en: "Run now"
   verified_by_human: []
 
+builder.test_now:
+  context: Button below a saved Workflow template with a time trigger that starts a full test run
+  en: "Test now"
+  verified_by_human: []
+
 builder.delete_workflow:
   context: Workflow progressive builder control
   en: "Delete workflow"
@@ -1381,6 +1436,21 @@ builder.output_type_number:
 builder.output_type_date:
   context: Readable workflow values and feedback for everyday users
   en: "Date"
+  verified_by_human: []
+
+builder.output_type_location:
+  context: Type indicator for a workflow location input
+  en: "Location"
+  verified_by_human: []
+
+builder.output_type_time:
+  context: Type indicator for a workflow time input
+  en: "Time"
+  verified_by_human: []
+
+builder.output_type_url:
+  context: Type indicator for a workflow URL input
+  en: "URL"
   verified_by_human: []
 
 builder.output_type_list:
@@ -1601,4 +1671,29 @@ runs.status_unavailable:
 builder.sharing_soon:
   context: Notification shown when workflow sharing is requested before the feature is available
   en: "Workflow sharing is coming soon."
+  verified_by_human: []
+
+run_embed.title:
+  context: Preview and fullscreen title for a workflow execution linked from its delivered chat message
+  en: "Workflow run"
+  verified_by_human: []
+
+run_embed.open_detail:
+  context: Workflow run preview summary
+  en: "Open the steps and results of this run"
+  verified_by_human: []
+
+run_embed.detail:
+  context: Workflow run fullscreen subtitle
+  en: "Run details"
+  verified_by_human: []
+
+run_embed.loading:
+  context: Workflow run fullscreen loading message
+  en: "Loading run…"
+  verified_by_human: []
+
+run_embed.unavailable:
+  context: Workflow run fullscreen message when owner data has expired or been deleted
+  en: "This workflow run is no longer available."
   verified_by_human: []

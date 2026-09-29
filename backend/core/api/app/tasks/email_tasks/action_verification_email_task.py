@@ -1,7 +1,7 @@
 """
 Purpose: Celery task to generate and send action verification OTP codes via email.
-Used for sensitive actions (account deletion, etc.) for users who only have password
-auth (no 2FA/passkey). Stores the code in cache and sends the email.
+Used for sensitive actions. The session-bound verifier owns its one-use code
+digest; this task only delivers that code. Older callers retain their cache flow.
 
 Architecture: Reuses the EmailTemplateService and CacheService pattern from
   verification_email_task.py. Uses the 'action-verification' email template.
@@ -17,6 +17,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from backend.shared.python_utils.security_random import generate_digit_code
+from backend.shared.python_utils.frontend_url import get_frontend_base_url
 
 # TTL for action verification codes: 10 minutes
 ACTION_VERIFICATION_CODE_TTL = 600
@@ -36,10 +37,11 @@ def generate_and_send_action_verification_email(
     email: str,
     action: str,
     language: str = "en",
-    darkmode: bool = False
+    darkmode: bool = False,
+    verification_code: str | None = None,
 ) -> bool:
     """
-    Generate an action verification OTP code, store it in cache, and send email.
+    Generate or deliver an action verification code and send email.
 
     Args:
         user_id: The user's ID (used for cache key scoping).
@@ -52,7 +54,7 @@ def generate_and_send_action_verification_email(
     try:
         result = asyncio.run(
             _async_generate_and_send_action_verification_email(
-                user_id, email, action, language, darkmode
+                user_id, email, action, language, darkmode, verification_code
             )
         )
         logger.info(f"Action verification email task completed for user {user_id}, action={action}")
@@ -71,11 +73,12 @@ async def _async_generate_and_send_action_verification_email(
     email: str,
     action: str,
     language: str = "en",
-    darkmode: bool = False
+    darkmode: bool = False,
+    verification_code: str | None = None,
 ) -> bool:
     """
-    Async implementation: generates 6-digit code, caches it, sends email.
-    Cache key pattern: action_verification:{user_id}:{action}
+    Async implementation. Older callers cache generated codes under
+    action_verification:{user_id}:{action}; session-bound callers only deliver.
     """
     secrets_manager = SecretsManager()
     cache_service = None
@@ -86,27 +89,28 @@ async def _async_generate_and_send_action_verification_email(
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
         # Generate a 6-digit code
-        verification_code = generate_digit_code()
-        logger.info(f"Generated action verification code for user {user_id}, action={action}")
-
-        # Store the code in cache with TTL
-        cache_key = f"action_verification:{user_id}:{action}"
-        cache_result = await cache_service.set(
-            cache_key, verification_code, ttl=ACTION_VERIFICATION_CODE_TTL
-        )
-        if not cache_result:
-            logger.error(
-                f"Failed to store action verification code in cache "
-                f"for user {user_id}, action={action}"
+        session_bound_fallback = verification_code is not None
+        if verification_code is None:
+            # Legacy settings flows still own their original code cache.
+            verification_code = generate_digit_code()
+            cache_key = f"action_verification:{user_id}:{action}"
+            cache_result = await cache_service.set(
+                cache_key, verification_code, ttl=ACTION_VERIFICATION_CODE_TTL
             )
+            if not cache_result:
+                logger.error("Failed to store action verification code")
+                return False
+        elif not (isinstance(verification_code, str) and len(verification_code) == 6
+                  and verification_code.isdecimal()):
             return False
-
-        logger.info(f"Stored action verification code in cache for user {user_id}, action={action}")
 
         # Send the email using the action-verification template
         context = {
             "code": verification_code,
             "darkmode": darkmode,
+            "sensitive_action_fallback": session_bound_fallback,
+            "twofa_settings_url": f"{get_frontend_base_url()}/#settings/account/security/2fa",
+            "passkeys_settings_url": f"{get_frontend_base_url()}/#settings/account/security/passkeys",
         }
 
         logger.info(

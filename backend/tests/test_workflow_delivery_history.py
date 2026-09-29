@@ -8,6 +8,8 @@ import pytest
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter
 from backend.core.api.app.services.workflow_chat_delivery_service import WorkflowChatDeliveryService, WorkflowChatDeliveryStateError
 from backend.core.api.app.services.workflow_delivery_history import canonical_result_identity
+from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, sanitize_workflow_ai_answer
+from backend.core.api.app.services.workflow_runner import WorkflowRunner
 from backend.core.api.app.services.workflow_models import WorkflowRunDetail
 from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository, WorkflowNotFoundError
 from backend.tests.workflow_test_utils import workflow_service
@@ -110,6 +112,112 @@ async def test_all_conditional_blocks_excluded_does_not_send_header_only_chat():
     result = await adapter.send_chat_message(cfg,context(service,workflow),"alice")
     assert result["status"] == "no_new_results"
     assert cipher.payloads == []
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=workflows.message.standard,workflows.results.selective-embeds,workflows.ai-ask.execution
+async def test_inline_results_render_at_token_and_ask_receives_only_reserved_items():
+    from types import SimpleNamespace
+    service, workflow, cipher, _, adapter = setup()
+    first = context(service, workflow)
+    event = {"id": "event-1", "provider": "example", "title": "AI meetup",
+             "date_start": "2026-10-01T18:00:00+02:00", "location": "Berlin",
+             "url": "https://example.org/events/1", "event_type": "PHYSICAL"}
+    first["nodes"]["events"] = {"app_id": "events", "skill_id": "search", "output": {"results": [event]}}
+    prompt = "Summarize {{ $nodes.events.output.results }}"
+    send = SimpleNamespace(id="send", config={"title": "Events", "message": "{{ $nodes.ask.output.answer }}"})
+    selected = await prepare_ask_destinations(
+        workflow_service=service, workflow_id=workflow.id, run_id=first["workflow"]["run_id"],
+        ask_node_id="ask", prompt=prompt, context=first, user_id="alice", send_nodes=[send],
+    )
+    assert selected["send"]["selected_lists"]["$nodes.events.output.results"] == [event]
+    ai_item = selected["send"]["ai_lists"]["$nodes.events.output.results"][0]
+    assert ai_item["embed_ref"] and ai_item["title"] == "AI meetup"
+    assert "event_type" not in ai_item
+    ref = ai_item["embed_ref"]
+    answer = sanitize_workflow_ai_answer(
+        f"See [AI meetup](embed:{ref}) and [unknown](embed:unselected).\n"
+        f"```embeds_results_view\ntitle: Berlin events\nembeds: {ref}, unselected\n```",
+        {ref},
+    )
+    assert f"[AI meetup](embed:{ref})" in answer and "[unknown](embed:" not in answer
+    assert f"embeds: {ref}\n" in answer
+    first["nodes"]["ask"] = {"output": {"answer": answer, "answers_by_destination": {"send": answer}}}
+    first["workflow"]["prepared"] = selected
+    delivery = await adapter.send_chat_message(send.config, first, "alice")
+    assert delivery["selected_count"] == 1
+    assert cipher.payloads[0]["embeds"][0]["content"] == event
+    assert cipher.payloads[0]["embeds"][0]["embed_id"] == ref
+    assert answer in cipher.payloads[0]["message"]
+
+    next_run = context(service, workflow)
+    next_run["nodes"]["events"] = first["nodes"]["events"]
+    repeat = await prepare_ask_destinations(
+        workflow_service=service, workflow_id=workflow.id, run_id=next_run["workflow"]["run_id"],
+        ask_node_id="ask", prompt=prompt, context=next_run, user_id="alice", send_nodes=[send],
+    )
+    assert repeat["send"]["skip"] is True
+
+    # A branch that never reaches Send must free its separate selection.
+    branch_run = context(service, workflow)
+    branch_run["nodes"]["events"] = {"app_id": "events", "skill_id": "search", "output": {"results": [{**event, "id": "event-2"}]}}
+    branch_run["workflow"]["prepared"] = await prepare_ask_destinations(
+        workflow_service=service, workflow_id=workflow.id, run_id=branch_run["workflow"]["run_id"],
+        ask_node_id="ask", prompt=prompt, context=branch_run, user_id="alice", send_nodes=[send],
+    )
+    await WorkflowRunner(service)._release_undelivered_prepared(branch_run, [], "alice")
+    another_run = context(service, workflow)
+    another_run["nodes"]["events"] = branch_run["nodes"]["events"]
+    selectable_again = await prepare_ask_destinations(
+        workflow_service=service, workflow_id=workflow.id, run_id=another_run["workflow"]["run_id"],
+        ask_node_id="ask", prompt=prompt, context=another_run, user_id="alice", send_nodes=[send],
+    )
+    assert selectable_again["send"]["skip"] is False
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=workflows.message.standard
+async def test_inline_result_group_replaces_variable_with_embed_view():
+    service, workflow, cipher, _, adapter = setup()
+    ctx = context(service, workflow)
+    ctx["nodes"]["news"]["output"]["results"][0]["description"] = "Full card content"
+    result = await adapter.send_chat_message(
+        {"title": "News", "message": "Here are the stories: {{ $nodes.news.output.results }}"}, ctx, "alice",
+    )
+    assert result["selected_count"] == 1
+    message = cipher.payloads[0]["message"]
+    assert message.startswith("Here are the stories:")
+    assert "```embeds_results_view" in message
+    assert "Full card content" not in message
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=workflows.message.standard,workflows.results.selective-embeds
+async def test_inline_result_group_keeps_correct_embed_when_first_result_was_sent_before():
+    service, workflow, cipher, _, adapter = setup()
+    old = {"id": "story-1", "provider": "example", "title": "Old", "url": "https://example.org/old"}
+    new = {"id": "story-2", "provider": "example", "title": "New", "url": "https://example.org/new"}
+    first = context(service, workflow)
+    first["nodes"]["news"]["output"]["results"] = [old]
+    await adapter.send_chat_message({"title": "News", "message": "{{ $nodes.news.output.results }}"}, first, "alice")
+
+    second = context(service, workflow)
+    second["nodes"]["news"]["output"]["results"] = [old, new]
+    delivery = await adapter.send_chat_message({"title": "News", "message": "{{ $nodes.news.output.results }}"}, second, "alice")
+    assert delivery["selected_count"] == 1
+    assert cipher.payloads[-1]["embeds"][0]["content"] == new
+    assert cipher.payloads[-1]["embeds"][0]["embed_id"] in cipher.payloads[-1]["message"]
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=workflows.chat-delivery.run-provenance
+async def test_legacy_chat_and_report_actions_include_run_provenance():
+    service, workflow, cipher, _, adapter = setup()
+    ctx = context(service, workflow)
+    await adapter.start_new_chat({"title": "Daily", "message": "Update"}, ctx, "alice")
+    await adapter.create_chat_report({"title": "Report", "summary": "Summary"}, ctx, "alice")
+    expected = f"run-id={ctx['workflow']['run_id']}"
+    assert all(expected in payload["message"] for payload in cipher.payloads)
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.history.delivered-membership

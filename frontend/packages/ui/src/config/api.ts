@@ -205,6 +205,7 @@ export const apiEndpoints = {
     recovery_verify: "/v1/auth/recovery/verify-code", // Verify recovery code and get verification token
     recovery_setup_2fa: "/v1/auth/recovery/setup-2fa", // Generate 2FA setup data during recovery
     recovery_full_reset: "/v1/auth/recovery/reset-account", // Full account reset (deletes all data)
+    recovery_cancel_reset: "/v1/auth/recovery/cancel-reset",
   },
   chat: {
     sendMessage: "/v1/chat/message", // Send a message to a chat (or create a new chat if it doesn't exist)

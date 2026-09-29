@@ -134,7 +134,12 @@
             
             // Validate required data
             if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
-                console.error('Missing required signup data');
+                console.error('Missing required signup data', JSON.stringify({
+                    hasEmail: Boolean(storeData.email),
+                    hasUsername: Boolean(storeData.username),
+                    inviteRequired: requireInviteCodeValue,
+                    hasInviteCode: Boolean(storeData.inviteCode)
+                }));
                 errorMessage = 'Missing required signup information. Please go back and try again.';
                 notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
@@ -625,7 +630,7 @@
         padding: var(--spacing-2) var(--spacing-5);
         display: flex;
         align-items: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-sm);
         z-index: var(--z-index-raised-2);
         white-space: nowrap;
     }
@@ -691,7 +696,7 @@
         justify-content: center;
         width: 48px;
         height: 48px;
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-radius: var(--radius-3);
     }
     

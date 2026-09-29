@@ -64,7 +64,7 @@ Response handling:
     $effect(() => {
         const rawUrl = $userProfile.profile_image_url;
         const userId = $userProfile.user_id ?? '';
-        if (!rawUrl || !userId) {
+        if (!userId) {
             resolvedAvatarUrl = null;
             return;
         }

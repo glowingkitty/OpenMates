@@ -62,6 +62,7 @@ _install_stub("backend.apps.ai.utils.mate_utils", mate_utils_stub)
 llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
 llm_utils_stub.call_main_llm_stream = object
 llm_utils_stub.truncate_message_history_to_token_budget = object
+llm_utils_stub._transform_message_history_for_llm = lambda history: history
 llm_utils_stub.AllServersFailedError = Exception
 llm_utils_stub.STANDARDIZED_USER_ERROR_MESSAGE = "Model unavailable."
 _install_stub("backend.apps.ai.utils.llm_utils", llm_utils_stub)
@@ -208,7 +209,12 @@ _install_stub("backend.apps.ai.processing.skill_executor", skill_executor_stub)
 
 billing_stub = types.ModuleType("backend.shared.python_utils.billing_utils")
 billing_stub.calculate_total_credits = lambda *_args, **_kwargs: 0
+billing_stub.calculate_credits_from_tokens = lambda *_args, **_kwargs: 0
 billing_stub.MINIMUM_CREDITS_CHARGED = 1
+billing_stub.BillingError = type("BillingError", (Exception,), {})
+async def _noop_credit_headroom(**_kwargs):
+    return None
+billing_stub.ensure_credit_headroom = _noop_credit_headroom
 _install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
 main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
@@ -248,6 +254,7 @@ async def _run_mocked_protocol_guard_main_processor(
     *,
     truncate_history=None,
     generated_tools=None,
+    ai_model_topics=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -383,6 +390,7 @@ async def _run_mocked_protocol_guard_main_processor(
         relevant_embedded_previews=[],
         relevant_focus_modes=[],
         enable_subchats=False,
+        ai_model_topics=ai_model_topics or [],
         llm_response_temp=0.1,
         user_requested_skills_only=False,
         user_requested_focus_only=False,
@@ -406,6 +414,22 @@ async def _run_mocked_protocol_guard_main_processor(
     return output, calls
 
 
+async def test_model_topic_adds_catalogue_context_to_main_prompt(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor.config_manager, "get_provider_configs", lambda: {}, raising=False)
+    monkeypatch.setattr(
+        main_processor,
+        "build_ai_model_catalogue_context",
+        lambda _providers, topics, **_kwargs: "RECENT_MODEL_FACTS" if topics == ["llm"] else "",
+    )
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [["Recent models are available."]],
+        ai_model_topics=["llm"],
+    )
+    assert "RECENT_MODEL_FACTS" in calls[0]["system_prompt"]
+    assert "Do not center older models" in calls[0]["system_prompt"]
+
+
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 @pytest.mark.parametrize("recovery_succeeds", [True, False])
 async def test_final_no_tools_turn_recovers_from_provider_tool_call_without_executing_it(
@@ -422,7 +446,7 @@ async def test_final_no_tools_turn_recovers_from_provider_tool_call_without_exec
 
     assert len(calls) == 2
     assert all(call["tool_choice"] == "none" and call["tools"] is None for call in calls)
-    assert "previous answer-only attempt" in calls[1]["system_prompt"]
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]["system_prompt"]
     if recovery_succeeds:
         assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
         assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
@@ -589,10 +613,8 @@ def test_empty_post_tool_turn_requires_answer_recovery() -> None:
     assert _is_empty_post_tool_turn(1, True) is False
     assert _is_empty_post_tool_turn(0, False) is False
 
-    source = inspect.getsource(main_processor.handle_main_processing)
-    assert "[POST_TOOL_RECOVERY] Tool continuation produced no answer" in source
-    assert "empty_post_tool_recovery_attempted" in source
-    assert 'yield main_processing_failure("empty_post_tool_response")' in source
+    # The composed recovery behavior is exercised with the real provider wrapper
+    # in test_answer_recovery_integration.py, rather than asserting source strings.
 
 
 def test_skill_dedup_does_not_cache_explicit_error_wrappers() -> None:

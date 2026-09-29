@@ -34,12 +34,13 @@ export interface ProjectRemoteAccessRequestFrame {
   source_id: string;
   source_session_id: string;
   requesting_client_id: string;
-  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
+  operation: "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file" | "copy_entries" | "move_entries";
   key_epoch: number;
   encrypted_envelope: string;
   chat_id?: string;
   operation_id?: string;
   proposal_digest?: string;
+  user_initiated?: boolean;
   routing_identity?: {
     context_type: string;
     context_id_hash: string;
@@ -411,9 +412,8 @@ export class OpenMatesWsClient {
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
-    // Use || (not ??) so empty-string wsToken falls through to refreshToken.
-    // create_ws_token() returns "" when INTERNAL_API_SHARED_TOKEN is unset.
-    const token = options.wsToken || options.refreshToken || "";
+    // Refresh credentials may travel as protected cookies, never in a URL.
+    const token = options.wsToken || "";
     const query = new URLSearchParams({
       sessionId: options.sessionId,
       token,
@@ -576,13 +576,15 @@ export class OpenMatesWsClient {
           || typeof payload.source_id !== "string"
           || typeof payload.source_session_id !== "string"
           || typeof payload.requesting_client_id !== "string"
-          || !["list", "search", "read_text", "create_file", "update_file"].includes(String(payload.operation))
+          || !["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file", "copy_entries", "move_entries"].includes(String(payload.operation))
           || typeof payload.key_epoch !== "number"
           || typeof payload.encrypted_envelope !== "string"
         ) return;
         if ((payload.operation === "create_file" || payload.operation === "update_file")
           && (typeof payload.chat_id !== "string" || typeof payload.operation_id !== "string"
             || typeof payload.proposal_digest !== "string" || !/^[a-f0-9]{64}$/.test(payload.proposal_digest))) return;
+        if ((payload.operation === "copy_entries" || payload.operation === "move_entries")
+          && payload.user_initiated !== true) return;
         void handler(payload as unknown as ProjectRemoteAccessRequestFrame);
       } catch {
         // Ignore malformed frames.

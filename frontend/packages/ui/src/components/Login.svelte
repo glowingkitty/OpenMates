@@ -3,7 +3,7 @@
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, deviceVerificationReason, login, checkAuth, logout } from '../stores/authStore'; // Import login and checkAuth functions
+    import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, devicePasswordFallbackAvailable, devicePasswordCredentialVersion, deviceVerificationReason, checkAuth, logout, bumpLoginSessionGeneration } from '../stores/authStore';
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
@@ -41,6 +41,7 @@
     import { setLastAuthMethod } from '../utils/lastAuthMethod';
     import { loginStayLoggedInRequested } from '../stores/uiStateStore';
     import { isVscodePairOnlyLogin } from '../platform/runtime';
+    import { getSessionId } from '../utils/sessionId';
 
     /** PRF extension results from WebAuthn client */
     interface PRFExtensionResults {
@@ -185,6 +186,8 @@
     // Shows either 2FA or passkey verification depending on deviceVerificationType
     let showVerifyDeviceView = $derived($needsDeviceVerification);
     let verifyDeviceType = $derived($deviceVerificationType);
+    let verifyDevicePasswordFallbackAvailable = $derived($devicePasswordFallbackAvailable);
+    let verifyDevicePasswordCredentialVersion = $derived($devicePasswordCredentialVersion);
     let verifyDeviceReason = $derived($deviceVerificationReason);
 
     /**
@@ -386,6 +389,8 @@
         verifyDeviceErrorMessage = null;
         needsDeviceVerification.set(false);
         deviceVerificationType.set(null);
+        devicePasswordFallbackAvailable.set(false);
+        devicePasswordCredentialVersion.set(null);
         deviceVerificationReason.set(null);
         
         // Clear general login errors and warnings
@@ -514,15 +519,6 @@
         return bytes.buffer;
     }
     
-    function getSessionId(): string {
-        let sessionId = sessionStorage.getItem('openmates_session_id');
-        if (!sessionId) {
-            sessionId = crypto.randomUUID();
-            sessionStorage.setItem('openmates_session_id', sessionId);
-        }
-        return sessionId;
-    }
-
     function focusLoginEmailInput() {
         if (emailInput && !isTouchDevice) {
             emailInput.focus();
@@ -812,11 +808,6 @@
                 return;
             }
             
-            console.log('[Login] PRF signature extracted successfully', {
-                length: prfSignature.length,
-                firstBytes: Array.from(prfSignature.slice(0, 4))
-            });
-            
             // Step 5: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(assertion.rawId);
             const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
@@ -887,22 +878,8 @@
                 return;
             }
             
-            // Debug logging for key derivation
-            console.log('[Login] Key derivation inputs:', {
-                prfSignatureLength: prfSignature.length,
-                prfSignatureFirstBytes: Array.from(prfSignature.slice(0, 4)),
-                emailSaltLength: emailSalt.length,
-                emailSaltFirstBytes: Array.from(emailSalt.slice(0, 4)),
-                user_email_salt_from_backend: verifyData.user_email_salt?.substring(0, 20) + '...'
-            });
-            
             // Step 8: Derive wrapping key from PRF signature using HKDF
             const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
-            
-            console.log('[Login] Wrapping key derived:', {
-                wrappingKeyLength: wrappingKey.length,
-                wrappingKeyFirstBytes: Array.from(wrappingKey.slice(0, 4))
-            });
             
             // Step 9: Unwrap master key (needed to decrypt email)
             const encryptedMasterKey = verifyData.encrypted_master_key;
@@ -983,7 +960,6 @@
                 
                 // Authenticate using the regular login endpoint with lookup_hash
                 const { getApiEndpoint, apiEndpoints } = await import('../config/api');
-                const { getSessionId } = await import('../utils/sessionId');
                 if (passkeyLoginWasCancelled()) return;
                 const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
                     method: 'POST',
@@ -1598,8 +1574,6 @@
                 console.log('[Login] No auth_session in verify response, authenticating with lookup_hash');
                 
                 const hashedEmail = await cryptoService.hashEmail(userEmail);
-                const { getSessionId: getSessionIdUtil } = await import('../utils/sessionId');
-                
                 const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
                     method: 'POST',
                     headers: {
@@ -1612,7 +1586,7 @@
                         login_method: 'passkey',
                         credential_id: credentialId,
                         stay_logged_in: stayLoggedIn,
-                        session_id: getSessionIdUtil()
+                        session_id: getSessionId()
                     }),
                     credentials: 'include'
                 });
@@ -2032,6 +2006,8 @@
         showTfaView = false;
         needsDeviceVerification.set(false);
         deviceVerificationType.set(null);
+        devicePasswordFallbackAvailable.set(false);
+        devicePasswordCredentialVersion.set(null);
         deviceVerificationReason.set(null);
         
         // Stop the timer
@@ -2404,6 +2380,8 @@
                                     {#if verifyDeviceType === 'passkey'}
                                         <VerifyDevicePasskey
                                             reason={verifyDeviceReason}
+                                            passwordFallbackAvailable={verifyDevicePasswordFallbackAvailable}
+                                            passwordCredentialVersion={verifyDevicePasswordCredentialVersion}
                                             bind:isLoading
                                             bind:errorMessage={verifyDeviceErrorMessage}
                                             on:deviceVerified={async () => {
@@ -2680,32 +2658,24 @@
                                                 <SettingsSessionsPairInitiate
                                                     stayLoggedIn={stayLoggedIn}
                                                     on:login={async (e) => {
-                                                        // The authorizing device has approved the pairing. The bundle has been
-                                                        // decrypted, the master key imported and saved to session in
-                                                        // SettingsSessionsPairInitiate. Now call the standard login API to
-                                                        // establish a server session (cookie) using the recovered credentials.
+                                                        // The v2 complete endpoint already minted the bound session.
+                                                        // The receiver stored key/profile and ACKed. A transient
+                                                        // auth refresh failure must preserve that completed session.
+                                                        if (isLoading) return;
                                                         isLoading = true;
+                                                        bumpLoginSessionGeneration();
                                                         try {
-                                                            const { lookupHash, hashedEmail } = e.detail;
-                                                            // hashedEmail = SHA256(email) for user lookup, lookupHash = auth credential
-                                                            // "pair" login_method signals to the backend to bypass 2FA —
-                                                            // the pair flow itself is strong mutual auth (ZK-encrypted bundle + PIN).
-                                                            const result = await login(hashedEmail, lookupHash, undefined, undefined, stayLoggedIn, 'pair');
-                                                            if (result.success && !result.tfa_required) {
-                                                                // Pair session state + master key already set in SettingsSessionsPairInitiate
-                                                                currentLoginStep = 'email';
-                                                                dispatch('loginSuccess', {
-                                                                    user: result.user ?? null,
-                                                                    isMobile,
-                                                                    inSignupFlow: result.inSignupFlow ?? false,
-                                                                });
-                                                            } else {
-                                                                console.error('[PairLogin] Login API call failed after pairing. success:', result.success, 'tfa_required:', result.tfa_required, 'message:', result.message);
-                                                                // Reset to pair-initiate to let user try again
-                                                                isLoading = false;
-                                                            }
-                                                        } catch (err) {
-                                                            console.error('[PairLogin] Unexpected error completing pair login:', err);
+                                                            const hydrated = await checkAuth(undefined, true);
+                                                            if (!hydrated || !get(authStore).isAuthenticated) return;
+                                                            currentLoginStep = 'email';
+                                                            dispatch('loginSuccess', {
+                                                                user: e.detail.user,
+                                                                isMobile,
+                                                                inSignupFlow: typeof e.detail.user?.last_opened === 'string' && isSignupPath(e.detail.user.last_opened),
+                                                            });
+                                                        } catch (error) {
+                                                            console.warn('[PairLogin] Session hydration will retry:', error);
+                                                        } finally {
                                                             isLoading = false;
                                                         }
                                                     }}

@@ -48,7 +48,6 @@ export { default as WorkflowGraphRenderer } from "./src/components/workflows/Wor
 export { default as WorkflowTemplateShare } from "./src/components/workflows/WorkflowTemplateShare.svelte";
 export { default as TaskDetailPage } from "./src/components/tasks/TaskDetailPage.svelte";
 export { default as PlanDetailPage } from "./src/components/plans/PlanDetailPage.svelte";
-export { default as PlansWorkspacePage } from "./src/components/plans/PlansWorkspacePage.svelte";
 export * from "./src/components/workspace/detailMetadataAdapters";
 export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
@@ -145,6 +144,7 @@ export * from "./src/services/deepLinkHandler"; // Export unified deep link hand
 export * from "./src/services/workspacePrefetchService"; // Export workspace prefetch helpers
 export {
   getKeyFromStorage,
+  clearKeyFromStorage,
   checkAndClearMasterKeyOnLoad,
   // Embed key management functions for wrapped key architecture
   generateEmbedKey,
@@ -170,6 +170,7 @@ export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
 export * from "./src/services/embedFullscreenController";
 export * from "./src/services/projectService";
+export { cleanupStaleConnectedProjectDownloads } from "./src/services/projectRemoteDownload";
 export * from "./src/services/projectCreationNavigation";
 export * from "./src/services/teamService";
 export * from "./src/services/userTaskService";

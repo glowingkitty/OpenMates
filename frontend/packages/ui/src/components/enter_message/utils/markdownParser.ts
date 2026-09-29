@@ -76,6 +76,12 @@ function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
 
   const nextChar = text[numberEnd];
 
+  // A ratio such as $1:1{,}618$ starts with a digit, but the colon followed
+  // by another digit belongs to the formula rather than a currency amount.
+  if (nextChar === ":" && /\d/.test(text[numberEnd + 1] || "")) {
+    return false;
+  }
+
   // If the number is followed by whitespace, peek past it for LaTeX indicators.
   // "$2 \times 10^{32}$" is math, not currency — the backslash signals a LaTeX command.
   if (nextChar && /\s/.test(nextChar)) {

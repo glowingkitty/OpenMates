@@ -1,4 +1,5 @@
 import os
+import hashlib
 import time
 import logging
 import json
@@ -44,7 +45,7 @@ from backend.core.api.app.services.directus.daily_inspiration_defaults_methods i
 from backend.core.api.app.services.directus.reminder_methods import ReminderMethods  # Reminder CRUD (source of truth)
 from backend.core.api.app.services.directus.apple_iap_transaction_methods import AppleIAPTransactionMethods  # Apple IAP idempotency ledger
 from backend.core.api.app.services.directus.user.user_creation import create_user
-from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
+from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, create_trusted_user_session, logout_user, logout_all_sessions, refresh_token
 from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_user_by_hashed_username, hash_username, get_total_users_count, get_active_users_since, get_completed_signups_count, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
 from backend.core.api.app.services.directus.user.user_profile import get_user_profile, get_tfa_backup_code_hashes
 from backend.core.api.app.services.directus.user.delete_user import delete_user
@@ -275,8 +276,8 @@ class DirectusService:
         if key_iv:
             payload["key_iv"] = key_iv
         try:
-            created_item = await self.create_item("encryption_keys", payload)
-            if created_item:
+            success, created_item = await self.create_item("encryption_keys", payload)
+            if success and created_item:
                 logger.info(f"Successfully created encryption key for hashed_user_id: {hashed_user_id}")
                 return True
             else:
@@ -779,11 +780,11 @@ class DirectusService:
                     {"user_id": {"_eq": user_id}},
                 ]
             },
-            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at,created_at",
+            "fields": "id,key_hash,credential_version,encrypted_key_prefix,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at,created_at",
             "sort": "-created_at"  # Most recently created first
         }
         try:
-            items = await self.get_items("api_keys", params, admin_required=True)
+            items = await self.get_items("api_keys", params, admin_required=True, no_cache=True)
             return items if items else []
         except Exception as e:
             logger.error(f"Exception getting user API keys for user_id {user_id[:8]}...: {e}", exc_info=True)
@@ -801,17 +802,53 @@ class DirectusService:
         """
         params = {
             "filter[key_hash][_eq]": key_hash,
-            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at",
+            "fields": "id,user_id,hashed_user_id,key_hash,credential_version,encrypted_name,full_access,scopes,credit_limit,resource_key_grants,expires_at,last_used_at",
             "limit": 1
         }
         try:
-            items = await self.get_items("api_keys", params, admin_required=True)
+            items = await self.get_items("api_keys", params, admin_required=True, no_cache=True)
             if items:
                 return items[0]
             return None
         except Exception as e:
             logger.error(f"Exception getting API key by hash: {e}", exc_info=True)
             return None
+
+    async def revoke_user_api_keys(self, user_id: str) -> bool:
+        """Revoke all API bearers and their optional client-side key wrappers.
+
+        Used for destructive account recovery. A failed bearer deletion is a
+        hard failure because an old client must not retain online access.
+        """
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        try:
+            keys = await self.get_items(
+                "api_keys",
+                {
+                    "filter": {"_or": [
+                        {"hashed_user_id": {"_eq": hashed_user_id}},
+                        {"user_id": {"_eq": user_id}},
+                    ]},
+                    "fields": "id,key_hash",
+                    "limit": -1,
+                },
+                no_cache=True,
+                admin_required=True,
+                raise_on_error=True,
+            )
+            if not isinstance(keys, list):
+                return False
+            for key in keys:
+                key_id = key.get("id")
+                if not key_id or not await self.delete_api_key(key_id):
+                    return False
+                key_hash = key.get("key_hash")
+                if key_hash:
+                    await self.delete_encryption_key(hashed_user_id, f"api_key_{key_hash}")
+            return True
+        except Exception:
+            logger.exception("Failed to revoke all API keys during destructive recovery")
+            return False
 
     async def create_api_key(
         self,
@@ -820,9 +857,11 @@ class DirectusService:
         key_hash: str,
         encrypted_key_prefix: str,
         encrypted_name: str,
+        credential_version: int = 2,
         full_access: bool = True,
         scopes: Optional[Dict[str, Any]] = None,
         credit_limit: Optional[Dict[str, Any]] = None,
+        resource_key_grants: Optional[List[Dict[str, Any]]] = None,
         expires_at: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
@@ -831,7 +870,7 @@ class DirectusService:
         Args:
             user_id: The user's UUID
             hashed_user_id: SHA256 hash of user_id
-            key_hash: SHA-256 hash of the full API key
+            key_hash: SHA-256 hash of the bearer component
             encrypted_key_prefix: Client-side encrypted key prefix
             encrypted_name: Client-side encrypted API key name
             full_access: Whether the key can use all supported API-key scopes
@@ -850,11 +889,13 @@ class DirectusService:
             "user_id": user_id,
             "hashed_user_id": hashed_user_id,
             "key_hash": key_hash,
+            "credential_version": credential_version,
             "encrypted_key_prefix": encrypted_key_prefix,
             "encrypted_name": encrypted_name,
             "full_access": full_access,
             "scopes": scopes or {},
             "credit_limit": credit_limit,
+            "resource_key_grants": resource_key_grants or [],
             "created_at": current_timestamp,
             "updated_at": current_timestamp,
         }
@@ -1387,6 +1428,7 @@ class DirectusService:
     create_user = create_user
     login_user = login_user
     login_user_with_lookup_hash = login_user_with_lookup_hash
+    create_trusted_user_session = create_trusted_user_session
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
     get_user_by_hashed_email = get_user_by_hashed_email

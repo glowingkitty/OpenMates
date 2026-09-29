@@ -7,8 +7,8 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import InputWarning from './common/InputWarning.svelte';
-    import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
+    import { loginWithPasswordVersions, requirePasswordCredentialVersion, derivePasswordV2, migrateUnlockedLegacyPassword } from '../services/passwordV2';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
 
@@ -33,6 +33,7 @@
         encrypted_key?: string;
         salt?: string;
         key_iv?: string;
+        credential_version?: number;
         username?: string;
         profile_image_url?: string | null;
         credits?: number;
@@ -102,45 +103,19 @@
             // Generate hashed email and lookup hash
             const hashed_email = await cryptoService.hashEmail(email);
             
-            // Generate lookup hash (password + salt)
-            // According to security.md: lookup_hash = SHA256(login_secret + salt)
-            // We need to use the user_email_salt as the salt for the lookup hash
             const userEmailSalt = cryptoService.getEmailSalt();
-            
-            if (!userEmailSalt) {
-                console.error('Email salt not found in storage. Cannot generate lookup hash.');
-                errorMessage = 'Authentication data not found. Please try logging in again.';
-                isLoading = false;
-                return;
-            }
-            
-            // Use the hashKey function from cryptoService which properly handles salt
-            const lookup_hash = await cryptoService.hashKey(password, userEmailSalt);
-
-            // Get email encryption key for zero-knowledge email decryption
-            const email_encryption_key = cryptoService.getEmailEncryptionKeyForApi();
-            
-            // Send login request with backup code and email encryption key
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify({
-                    hashed_email,
-                    lookup_hash,
+            if (!userEmailSalt) throw new Error('Authentication data not found');
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            const { response, data } = await loginWithPasswordVersions({
+                password, hashedEmail: hashed_email, userEmailSalt,
+                sessionId: getSessionId(),
+                fields: {
                     tfa_code: backupCode,
                     code_type: 'backup',
-                    email_encryption_key, // Include client-derived key for email decryption
-                    stay_logged_in: stayLoggedIn, // Send stay logged in preference
-                    session_id: getSessionId() // Add sessionId for device fingerprint uniqueness
-                }),
-                credentials: 'include'
+                    email_encryption_key: emailEncryptionKey,
+                    stay_logged_in: stayLoggedIn,
+                },
             });
-
-            const data = await response.json();
 
             if (response.ok && data.success) {
                 // Login successful with backup code
@@ -200,6 +175,8 @@
             return;
         }
         
+        let unlockedMasterKey: CryptoKey | null = null;
+        let legacyEmailSalt: Uint8Array | null = null;
         // Decrypt and save master key (Web Crypto API)
         try {
             // Decode salt from base64
@@ -212,7 +189,14 @@
 
             // Derive wrapping key from password
             console.debug('[EnterBackupCode] Deriving wrapping key from password...');
-            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+            const credentialVersion = requirePasswordCredentialVersion(data.user.credential_version);
+            const emailSalt = cryptoService.getEmailSalt();
+            if (credentialVersion === 2 && (!emailSalt || cryptoService.uint8ArrayToBase64(emailSalt) !== data.user.salt)) {
+                throw new Error('Password wrapper salt does not match this account');
+            }
+            const wrappingKey = credentialVersion === 2
+                ? (await derivePasswordV2(password, salt)).wrapKey
+                : await cryptoService.deriveKeyFromPassword(password, salt);
 
             // Unwrap master key with IV (Web Crypto API)
             const keyIv = data.user.key_iv || ''; // IV for key unwrapping
@@ -225,6 +209,11 @@
                 return;
             }
             
+            if (credentialVersion === 1) {
+                unlockedMasterKey = masterKey;
+                legacyEmailSalt = cryptoService.getEmailSalt();
+            }
+
             // Save extractable master key to IndexedDB
             // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
             // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
@@ -281,6 +270,7 @@
             const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
             console.debug('[EnterBackupCode] Login success (backup code), in signup flow:', inSignupFlow);
             
+            const passwordForMigration = unlockedMasterKey && legacyEmailSalt ? password : null;
             // Clear sensitive data
             password = '';
             backupCode = '';
@@ -292,6 +282,10 @@
                 inSignupFlow: inSignupFlow,
                 backupCodeUsed: true
             });
+            if (passwordForMigration && legacyEmailSalt && unlockedMasterKey) {
+                void migrateUnlockedLegacyPassword(passwordForMigration, legacyEmailSalt, unlockedMasterKey)
+                    .catch((error) => console.warn('[BackupLogin] Safe legacy migration deferred:', error));
+            }
         } catch (e) {
             console.error('[EnterBackupCode] Error during key decryption:', e);
             errorMessage = 'Error during key decryption. Please try again.';

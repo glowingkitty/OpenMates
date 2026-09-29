@@ -5,7 +5,7 @@ import type {
 import { hiddenWorkflowField } from "./workflowValuePresentation";
 
 export type Schema = {
-  "x-ui"?: { control?: string; start_field?: string; end_field?: string; min?: string; max_offset_days?: number; default?: string; hidden?: boolean; basic?: boolean };
+  "x-ui"?: { control?: string; start_field?: string; end_field?: string; min?: string; min_offset_days?: number; max_offset_days?: number; max_span_days?: number; location_mode?: string; latitude_field?: string; longitude_field?: string; city_field?: string; clear_fields?: string[]; default?: string; hidden?: boolean; basic?: boolean };
   type?: string;
   title?: string;
   description?: string;
@@ -44,6 +44,7 @@ export type Output = {
   nodeId: string;
   label: string;
   schema: Schema;
+  appId?: string;
 };
 export type Insertion = { after: string | null; branch?: string };
 
@@ -224,7 +225,7 @@ export function outputsBefore(
         node.id,
         node.title || label(String(node.config?.app_id ?? node.type)),
         properties,
-      );
+      ).map(output => ({ ...output, appId: String(node.config?.app_id ?? (node.type === 'app_skill_action' ? '' : 'ai')) }));
     });
 }
 

@@ -128,6 +128,14 @@ coordinator changes, restart the exact `openmates-ci-coordinator.service` under
 the coordinator queue lock so the running daemon uses the new code. Preserve
 its queue database and already-dispatched GitHub jobs.
 
+Install or audit the coordinator with `python3 scripts/ci_coordinator_service.py
+--install` or `--check`. The checked-in installer creates an enabled user service
+with restart-on-failure and requires user lingering, so it survives logout and
+reboot. The 03:00 cron launcher connects to the linger user bus with explicit
+runtime variables; it never starts a transient service. If the service is down,
+the selected jobs remain queued and the daily manifest records a visible
+coordinator blocker for the hourly notifier.
+
 Focused backend runs accept repeatable `--test-target` with `--suite pytest`
 (or `--mode pytest` on the coordinator), including `::test_node` selectors.
 Only those targets execute; an empty selection retains the broad daily suite.

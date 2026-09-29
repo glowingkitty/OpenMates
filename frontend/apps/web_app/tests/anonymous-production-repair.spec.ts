@@ -2,18 +2,19 @@
 export {};
 
 /**
- * Real anonymous-chat regression for production issue H753F.
+ * Real anonymous-chat regressions for production issues H753F and 2PUJ3.
  *
- * This opt-in test uses the deployed browser and anonymous inference paths
- * without request mocks. It is safe for dev and bounded production smoke runs.
+ * These opt-in tests use the deployed dev browser and anonymous inference paths
+ * without request mocks. Real AI inference verification runs on dev only.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
+const { openFullscreen, verifySearchGrid, closeFullscreen } = require('./helpers/embed-test-helpers');
 
 const REPORTED_PROMPT =
 	'is it practical to run clo3d in a VM in virtual box? heard there is a 256mb vram max for vms? is that true? if so, this would be a no go...';
-const PROCESSING_ERROR = 'The AI service encountered an error while processing your request.';
+const PROCESSING_ERROR = /AI service encountered an error|Sorry, something went wrong while I was trying to process your message|try again in a moment/i;
 async function startAnonymousChat(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
@@ -50,7 +51,9 @@ async function typeMessage(page: any, text: string): Promise<void> {
 async function sendAndAwaitAnswer(page: any, text: string, expected?: RegExp): Promise<number> {
 	await typeMessage(page, text);
 	const startedAt = Date.now();
-	await page.locator('[data-action="send-message"]').click();
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton, 'Anonymous free usage must be active on dev for this live test').toBeVisible({ timeout: 5_000 });
+	await sendButton.click();
 
 	const assistant = page.getByTestId('message-assistant').last();
 	await expect(assistant).toBeVisible({ timeout: 120_000 });
@@ -132,5 +135,68 @@ test.describe('Anonymous production repair', () => {
 			followUp: 'Which check should I run first?',
 			expected: /port|process|log|configuration|dependency/i
 		});
+	});
+
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
+	test('completes anonymous web search and preserves its final answer on laptop', async ({ page }: { page: any }) => {
+		test.setTimeout(300_000);
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.addInitScript((anonymousId: string) => {
+			localStorage.removeItem('openmates:last-auth-method');
+			localStorage.setItem('openmates_anonymous_id', anonymousId);
+		}, `prod2puj3-web-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+		await startAnonymousChat(page);
+		const assistantCountBeforeSearch = await page.getByTestId('message-assistant').count();
+		await typeMessage(
+			page,
+			'Search the web for the official OpenMates website and answer with its domain from the result.'
+		);
+		const sendButton = page.locator('[data-action="send-message"]');
+		await expect(sendButton, 'Anonymous free usage must be active on dev for this live test').toBeVisible({ timeout: 5_000 });
+		await sendButton.click();
+
+		const assistantMessages = page.getByTestId('message-assistant');
+		await expect(assistantMessages).toHaveCount(assistantCountBeforeSearch + 1, { timeout: 120_000 });
+		const assistant = assistantMessages.nth(assistantCountBeforeSearch);
+		await expect(assistant).toHaveAttribute('data-streaming', 'false', { timeout: 120_000 });
+		await expect(assistant).not.toContainText(PROCESSING_ERROR);
+		const messageContent = assistant.getByTestId('message-content').last();
+		await expect(messageContent).toContainText(/OpenMates|openmates\.org/i, { timeout: 15_000 });
+
+		const finishedSearchEmbed = assistant.locator(
+			'[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-status="finished"]'
+		).first();
+		await expect(finishedSearchEmbed).toBeVisible({ timeout: 120_000 });
+		const embedId = await finishedSearchEmbed.getAttribute('data-embed-id');
+		expect(embedId).toBeTruthy();
+		const fullscreen = await openFullscreen(page, finishedSearchEmbed);
+		const childResults = await verifySearchGrid(fullscreen);
+		const childEmbedId = await childResults.first().getAttribute('data-embed-id');
+		expect(childEmbedId).toBeTruthy();
+		expect(childEmbedId).not.toBe(embedId);
+		await expect(childResults.first()).toHaveAttribute('data-status', 'finished');
+		await closeFullscreen(page, fullscreen);
+		expect((await messageContent.innerText()).trim().length).toBeGreaterThan(20);
+		await expect(page.getByTestId('chat-processing-indicator')).toBeHidden();
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant')).toHaveCount(assistantCountBeforeSearch + 1, { timeout: 30_000 });
+		const reloadedAssistant = page.getByTestId('message-assistant').nth(assistantCountBeforeSearch);
+		await expect(reloadedAssistant).toHaveAttribute('data-streaming', 'false');
+		await expect(reloadedAssistant).not.toContainText(PROCESSING_ERROR);
+		await expect(reloadedAssistant.getByTestId('message-content').last()).toContainText(/openmates\.org/i);
+		await expect(reloadedAssistant.locator(
+			`[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"][data-status="finished"][data-embed-id="${embedId}"]`
+		).first()).toBeVisible({ timeout: 30_000 });
+		const reloadedFullscreen = await openFullscreen(page, reloadedAssistant.locator(
+			`[data-testid="embed-preview"][data-embed-id="${embedId}"]`
+		).first());
+		await verifySearchGrid(reloadedFullscreen);
+		await expect(reloadedFullscreen.locator(
+			`[data-testid="search-template-grid"] [data-testid="embed-preview"][data-embed-id="${childEmbedId}"]`
+		)).toBeVisible();
+		await closeFullscreen(page, reloadedFullscreen);
+		await assertNoMissingTranslations(page);
 	});
 });

@@ -86,7 +86,7 @@ test.describe('Workflow AI authoring', () => {
 			await expect(page.getByTestId('workflow-ai-suggestions')).toContainText('Results', { timeout: 10_000 });
 			const suggestionBox = await page.getByTestId('workflow-ai-suggestions').boundingBox();
 			const instructionBox = await instruction.boundingBox();
-			expect(suggestionBox && instructionBox && suggestionBox.y < instructionBox.y).toBe(true);
+			expect(suggestionBox && instructionBox && suggestionBox.y >= instructionBox.y + instructionBox.height).toBe(true);
 
 			await instruction.fill('Search for new events for me using the Events app');
 			await expect(page.getByTestId('workflow-ai-app-warning')).toHaveText(
@@ -97,6 +97,9 @@ test.describe('Workflow AI authoring', () => {
 
 			await instruction.fill('Neutral validation: summarize the existing event results');
 			await expect(page.getByTestId('workflow-ai-neutral-reminder')).toContainText('You can still save it', { timeout: 10_000 });
+			await expect(page.getByTestId('workflow-node-save')).toBeDisabled();
+			await page.getByTestId('workflow-ai-suggestions').getByRole('button', { name: /Results/ }).first().click();
+			await expect(instruction.locator('.generic-mention')).toHaveCount(1);
 			await expect(page.getByTestId('workflow-node-save')).toBeEnabled();
 			await page.getByRole('button', { name: 'Close' }).click();
 

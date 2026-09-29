@@ -65,6 +65,74 @@ def test_workflow_available_skills_explicitly_classify_all_ui_fields() -> None:
     assert not relevance_not_basic, "Natural-language relevance criteria must be basic:\n" + "\n".join(relevance_not_basic)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_workflow_input_semantics_are_declared_for_every_enabled_skill() -> None:
+    """Audit the whole enabled registry so new date/place inputs cannot become plain text."""
+    issues: list[str] = []
+    enabled = [
+        capability
+        for capability in WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).list_capabilities()
+        if capability.enabled
+    ]
+
+    def inspect(schema: object, path: str, capability_id: str) -> None:
+        if not isinstance(schema, dict):
+            return
+        properties = schema.get("properties", {})
+        if not isinstance(properties, dict):
+            return
+        ui = schema.get("x-ui") or {}
+        if ui.get("control") == "date-range":
+            start, end = ui.get("start_field"), ui.get("end_field")
+            if start not in properties or end not in properties:
+                issues.append(f"{capability_id} {path}: range fields are missing")
+            elif capability_id != "events.search" and any(properties[name].get("format") != "date" for name in (start, end)):
+                issues.append(f"{capability_id} {path}: range fields need date format")
+        for name, field in properties.items():
+            if not isinstance(field, dict):
+                continue
+            field_path = f"{path}.{name}" if path else name
+            field_ui = field.get("x-ui") or {}
+            if name in {"city", "origin", "destination", "address"} and field.get("type") == "string":
+                # Address text is also an accepted free-form value, but city and route
+                # endpoints must offer the location selection surface.
+                if name != "address" and field_ui.get("control") != "location":
+                    issues.append(f"{capability_id} {field_path}: missing location control")
+            if (name == "date" or name.endswith("_date")) and field.get("type") == "string":
+                if field.get("format") != "date" and not (ui.get("control") == "date-range" and name in (ui.get("start_field"), ui.get("end_field"))):
+                    issues.append(f"{capability_id} {field_path}: missing date format")
+            if name in {"min_departure_time", "max_departure_time", "min_arrival_time", "max_arrival_time"} and field.get("format") != "time":
+                issues.append(f"{capability_id} {field_path}: missing time format")
+            if name == "url" and capability_id in {"web.read", "videos.get_transcript"} and field.get("format") != "uri":
+                issues.append(f"{capability_id} {field_path}: missing URL format")
+            inspect(field, field_path, capability_id)
+            inspect(field.get("items"), f"{field_path}[]", capability_id)
+
+    for capability in enabled:
+        inspect(capability.metadata["input_schema"], "", capability.id)
+
+    assert not issues, "Workflow input controls have missing semantics:\n" + "\n".join(issues)
+
+    date_ranges = {
+        "weather.forecast": ("start_date", "end_date"),
+        "events.search": ("start_date", "end_date"),
+        "fitness.search_classes": ("start_date", "end_date"),
+        "finance.check_accounts": ("start_date", "end_date"),
+        "travel.search_stays": ("check_in_date", "check_out_date"),
+    }
+    by_id = {capability.id: capability for capability in enabled}
+    for capability_id, expected in date_ranges.items():
+        schema = by_id[capability_id].metadata["input_schema"]
+        if "requests" in schema["properties"]:
+            schema = schema["properties"]["requests"]["items"]
+        ui = schema.get("x-ui") or {}
+        assert (ui.get("start_field"), ui.get("end_field")) == expected, capability_id
+        assert ui.get("control") == "date-range", capability_id
+        if capability_id == "fitness.search_classes":
+            assert ui.get("max_offset_days") == 365
+            assert ui.get("max_span_days") == 13
+
+
 def _normalized_output_fields(capability_id: str) -> set[str]:
     app_id, skill_id = capability_id.split(".", 1)
     common = {"app_id", "skill_id", "raw", "error"}

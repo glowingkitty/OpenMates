@@ -149,6 +149,12 @@
 		C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048005 /* PairLoginRuntime.swift */; };
 		C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048005 /* PairLoginRuntime.swift */; };
 		C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048005 /* PairLoginRuntime.swift */; };
+		A0B0C0D0E0F0000000000003 /* PairOpaque.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0C0D0E0F0000000000001 /* PairOpaque.swift */; };
+		A0B0C0D0E0F0000000000004 /* PairOpaque.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0C0D0E0F0000000000001 /* PairOpaque.swift */; };
+		A0B0C0D0E0F0000000000005 /* PairOpaque.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0C0D0E0F0000000000001 /* PairOpaque.swift */; };
+		A0B0C0D0E0F0000000000006 /* PairV2Runtime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0C0D0E0F0000000000002 /* PairV2Runtime.swift */; };
+		A0B0C0D0E0F0000000000007 /* PairV2Runtime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0C0D0E0F0000000000002 /* PairV2Runtime.swift */; };
+		A0B0C0D0E0F0000000000008 /* PairV2Runtime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B0C0D0E0F0000000000002 /* PairV2Runtime.swift */; };
 		C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048009 /* WatchLocalization.swift */; };
 		C0FFEE000000000000048012 /* WatchAuthStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048011 /* WatchAuthStore.swift */; };
 		C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048013 /* WatchPairLoginView.swift */; };
@@ -961,6 +967,8 @@
 		C0FFEE000000000000049024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C0FFEE000000000000048001 /* AuthError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthError.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000048005 /* PairLoginRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairLoginRuntime.swift; sourceTree = "<group>"; };
+		A0B0C0D0E0F0000000000001 /* PairOpaque.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairOpaque.swift; sourceTree = "<group>"; };
+		A0B0C0D0E0F0000000000002 /* PairV2Runtime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairV2Runtime.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPairLoginRuntimeTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049003 /* WatchChatRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntime.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntimeTests.swift; sourceTree = "<group>"; };
@@ -1722,6 +1730,8 @@
 			children = (
 				E0EF7DDBA6C719D8C80D36CD /* AuthManager.swift */,
 				C0FFEE000000000000048005 /* PairLoginRuntime.swift */,
+				A0B0C0D0E0F0000000000001 /* PairOpaque.swift */,
+				A0B0C0D0E0F0000000000002 /* PairV2Runtime.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -2406,6 +2416,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C0FFEE000000000000047040 /* Build configuration list for PBXNativeTarget "OpenMatesWatch" */;
 			buildPhases = (
+				A0B0C0D0E0F000000000000B /* Build PairOpaqueBridge */,
 				C0FFEE000000000000047020 /* Sources */,
 				C0FFEE000000000000047021 /* Resources */,
 				C0FFEE000000000000047022 /* Frameworks */,
@@ -2425,6 +2436,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7C45214DD39498742E9FEF0E /* Build configuration list for PBXNativeTarget "OpenMates_iOS" */;
 			buildPhases = (
+				A0B0C0D0E0F0000000000009 /* Build PairOpaqueBridge */,
 				830E7D0E116B4B5F89080C48 /* Sources */,
 				B4B0CAA1635A0D7801CFC6A2 /* Resources */,
 				90DC7917B175D3B5F3EF4AFE /* Frameworks */,
@@ -2524,6 +2536,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C8D6826FABAA4321C0AEF0B0 /* Build configuration list for PBXNativeTarget "OpenMates_macOS" */;
 			buildPhases = (
+				A0B0C0D0E0F000000000000A /* Build PairOpaqueBridge */,
 				591446FAB19B231024F85B8C /* Sources */,
 				D76DD5C267E59E845677EED4 /* Resources */,
 				3A36B0EF5F72B71EB5E2C352 /* Frameworks */,
@@ -2792,6 +2805,45 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A0B0C0D0E0F0000000000009 /* Build PairOpaqueBridge */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = "Build PairOpaqueBridge";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"\n";
+		};
+		A0B0C0D0E0F000000000000A /* Build PairOpaqueBridge */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = "Build PairOpaqueBridge";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"\n";
+		};
+		A0B0C0D0E0F000000000000B /* Build PairOpaqueBridge */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = "Build PairOpaqueBridge";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		C0FFEE000000000000047020 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -2811,6 +2863,8 @@
 				2287142A4DD127B4123E6938 /* WatchPhoneOpenPayload.swift in Sources */,
 				C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */,
 				C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */,
+				A0B0C0D0E0F0000000000005 /* PairOpaque.swift in Sources */,
+				A0B0C0D0E0F0000000000008 /* PairV2Runtime.swift in Sources */,
 				C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */,
 				C0FFEE000000000000048012 /* WatchAuthStore.swift in Sources */,
 				C0FFEE000000000000049002 /* WatchChatViews.swift in Sources */,
@@ -2886,6 +2940,8 @@
 				1B1681C4C8C5257667359EC7 /* AuthManager.swift in Sources */,
 				D28496BC291A569EA6AD7667 /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */,
+				A0B0C0D0E0F0000000000003 /* PairOpaque.swift in Sources */,
+				A0B0C0D0E0F0000000000006 /* PairV2Runtime.swift in Sources */,
 				C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */,
 				468C32E57DC056BAEFD042D4 /* WatchItemOpenModel.swift in Sources */,
 				83136C15A6FE80F35F0541CD /* WatchPhoneOpenPayload.swift in Sources */,
@@ -3172,6 +3228,8 @@
 				68BB48027B70916FD087A263 /* AuthManager.swift in Sources */,
 				F98B349F4D92BA38E6A386DE /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */,
+				A0B0C0D0E0F0000000000004 /* PairOpaque.swift in Sources */,
+				A0B0C0D0E0F0000000000007 /* PairV2Runtime.swift in Sources */,
 				C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */,
 				F3AD7C8BE79B4D1E3EC0B0D7 /* WatchItemOpenModel.swift in Sources */,
 				752281190D005DB64DE97D2B /* WatchPhoneOpenPayload.swift in Sources */,
@@ -3674,6 +3732,8 @@
 		07C7D948904FEF8FB58AF51F /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
 				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
@@ -3695,6 +3755,8 @@
 		1CBBDA4FC9F03A72CBC3845B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
 				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
@@ -3835,6 +3897,8 @@
 		901ABADF3B360810540B184E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
 				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
@@ -3856,6 +3920,8 @@
 		B73251D54DB1163385623857 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
 				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
@@ -3932,7 +3998,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.21.0;
+				MARKETING_VERSION = 0.22.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -4013,7 +4079,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.21.0;
+				MARKETING_VERSION = 0.22.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -4051,6 +4117,8 @@
 		C0FFEE000000000000047030 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMatesWatch/OpenMatesWatch.entitlements;
@@ -4074,6 +4142,8 @@
 		C0FFEE000000000000047031 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque";
+				OTHER_LDFLAGS = "$(inherited) -lopenmates_pair_opaque";
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMatesWatch/OpenMatesWatch.entitlements;

@@ -57,6 +57,18 @@ click_to_start_chat:
   he: "לחץ כדי להתחיל בצ'אט"
   verified_by_human: []
 
+click_to_create_task:
+  context: Call-to-action on a Tasks workspace daily inspiration for pointer devices
+  en: Click to create task
+  de: Klicken, um eine Aufgabe zu erstellen
+  verified_by_human: []
+
+tap_to_create_task:
+  context: Call-to-action on a Tasks workspace daily inspiration for touch devices
+  en: Tap to create task
+  de: Tippen, um eine Aufgabe zu erstellen
+  verified_by_human: []
+
 click_to_open_settings:
   context: Call-to-action text for feature Daily Inspiration banners on non-touch devices
   en: Click to open settings

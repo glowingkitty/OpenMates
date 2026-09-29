@@ -11,7 +11,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
-const { getE2EDebugUrl, setToggleChecked, validateSignupInviteIfRequired } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
 
 type FreeTestingPromotion = {
 	active: boolean;
@@ -40,6 +40,16 @@ async function mockServerStatus(page: any, freeTestingCredits: FreeTestingPromot
 }
 
 async function openSignupBasics(page: any, path: string = '/') {
+    // This spec checks signup copy and client payloads, not invite accounting.
+    // The isolated account fixture's real invite is already consumed during
+    // provisioning, so give this UI-only flow its own deterministic validation.
+    await page.route('**/v1/auth/check_invite_token_valid', async (route: any) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ valid: true, is_admin: false })
+        });
+    });
     await page.goto(getE2EDebugUrl(path));
 	await page.waitForLoadState('load');
 	await openSignupInterface(page, 30000);
@@ -54,9 +64,14 @@ async function openSignupBasics(page: any, path: string = '/') {
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await expect(page.getByRole('heading', { name: /sign up/i })).toBeVisible({ timeout: 10000 });
-	await validateSignupInviteIfRequired(page);
+    const inviteInput = page.getByTestId('signup-invite-code-input');
+    if (await inviteInput.isVisible().catch(() => false)) {
+        await inviteInput.fill('ABCD-EFGH-IJKL');
+        await page.locator('input[autocomplete="username"]').waitFor({ state: 'visible', timeout: 10000 });
+    }
 }
 
+// contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
 test('signup basics shows Free credits for testing while promotion is active', async ({ page }: { page: any }) => {
 	await mockServerStatus(page, { active: true, grant_credits: 1000 });
 
@@ -66,6 +81,7 @@ test('signup basics shows Free credits for testing while promotion is active', a
 	await expect(page.getByText('Pay per use')).toHaveCount(0);
 });
 
+// contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
 test('signup basics falls back to Pay per use when promotion is inactive', async ({ page }: { page: any }) => {
 	await mockServerStatus(page, { active: false, grant_credits: 1000 });
 
@@ -75,8 +91,10 @@ test('signup basics falls back to Pay per use when promotion is inactive', async
 	await expect(page.getByText('Free credits for testing')).toHaveCount(0);
 });
 
+// contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing,auth.password.versioned-protection
 test('gift-card signup hides Free credits claim and sends pending code to password signup', async ({ page }: { page: any }) => {
 	const giftCardCode = 'AB23-CDEF-4567';
+	const signupTransactionToken = 'signup-ui-test-transaction-token';
 	let setupPasswordPayload: Record<string, unknown> | null = null;
 
 	await mockServerStatus(page, { active: true, grant_credits: 1000 });
@@ -98,7 +116,7 @@ test('gift-card signup hides Free credits claim and sends pending code to passwo
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify({ success: true, message: 'Email confirmed' })
+			body: JSON.stringify({ success: true, message: 'Email confirmed', signup_transaction_token: signupTransactionToken })
 		});
 	});
 	await page.route('**/v1/auth/setup_password', async (route: any) => {
@@ -139,4 +157,9 @@ test('gift-card signup hides Free credits claim and sends pending code to passwo
 
 	await expect.poll(() => setupPasswordPayload).not.toBeNull();
 	expect(setupPasswordPayload?.pending_gift_card_code).toBe(giftCardCode);
+	expect(setupPasswordPayload?.signup_transaction_token).toBe(signupTransactionToken);
+	expect(setupPasswordPayload?.credential_version).toBe(2);
+	expect(setupPasswordPayload?.password_auth_key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+	expect(setupPasswordPayload?.salt).toBe(setupPasswordPayload?.user_email_salt);
+	expect(setupPasswordPayload).not.toHaveProperty('lookup_hash');
 });

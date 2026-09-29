@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.21.0"
+    MARKETING_VERSION: "0.22.0"
     CURRENT_PROJECT_VERSION: 12
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -45,6 +45,10 @@ targets:
   OpenMates:
     type: application
     platform: [iOS, macOS]
+    preBuildScripts:
+      - name: Build PairOpaqueBridge
+        script: '"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh"'
+        basedOnDependencyAnalysis: false
     sources:
       - path: OpenMates/Sources
         excludes:
@@ -81,6 +85,8 @@ targets:
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
     settings:
       base:
+        LIBRARY_SEARCH_PATHS: "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque"
+        OTHER_LDFLAGS: "$(inherited) -lopenmates_pair_opaque"
         INFOPLIST_FILE: OpenMates/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app
@@ -192,6 +198,10 @@ targets:
   OpenMatesWatch:
     type: application
     platform: watchOS
+    preBuildScripts:
+      - name: Build PairOpaqueBridge
+        script: '"${PROJECT_DIR}/PairOpaqueBridge/build-apple.sh"'
+        basedOnDependencyAnalysis: false
     deploymentTarget: "10.0"
     sources:
       - path: OpenMatesWatch/Sources
@@ -207,6 +217,8 @@ targets:
       - path: OpenMates/Sources/Core/Watch/WatchPhoneOpenPayload.swift
       - path: OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
       - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      - path: OpenMates/Sources/Features/Auth/ViewModels/PairOpaque.swift
+      - path: OpenMates/Sources/Features/Auth/ViewModels/PairV2Runtime.swift
       - path: OpenMates/Sources/Shared/Extensions/FontRegistration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
       - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
@@ -232,6 +244,8 @@ targets:
         type: folder
     settings:
       base:
+        LIBRARY_SEARCH_PATHS: "$(inherited) $(DERIVED_FILE_DIR)/PairOpaque"
+        OTHER_LDFLAGS: "$(inherited) -lopenmates_pair_opaque"
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon
         CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements

@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { homedir, platform, release, tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
+import { deflateSync } from "node:zlib";
 
 import { OpenMatesClient } from "../frontend/packages/openmates-cli/src/client.ts";
 import {
@@ -839,6 +840,34 @@ async function verifySourcePathPrivacy(client, fixture) {
     { path: "private/customer-export.csv", chatId: approval.chatId, operationId: randomUUID() });
 }
 
+function pngChunk(kind, data) {
+  const type = Buffer.from(kind, "ascii");
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  let crc = 0xffffffff;
+  for (const byte of Buffer.concat([type, data])) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  }
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
+  return Buffer.concat([length, type, data, checksum]);
+}
+
+function largeValidPngFixture() {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(2, 0);
+  header.writeUInt32BE(2, 4);
+  header[8] = 8;
+  header[9] = 6;
+  const pixels = Buffer.from([0, 40, 120, 230, 255, 40, 120, 230, 255, 0, 40, 120, 230, 255, 40, 120, 230, 255]);
+  const metadata = Buffer.concat([Buffer.from("Description\0", "ascii"), Buffer.alloc(210_000, 65)]);
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk("IHDR", header), pngChunk("tEXt", metadata), pngChunk("IDAT", deflateSync(pixels)), pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 async function runServeFixture(client, fixture) {
   const rootPath = join(tmpdir(), `openmates-remote-access-serve-${randomUUID()}`);
   const sourceStorePath = join(cliStateDir, "remote-sources.json");
@@ -851,6 +880,15 @@ async function runServeFixture(client, fixture) {
       + 'export const completeRemoteFile = "Remote fullscreen end marker";\n');
   writeFileSync(join(rootPath, ".env"), "REMOTE_ACCESS_SECRET=not-for-server\n");
   if (mode === "serve" || mode === "serve-team") {
+    mkdirSync(join(rootPath, "docs"));
+    writeFileSync(join(rootPath, "docs", "readme-image.png"), largeValidPngFixture());
+    writeFileSync(join(rootPath, "README.md"), "# Connected project\n\n![Connected diagram](docs/readme-image.png)\n\n[External docs](https://openmates.org)\n");
+    writeFileSync(join(rootPath, "diagram.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00]));
+    writeFileSync(join(rootPath, "mystery.dat"), Buffer.from([0x41, 0x00, 0x42, 0x43]));
+    writeFileSync(join(rootPath, "empty.dat"), Buffer.alloc(0));
+    const largeBinary = Buffer.alloc(4 * 1024 * 1024 + 1);
+    for (let index = 0; index < largeBinary.length; index += 1) largeBinary[index] = index % 251;
+    writeFileSync(join(rootPath, "large-binary.dat"), largeBinary);
     writeFileSync(join(rootPath, ".gitignore"), "*.log\n");
     writeFileSync(join(rootPath, "debug.log"), "remoteDemo: disposable ignored log\n");
     writeFileSync(join(rootPath, "other.log"), "remoteDemo: another excluded log\n");

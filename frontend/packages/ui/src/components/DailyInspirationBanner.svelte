@@ -1776,13 +1776,17 @@
 
               <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
               <div class="banner-cta">
-                {#if isFeatureInspiration}
+                {#if isFeatureInspiration && surface !== 'tasks'}
                   <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
                 {:else}
                   <span class="clickable-icon icon_create banner-cta-icon"></span>
                 {/if}
                 <span class="banner-cta-text" data-testid="daily-inspiration-cta-text">
-                  {isFeatureInspiration
+                  {surface === 'tasks'
+                    ? (prefersTouchCta
+                      ? $text('daily_inspiration.tap_to_create_task')
+                      : $text('daily_inspiration.click_to_create_task'))
+                    : isFeatureInspiration
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_open_settings')
                       : $text('daily_inspiration.click_to_open_settings'))

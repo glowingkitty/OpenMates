@@ -28,6 +28,7 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowFeatureDisabledError,
     WorkflowService,
 )
+from backend.core.api.app.utils.encryption import EncryptionService
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -47,9 +48,11 @@ class FakeDirectusResponse:
 class FakeDirectusClient:
     def __init__(self) -> None:
         self.collections: dict[str, dict[str, dict[str, Any]]] = {}
+        self.requests: list[tuple[str, str]] = []
 
     def request(self, method: str, url: str, **kwargs: Any) -> FakeDirectusResponse:
         collection, item_id = self._parse_url(url)
+        self.requests.append((method, collection))
         rows = self.collections.setdefault(collection, {})
         if method == "GET":
             filters = json.loads(kwargs.get("params", {}).get("filter", "{}"))
@@ -57,10 +60,14 @@ class FakeDirectusClient:
             limit = int(kwargs.get("params", {}).get("limit", 100))
             return FakeDirectusResponse(200, {"data": data if limit == -1 else data[:limit]})
         if method == "POST":
-            payload = dict(kwargs["json"])
-            payload.setdefault("id", payload.get("ref") or f"fake-{len(rows) + 1}")
-            rows[payload["id"]] = payload
-            return FakeDirectusResponse(200, {"data": payload})
+            values = kwargs["json"] if isinstance(kwargs["json"], list) else [kwargs["json"]]
+            created = []
+            for value in values:
+                payload = dict(value)
+                payload.setdefault("id", payload.get("ref") or f"fake-{len(rows) + 1}")
+                rows[payload["id"]] = payload
+                created.append(payload)
+            return FakeDirectusResponse(200, {"data": created if isinstance(kwargs["json"], list) else created[0]})
         if method == "PATCH" and item_id:
             rows[item_id].update(kwargs["json"])
             return FakeDirectusResponse(200, {"data": rows[item_id]})
@@ -274,6 +281,8 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     service = workflow_service(repository=repository)
 
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
+    assert not [request for request in fake_client.requests if request == ("GET", "workflow_encrypted_blobs")]
+    assert sum(request == ("POST", "workflow_encrypted_blobs") for request in fake_client.requests) == 2
     loaded = service.get_workflow(workflow.id, "alice")
     raw_workflow_rows = json.dumps(fake_client.collections["workflows"], sort_keys=True)
     raw_blob_rows = json.dumps(fake_client.collections["workflow_encrypted_blobs"], sort_keys=True)
@@ -396,6 +405,29 @@ def test_workflow_cipher_uses_existing_vault_encryption_service() -> None:
     assert "Daily rain alert" not in raw_blob_rows
     assert "Berlin" not in raw_blob_rows
     assert all(blob["ciphertext"].startswith("vault:v1:") for blob in repository.encrypted_blobs.values())
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
+@pytest.mark.asyncio
+async def test_workflow_vault_batch_encrypts_with_one_owner_key_request() -> None:
+    encryption = object.__new__(EncryptionService)
+    encryption.transit_mount = "transit"
+    requests: list[tuple[str, str, dict[str, Any]]] = []
+
+    async def vault_request(method: str, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        requests.append((method, path, payload))
+        return {"data": {"batch_results": [
+            {"ciphertext": f"vault:v1:{index}"} for index in range(len(payload["batch_input"]))
+        ]}}
+
+    encryption._vault_request = vault_request
+    encrypted = await encryption.encrypt_many_with_user_key(["first", "second"], "alice-key")
+
+    assert encrypted == [("vault:v1:0", "v1"), ("vault:v1:1", "v1")]
+    assert len(requests) == 1
+    assert requests[0][0:2] == ("post", "transit/encrypt/alice-key")
+    assert len(requests[0][2]["batch_input"]) == 2
+    assert all(item["context"] == "YWxpY2Uta2V5" for item in requests[0][2]["batch_input"])
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries

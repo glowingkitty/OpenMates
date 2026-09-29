@@ -1,0 +1,157 @@
+schema_version: 2
+id: daily-test-digest
+title: Restore a readable and complete daily test report
+status: implementing
+goal: >-
+  Each day, email and Discord show how many unit, web spec.ts end-to-end, and
+  native Apple end-to-end tests actually executed the previous night, what failed
+  by area, and which expected coverage did not run.
+context:
+  incident_date: 2026-09-28
+  findings:
+    - The 03:00 UTC browser selection aborted on an unclassified AI spec before any daily browser job was admitted.
+    - Two daily GitHub jobs ran pytest and Vitest; their validated receipts contain 6848 counted cases, including 71 SDK/CLI cases.
+    - The current notifier puts the entire report into the email intro and failure group, and repeats the Discord title in its description.
+    - Native Apple XCTest was in the legacy remote-Mac runner but is absent from the current scheduled GitHub path.
+scope:
+  in:
+    - Finalize one source-bound daily result from the manifest, coordinator jobs, and validated case receipts.
+    - Produce a compact daily email and Discord digest from the same structured result.
+    - Expose the complete per-area breakdown and GitHub/Apple evidence through a linked full report.
+  out:
+    - Changing test selection, test execution, or native Apple scheduling.
+    - Treating focused CI runs as scheduled daily coverage.
+report_contract:
+  headline: Date, overall status, and short source commit.
+  statuses: Passing, failing, incomplete, or blocked; missing coverage is never green.
+  rows:
+    - Unit suites (pytest and Vitest) - collected, actually executed, passed, failed, skipped.
+    - SDK and CLI checks - collected, actually executed, passed, failed, skipped.
+    - Web E2E - spec files selected, admitted, held, started, plus actual Playwright cases passed, failed, skipped, and flaky.
+    - Native Apple E2E - iOS and macOS XCTest targets and actual cases, with not scheduled or no receipt stated explicitly.
+    - Signup - browser spec selection and outcome, plus separate real-email smoke status.
+  failures: Show failed case counts by area and at most three short top problems; link the full report for names, traces, and all failures.
+  delivery: One mobile-readable email and one short Discord embed; title appears once, subject is not double-prefixed, and long raw URLs stay behind links.
+processing:
+  - The 03:00 UTC trigger pins one source commit; reconciliation reports missing manifests and selection errors explicitly.
+  - The coordinator's scheduled GitHub jobs form the daily cohort; missing web and native Apple jobs remain visible as missing coverage.
+  - Reconciliation validates job ID, source commit, run ID, and reporter artifacts before counting cases. Workflow success alone is not a test count.
+  - A finalizer publishes a versioned aggregate atomically when all jobs finish, or an explicitly incomplete aggregate at the reporting deadline.
+  - The status page, email, and Discord render that aggregate. Channel receipts track provider acceptance, with delivery confirmation where available; retries are per channel and revision.
+  - A dispatch failure sends a short operational alert; the daily digest waits for terminal receipts or the deadline, avoiding an early partial email followed by a duplicate.
+acceptance:
+  - The next scheduled report shows exact unit, SDK/CLI, web E2E, and Apple E2E case counts or an explicit missing/not-scheduled state for each.
+  - A blocked browser selection reports zero executed web cases and unknown selection inventory, never zero failures or a passing browser row.
+  - Signup browser coverage names admitted, held, or executed specs when the manifest exists; the live email smoke reports queue, provider acceptance, and inbox arrival separately.
+  - Browser and Apple case counts come only from validated Playwright and XCTest artifacts; selected spec files are a separate measure.
+  - Executed means passed plus failed; collected cases include skipped cases and are labeled separately.
+  - Product failures and dispatch, collection, and artifact failures are separate; pytest collection failures appear outside counted case totals.
+  - Email and Discord are readable on a phone, contain no duplicated title or raw failure dump, and link the full source-bound report.
+  - Finalization, revisions, and per-channel retries do not duplicate daily messages or mix focused jobs into the nightly cohort.
+verification:
+  local: Focused tests for selection holds, aggregate parsing, missing receipts, failure classification, rendering, and channel idempotency.
+  isolated_ci: Focused backend email/status tests and browser status component/page tests verify rendering and accounting.
+  delivery: Render phone-width email and Discord previews, then send one real-data test digest to the configured destinations and verify the resulting channel receipts.
+related_tasks:
+  finalization: TASK-8244
+  status_freshness: TASK-2870
+  full_cycle: TASK-2686
+scenarios:
+  - id: S-1
+    title: Browser selection aborts before web jobs start
+    given: [A scheduled source contains an unclassified AI spec.]
+    when: [The 03:00 UTC dispatcher selects browser tests.]
+    then: [The selection problem and missing browser execution are visible in the daily result.]
+  - id: S-2
+    title: Complete source-bound nightly results arrive
+    given: [The manifest lists scheduled GitHub jobs and native Apple may have no scheduled lane.]
+    when: [Validated reporter artifacts arrive for the listed jobs.]
+    then: [Case counts, failure areas, and missing coverage are rendered separately for each test surface.]
+  - id: S-3
+    title: One destination fails during notification
+    given: [The source-bound daily result has been finalized.]
+    when: [Email or Discord fails to accept the digest.]
+    then: [Only that channel is retried for the same revision.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A selection failure reports executed web cases as zero and the inventory as unknown or held with reasons.
+    required: true
+    status: pending
+    coverage_status: uncovered
+    verification_scope: plan
+  - id: AC-2
+    scenario: S-2
+    text: Unit, SDK/CLI, browser, and native Apple rows use only validated source-bound case evidence.
+    required: true
+    status: pending
+    coverage_status: uncovered
+    verification_scope: plan
+  - id: AC-3
+    scenario: S-3
+    text: Phone-width email and Discord contain a concise per-area digest, with no duplicated title or channel resends.
+    required: true
+    status: pending
+    coverage_status: uncovered
+    verification_scope: plan
+tests:
+  - id: T-DAILY-DIGEST
+    type: unit
+    file: scripts/tests/test_daily_ci_notification.py
+    command: python3 -m pytest scripts/tests/test_daily_ci_notification.py -q
+    assertions:
+      - Selection abort, validated case aggregation, Apple absence, render shape, and per-channel retries are covered.
+    covers: [AC-1, AC-2, AC-3]
+    red_phase:
+      required: false
+      expected: Existing reporter lacks the planned rows.
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+implementation_state:
+  subject_commit: b33c1e6da
+approvals:
+  specification:
+    status: not_required
+    reason: This changes engineering reporting, not product behavior.
+  plan:
+    status: approved
+    approved_at: '2026-09-28'
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep native Apple E2E distinct from web specs that mention Apple.
+    reason: The current GitHub workflow runs on Linux and cannot provide XCTest evidence.
+    decided_at: '2026-09-28'
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-8244
+    approach: Compare the 2026-09-28 manifest, coordinator jobs, GitHub runs, receipts, and notification renderer.
+    outcome: succeeded
+    recorded_at: '2026-09-28'
+tasks:
+  - id: TASK-8244
+    title: Finalize isolated nightly receipts into canonical daily results
+    status: pending
+    phase: drafting
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - scripts/daily_ci_notification.py
+      - scripts/tests/test_daily_ci_notification.py
+    verification_ids: [T-DAILY-DIGEST]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [scripts/daily_ci_notification.py]
+      shared_files: []
+handoff:
+  current_task_id: TASK-8244
+  next_action: Deploy the overview and test-send the September 28 digest from validated receipts.
+  command: python3 scripts/plan_validate.py docs/plans/daily-test-digest/plan.yml
+  expected_outcome: The proposal validates and the daily result design remains reviewable.
+  last_verified_commit: b33c1e6da

@@ -4,18 +4,24 @@
 	Architecture: docs/architecture/infrastructure/status-page.md
 -->
 <script lang="ts">
-	import type { TestsData } from './types';
+	import type { TestsData, DailyTests } from './types';
+	import { getApiEndpoint } from '@repo/ui';
+	import DailyTestDigest from '@repo/ui/components/status/DailyTestDigest.svelte';
 	import TestCategory from './TestCategory.svelte';
 	import { timeAgo } from './utils';
 
 	interface Props {
 		tests: TestsData;
+		daily?: DailyTests | null;
 	}
 
-	let { tests }: Props = $props();
+	let { tests, daily = null }: Props = $props();
 </script>
 
 <section class="tests-section">
+	{#if daily}
+		<DailyTestDigest {daily} reportHref={getApiEndpoint(`/v1/status/tests/daily/${daily.date}?format=html`)} />
+	{:else}
 	<div class="tests-header">
 		<h2 class="section-title">E2E Tests</h2>
 		<span class="tests-summary" class:has-failures={tests.failed > 0}>
@@ -31,6 +37,7 @@
 			<TestCategory {category} />
 		{/each}
 	</div>
+	{/if}
 </section>
 
 <style>

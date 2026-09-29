@@ -12,6 +12,10 @@ from pathlib import Path
 
 CORE_SPECS = frozenset({
     # Reviewed ordinary suites use core auth/state only; assertion failures are results.
+    # The nightly digest preview and status route use only static fixtures and
+    # mocked public status data; neither needs provider credentials.
+    "components/daily-test-digest.spec.ts",
+    "status-page-daily-report.spec.ts",
     "a11y-keyboard-nav.spec.ts",
     "a11y-modal-dialogs.spec.ts",
     "a11y-pages.spec.ts",
@@ -32,6 +36,13 @@ CORE_SPECS = frozenset({
     "debug-logging-settings.spec.ts",
     "model-toggle-settings.spec.ts",
     "backup-code-login-flow.spec.ts",
+    # PAKE pairing uses only the isolated core auth/Redis/Directus stack and
+    # local browser/CLI crypto; no external email or inference provider.
+    "components/pairing-components.spec.ts",
+    "components/password-settings-sensitive.spec.ts",
+    "components/device-verification-fallback.spec.ts",
+    "components/tfa-sensitive-settings.spec.ts",
+    "pair-web-receiver.spec.ts",
     "backup-codes-settings.spec.ts",
     "recovery-key-settings.spec.ts",
 
@@ -39,12 +50,16 @@ CORE_SPECS = frozenset({
     "test-account-preflight.spec.ts",
     # Real core auth/chat state; share/report failures are explicit browser stubs.
     "report-issue-context-fallback.spec.ts",
+    # Guest eligibility and stream are browser stubs; no private cloud or inference.
+    "anonymous-child-embeds.spec.ts",
     # Browser media fixtures; real first-turn preflight/metadata ACKs, no TTS.
     "voice-first-preflight-order.spec.ts",
     "tasks-flow.spec.ts",
     "task-detail-fullscreen.spec.ts",
     "task-blocked-reason.spec.ts",
     "task-activity.spec.ts",
+    # Manual approval Workflow run and Tasks projection use core services only.
+    "tasks-workflow-run-detail.spec.ts",
 })
 ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts"})
 COMPONENT_MARKER = "// playwright-account: not_required reason=isolated_component_preview"

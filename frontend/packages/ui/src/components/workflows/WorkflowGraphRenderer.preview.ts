@@ -380,6 +380,50 @@ function singleSkillGraph(nodeId: "weather" | "news"): WorkflowGraph {
   };
 }
 
+const typedControlsGraph: WorkflowGraph = {
+  version: 2,
+  trigger_node_id: 'trigger',
+  nodes: [
+    { id: 'trigger', type: 'schedule_trigger', config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } } },
+    { id: 'fitness', type: 'app_skill_action', config: { app_id: 'fitness', skill_id: 'search_classes', input: { requests: [{ query: 'Yoga', city: 'Berlin' }] } } },
+    { id: 'stays', type: 'app_skill_action', config: { app_id: 'travel', skill_id: 'search_stays', input: { requests: [{ query: 'Hotels in Paris' }] } } },
+  ],
+  edges: [{ from: 'trigger', to: 'fitness' }, { from: 'fitness', to: 'stays' }],
+};
+
+const typedControlsCapabilities: Capability[] = [
+  {
+    id: 'fitness.search_classes', type: 'app_skill', enabled: true, title: 'Search classes',
+    metadata: { app_id: 'fitness', skill_id: 'search_classes', input_schema: {
+      type: 'object', properties: { requests: { type: 'array', items: {
+        type: 'object', 'x-ui': { control: 'date-range', start_field: 'start_date', end_field: 'end_date', max_offset_days: 365, max_span_days: 13 },
+        properties: {
+          query: { type: 'string', 'x-ui': { basic: true } },
+          city: { type: 'string', 'x-ui': { basic: true, control: 'location', location_mode: 'city', latitude_field: 'lat', longitude_field: 'lon', clear_fields: ['address'] } },
+          address: { type: 'string', 'x-ui': { basic: false, control: 'location', location_mode: 'place', city_field: 'city', latitude_field: 'lat', longitude_field: 'lon' } },
+          lat: { type: 'number', 'x-ui': { basic: false } }, lon: { type: 'number', 'x-ui': { basic: false } },
+          start_date: { type: 'string', format: 'date', 'x-ui': { basic: true } },
+          end_date: { type: 'string', format: 'date', 'x-ui': { basic: true } },
+          plan: { type: 'string', enum: ['essential', 'classic', 'premium', 'max'], 'x-ui': { basic: false } },
+        },
+      } } },
+    } },
+  },
+  {
+    id: 'travel.search_stays', type: 'app_skill', enabled: true, title: 'Search stays',
+    metadata: { app_id: 'travel', skill_id: 'search_stays', input_schema: {
+      type: 'object', properties: { requests: { type: 'array', items: {
+        type: 'object', 'x-ui': { control: 'date-range', start_field: 'check_in_date', end_field: 'check_out_date', max_offset_days: 365 },
+        properties: {
+          query: { type: 'string', 'x-ui': { basic: true } },
+          check_in_date: { type: 'string', format: 'date', 'x-ui': { basic: true } },
+          check_out_date: { type: 'string', format: 'date', 'x-ui': { basic: true } },
+        },
+      } } },
+    } },
+  },
+];
+
 export default defaultProps;
 export const variants = {
   empty: {
@@ -398,5 +442,6 @@ export const variants = {
     defaultCapability("news.search"),
   ),
   eventsSearch: skillVariant(weeklyEventsGraph(), eventsSearchCapability),
+  typedControls: { ...defaultProps, graph: typedControlsGraph, capabilityFixtures: typedControlsCapabilities },
   readonly: { ...defaultProps, readOnly: true, onSave: null },
 };

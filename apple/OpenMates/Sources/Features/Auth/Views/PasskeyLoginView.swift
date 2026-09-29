@@ -95,6 +95,28 @@ struct PasskeyLoginView: View {
 }
 
 enum PasskeyLoginCoordinator {
+    /// Verifies a fresh passkey assertion without creating or switching the
+    /// current session. The backend binds this proof to the existing refresh
+    /// cookie before allowing a sensitive pair approval.
+    @MainActor
+    static func verifyCurrentSessionAssertion(expectedUserID: String) async throws {
+        let options: PasskeyAssertionInitResponse = try await APIClient.shared.request(
+            .post, path: "/v1/auth/passkey/assertion/initiate", body: [:] as [String: String]
+        )
+        guard options.success else { throw PasskeyError.serverMessage(options.message) }
+        let assertion = try await performPlatformAssertion(
+            options: options, stayLoggedIn: true,
+            sessionId: AuthManager.nativeSessionId,
+            preferImmediatelyAvailableCredentials: false
+        )
+        let response: PasskeyVerifyResponse = try await APIClient.shared.request(
+            .post, path: "/v1/auth/passkey/assertion/verify", body: assertion.verifyRequest
+        )
+        guard response.success, response.userId == expectedUserID else {
+            throw PasskeyError.assertionFailed
+        }
+    }
+
     @MainActor
     static func login(
         authManager: AuthManager,

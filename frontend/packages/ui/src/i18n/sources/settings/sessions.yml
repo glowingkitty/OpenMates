@@ -2193,6 +2193,36 @@ pair_pin_locked:
 # ---------------------------------------------------------------------------
 
   verified_by_human: []
+pair_keep_open:
+  context: Pairing progress reminder shown while a device exchange is active
+  en: Keep this page open until pairing is complete.
+  de: Lass diese Seite geöffnet, bis die Kopplung abgeschlossen ist.
+  verified_by_human: []
+pair_restart_required:
+  context: Error after failed pairing proof or interrupted exchange
+  en: Pairing failed. Start again with a new code and PIN.
+  de: Die Kopplung ist fehlgeschlagen. Beginne mit einem neuen Code und einer neuen PIN.
+  verified_by_human: []
+pair_step_up_title:
+  context: Title of the authentication prompt before approving a new device
+  en: Verify to approve device
+  de: Bestätige dich, um das Gerät zuzulassen
+  verified_by_human: []
+pair_step_up_description:
+  context: Explains why the approving device requests recent authentication
+  en: Verify your identity before sharing this account with another device.
+  de: Bestätige deine Identität, bevor du dieses Konto mit einem anderen Gerät teilst.
+  verified_by_human: []
+pair_finalizing:
+  context: Receiver status after pairing was acknowledged while local account view loads
+  en: Pairing complete. Opening your account…
+  de: Kopplung abgeschlossen. Dein Konto wird geöffnet…
+  verified_by_human: []
+pair_retry_open:
+  context: Receiver action after a temporary post-pair account-loading failure
+  en: Retry opening account
+  de: Konto erneut öffnen
+  verified_by_human: []
 pair_restricted_banner:
   context: Banner shown at the top of the screen during a restricted pair session
   en: Restricted session — logged in from {device}

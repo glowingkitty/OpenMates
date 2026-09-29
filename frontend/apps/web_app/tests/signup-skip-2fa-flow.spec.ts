@@ -44,8 +44,8 @@ const {
 	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
-	createEmailClient,
-	checkEmailQuota,
+	createSignupEmailClient,
+	checkSignupEmailQuota,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
@@ -151,10 +151,10 @@ test('completes password signup, login with password, and delete account via ema
 	const signupDomain = getSignupTestDomain(SIGNUP_TEST_EMAIL_DOMAINS);
 	test.skip(!signupDomain, 'SIGNUP_TEST_EMAIL_DOMAINS must include a test domain.');
 
-	const emailClient = createEmailClient();
-	test.skip(!emailClient, 'Gmail credentials are required.');
+	const emailClient = createSignupEmailClient();
+	test.skip(!emailClient, 'A signup test inbox is required.');
 
-	const quota = await checkEmailQuota();
+	const quota = await checkSignupEmailQuota();
 	test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
 	if (!signupDomain) {

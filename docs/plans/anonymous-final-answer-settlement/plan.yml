@@ -1,0 +1,44 @@
+id: anonymous-final-answer-settlement
+title: Anonymous Final Answer Settlement
+status: implementing
+goal: Fix assistant responses that fail after app use on production.
+openmates_task: 24a56e41
+specification_assertion: billing.anonymous.hard-capped-provider-metering
+scope:
+  - Reduce completed AI reservation holds before reserving the next operation in an anonymous turn.
+  - Keep checkpoints idempotent and preserve all existing anonymous credit caps and failure waivers.
+  - Use the same cumulative, cross-model credit calculation for checkpoints and terminal billing.
+  - Preserve completed results while reporting a midstream failure as a failure.
+decisions:
+  - User authorization to investigate and fix covers implementation of the existing metering contract.
+  - A checkpoint targets one immutable operation ID; it must never alter later reservations.
+  - Allocate the change in cumulative rounded credits to each checkpoint, including zero-credit deltas.
+  - Keep reduced holds provisional until terminal settlement, release, or expiry.
+  - Keep full reservations for ambiguous provider usage until existing terminal reconciliation or expiry.
+  - Do not treat a shared quota denial as a reason to try another model.
+verification:
+  - Transaction coverage for idempotency, conflicting replay, unchanged later reservations, and preserved caps.
+  - Integrated coverage for completed tool work followed by final synthesis under the existing cap.
+  - Consumer coverage for a failed stream after an app placeholder, preserving results and failure status.
+  - Relevant product checks use isolated CI; actual provider compatibility is checked on dev.
+rollout:
+  - Publish the reviewed scoped diff through session d7ac after the required verification and notification Specification confirmation.
+  - Apply the additive nullable checkpoint_credits reservation field and recovery notification acknowledgement field with the coordinated cms-setup service before loading the updated Directus extensions or API.
+  - Rebuild cms and restart the affected API, AI worker, AI app, and email worker through session-managed runtime operations with explicit service targets.
+  - Verify real provider compatibility and a disposable anonymous post-tool response on dev before production rollout.
+  - Production rollout remains separate; no production mutation or completed production verification is claimed by this Plan.
+verified_checks:
+  - command: >-
+      python -m pytest -q backend/tests/test_answer_recovery_integration.py
+      backend/tests/test_model_usage_tracker.py backend/tests/test_anonymous_operation_metering.py
+    result: 9 passed locally
+  - command: python -m pytest -q backend/tests/test_anonymous_answer_continuation.py
+    result: 3 passed locally
+  - command: >-
+      uv run --with aiohttp==3.14.3 --with 'fakeredis[lua]==2.38.0' python -m pytest -q
+      backend/tests/test_answer_recovery_integration.py backend/tests/test_anonymous_answer_continuation.py
+      backend/tests/test_llm_utils_stream_fallback.py backend/tests/test_anonymous_free_usage_budget.py
+      backend/tests/test_chat_failure_notifications.py backend/tests/test_stream_consumer_recovery.py
+    result: 86 passed locally
+  - command: node --test backend/core/directus/extensions/anonymous-usage-transaction/test/operations.test.js
+    result: 13 passed locally

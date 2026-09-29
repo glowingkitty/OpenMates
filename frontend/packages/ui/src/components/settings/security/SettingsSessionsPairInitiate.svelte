@@ -1,9 +1,9 @@
 <!--
 SettingsSessionsPairInitiate — Initiating device UI for magic pair login.
 
-Generates a 6-char token, displays QR code + URL + styled pair code, polls for
-authorization, then prompts for the 6-character PIN to decrypt the session bundle and
-complete login via the standard auth flow.
+Generates a receiver capability, displays the routing token/QR code, and uses a
+locally entered PIN for client-to-client PAKE. The v2 completion endpoint creates
+the ordinary session only after the encrypted bundle is verified.
 
 Architecture: docs/architecture/device-sessions.md
 Client-side encryption: docs/architecture/core/client-side-encryption.md
@@ -12,372 +12,241 @@ Client-side encryption: docs/architecture/core/client-side-encryption.md
 <script lang="ts">
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import { getApiEndpoint } from '../../../config/api';
-    import { base64ToUint8Array, saveKeyToSession } from '../../../services/cryptoService';
+    import { createPairContext, createPairReceiver, generateReceiverCapability, type PairReceiver, type PairBundle } from '@repo/pairing-crypto';
+    import { base64ToUint8Array, saveKeyToSession, saveEmailSalt, saveEmailEncryptedWithMasterKey,
+        hashEmail, clearKeyFromStorage } from '../../../services/cryptoService';
+    import { decryptWithMasterKeyDirect } from '../../../services/encryption/MetadataEncryptor';
+    import { logout } from '../../../stores/authStore';
     import { activatePairSession } from '../../../stores/pairSessionStore';
+    import { getSessionId } from '../../../utils/sessionId';
+    import { setWebSocketToken } from '../../../utils/cookies';
+    import { userDB } from '../../../services/userDB';
+    import type { User } from '../../../types/user';
+    import { pairRequest, pairExpired, PAIR_POLL_MS, type PairInfo, type PairPoll } from '../../../services/pairV2';
     import QRCodeSVG from 'qrcode-svg';
 
-    const dispatch = createEventDispatcher<{ login: { lookupHash: string; hashedEmail: string; userEmailSalt: string; authorizerDeviceName: string | null; autoLogoutMinutes: number | null } }>();
-
-    // ========================================================================
-    // PROPS
-    // ========================================================================
-
-    interface Props {
-        /** Mirror of Login.svelte stayLoggedIn — if true, master key persists to IndexedDB
-         *  so the user stays logged in across tab/browser closes. */
-        stayLoggedIn?: boolean;
-    }
+    const dispatch = createEventDispatcher<{ login: { user: User | null } }>();
+    interface Props { stayLoggedIn?: boolean; }
     const { stayLoggedIn = false }: Props = $props();
-
-    // ========================================================================
-    // TYPES
-    // ========================================================================
-
-    type PairStatus = 'generating' | 'waiting' | 'ready' | 'expired' | 'error';
+    type PairStatus = 'generating' | 'waiting' | 'ready' | 'expired' | 'error' | 'complete';
     type PinStatus = 'idle' | 'submitting' | 'error' | 'locked';
-
-    // ========================================================================
-    // STATE
-    // ========================================================================
-
     let pairToken = $state<string | null>(null);
     let pairUrl = $state('');
     let qrSvg = $state('');
     let pairStatus = $state<PairStatus>('generating');
     let errorMessage = $state('');
     let copied = $state(false);
-
-    // PIN entry (shown once status = 'ready')
     let pinValue = $state('');
     let pinStatus = $state<PinStatus>('idle');
     let pinErrorMessage = $state('');
     let _pinAttemptsRemaining = $state<number | null>(null);
-
+    let completedUser: User | null = null;
+    let capability: { secret: string; hash: string } | null = null;
+    let receiver: PairReceiver | null = null;
+    let expiresAt = 0;
     let pollInterval: ReturnType<typeof setInterval> | null = null;
-    const POLL_INTERVAL_MS = 3000;
+    let polling = false;
+    let destroyed = false;
+    let generation = 0;
     const QR_SIZE = 200;
 
-    // ========================================================================
-    // COMPUTED
-    // ========================================================================
-
-    // ========================================================================
-    // LIFECYCLE
-    // ========================================================================
-
-    onMount(async () => {
-        await initiatePairing();
-    });
-
+    onMount(() => { void initiatePairing(); });
     onDestroy(() => {
+        destroyed = true;
+        generation++;
         stopPolling();
+        receiver?.abort();
+        if (pairToken && capability && pairStatus !== 'complete') {
+            void pairRequest(`/${pairToken}`, { method: 'DELETE' }, capability.secret).catch(() => {});
+        }
     });
-
-    // ========================================================================
-    // CORE FLOW
-    // ========================================================================
 
     async function initiatePairing() {
-        pairStatus = 'generating';
-        errorMessage = '';
-        pairToken = null;
-        qrSvg = '';
-        pinValue = '';
-        pinStatus = 'idle';
-        pinErrorMessage = '';
-
+        if (pairStatus === 'generating' && pairToken) return;
+        generation++;
+        const run = generation;
+        stopPolling();
+        receiver?.abort(); receiver = null;
+        if (pairToken && capability && pairStatus !== 'complete') {
+            void pairRequest(`/${pairToken}`, { method: 'DELETE' }, capability.secret).catch(() => {});
+        }
+        pairStatus = 'generating'; errorMessage = ''; pairToken = null; qrSvg = '';
+        pinValue = ''; pinStatus = 'idle'; pinErrorMessage = ''; _pinAttemptsRemaining = null;
         try {
-            const response = await fetch(getApiEndpoint('/v1/auth/pair/initiate'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({}),
-                // NOTE: intentionally NOT using credentials:include — this endpoint is unauthenticated
+            capability = await generateReceiverCapability();
+            if (destroyed || run !== generation) return;
+            const localCapability = capability;
+            const data = await pairRequest<{ protocol_version: number; token: string; expires_at: number }>('/initiate', {
+                method: 'POST', credentials: 'omit',
+                body: JSON.stringify({ receiver_token_hash: capability.hash, session_id: getSessionId() }),
             });
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(data.detail || 'Failed to generate pair code');
+            if (destroyed || run !== generation) {
+                if (data.token) void pairRequest(`/${data.token}`, { method: 'DELETE' }, localCapability.secret).catch(() => {});
+                return;
             }
-
-            const data = await response.json();
-            pairToken = (data.token as string).toUpperCase();
+            if (data.protocol_version !== 2 || !/^[A-Z0-9]{6}$/i.test(data.token) || pairExpired(data.expires_at)) throw new Error('Invalid pairing response');
+            pairToken = data.token.toUpperCase(); expiresAt = data.expires_at;
             pairUrl = `${window.location.origin}/#pair=${pairToken}`;
-
             generateQR(pairUrl);
             pairStatus = 'waiting';
-            startPolling();
+            pollInterval = setInterval(() => { void pollStatus(); }, PAIR_POLL_MS);
         } catch (err: unknown) {
-            console.error('[PairInitiate] Failed to initiate pairing:', err);
-            errorMessage = err instanceof Error ? err.message : 'Failed to generate code';
+            if (destroyed || run !== generation) return;
+            errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error');
             pairStatus = 'error';
         }
     }
 
     function generateQR(url: string) {
         try {
-            const qr = new QRCodeSVG({
-                content: url,
-                padding: 4,
-                width: QR_SIZE,
-                height: QR_SIZE,
-                color: '#000000',
-                background: '#ffffff',
-                ecl: 'M',
-            });
-            qrSvg = qr.svg();
-        } catch (err) {
-            console.error('[PairInitiate] QR generation failed:', err);
-            qrSvg = '';
-        }
+            qrSvg = new QRCodeSVG({ content: url, padding: 4, width: QR_SIZE, height: QR_SIZE, color: '#000000', background: '#ffffff', ecl: 'M' }).svg();
+        } catch { qrSvg = ''; }
     }
-
-    function startPolling() {
-        stopPolling();
-        pollInterval = setInterval(pollStatus, POLL_INTERVAL_MS);
+    function stopPolling() { if (pollInterval) clearInterval(pollInterval); pollInterval = null; }
+    function failPairing(message: string, expired = false) {
+        stopPolling(); receiver?.abort(); receiver = null;
+        pinValue = ''; pinStatus = 'locked';
+        pairStatus = expired ? 'expired' : 'error'; errorMessage = message;
+        if (pairToken && capability) void pairRequest(`/${pairToken}`, { method: 'DELETE' }, capability.secret).catch(() => {});
     }
-
-    function stopPolling() {
-        if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-        }
-    }
-
     async function pollStatus() {
-        if (!pairToken || pairStatus === 'ready' || pairStatus === 'expired') {
-            stopPolling();
-            return;
-        }
-
+        if (polling || !pairToken || !capability || pairStatus === 'complete' || pairStatus === 'expired' || pairStatus === 'error') return;
+        if (pairExpired(expiresAt)) { failPairing($text('settings.sessions.pair_expired'), true); return; }
+        const run = generation;
+        polling = true;
         try {
-            const response = await fetch(getApiEndpoint(`/v1/auth/pair/poll/${pairToken}`), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (response.status === 404) {
-                // Token expired or not found
-                pairStatus = 'expired';
-                stopPolling();
-                return;
-            }
-
-            if (!response.ok) {
-                // Non-fatal — keep polling
-                return;
-            }
-
-            const data = await response.json();
-            if (data.status === 'ready') {
+            const data = await pairRequest<PairPoll>(`/receiver/${pairToken}`, {}, capability.secret);
+            if (destroyed || run !== generation) return;
+            if (data.status === 'failed' || data.status === 'cancelled') { failPairing($text('settings.sessions.pair_restart_required')); return; }
+            if (data.status === 'approved' && pairStatus === 'waiting') {
+                if (data.session_id !== getSessionId() || data.receiver_token_hash !== capability.hash || !data.authorizer_user_id || data.auto_logout_minutes === undefined) {
+                    failPairing($text('settings.sessions.pair_confirm_error')); return;
+                }
+                approvedInfo = data as PairInfo;
                 pairStatus = 'ready';
-                stopPolling();
-                if (pinValue.length === 6 && pinStatus !== 'submitting' && pinStatus !== 'locked') {
-                    await submitPin();
-                }
-            } else if (data.status === 'expired') {
-                pairStatus = 'expired';
-                stopPolling();
+                if (pinValue.length === 6) void submitPin();
             }
-            // status === 'waiting' → keep polling
-        } catch {
-            // Network error — keep polling silently
-        }
+            if (data.status === 'response' && receiver && data.message && stage === 'request') {
+                stage = 'processing';
+                const finish = await receiver.receiveResponse(data.message);
+                if (destroyed || run !== generation) return;
+                await pairRequest(`/receiver/${pairToken}/message`, { method: 'POST', body: JSON.stringify({ stage: 'finish', message: finish }) }, capability.secret);
+                if (destroyed || run !== generation) return;
+                stage = 'finish';
+            }
+            if (data.status === 'ready' && receiver && stage === 'finish' && data.encrypted_bundle && data.iv) {
+                stage = 'completing'; stopPolling();
+                await completePair(data.encrypted_bundle, data.iv);
+            }
+        } catch (err) {
+            if (destroyed || run !== generation) return;
+            // A transient poll error may recover; local expiry still bounds it.
+            if (stage !== 'idle') failPairing(err instanceof Error ? err.message : $text('settings.sessions.pair_restart_required'));
+        } finally { polling = false; }
     }
-
-    // ========================================================================
-    // PIN SUBMISSION
-    // ========================================================================
-
+    let approvedInfo: PairInfo | null = null;
+    let stage: 'idle' | 'request' | 'processing' | 'finish' | 'completing' = 'idle';
     async function submitPin() {
-        if (!pairToken || pinValue.length !== 6 || !/^[A-Z0-9]{6}$/.test(pinValue)) return;
-
-        pinStatus = 'submitting';
-        pinErrorMessage = '';
-
+        if (!pairToken || !capability || !approvedInfo || stage !== 'idle' || pairStatus !== 'ready' || !/^[A-Z0-9]{6}$/.test(pinValue)) return;
+        if (pairExpired(expiresAt)) { failPairing($text('settings.sessions.pair_expired'), true); return; }
+        pinStatus = 'submitting'; pinErrorMessage = '';
+        const run = generation;
         try {
-            const response = await fetch(getApiEndpoint(`/v1/auth/pair/complete/${pairToken}`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pin: pinValue }),
-            });
-
-            const data = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-                const msg = (data.message as string) || '';
-                if (msg === 'too_many_attempts') {
-                    pinStatus = 'locked';
-                    pinErrorMessage = $text('settings.sessions.pair_pin_locked');
-                    return;
-                }
-                // Parse remaining attempts from message format "invalid_pin:N_attempts_left"
-                const remainingMatch = msg.match(/invalid_pin:(\d+)_attempts_left/);
-                const remaining = remainingMatch ? parseInt(remainingMatch[1], 10) : null;
-                pinStatus = 'error';
-                _pinAttemptsRemaining = remaining;
-                pinErrorMessage = $text('settings.sessions.pair_pin_error').replace(
-                    '{n}',
-                    String(remaining ?? '?')
-                );
-                pinValue = '';
-                return;
-            }
-
-            if (!data.success) {
-                pinStatus = 'error';
-                pinErrorMessage = 'Login failed. Please try again.';
-                return;
-            }
-
-            // Success — encrypted_bundle and iv are separate
-            const encryptedBundleB64 = data.encrypted_bundle as string;
-            const ivB64 = data.iv as string;
-            const authorizerDeviceName = (data.authorizer_device_name as string | null) ?? null;
-            const returnedAutoLogoutMinutes = (data.auto_logout_minutes as number | null) ?? null;
-
-            // Decrypt the bundle with the PIN
-            await decryptAndLogin(encryptedBundleB64, ivB64, pinValue, authorizerDeviceName, returnedAutoLogoutMinutes);
-        } catch (err: unknown) {
-            console.error('[PairInitiate] PIN submission failed:', err);
-            pinStatus = 'error';
-            pinErrorMessage = err instanceof Error ? err.message : 'Login failed';
+            const context = createPairContext({ token: pairToken, session_id: getSessionId(), receiver_token_hash: capability.hash,
+                authorizer_user_id: approvedInfo.authorizer_user_id!, auto_logout_minutes: approvedInfo.auto_logout_minutes! });
+            const nextReceiver = await createPairReceiver(context, pinValue);
+            if (destroyed || run !== generation) { nextReceiver.abort(); return; }
+            receiver = nextReceiver;
+            pinValue = '';
+            stage = 'request';
+            await pairRequest(`/receiver/${pairToken}/message`, { method: 'POST', body: JSON.stringify({ stage: 'request', message: receiver.request }) }, capability.secret);
+        } catch (err) {
+            failPairing(err instanceof Error ? err.message : $text('settings.sessions.pair_restart_required'));
         }
     }
-
-    /**
-     * Decrypt the bundle using the PIN.
-     * Crypto: AES-256-GCM, key derived via PBKDF2(PIN, token-as-salt, 100_000 iters, SHA-256)
-     * Must match exactly what SettingsSessionsConfirmPair uses to encrypt.
-     *
-     * Bundle plaintext JSON: { lookup_hash, hashed_email, user_email_salt, master_key_exported }
-     * master_key_exported is the raw AES-256 master key exported by the authorizing device.
-     * We import it directly and save it to the session — no password needed.
-     */
-    async function decryptAndLogin(
-        encryptedBundleB64: string,
-        ivB64: string,
-        pin: string,
-        authorizerDeviceName: string | null,
-        returnedAutoLogoutMinutes: number | null,
-    ) {
-        if (!pairToken) return;
-
+    async function completePair(encrypted: string, iv: string) {
+        if (!receiver || !pairToken || !capability || !approvedInfo) return;
+        const run = generation;
+        let sessionMinted = false;
+        let acknowledged = false;
         try {
-            const upperToken = pairToken.toUpperCase();
-
-            // Derive AES key — same params as ConfirmPair
-            const aesKey = await derivePairKey(pin, upperToken);
-
-            // Decode IV and ciphertext separately
-            const iv = base64ToUint8Array(ivB64) as Uint8Array<ArrayBuffer>;
-            const ciphertext = base64ToUint8Array(encryptedBundleB64) as Uint8Array<ArrayBuffer>;
-
-            const plainBytes = await crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv },
-                aesKey,
-                ciphertext,
-            );
-
-            const plainText = new TextDecoder().decode(plainBytes);
-            const bundle = JSON.parse(plainText) as {
-                lookup_hash: string;
-                hashed_email: string;
-                user_email_salt: string;
-                master_key_exported: string;
-            };
-
-            // Import the raw master key exported by the authorizing device.
-            // This gives this device the same master key without needing the user's password.
-            const rawKeyBytes = new Uint8Array(base64ToUint8Array(bundle.master_key_exported)).buffer as ArrayBuffer;
-            const masterKey = await crypto.subtle.importKey(
-                'raw',
-                rawKeyBytes,
-                { name: 'AES-GCM' },
-                true, // extractable — consistent with how master keys are created at signup
-                ['encrypt', 'decrypt'],
-            );
-
-            // Save master key to session, respecting the stayLoggedIn preference.
-            // stayLoggedIn=true  → persisted to IndexedDB (survives tab/browser close)
-            // stayLoggedIn=false → memory only (cleared on tab close)
-            // Must happen BEFORE dispatching login so crypto operations work immediately
-            // after the session cookie is set by the login API call.
+            const bundle: PairBundle = await receiver.decryptBundle(encrypted, iv);
+            if (destroyed || run !== generation) return;
+            if (bundle.protocol_version !== 2 || bundle.user_id !== approvedInfo.authorizer_user_id || !bundle.grant_secret || !bundle.master_key_exported || !bundle.user_email_salt) throw new Error('Pairing account mismatch');
+            const raw = new Uint8Array(base64ToUint8Array(bundle.master_key_exported)).buffer as ArrayBuffer;
+            const masterKey = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']);
+            const encryptedEmail = bundle.account_context?.encrypted_email_with_master_key;
+            if (!encryptedEmail) throw new Error('Pairing account metadata missing');
+            const email = await decryptWithMasterKeyDirect(encryptedEmail, masterKey);
+            if (!email || await hashEmail(email) !== bundle.hashed_email) throw new Error('Pairing account identity mismatch');
+            if (destroyed || run !== generation) return;
+            const result = await pairRequest<{ success: boolean; user?: User; ws_token?: string; pair_expires_at?: number | null }>(`/complete/${pairToken}`, {
+                method: 'POST', body: JSON.stringify({ grant_secret: bundle.grant_secret }),
+            }, capability.secret);
+            sessionMinted = true;
+            if (destroyed || run !== generation) throw new Error('Pairing page closed');
+            if (!result.success || result.user?.id !== bundle.user_id) throw new Error('Pairing session mismatch');
+            if (approvedInfo.auto_logout_minutes != null) {
+                const deadline = result.pair_expires_at;
+                const latestAllowed = Date.now() / 1000 + approvedInfo.auto_logout_minutes * 60 + 30;
+                if (!deadline || pairExpired(deadline) || deadline > latestAllowed) throw new Error('Pairing deadline mismatch');
+            } else if (result.pair_expires_at != null) throw new Error('Unexpected pairing deadline');
             await saveKeyToSession(masterKey, stayLoggedIn);
-
-            // Activate restricted pair session state BEFORE dispatching login
-            activatePairSession({
-                authorizerDeviceName,
-                autoLogoutMinutes: returnedAutoLogoutMinutes,
-            });
-
-            // Dispatch login event — Login.svelte calls /auth/login to establish server session
-            dispatch('login', {
-                lookupHash: bundle.lookup_hash,
-                hashedEmail: bundle.hashed_email,
-                userEmailSalt: bundle.user_email_salt,
-                authorizerDeviceName,
-                autoLogoutMinutes: returnedAutoLogoutMinutes,
-            });
-        } catch (err: unknown) {
-            console.error('[PairInitiate] Decryption failed:', err);
-            pinStatus = 'error';
-            pinErrorMessage = $text('settings.sessions.pair_pin_error').replace('{n}', '?');
+            saveEmailSalt(base64ToUint8Array(bundle.user_email_salt), stayLoggedIn);
+            if (!await saveEmailEncryptedWithMasterKey(email, stayLoggedIn)) throw new Error('Paired email was not stored');
+            if (!result.user || !result.ws_token) throw new Error('Pairing session data missing');
+            await userDB.saveUserData(result.user);
+            if (destroyed || run !== generation) throw new Error('Pairing page closed');
+            if ((await userDB.getUserData())?.id !== bundle.user_id) throw new Error('Paired profile was not stored');
+            setWebSocketToken(result.ws_token);
+            activatePairSession({ authorizerDeviceName: approvedInfo.authorizer_device_name ?? null,
+                autoLogoutMinutes: approvedInfo.auto_logout_minutes ?? null, pairExpiresAt: result.pair_expires_at ?? null });
+            await acknowledgeWithRetry(pairToken, capability.secret, run);
+            acknowledged = true;
+            if (destroyed || run !== generation) throw new Error('Pairing page closed');
+            // ACK is the server activation boundary. Parent Login hydrates auth
+            // after this event, so an auth refresh cannot unmount us before delivery.
+            pairStatus = 'complete'; stopPolling(); receiver.abort(); receiver = null;
+            capability = null; pinStatus = 'idle'; completedUser = result.user;
+            dispatch('login', { user: completedUser });
+        } catch (err) {
+            if (sessionMinted && !acknowledged) {
+                if (pairToken && capability) await pairRequest(`/${pairToken}`, { method: 'DELETE' }, capability.secret).catch(() => {});
+                await clearKeyFromStorage().catch(() => {});
+                await logout({ skipServerLogout: true }).catch(() => false);
+            }
+            failPairing(err instanceof Error ? err.message : $text('settings.sessions.pair_restart_required'));
         }
     }
-
-    /**
-     * Derive AES-256-GCM key from PIN + token as salt.
-     * PBKDF2-SHA256, 100_000 iterations. Must match SettingsSessionsConfirmPair exactly.
-     */
-    async function derivePairKey(pin: string, upperToken: string): Promise<CryptoKey> {
-        const enc = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            'raw',
-            enc.encode(pin),
-            'PBKDF2',
-            false,
-            ['deriveKey'],
-        );
-        return crypto.subtle.deriveKey(
-            {
-                name: 'PBKDF2',
-                salt: enc.encode(upperToken),
-                iterations: 100_000,
-                hash: 'SHA-256',
-            },
-            keyMaterial,
-            { name: 'AES-GCM', length: 256 },
-            false,
-            ['encrypt', 'decrypt'],
-        );
+    async function acknowledgeWithRetry(token: string, receiverSecret: string, run: number): Promise<void> {
+        let lastError: unknown;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (destroyed || run !== generation) throw new Error('Pairing page closed');
+            try {
+                await pairRequest(`/acknowledge/${token}`, { method: 'POST', body: '{}' }, receiverSecret);
+                return;
+            } catch (err) {
+                lastError = err;
+                if ([400, 401, 403].includes((err as { status?: number }).status ?? 0)) break;
+                if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250));
+            }
+        }
+        try {
+            const state = await pairRequest<PairPoll>(`/receiver/${token}`, {}, receiverSecret);
+            if (state.status === 'acknowledged') return;
+        } catch { /* The result remains uncertain until a new connection. */ }
+        throw lastError instanceof Error ? lastError : new Error('Pairing acknowledgement failed');
     }
-
-    // ========================================================================
-    // UI HELPERS
-    // ========================================================================
-
+    function retryLogin() { if (pairStatus === 'complete' && completedUser) dispatch('login', { user: completedUser }); }
     async function copyLink() {
         if (!pairUrl) return;
-        try {
-            await navigator.clipboard.writeText(pairUrl);
-            copied = true;
-            setTimeout(() => { copied = false; }, 2000);
-        } catch {
-            // Clipboard not available — silently ignore
-        }
+        try { await navigator.clipboard.writeText(pairUrl); copied = true; setTimeout(() => { copied = false; }, 2000); } catch { /* unavailable */ }
     }
-
     function handlePinInput(e: Event) {
         const target = e.target as HTMLInputElement;
-        // Allow only A-Z and 0-9, max 6
         pinValue = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-        target.value = pinValue;
-        pinErrorMessage = '';
-
-        if (pairStatus === 'ready' && pinValue.length === 6 && pinStatus !== 'submitting' && pinStatus !== 'locked') {
-            void submitPin();
-        }
+        target.value = pinValue; pinErrorMessage = '';
+        if (pairStatus === 'ready' && pinValue.length === 6 && stage === 'idle') void submitPin();
     }
 </script>
 
@@ -391,7 +260,7 @@ Client-side encryption: docs/architecture/core/client-side-encryption.md
         <div class="error-box">
             <p>{errorMessage}</p>
         </div>
-        <button class="btn btn-secondary" onclick={initiatePairing}>
+        <button class="btn btn-secondary" data-testid="pair-receiver-refresh" onclick={initiatePairing}>
             {$text('settings.sessions.pair_refresh')}
         </button>
 
@@ -399,12 +268,18 @@ Client-side encryption: docs/architecture/core/client-side-encryption.md
         <div class="info-box">
             <p>{$text('settings.sessions.pair_expired')}</p>
         </div>
-        <button class="btn btn-secondary" onclick={initiatePairing}>
+        <button class="btn btn-secondary" data-testid="pair-receiver-refresh" onclick={initiatePairing}>
             {$text('settings.sessions.pair_refresh')}
         </button>
 
+    {:else if pairStatus === 'complete'}
+        <p class="status-text">{$text('settings.sessions.pair_finalizing')}</p>
+        <button class="btn btn-secondary" onclick={retryLogin}>{$text('settings.sessions.pair_retry_open')}</button>
+
     {:else if pairStatus === 'waiting' || pairStatus === 'ready'}
         <p class="scan-label">📷 Scan code:</p>
+        <p class="status-text" data-testid="pair-receiver-code">{pairToken}</p>
+        <p class="status-text">{$text('settings.sessions.pair_keep_open')}</p>
 
         <!-- QR Code -->
         {#if qrSvg}
@@ -427,6 +302,7 @@ Client-side encryption: docs/architecture/core/client-side-encryption.md
 
             {#if pinStatus !== 'locked'}
                 <input
+                    data-testid="pair-receiver-pin-input"
                     type="text"
                     inputmode="text"
                     maxlength="6"

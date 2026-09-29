@@ -74,17 +74,19 @@ test.describe('Tasks web app parity', () => {
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
-		const dailySuggestion = page.getByTestId('tasks-daily-suggestion');
+		const dailySuggestion = page.getByTestId('tasks-daily-inspiration-area');
 		await expect(dailySuggestion).toBeVisible({ timeout: 15_000 });
-		await expect(dailySuggestion).toContainText(/security is essential/i);
-		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeHidden();
+		await expect(dailySuggestion.getByTestId('daily-inspiration-label')).toHaveText(/daily inspiration/i);
+		await expect(dailySuggestion.getByTestId('daily-inspiration-phrase')).toContainText(/next action|tasks that matter|done looks like/i);
 		await expect(page.getByTestId('tasks-figma-workspace')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-greeting')).toContainText(/hey .*!/i, { timeout: 15_000 });
 		await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i);
 		await expect(page.getByTestId('linked-plans-section')).toHaveCount(0);
 		await expect(page.getByTestId('task-workspace-composer')).toBeVisible({ timeout: 15_000 });
-		await page.getByTestId('tasks-suggestion-create').click();
-		await expect(page.getByTestId('task-workspace-input')).toHaveValue(/double check security/i);
+		const suggestionText = (await dailySuggestion.getByTestId('daily-inspiration-phrase').textContent())?.trim();
+		expect(suggestionText).toBeTruthy();
+		await dailySuggestion.getByTestId('daily-inspiration-banner').click();
+		await expect(page.getByTestId('task-workspace-input')).toHaveValue(suggestionText!);
 
 		const suggestionBox = await dailySuggestion.boundingBox();
 		const greetingBox = await page.getByTestId('task-greeting').boundingBox();
@@ -107,7 +109,7 @@ test.describe('Tasks web app parity', () => {
 		});
 		await page.getByTestId('task-workspace-input').fill(taskTitle);
 		await page.getByTestId('task-workspace-submit').click();
-		await createResponse;
+		const createdResponse = await createResponse;
 
 		expect(createRequestPayload).not.toContain(taskTitle);
 
@@ -118,6 +120,14 @@ test.describe('Tasks web app parity', () => {
 		const openTarget = todoCard.getByTestId('task-card-open');
 		await openTarget.click();
 		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('task-detail-panel')).toBeVisible();
+		await expect(page.getByTestId('task-board')).toBeVisible();
+		const [boardBounds, detailBounds] = await Promise.all([
+			page.getByTestId('task-board').boundingBox(),
+			page.getByTestId('task-detail-panel').boundingBox(),
+		]);
+		expect(boardBounds && detailBounds).toBeTruthy();
+		expect(boardBounds!.x + boardBounds!.width).toBeLessThanOrEqual(detailBounds!.x + 2);
 		await expect(page.getByTestId('embed-header-title')).toContainText(taskTitle);
 		await page.getByTestId('task-detail-minimize').click();
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0, { timeout: 2_000 });
@@ -132,8 +142,18 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await page.getByTestId('task-detail-minimize').click();
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0, { timeout: 2_000 });
+		const tasksApiUrl = new URL('/v1/user-tasks', createdResponse.url()).toString();
+		const currentTasks = await page.request.get(tasksApiUrl);
+		expect(currentTasks.ok()).toBe(true);
+		const currentTask = (await currentTasks.json()).tasks.find((task: { task_id: string }) => task.task_id === createdTaskId);
+		expect(currentTask).toBeTruthy();
+		const concurrentMove = await page.request.post(`${tasksApiUrl}/reorder`, {
+			data: { moves: [{ task_id: createdTaskId, version: currentTask.version, status: 'todo', position: currentTask.position }] },
+		});
+		expect(concurrentMove.ok()).toBe(true);
 
 		await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/v1/user-tasks/reorder') && response.status() === 409),
 			page.waitForResponse((response) => {
 				if (response.request().method() !== 'POST' || !response.url().includes('/v1/user-tasks/reorder') || !response.ok()) return false;
 				const body = JSON.parse(response.request().postData() ?? '{}');
@@ -144,6 +164,7 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0);
 		const inProgressCard = taskCardIn(page.getByTestId('task-column-in_progress'), taskTitle);
 		await expect(inProgressCard).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('task-column-in_progress').getByTestId('task-card').first()).toHaveAttribute('data-task-id', createdTaskId!);
 		await inProgressCard.getByTestId('task-actions-more').click();
 
 		await Promise.all([
@@ -208,9 +229,8 @@ test.describe('Tasks web app parity', () => {
 		await loginToTestAccount(page, log, screenshot);
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 
-		await expect(page.getByTestId('tasks-daily-suggestion')).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByTestId('tasks-suggestion-create')).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeHidden();
+		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-cta-text')).toContainText('create task');
 		await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 30_000 });
 		await page.getByTestId('task-workspace-input').fill(taskTitle);
 		await page.getByTestId('task-workspace-submit').click();

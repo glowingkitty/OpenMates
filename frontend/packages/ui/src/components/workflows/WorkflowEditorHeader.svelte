@@ -10,13 +10,19 @@
     iconStyle = '',
     colored = false,
     showDelete,
+    canMoveUp = false,
+    canMoveDown = false,
     deleteArmed,
     disabled = false,
     closeLabel,
     deleteLabel,
     confirmDeleteLabel,
+    moveUpLabel,
+    moveDownLabel,
     onBack,
     onDelete,
+    onMoveUp,
+    onMoveDown,
     onClose
   }: {
     title: string;
@@ -27,17 +33,25 @@
     iconStyle?: string;
     colored?: boolean;
     showDelete: boolean;
+    canMoveUp?: boolean;
+    canMoveDown?: boolean;
     deleteArmed: boolean;
     disabled?: boolean;
     closeLabel: string;
     deleteLabel: string;
     confirmDeleteLabel: string;
+    moveUpLabel: string;
+    moveDownLabel: string;
     onBack: () => void;
     onDelete: () => void;
+    onMoveUp: () => void;
+    onMoveDown: () => void;
     onClose: () => void;
   } = $props();
 
   const Back = getLucideIcon('chevron-left');
+  const Up = getLucideIcon('arrow-up');
+  const Down = getLucideIcon('arrow-down');
 </script>
 
 <header class="editor-header" class:colored>
@@ -59,6 +73,8 @@
     {#if subtitle}<span class="subtitle">{subtitle}</span>{/if}
   </div>
   <div class="close-control">
+    {#if canMoveUp}<button type="button" class="move-button header-control" data-testid="workflow-node-move-up" disabled={disabled} aria-label={moveUpLabel} title={moveUpLabel} onclick={onMoveUp}><Up size={20} aria-hidden="true" /></button>{/if}
+    {#if canMoveDown}<button type="button" class="move-button header-control" data-testid="workflow-node-move-down" disabled={disabled} aria-label={moveDownLabel} title={moveDownLabel} onclick={onMoveDown}><Down size={20} aria-hidden="true" /></button>{/if}
     <button type="button" class="close-button header-control" disabled={disabled} aria-label={closeLabel} title={closeLabel} onclick={onClose}>
       <span class="clickable-icon icon_close top-button" aria-hidden="true"></span>
     </button>
@@ -83,8 +99,9 @@
   .eyebrow { font-size:max(14px, .875rem); font-weight:700; line-height:1.25; }
   .subtitle { font-size:var(--font-size-p); font-weight:700; line-height:1.25; }
   .asset-icon { display:inline-block; flex:0 0 auto; width:var(--workflow-icon-size, 16px); height:var(--workflow-icon-size, 16px); background:currentColor; -webkit-mask:var(--workflow-icon) center/contain no-repeat; mask:var(--workflow-icon) center/contain no-repeat; }
-  .close-control { position:absolute; top:.4rem; right:.65rem; display:grid; place-items:center; width:2.5rem; height:2.5rem; }
-  .close-button { width:100%; }
+  .close-control { position:absolute; top:.4rem; right:.65rem; display:flex; align-items:center; gap:var(--spacing-2); }
+  .close-button { width:2.5rem; }
+  .move-button { width:2.5rem; }
   .delete-control { box-sizing:border-box; grid-auto-flow:column; gap:var(--spacing-4); width:2.5rem; overflow:hidden; color:var(--color-font-button); transition:width .18s ease, padding .18s ease; }
   .delete-control.armed { width:auto; max-width:min(22rem, calc(100cqw - 7rem)); padding-inline:.65rem .85rem; }
   .confirm-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--font-size-small); font-weight:700; }

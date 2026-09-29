@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date as CalendarDate, datetime, timedelta, timezone
+from html import escape
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -263,6 +264,7 @@ async def get_status(request: Request):
         "uptime_pct": overall_uptime,
         "groups": groups,
         "tests": tests_data,
+        "daily_tests": _latest_daily_result(),
         "incidents": incidents,
     }
 
@@ -295,6 +297,7 @@ async def get_status_intraday(
 # Format: { suites: { playwright: { tests: [...] }, vitest: { tests: [...] } } }
 
 TEST_RESULTS_PATHS = [
+    Path("/app/control-plane-test-results"),  # Dev host's nightly finalizer output
     Path("/app/test-results"),              # Docker container mount
     Path("/home/superdev/projects/OpenMates/test-results"),  # Dev server host
 ]
@@ -306,6 +309,107 @@ def _find_test_results_dir() -> Optional[Path]:
         if p.exists():
             return p
     return None
+
+
+def _daily_result(run_date: CalendarDate) -> Optional[Dict[str, Any]]:
+    results_dir = _find_test_results_dir()
+    if results_dir is None:
+        return None
+    path = results_dir / "daily-runs" / "results" / f"{run_date.isoformat()}.json"
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    if data.get("date") != run_date.isoformat() or data.get("schema_version") != 1:
+        return None
+    return data
+
+
+def _public_daily_result(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Public status projection; raw runner errors and private setup stay on host."""
+    return {
+        "date": data["date"], "status": data.get("status", "incomplete"),
+        "finalization": data.get("finalization", "incomplete"),
+        "source_commit": data.get("source_commit", ""),
+        "selected_specs": data.get("selected_specs"),
+        "admitted_specs": data.get("admitted_specs", 0),
+        "held_specs": data.get("held_specs"),
+        "areas": data.get("areas", {}),
+        "apple_e2e": data.get("apple_e2e", {}),
+        "signup": data.get("signup", {}),
+        "failure_areas": [
+            {"area": str(item.get("area", ""))[:100], "failed": item.get("failed", 0)}
+            for item in data.get("case_counts", []) if item.get("failed", 0) > 0
+        ],
+        "top_failing_files": data.get("failed_case_files", [])[:12],
+        "failed_specs": data.get("failed_specs", []),
+        "held_reasons": data.get("held_reasons", {}),
+        "run_links": [link for link in data.get("run_links", []) if str(link).startswith("https://github.com/glowingkitty/OpenMates/actions/runs/")],
+        "missing_receipt_count": len(data.get("missing_receipts", [])),
+    }
+
+
+def _latest_daily_result() -> Optional[Dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    for age in range(7):
+        data = _daily_result(today - timedelta(days=age))
+        if data:
+            public = _public_daily_result(data)
+            # The next 03:00 UTC run is due before the reporting day begins.
+            # Once it is due, yesterday's aggregate is visibly stale.
+            public["fresh"] = age == 0 or (age == 1 and now.hour < 3)
+            return public
+    return None
+
+
+def _daily_result_html(data: Dict[str, Any]) -> str:
+    rows = []
+    for key, name in (("unit", "Unit suites"), ("sdk_cli", "SDK and CLI"), ("web_e2e", "Web E2E")):
+        count = data.get("areas", {}).get(key, {})
+        rows.append(f"<tr><th>{name}</th><td>{count.get('executed', 0)}</td><td>{count.get('passed', 0)}</td><td>{count.get('failed', 0)}</td><td>{count.get('skipped', 0)}</td></tr>")
+    apple = data.get("apple_e2e", {})
+    count = apple.get("counts", {})
+    rows.append(f"<tr><th>Native Apple E2E<br><small>{escape(str(apple.get('status', 'not scheduled')))}</small></th><td>{count.get('executed', 0)}</td><td>{count.get('passed', 0)}</td><td>{count.get('failed', 0)}</td><td>{count.get('skipped', 0)}</td></tr>")
+    failures = "".join(
+        f"<li>{escape(str(item['area']))}: {item['failed']} failed</li>"
+        for item in data.get("failure_areas", [])
+    ) or "<li>None in validated receipts</li>"
+    links = "".join(
+        f'<li><a href="{escape(link, quote=True)}">GitHub run {index}</a></li>'
+        for index, link in enumerate(data.get("run_links", []), start=1)
+    )
+    signup = data.get("signup", {})
+    return (
+        '<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        f'<title>Nightly tests {escape(str(data["date"]))}</title>'
+        '<style>body{font:16px/1.5 system-ui;background:#15161c;color:#eee;max-width:760px;margin:auto;padding:18px}'
+        'h1{font-size:1.7rem}table{width:100%;border-collapse:collapse}th,td{padding:10px 5px;border-bottom:1px solid #444;text-align:left}'
+        'td{text-align:right}small{color:#bbb}a{color:#facc15}section{margin:22px 0}</style>'
+        f'<h1>Nightly tests · {escape(str(data["date"]))} · {escape(str(data["status"]).upper())}</h1>'
+        f'<p>Source {escape(str(data.get("source_commit", ""))[:10])} · {escape(str(data.get("finalization", "")))}</p>'
+        '<table><thead><tr><th>Area</th><th>Run</th><th>Pass</th><th>Fail</th><th>Skip</th></tr></thead><tbody>'
+        + ''.join(rows) + '</tbody></table>'
+        f'<section><h2>Web coverage</h2><p>{data.get("selected_specs") if data.get("selected_specs") is not None else "Unknown"} selected · {data.get("admitted_specs", 0)} admitted · {data.get("held_specs") if data.get("held_specs") is not None else "Unknown"} held</p></section>'
+        f'<section><h2>Signup</h2><p>{len(signup.get("executed", []))} browser specs executed · {len(signup.get("held", []))} held · live email {escape(str(signup.get("live_email", {}).get("status", "no report")))}</p></section>'
+        f'<section><h2>Failing areas</h2><ul>{failures}</ul></section>'
+        f'<section><h2>Evidence</h2><ul>{links}</ul></section></html>'
+    )
+
+
+@router.get("/tests/daily/{run_date}")
+@limiter.limit("30/minute")
+async def get_daily_test_result(request: Request, run_date: CalendarDate, format: Optional[str] = None):
+    """Source-bound daily result, also used as the email/Discord drill-down."""
+    from starlette.responses import HTMLResponse
+
+    data = _daily_result(run_date)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Daily test result unavailable")
+    public = _public_daily_result(data)
+    if format == "html":
+        return HTMLResponse(_daily_result_html(public))
+    return public
 
 
 def _extract_playwright_tests(run_data: Dict) -> list[Dict[str, Any]]:

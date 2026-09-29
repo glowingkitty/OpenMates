@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@4
+specification: feature.workflows-ui@5
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:
@@ -420,7 +420,7 @@ responsive_accessibility:
 mvp_authoring:
 - id: mvp_authoring-example
   given: A forecast step exists before any live run and an Events step declares a result list.
-  when: Alice adds Check for rain and a Send message result block for events.
+  when: Alice adds Check for rain and inserts the Events result variable into Send message.
   then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
 - id: mvp-authoring-ask-ai-is-separate
   assertion_ids: [workflows-ui.mvp.authoring]
@@ -435,7 +435,7 @@ mvp_authoring:
   assertion_ids: [workflows-ui.mvp.authoring]
   given: Bob wants to decide whether an apartment is a strong overall fit using its price, area, commute and description.
   when: He chooses Use AI judgment in Check.
-  then: He writes one yes-or-no question, selects those earlier values, previews exactly what will be evaluated, and can Test before Save. The graph shows If true, If false and Unsure; he can add a Send message step to Unsure or leave it empty. Provider, prompt and numeric-threshold controls stay out of the basic editor.
+  then: He writes one yes-or-no question with visible price, area, commute and description tokens, previews exactly what will be evaluated, and can Test before Save. The graph shows If true, If false and Unsure; he can add a Send message step to Unsure or leave it empty. Provider, prompt and numeric-threshold controls stay out of the basic editor.
 - id: weather-range-and-shared-field-controls
   given: Alice adds a Weather forecast step before the Workflow has run.
   when: The typed skill form opens.
@@ -456,7 +456,7 @@ ask_ai_authoring:
 - id: ask-ai-editor-suggests-existing-results
   given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special" in Ask AI.
   when: She stops editing the instruction for one second.
-  then: Jev suggests an Events results chip above the multiline field without inserting it, moving the cursor or changing the full picker order; Alice inserts it, previews bounded selected values, Tests, and can use Ask AI Answer downstream.
+  then: Jev suggests an Events results chip above the multiline field without inserting it, moving the cursor or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather than this hint.
 - id: ask-ai-warning-and-neutral-reminder
   given: Bob types "Search for new events for me" into Ask AI.
   when: Jev reliably identifies a request to run an app skill, or Jev cannot give a reliable verdict.
@@ -472,10 +472,19 @@ message_budget:
 - id: message_budget-example
   given: An apartment workflow has selected result output and known skill pricing.
   when: Alice configures Send message.
-  then: She edits deterministic text with references, chooses Only new results and previews readable message text and result cards without sending or saving; raw JSON/debug schemas are absent. Known skill cost is shown; deferred budget caps are not claimed.
+  then: She clicks the Apartments results chip and sees it inserted into the message field. No separate results section or Only results not previously sent toggle appears. Previously sent apartments are omitted automatically, and Preview shows the authored text and result cards at that position without sending or saving. Known skill cost is shown; raw JSON and deferred budget caps are absent.
+inline_action_variables:
+- id: inline-action-variable-shared-editor
+  given: Alice has an Events search before Ask AI, AI judgment and Send message, and an app action has a variable-enabled text input.
+  when: She clicks or keyboard-selects Events results in each field.
+  then: Each field inserts a readable token at the cursor, and each token and picker chip uses the Events app gradient in light and dark themes. The surrounding text stays in place, and deleting or reinserting a token works the same way everywhere.
+- id: send-message-no-hidden-results-section
+  given: Alice has written "Here are the upcoming events:" after an Events search but has not inserted its results.
+  when: She attempts Save, then clicks the Events results chip.
+  then: Save first explains that a prior action variable must appear in the message field; clicking the chip adds it visibly there, and no extra Search events results container appears beneath the field.
 run_deletion:
 - id: run_deletion-example
   given: Run 1 delivered an apartment and is its only remembered delivery; its chat message remains.
   when: Alice confirms deleting Run 1.
   then: The dialog explains forgetting and retained chat output; after deletion the apartment is eligible again
-    and the old message run link shows unavailable. Pending deletion is shown until any pending write is fenced.
+    and the old message run preview shows unavailable. Pending deletion is shown until any pending write is fenced.

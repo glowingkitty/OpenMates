@@ -1,0 +1,126 @@
+// playwright-account: not_required reason=isolated_component_preview
+/* eslint-disable @typescript-eslint/no-require-imports -- Existing Playwright helper exports. */
+export {};
+import type { Page } from '@playwright/test';
+const { expect, test } = require('../helpers/cookie-audit');
+
+const preview = '/dev/preview/workflows/WorkflowGraphRenderer?variant=typedControls&theme=light&background=%23dbeafe&width=900&chrome=0';
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+test('workflow card movement and typed skill inputs render in bare preview', async ({ page }: { page: Page }) => {
+  await page.goto(preview, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+  await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
+
+  const fitness = page.locator('[data-node-id="fitness"]');
+  await expect(fitness.getByTestId('workflow-node-summary')).toHaveAttribute('data-can-drag', 'true');
+  await fitness.getByTestId('workflow-node-summary').click();
+  await expect(fitness.getByTestId('workflow-node-move-up')).toHaveCount(0);
+  const moveDown = fitness.getByTestId('workflow-node-move-down');
+  await expect(moveDown).toBeVisible();
+  await moveDown.focus();
+  await expect(moveDown).toBeFocused();
+  await expect(fitness.getByTestId('workflow-schema-field-city').locator('.type-badge')).toHaveText('Location');
+  await fitness.getByTestId('workflow-schema-field-city').getByTestId('workflow-node-location-picker').click();
+  await expect(fitness.getByTestId('workflow-location-map')).toBeVisible();
+  await fitness.getByTestId('workflow-schema-field-city').getByTestId('workflow-node-location-picker').click();
+  await expect(fitness.getByTestId('workflow-location-map')).toHaveCount(0);
+  await expect(fitness.getByTestId('workflow-schema-field-date-range')).toBeVisible();
+  await expect(fitness.locator('input[id$="start_date"], input[id$="end_date"]')).toHaveCount(0);
+  await fitness.getByTestId('workflow-date-range-specific').click();
+  const classCalendar = fitness.getByTestId('workflow-date-range-control');
+  await expect(classCalendar).toBeVisible();
+  await expect(fitness.getByTestId('workflow-date-range-specific')).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await classCalendar.getByRole('button', { name: 'Next month' }).click();
+  await expect(classCalendar.getByRole('button', { name: 'Next month' })).toBeEnabled();
+  await classCalendar.getByRole('button', { name: 'Next month' }).click();
+  const availableDays = await classCalendar.locator('.day:not([disabled])').evaluateAll(buttons => buttons.map(button => Number((button as HTMLElement).dataset.day)));
+  expect(availableDays.length).toBeGreaterThan(24);
+  await classCalendar.locator(`[data-day="${availableDays[2]}"]`).click();
+  await classCalendar.locator(`[data-day="${availableDays[24]}"]`).click();
+  const boundaries = await classCalendar.locator('.day.range-boundary').evaluateAll(buttons => buttons.map(button => Number((button as HTMLElement).dataset.day)));
+  expect(boundaries.at(-1)! - boundaries[0]).toBe(13);
+  await fitness.locator('.editor-header .close-button').click();
+
+  const stays = page.locator('[data-node-id="stays"]');
+  await stays.getByTestId('workflow-node-summary').click();
+  await expect(stays.getByTestId('workflow-node-move-up')).toBeVisible();
+  await expect(stays.getByTestId('workflow-node-move-down')).toHaveCount(0);
+  await expect(stays.getByTestId('workflow-schema-field-date-range')).toBeVisible();
+  await expect(stays.locator('input[id$="check_in_date"], input[id$="check_out_date"]')).toHaveCount(0);
+  await stays.getByTestId('workflow-date-range-specific').click();
+  await expect(stays.getByTestId('workflow-date-range-control')).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(stays.getByTestId('workflow-node-move-up')).toBeVisible();
+  await expect(stays.getByTestId('workflow-schema-field-date-range')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+test('workflow app cards and input placeholders align left in dark theme', async ({ page }: { page: Page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('theme_mode', 'dark');
+    localStorage.setItem('theme', 'dark');
+  });
+  await page.goto(preview.replace('theme=light', 'theme=dark').replace('%23dbeafe', '%23171717'), { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const fitness = page.locator('[data-node-id="fitness"]');
+  await fitness.getByTestId('workflow-node-summary').click();
+  const query = fitness.getByRole('textbox', { name: 'Query' });
+  await expect(query).toHaveCSS('text-align', 'start');
+  const city = fitness.getByTestId('workflow-schema-field-city').getByTestId('workflow-node-location-picker');
+  await expect(city).toBeVisible();
+  await expect(city).toHaveCSS('justify-content', 'flex-start');
+  await expect(fitness.getByTestId('workflow-schema-field-date-range')).toBeVisible();
+  await fitness.locator('.editor-header .close-button').click();
+  await page.getByTestId('workflow-add-step').click();
+  await page.getByTestId('workflow-step-app-skill-action').click();
+  const card = page.getByTestId('workflow-step-menu').getByTestId('app-store-card').first();
+  await expect(card.locator('.app-card-name')).toHaveCSS('text-align', 'start');
+  await expect(card.locator('.app-card-description')).toHaveCSS('text-align', 'start');
+  await test.info().attach('workflow-picker-dark', { body: await page.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+test('drag reveals contrasted drop containers and add-step navigation keeps one panel', async ({ page }: { page: Page }) => {
+  test.setTimeout(60000);
+  await page.goto(preview, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+  const source = page.locator('[data-node-id="stays"]').getByTestId('workflow-node-summary');
+  const bounds = await source.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds!.x + bounds!.width / 2 + 20, bounds!.y + bounds!.height / 2 + 20, { steps: 5 });
+  await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute('data-dragging-node-id', 'stays', { timeout: 5000 });
+  const drop = page.locator('[data-testid="workflow-node-drop-zone"][data-after-node-id="trigger"]');
+  await expect(drop).toBeVisible({ timeout: 5000 });
+  await expect(drop).toHaveText('Drop here to move');
+  const target = await drop.boundingBox();
+  expect(target).not.toBeNull();
+  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 8 });
+  await expect(drop).toHaveClass(/drop-slot/);
+  await test.info().attach('workflow-drag-target', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.mouse.up();
+
+  const surface = page.getByTestId('workflow-slot-surface').last();
+  await surface.scrollIntoViewIfNeeded();
+  const original = await surface.elementHandle();
+  expect(original).not.toBeNull();
+  await expect(surface).toHaveCSS('border-top-style', 'dashed');
+  await surface.getByTestId('workflow-add-step').click();
+  await expect(surface).toHaveClass(/expanded/);
+  await expect(surface.getByTestId('workflow-step-menu')).toBeVisible();
+  await surface.getByTestId('workflow-step-app-skill-action').click();
+  await expect(surface.getByTestId('app-store-card').first()).toBeVisible();
+  await surface.getByTestId('app-store-card').first().click();
+  await expect(surface.getByTestId('app-store-card').first()).toBeVisible();
+  await surface.getByTestId('app-store-card').first().click();
+  await expect(surface.getByTestId('workflow-node-expanded')).toBeVisible();
+  expect(await surface.evaluate((node, first) => node === first, original)).toBe(true);
+  await expect(surface).toBeInViewport();
+  await test.info().attach('workflow-expanded-slot', { body: await page.screenshot(), contentType: 'image/png' });
+});

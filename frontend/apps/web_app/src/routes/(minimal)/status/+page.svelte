@@ -74,7 +74,7 @@
 		</div>
 
 		<div class="card">
-			<TestsSection tests={data.tests} />
+			<TestsSection tests={data.tests} daily={data.daily_tests} />
 		</div>
 
 		<div class="card">

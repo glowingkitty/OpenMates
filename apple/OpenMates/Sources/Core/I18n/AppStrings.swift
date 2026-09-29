@@ -732,6 +732,14 @@ enum AppStrings {
         )
     }
     static var pairApproveWatchLogin: String { L("settings.sessions.pair_approve_watch_login") }
+    static var pairAutoLogoutLabel: String { L("settings.sessions.pair_confirm_auto_logout_label") }
+    static var pairAutoLogoutNone: String { L("settings.sessions.pair_auto_logout_none") }
+    static var pairAutoLogout30m: String { L("settings.sessions.pair_auto_logout_30m") }
+    static var pairAutoLogout1h: String { L("settings.sessions.pair_auto_logout_1h") }
+    static var pairAutoLogout4h: String { L("settings.sessions.pair_auto_logout_4h") }
+    static var pairAutoLogout8h: String { L("settings.sessions.pair_auto_logout_8h") }
+    static var pairAutoLogout24h: String { L("settings.sessions.pair_auto_logout_24h") }
+    static var pairStepUpDescription: String { L("settings.sessions.pair_step_up_description") }
     static var pairWatchLoginApproved: String { L("settings.sessions.pair_watch_login_approved") }
     static var pairScanDescription: String { L("settings.sessions.pair_initiate_description") }
     static var pairingQRCode: String { L("settings.sessions.pair_show_qr_code") }

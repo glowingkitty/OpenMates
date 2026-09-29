@@ -9,6 +9,14 @@ import pytest
 from backend.core.api.app.utils import session_refresh as refresh
 
 
+@pytest.fixture(autouse=True)
+def ordinary_session_deadline(monkeypatch):
+    """These rotation tests exercise existing non-paired sessions."""
+    monkeypatch.setattr(refresh, "get_pair_deadline", AsyncMock(return_value=None))
+    monkeypatch.setattr(refresh, "get_session_state_cached", AsyncMock(return_value=None))
+    monkeypatch.setattr(refresh, "transfer_session_state", AsyncMock(return_value=None))
+
+
 class FakeRedis:
     def __init__(self):
         self.locks = {}

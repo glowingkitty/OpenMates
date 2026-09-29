@@ -436,6 +436,56 @@ def _validate_builder_graph(graph: WorkflowGraph, nodes_by_id: dict[str, Workflo
                 raise WorkflowValidationError(f"Step {node.id} references an unavailable upstream step: {source}")
 
 
+def validate_workflow_composition_refs(graph: WorkflowGraph, prior_graph: WorkflowGraph | None = None) -> None:
+    """Validate authored text on save while allowing unchanged legacy block definitions to remain readable."""
+    if graph.version < 2:
+        return
+    nodes = {node.id: node for node in graph.nodes}
+    prior_nodes = {node.id: node for node in prior_graph.nodes} if prior_graph else {}
+    incoming: dict[str, set[str]] = {node.id: set() for node in graph.nodes}
+    for edge in graph.edges:
+        incoming[edge.to_node].add(edge.from_node)
+
+    def action_ancestors(node_id: str) -> set[str]:
+        visited: set[str] = set()
+        pending = list(incoming[node_id])
+        while pending:
+            candidate = pending.pop()
+            if candidate in visited:
+                continue
+            visited.add(candidate)
+            pending.extend(incoming[candidate])
+        return {candidate for candidate in visited if nodes[candidate].type == WorkflowNodeType.APP_SKILL_ACTION}
+
+    for node in graph.nodes:
+        earlier_actions = action_ancestors(node.id)
+        if not earlier_actions:
+            continue
+        if node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
+            text = str(node.config.get("message") or "")
+        elif node.type == WorkflowNodeType.CHECK and node.config.get("mode") == "ai":
+            text = str(node.config.get("question") or "")
+        elif node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask":
+            text = str((node.config.get("input") or {}).get("prompt") or "")
+        else:
+            continue
+        visible_sources = {
+            step or node for step, node in re.findall(
+                r"\{\{\s*(?:steps\.([A-Za-z0-9_-]+)\.[A-Za-z0-9_.-]+|\$nodes\.([A-Za-z0-9_-]+)\.output\.[A-Za-z0-9_.-]+)\s*\}\}",
+                text,
+            )
+        }
+        if visible_sources.intersection(earlier_actions):
+            continue
+        prior_node = prior_nodes.get(node.id)
+        if prior_node and prior_node.config == node.config and prior_graph:
+            prior_actions = {candidate.id for candidate in prior_graph.nodes
+                             if candidate.type == WorkflowNodeType.APP_SKILL_ACTION}
+            if earlier_actions <= prior_actions:
+                continue
+        raise WorkflowValidationError(f"Step {node.id}: insert a variable from an earlier action into the text")
+
+
 def validate_workflow_readiness(graph: WorkflowGraph, *, require_schedule: bool = False) -> None:
     """Require a runnable path; only scheduled activation requires a trigger."""
     if require_schedule and not any(
@@ -699,9 +749,17 @@ def _validate_builder_execution_inputs(graph: WorkflowGraph) -> None:
         elif node.type == WorkflowNodeType.SEND_CHAT_MESSAGE:
             if not node.config.get("chat_id") and not str(node.config.get("title") or "").strip():
                 raise WorkflowValidationError(f"{label}: enter a title for the new chat")
-            for field in ("title", "message", "chat_id"):
+            for field in ("title", "chat_id"):
                 if field in node.config:
                     validate_value(node.config[field], {"type": "string"}, f"{label}.{field}")
+            message = node.config.get("message") or ""
+            if not isinstance(message, str):
+                raise WorkflowValidationError(f"{label}.message: expected text")
+            matches = list(re.finditer(r"\{\{\s*([^{}]+?)\s*\}\}", message))
+            if len(matches) > 24 or "{{" in re.sub(r"\{\{[^{}]+\}\}", "", message) or "}}" in re.sub(r"\{\{[^{}]+\}\}", "", message):
+                raise WorkflowValidationError(f"{label}.message: invalid or excessive variables")
+            for index, match in enumerate(matches):
+                value_schema(match.group(0), f"{label}.message[{index}]")
             for block in node.config.get("blocks") or []:
                 block_label = f"{label}.blocks.{block['id']}"
                 schema = value_schema(block["source"], block_label)
@@ -877,8 +935,8 @@ def _validate_node_config(node: WorkflowNode) -> None:
             selected_inputs = node.config.get("selected_inputs")
             if not isinstance(question, str) or not question.strip() or len(question) > 4_000:
                 raise WorkflowValidationError("AI Check requires one bounded yes-or-no question")
-            if not isinstance(selected_inputs, list) or not 1 <= len(selected_inputs) <= 24:
-                raise WorkflowValidationError("AI Check requires between 1 and 24 selected earlier values")
+            if not isinstance(selected_inputs, list) or len(selected_inputs) > 24:
+                raise WorkflowValidationError("AI Check accepts up to 24 earlier values")
             if any(not isinstance(reference, str) or not reference.startswith("$nodes.") for reference in selected_inputs):
                 raise WorkflowValidationError("AI Check selected inputs must be earlier Workflow output references")
             if len(selected_inputs) != len(set(selected_inputs)):

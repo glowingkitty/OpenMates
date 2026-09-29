@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """Contract tests for the encrypted Project remote-access live bridge.
 
 The backend routes opaque envelopes between authenticated first-party clients.
@@ -216,6 +217,47 @@ async def test_create_request_routes_only_opaque_envelope_to_exact_device() -> N
     serialized = repr(cache.values) + repr(cache.published)
     for forbidden in ("/workspace/private", "billing query", "file contents"):
         assert forbidden not in serialized
+
+
+@pytest.mark.anyio
+async def test_user_file_transfer_requires_explicit_intent_and_live_write_binding() -> None:
+    with pytest.raises(ValidationError):
+        ProjectRemoteAccessRequestCreate(
+            request_id="transfer", requesting_client_id="browser", operation="copy_entries",
+            key_epoch=1, encrypted_envelope="opaque",
+        )
+    cache = MemoryCache()
+    service = ProjectRemoteAccessService(cache)
+    source_binding = {**binding(), "capabilities": ["read", "write_request"]}
+    await service.register_session(
+        user_id="user-1", device_fingerprint_hash="device-cli",
+        source_session_id="session-1", bindings=[source_binding],
+        confirmed_takeover=False, now=2_000,
+    )
+    with pytest.raises(ProjectRemoteAccessError, match="user_action_required"):
+        await service.create_request(
+            user_id="user-1", project_id="project-1", source_id="source-1",
+            request_id="transfer", requesting_client_id="browser", operation="copy_entries",
+            key_epoch=1, encrypted_envelope="opaque", now=2_001,
+        )
+    await service.create_request(
+        user_id="user-1", project_id="project-1", source_id="source-1",
+        request_id="transfer", requesting_client_id="browser", operation="copy_entries",
+        key_epoch=1, encrypted_envelope="opaque", now=2_001, user_initiated=True,
+    )
+    delivery = await service.require_remote_user_file_request(
+        host_user_id="user-1", project_id="project-1", source_id="source-1",
+        source_session_id="session-1", request_id="transfer",
+        device_fingerprint_hash="device-cli", now=2_002,
+    )
+    assert delivery["operation"] == "copy_entries"
+    assert cache.published[-1][1]["payload"]["user_initiated"] is True
+    with pytest.raises(ProjectRemoteAccessError, match="write_request_unavailable"):
+        await service.require_remote_user_file_request(
+            host_user_id="user-1", project_id="project-1", source_id="source-1",
+            source_session_id="session-1", request_id="transfer",
+            device_fingerprint_hash="different-device", now=2_002,
+        )
 
 
 @pytest.mark.anyio

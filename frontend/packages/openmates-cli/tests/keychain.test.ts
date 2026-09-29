@@ -1,65 +1,58 @@
+// contract-test-file: tooling
 /**
  * Unit tests for CLI secure master key storage (keychain module).
  *
- * Tests all three storage tiers, fallback chains, and error handling.
+ * Tests keyring/file selection, legacy decoding, and unavailable-keyring handling.
  * OS keychain tests are mocked — set OPENMATES_TEST_KEYCHAIN=1 for real
  * keychain integration tests.
  *
  * Run: node --test --experimental-strip-types tests/keychain.test.ts
  */
 
-import { describe, it, mock, beforeEach, afterEach } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 // ---------------------------------------------------------------------------
-// Tier 2 (encrypted) + Tier 3 (plaintext) tests — no mocking needed
+// Keyring/file selection and legacy machine-ID decoding.
 // ---------------------------------------------------------------------------
 
-describe("storeMasterKey / retrieveMasterKey (tier 2 + 3)", () => {
-  // We can't easily test tier 1 (keychain) without the actual OS tools,
-  // but we can test the full fallback by importing the module on Linux
-  // where secret-tool is likely not installed in CI.
+describe("storeMasterKey / retrieveMasterKey", () => {
+  // The normal headless CI path has no unlocked system keyring.
 
+  // contract-test: supporting surface=cli assertions=cli.credentials.storage-mode
   it("storeMasterKey returns a result with a valid type", async () => {
     const { storeMasterKey } = await import("../src/keychain.ts");
     const result = storeMasterKey("test-key-base64", "test-hashed-email");
     assert.ok(
-      ["keychain", "encrypted", "plaintext"].includes(result.type),
+      ["keychain", "file"].includes(result.type),
       `Expected valid type, got: ${result.type}`,
     );
   });
 
-  it("encrypted tier: encryptedData is present and retrievable", async () => {
+  // contract-test: direct surface=cli assertions=cli.credentials.storage-mode
+  it("new storage never claims machine-ID encryption", async () => {
     const { storeMasterKey, retrieveMasterKey } = await import("../src/keychain.ts");
     const testKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     const result = storeMasterKey(testKey, "test-email-hash");
 
-    if (result.type === "encrypted") {
-      assert.ok(result.encryptedData, "encryptedData should be present");
-      assert.notStrictEqual(result.encryptedData, testKey, "should not be plaintext");
-
-      const retrieved = retrieveMasterKey("encrypted", "test-email-hash", result.encryptedData);
-      assert.strictEqual(retrieved, testKey, "retrieved key should match original");
-    } else if (result.type === "keychain") {
-      // OS keychain worked — that's fine, skip encrypted-specific assertions
-      assert.ok(true, "keychain tier used instead of encrypted");
-    } else {
-      // Plaintext fallback — machine entropy unavailable
-      assert.strictEqual(result.type, "plaintext");
-    }
+    assert.notStrictEqual(result.type, "encrypted");
+    assert.notStrictEqual(result.type, "plaintext");
+    if (result.type === "file") assert.strictEqual(retrieveMasterKey("file", "test-email-hash"), null);
   });
 
-  it("encrypted tier: different keys produce different ciphertext", async () => {
+  // contract-test: direct surface=cli assertions=cli.credentials.storage-mode
+  it("preserves an existing keyring record when the keyring cannot write", async () => {
     const { storeMasterKey } = await import("../src/keychain.ts");
-    const result1 = storeMasterKey("key-one", "email-1");
-    const result2 = storeMasterKey("key-two", "email-2");
-
-    if (result1.type === "encrypted" && result2.type === "encrypted") {
-      assert.notStrictEqual(
-        result1.encryptedData,
-        result2.encryptedData,
-        "different keys should produce different ciphertext",
+    const originalPath = process.env.PATH;
+    process.env.PATH = "";
+    try {
+      assert.throws(
+        () => storeMasterKey("new-key", "existing-keyring-id", "keychain"),
+        /Existing OS keyring entry is unavailable/,
       );
+      assert.strictEqual(storeMasterKey("new-key", "new-id").type, "file");
+    } finally {
+      process.env.PATH = originalPath;
     }
   });
 
@@ -94,6 +87,7 @@ describe("storeMasterKey / retrieveMasterKey (tier 2 + 3)", () => {
     assert.doesNotThrow(() => deleteMasterKey("keychain", "email"));
     assert.doesNotThrow(() => deleteMasterKey("encrypted", "email"));
     assert.doesNotThrow(() => deleteMasterKey("plaintext", "email"));
+    assert.doesNotThrow(() => deleteMasterKey("file", "email"));
   });
 });
 
@@ -109,12 +103,11 @@ describe("storeMasterKey → retrieveMasterKey roundtrip", () => {
 
     const storeResult = storeMasterKey(originalKey, email);
 
-    if (storeResult.type === "plaintext") {
-      // Plaintext tier — retrieveMasterKey returns null (caller uses inline key)
-      const retrieved = retrieveMasterKey("plaintext", email);
+    if (storeResult.type === "file") {
+      const retrieved = retrieveMasterKey("file", email);
       assert.strictEqual(retrieved, null);
     } else {
-      // Keychain or encrypted — should round-trip
+      // Working keyring should round-trip.
       const retrieved = retrieveMasterKey(
         storeResult.type,
         email,
@@ -131,7 +124,7 @@ describe("storeMasterKey → retrieveMasterKey roundtrip", () => {
 
     const result = storeMasterKey(specialKey, email);
 
-    if (result.type !== "plaintext") {
+    if (result.type === "keychain") {
       const retrieved = retrieveMasterKey(result.type, email, result.encryptedData);
       assert.strictEqual(retrieved, specialKey);
     }

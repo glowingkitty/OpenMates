@@ -73,7 +73,7 @@ jobs:
       SELFHOST_API_URL: http://localhost:8000
       COMPOSE_PARALLEL_LIMIT: 2
       PLAYWRIGHT_BROWSER_CHANNEL: chrome
-      PLAYWRIGHT_VIDEO_MODE: off
+      PLAYWRIGHT_VIDEO_MODE: 'off'
       IMAGE_TAG: selfhost-smoke-${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +98,14 @@ jobs:
           test "$INSTALLED_VERSION" = "$ALPHA_VERSION"
           openmates --help
           openmates server --help
+
+      - name: Stage OpenObserve image for self-hosted install
+        # The official Docker Hub and public ECR tags have the same manifest
+        # digest. Pull from Docker Hub to avoid ECR's anonymous data limit on
+        # fresh GitHub runners while keeping the installed Compose image exact.
+        run: |
+          docker pull docker.io/openobserve/openobserve@sha256:67602a1801b0623cb41b2038374d2c93f843f667f126b94d1000aab6d0c7440f
+          docker tag docker.io/openobserve/openobserve@sha256:67602a1801b0623cb41b2038374d2c93f843f667f126b94d1000aab6d0c7440f public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
 
       - name: Source-mode timing baseline
         # docAssert('openmates server install --source-path starts self-host smoke stack')
@@ -146,6 +154,11 @@ jobs:
 
       - name: Build local image-mode images
         run: |
+          image_labels=(
+            --label org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            --label "org.opencontainers.image.revision=$GITHUB_SHA"
+            --label "org.opencontainers.image.version=$IMAGE_TAG"
+          )
           build_with_retry() {
             for attempt in 1 2 3; do
               if docker build "$@"; then
@@ -159,13 +172,18 @@ jobs:
             done
           }
 
-          build_with_retry -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} -f backend/core/api/Dockerfile.selfhost .
-          build_with_retry -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
-          build_with_retry -t ghcr.io/glowingkitty/openmates-directus:${IMAGE_TAG} -f backend/core/directus/Dockerfile backend/core/directus
-          build_with_retry -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
-          build_with_retry -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
-          build_with_retry -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} -f backend/admin_sidecar/Dockerfile .
-          build_with_retry -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted -f frontend/apps/web_app/Dockerfile .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/api/Dockerfile.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} "${image_labels[@]}" --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-directus:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/directus/Dockerfile backend/core/directus
+          build_with_retry -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
+          build_with_retry -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} "${image_labels[@]}" -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
+          build_with_retry -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} "${image_labels[@]}" -f backend/admin_sidecar/Dockerfile .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} "${image_labels[@]}" --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted -f frontend/apps/web_app/Dockerfile .
+
+          api_image="ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG}"
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.source"}}' "$api_image")" = "https://github.com/glowingkitty/OpenMates"
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$api_image")" = "$GITHUB_SHA"
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$api_image")" = "$IMAGE_TAG"
 
       - name: Image-mode self-hosted install and timing
         # docAssert('self-host install smoke passes without provider API keys')
@@ -179,6 +197,11 @@ jobs:
 
           install_start=$(date +%s)
           $CLI server install --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG"
+          # Compose bind mounts must not create this path as root at first start;
+          # the same installer user needs to write update state and lock files.
+          test -d "$IMAGE_INSTALL_PATH/.openmates/runtime-health/metrics"
+          test "$(stat -c %u "$IMAGE_INSTALL_PATH/.openmates")" = "$(id -u)"
+          test -w "$IMAGE_INSTALL_PATH/.openmates"
           install_end=$(date +%s)
 
           start_start=$(date +%s)
@@ -203,7 +226,13 @@ jobs:
           update_start=$(date +%s)
           $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --dry-run --json | tee "$GITHUB_WORKSPACE/test-results/selfhost-image-update-plan.json"
           node -e "const p=require(process.argv[1]); if (p.mode !== 'image' || p.targetImageTag !== process.env.IMAGE_TAG || p.status !== 'planned') { console.error(p); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-image-update-plan.json"
-          $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG"
+          # This fixture has no admin email credentials. The update must keep
+          # the new containers running while failing closed at the email gate.
+          if $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --json > "$GITHUB_WORKSPACE/test-results/selfhost-image-update-result.json" 2> "$GITHUB_WORKSPACE/test-results/selfhost-image-update-stderr.txt"; then
+            echo "Image update unexpectedly passed without an admin completion email."
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const s=JSON.parse(fs.readFileSync(process.env.IMAGE_INSTALL_PATH+'/.openmates/core-update-status.json','utf8')); const e=fs.readFileSync(process.argv[1],'utf8'); if (s.status!=='degraded' || s.step!=='completion-email' || s.updateMode!=='image' || s.targetImageTag!==process.env.IMAGE_TAG || s.installedVersion!==process.env.IMAGE_TAG || !s.runtimeCompletedAt || s.completionEmailDelivery?.status!=='unavailable' || s.completionEmailDelivery?.attempts!==0 || s.completionEmailDelivery?.sanitizedReason!=='email_not_configured' || !e.includes('admin completion email was not accepted')) { console.error({status:s,error:e}); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-image-update-stderr.txt"
           curl -fsS http://localhost:8000/health >/dev/null
           curl -fsS http://localhost:5173 >/dev/null
           node -e "const fs=require('node:fs'); const env=fs.readFileSync(process.env.IMAGE_INSTALL_PATH + '/.env', 'utf8'); if (!env.includes('OPENMATES_IMAGE_TAG=' + process.env.IMAGE_TAG)) process.exit(1);"
@@ -245,6 +274,12 @@ jobs:
             status="$(docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
             echo "$container $status"
             test "$status" = "true healthy"
+            case "$container" in
+              api) image_name=openmates-api ;;
+              webapp) image_name=openmates-webapp ;;
+              cms) image_name=openmates-directus ;;
+            esac
+            test "$(docker inspect -f '{{.Config.Image}}' "$container")" = "ghcr.io/glowingkitty/${image_name}:${IMAGE_TAG}"
           done
 
       - name: Verify Chrome browser
@@ -261,11 +296,7 @@ jobs:
 
       - name: Show self-hosted status and logs
         if: always()
-        run: |
-          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server status --path "$SOURCE_INSTALL_PATH" || true
-          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server logs --path "$SOURCE_INSTALL_PATH" --tail 200 || true
-          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server status --path "$IMAGE_INSTALL_PATH" || true
-          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server logs --path "$IMAGE_INSTALL_PATH" --tail 200 || true
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci_selfhost_diagnostics.py"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -278,6 +309,9 @@ jobs:
             test-results/selfhost-source-timing.json
             test-results/selfhost-image-timing.json
             test-results/selfhost-image-update-plan.json
+            test-results/selfhost-image-update-result.json
+            test-results/selfhost-image-update-stderr.txt
+            test-results/ci-stack.log
             test-results/selfhost-user-data-backup.tar.gz
             frontend/apps/web_app/test-results/
           if-no-files-found: ignore

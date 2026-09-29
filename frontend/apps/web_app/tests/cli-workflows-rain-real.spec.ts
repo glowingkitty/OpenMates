@@ -46,7 +46,7 @@ steps:
   - id: report
     send_chat_message:
       title: ${chatTitle}
-      message: Berlin weather update
+      message: "Berlin weather update: {{steps.forecast.rain_summary}}"
       blocks:
         - id: weather
           source: $nodes.forecast.output.rain_summary

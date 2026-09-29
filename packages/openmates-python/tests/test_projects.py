@@ -8,15 +8,43 @@ Run: python3 -m pytest packages/openmates-python/tests/test_projects.py.
 
 import json
 import hashlib
+import base64
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 import pytest
 
 from openmates import OpenMates
-from openmates.sdk import _create_api_key_material, _decrypt_aes_gcm_text, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text
+from openmates.sdk import _create_api_key_material, _decrypt_aes_gcm_text, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text, _derive_api_key_wrapping_key
 
 CHAT_ID = "11111111-1111-4111-8111-111111111111"
 PROJECT_ID = "22222222-2222-4222-8222-222222222222"
 WORKFLOW_ID = "33333333-3333-4333-8333-333333333333"
+
+
+# contract-test: direct surface=sdks.pip assertions=sdk.auth.limited-resource-keys,projects.keys.client-wrapped
+def test_limited_pip_project_key_grant_cannot_decrypt_unrelated_project():
+    master_key = bytes([41]) * 32
+    selected_key = bytes([42]) * 32
+    unrelated_key = bytes([43]) * 32
+    credential, _ = _create_api_key_material("limited", master_key)
+    salt = bytes([7]) * 16
+    iv = bytes([8]) * 12
+    encrypted_key = AESGCM(_derive_api_key_wrapping_key(credential, base64.b64encode(salt).decode())).encrypt(iv, selected_key, None)
+    selected = {"project_id": PROJECT_ID, "encrypted_project_key": _encrypt_aes_gcm_bytes(selected_key, master_key), "encrypted_name": _encrypt_aes_gcm_text("Selected", selected_key)}
+    unrelated = {"project_id": WORKFLOW_ID, "encrypted_project_key": _encrypt_aes_gcm_bytes(unrelated_key, master_key), "encrypted_name": _encrypt_aes_gcm_text("Unrelated", unrelated_key)}
+    client = OpenMates(api_key=credential, device_id="limited-device")
+    client._sdk_session = {"key_wrapper": None, "resource_key_grants": [{
+        "resource_type": "project", "resource_id": PROJECT_ID,
+        "encrypted_key": base64.b64encode(encrypted_key).decode(),
+        "salt": base64.b64encode(salt).decode(), "key_iv": base64.b64encode(iv).decode(),
+    }]}
+    client._get = lambda path: {"projects": [selected, unrelated]} if path.split("?", 1)[0] == "/v1/projects" else {"project": selected if path.endswith(PROJECT_ID) else unrelated}
+    assert [project["name"] for project in client.projects.list(personal=True)] == ["Selected"]
+    assert client.projects.show(PROJECT_ID, personal=True)["name"] == "Selected"
+    with pytest.raises(Exception, match="no key grant"):
+        client.projects.show(WORKFLOW_ID, personal=True)
+    with pytest.raises(Exception, match="did not include API-key-wrapped master key"):
+        client._get_master_key()
 
 
 # contract-test: direct surface=sdks.pip assertions=projects.links.openmates-only-encrypted,projects.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
@@ -52,7 +80,7 @@ def test_pip_sdk_project_links_are_openmates_only(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         requests_seen.append({"method": "GET", "url": url})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == f"Bearer {api_key.split('.')[0]}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/projects?include_archived=false"):
             return FakeResponse({"projects": [{"project_id": PROJECT_ID, "encrypted_project_key": encrypted_project_key}]})
@@ -71,7 +99,7 @@ def test_pip_sdk_project_links_are_openmates_only(monkeypatch):
 
     def fake_post(url, *, json, headers, timeout):
         requests_seen.append({"method": "POST", "url": url, "json": json})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == f"Bearer {api_key.split('.')[0]}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
@@ -81,7 +109,7 @@ def test_pip_sdk_project_links_are_openmates_only(monkeypatch):
 
     def fake_delete(url, *, json, headers, timeout):
         requests_seen.append({"method": "DELETE", "url": url, "json": json})
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == f"Bearer {api_key.split('.')[0]}"
         assert headers["X-OpenMates-SDK"] == "pip"
         if f"/v1/projects/{PROJECT_ID}/items?" in url:
             return FakeResponse({"deleted": True, "deleted_count": 1})
@@ -164,7 +192,7 @@ def test_pip_sdk_projects_explicit_personal_and_team_crud(monkeypatch):
         def json(self): return self._payload
 
     def fake_request(method, url, *, json=None, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == f"Bearer {api_key.split('.')[0]}"
         path = url.split("https://api.openmates.org", 1)[-1]
         if path == "/v1/sdk/session":
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})

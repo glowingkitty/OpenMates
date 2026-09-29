@@ -299,7 +299,8 @@ async def test_draft_step_test_uses_initialized_output_safety_dependencies(monke
     function.returns = None
     namespace = {"WorkflowRunner": Runner, "WorkflowAppSkillAdapter": WorkflowAppSkillAdapter,
                  "WorkflowNodeType": WorkflowNodeType, "HTTPException": HTTPException,
-                 "run_in_threadpool": inline, "_workflow_editor_node": lambda *args: node}
+                 "run_in_threadpool": inline, "_workflow_editor_node": lambda *args: node,
+                 "validate_workflow_composition_refs": lambda *args, **kwargs: None}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])), str(WORKFLOWS_PATH), "exec"), namespace)
     result = await namespace["test_workflow_step"]("workflow", "weather", request,
         SimpleNamespace(input={"location": "Berlin"}, upstream_outputs={}),

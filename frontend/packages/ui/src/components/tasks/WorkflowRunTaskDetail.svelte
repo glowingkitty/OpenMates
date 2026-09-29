@@ -6,6 +6,7 @@
 -->
 
 <script lang="ts">
+  import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
   import WorkflowGraphRenderer from '../workflows/WorkflowGraphRenderer.svelte';
   import {
     workflowWorkspaceStore,
@@ -49,6 +50,7 @@
       errorMessage = 'This projection does not reference a Workflow run.';
       return;
     }
+    const exactRunId = runId;
 
     async function refresh(): Promise<void> {
       try {
@@ -56,8 +58,8 @@
           loadedWorkflow = await workflowWorkspaceStore.selectWorkflow(workflowId);
           workflow = loadedWorkflow;
         }
-        const detail = await workflowWorkspaceStore.getWorkflowRun(workflowId, runId);
-        if (disposed || projection.workflowId !== workflowId || projection.workflowRunId !== runId) return;
+        const detail = await workflowWorkspaceStore.getWorkflowRun(workflowId, exactRunId);
+        if (disposed || projection.workflowId !== workflowId || projection.workflowRunId !== exactRunId) return;
         run = detail;
         if (!executedGraph && loadedWorkflow) {
           executedGraph = detail.version_id === loadedWorkflow.current_version_id
@@ -103,63 +105,70 @@
   data-presentation={presentation}
   aria-label="Workflow run task detail"
 >
-  <header>
-    <div>
-      <span>Workflow run</span>
-      <h2>{projection.title}</h2>
-    </div>
-    <button type="button" data-testid="task-detail-close" aria-label="Close Workflow run detail" onclick={onClose}>Close</button>
-  </header>
+  <UnifiedEmbedFullscreen
+    testId="workflow-run-fullscreen"
+    closeTestId="task-detail-close"
+    appId="workflows"
+    skillId="run"
+    skillIconName="workflow"
+    embedHeaderTitle={projection.title}
+    embedHeaderSubtitle="Workflow run"
+    showShare={false}
+    {onClose}
+  >
+    {#snippet content()}
+      <div class="workflow-run-content">
+        <section class="run-identity">
+          <span>Exact run ID</span>
+          <code data-testid="workflow-run-detail-id">{projection.workflowRunId}</code>
+          <strong
+            data-testid="workflow-run-detail-live-status"
+            data-live={live ? 'true' : 'false'}
+            data-status={run?.status ?? 'queued'}
+          >{formatStatus(run?.status ?? 'queued')}</strong>
+        </section>
 
-  <section class="run-identity">
-    <span>Exact run ID</span>
-    <code data-testid="workflow-run-detail-id">{projection.workflowRunId}</code>
-    <strong
-      data-testid="workflow-run-detail-live-status"
-      data-live={live ? 'true' : 'false'}
-      data-status={run?.status ?? 'queued'}
-    >{formatStatus(run?.status ?? 'queued')}</strong>
-  </section>
+        {#if loading}
+          <p class="state-copy">Loading live execution...</p>
+        {:else if errorMessage}
+          <p class="error-copy" role="alert">{errorMessage}</p>
+        {:else if run}
+          <section class="node-statuses" aria-label="Workflow node statuses">
+            <h3>Live node status</h3>
+            {#each run.node_runs ?? [] as nodeRun (nodeRun.id)}
+              <div data-testid="workflow-run-detail-node-status" data-status={nodeRun.status}>
+                <span>{nodeRun.node_id}</span><strong>{formatStatus(nodeRun.status)}</strong>
+              </div>
+            {:else}
+              <div data-testid="workflow-run-detail-node-status" data-status={run.status}>
+                <span>Definition queued</span><strong>{formatStatus(run.status)}</strong>
+              </div>
+            {/each}
+          </section>
 
-  {#if loading}
-    <p class="state-copy">Loading live execution...</p>
-  {:else if errorMessage}
-    <p class="error-copy" role="alert">{errorMessage}</p>
-  {:else if run}
-    <section class="node-statuses" aria-label="Workflow node statuses">
-      <h3>Live node status</h3>
-      {#each run.node_runs ?? [] as nodeRun (nodeRun.id)}
-        <div data-testid="workflow-run-detail-node-status" data-status={nodeRun.status}>
-          <span>{nodeRun.node_id}</span><strong>{formatStatus(nodeRun.status)}</strong>
-        </div>
-      {:else}
-        <div data-testid="workflow-run-detail-node-status" data-status={run.status}>
-          <span>Definition queued</span><strong>{formatStatus(run.status)}</strong>
-        </div>
-      {/each}
-    </section>
-
-    {#if workflow && executedGraph}
-      <WorkflowGraphRenderer
-        graph={executedGraph}
-        readOnly
-        nodeRuns={run.node_runs ?? []}
-        testId="workflow-run-task-graph"
-        onChange={ignoreGraphChange}
-      />
-    {/if}
-  {/if}
+          {#if workflow && executedGraph}
+            <WorkflowGraphRenderer
+              graph={executedGraph}
+              readOnly
+              nodeRuns={run.node_runs ?? []}
+              testId="workflow-run-task-graph"
+              onChange={ignoreGraphChange}
+            />
+          {/if}
+        {/if}
+      </div>
+    {/snippet}
+  </UnifiedEmbedFullscreen>
 </aside>
 
 <style>
-  .workflow-run-task-detail { box-sizing: border-box; display: grid; align-content: start; gap: var(--spacing-6); min-width: 0; max-height: 100%; overflow: auto; padding: var(--spacing-7); border: 1px solid var(--color-grey-20); border-radius: var(--radius-12); color: var(--color-font-primary); background: var(--color-grey-0); box-shadow: var(--shadow-xl); }
-  .workflow-run-task-detail.overlay { position: fixed; z-index: var(--z-index-modal, 1000); inset: 0; max-height: none; border: 0; border-radius: 0; padding: var(--spacing-6); }
-  header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--spacing-4); }
-  header span, .run-identity span { color: var(--color-font-secondary); font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-  header h2, .node-statuses h3, .state-copy, .error-copy { margin: 0; }
-  header button { border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-20); font: inherit; font-weight: 800; cursor: pointer; }
+  .workflow-run-task-detail { position: relative; box-sizing: border-box; min-width: 0; height: 100%; overflow: hidden; border-radius: var(--radius-12); color: var(--color-font-primary); background: var(--color-grey-0); box-shadow: var(--shadow-xl); }
+  .workflow-run-task-detail.overlay { position: fixed; z-index: var(--z-index-popover-above-2, 1006); inset: 0; height: auto; border-radius: 0; }
+  .workflow-run-content { display: grid; align-content: start; gap: var(--spacing-6); min-width: 0; padding: var(--spacing-7); }
+  .run-identity span { color: var(--color-font-secondary); font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+  .node-statuses h3, .state-copy, .error-copy { margin: 0; }
   .run-identity { display: grid; gap: var(--spacing-2); padding: var(--spacing-5); border-radius: var(--radius-8); background: var(--color-grey-10); }
-  .run-identity code { overflow-wrap: anywhere; color: var(--color-font-primary); }
+  .run-identity code { overflow-wrap: anywhere; padding: var(--spacing-2); border-radius: var(--radius-5); background: var(--color-grey-20); color: var(--color-font-primary); }
   .run-identity strong { width: fit-content; text-transform: capitalize; }
   .run-identity strong[data-status='completed'] { color: var(--color-success); }
   .run-identity strong[data-status='failed'], .error-copy { color: var(--color-danger); }

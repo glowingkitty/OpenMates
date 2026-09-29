@@ -7,7 +7,6 @@
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
-  import { headerOverlayControls } from '../../actions/headerOverlayControls';
   import { tooltip } from '../../actions/tooltip';
 
   interface Props {
@@ -46,10 +45,73 @@
       : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
     return `Started ${day}, ${date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
   }
+
+  function projectHeaderControls(node: HTMLElement) {
+    const header = node.closest<HTMLElement>('.project-workspace-header');
+    const pane = node.closest<HTMLElement>('.projects-page');
+    if (!header || !pane) return {};
+
+    let frame: number | null = null;
+    const resizeObserver = new ResizeObserver(schedule);
+    const mutations = new MutationObserver(schedule);
+
+    function measure() {
+      const paneBounds = pane!.getBoundingClientRect();
+      // Fixed descendants use viewport coordinates here. Keep the toolbar
+      // aligned with the project pane as the app shell or split view moves it.
+      node.style.setProperty('--project-pane-top', `${paneBounds.top}px`);
+      node.style.left = `${paneBounds.left}px`;
+      node.style.width = `${paneBounds.width}px`;
+
+      const banner = header!.getBoundingClientRect();
+      for (const control of node.querySelectorAll<HTMLElement>('.new-chat-button-wrapper, .button-wrapper')) {
+        const bounds = control.getBoundingClientRect();
+        const overlaps = !control.closest('[data-header-overlay-disabled]') &&
+          bounds.bottom > banner.top && bounds.top < banner.bottom &&
+          bounds.right > banner.left && bounds.left < banner.right;
+        control.toggleAttribute('data-header-overlay', overlaps);
+      }
+    }
+
+    function schedule() {
+      if (frame === null) frame = requestAnimationFrame(() => {
+        frame = null;
+        measure();
+      });
+    }
+
+    mutations.observe(node, { childList: true, subtree: true });
+    resizeObserver.observe(header);
+    // Pane position can move without its size changing (for example when the
+    // app shell or a side-by-side viewer changes layout). Watch only its
+    // ancestor chain so those layout changes remeasure the fixed coordinates.
+    for (let ancestor: HTMLElement | null = pane; ancestor; ancestor = ancestor.parentElement) {
+      resizeObserver.observe(ancestor);
+      mutations.observe(ancestor, {
+        attributes: true,
+        attributeFilter: ['class', 'style'],
+        childList: ancestor !== document.body,
+      });
+      if (ancestor === document.body) break;
+    }
+    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    measure();
+
+    return {
+      destroy() {
+        if (frame !== null) cancelAnimationFrame(frame);
+        resizeObserver.disconnect();
+        mutations.disconnect();
+        window.removeEventListener('scroll', schedule, true);
+        window.removeEventListener('resize', schedule);
+      },
+    };
+  }
 </script>
 
 <section class="project-workspace-header" data-testid="project-workspace-header" data-header-system="workspace-detail">
-  <div class="project-header-actions" use:headerOverlayControls>
+  <div class="project-header-actions" data-testid="project-header-actions" use:projectHeaderControls>
     <HeaderActionMenu hasShare={false} actionCount={2} forceOverflow triggerTestId="project-more-button" resetKey={title}>
       {#snippet report()}<WorkspaceReportIssueButton toolbar />{/snippet}
       {#snippet share()}{/snippet}
@@ -96,6 +158,7 @@
 <style>
   .project-workspace-header {
     position: relative;
+    z-index: var(--z-index-raised-3);
     display: grid;
     min-height: clamp(18rem, 46vh, 26.25rem);
     place-items: center;
@@ -127,10 +190,11 @@
   }
 
   .project-header-actions {
-    position: absolute;
-    inset-block-start: var(--spacing-6);
-    inset-inline: var(--spacing-6);
-    z-index: 2;
+    position: fixed;
+    top: calc(var(--project-pane-top, 0px) + var(--spacing-6));
+    z-index: var(--z-index-dropdown-1);
+    box-sizing: border-box;
+    padding-inline: var(--spacing-6);
     pointer-events: none;
   }
 
@@ -179,7 +243,7 @@
       border-radius: 0 0 var(--radius-5) var(--radius-5);
     }
 
-    .project-header-actions { inset-block-start: var(--spacing-4); inset-inline: var(--spacing-4); }
+    .project-header-actions { top: calc(var(--project-pane-top, 0px) + var(--spacing-4)); padding-inline: var(--spacing-4); }
     .project-kicker { inset-block-start: var(--spacing-5); }
     .header-details { width: calc(100% - 2rem); gap: var(--spacing-8); padding-top: var(--spacing-8); }
     .header-details :global(.header-content) { gap: var(--spacing-4); }

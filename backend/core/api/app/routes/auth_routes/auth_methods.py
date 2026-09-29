@@ -19,6 +19,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 )
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.password_v2 import has_password_v2_record
 
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class AuthMethodsResponse(BaseModel):
     has_2fa: bool
     has_password: bool
     has_recovery_key: bool
+    credential_version: int
 
 
 @router.get("/methods", response_model=AuthMethodsResponse, include_in_schema=False)
@@ -66,7 +68,7 @@ async def get_auth_methods(
             "directus_users",
             {
                 "filter[id][_eq]": current_user.id,
-                "fields": "encrypted_tfa_secret",
+                "fields": "encrypted_tfa_secret,credential_lookup_hashes",
                 "limit": 1,
             },
             admin_required=True,
@@ -89,6 +91,7 @@ async def get_auth_methods(
     return AuthMethodsResponse(
         has_passkey=bool(passkeys),
         has_2fa=bool(user_fields and user_fields.get("encrypted_tfa_secret")),
-        has_password="password" in login_methods,
-        has_recovery_key="recovery_key" in login_methods,
+        has_password=any(method == "password" or (isinstance(method, str) and method.startswith("password_v2_")) for method in login_methods),
+        has_recovery_key=any(method == "recovery_key" or (isinstance(method, str) and method.startswith("recovery_key_v2_")) for method in login_methods),
+        credential_version=2 if has_password_v2_record(user_fields.get("credential_lookup_hashes")) else 1,
     )

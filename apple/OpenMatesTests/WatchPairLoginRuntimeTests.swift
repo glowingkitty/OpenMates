@@ -10,6 +10,23 @@ import XCTest
 
 @MainActor
 final class WatchPairLoginRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testPairStepUpMethodSelectionKeepsPasskeyOnlyAccountsEligible() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let passkeyOnly = try decoder.decode(PairV2StepUpMethods.self,
+            from: Data(#"{"has_passkey":true,"has_password":false,"has_2fa":false}"#.utf8))
+        XCTAssertTrue(passkeyOnly.supports(.passkey))
+        XCTAssertFalse(passkeyOnly.supports(.password))
+        XCTAssertFalse(passkeyOnly.supports(.otp))
+
+        let passwordAndOTP = try decoder.decode(PairV2StepUpMethods.self,
+            from: Data(#"{"has_passkey":false,"has_password":true,"has_2fa":true}"#.utf8))
+        XCTAssertFalse(passwordAndOTP.supports(.passkey))
+        XCTAssertTrue(passwordAndOTP.supports(.password))
+        XCTAssertTrue(passwordAndOTP.supports(.otp))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.iphone-first-fallback
     func testNormalizedPINUppercasesFiltersAndTruncatesToSixCharacters() {
         XCTAssertEqual(PairLoginRuntime.normalizedPIN(" ab-cd 12 xyz "), "ABCD12")
@@ -328,41 +345,66 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
-    func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {
-        let token = "ABC123"
-        let pin = "9Z8Y7X"
-        let masterKeyData = Data((0..<32).map(UInt8.init))
-        let bundleJSON = Data(
-            """
-            {
-              "lookup_hash": "lookup-hash-test",
-              "hashed_email": "hashed-email-test",
-              "user_email_salt": "salt-test",
-              "master_key_exported": "\(masterKeyData.base64EncodedString())"
-            }
-            """.utf8
+    func testPairV2ContextAndAEADRejectTamperedContextOrCiphertext() throws {
+        let context = try PairV2Context(
+            token: "ABC123", sessionID: "test-session",
+            receiverTokenHash: String(repeating: "a", count: 64),
+            authorizerUserID: "test-user", autoLogoutMinutes: 30
         )
-        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
-        let encrypted = try await CryptoManager.shared.encrypt(bundleJSON, using: pairKey)
-        let response = PairCompleteResponse(
-            success: true,
-            encryptedBundle: encrypted.ciphertext.base64EncodedString(),
-            iv: encrypted.nonce.base64EncodedString(),
-            autoLogoutMinutes: nil,
-            authorizerDeviceName: "Test Device",
-            message: nil
+        XCTAssertEqual(context.string,
+            "[\"openmates-pair\",2,\"ABC123\",\"test-session\",\"" + String(repeating: "a", count: 64) + "\",\"test-user\",30]")
+        let slashContext = try PairV2Context(
+            token: "ABC123", sessionID: "test/session",
+            receiverTokenHash: String(repeating: "a", count: 64),
+            authorizerUserID: "test-user", autoLogoutMinutes: 30
         )
+        XCTAssertTrue(slashContext.string.contains("\"test/session\""))
+        XCTAssertThrowsError(try PairV2Crypto.decode("AB"))
+        let sessionKey = PairV2Crypto.encode(Data((0..<64).map(UInt8.init)))
+        let plaintext = Data(#"{"protocol_version":2,"user_id":"test-user"}"#.utf8)
+        let sealed = try PairV2Crypto.seal(plaintext, sessionKey: sessionKey, context: context)
+        XCTAssertEqual(try PairV2Crypto.open(
+            ciphertext: sealed.ciphertext, iv: sealed.iv,
+            sessionKey: sessionKey, context: context
+        ), plaintext)
+        // Fixed WebCrypto fixture generated with @repo/pairing-crypto's HKDF,
+        // AES-GCM layout, and context AAD (synthetic test material only).
+        XCTAssertEqual(try PairV2Crypto.open(
+            ciphertext: "0o_xVxo6DVOCSns-o9es-LmKyGPYrNnI8412JjkQsGSUOgKX0YEYJslzyidYhQAYMFUxEfY6DQR41Eby",
+            iv: "AAECAwQFBgcICQoL",
+            sessionKey: sessionKey, context: context
+        ), plaintext)
+        let wrongContext = try PairV2Context(
+            token: context.token, sessionID: context.sessionID,
+            receiverTokenHash: context.receiverTokenHash,
+            authorizerUserID: context.authorizerUserID, autoLogoutMinutes: 60
+        )
+        XCTAssertThrowsError(try PairV2Crypto.open(
+            ciphertext: sealed.ciphertext, iv: sealed.iv,
+            sessionKey: sessionKey, context: wrongContext
+        ))
+        let wrongSessionKey = PairV2Crypto.encode(Data(repeating: 0x5a, count: 64))
+        XCTAssertThrowsError(try PairV2Crypto.open(
+            ciphertext: sealed.ciphertext, iv: sealed.iv,
+            sessionKey: wrongSessionKey, context: context
+        ))
+        var tampered = try PairV2Crypto.decode(sealed.ciphertext)
+        tampered[0] ^= 1
+        XCTAssertThrowsError(try PairV2Crypto.open(
+            ciphertext: PairV2Crypto.encode(tampered), iv: sealed.iv,
+            sessionKey: sessionKey, context: context
+        ))
+    }
 
-        let (bundle, masterKey) = try await PairLoginRuntime.decryptLoginBundle(
-            from: response,
-            token: token,
-            pin: pin
-        )
-
-        XCTAssertEqual(bundle.lookupHash, "lookup-hash-test")
-        XCTAssertEqual(bundle.hashedEmail, "hashed-email-test")
-        XCTAssertEqual(bundle.userEmailSalt, "salt-test")
-        XCTAssertEqual(rawData(from: masterKey), masterKeyData)
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session
+    func testPairV2BundleRequiresEncryptedAccountBindingAndCanonicalPIN() throws {
+        XCTAssertTrue(PairLoginRuntime.isValidPIN("ABCD36"))
+        XCTAssertFalse(PairLoginRuntime.isValidPIN("ÅBCD36"))
+        XCTAssertFalse(PairLoginRuntime.isValidPIN("ABCD37"))
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let missingBinding = Data(#"{"protocol_version":2,"master_key_exported":"x","grant_secret":"y","user_email_salt":"z","hashed_email":"h","user_id":"u"}"#.utf8)
+        XCTAssertThrowsError(try decoder.decode(PairV2Bundle.self, from: missingBinding))
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.pairing.private-session

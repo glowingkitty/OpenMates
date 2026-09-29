@@ -1,0 +1,292 @@
+schema_version: 2
+id: workflow-ai-authoring
+title: AI workflow creation and editing from the web workspace
+status: approved
+goal: >-
+  Let users describe one or multiple workflows in the Workflows workspace, by
+  typing or recording speech, and have AI create valid workflows or edit existing
+  ones reliably. Clarify requests in chat when a valid result cannot be built.
+  Make AI edits visible and easy to undo.
+
+scope:
+  in:
+    - Create one or multiple workflows from the workspace composer, or update an existing workflow from the workspace or its open editor.
+    - Reuse live audio transcription and correction, then automatically submit corrected instructions.
+    - Validate generated graphs against the executable workflow capabilities before committing an atomic request.
+    - Show new workflows on the landing page and show changed or removed nodes for edits.
+    - Route requests needing clarification into a new chat with the workflows.clarify_workflows focus mode.
+    - Let ordinary chat requests load scoped workflow authoring context and create valid workflows directly; use the clarification focus only when discussion is needed.
+    - Use Jev for bounded decisions, a fast structured LLM when Jev is unavailable, and a generative LLM for free text and unsupported recipe topology.
+    - Benchmark the bounded and generative model routes before fixing production confidence thresholds and model order.
+  out:
+    - Executing or enabling a newly generated workflow without a separate user action.
+    - Arbitrary code nodes or capabilities unavailable to the current user.
+    - Production deployment as part of this planning pass.
+
+current_state:
+  frontend: >-
+    The workspace composer currently turns text into the title of an empty,
+    disabled draft. Its microphone is unavailable. The open workflow editor has
+    no natural-language composer and no AI change highlighting.
+  backend: >-
+    The workflow-input routes and durable session records exist, but the default
+    service has no planner or transcriber. A second strict planner contract is
+    unwired; workspace-ask uses a separate single-graph path. The assistant
+    create-or-modify skill accepts one workflow and a generic graph object;
+    chat approval currently creates it enabled. This conflicts with disabled
+    new workflows and automatic saving after clarification.
+    Existing create/update calls save records individually, so a multi-workflow
+    all-or-none commit needs an explicit transactional boundary.
+  capability_contract: >-
+    The workflow capability registry contains skill input schemas and execution
+    metadata, while the current AI tool schema and planner context omit the
+    complete graph grammar and executable capability options. One canonical,
+    versioned authoring context and final readiness validation are needed.
+    The example request for tomorrow's rain cannot currently pass V2 readiness:
+    runtime date values support today and next-week bounds, but not tomorrow.
+    Asking for two forecast days is not equivalent because the top-level
+    rain_expected value describes the first day.
+  reuse:
+    - Chat audio already provides streamed transcription and correction.
+    - Workflow definition versions and workflow-input mutations provide a starting point for persistent AI undo. Current session undo has no version guard and restores only title and graph for edits; the new undo must include all changed metadata and preserve later manual work.
+    - Focus mentions already support explicit @focus:app:id activation.
+
+confirmed_decisions:
+  - A multi-workflow request is atomic: create none if any requested workflow needs clarification.
+  - Save newly generated workflows disabled; save edits immediately while preserving their enabled state.
+  - Prompt to save or discard unsaved manual edits before sending an AI edit.
+  - Auto-submit a corrected recording; show raw transcription for review if correction fails.
+  - After a successful batch, remain on the workspace landing page and show a New pill above each created workflow card in Continue.
+  - Clarification opens a new chat and auto-sends the exact request prefixed with an @ mention for workflows.clarify_workflows.
+  - List removed nodes above the graph; highlight added and edited nodes in place.
+  - Provide a simple guarded Undo AI changes button. Undo the whole AI batch only when every member is still at its AI-created version; preserve later manual edits and offer version history on conflict.
+  - Generate a title, description, and icon with an LLM for every new workflow; evaluate Gemini 3.5 Flash-Lite as the default, choose the icon from the existing allowed icon catalog, and supply the required valid category when saving it.
+  - Load workflow authoring knowledge for clear workflow-creation requests in chat, with selective capability context rather than an unbounded static prompt.
+  - In ordinary chat, preload the relevant recipe and selected capability schemas for a clear workflow request; activate workflows.clarify_workflows only when discussion is needed. The workspace handoff activates that mode explicitly.
+  - Default an unspecified schedule timezone to the user's browser IANA timezone; select an explicitly named timezone such as Berlin time, San Francisco time, or UTC from the instruction.
+  - After a clarification chat has gathered enough detail, auto-save valid new workflows disabled and tell the user they must activate them; save valid edits immediately with their current enabled state and an Undo action.
+  - Allow one request to mix new workflows and edits. Plan and validate independent targets concurrently, serialize operations that touch the same workflow, then commit all results or none.
+  - Use Jev as the primary bounded decision engine, with an independent fast structured-output LLM filling the same recipe contract when Jev is unavailable.
+  - Prefer Jev-selected, backend-owned V2 workflow recipes for recognized patterns; use an LLM planner when a request falls outside recipe coverage. Benchmark both routes before final default tuning.
+
+architecture_draft:
+  - Consolidate the workflow-input and workspace-ask planner contracts around one canonical V2 graph and per-user capability snapshot.
+  - Build deterministic V2 graph recipes for common patterns. Use batched Jev decision waves for routing, recipe and capability selection, and bounded fields; use deterministic parsing for exact times and supplied values. A generative model splits free-form multi-workflow prose into operation intents when bounded Jev choices cannot, then each intent uses Jev recipe selection concurrently.
+  - Benchmark staged Jev country-to-city choices against direct extraction and the existing geocoder. Use a second Jev wave only when it improves ambiguous-location accuracy; send out-of-list choices through the fallback resolver rather than silently selecting a nearby city.
+  - Pass the browser IANA timezone into the authoring request. Let Jev select an explicitly named timezone from bounded canonical IANA or UTC candidates, resolve aliases deterministically, and record the chosen zone in the generated schedule and visible summary.
+  - Extend and validate deterministic runtime date values for tomorrow before offering the tomorrow-weather recipe; require semantic checks in addition to graph validity, so a today forecast cannot silently satisfy a tomorrow request.
+  - Fall back to an LLM planner for novel graph topology, unsupported recipes, free text, and semantic repair; generate title, description, and icon with an LLM on every creation. Benchmark valid workflows per dollar and end-to-end latency against an LLM-only baseline.
+  - Benchmark Gemini 3.5 Flash-Lite against Gemini 3.8 Flash for Ask AI instructions containing exact earlier-node references, workflow title and description, and icon selection. Promote to 3.8 only for cases where Lite fails fidelity or validation; retain a provider-independent text fallback.
+  - For a Jev outage or low-confidence bounded decision, coalesce fields into one Gemini 3.8 Flash structured-output call, then use the same deterministic recipes and validation. Measure latency and semantic accuracy against Jev. Strict JSON syntax alone does not establish semantic correctness.
+  - Finish the backend and CLI real-inference pilot and report per-request quality, provider cost, and wall-clock time before implementing the web workspace UI.
+  - Bound per-request Jev waves and concurrency; handle 429/Retry-After with a fallback. OpenRouter publishes provider-passthrough limits for paid keys but no fixed Jev requests-per-second value, so measure sustained throughput before setting production concurrency.
+  - Before major implementation, build a 30-50 case synthetic Jev evaluation corpus covering routing, recipe and bounded-field choices, ambiguity, multi-workflow intent, and timezones; repeat cases and compare with an LLM baseline. After a thin recipe compiler exists, measure full-graph validity, semantic fidelity, latency, fallback frequency, and cost end to end on a larger corpus.
+  - Produce a structured batch plan with create, update, or clarify operations; validate all targets, ownership, capability bindings, graph readiness, and idempotency before a transactional commit, because the current single-workflow service does not make multiple writes atomic. Stage encrypted payloads, make owner-visible record/version changes one database transaction, and synchronize schedules through an idempotent post-commit path.
+  - Store complete before/after snapshots and stable node IDs for a durable undo; compare each current record version and graph identity to the AI commit before restoring every batch member, and return conflicts without overwriting newer manual work. Compute added, edited, and removed node sets for the UI.
+  - Use the existing audio stream and correction flow, then pass the corrected text through the same text planner.
+  - Add workflows.clarify_workflows guidance and scoped capability retrieval to chat preprocessing and the main processor; align chat workflow creation with the disabled-by-default rule.
+
+implementation_sequence:
+  - phase: Authoring contract and evaluation
+    work: Define the accepted product Specification and a versioned, owner-scoped V2 capability and recipe catalog. Turn the synthetic pilots into labeled, repeatable routing, recipe, timezone, and Ask AI field evaluations with latency and cost reports. Include a direct LLM-only baseline.
+    dependency: None.
+  - phase: Planner and recipe compiler
+    work: Implement request segmentation, Jev decision waves, bounded confidence gates, explicit timezone selection, deterministic recipe compilation, tomorrow runtime dates, and strict semantic and V2 validation. Use a fast structured model for Jev outages and a generative planner for unsupported topology. Generate title, description, and allowed icon with an LLM.
+    dependency: The authoring contract and evaluation corpus.
+  - phase: Transactional batch and undo
+    work: Plan independent create/edit targets concurrently, serialize same-target edits, and commit mixed batches atomically with staged encrypted payloads, one visible metadata transaction, post-commit schedule sync, and idempotency. Persist complete AI before/after states and version-guarded batch undo. Preserve the enabled state of edits and save new workflows disabled.
+    dependency: Validated planner output.
+  - phase: Chat integration
+    work: Add workflows.clarify_workflows, exact-request workspace handoff, selective workflow context in ordinary chat, and a batch-aware chat creation/editing path that uses the same transaction and validation service. Auto-save clarified results and show activation guidance for new workflows.
+    dependency: Transactional batch service.
+  - phase: Workspace UI and audio
+    work: Connect landing and open-editor composers to the planner, reuse streamed transcription and correction, resolve dirty edits before submission, show New pills and node diffs, and expose guarded Undo AI changes.
+    dependency: Shared backend authoring and undo APIs.
+  - phase: Verification and rollout
+    work: Add focused backend and browser contract coverage, exercise real inference on the dev server with disposable synthetic state, compare valid workflows per dollar and end-to-end latency, and set concurrency and fallback thresholds from measured results before enabling broadly.
+    dependency: A working vertical slice across backend, chat, and UI.
+
+research_spike:
+  jev_live_sample: >-
+    Eight sequential synthetic Jev 1.13 calls on the dev API key succeeded without
+    429. Five broad routing/recipe/parameter calls took 305-558 ms each; three
+    scoped target/country/city calls took 286-381 ms. Jev correctly selected
+    create-one and tomorrow weather, edit-one and the rain workflow target,
+    create-multiple, and unsupported stock-purchase intent. A single recipe
+    question for a two-workflow request returned unsupported with only 0.49
+    confidence, confirming that batch requests must first be decomposed into
+    individual intents. These few calls do not establish provider throughput.
+  recipe_validation: >-
+    A deterministic weekday 07:00 Berlin rain-chat V2 graph using today's date
+    passed readiness and composition validation. Replacing today with tomorrow
+    failed preflight because the runtime date value is unsupported. This is a
+    semantic coverage gap in the current backend, not a Jev classification error.
+  jev_corpus_pilot: >-
+    A first-pass 30-case synthetic Jev run had 28/30 expected operation choices,
+    30/30 expected timezone choices, and no request errors; median latency was
+    298 ms per call. The two operation misses conservatively routed unsupported
+    automation intents to clarification. Irrelevant recipe questions on edits
+    produced low-confidence answers, so recipe selection must be gated by route.
+    In a separate scoped 18-case create-only set repeated twice, recipe choices
+    matched 32/36 times at 290 ms median; the four misses were two repeated
+    semantic errors (email mistaken for chat; unconditional rain question
+    mistaken for a conditional alert), all with confidence at or below 0.45.
+    This is a small synthetic pilot, not a production accuracy or RPS estimate.
+  ask_ai_model_pilot: >-
+    Four synthetic Ask AI instruction cases were run on both Gemini 3.5
+    Flash-Lite and Gemini 3.8 Flash through the dev Google AI Studio key. Both
+    preserved all supplied earlier-node reference placeholders and authored
+    usable instructions. Lite took 0.7-0.9 seconds per call; 3.8 Flash took
+    3.0-4.0 seconds and was slightly more precise about missing input evidence.
+    The sample supports a Lite-first hypothesis, not a final quality threshold.
+  bounded_fallback_pilot: >-
+    Eight synthetic bounded-decision cases using strict JSON schema favored
+    direct Cerebras Qwen 3.8 27B (8/8 expected, 398 ms median) over direct
+    Groq GPT-OSS 120B (4/8, 237 ms) and Google AI Studio Gemini 3.5 Flash-Lite
+    (6/8, 664 ms). Groq 20B had two schema errors with a 300-token cap and
+    semantic misses after a larger cap; it is not a proven fallback. The tested
+    prompt and sample are too small to establish production quality or capacity.
+
+scenarios:
+  - id: S-1
+    title: One or several valid workflows
+    given: [The user is on the Workflows landing page.]
+    when: [The user describes one or several workflows.]
+    then: [Every valid workflow is created disabled with an LLM title, description, and icon; the landing page shows a New pill above each card.]
+  - id: S-2
+    title: Ambiguous or unsupported request
+    given: [At least one requested workflow cannot be built reliably.]
+    when: [The workspace planner checks the whole request.]
+    then: [No workflow is committed and a new clarification chat receives the exact request with the Workflows focus mention.]
+  - id: S-3
+    title: AI edit and undo
+    given: [An existing workflow is selected or open.]
+    when: [The user describes a change and later selects Undo AI changes.]
+    then: [The edit is saved with the enabled state preserved, changes are identified in the graph, and undo restores the prior version.]
+  - id: S-4
+    title: Recorded instruction
+    given: [The user records an instruction in the workflow composer.]
+    when: [Transcription and correction complete or correction fails.]
+    then: [Corrected text is submitted automatically or raw text is shown for review.]
+  - id: S-5
+    title: Chat creation and clarification
+    given: [The user asks in chat for a workflow or arrives from a workspace clarification handoff.]
+    when: [Enough detail exists to build every requested workflow.]
+    then: [The same validated batch path auto-saves new workflows disabled, preserves existing enabled states on edits, and reminds the user to activate new workflows.]
+  - id: S-6
+    title: Provider outage and unsupported date
+    given: [Jev is unavailable or a request needs tomorrow's forecast.]
+    when: [The authoring pipeline builds the workflow.]
+    then: [A structured LLM can fill the same recipe contract; tomorrow resolves at run time in the schedule timezone; validation rejects an unrepresentable or semantically wrong graph.]
+
+acceptance_criteria:
+  - {id: AC-1, scenario: S-1, text: 'A validated one or multi-workflow request commits atomically; every new workflow is disabled and has LLM-generated title, description, and icon.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
+  - {id: AC-2, scenario: S-1, text: 'Successful creation leaves the workspace on its landing page and displays a New pill above each created workflow card in Continue.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB]}
+  - {id: AC-3, scenario: S-2, text: 'Any invalid batch member causes zero commits and hands the exact instruction to a new chat with the Workflows clarification focus mention.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-WEB]}
+  - {id: AC-4, scenario: S-3, text: 'An AI edit requires resolution of manual dirty state, preserves enabled state, marks added and edited nodes, lists removals, and can be undone after reload.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-EDIT]}
+  - {id: AC-5, scenario: S-4, text: 'Voice input streams a preview and submits corrected text automatically, while failed correction leaves raw text for review.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VOICE]}
+  - {id: AC-6, scenario: S-5, text: 'Ordinary chat loads selected recipe and capability context for a clear request; unclear requests use workflows.clarify_workflows, and clarified valid batches auto-save with new workflows disabled and activation guidance.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-CHAT]}
+  - {id: AC-7, scenario: S-6, text: 'Jev and its independent structured fallback produce the same bounded plan contract, and no graph is committed without executable V2, capability, and semantic validation.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PLANNER]}
+  - {id: AC-8, scenario: S-6, text: 'An explicit schedule timezone overrides the browser timezone; tomorrow weather resolves in that schedule timezone and never tests today’s forecast in its place.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PLANNER]}
+  - {id: AC-9, scenario: S-3, text: 'Undo restores the entire AI batch only while every affected workflow remains at its AI version; later manual edits cause a conflict and remain unchanged.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-EDIT]}
+  - {id: AC-10, scenario: S-1, text: 'One request may mix creates and edits; planning independent members may run concurrently, but any invalid member leaves all members uncommitted.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
+
+tests:
+  - id: T-BATCH
+    type: pytest
+    file: backend/tests/test_workflow_input_sessions.py
+    command: pytest backend/tests/test_workflow_input_sessions.py
+    covers: [AC-1, AC-3, AC-9, AC-10]
+    assertions: [Mixed valid batches commit atomically, invalid members commit nothing, and guarded batch undo preserves later manual edits.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/workflows-input.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-2, AC-3]
+    assertions: [Landing state shows New pills and clarification handoff preserves the exact request.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-EDIT
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/workflows-input.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-4, AC-9]
+    assertions: [Dirty-state choice, change summary, node highlighting, enabled state, persistent undo, and a later-edit conflict work.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-VOICE
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/workflows-input.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-5]
+    assertions: [Recording preview, correction auto-submit, and raw transcript review on correction failure work.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CHAT
+    type: pytest
+    file: backend/tests/test_workflow_chat_authoring.py
+    command: pytest backend/tests/test_workflow_chat_authoring.py
+    covers: [AC-6]
+    assertions: [Clear chat requests load scoped authoring context and save through the validated batch service; clarification uses the focus mode and activation guidance.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PLANNER
+    type: pytest
+    file: backend/tests/test_workflow_ai_authoring.py
+    command: pytest backend/tests/test_workflow_ai_authoring.py
+    covers: [AC-7, AC-8]
+    assertions: [Jev and fallback decisions normalize to one contract, exact timezones and tomorrow dates compile correctly, and invalid or semantically wrong graphs are rejected.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+tasks:
+  - id: TASK-7413
+    title: Plan AI workflow creation and editing
+    status: in_progress
+    phase: complete
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
+    expected_files: [docs/plans/workflow-ai-authoring/plan.yml]
+    verification_ids: [T-BATCH, T-WEB, T-EDIT, T-VOICE, T-CHAT, T-PLANNER]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [docs/plans/workflow-ai-authoring/plan.yml]
+      shared_files: []
+
+implementation_state:
+  subject_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
+approvals:
+  specification: {status: pending}
+  plan: {status: pending}
+decisions:
+  - id: D-1
+    status: active
+    decision: Record all fifteen workspace, chat, batching, Jev, timezone, and undo decisions in a draft implementation plan.
+    reason: The user requested sequential code-informed clarification followed by a durable implementation plan.
+    decided_at: '2026-09-29'
+attempts:
+  - id: A-1
+    task_id: TASK-7413
+    outcome: planned
+    approach: Research the existing workflow paths, run bounded live model pilots, and record an implementation sequence before product changes.
+    recorded_at: '2026-09-29'
+handoff:
+  current_task_id: TASK-7413
+  next_action: Define the product Specification and begin the authoring-contract evaluation phase when implementation starts.
+  command: Use this Plan as the source for implementation Tasks and focused verification.
+  expected_outcome: A validated mixed-batch Workflow authoring path across workspace and chat.
+  last_verified_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
+
+remaining_engineering_decisions:
+  - Set recipe coverage, Jev confidence gates, provider fallback order, batch-size cap, and latency/cost targets from the repeatable evaluation corpus.
+  - Define the database transaction and encrypted-payload staging mechanism without exposing partial batches.
+  - Keep change highlighting visible until the user dismisses the summary or another edit supersedes it; verify this behavior in UI tests.

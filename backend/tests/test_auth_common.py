@@ -59,7 +59,11 @@ def _import_auth_common(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.cache_config", cache_config_module)
     monkeypatch.setitem(sys.modules, "backend.core.api.app.utils.directus_cookies", directus_cookies_module)
 
-    return importlib.import_module("backend.core.api.app.routes.auth_routes.auth_common")
+    module = importlib.import_module("backend.core.api.app.routes.auth_routes.auth_common")
+    monkeypatch.setattr(module, "enforce_pair_deadline", AsyncMock())
+    monkeypatch.setattr(module, "get_session_state_cached", AsyncMock(return_value=None))
+    monkeypatch.setattr(module, "ensure_legacy_session_state", AsyncMock())
+    return module
 
 
 @pytest.mark.asyncio

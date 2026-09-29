@@ -7,21 +7,26 @@
 -->
 
 <script lang="ts">
-  import { onMount, setContext } from 'svelte';
+  import { onMount, setContext, tick } from 'svelte';
   import { pushState, replaceState } from '$app/navigation';
   import { text } from '@repo/ui';
   import { SettingsTabs } from '../settings/elements';
   import UnifiedEmbedPreview from '../embeds/UnifiedEmbedPreview.svelte';
+  import EmbedContextMenu from '../embeds/EmbedContextMenu.svelte';
   import CodeEmbedFullscreen from '../embeds/code/CodeEmbedFullscreen.svelte';
+  import FileEmbedFullscreen from '../embeds/file/FileEmbedFullscreen.svelte';
+  import ImageEmbedFullscreen from '../embeds/images/ImageEmbedFullscreen.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
   import ProjectReadme from './ProjectReadme.svelte';
   import ProjectWorkspaceHeader from './ProjectWorkspaceHeader.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
-  import type { TasksBoardItem } from '../../services/userTaskService';
+  import TaskDetailFullscreen from '../tasks/TaskDetailFullscreen.svelte';
+  import type { TasksBoardItem, UserTaskViewModel } from '../../services/userTaskService';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { notificationStore } from '../../stores/notificationStore';
+  import { authStore } from '../../stores/authStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { userProfile } from '../../stores/userProfile';
@@ -36,10 +41,14 @@
     deleteProject,
     getProject,
     getProjectContents,
+    addExistingTargetToProject,
     listProjectSources,
+    ProjectRemoteAccessError,
     readEncryptedProjectFile,
     listProjects,
+    moveProjectItemToFolder,
     requestProjectRemoteAccess,
+    transferProjectRemoteEntries,
     updateProjectMetadata,
     uploadFileToProject,
     type ProjectFolderViewModel,
@@ -48,7 +57,6 @@
     type ProjectViewModel,
     type ProjectRemoteDirectoryEntry,
     type ProjectRemoteDirectoryResult,
-    type ProjectRemoteSearchMatch,
     type ProjectRemoteSearchResult,
     type ProjectRemoteTextResult,
   } from '../../services/projectService';
@@ -68,9 +76,12 @@
     projectVirtualBrowserView,
     type ProjectVirtualFolder,
   } from '../../services/projectBrowserTree';
-  import { loadProjectReadme, releaseProjectReadmeImages, type ProjectReadmeState } from '../../services/projectReadme';
+  import { loadProjectReadme, readConnectedProjectImage, releaseProjectReadmeImages, type ProjectReadmeState } from '../../services/projectReadme';
+  import { cleanupStaleConnectedProjectDownloads, downloadConnectedProjectFile } from '../../services/projectRemoteDownload';
 
   type ProjectTab = 'overview' | 'folders' | 'tasks';
+  // Keep expensive embed previews bounded even when a folder contains thousands of files.
+  const FILES_PAGE_SIZE = 48;
 
   export interface ProjectCreationTarget {
     projectId: string;
@@ -83,6 +94,7 @@
 
   interface PreviewState {
     project: ProjectViewModel;
+    startAtHome?: boolean;
     folders?: ProjectFolderViewModel[];
     items?: ProjectItemViewModel[];
     sources?: ProjectSourceViewModel[];
@@ -94,6 +106,7 @@
     }>;
     folderCardContents?: Record<string, Array<{ name: string; kind: 'folder' | 'file'; detail?: string }>>;
     remoteEntries?: ProjectRemoteDirectoryEntry[];
+    legacyRemoteEntries?: ProjectRemoteDirectoryEntry[];
   }
 
   interface Props {
@@ -111,6 +124,12 @@
     canImport: boolean;
     sourceLabel: string;
   }
+
+  type ProjectFileSearchEntry =
+    | { kind: 'remote'; sourceId: string; path: string; entryKind: 'file' | 'directory' }
+    | { kind: 'item'; item: ProjectItemViewModel }
+    | { kind: 'folder'; folder: ProjectFolderViewModel }
+    | { kind: 'virtual-folder'; folder: ProjectVirtualFolder };
 
   interface ProjectContinueItem {
     id: string;
@@ -135,6 +154,11 @@
 
   let projects = $state<ProjectViewModel[]>([]);
   let selectedProject = $state<ProjectViewModel | null>(null);
+  let projectTaskOverlay = $state<{
+    task: UserTaskViewModel;
+    canAssignCodex: boolean;
+    onTaskChange: (task: UserTaskViewModel) => void;
+  } | null>(null);
   let folders = $state<ProjectFolderViewModel[]>([]);
   let items = $state<ProjectItemViewModel[]>([]);
   let sources = $state<ProjectSourceViewModel[]>([]);
@@ -146,34 +170,130 @@
   let uploadInput = $state<HTMLInputElement>();
   let hasLoadError = $state(false);
   let viewMode = $state<'tile' | 'list'>('tile');
+  type RemoteTransferMode = 'copy' | 'move';
+  type RemoteSelection = { sourceId: string; path: string; kind: 'file' | 'directory' };
+  let selectingRemoteEntries = $state(false);
+  let selectedRemoteEntries = $state<RemoteSelection[]>([]);
+  let stagedRemoteTransfer = $state<{ projectId: string; sourceId: string; paths: string[]; mode: RemoteTransferMode } | null>(null);
+  let selectedStoredItems = $state<ProjectItemViewModel[]>([]);
+  let stagedStoredTransfer = $state<{ projectId: string; items: ProjectItemViewModel[]; mode: RemoteTransferMode } | null>(null);
+  let storedContextMenu = $state<{ x: number; y: number; item: ProjectItemViewModel } | null>(null);
+  let remoteTransferBusy = $state(false);
+  let remoteContextMenu = $state<{ x: number; y: number; entry: RemoteSelection } | null>(null);
   let currentFolder = $state<ProjectFolderViewModel | null>(null);
   let currentFolderTrail = $state<ProjectFolderViewModel[]>([]);
   let currentFolderHash = $state<string | null>(null);
   let currentVirtualPath = $state<string | null>(null);
   let folderHashes = $state(new Map<string, string>());
   let activeRemoteFullscreen = $state<VirtualRemoteFullscreenDetail | null>(null);
+  let activeRemoteGenericFile = $state<{ sourceId: string; path: string; filename: string; sizeBytes?: number } | null>(null);
+  let activeRemoteImage = $state<{ sourceId: string; path: string; filename: string; sizeBytes?: number; src: string } | null>(null);
+  let remoteDownloadProgress = $state<{ sourceId: string; path: string; downloadedBytes: number; totalBytes: number } | null>(null);
+  let remoteDownloadController: AbortController | null = null;
+  let remoteImageUrls = $state<Record<string, string>>({});
   let activeStoredFullscreen = $state<EmbedFullscreenDispatchDetail | null>(null);
   let projectHashId = $state<string | null>(null);
   let activeRemoteSourceId = $state<string | null>(null);
   let remotePath = $state('.');
+  let remotePathParts = $derived(remotePath.split('/').filter((part) => part && part !== '.'));
+  type RemoteListApp = 'files' | 'code' | 'docs' | 'sheets' | 'images' | 'pdf';
+  function remoteListApp(path: string, isDirectory = false): RemoteListApp {
+    if (isDirectory) return 'files';
+    const name = path.split('/').pop()?.toLowerCase() ?? '';
+    if (/\.(png|jpe?g|gif|webp|avif|svg)$/.test(name)) return 'images';
+    if (name.endsWith('.pdf')) return 'pdf';
+    if (/\.(xlsx?|csv|ods)$/.test(name)) return 'sheets';
+    if (/\.(md|mdx|txt|rst|docx?|odt)$/.test(name)) return 'docs';
+    if (/\.(py|tsx?|jsx?|mjs|cjs|java|go|rs|rb|sh|css|html|json|ya?ml|toml|sql|swift|kt|xml|plist|entitlements|gradle|php|c|h|cpp|hpp)$/.test(name)
+      || /^(dockerfile|makefile|gemfile|rakefile|justfile)$/.test(name)) return 'code';
+    return 'files';
+  }
   let remoteEntries = $state<ProjectRemoteDirectoryEntry[]>([]);
-  let remoteSearchQuery = $state('');
-  let remoteSearchMatches = $state<ProjectRemoteSearchMatch[]>([]);
+  let remotePageIndex = $state(0);
+  let remotePageCursors = $state<(string | null)[]>([null]);
+  let remoteNextCursor = $state<string | null>(null);
+  let remoteLegacyEntries = $state<{ sourceId: string; path: string; entries: ProjectRemoteDirectoryEntry[]; omitted: number } | null>(null);
+  let remoteRootEntries = $state<Record<string, ProjectRemoteDirectoryEntry[]>>({});
+  let remoteRootOmitted = $state<Record<string, number>>({});
+  let remoteRootPreviewStatus = $state<Record<string, 'loading' | 'unavailable'>>({});
+  let rootPrefetchVersion = $state(0);
+  let rootPrefetchController: AbortController | null = null;
+  let rootPrefetchInFlight = false;
+  let rootPrefetchCount = 0;
+  let rootPrefetchEpoch = 0;
+  const rootPrefetchKeys = new Set<string>();
+  let projectSearchResults = $state<ProjectFileSearchEntry[]>([]);
+  let projectSearchActive = $state(false);
+  let projectSearchLoading = $state(false);
+  let projectSearchError = $state('');
+  let projectSearchOmitted = $state(0);
+  let searchPageIndex = $state(0);
+  let projectSearchController: AbortController | null = null;
+  let projectSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  let projectSearchGeneration = 0;
   let remoteOmittedCount = $state(0);
-  let remoteExcludedCount = $state(0);
   let remotePreviewEntries = $state<RemotePreviewEntry[]>([]);
   let remoteError = $state('');
+  let remoteNeedsSignIn = $state(false);
   let isRemoteLoading = $state(false);
   let remoteRequestController: AbortController | null = null;
   let remoteRequestGeneration = 0;
   let activeTab = $state<ProjectTab>('overview');
   let readmeState = $state<ProjectReadmeState>({ status: 'loading' });
+  let pageDisposed = false;
+
+  function replaceReadmeState(next: ProjectReadmeState): void {
+    if (readmeState.status === 'ready' && readmeState.document !== (next.status === 'ready' ? next.document : null)) {
+      releaseProjectReadmeImages(readmeState.document);
+    }
+    readmeState = next;
+  }
+
+  function defaultConnectedSource(sourceList: ProjectSourceViewModel[]): ProjectSourceViewModel | null {
+    const connected = sourceList.filter((source) => source.status === 'connected');
+    return connected.find((source) => source.source_type === 'local_git_repository')
+      ?? (connected.length === 1 ? connected[0] : null);
+  }
   let folderSearchQuery = $state('');
+  let storedPageIndex = $state(0);
   let sortNewestFirst = $state(true);
   let showCreateMenu = $state(false);
   let workspaceWidth = $state(0);
   let projectMainElement = $state<HTMLElement>();
-  let viewerSplitOpen = $derived(workspaceWidth >= 1024 && (!!activeRemoteFullscreen || !!activeStoredFullscreen));
+  let autoBrowsedProjectId: string | null = null;
+  let viewerSplitOpen = $derived(workspaceWidth >= 1024 && (!!activeRemoteFullscreen || !!activeRemoteGenericFile || !!activeRemoteImage || !!activeStoredFullscreen));
+
+  $effect(() => {
+    if (activeTab !== 'tasks') projectTaskOverlay = null;
+  });
+
+  // Open the connected repository directly; its directory is the Files view.
+  $effect(() => {
+    if (activeTab !== 'folders' || !selectedProject || activeRemoteSourceId || currentFolder || currentVirtualPath) return;
+    if (!previewState?.remoteEntries && !previewState?.legacyRemoteEntries && !$userProfile.user_id) return;
+    if (autoBrowsedProjectId === selectedProject.project_id) return;
+    const source = defaultConnectedSource(sources);
+    if (source) {
+      autoBrowsedProjectId = selectedProject.project_id;
+      void browseRemoteSource(source);
+    }
+  });
+
+  $effect(() => {
+    void rootPrefetchVersion;
+    const project = selectedProject;
+    const ownerId = $userProfile.user_id;
+    if (activeTab !== 'folders' || !project || (!previewState?.remoteEntries && !previewState?.legacyRemoteEntries && !ownerId) || rootPrefetchInFlight) return;
+    const autoSource = defaultConnectedSource(sources);
+    const remaining = Math.max(0, 12 - rootPrefetchCount);
+    const candidates = sources.filter((source) => source.status === 'connected'
+      && (activeRemoteSourceId === null || source.source_id !== autoSource?.source_id)
+      && !rootPrefetchKeys.has(`${project.project_id}:${source.source_id}`)).slice(0, remaining);
+    if (candidates.length === 0) return;
+    for (const source of candidates) rootPrefetchKeys.add(`${project.project_id}:${source.source_id}`);
+    rootPrefetchCount += candidates.length;
+    void prefetchRemoteRoots(project, ownerId, candidates);
+  });
 
   $effect(() => {
     if (!viewerSplitOpen || activeTab !== 'folders') return;
@@ -199,19 +319,17 @@
   let greetingName = $derived($userProfile.username || 'there');
   let virtualBrowserView = $derived(projectVirtualBrowserView(items, currentVirtualPath));
   let virtualFolderTrail = $derived(projectVirtualBreadcrumbs(currentVirtualPath));
-  let browserFolders = $derived(currentVirtualPath === null
+  let browserFolders = $derived(!activeRemoteSourceId && currentVirtualPath === null
     ? folders.filter((folder) => (folder.parentHash ?? null) === currentFolderHash)
     : []);
-  let browserVirtualFolders = $derived(currentFolderHash === null ? virtualBrowserView.folders : []);
-  let browserItems = $derived(currentFolderHash === null
+  let browserVirtualFolders = $derived(!activeRemoteSourceId && currentFolderHash === null ? virtualBrowserView.folders : []);
+  let browserItems = $derived(activeRemoteSourceId ? [] : currentFolderHash === null
     ? virtualBrowserView.items
     : items.filter((item) => (item.encrypted.hashed_folder_id ?? null) === currentFolderHash));
-  let browserSources = $derived(currentFolderHash === null && currentVirtualPath === null ? sources : []);
+  let browserSources = $derived(!activeRemoteSourceId && currentFolderHash === null && currentVirtualPath === null ? sources : []);
   let projectLandingItems = $derived<ProjectContinueItem[]>(recentProjects.map((project) => ({
     id: project.project_id,
     title: project.name || 'Untitled project',
-    summary: `${project.encrypted.item_count ?? 0} items`,
-    badge: 'Project',
     category: 'productivity',
     appId: 'projects',
     icon: 'folder',
@@ -243,7 +361,196 @@
     (source) => source.encrypted.updated_at || source.encrypted.created_at,
     (source) => source.displayName || source.source_id,
   ));
+  let currentSearchResults = $derived(projectSearchResults.filter(isCurrentFolderSearchResult));
+  let acrossSearchResults = $derived(projectSearchResults.filter((entry) => !isCurrentFolderSearchResult(entry)));
+  let orderedSearchResults = $derived([...currentSearchResults, ...acrossSearchResults]);
+  let searchPageResults = $derived(orderedSearchResults.slice(searchPageIndex * FILES_PAGE_SIZE, (searchPageIndex + 1) * FILES_PAGE_SIZE));
+  let searchPageCurrent = $derived(searchPageResults.filter(isCurrentFolderSearchResult));
+  let searchPageAcross = $derived(searchPageResults.filter((entry) => !isCurrentFolderSearchResult(entry)));
+  let storedEntryCount = $derived(visibleBrowserFolders.length + visibleVirtualFolders.length + visibleBrowserItems.length + visibleBrowserSources.length);
+  $effect(() => {
+    if (storedPageIndex > 0 && storedPageIndex * FILES_PAGE_SIZE >= storedEntryCount) {
+      storedPageIndex = Math.max(0, Math.ceil(storedEntryCount / FILES_PAGE_SIZE) - 1);
+    }
+  });
+  let storedPageStart = $derived(storedPageIndex * FILES_PAGE_SIZE);
+  let pageBrowserFolders = $derived(pageEntries(visibleBrowserFolders, storedPageStart, 0));
+  let pageVirtualFolders = $derived(pageEntries(visibleVirtualFolders, storedPageStart, visibleBrowserFolders.length));
+  let pageBrowserItems = $derived(pageEntries(visibleBrowserItems, storedPageStart, visibleBrowserFolders.length + visibleVirtualFolders.length));
+  let pageBrowserSources = $derived(pageEntries(visibleBrowserSources, storedPageStart, visibleBrowserFolders.length + visibleVirtualFolders.length + visibleBrowserItems.length));
   let activeRemoteSource = $derived(sources.find((source) => source.source_id === activeRemoteSourceId) ?? null);
+  let remoteEntryCount = $derived(remotePageIndex * FILES_PAGE_SIZE + remoteEntries.length + remoteOmittedCount);
+  let activeRemoteImportEntry = $derived(remotePreviewEntries.find((entry) =>
+    entry.preview.embed.embed_id === activeRemoteFullscreen?.embedId && entry.canImport
+    && entry.readResult && !entry.preview.embed.content.safety_flags.includes('truncated')
+    && entry.preview.embed.content.preview_policy !== 'unsupported_binary') ?? null);
+
+  async function importActiveRemotePreview(): Promise<void> {
+    if (!activeRemoteImportEntry || isSaving) return;
+    await handleUploadRemotePreview(activeRemoteImportEntry);
+  }
+  let visibleRemoteEntries = $derived(remoteEntries.filter((entry) => !normalizedFolderSearch || entry.path.split('/').at(-1)?.toLocaleLowerCase().includes(normalizedFolderSearch)));
+
+  function pageEntries<T>(entries: T[], start: number, preceding: number): T[] {
+    return entries.slice(Math.max(0, start - preceding), Math.max(0, start + FILES_PAGE_SIZE - preceding));
+  }
+
+  function directParentPath(path: string): string {
+    const parts = path.split('/').filter(Boolean);
+    return parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+  }
+
+  function isCurrentFolderSearchResult(entry: ProjectFileSearchEntry): boolean {
+    if (entry.kind === 'remote') {
+      return entry.sourceId === activeRemoteSourceId && directParentPath(entry.path) === remotePath;
+    }
+    if (activeRemoteSourceId) return false;
+    if (entry.kind === 'folder') return currentVirtualPath === null && (entry.folder.parentHash ?? null) === currentFolderHash;
+    if (entry.kind === 'virtual-folder') return currentFolderHash === null && directParentPath(entry.folder.path) === (currentVirtualPath ?? '.');
+    if (currentFolderHash !== null) return (entry.item.encrypted.hashed_folder_id ?? null) === currentFolderHash;
+    if (entry.item.encrypted.hashed_folder_id) return false;
+    const path = entry.item.metadata.source === 'hosted_project_file' && typeof entry.item.metadata.path === 'string'
+      ? entry.item.metadata.path : null;
+    return path ? directParentPath(path) === (currentVirtualPath ?? '.') : currentVirtualPath === null;
+  }
+
+  function searchResultName(entry: ProjectFileSearchEntry): string {
+    if (entry.kind === 'remote') return entry.path.split('/').at(-1) || entry.path;
+    if (entry.kind === 'folder') return entry.folder.name || 'Untitled folder';
+    if (entry.kind === 'virtual-folder') return entry.folder.name;
+    return projectBrowserItemName(entry.item);
+  }
+
+  function searchResultKey(entry: ProjectFileSearchEntry): string {
+    if (entry.kind === 'remote') return `remote:${entry.sourceId}:${entry.path}`;
+    if (entry.kind === 'folder') return `folder:${entry.folder.folder_id}`;
+    if (entry.kind === 'virtual-folder') return `virtual:${entry.folder.path}`;
+    return `item:${entry.item.project_item_id}`;
+  }
+
+  function cancelProjectSearch(clear = true): void {
+    if (projectSearchTimer !== null) clearTimeout(projectSearchTimer);
+    projectSearchTimer = null;
+    projectSearchController?.abort();
+    projectSearchController = null;
+    projectSearchGeneration += 1;
+    projectSearchLoading = false;
+    if (!clear) return;
+    projectSearchActive = false;
+    projectSearchResults = [];
+    projectSearchError = '';
+    projectSearchOmitted = 0;
+    searchPageIndex = 0;
+  }
+
+  function handleFolderSearchInput(): void {
+    cancelProjectSearch();
+    storedPageIndex = 0;
+    if (!folderSearchQuery.trim()) return;
+    // One search after typing pauses avoids a remote request for every keystroke.
+    projectSearchTimer = setTimeout(() => void searchProjectFiles(), 600);
+  }
+
+  function localProjectSearchResults(query: string): ProjectFileSearchEntry[] {
+    const found: ProjectFileSearchEntry[] = [];
+    for (const folder of folders) {
+      if ((folder.name || 'Untitled folder').toLocaleLowerCase().includes(query)) found.push({ kind: 'folder', folder });
+    }
+    const virtualFolders = new Map<string, ProjectVirtualFolder>();
+    for (const item of items) {
+      if (projectBrowserItemName(item).toLocaleLowerCase().includes(query)) found.push({ kind: 'item', item });
+      if (item.metadata.source !== 'hosted_project_file' || typeof item.metadata.path !== 'string') continue;
+      const parts = item.metadata.path.split('/');
+      if (parts.some((part) => !part || part === '.' || part === '..') || parts.length > 64) continue;
+      for (let index = 0; index < parts.length - 1; index += 1) {
+        const name = parts[index];
+        if (!name?.toLocaleLowerCase().includes(query)) continue;
+        const path = parts.slice(0, index + 1).join('/');
+        virtualFolders.set(path, { name, path });
+      }
+    }
+    for (const folder of virtualFolders.values()) found.push({ kind: 'virtual-folder', folder });
+    return found;
+  }
+
+  async function searchProjectFiles(): Promise<void> {
+    const project = selectedProject;
+    const query = folderSearchQuery.trim();
+    if (!project || !query) { cancelProjectSearch(); return; }
+    cancelProjectSearch();
+    const generation = projectSearchGeneration;
+    const controller = new AbortController();
+    projectSearchController = controller;
+    projectSearchActive = true;
+    projectSearchLoading = true;
+    remoteNeedsSignIn = false;
+    projectSearchResults = localProjectSearchResults(query.toLocaleLowerCase());
+    storedPageIndex = 0;
+    const remoteSources = sources.filter((source) => source.status === 'connected');
+    try {
+      for (let offset = 0; offset < remoteSources.length; offset += 2) {
+        if (controller.signal.aborted) return;
+        const batch = await Promise.allSettled(remoteSources.slice(offset, offset + 2).map(async (source) => {
+          if (previewState?.remoteEntries || previewState?.legacyRemoteEntries) {
+            const matches = (previewState.remoteEntries ?? previewState.legacyRemoteEntries ?? [])
+              .filter((entry) => entry.path.split('/').at(-1)?.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+              .sort((left, right) => {
+                const leftCurrent = source.source_id === activeRemoteSourceId && directParentPath(left.path) === remotePath;
+                const rightCurrent = source.source_id === activeRemoteSourceId && directParentPath(right.path) === remotePath;
+                return Number(rightCurrent) - Number(leftCurrent) || left.path.localeCompare(right.path);
+              });
+            return { source, result: { matches: matches.slice(0, 100).map((entry) => ({ path: entry.path, kind: entry.kind })), omitted: Math.max(0, matches.length - 100), excluded: 0 } as ProjectRemoteSearchResult };
+          }
+          return { source, result: await requestProjectRemoteAccess<ProjectRemoteSearchResult>(
+            project, source,
+            { ownerId: $userProfile.user_id || '', teamId: getActiveTeamContextSnapshot().teamId },
+            'search', { query, target: 'files', mode: 'literal', path: '.', max_results: 100,
+              ...(source.source_id === activeRemoteSourceId && remotePath !== '.' ? { priority_path: remotePath } : {}) }, controller.signal,
+          ) };
+        }));
+        if (controller.signal.aborted || generation !== projectSearchGeneration || selectedProject?.project_id !== project.project_id) return;
+        const found = new Map(projectSearchResults.map((entry) => [searchResultKey(entry), entry]));
+        for (const settled of batch) {
+          if (settled.status === 'rejected') {
+            if (!(settled.reason instanceof DOMException && settled.reason.name === 'AbortError')) {
+              projectSearchError = 'Some connected sources could not be searched.';
+              if (settled.reason instanceof ProjectRemoteAccessError && settled.reason.code === 'requester_device_identity_unavailable') remoteNeedsSignIn = true;
+            }
+            continue;
+          }
+          projectSearchOmitted += settled.value.result.omitted;
+          for (const match of settled.value.result.matches) {
+            const entry: ProjectFileSearchEntry = { kind: 'remote', sourceId: settled.value.source.source_id,
+              path: match.path, entryKind: match.kind ?? 'file' };
+            found.set(searchResultKey(entry), entry);
+          }
+        }
+        projectSearchResults = [...found.values()].sort((left, right) => searchResultName(left).localeCompare(searchResultName(right)));
+      }
+    } finally {
+      if (generation === projectSearchGeneration) {
+        projectSearchLoading = false;
+        projectSearchController = null;
+      }
+    }
+  }
+
+  async function scrollToFilesStart(): Promise<void> {
+    await tick();
+    projectMainElement?.querySelector<HTMLElement>('[data-testid="project-browser-list"]')?.scrollIntoView({ block: 'start' });
+  }
+
+  function showStoredPage(index: number): void {
+    if (index < 0 || index * FILES_PAGE_SIZE >= storedEntryCount) return;
+    storedPageIndex = index;
+    void scrollToFilesStart();
+  }
+
+  async function showRemotePage(index: number): Promise<void> {
+    if (!activeRemoteSource || index < 0 || (index > remotePageIndex && !remoteNextCursor)) return;
+    await browseRemoteSource(activeRemoteSource, remotePath, index);
+    await scrollToFilesStart();
+  }
 
   function virtualFolderTimestamp(folder: ProjectVirtualFolder): number {
     const prefix = `${folder.path}/`;
@@ -260,6 +567,42 @@
       if (byTime !== 0) return sortNewestFirst ? byTime : -byTime;
       return label(a).localeCompare(label(b));
     });
+  }
+
+  function remoteFileSizeLabel(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  }
+
+  function remoteFolderStatus(entry: Pick<ProjectRemoteDirectoryEntry,
+    'childFileCount' | 'childFolderCount' | 'childFileSizeBytes' | 'childSummaryTruncated'>): string {
+    if (entry.childFileCount === undefined) return 'Contents unavailable';
+    const approximate = entry.childSummaryTruncated ? 'At least ' : '';
+    const files = `${approximate}${entry.childFileCount} ${entry.childFileCount === 1 ? 'file' : 'files'}`;
+    const folders = entry.childFolderCount ? `, ${entry.childFolderCount} ${entry.childFolderCount === 1 ? 'folder' : 'folders'}` : '';
+    const size = entry.childFileSizeBytes === undefined ? '' : ` · ${entry.childSummaryTruncated ? 'at least ' : ''}${remoteFileSizeLabel(entry.childFileSizeBytes)} in files`;
+    return `${files}${folders}${size}`;
+  }
+
+  function remoteRootStatus(sourceId: string): string {
+    const entries = remoteRootEntries[sourceId];
+    if (!entries) return remoteRootPreviewStatus[sourceId] === 'loading' ? 'Loading folder preview…'
+      : remoteRootPreviewStatus[sourceId] === 'unavailable' ? 'Contents unavailable' : 'Open to view contents';
+    const files = entries.filter((entry) => entry.kind === 'file');
+    return remoteFolderStatus({
+      childFileCount: files.length,
+      childFolderCount: entries.filter((entry) => entry.kind === 'directory').length,
+      childFileSizeBytes: files.every((entry) => entry.sizeBytes !== undefined)
+        ? files.reduce((total, entry) => total + (entry.sizeBytes ?? 0), 0) : undefined,
+      childSummaryTruncated: (remoteRootOmitted[sourceId] ?? 0) > 0,
+    });
+  }
+
+  function remoteRootChildren(sourceId: string): ProjectRemoteDirectoryEntry[] {
+    return [...(remoteRootEntries[sourceId] ?? [])]
+      .sort((a, b) => a.kind === b.kind ? a.path.localeCompare(b.path) : a.kind === 'directory' ? -1 : 1)
+      .slice(0, 3);
   }
 
   function folderCardEntries(folder: ProjectFolderViewModel): Array<{ name: string; kind: 'folder' | 'file'; detail: string }> {
@@ -377,12 +720,12 @@
       currentFolderHash = null;
       currentVirtualPath = null;
       folderHashes = new Map();
-      readmeState = { status: 'loading' };
+      replaceReadmeState({ status: 'loading' });
       resetRemoteBrowser();
       return;
     }
     const project = selectedProject;
-    readmeState = { status: 'loading' };
+    replaceReadmeState({ status: 'loading' });
     const [contents, projectSources] = await Promise.all([
       getProjectContents(project),
       listProjectSources(project),
@@ -406,11 +749,11 @@
         teamId: getActiveTeamContextSnapshot().teamId,
       },
     });
-    if (selectedProject?.project_id !== project.project_id) {
+    if (pageDisposed || selectedProject?.project_id !== project.project_id) {
       if (loadedReadme.status === 'ready') releaseProjectReadmeImages(loadedReadme.document);
       return;
     }
-    readmeState = loadedReadme;
+    replaceReadmeState(loadedReadme);
   }
 
   async function retryProjectReadme(): Promise<void> {
@@ -418,12 +761,13 @@
       await refreshSelectedProject();
     } catch (error) {
       console.error('[ProjectsPage] Failed to retry the project overview:', error);
-      readmeState = { status: 'error', message: 'Could not load the project overview. Please try again.' };
+      replaceReadmeState({ status: 'error', message: 'Could not load the project overview. Please try again.' });
     }
   }
 
   function clearSelectedProject(): void {
     selectedProject = null;
+    projectTaskOverlay = null;
     folders = [];
     items = [];
     sources = [];
@@ -433,12 +777,13 @@
     currentVirtualPath = null;
     folderHashes = new Map();
     activeTab = 'overview';
-    readmeState = { status: 'loading' };
+    replaceReadmeState({ status: 'loading' });
     resetRemoteBrowser();
   }
 
   async function selectProject(project: ProjectViewModel, updateHash = true): Promise<void> {
     selectedProject = project;
+    projectTaskOverlay = null;
     activeTab = 'overview';
     currentFolder = null;
     currentFolderTrail = [];
@@ -656,9 +1001,251 @@
     await openRemoteFile(source, preview.embed.content.path);
   }
 
+  function openRemoteGenericFile(source: ProjectSourceViewModel, path: string, sizeBytes?: number): void {
+    activeRemoteFullscreen = null;
+    activeRemoteGenericFile = null;
+    activeRemoteImage = null;
+    activeRemoteGenericFile = {
+      sourceId: source.source_id,
+      path,
+      filename: path.split('/').filter(Boolean).pop() || path,
+      sizeBytes,
+    };
+  }
+
+  async function openRemoteFileDetails(source: ProjectSourceViewModel, path: string, sizeBytes?: number): Promise<void> {
+    if (!/\.(png|jpe?g|gif|webp|avif)$/i.test(path) || (sizeBytes !== undefined && sizeBytes > 2 * 1024 * 1024)) {
+      openRemoteGenericFile(source, path, sizeBytes);
+      return;
+    }
+    const key = `${source.source_id}:${path}`;
+    let src = remoteImageUrls[key];
+    if (!src) {
+      const project = selectedProject;
+      if (!project || !$userProfile.user_id) return;
+      const request = beginRemoteRequest();
+      isRemoteLoading = true;
+      try {
+        src = await readConnectedProjectImage(project, source,
+          { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId }, path, request.controller.signal) ?? '';
+        if (!isCurrentRemoteRequest(request, source.source_id)) {
+          if (src) URL.revokeObjectURL(src);
+          return;
+        }
+        if (src) {
+          const next = { ...remoteImageUrls };
+          if (Object.keys(next).length >= 8) {
+            const oldest = Object.keys(next)[0];
+            if (oldest) {
+              URL.revokeObjectURL(next[oldest]);
+              delete next[oldest];
+            }
+          }
+          remoteImageUrls = { ...next, [key]: src };
+        }
+      } catch {
+        if (!isCurrentRemoteRequest(request, source.source_id)) return;
+      } finally {
+        finishRemoteRequest(request);
+      }
+    }
+    if (!src) {
+      openRemoteGenericFile(source, path, sizeBytes);
+      return;
+    }
+    activeRemoteFullscreen = null;
+    activeRemoteGenericFile = null;
+    activeRemoteImage = { sourceId: source.source_id, path, filename: path.split('/').pop() || path, sizeBytes, src };
+  }
+
+  async function downloadRemoteFile(sourceId: string, path: string): Promise<void> {
+    if (remoteDownloadController) throw new Error('A connected file download is already in progress');
+    const project = selectedProject;
+    const source = sources.find((candidate) => candidate.source_id === sourceId);
+    if (!project || !source || !$userProfile.user_id) {
+      throw new Error('Connected source is unavailable');
+    }
+    const controller = new AbortController();
+    remoteDownloadController = controller;
+    remoteDownloadProgress = { sourceId, path, downloadedBytes: 0, totalBytes: 0 };
+    try {
+      await downloadConnectedProjectFile(project, source,
+        { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId }, path,
+        controller.signal, (downloadedBytes, totalBytes) => {
+          if (remoteDownloadController === controller) {
+            remoteDownloadProgress = { sourceId, path, downloadedBytes, totalBytes };
+          }
+        });
+    } finally {
+      if (remoteDownloadController === controller) {
+        remoteDownloadController = null;
+        remoteDownloadProgress = null;
+      }
+    }
+  }
+
+  async function downloadRemoteFileOrNotify(sourceId: string, path: string): Promise<void> {
+    try {
+      await downloadRemoteFile(sourceId, path);
+      notificationStore.success('Connected file downloaded');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      notificationStore.error(error instanceof Error ? error.message : 'Could not download the connected file');
+    }
+  }
+
+  function remoteEntrySelected(sourceId: string, path: string): boolean {
+    return selectedRemoteEntries.some((entry) => entry.sourceId === sourceId && entry.path === path);
+  }
+
+  function toggleRemoteSelection(entry: RemoteSelection): void {
+    selectedRemoteEntries = remoteEntrySelected(entry.sourceId, entry.path)
+      ? selectedRemoteEntries.filter((candidate) => candidate.sourceId !== entry.sourceId || candidate.path !== entry.path)
+      : [...selectedRemoteEntries, entry];
+  }
+
+  function handleRemoteSelectionClick(event: MouseEvent, entry: RemoteSelection): void {
+    if (!selectingRemoteEntries) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleRemoteSelection(entry);
+  }
+
+  function openRemoteContextMenu(event: MouseEvent, entry: RemoteSelection): void {
+    event.preventDefault();
+    event.stopPropagation();
+    remoteContextMenu = { x: event.clientX, y: event.clientY, entry };
+  }
+
+  function stageRemoteTransfer(mode: RemoteTransferMode, entries: RemoteSelection[]): void {
+    if (!selectedProject || entries.length === 0) return;
+    const sourceId = entries[0].sourceId;
+    if (entries.some((entry) => entry.sourceId !== sourceId)) {
+      notificationStore.error('Select files from one connected source at a time');
+      return;
+    }
+    stagedRemoteTransfer = {
+      projectId: selectedProject.project_id,
+      sourceId,
+      paths: entries.map((entry) => entry.path),
+      mode,
+    };
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    notificationStore.success(`${entries.length} ${entries.length === 1 ? 'item' : 'items'} ${mode === 'copy' ? 'copied' : 'selected to move'}. Open a destination folder and choose ${mode === 'copy' ? 'Paste' : 'Move here'}.`);
+  }
+
+  function storedItemSelected(itemId: string): boolean {
+    return selectedStoredItems.some((item) => item.project_item_id === itemId);
+  }
+
+  function handleStoredSelectionClick(event: MouseEvent, item: ProjectItemViewModel): void {
+    if (!selectingRemoteEntries) return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectedStoredItems = storedItemSelected(item.project_item_id)
+      ? selectedStoredItems.filter((candidate) => candidate.project_item_id !== item.project_item_id)
+      : [...selectedStoredItems, item];
+  }
+
+  function openStoredContextMenu(event: MouseEvent, item: ProjectItemViewModel): void {
+    event.preventDefault();
+    event.stopPropagation();
+    storedContextMenu = { x: event.clientX, y: event.clientY, item };
+  }
+
+  function stageStoredTransfer(mode: RemoteTransferMode, itemsToTransfer: ProjectItemViewModel[]): void {
+    if (!selectedProject || itemsToTransfer.length === 0) return;
+    stagedStoredTransfer = { projectId: selectedProject.project_id, items: [...itemsToTransfer], mode };
+    selectingRemoteEntries = false;
+    selectedStoredItems = [];
+    notificationStore.success(`${itemsToTransfer.length} ${itemsToTransfer.length === 1 ? 'item' : 'items'} ${mode === 'copy' ? 'copied' : 'selected to move'}. Open a destination folder and choose ${mode === 'copy' ? 'Paste' : 'Move here'}.`);
+  }
+
+  function stageSelectedFiles(mode: RemoteTransferMode): void {
+    if (selectedRemoteEntries.length && selectedStoredItems.length) {
+      notificationStore.error('Select connected files or OpenMates items separately');
+      return;
+    }
+    if (selectedRemoteEntries.length) stageRemoteTransfer(mode, selectedRemoteEntries);
+    else stageStoredTransfer(mode, selectedStoredItems);
+  }
+
+  async function commitStoredTransfer(): Promise<void> {
+    const staged = stagedStoredTransfer;
+    const project = selectedProject;
+    if (!staged || !project || staged.projectId !== project.project_id || activeRemoteSource || currentVirtualPath !== null || remoteTransferBusy) return;
+    remoteTransferBusy = true;
+    let completed = 0;
+    let remaining = [...staged.items];
+    try {
+      const teamId = getActiveTeamContextSnapshot().teamId;
+      for (const item of staged.items) {
+        if (staged.mode === 'copy') {
+          await addExistingTargetToProject(project, item.target_id, item.item_type,
+            projectBrowserItemName(item), currentFolder?.folder_id ?? undefined, item.metadata, { teamId });
+        } else {
+          await moveProjectItemToFolder(project, item.project_item_id, currentFolder?.folder_id ?? null, { teamId });
+        }
+        completed += 1;
+        remaining = remaining.filter((candidate) => candidate.project_item_id !== item.project_item_id);
+        stagedStoredTransfer = remaining.length ? { ...staged, items: remaining } : null;
+      }
+      notificationStore.success(`${completed} ${completed === 1 ? 'item' : 'items'} ${staged.mode === 'copy' ? 'pasted' : 'moved'}`);
+      await refreshSelectedProject();
+      broadcastProjectFilesChanged(project.project_id);
+    } catch (error) {
+      notificationStore.error(`${completed ? `${completed} completed; ` : ''}${error instanceof Error ? error.message : 'Could not transfer Project items'}`);
+      if (completed) await refreshSelectedProject();
+    } finally {
+      remoteTransferBusy = false;
+    }
+  }
+
+  async function commitRemoteTransfer(): Promise<void> {
+    const staged = stagedRemoteTransfer;
+    const project = selectedProject;
+    const source = sources.find((candidate) => candidate.source_id === staged?.sourceId);
+    if (!staged || !project || !source || !activeRemoteSource || !$userProfile.user_id || remoteTransferBusy
+      || staged.projectId !== project.project_id || staged.sourceId !== activeRemoteSource.source_id) return;
+    remoteTransferBusy = true;
+    let completed = 0;
+    let remaining = [...staged.paths];
+    let failed = 0;
+    try {
+      // Each encrypted request is bounded; retain uncommitted paths if a later batch fails.
+      for (let offset = 0; offset < staged.paths.length; offset += 20) {
+        const paths = staged.paths.slice(offset, offset + 20);
+        const result = await transferProjectRemoteEntries(project, source,
+          { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId },
+          { operation: staged.mode === 'copy' ? 'copy_entries' : 'move_entries', paths, destinationPath: remotePath });
+        completed += result.completed.length;
+        failed += result.failed.length;
+        const done = new Set(result.completed);
+        remaining = remaining.filter((path) => !done.has(path));
+        stagedRemoteTransfer = remaining.length ? { ...staged, paths: remaining } : null;
+      }
+      if (completed) notificationStore.success(`${completed} ${completed === 1 ? 'item' : 'items'} ${staged.mode === 'copy' ? 'pasted' : 'moved'}`);
+      if (failed) notificationStore.error(`${failed} ${failed === 1 ? 'item' : 'items'} could not be ${staged.mode === 'copy' ? 'copied' : 'moved'}. The remaining selection is still available.`);
+      await browseRemoteSource(source, remotePath);
+    } catch (error) {
+      notificationStore.error(`${completed ? `${completed} completed; ` : ''}${error instanceof Error ? error.message : 'Could not transfer files'}`);
+      if (completed) await browseRemoteSource(source, remotePath);
+    } finally {
+      remoteTransferBusy = false;
+    }
+  }
+
+  function cancelRemoteDownload(): void {
+    remoteDownloadController?.abort();
+  }
+
   function closeRemotePreview(): void {
+    cancelRemoteDownload();
     const closingEmbedId = activeRemoteFullscreen?.embedId;
     activeRemoteFullscreen = null;
+    activeRemoteGenericFile = null;
+    activeRemoteImage = null;
     if (closingEmbedId) {
       remotePreviewEntries = remotePreviewEntries.map((entry) => entry.preview.embed.embed_id === closingEmbedId
         ? { ...entry, readResult: null }
@@ -681,7 +1268,7 @@
   }
 
   function handleRemoteFullscreenClick(event: MouseEvent): void {
-    if (!activeRemoteFullscreen) return;
+    if (!activeRemoteFullscreen && !activeRemoteGenericFile && !activeRemoteImage) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('[data-testid="embed-minimize"]')) {
       closeRemotePreview();
@@ -689,47 +1276,95 @@
   }
 
   function handleRemoteFullscreenKeydown(event: KeyboardEvent): void {
-    if (!activeRemoteFullscreen || event.key !== 'Escape') return;
+    if ((!activeRemoteFullscreen && !activeRemoteGenericFile && !activeRemoteImage) || event.key !== 'Escape') return;
     closeRemotePreview();
   }
 
   function resetRemoteBrowser(): void {
+    cancelProjectSearch();
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    stagedRemoteTransfer = null;
+    remoteContextMenu = null;
+    selectedStoredItems = [];
+    stagedStoredTransfer = null;
+    storedContextMenu = null;
+    folderSearchQuery = '';
+    cancelRemoteDownload();
+    autoBrowsedProjectId = null;
+    resetRootPrefetch();
     remoteRequestController?.abort();
     remoteRequestController = null;
     remoteRequestGeneration += 1;
     activeRemoteFullscreen = null;
+    activeRemoteGenericFile = null;
+    activeRemoteImage = null;
+    for (const url of Object.values(remoteImageUrls)) URL.revokeObjectURL(url);
+    remoteImageUrls = {};
     activeStoredFullscreen = null;
     activeRemoteSourceId = null;
     remotePath = '.';
     remoteEntries = [];
-    remoteSearchQuery = '';
-    remoteSearchMatches = [];
+    remotePageIndex = 0;
+    remotePageCursors = [null];
+    remoteNextCursor = null;
+    remoteLegacyEntries = null;
+    storedPageIndex = 0;
+    remoteRootEntries = {};
+    remoteRootOmitted = {};
     remoteOmittedCount = 0;
-    remoteExcludedCount = 0;
     remotePreviewEntries = [];
     remoteError = '';
+    remoteNeedsSignIn = false;
     isRemoteLoading = false;
   }
 
   function clearRemoteNavigation(): void {
+    cancelProjectSearch();
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    selectedStoredItems = [];
+    remoteContextMenu = null;
+    storedContextMenu = null;
+    folderSearchQuery = '';
+    autoBrowsedProjectId = null;
+    resetRootPrefetch();
     remoteRequestController?.abort();
     remoteRequestController = null;
     remoteRequestGeneration += 1;
     activeRemoteFullscreen = null;
+    activeRemoteGenericFile = null;
     activeRemoteSourceId = null;
     remotePath = '.';
     remoteEntries = [];
-    remoteSearchQuery = '';
-    remoteSearchMatches = [];
+    remotePageIndex = 0;
+    remotePageCursors = [null];
+    remoteNextCursor = null;
+    remoteLegacyEntries = null;
+    storedPageIndex = 0;
+    remoteRootEntries = {};
+    remoteRootOmitted = {};
     remoteOmittedCount = 0;
-    remoteExcludedCount = 0;
     remotePreviewEntries = [];
     remoteError = '';
+    remoteNeedsSignIn = false;
     isRemoteLoading = false;
+  }
+
+  function resetRootPrefetch(): void {
+    rootPrefetchController?.abort();
+    rootPrefetchController = null;
+    rootPrefetchEpoch += 1;
+    rootPrefetchInFlight = false;
+    rootPrefetchCount = 0;
+    rootPrefetchKeys.clear();
+    remoteRootPreviewStatus = {};
+    rootPrefetchVersion += 1;
   }
 
   function beginRemoteRequest(): { controller: AbortController; generation: number; projectId: string | null } {
     remoteRequestController?.abort();
+    remoteNeedsSignIn = false;
     const controller = new AbortController();
     remoteRequestController = controller;
     remoteRequestGeneration += 1;
@@ -754,7 +1389,19 @@
 
   function remoteRequestError(error: unknown, fallback: string): string | null {
     if (error instanceof DOMException && error.name === 'AbortError') return null;
+    remoteNeedsSignIn = error instanceof ProjectRemoteAccessError
+      && error.code === 'requester_device_identity_unavailable';
+    if (remoteNeedsSignIn) return $text('projects.source_session_reconnect');
     return error instanceof Error ? error.message : fallback;
+  }
+
+  async function signOutToReconnectSource(): Promise<void> {
+    const returnUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    await authStore.logout({
+      // Standard logout clears the hash; restore this Project route before login.
+      afterLocalLogout: () => replaceState(returnUrl, {}),
+      afterServerCleanup: () => window.dispatchEvent(new Event('openLoginInterface')),
+    });
   }
 
   async function refreshRemoteSourceStatus(): Promise<void> {
@@ -763,41 +1410,151 @@
     try {
       const refreshed = await listProjectSources(project);
       if (selectedProject?.project_id !== project.project_id) return;
+      const disconnectedSourceIds = new Set(sources.filter((source) => source.status === 'connected'
+        && !refreshed.some((candidate) => candidate.source_id === source.source_id && candidate.status === 'connected'))
+        .map((source) => source.source_id));
       sources = refreshed;
+      if (disconnectedSourceIds.size > 0) {
+        if (remoteDownloadProgress && disconnectedSourceIds.has(remoteDownloadProgress.sourceId)) cancelRemoteDownload();
+        const retainedUrls: Record<string, string> = {};
+        for (const [key, url] of Object.entries(remoteImageUrls)) {
+          if ([...disconnectedSourceIds].some((sourceId) => key.startsWith(`${sourceId}:`))) URL.revokeObjectURL(url);
+          else retainedUrls[key] = url;
+        }
+        remoteImageUrls = retainedUrls;
+        if (activeRemoteImage && disconnectedSourceIds.has(activeRemoteImage.sourceId)) activeRemoteImage = null;
+        remoteRootEntries = Object.fromEntries(Object.entries(remoteRootEntries)
+          .filter(([sourceId]) => !disconnectedSourceIds.has(sourceId)));
+        remoteRootOmitted = Object.fromEntries(Object.entries(remoteRootOmitted)
+          .filter(([sourceId]) => !disconnectedSourceIds.has(sourceId)));
+      }
       const active = refreshed.find((source) => source.source_id === activeRemoteSourceId);
       if (activeRemoteSourceId && (!active || active.status !== 'connected')) {
+        autoBrowsedProjectId = null;
         remoteRequestController?.abort();
         remoteRequestController = null;
         remoteRequestGeneration += 1;
         activeRemoteFullscreen = null;
+        activeRemoteGenericFile = null;
+        activeRemoteImage = null;
         remoteEntries = [];
-        remoteSearchMatches = [];
+        remoteRootEntries = {};
+        remoteRootOmitted = {};
         remotePreviewEntries = [];
         remoteOmittedCount = 0;
-        remoteExcludedCount = 0;
         isRemoteLoading = false;
         remoteError = active ? 'This Project source is offline' : 'This Project source is no longer available';
+        remoteNeedsSignIn = false;
+        activeRemoteSourceId = null;
       }
     } catch (error) {
       console.error('[ProjectsPage] Failed to refresh remote source status:', error);
     }
   }
 
-  async function browseRemoteSource(source: ProjectSourceViewModel, path = '.'): Promise<void> {
+  async function prefetchRemoteRoots(
+    project: ProjectViewModel,
+    ownerId: string | null | undefined,
+    candidates: ProjectSourceViewModel[],
+  ): Promise<void> {
+    if (!previewState?.remoteEntries && !previewState?.legacyRemoteEntries && !ownerId) return;
+    rootPrefetchInFlight = true;
+    const epoch = rootPrefetchEpoch;
+    const controller = new AbortController();
+    rootPrefetchController = controller;
+    remoteRootPreviewStatus = { ...remoteRootPreviewStatus,
+      ...Object.fromEntries(candidates.map((source) => [source.source_id, 'loading' as const])) };
+    try {
+      for (let offset = 0; offset < candidates.length; offset += 2) {
+        if (controller.signal.aborted) return;
+        await Promise.all(candidates.slice(offset, offset + 2).map(async (source) => {
+          try {
+            const previewEntries = previewState?.remoteEntries ?? previewState?.legacyRemoteEntries;
+            const result = previewEntries
+              ? { entries: previewEntries.slice(0, 12), omitted: Math.max(0, previewEntries.length - 12) }
+              : await requestProjectRemoteAccess<ProjectRemoteDirectoryResult>(
+                project, source, { ownerId: ownerId ?? '', teamId: getActiveTeamContextSnapshot().teamId },
+                'list', { path: '.', maxEntries: 12 }, controller.signal,
+              );
+            if (controller.signal.aborted || epoch !== rootPrefetchEpoch || selectedProject?.project_id !== project.project_id
+              || !sources.some((candidate) => candidate.source_id === source.source_id && candidate.status === 'connected')) return;
+            remoteRootEntries = { ...remoteRootEntries, [source.source_id]: result.entries };
+            remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: result.omitted };
+            const status = { ...remoteRootPreviewStatus };
+            delete status[source.source_id];
+            remoteRootPreviewStatus = status;
+          } catch (error) {
+            if (controller.signal.aborted || epoch !== rootPrefetchEpoch) return;
+            remoteRootPreviewStatus = { ...remoteRootPreviewStatus, [source.source_id]: 'unavailable' };
+            console.warn('[ProjectsPage] Could not load connected source folder summary:', error);
+          }
+        }));
+      }
+    } finally {
+      if (rootPrefetchController === controller) rootPrefetchController = null;
+      if (epoch === rootPrefetchEpoch) {
+        rootPrefetchInFlight = false;
+        rootPrefetchVersion += 1;
+      }
+    }
+  }
+
+  async function browseRemoteSource(source: ProjectSourceViewModel, path = '.', pageIndex = 0): Promise<void> {
     if (!selectedProject) return;
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    remoteContextMenu = null;
+    cancelProjectSearch();
+    folderSearchQuery = '';
+    const cursor = path === remotePath && source.source_id === activeRemoteSourceId
+      ? remotePageCursors[pageIndex] ?? null : null;
     currentFolder = null;
     currentFolderTrail = [];
     currentFolderHash = null;
     currentVirtualPath = null;
     activeRemoteSourceId = source.source_id;
     activeRemoteFullscreen = null;
+    activeRemoteGenericFile = null;
     remotePreviewEntries = [];
-    if (previewState?.remoteEntries) {
+    const legacy = remoteLegacyEntries;
+    if (legacy?.sourceId === source.source_id && legacy.path === path) {
+      const start = pageIndex * FILES_PAGE_SIZE;
       remotePath = path;
-      remoteEntries = previewState.remoteEntries;
-      remoteSearchMatches = [];
-      remoteOmittedCount = 0;
-      remoteExcludedCount = 0;
+      remoteEntries = legacy.entries.slice(start, start + FILES_PAGE_SIZE);
+      remotePageIndex = pageIndex;
+      remoteNextCursor = start + FILES_PAGE_SIZE < legacy.entries.length
+        ? remoteEntries.at(-1)?.path.split('/').at(-1) ?? null : null;
+      remoteOmittedCount = legacy.omitted + Math.max(0, legacy.entries.length - start - remoteEntries.length);
+      remoteError = '';
+      return;
+    }
+    remoteLegacyEntries = null;
+    if (previewState?.remoteEntries) {
+      const sorted = previewState.remoteEntries.filter((entry) => directParentPath(entry.path) === path)
+        .sort((left, right) => left.path.localeCompare(right.path));
+      const start = pageIndex * FILES_PAGE_SIZE;
+      remotePath = path;
+      remoteEntries = sorted.slice(start, start + FILES_PAGE_SIZE);
+      remotePageIndex = pageIndex;
+      remoteNextCursor = sorted[start + FILES_PAGE_SIZE - 1]?.path.split('/').at(-1) ?? null;
+      if (start + FILES_PAGE_SIZE >= sorted.length) remoteNextCursor = null;
+      remotePageCursors = [...remotePageCursors.slice(0, pageIndex + 1), remoteNextCursor];
+      if (path === '.' && pageIndex === 0) {
+        remoteRootEntries = { ...remoteRootEntries, [source.source_id]: remoteEntries };
+        remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: sorted.length - remoteEntries.length };
+      }
+      remoteOmittedCount = Math.max(0, sorted.length - start - remoteEntries.length);
+      remoteError = '';
+      return;
+    }
+    if (previewState?.legacyRemoteEntries) {
+      const result = { entries: previewState.legacyRemoteEntries, omitted: 0 };
+      remoteLegacyEntries = { sourceId: source.source_id, path, ...result };
+      remotePath = path;
+      remoteEntries = result.entries.slice(0, FILES_PAGE_SIZE);
+      remotePageIndex = 0;
+      remoteNextCursor = remoteEntries.at(-1)?.path.split('/').at(-1) ?? null;
+      remoteOmittedCount = result.entries.length - remoteEntries.length;
       remoteError = '';
       return;
     }
@@ -811,15 +1568,26 @@
         source,
         { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId },
         'list',
-        { path },
+        { path, maxEntries: FILES_PAGE_SIZE, ...(cursor ? { cursor } : {}) },
         request.controller.signal,
       );
       if (!isCurrentRemoteRequest(request, source.source_id)) return;
       remotePath = path;
-      remoteEntries = result.entries;
-      remoteSearchMatches = [];
-      remoteOmittedCount = result.omitted;
-      remoteExcludedCount = result.excluded;
+      if (result.entries.length > FILES_PAGE_SIZE && !result.nextCursor) {
+        // Older connected CLIs ignore cursor/maxEntries. Page their returned
+        // entries in memory so a legacy response never mounts hundreds of cards.
+        remoteLegacyEntries = { sourceId: source.source_id, path, entries: result.entries, omitted: result.omitted };
+      }
+      remoteEntries = result.entries.slice(0, FILES_PAGE_SIZE);
+      remotePageIndex = pageIndex;
+      remoteNextCursor = remoteLegacyEntries
+        ? remoteEntries.at(-1)?.path.split('/').at(-1) ?? null : result.nextCursor ?? null;
+      remotePageCursors = [...(pageIndex === 0 ? [null] : remotePageCursors.slice(0, pageIndex + 1)), remoteNextCursor];
+      if (path === '.' && pageIndex === 0) {
+        remoteRootEntries = { ...remoteRootEntries, [source.source_id]: remoteEntries };
+        remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: result.omitted + result.entries.length - remoteEntries.length };
+      }
+      remoteOmittedCount = result.omitted + result.entries.length - remoteEntries.length;
     } catch (error) {
       const message = remoteRequestError(error, 'Could not browse this source');
       if (!message || !isCurrentRemoteRequest(request, source.source_id)) return;
@@ -830,18 +1598,6 @@
     }
   }
 
-  function remoteParentPath(path: string): string {
-    if (!path || path === '.') return '.';
-    const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
-    parts.pop();
-    return parts.join('/') || '.';
-  }
-
-  function remotePathBreadcrumbs(path: string): Array<{ label: string; path: string }> {
-    const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
-    return parts.map((label, index) => ({ label, path: parts.slice(0, index + 1).join('/') }));
-  }
-
   async function openRemoteEntry(source: ProjectSourceViewModel, entry: ProjectRemoteDirectoryEntry): Promise<void> {
     if (entry.kind === 'directory') {
       await browseRemoteSource(source, entry.path);
@@ -850,41 +1606,12 @@
     await openRemoteFile(source, entry.path);
   }
 
-  async function searchRemoteSource(source: ProjectSourceViewModel): Promise<void> {
-    const query = remoteSearchQuery.trim();
-    if (!selectedProject || !$userProfile.user_id || !query) return;
-    activeRemoteSourceId = source.source_id;
-    const request = beginRemoteRequest();
-    isRemoteLoading = true;
-    remoteError = '';
-    try {
-      const result = await requestProjectRemoteAccess<ProjectRemoteSearchResult>(
-        selectedProject,
-        source,
-        { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId },
-        'search',
-        { query },
-        request.controller.signal,
-      );
-      if (!isCurrentRemoteRequest(request, source.source_id)) return;
-      remoteSearchMatches = result.matches;
-      remoteOmittedCount = result.omitted;
-      remoteExcludedCount = result.excluded;
-    } catch (error) {
-      const message = remoteRequestError(error, 'Could not search this source');
-      if (!message || !isCurrentRemoteRequest(request, source.source_id)) return;
-      remoteError = message;
-      console.error('[ProjectsPage] Failed to search remote source:', error);
-    } finally {
-      finishRemoteRequest(request);
-    }
-  }
-
   async function openRemoteFile(source: ProjectSourceViewModel, path: string): Promise<void> {
     if (!selectedProject) return;
     const classification = classifyRemotePreviewPath(path);
     if (classification.kind === 'unsupported') {
-      remoteError = $text('projects.remote_preview_unsupported');
+      const listed = remoteEntries.find((candidate) => candidate.path === path);
+      openRemoteGenericFile(source, path, listed?.sizeBytes);
       return;
     }
     activeRemoteSourceId = source.source_id;
@@ -942,6 +1669,26 @@
       remotePreviewEntries = [entry, ...remotePreviewEntries.filter((candidate) => candidate.preview.embed.embed_id !== preview.embed.embed_id)];
       activeRemoteFullscreen = remoteFullscreenDetail(preview, result.content, source.displayName || source.source_id);
     } catch (error) {
+      if (error instanceof ProjectRemoteAccessError && error.code === 'unsupported_file'
+        && isCurrentRemoteRequest(request, source.source_id)) {
+        const listed = remoteEntries.find((candidate) => candidate.path === path);
+        const preview = normalizeRemoteFilePreview({
+          sourceId: source.source_id,
+          path,
+          displayName: path.split('/').filter(Boolean).pop() || path,
+          language: classification.language,
+          snippet: '',
+          sizeBytes: listed?.sizeBytes,
+          previewPolicy: 'unsupported_binary',
+          safetyFlags: [],
+        });
+        remotePreviewEntries = [{ preview, readResult: null, canImport: false,
+          sourceLabel: source.displayName || source.source_id },
+          ...remotePreviewEntries.filter((candidate) => candidate.preview.embed.embed_id !== preview.embed.embed_id)];
+        remoteError = '';
+        openRemoteGenericFile(source, path, listed?.sizeBytes);
+        return;
+      }
       const message = remoteRequestError(error, 'Could not read this file');
       if (!message || !isCurrentRemoteRequest(request, source.source_id)) return;
       remoteError = message;
@@ -956,22 +1703,17 @@
       && candidate.preview.embed.content.path === entry.path);
     if (loaded) return loaded;
     const classification = classifyRemotePreviewPath(entry.path);
-    const componentPreviewContent = previewState?.remoteEntries
-      ? (entry.path.endsWith('.md')
-        ? '# Connected project file\n\nThis preview is loaded from the connected source.'
-        : 'export const connectedProjectFile = true;')
-      : '';
+    const isUnsupported = entry.previewable === false || classification.kind === 'unsupported';
     return {
       preview: normalizeRemoteFilePreview({
         sourceId: source.source_id,
         path: entry.path,
         displayName: entry.path.split('/').filter(Boolean).pop() || entry.path,
         language: classification.kind === 'unsupported' ? 'text' : classification.language,
-        snippet: componentPreviewContent,
+        snippet: '',
         snippetTruncated: false,
-        sizeBytes: componentPreviewContent ? new TextEncoder().encode(componentPreviewContent).byteLength : undefined,
-        lineCount: componentPreviewContent ? componentPreviewContent.split('\n').length : undefined,
-        previewPolicy: 'bounded_full_text',
+        sizeBytes: entry.sizeBytes,
+        previewPolicy: isUnsupported ? 'unsupported_binary' : 'bounded_full_text',
         safetyFlags: [],
       }),
       readResult: null,
@@ -982,6 +1724,7 @@
 
   async function openFolder(folder: ProjectFolderViewModel): Promise<void> {
     clearRemoteNavigation();
+    storedPageIndex = 0;
     currentVirtualPath = null;
     currentFolder = folder;
     currentFolderHash = folderHashes.get(folder.folder_id) ?? await computeSHA256(folder.folder_id);
@@ -1001,6 +1744,7 @@
 
   function openVirtualFolder(folder: ProjectVirtualFolder): void {
     clearRemoteNavigation();
+    storedPageIndex = 0;
     currentFolder = null;
     currentFolderTrail = [];
     currentFolderHash = null;
@@ -1009,6 +1753,10 @@
 
   function openRoot(): void {
     clearRemoteNavigation();
+    storedPageIndex = 0;
+    // A deliberate breadcrumb return must stay at the project root instead of
+    // immediately triggering the connected-source auto-open effect again.
+    autoBrowsedProjectId = selectedProject?.project_id ?? null;
     currentFolder = null;
     currentFolderTrail = [];
     currentFolderHash = null;
@@ -1099,16 +1847,18 @@
   }
 
   onMount(() => {
+    // Recover temporary browser files left by a closed or crashed download tab.
+    void cleanupStaleConnectedProjectDownloads().catch(() => {});
     if (previewState) {
       projects = [previewState.project];
-      selectedProject = previewState.project;
+      selectedProject = previewState.startAtHome ? null : previewState.project;
       folders = previewState.folders ?? [];
       items = previewState.items ?? [];
       sources = previewState.sources ?? [];
-      readmeState = previewState.readme ?? { status: 'empty' };
+      replaceReadmeState(previewState.readme ?? { status: 'empty' });
       activeTab = initialTab;
       isLoading = false;
-      return;
+      return () => { pageDisposed = true; cancelProjectSearch(); replaceReadmeState({ status: 'empty' }); };
     }
     syncProjectHashFromLocation();
     void refreshProjects();
@@ -1136,7 +1886,13 @@
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
     return () => {
+      pageDisposed = true;
+      cancelProjectSearch();
+      replaceReadmeState({ status: 'empty' });
+      cancelRemoteDownload();
       remoteRequestController?.abort();
+      rootPrefetchController?.abort();
+      for (const url of Object.values(remoteImageUrls)) URL.revokeObjectURL(url);
       window.removeEventListener('hashchange', syncProjectHashFromLocation);
       window.removeEventListener('popstate', syncProjectHashFromLocation);
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
@@ -1155,6 +1911,76 @@
     void selectProjectById(projectHashId, false);
   });
 </script>
+
+{#snippet projectSearchCard(entry: ProjectFileSearchEntry)}
+  {#if entry.kind === 'remote'}
+    {@const source = sources.find((candidate) => candidate.source_id === entry.sourceId)}
+    {@const listedFolder = remoteEntries.find((candidate) => candidate.path === entry.path && candidate.kind === 'directory')}
+    {#if source}
+      {#if viewMode === 'list'}
+        <button class="remote-list-entry" class:selected={remoteEntrySelected(entry.sourceId, entry.path)} data-testid="project-search-result" type="button"
+          onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: entry.sourceId, path: entry.path, kind: entry.entryKind }) : void openRemoteEntry(source, { path: entry.path, kind: entry.entryKind })}
+          oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: entry.sourceId, path: entry.path, kind: entry.entryKind })}>
+          <span class="remote-list-icon" data-app={remoteListApp(entry.path, entry.entryKind === 'directory')} aria-hidden="true"></span>
+          <strong>{searchResultName(entry)}</strong>
+          <small>{source.displayName || source.source_id} / {entry.path}</small>
+        </button>
+      {:else if entry.entryKind === 'directory'}
+        <div class="folder-preview remote-preview-badged search-result-card" class:selected={remoteEntrySelected(entry.sourceId, entry.path)} data-testid="project-search-result"
+          onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: entry.sourceId, path: entry.path, kind: 'directory' })}
+          oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: entry.sourceId, path: entry.path, kind: 'directory' })}>
+          <span class="remote-cloud-badge" role="img" aria-label="Stored remotely"></span>
+          <UnifiedEmbedPreview id={`${entry.sourceId}:${entry.path}`} presentationOnly appId="files" skillId="file"
+            skillIconName="files" appIconName="files" status="finished" showSkillIcon={false}
+            skillName={searchResultName(entry)} customStatusText={listedFolder ? remoteFolderStatus(listedFolder) : 'Folder'}
+            onFullscreen={() => void browseRemoteSource(source, entry.path)}>
+            {#snippet details()}
+              <span class="folder-card-contents">
+                {#each listedFolder?.children?.slice(0, 3) ?? [] as child (child.path)}
+                  <span class="folder-child-row"><span class:child-folder={child.kind === 'directory'} class="folder-child-icon" aria-hidden="true"></span><span>{child.path.split('/').at(-1) || child.path}</span></span>
+                {:else}
+                  <span class="folder-empty-row">Open to view contents</span>
+                {/each}
+              </span>
+            {/snippet}
+          </UnifiedEmbedPreview>
+          <small class="search-result-location">{source.displayName || source.source_id} / {entry.path}</small>
+        </div>
+      {:else}
+        {@const preview = normalizeRemoteFilePreview({ sourceId: entry.sourceId, path: entry.path,
+          displayName: searchResultName(entry), language: classifyRemotePreviewPath(entry.path).language,
+          snippet: '', previewPolicy: 'metadata_only', safetyFlags: [] })}
+        <div class="search-result-card" class:selected={remoteEntrySelected(entry.sourceId, entry.path)} data-testid="project-search-result"
+          onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: entry.sourceId, path: entry.path, kind: 'file' })}
+          oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: entry.sourceId, path: entry.path, kind: 'file' })}>
+          <ProjectRemotePreviewCard {preview} sourceLabel={source.displayName || source.source_id}
+            onOpenFullscreen={() => void openRemoteFile(source, entry.path)}
+            onOpenFile={() => void openRemoteFileDetails(source, entry.path)} />
+          <small class="search-result-location">{source.displayName || source.source_id} / {entry.path}</small>
+        </div>
+      {/if}
+    {/if}
+  {:else if entry.kind === 'item'}
+    <div class="search-result-card stored-item-entry" class:selected={storedItemSelected(entry.item.project_item_id)} data-testid="project-search-result"
+      onclickcapture={(event) => handleStoredSelectionClick(event, entry.item)}
+      oncontextmenucapture={(event) => openStoredContextMenu(event, entry.item)}>
+      <ProjectBrowserItem item={entry.item} {viewMode} displayName={projectBrowserItemName(entry.item)}
+        loadProjectEmbed={loadProjectEmbed} onOpenFullscreen={openStoredFullscreen} />
+    </div>
+  {:else}
+    <div class="folder-preview search-result-card" data-testid="project-search-result">
+      <UnifiedEmbedPreview id={entry.kind === 'folder' ? entry.folder.folder_id : entry.folder.path}
+        presentationOnly appId="files" skillId="file" skillIconName="files" appIconName="files"
+        status="finished" showSkillIcon={false} skillName={searchResultName(entry)}
+        customStatusText="Folder"
+        onFullscreen={entry.kind === 'folder' ? () => void openFolder(entry.folder) : () => openVirtualFolder(entry.folder)}>
+        {#snippet details()}
+          <span class="folder-card-contents"><span class="folder-empty-row">Open to view contents</span></span>
+        {/snippet}
+      </UnifiedEmbedPreview>
+    </div>
+  {/if}
+{/snippet}
 
 {#snippet createProjectForm(compact = false)}
   <form class="create-row" class:compact onsubmit={(event) => { event.preventDefault(); requestProjectCreation(); }}>
@@ -1271,33 +2097,26 @@
       {:else if activeTab === 'folders'}
       <section class="project-panel folders-panel" class:viewer-split-open={viewerSplitOpen} role="tabpanel" id="tabpanel-folders" data-testid="project-folders-panel">
         <div class="folder-summary-row">
-          <strong>{browserFolders.length + browserVirtualFolders.length} folders, {browserItems.length} embeds</strong>
+          <strong>{projectSearchActive ? `${orderedSearchResults.length} search results` : activeRemoteSource ? `${remoteEntryCount} files and folders` : `${browserFolders.length + browserVirtualFolders.length} folders, ${browserItems.length} files and embeds`}</strong>
           <label class="folder-search">
             <span class="search-icon" aria-hidden="true"></span>
             <span class="sr-only">Search project files</span>
-            <input bind:value={folderSearchQuery} type="search" placeholder="Search" data-testid="project-folder-search" />
+            <input bind:value={folderSearchQuery} type="search" placeholder="Search" data-testid="project-folder-search" oninput={handleFolderSearchInput} onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchProjectFiles(); } }} />
           </label>
-          <button class="sort-button" type="button" data-testid="project-folder-sort" aria-label={sortNewestFirst ? 'Show oldest first' : 'Show most recent first'} onclick={() => (sortNewestFirst = !sortNewestFirst)}>
-            <span>{sortNewestFirst ? 'Most recent first' : 'Oldest first'}</span>
+          <button class="sort-button" type="button" data-testid="project-folder-sort" disabled={!!activeRemoteSource || projectSearchActive} aria-label={activeRemoteSource ? 'Files sorted by name' : sortNewestFirst ? 'Show oldest first' : 'Show most recent first'} onclick={() => (sortNewestFirst = !sortNewestFirst)}>
+            <span>{activeRemoteSource || projectSearchActive ? 'Name A–Z' : sortNewestFirst ? 'Most recent first' : 'Oldest first'}</span>
             <span class="sort-icon" aria-hidden="true"></span>
           </button>
         </div>
 
-        {#if showCreateMenu}
-          <div class="create-menu folder-create-menu" data-testid="project-create-menu">
-            <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
-            <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
-            <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
-          </div>
-        {/if}
-
       <section class="project-section">
-        {#if currentFolder || currentVirtualPath !== null}
+        {#if currentFolder || currentVirtualPath !== null || activeRemoteSource}
+          {#if !activeRemoteSource || remotePathParts.length > 0}
           <div class="section-title">
             <div>
-              <h3>{currentVirtualPath?.split('/').at(-1) || currentFolder?.name || 'Untitled folder'}</h3>
+              {#if !activeRemoteSource}<h3>{currentVirtualPath?.split('/').at(-1) || currentFolder?.name || 'Untitled folder'}</h3>{/if}
             <nav class="project-breadcrumbs" aria-label="Project folder path">
-              <button class="breadcrumb-button" type="button" onclick={openRoot}>{$text('projects.project_root')}</button>
+              <button class="breadcrumb-button" type="button" onclick={openRoot} aria-label="Project root">/</button>
               {#each currentFolderTrail as folder, index (folder.folder_id)}
                 <span class="breadcrumb-separator">/</span>
                 {#if index === currentFolderTrail.length - 1}
@@ -1314,20 +2133,50 @@
                   <button class="breadcrumb-button" type="button" onclick={() => openVirtualFolder(folder)}>{folder.name}</button>
                 {/if}
               {/each}
+              {#if activeRemoteSource}
+                {#each remotePathParts as part, index}
+                  {#if index === remotePathParts.length - 1}
+                    <span class="breadcrumb-current" aria-current="page">{part}</span>
+                  {:else}
+                    <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, remotePathParts.slice(0, index + 1).join('/'))}>{part}</button>
+                  {/if}
+                  {#if index < remotePathParts.length - 1}<span class="breadcrumb-separator">/</span>{/if}
+                {/each}
+              {/if}
               </nav>
             </div>
           </div>
+          {/if}
+        {/if}
 
           <div class="browser-toolbar">
-            <span class="muted">{browserFolders.length + browserVirtualFolders.length + browserItems.length + browserSources.length} entries</span>
+            <span class="muted">{projectSearchActive ? `${orderedSearchResults.length} matches` : activeRemoteSource ? `${remotePageIndex * FILES_PAGE_SIZE + (remoteEntries.length ? 1 : 0)}–${remotePageIndex * FILES_PAGE_SIZE + remoteEntries.length} of ${remoteEntryCount} entries` : `${storedEntryCount} entries`}</span>
+            <div class="file-selection-actions" data-testid="project-file-selection-actions">
+              {#if selectingRemoteEntries}
+                <span class="selected-count">{selectedRemoteEntries.length + selectedStoredItems.length} selected</span>
+                <button type="button" data-testid="project-file-copy-selected" disabled={selectedRemoteEntries.length + selectedStoredItems.length === 0 || remoteTransferBusy} onclick={() => stageSelectedFiles('copy')}>Copy</button>
+                <button type="button" data-testid="project-file-move-selected" disabled={selectedRemoteEntries.length + selectedStoredItems.length === 0 || remoteTransferBusy} onclick={() => stageSelectedFiles('move')}>Move</button>
+                <button type="button" data-testid="project-file-cancel-selection" onclick={() => { selectingRemoteEntries = false; selectedRemoteEntries = []; selectedStoredItems = []; }}>Cancel</button>
+              {:else}
+                {#if stagedRemoteTransfer?.projectId === selectedProject.project_id && stagedRemoteTransfer.sourceId === activeRemoteSource?.source_id}
+                  <button type="button" data-testid="project-file-commit-transfer" disabled={remoteTransferBusy} onclick={() => void commitRemoteTransfer()}>{stagedRemoteTransfer.mode === 'copy' ? 'Paste' : 'Move here'}</button>
+                  <button type="button" data-testid="project-file-cancel-transfer" disabled={remoteTransferBusy} onclick={() => (stagedRemoteTransfer = null)}>Cancel</button>
+                {/if}
+                {#if stagedStoredTransfer?.projectId === selectedProject.project_id && !activeRemoteSource && currentVirtualPath === null}
+                  <button type="button" data-testid="project-file-commit-transfer" disabled={remoteTransferBusy} onclick={() => void commitStoredTransfer()}>{stagedStoredTransfer.mode === 'copy' ? 'Paste' : 'Move here'}</button>
+                  <button type="button" data-testid="project-file-cancel-transfer" disabled={remoteTransferBusy} onclick={() => (stagedStoredTransfer = null)}>Cancel</button>
+                {/if}
+                <button type="button" data-testid="project-file-select" onclick={() => { selectingRemoteEntries = true; selectedRemoteEntries = []; selectedStoredItems = []; }}>Select</button>
+              {/if}
+            </div>
             <div class="view-toggle" aria-label="Project view mode">
               <button type="button" class:active={viewMode === 'tile'} onclick={() => (viewMode = 'tile')}>Tile</button>
               <button type="button" class:active={viewMode === 'list'} onclick={() => (viewMode = 'list')}>List</button>
             </div>
           </div>
-        {/if}
 
         <div class:browser-grid={viewMode === 'tile'} class:browser-list={viewMode === 'list'} data-testid="project-browser-list">
+            <div class="project-action-expander" class:expanded={showCreateMenu} data-testid="project-action-expander">
             <div class="project-actions" data-testid="project-folder-actions">
               <button type="button" onclick={() => void refreshSelectedProject()} disabled={isSaving}>
                 <span class="tray-icon sync-icon" aria-hidden="true"></span><span>Sync</span>
@@ -1335,17 +2184,66 @@
               <button type="button" onclick={() => uploadInput?.click()} disabled={isSaving} data-testid="project-upload-button">
                 <span class="tray-icon upload-icon" aria-hidden="true"></span><span>Upload</span>
               </button>
-              <button type="button" onclick={() => (showCreateMenu = !showCreateMenu)} data-testid="project-folder-create-menu-button">
+              <button type="button" onclick={() => (showCreateMenu = !showCreateMenu)} aria-expanded={showCreateMenu} aria-controls="project-folder-create-menu" data-testid="project-folder-create-menu-button">
                 <span class="clickable-icon icon_create project-create-action-icon" aria-hidden="true"></span><span>Create</span>
               </button>
             </div>
-            {#if visibleBrowserFolders.length === 0 && visibleVirtualFolders.length === 0 && visibleBrowserItems.length === 0 && visibleBrowserSources.length === 0}
+            {#if showCreateMenu}
+              <div class="create-menu folder-create-menu" id="project-folder-create-menu" data-testid="project-create-menu">
+                <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
+                <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
+                <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
+              </div>
+            {/if}
+            </div>
+            {#if projectSearchActive}
+              <div class="project-search-results" data-testid="project-remote-search-results">
+                {#if projectSearchLoading}
+                  <p class="search-section-heading" data-testid="project-search-loading">Searching Project files and folders...</p>
+                {/if}
+                {#if projectSearchError}
+                  <p class="remote-error search-section-heading">{projectSearchError}</p>
+                  {#if remoteNeedsSignIn}
+                    <button class="search-section-heading" type="button" data-testid="project-source-relogin" onclick={() => void signOutToReconnectSource()}>{$text('projects.source_session_relogin')}</button>
+                  {/if}
+                {/if}
+                {#if searchPageIndex === 0 || searchPageCurrent.length > 0}
+                  <h3 class="search-section-heading" data-testid="project-search-current-heading">{$text('projects.search_current_folder')}</h3>
+                  {#each searchPageCurrent as result (searchResultKey(result))}
+                    {@render projectSearchCard(result)}
+                  {/each}
+                  {#if searchPageIndex === 0 && searchPageCurrent.length === 0 && !projectSearchLoading}
+                    <p class="search-section-heading muted">No matches in this folder.</p>
+                  {/if}
+                {/if}
+                {#if searchPageAcross.length > 0 || searchPageIndex === 0}
+                  <h3 class="search-section-heading" data-testid="project-search-across-heading">{$text('projects.search_across_project', { values: { project: selectedProject.name || 'Project' } })}</h3>
+                  {#each searchPageAcross as result (searchResultKey(result))}
+                    {@render projectSearchCard(result)}
+                  {/each}
+                  {#if searchPageIndex === 0 && searchPageAcross.length === 0 && !projectSearchLoading}
+                    <p class="search-section-heading muted">No other matches in this Project.</p>
+                  {/if}
+                {/if}
+                {#if projectSearchOmitted > 0}
+                  <p class="remote-limit-notice search-section-heading" data-testid="project-remote-results-truncated">{$text('projects.remote_results_limited')}</p>
+                {/if}
+                {#if orderedSearchResults.length > FILES_PAGE_SIZE}
+                  <nav class="files-page-controls" data-testid="project-search-page-controls" aria-label="Project search result pages">
+                    <button type="button" disabled={searchPageIndex === 0} onclick={() => { searchPageIndex -= 1; void scrollToFilesStart(); }}>Previous</button>
+                    <span>Page {searchPageIndex + 1} of {Math.ceil(orderedSearchResults.length / FILES_PAGE_SIZE)}</span>
+                    <button type="button" disabled={(searchPageIndex + 1) * FILES_PAGE_SIZE >= orderedSearchResults.length} onclick={() => { searchPageIndex += 1; void scrollToFilesStart(); }}>Next</button>
+                  </nav>
+                {/if}
+              </div>
+            {:else}
+            {#if visibleBrowserFolders.length === 0 && visibleVirtualFolders.length === 0 && visibleBrowserItems.length === 0 && visibleBrowserSources.length === 0 && !activeRemoteSource}
               <div class="empty-state" data-testid="project-empty-items">
                 <h3>{normalizedFolderSearch ? 'No matching project items' : 'No project items yet'}</h3>
                 <p>{normalizedFolderSearch ? 'Try a different search.' : 'Upload a file or use “Add to project” from chats and embed fullscreen views.'}</p>
               </div>
             {/if}
-            {#each visibleBrowserFolders as folder (folder.folder_id)}
+            {#each pageBrowserFolders as folder (folder.folder_id)}
               {@const cardEntries = folderCardEntries(folder)}
               {#if viewMode === 'tile'}
                 <div class="folder-preview" data-testid="project-folder-card">
@@ -1378,13 +2276,13 @@
                 </div>
               {:else}
                 <button class="folder-entry list" data-testid="project-folder-card" type="button" onclick={() => void openFolder(folder)}>
-                  <span class="folder-icon">Folder</span>
+                  <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{folder.name || 'Untitled folder'}</strong>
                   <small>{cardEntries.length} {cardEntries.length === 1 ? 'file' : 'files'}</small>
                 </button>
               {/if}
             {/each}
-            {#each visibleVirtualFolders as folder (folder.path)}
+            {#each pageVirtualFolders as folder (folder.path)}
               {#if viewMode === 'tile'}
                 <div class="folder-preview remote-preview-badged" data-testid="project-virtual-folder-card">
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
@@ -1411,13 +2309,16 @@
               {:else}
                 <button class="folder-entry list remote-preview-badged" data-testid="project-virtual-folder-card" type="button" onclick={() => openVirtualFolder(folder)}>
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
-                  <span class="folder-icon">Folder</span>
+                  <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{folder.name}</strong>
                   <small>Hosted path</small>
                 </button>
               {/if}
             {/each}
-            {#each visibleBrowserItems as item (item.project_item_id)}
+            {#each pageBrowserItems as item (item.project_item_id)}
+              <div class="stored-item-entry" class:selected={storedItemSelected(item.project_item_id)}
+                onclickcapture={(event) => handleStoredSelectionClick(event, item)}
+                oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
               <ProjectBrowserItem
                 {item}
                 {viewMode}
@@ -1425,8 +2326,9 @@
                 loadProjectEmbed={loadProjectEmbed}
                 onOpenFullscreen={openStoredFullscreen}
               />
+              </div>
             {/each}
-            {#each visibleBrowserSources as source (source.source_id)}
+            {#each pageBrowserSources as source (source.source_id)}
               {#if viewMode === 'tile'}
                 <div class="folder-preview remote-preview-badged" data-testid="project-connected-source-root" data-status={source.status}>
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
@@ -1439,13 +2341,22 @@
                     appIconName="files"
                     status={source.status === 'connected' ? 'finished' : 'failed'}
                     skillName={source.displayName || source.source_id}
-                    customStatusText={`${source.source_type.replaceAll('_', ' ')} · ${source.status.replaceAll('_', ' ')}`}
+                    customStatusText={source.status === 'connected' ? remoteRootStatus(source.source_id) : source.status.replaceAll('_', ' ')}
                     showSkillIcon={false}
                     onFullscreen={source.status === 'connected' ? () => void browseRemoteSource(source) : undefined}
                   >
                     {#snippet details()}
                       <span class="folder-card-contents">
-                        <span class="folder-child-row"><span class="folder-child-icon child-folder" aria-hidden="true"></span><span>{$text('projects.connected_source')}</span><small>{typeof source.metadata.root === 'string' ? source.metadata.root : source.source_type.replaceAll('_', ' ')}</small></span>
+                        {#each remoteRootChildren(source.source_id) as child (child.path)}
+                          <span class="folder-child-row"><span class:child-folder={child.kind === 'directory'} class="folder-child-icon" aria-hidden="true"></span><span>{child.path.split('/').at(-1) || child.path}</span></span>
+                        {:else}
+                          <span class="folder-empty-row">{source.status === 'connected' ? remoteRootEntries[source.source_id] ? 'Empty folder' : remoteRootStatus(source.source_id) : source.status.replaceAll('_', ' ')}</span>
+                        {/each}
+                        {#if (remoteRootOmitted[source.source_id] ?? 0) > 0}
+                          <span class="folder-more-row">More files &amp; folders</span>
+                        {:else if (remoteRootEntries[source.source_id]?.length ?? 0) > 3}
+                          <span class="folder-more-row">+ {(remoteRootEntries[source.source_id]?.length ?? 0) - 3} more files &amp; folders</span>
+                        {/if}
                       </span>
                     {/snippet}
                   </UnifiedEmbedPreview>
@@ -1460,71 +2371,50 @@
                   onclick={() => void browseRemoteSource(source)}
                 >
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
-                  <span class="source-root-icon">{$text('projects.connected_source')}</span>
+                  <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{source.displayName || source.source_id}</strong>
-                  <small>{source.source_type.replaceAll('_', ' ')} · {source.status.replaceAll('_', ' ')}</small>
+                  <small>{source.status === 'connected' ? remoteRootStatus(source.source_id) : source.status.replaceAll('_', ' ')}</small>
                 </button>
               {/if}
             {/each}
-        </div>
-
+            {#if !activeRemoteSource && storedEntryCount > FILES_PAGE_SIZE}
+              <nav class="files-page-controls" data-testid="project-files-page-controls" aria-label="Project file pages">
+                <button type="button" disabled={storedPageIndex === 0} onclick={() => showStoredPage(storedPageIndex - 1)}>Previous</button>
+                <span>Page {storedPageIndex + 1} of {Math.ceil(storedEntryCount / FILES_PAGE_SIZE)}</span>
+                <button type="button" disabled={(storedPageIndex + 1) * FILES_PAGE_SIZE >= storedEntryCount} onclick={() => showStoredPage(storedPageIndex + 1)}>Next</button>
+              </nav>
+            {/if}
         {#if activeRemoteSource}
           <div class="remote-browser" data-testid="project-remote-browser">
-            <div class="remote-path-row">
-              <button
-                type="button"
-                data-testid="project-remote-parent"
-                disabled={remotePath === '.' || isRemoteLoading}
-                onclick={() => void browseRemoteSource(activeRemoteSource, remoteParentPath(remotePath))}
-              >Up</button>
-              <nav class="remote-breadcrumbs" aria-label="Connected source path">
-                <button type="button" onclick={() => void browseRemoteSource(activeRemoteSource, '.')}>{activeRemoteSource.displayName || 'Source root'}</button>
-                {#each remotePathBreadcrumbs(remotePath) as crumb, index (crumb.path)}
-                  <span>/</span>
-                  {#if index === remotePathBreadcrumbs(remotePath).length - 1}
-                    <code aria-current="page">{crumb.label}</code>
-                  {:else}
-                    <button type="button" onclick={() => void browseRemoteSource(activeRemoteSource, crumb.path)}>{crumb.label}</button>
-                  {/if}
-                {/each}
-              </nav>
-              <button type="button" disabled={isRemoteLoading} onclick={() => void browseRemoteSource(activeRemoteSource, remotePath)}>Refresh</button>
-            </div>
-            <form class="remote-search" onsubmit={(event) => { event.preventDefault(); void searchRemoteSource(activeRemoteSource); }}>
-              <input
-                bind:value={remoteSearchQuery}
-                data-testid="project-remote-search-input"
-                placeholder="Search this source"
-                aria-label="Search this remote source"
-              />
-              <button data-testid="project-remote-search-submit" type="submit" disabled={!remoteSearchQuery.trim() || isRemoteLoading}>Search</button>
-            </form>
             {#if remoteError}
               <p class="remote-error" data-testid="project-remote-error">{remoteError}</p>
+              {#if remoteNeedsSignIn}
+                <button type="button" data-testid="project-source-relogin" onclick={() => void signOutToReconnectSource()}>
+                  {$text('projects.source_session_relogin')}
+                </button>
+              {/if}
             {/if}
-            {#if remoteOmittedCount > 0}
+            {#if remoteOmittedCount > 0 && !remoteNextCursor}
               <p class="remote-limit-notice" data-testid="project-remote-results-truncated">{$text('projects.remote_results_limited')}</p>
-            {/if}
-            {#if remoteExcludedCount > 0}
-              <p class="muted" data-testid="project-remote-results-protected">{$text('projects.remote_results_protected')}</p>
             {/if}
             {#if isRemoteLoading}
               <p class="muted" data-testid="project-remote-loading">Loading from your device...</p>
-            {:else if remoteSearchMatches.length > 0}
-              <div class="remote-results remote-search-results" data-testid="project-remote-search-results">
-                {#each remoteSearchMatches as match (`${match.path}:${match.line}`)}
-                  <button class="remote-result" type="button" onclick={() => void openRemoteFile(activeRemoteSource, match.path)}>
-                    <strong>{match.path}</strong>
-                    <small>Line {match.line}</small>
-                    <span>{match.snippet}</span>
-                  </button>
-                {/each}
-              </div>
             {:else}
               <div class="remote-results" data-testid="project-remote-directory-results">
-                {#each remoteEntries as entry (entry.path)}
+                {#each visibleRemoteEntries as entry (entry.path)}
                   {#if entry.kind === 'directory'}
-                    <div class="folder-preview remote-preview-badged" data-testid="project-remote-entry" data-kind="directory">
+                    {#if viewMode === 'list'}
+                      <button class="remote-list-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="directory" type="button"
+                        onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' }) : void openRemoteEntry(activeRemoteSource, entry)}
+                        oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' })}>
+                        <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
+                        <strong>{entry.path.split('/').at(-1) || entry.path}</strong>
+                        <small>{remoteFolderStatus(entry)}</small>
+                      </button>
+                    {:else}
+                    <div class="folder-preview remote-preview-badged" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="directory"
+                      onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' })}
+                      oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' })}>
                       <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
                       <UnifiedEmbedPreview
                         id={`${activeRemoteSource.source_id}:${entry.path}`}
@@ -1535,53 +2425,96 @@
                         appIconName="files"
                         status="finished"
                         skillName={entry.path.split('/').filter(Boolean).pop() || entry.path}
-                        customStatusText="Connected folder"
+                        customStatusText={remoteFolderStatus(entry)}
                         showSkillIcon={false}
                         onFullscreen={() => void openRemoteEntry(activeRemoteSource, entry)}
                       >
                         {#snippet details()}
                           <span class="folder-card-contents">
-                            <span class="folder-child-row"><span class="folder-child-icon child-folder" aria-hidden="true"></span><span>{entry.path}</span><small>Folder</small></span>
+                            {#each entry.children ?? [] as child (child.path)}
+                              <span class="folder-child-row" data-testid="project-remote-folder-child"><span class:child-folder={child.kind === 'directory'} class="folder-child-icon" aria-hidden="true"></span><span>{child.path.split('/').at(-1) || child.path}</span></span>
+                            {:else}
+                              <span class="folder-empty-row">{entry.childSummaryTruncated ? 'Preview limited' : entry.childFileCount === 0 && entry.childFolderCount === 0 ? 'Empty folder' : 'Open to view contents'}</span>
+                            {/each}
+                            {#if entry.childSummaryTruncated}
+                              <span class="folder-more-row">More files &amp; folders</span>
+                            {:else if (entry.childFileCount ?? 0) + (entry.childFolderCount ?? 0) > (entry.children?.length ?? 0)}
+                              <span class="folder-more-row">+ {(entry.childFileCount ?? 0) + (entry.childFolderCount ?? 0) - (entry.children?.length ?? 0)} more files &amp; folders</span>
+                            {/if}
                           </span>
                         {/snippet}
                       </UnifiedEmbedPreview>
                     </div>
+                    {/if}
                   {:else}
                     {@const previewEntry = remoteEntryPreview(activeRemoteSource, entry)}
-                    <div class="remote-file-entry" data-testid="project-remote-entry" data-kind="file">
+                    {#if viewMode === 'list'}
+                      <button class="remote-list-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="file" type="button"
+                        onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' }) : void openRemoteFile(activeRemoteSource, entry.path)}
+                        oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' })}>
+                        <span class="remote-list-icon" data-app={remoteListApp(entry.path)} aria-hidden="true"></span>
+                        <strong>{entry.path.split('/').at(-1) || entry.path}</strong>
+                        <small>{entry.sizeBytes === undefined ? 'File' : remoteFileSizeLabel(entry.sizeBytes)}</small>
+                      </button>
+                    {:else}
+                    <div class="remote-file-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="file"
+                      onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' })}
+                      oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' })}>
                       <ProjectRemotePreviewCard
                         preview={previewEntry.preview}
                         sourceLabel={previewEntry.sourceLabel}
-                        canUpload={previewEntry.canImport}
-                        isUploading={isSaving}
                         previewOnly={viewerSplitOpen}
+                        imageSrc={remoteImageUrls[`${activeRemoteSource.source_id}:${entry.path}`]}
                         onOpenFullscreen={() => void openRemoteFile(activeRemoteSource, entry.path)}
-                        onUpload={() => void handleUploadRemotePreview(previewEntry)}
+                        onOpenFile={() => void openRemoteFileDetails(activeRemoteSource, entry.path, entry.sizeBytes)}
                       />
                     </div>
+                    {/if}
                   {/if}
                 {/each}
-                {#if remoteEntries.length === 0}
+                {#if visibleRemoteEntries.length === 0}
                   <p class="muted">No readable entries in this folder.</p>
                 {/if}
               </div>
             {/if}
+            {#if !isRemoteLoading && (remotePageIndex > 0 || remoteNextCursor)}
+              <nav class="files-page-controls" data-testid="project-remote-page-controls" aria-label="Connected folder pages">
+                <button type="button" disabled={remotePageIndex === 0} onclick={() => void showRemotePage(remotePageIndex - 1)}>Previous</button>
+                <span>Page {remotePageIndex + 1}</span>
+                <button type="button" disabled={!remoteNextCursor} onclick={() => void showRemotePage(remotePageIndex + 1)}>Next</button>
+              </nav>
+            {/if}
             <div class="source-previews">
               {#each remotePreviewEntries.filter((entry) => entry.preview.embed.content.source_id === activeRemoteSource.source_id
                 && !remoteEntries.some((remoteEntry) => remoteEntry.path === entry.preview.embed.content.path)) as previewEntry (previewEntry.preview.embed.embed_id)}
+                {#if viewMode === 'list'}
+                  <button class="remote-list-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, previewEntry.preview.embed.content.path)} type="button"
+                    onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' }) : void openRemotePreview(previewEntry.preview)}
+                    oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' })}>
+                    <span class="remote-list-icon" data-app={remoteListApp(previewEntry.preview.embed.content.path)} aria-hidden="true"></span>
+                    <strong>{previewEntry.preview.embed.content.display_name}</strong>
+                    <small>File</small>
+                  </button>
+                {:else}
+                <div class="remote-file-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, previewEntry.preview.embed.content.path)}
+                  onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' })}
+                  oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' })}>
                 <ProjectRemotePreviewCard
                   preview={previewEntry.preview}
                   sourceLabel={previewEntry.sourceLabel}
-                  canUpload={previewEntry.canImport}
-                  isUploading={isSaving}
                   previewOnly={viewerSplitOpen}
+                  imageSrc={remoteImageUrls[`${activeRemoteSource.source_id}:${previewEntry.preview.embed.content.path}`]}
                   onOpenFullscreen={() => void openRemotePreview(previewEntry.preview)}
-                  onUpload={() => void handleUploadRemotePreview(previewEntry)}
+                  onOpenFile={() => void openRemoteFileDetails(activeRemoteSource, previewEntry.preview.embed.content.path, previewEntry.preview.embed.content.size_bytes)}
                 />
+                </div>
+                {/if}
               {/each}
             </div>
           </div>
         {/if}
+        {/if}
+        </div>
       </section>
 
 
@@ -1594,6 +2527,9 @@
             compact
             previewTasks={previewState?.tasks ?? null}
             previewProjectNames={previewState ? { [selectedProject.project_id]: selectedProject.name || 'Untitled project' } : {}}
+            onOpenTask={(task, canAssignCodex, onTaskChange) => {
+              projectTaskOverlay = { task, canAssignCodex, onTaskChange };
+            }}
           />
         {/key}
       </section>
@@ -1625,7 +2561,7 @@
     </div>
   </aside>
 {:else}
-  <div class="projects-workspace-layout" class:viewer-open={!!activeRemoteFullscreen || !!activeStoredFullscreen} bind:clientWidth={workspaceWidth}>
+  <div class="projects-workspace-layout" class:viewer-open={!!activeRemoteFullscreen || !!activeRemoteGenericFile || !!activeRemoteImage || !!activeStoredFullscreen} bind:clientWidth={workspaceWidth}>
     <section class="projects-page" data-testid="projects-page">
       {#if selectedProject}
         <main class="project-main" data-testid="project-management" bind:this={projectMainElement}>
@@ -1664,9 +2600,20 @@
           </svelte:fragment>
         </WorkspaceHomeShell>
       {/if}
+      {#if projectTaskOverlay && activeTab === 'tasks' && selectedProject}
+        <TaskDetailFullscreen
+          task={projectTaskOverlay.task}
+          canAssignCodex={projectTaskOverlay.canAssignCodex}
+          onTaskChange={(task) => {
+            projectTaskOverlay?.onTaskChange(task);
+            if (projectTaskOverlay) projectTaskOverlay = { ...projectTaskOverlay, task };
+          }}
+          onClose={() => { projectTaskOverlay = null; }}
+        />
+      {/if}
     </section>
 
-    {#if activeRemoteFullscreen || activeStoredFullscreen}
+    {#if activeRemoteFullscreen || activeRemoteGenericFile || activeRemoteImage || activeStoredFullscreen}
       <aside class="project-embed-viewer" data-testid="project-embed-viewer" aria-label="Project embed viewer">
         {#if activeRemoteFullscreen}
           <div
@@ -1682,6 +2629,39 @@
               }}
               embedId={activeRemoteFullscreen.embedId}
               onClose={closeRemotePreview}
+              onImport={activeRemoteImportEntry ? importActiveRemotePreview : undefined}
+              isImporting={isSaving}
+              onDownloadOverride={() => downloadRemoteFile(
+                String(activeRemoteFullscreen.decodedContent.source_id || activeRemoteSourceId || ''),
+                String(activeRemoteFullscreen.decodedContent.path || ''),
+              )}
+            />
+          </div>
+        {:else if activeRemoteImage}
+          <div class="projects-remote-fullscreen" data-testid="project-remote-fullscreen-overlay" onclickcapture={handleRemoteFullscreenClick}>
+            <ImageEmbedFullscreen
+              data={{ decodedContent: {
+                src: activeRemoteImage.src,
+                filename: activeRemoteImage.filename,
+                fileSize: activeRemoteImage.sizeBytes,
+              }, attrs: {}, embedData: {} }}
+              onClose={closeRemotePreview}
+            />
+          </div>
+        {:else if activeRemoteGenericFile}
+          <div class="projects-remote-fullscreen" data-testid="project-remote-fullscreen-overlay" onclickcapture={handleRemoteFullscreenClick}>
+            <FileEmbedFullscreen
+              data={{ decodedContent: {
+                filename: activeRemoteGenericFile.filename,
+                normalized_path: activeRemoteGenericFile.path,
+                size_bytes: activeRemoteGenericFile.sizeBytes,
+                mime_type: 'application/octet-stream',
+              }, attrs: {}, embedData: {} }}
+              onClose={closeRemotePreview}
+              onDownload={remoteDownloadProgress
+                ? undefined
+                : () => void downloadRemoteFileOrNotify(activeRemoteGenericFile.sourceId, activeRemoteGenericFile.path)}
+              downloadUnavailableMessage="Download in progress."
             />
           </div>
         {:else if activeStoredFullscreen}
@@ -1707,9 +2687,53 @@
             {/await}
           {/if}
         {/if}
+        {#if remoteDownloadProgress}
+          <div class="remote-download-status" data-testid="project-remote-download-status" role="status" aria-live="polite">
+            <span>
+              Downloading {remoteDownloadProgress.path.split('/').pop() || 'file'}:
+              {remoteFileSizeLabel(remoteDownloadProgress.downloadedBytes)}
+              {#if remoteDownloadProgress.totalBytes > 0}
+                of {remoteFileSizeLabel(remoteDownloadProgress.totalBytes)}
+              {/if}
+            </span>
+            <button type="button" onclick={cancelRemoteDownload} data-testid="project-remote-download-cancel">Cancel</button>
+          </div>
+        {/if}
       </aside>
     {/if}
   </div>
+{/if}
+
+{#if remoteContextMenu}
+  <EmbedContextMenu
+    x={remoteContextMenu.x}
+    y={remoteContextMenu.y}
+    show
+    showView={false}
+    showShare={false}
+    showCopy
+    showMove
+    showDownload={remoteContextMenu.entry.kind === 'file'}
+    onClose={() => (remoteContextMenu = null)}
+    onCopy={() => remoteContextMenu && stageRemoteTransfer('copy', [remoteContextMenu.entry])}
+    onMove={() => remoteContextMenu && stageRemoteTransfer('move', [remoteContextMenu.entry])}
+    onDownload={() => { if (remoteContextMenu?.entry.kind === 'file') void downloadRemoteFileOrNotify(remoteContextMenu.entry.sourceId, remoteContextMenu.entry.path); }}
+  />
+{/if}
+
+{#if storedContextMenu}
+  <EmbedContextMenu
+    x={storedContextMenu.x}
+    y={storedContextMenu.y}
+    show
+    showView={false}
+    showShare={false}
+    showCopy
+    showMove
+    onClose={() => (storedContextMenu = null)}
+    onCopy={() => storedContextMenu && stageStoredTransfer('copy', [storedContextMenu.item])}
+    onMove={() => storedContextMenu && stageStoredTransfer('move', [storedContextMenu.item])}
+  />
 {/if}
 
 {#if pendingProjectName}
@@ -1771,6 +2795,31 @@
     border-radius: var(--radius-5);
     background: var(--color-grey-0);
     box-shadow: var(--shadow-lg);
+  }
+
+  .remote-download-status {
+    position: absolute;
+    z-index: 2;
+    inset-inline: var(--spacing-12);
+    bottom: var(--spacing-12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-8);
+    padding: var(--spacing-8) var(--spacing-12);
+    border-radius: var(--radius-8);
+    background: var(--color-grey-10);
+    box-shadow: var(--shadow-lg);
+    color: var(--color-font-primary);
+  }
+
+  .remote-download-status button {
+    border: 0;
+    border-radius: var(--radius-8);
+    padding: var(--spacing-4) var(--spacing-8);
+    background: var(--color-grey-25);
+    color: var(--color-font-primary);
+    cursor: pointer;
   }
 
   @container project-workspace (min-width: 1024px) {
@@ -2049,6 +3098,7 @@
 
   .project-tabs :global(.settings-tabs-wrapper) { padding: 0; }
   .project-tabs :global(.settings-tab.active .tab-icon) { background-color: var(--color-white-fixed, #fff); }
+  .project-tabs :global(.settings-tab:hover .tab-icon) { background-color: var(--color-white-fixed, #fff); }
 
   .project-panel {
     position: relative;
@@ -2070,7 +3120,6 @@
 
   .overview-panel :global(.project-readme) { border: 0; }
 
-  .folders-panel { max-width: 64rem; }
   .tasks-panel { max-width: 64rem; padding: var(--spacing-8); overflow-x: auto; }
 
   .folder-summary-row {
@@ -2162,10 +3211,34 @@
     background: var(--color-grey-10);
   }
 
+  .project-action-expander {
+    display: grid;
+    min-width: 0;
+    width: min(18.75rem, 100%);
+    justify-self: center;
+  }
+
+  .browser-grid > .project-action-expander.expanded {
+    grid-column: 1 / -1;
+    width: 100%;
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    overflow: hidden;
+  }
+
+  .browser-list > .project-action-expander.expanded {
+    width: 100%;
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+  }
+
   .project-actions button {
     display: grid;
-    min-width: 6rem;
+    min-width: 0;
     min-height: 7rem;
+    flex: 1;
     place-items: center;
     align-content: center;
     gap: var(--spacing-4);
@@ -2214,13 +3287,34 @@
   }
 
   .create-menu.folder-create-menu {
-    position: relative;
+    position: static;
     inset: auto;
     width: 100%;
-    margin-bottom: var(--spacing-8);
+    margin: 0;
     transform: none;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    min-height: 10rem;
+    border: 0;
+    border-inline-start: 1px solid var(--color-grey-30);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
+
+  .create-menu.folder-create-menu button {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    align-content: center;
+    gap: var(--spacing-4);
+    min-width: 0;
+    min-height: 10rem;
+    color: var(--color-font-secondary);
+    text-align: center;
+  }
+
+  .create-menu.folder-create-menu .menu-icon { width: 1.75rem; height: 1.75rem; }
 
   .create-menu button {
     display: flex;
@@ -2270,7 +3364,29 @@
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 16px;
+    flex-wrap: wrap;
   }
+
+  .file-selection-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-inline-start: auto;
+  }
+
+  .file-selection-actions button {
+    min-height: 2.5rem;
+    padding: var(--spacing-2) var(--spacing-5);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    transition: background-color var(--duration-normal) var(--easing-default);
+  }
+
+  .file-selection-actions button:hover:not(:disabled) { background: var(--color-grey-20); }
+  .file-selection-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .selected-count { color: var(--color-font-secondary); }
 
   .view-toggle {
     display: inline-flex;
@@ -2293,14 +3409,85 @@
 
   .browser-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
   }
 
   .browser-list {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
+
+  .files-page-controls {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) 0;
+    color: var(--color-font-secondary);
+  }
+
+  .files-page-controls button {
+    min-height: 2.75rem;
+    padding: 0 var(--spacing-5);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+  }
+
+  .files-page-controls button:disabled { opacity: 0.45; cursor: default; }
+  .files-page-controls button:focus-visible { outline: 2px solid var(--color-focus, var(--color-font-primary)); }
+
+  .project-search-results { display: contents; }
+  .search-section-heading { grid-column: 1 / -1; margin: var(--spacing-5) 0 0; }
+  .search-result-card { width: min(18.75rem, 100%); min-width: 0; justify-self: center; }
+  .search-result-location {
+    display: block;
+    overflow: hidden;
+    padding: var(--spacing-2) var(--spacing-3);
+    color: var(--color-font-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .remote-list-entry {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--spacing-5);
+    width: 100%;
+    min-height: 4rem;
+    padding: var(--spacing-4) var(--spacing-7);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
+    box-shadow: none;
+    color: var(--color-font-primary);
+    text-align: start;
+    scale: 1;
+    transition: background-color 0.2s ease;
+  }
+
+  .remote-list-entry:hover { background: var(--color-grey-20); scale: 1; transform: none; }
+  .remote-list-entry.selected { background: var(--color-grey-20); outline: 2px solid var(--color-primary); }
+  .remote-list-entry strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .remote-list-entry small { color: var(--color-font-secondary); }
+  .remote-list-entry:focus-visible { outline: 2px solid var(--color-focus, var(--color-font-primary)); }
+  .remote-list-icon { position: relative; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--color-app-files); }
+  .remote-list-icon::after { position: absolute; inset: 0.65rem; content: ''; background: var(--color-white-fixed, #fff); -webkit-mask: var(--icon-url-files) center / contain no-repeat; mask: var(--icon-url-files) center / contain no-repeat; }
+  .remote-list-icon[data-app='code'] { background: var(--color-app-code); }
+  .remote-list-icon[data-app='code']::after { -webkit-mask-image: var(--icon-url-coding); mask-image: var(--icon-url-coding); }
+  .remote-list-icon[data-app='docs'] { background: var(--color-app-docs); }
+  .remote-list-icon[data-app='docs']::after { -webkit-mask-image: var(--icon-url-docs); mask-image: var(--icon-url-docs); }
+  .remote-list-icon[data-app='sheets'] { background: var(--color-app-sheets); }
+  .remote-list-icon[data-app='sheets']::after { -webkit-mask-image: var(--icon-url-sheets); mask-image: var(--icon-url-sheets); }
+  .remote-list-icon[data-app='images'] { background: var(--color-app-images); }
+  .remote-list-icon[data-app='images']::after { -webkit-mask-image: var(--icon-url-image); mask-image: var(--icon-url-image); }
+  .remote-list-icon[data-app='pdf'] { background: var(--color-app-pdfeditor); }
+  .remote-list-icon[data-app='pdf']::after { -webkit-mask-image: var(--icon-url-pdf); mask-image: var(--icon-url-pdf); }
 
   .folder-entry,
   .source-root-entry {
@@ -2315,19 +3502,20 @@
   .folder-entry.list,
   .source-root-entry.list {
     display: grid;
-    grid-template-columns: minmax(90px, 140px) 1fr auto;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
     align-items: center;
-    min-height: 64px;
-    padding: 0 14px;
+    gap: var(--spacing-5);
+    min-height: 4rem;
+    padding: var(--spacing-4) var(--spacing-7);
+    border: 1px solid var(--color-grey-20);
+    background: var(--color-grey-0);
     box-shadow: none;
+    scale: 1;
+    transition: background-color 0.2s ease;
   }
 
-  .folder-icon {
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+  .folder-entry.list:hover,
+  .source-root-entry.list:hover:not(:disabled) { background: var(--color-grey-20); scale: 1; transform: none; }
 
   .folder-preview {
     display: flex;
@@ -2342,8 +3530,7 @@
   }
 
   .folder-preview.remote-preview-badged {
-    width: fit-content;
-    max-width: 100%;
+    width: min(18.75rem, 100%);
     justify-self: center;
   }
 
@@ -2370,7 +3557,9 @@
   }
 
   .folder-preview :global(.unified-embed-preview) {
-    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    flex: 0 1 auto;
   }
 
   .folder-child-row > span:nth-child(2) {
@@ -2421,15 +3610,7 @@
     opacity: 0.68;
   }
 
-  .source-root-icon {
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .project-breadcrumbs,
-  .remote-breadcrumbs {
+  .project-breadcrumbs {
     display: flex;
     min-width: 0;
     align-items: center;
@@ -2438,7 +3619,6 @@
   }
 
   .breadcrumb-button {
-    margin-top: 8px;
     padding: 0;
     background: transparent;
     color: var(--color-font-secondary);
@@ -2465,73 +3645,39 @@
   }
 
   .source-previews {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(18.75rem, 100%), 18.75rem));
-    gap: 14px;
+    display: contents;
   }
 
   .remote-browser {
-    display: grid;
-    gap: var(--spacing-8);
-    margin-top: var(--spacing-8);
-    padding: var(--spacing-8);
-    border-radius: var(--radius-5);
-    background: var(--color-grey-10);
-  }
-
-  .remote-path-row,
-  .remote-search {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-  }
-
-  .remote-breadcrumbs {
-    flex: 1;
+    display: contents;
   }
 
   .remote-results {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(18.75rem, 100%), 18.75rem));
-    align-items: start;
-    gap: var(--spacing-4);
-  }
-
-  .remote-search-results {
-    grid-template-columns: 1fr;
-  }
-
-  .remote-result {
-    display: grid;
-    gap: var(--spacing-2);
-    width: 100%;
-    color: var(--color-font-primary);
-    text-align: start;
-    background: var(--color-grey-0);
-    border: 1px solid var(--color-grey-25);
+    display: contents;
   }
 
   .remote-file-entry {
     width: min(18.75rem, 100%);
     min-width: 0;
+    justify-self: center;
   }
+
+  .stored-item-entry { min-width: 0; width: 100%; }
 
   .remote-file-entry :global(.remote-preview-card) {
     width: 100%;
   }
 
-  .remote-result small {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xs);
+  .remote-file-entry.selected :global(.remote-preview-card),
+  .folder-preview.selected :global(.unified-embed-preview),
+  .search-result-card.selected :global(.remote-preview-card),
+  .stored-item-entry.selected :global(.unified-embed-preview),
+  .stored-item-entry.selected :global(.browser-item.list) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-5);
   }
 
-  .remote-result span {
-    overflow: hidden;
-    color: var(--color-font-secondary);
-    font-family: monospace;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
   .remote-error {
     margin: 0;
@@ -2546,11 +3692,22 @@
     background: var(--color-grey-0);
   }
 
+  @container project-page (max-width: 1199px) {
+    .browser-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @container project-page (max-width: 700px) {
+    .browser-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+
   @container project-page (max-width: 500px) {
     .project-panel {
       width: calc(100% - var(--spacing-4));
       padding-inline: var(--spacing-5);
     }
+
+    .remote-list-entry { grid-template-columns: 2.5rem minmax(0, 1fr); }
+    .remote-list-entry small { display: none; }
 
     .folder-summary-row {
       grid-template-columns: 1fr auto;
@@ -2562,39 +3719,8 @@
       grid-row: 2;
     }
 
-    .browser-grid,
-    .remote-results,
-    .source-previews {
+    .browser-grid {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .remote-browser {
-      padding: var(--spacing-4);
-    }
-
-    .remote-path-row {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      gap: var(--spacing-2);
-    }
-
-    .remote-breadcrumbs {
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .remote-breadcrumbs button,
-    .remote-breadcrumbs code {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .remote-search {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--spacing-2);
     }
 
     .remote-file-entry,
@@ -2652,17 +3778,10 @@
     .folder-search input { text-align: start; }
     .project-actions { width: 100%; min-height: 8rem; }
     .project-actions button { min-width: 0; min-height: 6rem; flex: 1; }
-    .create-menu.folder-create-menu { grid-template-columns: 1fr; }
-    .create-menu.folder-create-menu button + button { border-inline-start: 0; border-top: 1px solid var(--color-grey-25); }
+    .browser-grid > .project-action-expander.expanded,
+    .browser-list > .project-action-expander.expanded { grid-template-columns: 1fr; }
+    .create-menu.folder-create-menu { min-height: 7rem; border-inline-start: 0; border-top: 1px solid var(--color-grey-30); }
+    .create-menu.folder-create-menu button { min-height: 7rem; }
 
-    .remote-path-row,
-    .remote-search {
-      align-items: stretch;
-      flex-wrap: wrap;
-    }
-
-    .remote-breadcrumbs {
-      flex-basis: 100%;
-    }
   }
 </style>

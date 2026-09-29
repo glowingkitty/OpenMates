@@ -489,6 +489,259 @@ async def test_anonymous_sse_forwards_transient_app_skill_embeds(monkeypatch: py
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chats.streaming.ordered-final,billing.anonymous.local-only-content
+async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import MethodType
+
+    fake_celery_module = ModuleType("celery")
+    fake_celery_module.Celery = object
+    monkeypatch.setitem(sys.modules, "celery", fake_celery_module)
+    import backend.apps.ai.skills.ask_skill as ask_skill_module
+    from backend.apps.ai.skills.ask_skill import AskSkill, AskSkillResponse, OpenAICompletionRequest
+    from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
+
+    app_fence = (
+        '```json\n{"type":"app_skill_use","embed_id":"result-1",'
+        '"app_id":"web","skill_id":"search"}\n```\n\n'
+    )
+    snapshots = [
+        app_fence,
+        app_fence + "This draft answer is longer and will be replaced.",
+        app_fence + "Corrected",
+        app_fence + "Corrected [source](embed:source-ref).\n\n" + STANDARDIZED_USER_ERROR_MESSAGE,
+    ]
+    task_id = "redis-prefix-rewrite-task"
+    resolved_embed = {
+        "embed_id": "result-1",
+        "type": "app_skill_use",
+        "content": "app_id: web\nskill_id: search\nstatus: finished",
+        "status": "finished",
+    }
+    notifications: list[tuple[str, str, str]] = []
+
+    async def fake_notify(request_identity: str, *, stage: str, category: str) -> None:
+        notifications.append((request_identity, stage, category))
+
+    class FakeRedisStreamCache:
+        async def get_user_vault_key_id(self, _user_id: str) -> None:
+            return None
+
+        async def subscribe_to_channel(self, _channel: str):
+            for index, snapshot in enumerate(snapshots):
+                yield {
+                    "data": {
+                        "task_id": task_id,
+                        "full_content_so_far": snapshot,
+                        "is_final_chunk": index == len(snapshots) - 1,
+                        "error": index == len(snapshots) - 1,
+                        "model_name": "google/gemini-test",
+                        "anonymous_embeds": [resolved_embed] if index == len(snapshots) - 1 else None,
+                    }
+                }
+
+    fake_cache_module = ModuleType("backend.core.api.app.services.cache")
+    fake_cache_module.CacheService = FakeRedisStreamCache
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.cache", fake_cache_module)
+    monkeypatch.setattr(ask_skill_module, "notify_chat_failure", fake_notify)
+    monkeypatch.setattr(anonymous_routes, "notify_chat_failure", fake_notify)
+
+    skill = object.__new__(AskSkill)
+
+    async def fake_handle_internal(_self: AskSkill, _request: Any) -> AskSkillResponse:
+        return AskSkillResponse(task_id=task_id)
+
+    async def no_embeds(_self: AskSkill, _content: str, _chat_id: str, _vault_key: str | None = None) -> list[dict]:
+        return []
+
+    skill._handle_internal_request = MethodType(fake_handle_internal, skill)
+    skill._extract_and_resolve_embeds = MethodType(no_embeds, skill)
+
+    openai_frames: list[str] = []
+
+    class FakeRegistry:
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> StreamingResponse:
+            assert (app_id, skill_id) == ("ai", "ask")
+            assert request_body["_chat_id"] == "anonymous-chat-1"
+            assert request_body["_message_id"] == "message-1"
+            openai_request = OpenAICompletionRequest.model_validate(request_body)
+            internal_request = await skill._transform_openai_to_internal(openai_request)
+
+            async def recorded_openai_stream():
+                async for frame in skill._stream_openai_response(internal_request, openai_request):
+                    openai_frames.append(frame)
+                    yield frame
+
+            return StreamingResponse(recorded_openai_stream(), media_type="text/event-stream")
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(
+        AnonymousFreeUsageService,
+        "open_request",
+        lambda self, **kwargs: asyncio.sleep(0, result=AnonymousReservationResult(accepted=True, request_id=kwargs["request_id"])),
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/v1/anonymous/chat/stream",
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+        "client": ("198.51.100.7", 443),
+    })
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1",
+        client_chat_id="anonymous-chat-1",
+        client_message_id="message-1",
+        plaintext_message="Search and summarize",
+    )
+
+    response = await anonymous_chat_stream(
+        request=request,
+        payload=payload,
+        directus_service=FakeDirectus(),
+        cache_service=FakeCache(),
+    )
+    body = ""
+    async for chunk in response.body_iterator:
+        body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
+
+    events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
+    final_chunk = next(event for event in events if event["type"] == "ai_message_chunk" and event["is_final_chunk"])
+    assert final_chunk["full_content_so_far"] == snapshots[-1]
+    assert final_chunk["rejection_reason"] == "anonymous_inference_failed"
+    assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
+    assert not any(event["type"] == "post_processing_completed" for event in events)
+    assert [event["payload"]["embed_id"] for event in events if event["type"] == "send_embed_data"] == ["result-1"]
+    assert notifications == [("anonymous-chat-1:message-1", "inference", "processing_error")]
+
+    openai_payloads = [
+        json.loads(frame.removeprefix("data: ").strip())
+        for frame in openai_frames
+        if frame.startswith("data: {")
+    ]
+    assert openai_payloads[-1]["full_content"] == snapshots[-1]
+    assert openai_payloads[-1]["choices"][0]["delta"] == {}
+    assert openai_payloads[-1]["choices"][0]["finish_reason"] == "error"
+    emitted_deltas = [
+        choice.get("delta", {}).get("content")
+        for frame in openai_payloads
+        for choice in frame.get("choices", [])
+        if choice.get("delta", {}).get("content")
+    ]
+    assert snapshots[2] not in emitted_deltas
+    assert snapshots[-1] not in emitted_deltas
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final
+async def test_openai_stream_missing_terminal_frame_notifies_once_and_returns_error_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import MethodType
+
+    fake_celery_module = ModuleType("celery")
+    fake_celery_module.Celery = object
+    monkeypatch.setitem(sys.modules, "celery", fake_celery_module)
+    import backend.apps.ai.skills.ask_skill as ask_skill_module
+    from backend.apps.ai.skills.ask_skill import AskSkill, AskSkillResponse, OpenAICompletionRequest
+
+    task_id = "delivery-failure-task"
+    notifications: list[tuple[str, str, str]] = []
+
+    async def fake_notify(request_identity: str, *, stage: str, category: str) -> None:
+        notifications.append((request_identity, stage, category))
+
+    class MissingTerminalRedisStreamCache:
+        async def get_user_vault_key_id(self, _user_id: str) -> None:
+            return None
+
+        async def subscribe_to_channel(self, _channel: str):
+            yield {
+                "data": {
+                    "task_id": task_id,
+                    "full_content_so_far": "partial answer",
+                    "is_final_chunk": False,
+                    "error": False,
+                }
+            }
+            await asyncio.Event().wait()
+
+    fake_cache_module = ModuleType("backend.core.api.app.services.cache")
+    fake_cache_module.CacheService = MissingTerminalRedisStreamCache
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.cache", fake_cache_module)
+    monkeypatch.setattr(ask_skill_module, "notify_chat_failure", fake_notify)
+    monkeypatch.setattr(ask_skill_module, "OPENAI_STREAM_COMPLETION_TIMEOUT_SECONDS", 0.01)
+
+    skill = object.__new__(AskSkill)
+
+    async def fake_handle_internal(_self: AskSkill, _request: Any) -> AskSkillResponse:
+        return AskSkillResponse(task_id=task_id)
+
+    skill._handle_internal_request = MethodType(fake_handle_internal, skill)
+    internal_request = SimpleNamespace(chat_id="anonymous-chat-1", message_id="message-1", user_id="anonymous")
+    openai_request = OpenAICompletionRequest(messages=[{"role": "user", "content": "hello"}], stream=True)
+
+    frames = [frame async for frame in skill._stream_openai_response(internal_request, openai_request)]
+    payloads = [json.loads(frame.removeprefix("data: ").strip()) for frame in frames if frame.startswith("data: {")]
+
+    failure_identity = "anonymous-chat-1:message-1"
+    assert notifications == [(failure_identity, "streaming", "delivery_error")]
+    assert payloads[-1]["choices"][0]["finish_reason"] == "error"
+    assert payloads[-1]["choices"][0]["delta"]["content"] == "Error: AI stream timed out before receiving a terminal frame"
+    assert frames[-1] == "data: [DONE]\n\n"
+
+    class FakeRegistry:
+        async def dispatch_skill(self, _app_id: str, _skill_id: str, _request_body: dict) -> StreamingResponse:
+            async def replay_error_stream():
+                for frame in frames:
+                    yield frame
+
+            return StreamingResponse(replay_error_stream(), media_type="text/event-stream")
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+    monkeypatch.setattr(anonymous_routes, "notify_chat_failure", fake_notify)
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(
+        AnonymousFreeUsageService,
+        "open_request",
+        lambda self, **kwargs: asyncio.sleep(0, result=AnonymousReservationResult(accepted=True, request_id=kwargs["request_id"])),
+    )
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/v1/anonymous/chat/stream",
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+        "client": ("198.51.100.7", 443),
+    })
+    response = await anonymous_chat_stream(
+        request=request,
+        payload=AnonymousChatStreamRequest(
+            anonymous_id="anon-1",
+            client_chat_id="anonymous-chat-1",
+            client_message_id="message-1",
+            plaintext_message="hello",
+        ),
+        directus_service=FakeDirectus(),
+        cache_service=FakeCache(),
+    )
+    body = ""
+    async for chunk in response.body_iterator:
+        body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
+    events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
+    final = next(event for event in events if event.get("is_final_chunk"))
+    assert final["full_content_so_far"] == anonymous_routes.ANONYMOUS_INFERENCE_ERROR_MESSAGE
+    assert final["rejection_reason"] == "anonymous_inference_failed"
+    assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
+    assert notifications == [(failure_identity, "streaming", "delivery_error")]
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 async def test_anonymous_sse_does_not_double_finalize_worker_usage(
     monkeypatch: pytest.MonkeyPatch,
@@ -572,6 +825,11 @@ async def test_anonymous_sse_does_not_double_finalize_worker_usage(
 async def test_anonymous_sse_sanitizes_internal_inference_errors(
     monkeypatch: pytest.MonkeyPatch, transport: str, answer: str | None,
 ) -> None:
+    notifications: list[tuple[str, str, str]] = []
+
+    async def fake_notify(request_identity: str, *, stage: str, category: str) -> None:
+        notifications.append((request_identity, stage, category))
+
     async def accepted_open_request(
         self: AnonymousFreeUsageService,
         *,
@@ -596,6 +854,7 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(
     fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
     fake_skill_registry_module.get_global_registry = lambda: FailingRegistry()
     monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(anonymous_routes, "notify_chat_failure", fake_notify)
     monkeypatch.setattr(AnonymousFreeUsageService, "open_request", accepted_open_request)
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
 
@@ -618,6 +877,9 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(
             await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail["code"] == "anonymous_inference_failed"
+        assert len(notifications) == 1
+        assert notifications[0][0] == "chat-1:message-1"
+        assert notifications[0][1:] == ("streaming", "delivery_error")
         return
 
     response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
@@ -634,6 +896,9 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(
     assert finals[0]["rejection_reason"] == "anonymous_inference_failed"
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)
+    assert len(notifications) == 1
+    assert notifications[0][0] == "chat-1:message-1"
+    assert notifications[0][1:] == ("streaming", "delivery_error")
 
 
 @pytest.mark.asyncio

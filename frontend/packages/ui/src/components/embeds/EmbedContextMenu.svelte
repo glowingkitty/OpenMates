@@ -45,6 +45,8 @@
     showShare?: boolean;
     /** Whether to show Copy action */
     showCopy?: boolean;
+    /** Whether to show Move action for Project files */
+    showMove?: boolean;
     /** Whether to show Download action */
     showDownload?: boolean;
     /** Whether to show Add memory / Forget action */
@@ -65,6 +67,8 @@
     onShare?: () => void;
     /** Callback when Copy action is triggered */
     onCopy?: () => void;
+    /** Callback when Move action is triggered */
+    onMove?: () => void;
     /** Callback when Download action is triggered */
     onDownload?: () => void;
     /** Callback when Add memory / Forget action is triggered */
@@ -85,6 +89,7 @@
     showView = true,
     showShare = true,
     showCopy = false,
+    showMove = false,
     showDownload = false,
     showAddMemory = false,
     addMemoryLabel = 'Add memory',
@@ -95,6 +100,7 @@
     onView,
     onShare,
     onCopy,
+    onMove,
     onDownload,
     onAddMemory,
     onDeactivate,
@@ -236,7 +242,7 @@
   /**
    * Action type for menu items
    */
-  type MenuAction = 'view' | 'share' | 'copy' | 'download' | 'add-memory' | 'deactivate' | 'details';
+  type MenuAction = 'view' | 'share' | 'copy' | 'move' | 'download' | 'add-memory' | 'deactivate' | 'details';
 
   /**
    * Get the callback for a given action
@@ -246,6 +252,7 @@
       case 'view': return onView;
       case 'share': return onShare;
       case 'copy': return onCopy;
+      case 'move': return onMove;
       case 'download': return onDownload;
       case 'add-memory': return onAddMemory;
       case 'deactivate': return onDeactivate;
@@ -401,6 +408,17 @@
       </button>
     {/if}
 
+    {#if showMove}
+      <button
+        class="menu-item move"
+        onpointerdown={handleButtonPointerDown}
+        onclick={(event) => handleButtonClick('move', event)}
+      >
+        <span class="move-icon" aria-hidden="true">→</span>
+        Move
+      </button>
+    {/if}
+
     <!-- Download action - downloads embed content -->
     {#if showDownload}
       <button
@@ -550,6 +568,8 @@
   .menu-item:hover {
     background-color: var(--color-grey-20);
   }
+
+  .move-icon { display: inline-grid; place-items: center; width: 14px; height: 14px; font-size: var(--font-size-md); line-height: 1; }
 
   /* iOS touch feedback */
   .menu-item:active {

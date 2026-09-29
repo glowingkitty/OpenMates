@@ -24,6 +24,11 @@ const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const SERVER_TRIGGER_TASK_IDENTITY_PREFIX = 'server-trigger:';
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
+const MAX_FAILURE_ALERT_CANDIDATES = 100;
+const EXPECTED_FAILURE_CATEGORIES = new Set([
+  'harmful_content', 'harmful_or_illegal_detected', 'insufficient_credits',
+  'insufficient_team_credits', 'misuse_detected', 'policy_rejection', 'user_cancelled',
+]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const HEX_64_RE = /^[0-9a-f]{64}$/;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
@@ -74,7 +79,10 @@ const OPERATION_FIELDS = Object.freeze({
     'lease_token', 'expected_messages_v', 'encrypted_assistant_message',
   ]),
   invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash']),
-  cleanup_expired: new Set(['protocol_version']),
+  cleanup_expired: new Set(['protocol_version', 'failure_alerts_enabled']),
+  acknowledge_failure_alert: new Set([
+    'protocol_version', 'preflight_id', 'inference_task_id', 'failure_category',
+  ]),
   get_cutover_state: new Set(['protocol_version']),
   set_sends_paused: new Set(['protocol_version', 'sends_paused']),
   admit_legacy_inference: new Set(['protocol_version', 'task_identity']),
@@ -705,14 +713,25 @@ async function claimInference(database, raw, now) {
     const row = await trx(PREFLIGHTS).where({ inference_task_id: taskId }).forUpdate().first();
     if (!row || row.deletion_invalidated_at) fail(404, 'inference_task_not_found');
     if (!inferenceClaimDecision(row.state)) {
-      return { inference_task_id: taskId, claimed: false, state: row.state };
+      return {
+        inference_task_id: taskId,
+        claimed: false,
+        state: row.state,
+        ...(row.state === 'FAILED' ? { failure_category: row.failure_category } : {}),
+      };
     }
     if (new Date(row.expires_at) <= now) {
       await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({
         state: 'FAILED', failed_at: now, failure_category: 'claim_expired',
+        failure_alert_pending_at: now,
       });
       await trx(OUTBOX).where({ id: row.outbox_id }).update({ state: 'FAILED', last_error_category: 'claim_expired' });
-      return { inference_task_id: taskId, claimed: false, state: 'FAILED' };
+      return {
+        inference_task_id: taskId,
+        claimed: false,
+        state: 'FAILED',
+        failure_category: 'claim_expired',
+      };
     }
     const updated = await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({ state: 'RUNNING', running_at: now });
     if (updated !== 1) fail(409, 'inference_claim_conflict');
@@ -775,6 +794,7 @@ async function markInferenceFailed(database, raw, now) {
     const previousState = row.state;
     const updated = await trx(PREFLIGHTS).where({ id: row.id, state: previousState }).update({
       state: 'FAILED', failed_at: now, failure_category: category,
+      failure_alert_pending_at: EXPECTED_FAILURE_CATEGORIES.has(category) ? null : now,
     });
     if (updated !== 1) fail(409, 'inference_failure_conflict');
     await trx(OUTBOX).where({ id: row.outbox_id }).update({ state: 'FAILED', last_error_category: category });
@@ -993,6 +1013,10 @@ async function invalidateDeletion(database, raw, now) {
 
 async function cleanupExpired(database, raw, now) {
   const body = operationBody(raw, 'cleanup_expired');
+  if ('failure_alerts_enabled' in body && typeof body.failure_alerts_enabled !== 'boolean') {
+    fail(400, 'invalid_request');
+  }
+  const failureAlertsEnabled = body.failure_alerts_enabled === true;
   return database.transaction(async (trx) => {
     const protocolState = await lockedProtocolState(trx);
     const prunedLegacy = pruneExpiredLegacyState(protocolState, now);
@@ -1001,34 +1025,108 @@ async function cleanupExpired(database, raw, now) {
         legacyStateUpdate(prunedLegacy.activeTasks, prunedLegacy.lifecycle),
       );
     }
-    const abandonedIds = await trx(PREFLIGHTS).whereIn('state', ['PREPARED', 'ENQUEUED'])
-      .andWhere('expires_at', '<=', now).pluck('id');
-    const runningIds = await trx(PREFLIGHTS).where({ state: 'RUNNING' }).andWhere('expires_at', '<=', now).pluck('id');
+    // Lock the preflights before inspecting sealed jobs, matching the writer's
+    // preflight-first serialization point for new sealed jobs.
+    const expiredRows = await trx(PREFLIGHTS).whereIn('state', ['PREPARED', 'ENQUEUED', 'RUNNING'])
+      .andWhere('expires_at', '<=', now).forUpdate().select([
+        'id', 'state', 'inference_task_id',
+      ]);
+    const preparedIds = expiredRows.filter((row) => row.state === 'PREPARED').map((row) => row.id);
+    const malformedEnqueuedIds = expiredRows
+      .filter((row) => row.state === 'ENQUEUED' && !row.inference_task_id).map((row) => row.id);
+    const expiredEnqueuedIds = expiredRows
+      .filter((row) => row.state === 'ENQUEUED' && row.inference_task_id).map((row) => row.id);
+    const runningIds = expiredRows.filter((row) => row.state === 'RUNNING').map((row) => row.id);
     const sealedPreflightIds = runningIds.length
       ? await trx(JOBS).whereIn('preflight_id', runningIds).pluck('preflight_id')
       : [];
-    const failedIds = unsealedPreflightIds(runningIds, sealedPreflightIds);
+    const workerTimeoutIds = unsealedPreflightIds(runningIds, sealedPreflightIds);
+    const abandonedIds = [...preparedIds, ...malformedEnqueuedIds];
     const abandonedPreflights = abandonedIds.length
       ? await trx(PREFLIGHTS).whereIn('id', abandonedIds).update({ state: 'ABANDONED' })
       : 0;
-    const failedInferences = failedIds.length
-      ? await trx(PREFLIGHTS).whereIn('id', failedIds).update({
+    const expiredEnqueued = expiredEnqueuedIds.length
+      ? await trx(PREFLIGHTS).whereIn('id', expiredEnqueuedIds).update({
+        state: 'FAILED', failed_at: now, failure_category: 'claim_expired',
+        failure_alert_pending_at: now,
+      })
+      : 0;
+    const workerTimeouts = workerTimeoutIds.length
+      ? await trx(PREFLIGHTS).whereIn('id', workerTimeoutIds).update({
         state: 'FAILED', failed_at: now, failure_category: 'worker_timeout',
+        failure_alert_pending_at: now,
       })
       : 0;
     if (abandonedIds.length) await trx(OUTBOX).whereIn('preflight_id', abandonedIds).where({ state: 'PENDING' }).delete();
-    if (failedIds.length) await trx(OUTBOX).whereIn('preflight_id', failedIds).update({
+    if (expiredEnqueuedIds.length) await trx(OUTBOX).whereIn('preflight_id', expiredEnqueuedIds).update({
+      state: 'FAILED', last_error_category: 'claim_expired',
+    });
+    if (workerTimeoutIds.length) await trx(OUTBOX).whereIn('preflight_id', workerTimeoutIds).update({
       state: 'FAILED', last_error_category: 'worker_timeout',
     });
+    const expiringJobPreflightIds = await trx(JOBS).whereIn('state', ['AVAILABLE', 'LEASED'])
+      .andWhere('expires_at', '<=', now).pluck('preflight_id');
+    if (expiringJobPreflightIds.length) {
+      await trx(PREFLIGHTS).whereIn('id', expiringJobPreflightIds).where({ state: 'RUNNING' })
+        .update({ state: 'ABANDONED' });
+    }
+    const failureAlertCandidates = failureAlertsEnabled
+      ? await trx(PREFLIGHTS)
+        .where({ state: 'FAILED' })
+        .whereNotIn('failure_category', [...EXPECTED_FAILURE_CATEGORIES])
+        .whereNotNull('failure_alert_pending_at')
+        .whereNull('failure_alert_queued_at')
+        .whereNull('deletion_invalidated_at')
+        .whereNotNull('inference_task_id')
+        .orderBy('failed_at', 'asc')
+        .orderBy('id', 'asc')
+        .limit(MAX_FAILURE_ALERT_CANDIDATES)
+        .select(['id', 'inference_task_id', 'chat_id', 'user_message_id', 'failure_category'])
+      : [];
     return {
       expired_jobs: await trx(JOBS).whereIn('state', ['AVAILABLE', 'LEASED']).andWhere('expires_at', '<=', now).delete(),
       expired_tombstones: await trx(JOBS).where({ state: 'TERMINAL' }).andWhere('tombstone_expires_at', '<=', now).delete(),
       abandoned_preflights: abandonedPreflights,
-      failed_inferences: failedInferences,
+      failed_inferences: expiredEnqueued + workerTimeouts,
+      failure_alert_candidates: failureAlertCandidates.map((row) => ({
+        preflight_id: row.id,
+        inference_task_id: row.inference_task_id,
+        chat_id: row.chat_id,
+        user_message_id: row.user_message_id,
+        failure_category: row.failure_category,
+      })),
       expired_outbox: await trx(OUTBOX).whereIn('state', ['DISPATCHED', 'FAILED'])
         .andWhere('created_at', '<=', new Date(now.getTime() - PREFLIGHT_TTL_MS)).delete(),
       ...prunedLegacy.counts,
     };
+  });
+}
+
+async function acknowledgeFailureAlert(database, raw, now) {
+  const body = operationBody(raw, 'acknowledge_failure_alert');
+  const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
+  const taskId = uuid(body.inference_task_id, 'invalid_task_id');
+  const category = string(body.failure_category, 'invalid_failure_category', 64);
+  if (!/^[a-z0-9][a-z0-9_:-]*$/.test(category)) fail(400, 'invalid_failure_category');
+  if (EXPECTED_FAILURE_CATEGORIES.has(category)) fail(409, 'failure_alert_state_mismatch');
+  return database.transaction(async (trx) => {
+    const row = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
+    if (!row || row.inference_task_id !== taskId) fail(404, 'failure_alert_not_found');
+    if (row.state !== 'FAILED' || row.failure_category !== category || !row.failure_alert_pending_at
+      || row.deletion_invalidated_at) {
+      fail(409, 'failure_alert_state_mismatch');
+    }
+    if (row.failure_alert_queued_at) {
+      return { preflight_id: preflightId, acknowledged: false, idempotent: true };
+    }
+    const updated = await trx(PREFLIGHTS).where({
+      id: preflightId,
+      inference_task_id: taskId,
+      state: 'FAILED',
+      failure_category: category,
+    }).whereNull('failure_alert_queued_at').update({ failure_alert_queued_at: now });
+    if (updated !== 1) fail(409, 'failure_alert_ack_conflict');
+    return { preflight_id: preflightId, acknowledged: true, idempotent: false };
   });
 }
 
@@ -1039,7 +1137,7 @@ export const operations = Object.freeze({
   create_sealed_job: createSealedJob, list_available_jobs: listAvailableJobs,
   lease_job: leaseJob, renew_lease: renewLease,
   persist_terminal: persistTerminal, invalidate_deletion: invalidateDeletion,
-  cleanup_expired: cleanupExpired,
+  cleanup_expired: cleanupExpired, acknowledge_failure_alert: acknowledgeFailureAlert,
   get_cutover_state: getCutoverState, set_sends_paused: setSendsPaused,
   admit_legacy_inference: admitLegacyInference,
   mark_legacy_inference_completed: markLegacyInferenceCompleted,

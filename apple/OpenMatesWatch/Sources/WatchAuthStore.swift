@@ -29,9 +29,17 @@ final class WatchAuthStore: ObservableObject {
     private static let diagnosticsCategory = "watch_auth"
 
     func checkSession() async {
+        if let pendingUser = PairPendingAckStore.userID() {
+            await clearRevokedSession(for: pendingUser)
+            return
+        }
         guard let user = Self.cachedUser() else {
             NativeDiagnostics.event("session_restore_missing_user", category: Self.diagnosticsCategory)
             state = .unauthenticated
+            return
+        }
+        if PairSessionDeadlineStore.isExpired(userID: user.id) {
+            await clearRevokedSession(for: user.id)
             return
         }
         guard (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil else {
@@ -53,7 +61,8 @@ final class WatchAuthStore: ObservableObject {
         }
     }
 
-    func completePairLogin(_ result: PairLoginResult) async throws {
+    func completePairLogin(_ result: PairLoginResult,
+                           acknowledge: () async throws -> Void) async throws {
         if result.loginResponse.needsDeviceVerification == true {
             throw AuthError.deviceVerificationRequired
         }
@@ -62,10 +71,21 @@ final class WatchAuthStore: ObservableObject {
         }
         ServerConfiguration.current = result.serverProfile.endpointConfiguration
         WatchServerProfileStore().saveSuccessfulProfile(result.serverProfile)
+        PairPendingAckStore.mark(userID: user.id)
         try await CryptoManager.shared.saveMasterKey(result.masterKey, for: user.id)
+        cacheAuthenticatedUser(user)
+        PairSessionDeadlineStore.save(userID: user.id, deadline: result.loginResponse.pairExpiresAt)
+        do {
+            try PairPendingAckStore.flushLocalPairState()
+            try await acknowledge()
+        } catch {
+            await clearRevokedSession(for: user.id)
+            throw error
+        }
+        PairPendingAckStore.clear()
         currentUser = user
         webSocketToken = result.loginResponse.wsToken
-        cacheAuthenticatedUser(user)
+        schedulePairDeadline(for: user.id)
         state = .authenticated
         NativeDiagnostics.event(
             "pair_login_authenticated",
@@ -119,6 +139,9 @@ final class WatchAuthStore: ObservableObject {
         try? await WatchChatOfflineCache().removeSnapshot()
         UserDefaults.standard.removeObject(forKey: Self.cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.defaults.removeObject(forKey: Self.cachedUserDefaultsKey)
+        PairSessionDeadlineStore.clear()
+        PairPendingAckStore.clear()
+        PairVerifiedAccountStore.clear()
         OpenMatesSharedEnvironment.cookieStorage.removeCookies()
         WatchCompatibleSession.resetNativeSessionId()
         WatchServerProfileStore().resetToProduction()
@@ -127,6 +150,17 @@ final class WatchAuthStore: ObservableObject {
         webSocketToken = nil
         errorMessage = nil
         state = .unauthenticated
+    }
+
+    private func schedulePairDeadline(for userID: String) {
+        guard let deadline = PairSessionDeadlineStore.deadline(userID: userID) else { return }
+        Task { @MainActor [weak self] in
+            let remaining = max(0, deadline - Int(Date().timeIntervalSince1970))
+            try? await Task.sleep(for: .seconds(Int64(remaining)))
+            guard let self, self.currentUser?.id == userID,
+                  PairSessionDeadlineStore.isExpired(userID: userID) else { return }
+            await self.clearRevokedSession(for: userID)
+        }
     }
 
     private func cacheAuthenticatedUser(_ user: UserProfile) {

@@ -145,7 +145,7 @@ import type {
 const processedFinalizedEmbeds = new Set<string>();
 const pendingFinalizedEmbedsByChat = new Map<
   string,
-  Map<string, EmbedDataPayload>
+  Map<string, { embedData: EmbedDataPayload; localOnly: boolean }>
 >();
 const pendingFinalizedEmbedQueuedAtByChat = new Map<string, number>();
 const pendingFinalizedEmbedFlushTimersByChat = new Map<
@@ -217,16 +217,17 @@ function queuePendingFinalizedEmbed(
   serviceInstance: ChatSynchronizationService,
   embedData: EmbedDataPayload,
   reason: string,
+  localOnly = false,
 ): boolean {
   if (!embedData.chat_id) return false;
 
   let pendingForChat = pendingFinalizedEmbedsByChat.get(embedData.chat_id);
   if (!pendingForChat) {
-    pendingForChat = new Map<string, EmbedDataPayload>();
+    pendingForChat = new Map<string, { embedData: EmbedDataPayload; localOnly: boolean }>();
     pendingFinalizedEmbedsByChat.set(embedData.chat_id, pendingForChat);
     pendingFinalizedEmbedQueuedAtByChat.set(embedData.chat_id, Date.now());
   }
-  pendingForChat.set(embedData.embed_id, embedData);
+  pendingForChat.set(embedData.embed_id, { embedData, localOnly });
   schedulePendingFinalizedEmbedsFlush(serviceInstance, embedData.chat_id);
   console.warn(
     `[ChatSyncService:AI] Queued finalized embed ${embedData.embed_id}; ${reason}`,
@@ -354,7 +355,7 @@ export async function flushPendingFinalizedEmbedsForChat(
   let processedThisPass = false;
   do {
     processedThisPass = false;
-    for (const [embedId, embedData] of Array.from(pendingForChat)) {
+    for (const [embedId, { embedData, localOnly }] of Array.from(pendingForChat)) {
       try {
         const payloadForRawChat: EmbedDataPayload = {
           ...embedData,
@@ -363,6 +364,8 @@ export async function flushPendingFinalizedEmbedsForChat(
         await handleSendEmbedDataImpl(
           serviceInstance,
           payloadForRawChat as unknown as SendEmbedDataPayload,
+          undefined,
+          { localOnly },
         );
         if (isEmbedAlreadyProcessed(embedId, embedData.version_number)) {
           pendingForChat.delete(embedId);
@@ -3872,6 +3875,7 @@ export async function handleSendEmbedDataImpl(
               serviceInstance,
               embedData,
               `local chat ${embedData.chat_id} is not available yet`,
+              options?.localOnly === true,
             )
           ) {
             return;
@@ -3895,6 +3899,7 @@ export async function handleSendEmbedDataImpl(
               serviceInstance,
               embedData,
               `chat key for ${embedData.chat_id} is not available yet`,
+              options?.localOnly === true,
             )
           ) {
             return;

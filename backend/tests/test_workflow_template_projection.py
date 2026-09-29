@@ -23,6 +23,7 @@ from backend.tests.test_workflows_models import FakeDirectusClient
 from backend.core.api.app.services.workflow_template_service import (
     WorkflowTemplateImportError,
     WorkflowTemplateProjectionRevokedError,
+    WorkflowTemplateProjectionNotFoundError,
     WorkflowTemplateProjectionService,
     WorkflowTemplateProjectionStaleError,
 )
@@ -56,6 +57,7 @@ def projection_service() -> tuple[WorkflowTemplateProjectionService, object]:
     return WorkflowTemplateProjectionService(runtime_service), runtime_service
 
 
+# contract-test: infrastructure
 def test_projection_persists_opaque_client_ciphertext_and_rejects_stale_snapshots() -> None:
     service, runtime_service = projection_service()
     workflow = runtime_service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
@@ -79,6 +81,15 @@ def test_projection_persists_opaque_client_ciphertext_and_rejects_stale_snapshot
     assert runtime_service.repository.workflows[workflow.id] == runtime_before
     assert "Daily rain alert" not in json.dumps(runtime_service.repository.template_projections, sort_keys=True)
 
+    recovered = service.get_owner_projection(workflow.id, "alice")
+    assert recovered.template_id == "template-rain-v1"
+    assert recovered.owner_wrapped_key == "owner:wrapped-template-key"
+    with pytest.raises(WorkflowNotFoundError):
+        service.get_owner_projection(workflow.id, "bob")
+    another = runtime_service.create_workflow("alice", "Unshared", rain_graph())
+    with pytest.raises(WorkflowTemplateProjectionNotFoundError):
+        service.get_owner_projection(another.id, "alice")
+
     runtime_service.update_workflow(workflow.id, "alice", title="Updated rain alert")
     with pytest.raises(WorkflowTemplateProjectionStaleError):
         service.upsert_projection(
@@ -93,6 +104,7 @@ def test_projection_persists_opaque_client_ciphertext_and_rejects_stale_snapshot
         )
 
 
+# contract-test: infrastructure
 def test_public_projection_retrieval_excludes_keys_and_respects_owner_revocation() -> None:
     service, runtime_service = projection_service()
     workflow = runtime_service.create_workflow("alice", "Daily rain alert", rain_graph())
@@ -129,6 +141,7 @@ def test_public_projection_retrieval_excludes_keys_and_respects_owner_revocation
     assert service.get_public_projection("template-rain-v1").ciphertext == "client:aes-gcm:ciphertext"
 
 
+# contract-test: infrastructure
 def test_projection_revocation_is_durable_in_directus_projection_storage() -> None:
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     directus = FakeDirectusClient()
@@ -155,6 +168,7 @@ def test_projection_revocation_is_durable_in_directus_projection_storage() -> No
     assert stored_projection["revoked_at"] is None
 
 
+# contract-test: infrastructure
 def test_imported_workflow_cannot_enable_from_an_unverified_binding_completion_claim() -> None:
     service, runtime_service = projection_service()
     imported = service.import_template("bob", template_payload())
@@ -168,6 +182,7 @@ def test_imported_workflow_cannot_enable_from_an_unverified_binding_completion_c
     assert not hasattr(runtime_service, "complete_import_binding")
 
 
+# contract-test: infrastructure
 def test_template_import_rejects_runtime_fields_and_creates_disabled_recipient_workflow() -> None:
     service, runtime_service = projection_service()
     unsafe_payload = template_payload()
@@ -197,6 +212,7 @@ def test_template_import_rejects_runtime_fields_and_creates_disabled_recipient_w
     "field_name",
     ["workflow_id", "version_id", "next_run_at", "claim_token", "wait_id", "output", "provider_response", "grant"],
 )
+# contract-test: infrastructure
 def test_template_import_rejects_recursive_runtime_and_sensitive_fields(field_name: str) -> None:
     service, _runtime_service = projection_service()
     payload = template_payload()

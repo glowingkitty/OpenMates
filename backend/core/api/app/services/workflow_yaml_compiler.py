@@ -22,6 +22,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowGraph,
     WorkflowNode,
     WorkflowNodeType,
+    validate_workflow_composition_refs,
     validate_workflow_readiness,
 )
 
@@ -178,6 +179,15 @@ def validate_workflow_yaml(source: str, capability_registry: Any | None = None) 
                     message="Workflow definition is not supported by the current runtime",
                 )
             ],
+        )
+
+    try:
+        validate_workflow_composition_refs(graph)
+    except ValueError as error:
+        return WorkflowYamlValidationResult(
+            draft_valid=False,
+            enable_ready=False,
+            diagnostics=[WorkflowYamlDiagnostic(code="ACTION_VARIABLE_REQUIRED", path="steps", message=str(error))],
         )
 
     readiness_diagnostics = _validate_enable_readiness(document, capability_registry)

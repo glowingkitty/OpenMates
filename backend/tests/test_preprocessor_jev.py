@@ -19,7 +19,7 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
         answers = {}
         for question_id, question in kwargs["questions"].items():
             if question["type"] == "noul":
-                probability = 0.9 if question_id in {"skill_0", "memory_0", "user_unhappy"} else 0.05
+                probability = 0.9 if question_id in {"skill_0", "memory_0", "user_unhappy", "model_llm"} else 0.05
                 answers[question_id] = {"type": "noul", "noul": probability}
             elif question["type"] == "score":
                 answers[question_id] = {
@@ -60,6 +60,7 @@ async def test_maps_bounded_decisions_without_generating_title(monkeypatch: pyte
     assert result["complexity"] == "simple"
     assert result["task_area"] == "code"
     assert result["relevant_app_skills"] == ["code-get_docs"]
+    assert result["ai_model_topics"] == ["llm"]
     assert result["load_app_settings_and_memories"] == ["code:preferred_technologies"]
     assert result["title"] is None
     assert result["icon_names"] == ["code"]

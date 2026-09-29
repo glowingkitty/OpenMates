@@ -358,6 +358,16 @@ project_item_presentation:
     input: {viewport: phone, selected_item: check-1}
     expect: {fullscreen_overlay: true, close_restores_scroll_and_filters: true}
 
+project_remote_file_previews:
+  - id: repository-root-and-folder
+    given: A connected repository has a visible ai folder containing api, prompts, and main.py, plus hidden and ignored entries.
+    when: A user opens the Project Files view.
+    then: The ai folder card lists its immediate visible children and summarizes their file count and size without opening their content. Hidden and ignored entries do not appear.
+  - id: unknown-file-download
+    given: A connected repository contains an unknown binary file named data.dat that is larger than 4 MiB.
+    when: A user opens its regular file card and chooses Download in the file detail.
+    then: The detail shows the filename, path, and size, and the original file bytes download only after that explicit choice without importing the file into OpenMates. The download verifies each bounded chunk and saves the complete file even though it exceeds 4 MiB.
+
 project_uploads:
   - id: encrypted-upload-embed
     input: {project: project-1, file: requirements.pdf}

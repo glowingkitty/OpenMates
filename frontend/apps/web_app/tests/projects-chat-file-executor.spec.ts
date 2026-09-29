@@ -407,7 +407,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
       const preview = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' });
       await expect(preview).toBeVisible({ timeout: 30_000 });
-      await preview.getByTestId('project-remote-preview-open').click();
+      await preview.locator('.unified-embed-preview').click();
       const overlay = page.getByTestId('project-remote-fullscreen-overlay');
       await expect(overlay).toBeVisible({ timeout: 30_000 });
       expect(await readFullscreenCodeLines(overlay)).toEqual([

@@ -44,6 +44,28 @@ export const variants = {
 		isFirstMessage: false
 	},
 
+	workflowRun: {
+		role: 'assistant' as const,
+		content: 'Here are the upcoming events.\n\n[View workflow run](/workflows#workflow-id=998a335e-741f-582c-885c-bf61d12ace93&workflow-tab=runs&run-id=118a335e-741f-582c-885c-bf61d12ace93)',
+		status: 'synced' as const,
+		messageParts: [],
+		containerWidth: 800,
+		isFirstMessage: false
+	},
+
+	/** Ratios next to prose and other formulas in a shared assistant message. */
+	inlineRatioMath: {
+		role: 'assistant' as const,
+		content:
+			'Menschen bevorzugen nicht universell Rechtecke im Verhältnis $1:1{,}618$. ' +
+			'Je nach Kontext werden oft Seitenverhältnisse wie $1:1{,}414$ ' +
+			'(das DIN-Format $\\sqrt{2}$) oder $1:1{,}5$ angenehm empfunden.',
+		status: 'synced' as const,
+		messageParts: [],
+		containerWidth: 800,
+		isFirstMessage: false
+	},
+
 	/** Streaming message */
 	streaming: {
 		role: 'assistant' as const,

@@ -121,6 +121,10 @@ preprocess_request_tool:
         for ordinary culture, travel, food, language, business, or neutral facts.
       - Enable subchats for explicit parallel/subagent requests or genuinely complex batch,
         comparison, research, coding, or test work; not ordinary factual requests.
+      - ai_model_topics identifies requests discussing AI models, their capabilities,
+        versions, availability, or coding subscriptions. Select every relevant family:
+        llm, image, video, audio. Do not select a family merely because the user
+        wants to create content with one of those tools. Return [] for unrelated requests.
       - Minimize private data: load only settings/memory keys needed by this request.
         Load all only when the user asks broadly what the system knows about them.
       - Select every skill that could materially help, but never invent an ID. Use web-search
@@ -174,6 +178,13 @@ preprocess_request_tool:
         enable_subchats:
           type: "boolean"
           description: "Whether subchats would materially help under the rules above."
+        ai_model_topics:
+          type: "array"
+          description: "AI model families discussed by the user, including coding assistant subscriptions; [] when the user is just using an AI tool or the request is unrelated."
+          items:
+            type: "string"
+            enum: ["llm", "image", "video", "audio"]
+          uniqueItems: true
         load_app_settings_and_memories:
           type: "array"
           description: "Relevant app_id:item_key values from the settings/memory catalogue above; otherwise []."
@@ -227,6 +238,7 @@ preprocess_request_tool:
         - "user_unhappy"
         - "china_model_sensitive"
         - "enable_subchats"
+        - "ai_model_topics"
         - "load_app_settings_and_memories"
         - "relevant_app_skills"
         - "relevant_focus_modes"

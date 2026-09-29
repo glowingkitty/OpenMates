@@ -24,7 +24,10 @@
   let { taskId = null }: { taskId?: string | null } = $props();
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let tasksEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:tasks'] !== true && $featureAvailabilityStore.disabledById !== null);
+  let tasksEnabled = $derived($featureAvailabilityStore.disabledById !== null && (
+    $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true ||
+    $featureAvailabilityStore.disabledById?.['platform:plans'] !== true
+  ));
   let routeTaskId = $derived(taskId ?? page.params.task_id ?? null);
 
   onMount(() => {

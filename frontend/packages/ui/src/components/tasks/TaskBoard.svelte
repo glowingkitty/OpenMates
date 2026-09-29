@@ -47,6 +47,11 @@
   ];
   let recentlyDroppedTaskId = $state<string | null>(null);
   let recentlyDroppedPlanId = $state<string | null>(null);
+  let draggedTaskId = $state<string | null>(null);
+  let dropTargetStatus = $state<UserTaskStatus | null>(null);
+  const initialVisibleCount = 30;
+  const additionalVisibleCount = 20;
+  let visibleCounts = $state<Partial<Record<UserTaskStatus, number>>>({});
   let clearDropTimer: ReturnType<typeof setTimeout> | null = null;
 
   function tasksFor(status: UserTaskStatus): TasksBoardItem[] {
@@ -72,8 +77,17 @@
     return tasksFor(status).length + plansFor(status).length;
   }
 
+  function visibleCount(status: UserTaskStatus): number {
+    return visibleCounts[status] ?? initialVisibleCount;
+  }
+
+  function showMore(status: UserTaskStatus): void {
+    visibleCounts[status] = visibleCount(status) + additionalVisibleCount;
+  }
+
   function handleDrop(event: DragEvent, status: UserTaskStatus): void {
     event.preventDefault();
+    dropTargetStatus = null;
     const planId = event.dataTransfer?.getData('application/x-openmates-plan-id');
     const taskId = event.dataTransfer?.getData('application/x-openmates-task-id') || (!planId ? event.dataTransfer?.getData('text/plain') : '');
     const plan = plans.find((candidate) => candidate.plan_id === planId);
@@ -92,6 +106,20 @@
       onMove(task, status);
     }
   }
+
+  function handleDragOver(event: DragEvent, status: UserTaskStatus): void {
+    event.preventDefault();
+    const task = tasks.find((candidate) => candidate.task_id === draggedTaskId);
+    dropTargetStatus = task && task.status !== status ? status : null;
+    if (event.dataTransfer) event.dataTransfer.dropEffect = dropTargetStatus ? 'move' : 'none';
+  }
+
+  function handleDragLeave(event: DragEvent, status: UserTaskStatus): void {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || !(event.currentTarget instanceof Node) || !event.currentTarget.contains(next)) {
+      if (dropTargetStatus === status) dropTargetStatus = null;
+    }
+  }
 </script>
 
 <div class="task-board" data-testid="task-board" data-board-state="mounted">
@@ -102,7 +130,8 @@
       data-testid={`task-column-${column.status}`}
       role="region"
       aria-label={`${column.title} task column`}
-      ondragover={(event) => event.preventDefault()}
+      ondragover={(event) => handleDragOver(event, column.status)}
+      ondragleave={(event) => handleDragLeave(event, column.status)}
       ondrop={(event) => handleDrop(event, column.status)}
     >
       <header>
@@ -115,7 +144,12 @@
       </header>
 
       <div class="task-column-list">
-        {#each tasksFor(column.status) as task (task.task_id)}
+        {#if dropTargetStatus === column.status}
+          <div class="task-column-drop-target" data-testid={`task-column-drop-target-${column.status}`} role="status">
+            Drop to mark {column.title}
+          </div>
+        {/if}
+        {#each tasksFor(column.status).slice(0, visibleCount(column.status)) as task (task.task_id)}
           <TaskCard
             {task}
             {onMove}
@@ -124,12 +158,14 @@
             {onDelete}
             {onCancelWorkflowRun}
             {onSelect}
+            onDragStart={(dragged) => { draggedTaskId = dragged.task_id; }}
+            onDragEnd={() => { draggedTaskId = null; dropTargetStatus = null; }}
             linkedProjectName={projectNames[task.linkedProjectIds[0]] ?? null}
             {assigneeAvatarUrl}
             wasRecentlyDropped={recentlyDroppedTaskId === task.task_id}
           />
         {/each}
-        {#each plansFor(column.status) as plan (plan.plan_id)}
+        {#each plansFor(column.status).slice(0, Math.max(0, visibleCount(column.status) - tasksFor(column.status).length)) as plan (plan.plan_id)}
           <PlanTaskCard
             {plan}
             column={column.status}
@@ -139,6 +175,14 @@
             wasRecentlyDropped={recentlyDroppedPlanId === plan.plan_id}
           />
         {/each}
+        {#if itemCount(column.status) > visibleCount(column.status)}
+          <button
+            type="button"
+            class="task-column-show-more"
+            data-testid={`task-column-show-more-${column.status}`}
+            onclick={() => showMore(column.status)}
+          >Show more</button>
+        {/if}
         {#if itemCount(column.status) === 0}
           <div class="task-column-empty" data-testid="task-column-empty">
             <span>No tasks or plans here.</span>
@@ -157,8 +201,7 @@
     width: 100%;
     min-width: 0;
     min-height: 20rem;
-    max-height: min(62vh, 720px);
-    overflow: auto;
+    overflow-x: auto;
     padding: var(--spacing-2) var(--spacing-2) var(--spacing-8);
     scroll-snap-type: x proximity;
     scrollbar-color: var(--color-grey-30) transparent;
@@ -211,6 +254,29 @@
   }
 
   .task-column-list { display: flex; flex-direction: column; gap: var(--spacing-6); }
+  .task-column-drop-target {
+    display: grid;
+    place-items: center;
+    min-height: 5.5rem;
+    padding: var(--spacing-4);
+    border: 2px dashed var(--status-accent);
+    border-radius: var(--radius-8);
+    background: color-mix(in srgb, var(--status-accent) 12%, var(--color-grey-0));
+    color: var(--color-font-primary);
+    font-size: var(--font-size-p);
+    font-weight: 700;
+    text-align: center;
+  }
+  .task-column-show-more {
+    align-self: flex-start;
+    border: 0;
+    background: transparent;
+    color: var(--color-font-secondary);
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .task-column-show-more:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
   .task-column-empty {
     min-height: var(--spacing-8);
   }
@@ -228,7 +294,6 @@
   @media (max-width: 900px) {
     .task-board {
       grid-template-columns: repeat(5, minmax(15rem, 16rem));
-      max-height: 58vh;
       padding-inline: 0;
       scroll-padding-inline: var(--spacing-4);
     }

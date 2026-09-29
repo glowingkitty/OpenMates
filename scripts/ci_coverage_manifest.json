@@ -46,6 +46,7 @@
         "learning-mode.spec.ts",
         "location-security-flow.spec.ts",
         "long-chat-history.spec.ts",
+        "logout-blocked-userdb-relogin.spec.ts",
         "model-toggle-settings.spec.ts",
         "newsletter-categories.spec.ts",
         "passkey-login-alternatives.spec.ts",
@@ -80,6 +81,7 @@
         "workflows-ai-authoring.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
+        "workflows-reorder-inputs.spec.ts",
         "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts"
       ]
@@ -97,8 +99,6 @@
         "proton-bridge-live.spec.ts",
         "reminder-email.spec.ts",
         "settings-change-email.spec.ts",
-        "signup-flow-passkey.spec.ts",
-        "signup-skip-2fa-flow.spec.ts",
         "test-account-preflight.spec.ts"
       ]
     },
@@ -169,6 +169,7 @@
       "specs": [
         "anonymous-cli-skill.spec.ts",
         "anonymous-free-chat.spec.ts",
+        "anonymous-free-usage-status.spec.ts",
         "anonymous-production-repair.spec.ts",
         "billing-settlement-recovery.spec.ts",
         "buy-credits-flow.spec.ts",
@@ -203,6 +204,7 @@
         "components/pdf-view-preview.spec.ts",
         "components/project-file-approval.spec.ts",
         "components/project-readme-figma.spec.ts",
+        "components/projects-file-actions.spec.ts",
         "components/remote-command-review.spec.ts",
         "components/projects-remote-preview.spec.ts",
         "components/projects-workspace-figma.spec.ts",
@@ -215,12 +217,17 @@
         "component-message-input-performance.spec.ts",
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
+        "components/chat-inline-ratio-math.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
+        "components/workflow-graph-reorder-inputs.spec.ts",
+        "components/workflow-value-view.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
+        "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/report-issue-confirmation.spec.ts",
@@ -255,6 +262,7 @@
         "notification-mobile.spec.ts",
         "notification-stack.spec.ts",
         "openmates-events.spec.ts",
+        "online-community-meetups.spec.ts",
         "page-load-performance.spec.ts",
         "paste-classification.spec.ts",
         "plumber-privacy-example.spec.ts",
@@ -307,6 +315,7 @@
         "hidden-chats-flow.spec.ts",
         "incognito-mode.spec.ts",
         "interactive-questions.spec.ts",
+        "logout-blocked-userdb-relogin.spec.ts",
         "message-highlights-touch.spec.ts",
         "model-override.spec.ts",
         "multi-session-encryption.spec.ts",
@@ -404,7 +413,8 @@
       "execution": "e2e",
       "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
       "specs": [
-        "apple-ui-contracts.spec.ts"
+        "apple-ui-contracts.spec.ts",
+        "profile-image-recovery.spec.ts"
       ]
     },
     "workflow_weather": {
@@ -422,6 +432,14 @@
       "enabling_work": "Preserve committed signed chat replay plus original direct CLI credential-free TI WEBENCH calls. API/AI stay on internal network; fixed HTTPS CONNECT allowlist admits only webench.ti.com, with end-to-end TLS and no paid-provider credentials.",
       "specs": [
         "skill-electronics-search-components.spec.ts"
+      ]
+    },
+    "local_email_signup": {
+      "execution": "e2e",
+      "enabling_work": "Run actual signup email tasks and rendered messages through isolated runner-local Mailpit; real Brevo-to-Gmail delivery is verified separately by the dev-host daily smoke.",
+      "specs": [
+        "signup-flow-passkey.spec.ts",
+        "signup-skip-2fa-flow.spec.ts"
       ]
     }
   },
@@ -447,6 +465,12 @@
       "source_environment_names": [
         "OPENMATES_LIVE_ANONYMOUS_CHAT_E2E"
       ]
+    },
+    "anonymous-free-usage-status.spec.ts": {
+      "dependency": "official_cloud_anonymous_budget",
+      "next_action": "Run the guest status contract in an isolated official-cloud billing profile. The public self-host runner does not expose this cloud-only route.",
+      "user_input_required": false,
+      "source_environment_names": []
     },
     "anonymous-production-repair.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
@@ -929,14 +953,6 @@
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
     },
-    "signup-flow-passkey.spec.ts": {
-      "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For signup-flow-passkey.spec.ts, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "SIGNUP_TEST_EMAIL_DOMAINS"
-      ]
-    },
     "signup-flow-stripe-eu.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
       "next_action": "Provision the real private cloud services and dedicated sandbox fixtures for completes signup and EU card purchase from Settings billing; public self-host behavior does not establish this assertion. Private source transfer and any real payment/inference credentials require explicit approval and per-run caps.",
@@ -950,17 +966,6 @@
       "next_action": "Provision the real private cloud services and dedicated sandbox fixtures for completes signup and Managed Payments purchase from Settings billing; public self-host behavior does not establish this assertion. Private source transfer and any real payment/inference credentials require explicit approval and per-run caps.",
       "user_input_required": true,
       "source_environment_names": [
-        "SIGNUP_TEST_EMAIL_DOMAINS"
-      ]
-    },
-    "signup-skip-2fa-flow.spec.ts": {
-      "dependency": "real_brevo_delivery_and_gmail_reader",
-      "next_action": "For lookup response does not reveal whether an account exists, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_API_URL",
-        "PLAYWRIGHT_TEST_BASE_URL",
         "SIGNUP_TEST_EMAIL_DOMAINS"
       ]
     },

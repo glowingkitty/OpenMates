@@ -34,6 +34,7 @@
 		chatDB,
 		chatListCache,
 		chatSyncService,
+		cleanupStaleConnectedProjectDownloads,
 		LOCAL_CHAT_LIST_CHANGED_EVENT,
 		webSocketService, // Import WebSocket service to listen for auth errors
 		mostUsedAppsStore, // Import most used apps store to fetch on app load
@@ -92,7 +93,7 @@
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
 	import ProjectsRoute from './projects/+page.svelte';
-	import PlansRoute from './plans/+page.svelte';
+	import PlanDetailRoute from './plans/+page.svelte';
 	import TasksRoute from './tasks/+page.svelte';
 	import { readWorkspaceHashRoute } from '$lib/workspaceHashRoute';
 
@@ -1634,6 +1635,8 @@
 
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+		// Sweep browser-local download staging left by a closed or crashed Projects tab.
+		void cleanupStaleConnectedProjectDownloads().catch(() => {});
 		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
 		window.addEventListener('popstate', handleHashChange);
@@ -1741,17 +1744,15 @@
 		window.addEventListener('touchend', edgeSwipeTouchEndHandler, { passive: true });
 		window.addEventListener('touchcancel', edgeSwipeTouchEndHandler, { passive: true });
 
-		// --- Pair session rehydration ---
-		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
-		// active before a page reload. Must run before any auth checks.
-		rehydratePairSession();
-
-		// Register the logout callback so the pair auto-logout timer can call it.
-		// Uses checkAuth(undefined, true) — same path as WebSocket auth error logout.
+		// Register cleanup before rehydrating an expired pair from storage.
 		registerPairLogoutCallback(async () => {
-			const { checkAuth } = await import('@repo/ui');
-			await checkAuth(undefined, true);
+			const { clearKeyFromStorage, logout } = await import('@repo/ui');
+			await clearKeyFromStorage();
+			const cleared = await logout({ skipServerLogout: true, isSessionExpiredLogout: true });
+			if (!cleared) throw new Error('Pair session local logout failed');
 		});
+		// Restore the restricted state and enforce its absolute deadline before auth checks.
+		await rehydratePairSession();
 
 		// --- Media mode (?media=1) / OG image mode (?og=1) ---
 		// When loaded inside /dev/media iframes, add body classes so CSS can hide
@@ -3563,9 +3564,9 @@
 	<WorkflowsRoute />
 {:else if workspaceHashRoute.workspace === 'projects'}
 	<ProjectsRoute />
-{:else if workspaceHashRoute.workspace === 'plans'}
+{:else if workspaceHashRoute.workspace === 'plan-detail'}
 	{#key workspaceHashRoute.itemId}
-		<PlansRoute planId={workspaceHashRoute.itemId} />
+		<PlanDetailRoute planId={workspaceHashRoute.itemId} />
 	{/key}
 {:else if workspaceHashRoute.workspace === 'tasks'}
 	{#key workspaceHashRoute.itemId}

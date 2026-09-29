@@ -21,6 +21,8 @@
     onDelete,
     onCancelWorkflowRun: _onCancelWorkflowRun,
     onSelect,
+    onDragStart,
+    onDragEnd,
     linkedProjectName = null,
     assigneeAvatarUrl = null,
     wasRecentlyDropped = false,
@@ -32,6 +34,8 @@
     onDelete: (task: TasksBoardItem) => void;
     onCancelWorkflowRun: (task: TasksBoardItem) => void;
     onSelect: (task: TasksBoardItem) => void;
+    onDragStart: (task: TasksBoardItem) => void;
+    onDragEnd: () => void;
     linkedProjectName?: string | null;
     assigneeAvatarUrl?: string | null;
     wasRecentlyDropped?: boolean;
@@ -60,6 +64,7 @@
 
   function handleDragStart(event: DragEvent): void {
     dragging = true;
+    onDragStart(task);
     event.dataTransfer?.setData('application/x-openmates-task-id', task.task_id);
     event.dataTransfer?.setData('text/plain', task.task_id);
     if (event.dataTransfer && event.currentTarget instanceof HTMLElement) {
@@ -72,7 +77,7 @@
       dragImage.style.inset = 'auto auto -1000px -1000px';
       dragImage.style.width = `${event.currentTarget.getBoundingClientRect().width}px`;
       dragImage.style.transition = 'none';
-      dragImage.style.transform = 'translateY(-8px) rotate(10deg) scale(1.02)';
+      dragImage.style.transform = 'translateY(-4px) rotate(3deg) scale(1.01)';
       dragImage.setAttribute('aria-hidden', 'true');
       document.body.append(dragImage);
       event.dataTransfer.setDragImage(dragImage, 12, 12);
@@ -82,6 +87,7 @@
 
   function handleDragEnd(): void {
     dragging = false;
+    onDragEnd();
   }
 
   function formatStatus(status: UserTaskStatus): string {
@@ -205,12 +211,12 @@
   .task-card.dragging {
     z-index: 8;
     cursor: grabbing;
-    transform: translateY(-8px) rotate(10deg) scale(1.02);
+    transform: translateY(-4px) rotate(3deg) scale(1.01);
     box-shadow: var(--shadow-xl);
   }
 
   .task-card.settling {
-    transform: translateY(-8px) rotate(10deg) scale(1.02);
+    transform: translateY(-4px) rotate(3deg) scale(1.01);
     transition: none;
   }
 

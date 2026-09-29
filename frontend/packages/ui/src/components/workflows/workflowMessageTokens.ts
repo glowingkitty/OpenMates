@@ -8,11 +8,13 @@ export function outputTemplateSyntax(reference: string): string {
   return `{{${reference.replace(/^\$nodes\./, 'steps.').replace('.output.', '.')}}}`;
 }
 
-export function outputToken(output: Pick<Output, 'reference' | 'label'>): JSONContent {
-  return { type: WORKFLOW_OUTPUT_NODE, attrs: { mentionType: 'workflow_output', displayName: output.label, mentionSyntax: outputTemplateSyntax(output.reference), mentionId: output.reference } };
+export function outputToken(output: Pick<Output, 'reference' | 'label' | 'appId'>): JSONContent {
+  const appId = /^[a-z0-9_-]+$/.test(output.appId ?? '') ? output.appId : '';
+  return { type: WORKFLOW_OUTPUT_NODE, attrs: { mentionType: 'workflow_output', displayName: output.label, mentionSyntax: outputTemplateSyntax(output.reference), mentionId: output.reference,
+    ...(appId ? { colorStart: `var(--color-app-${appId}-start, var(--color-primary-start))`, colorEnd: `var(--color-app-${appId}-end, var(--color-primary-end))` } : {}) } };
 }
 
-function parsedToken(expression: string, outputs: Pick<Output, 'reference' | 'label'>[]): JSONContent {
+function parsedToken(expression: string, outputs: Pick<Output, 'reference' | 'label' | 'appId'>[]): JSONContent {
   const path = expression.trim();
   const reference = path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path;
   const known = outputs.find(output => output.reference === reference);
@@ -23,7 +25,7 @@ function parsedToken(expression: string, outputs: Pick<Output, 'reference' | 'la
 }
 
 /** Templates are storage syntax only; editors receive plain text and atomic labels. */
-export function templateToDocument(template: string, outputs: Pick<Output, 'reference' | 'label'>[] = []): JSONContent {
+export function templateToDocument(template: string, outputs: Pick<Output, 'reference' | 'label' | 'appId'>[] = []): JSONContent {
   return { type: 'doc', content: template.split('\n').map(line => {
     const content: JSONContent[] = [];
     let offset = 0;

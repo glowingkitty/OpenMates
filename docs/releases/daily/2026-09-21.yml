@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-21'
-generated_at: '2026-09-22T00:20:20+00:00'
+generated_at: '2026-09-28T00:45:22+00:00'
 range:
   since: '2026-09-21T00:00:00+00:00'
   until: '2026-09-22T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 1
     internal: 0
     other: 0
-  newsletter_ready_items: 23
+  newsletter_ready_items: 24
   user_facing_items: 24
-  dev_only_items: 1
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,13 +60,6 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
-  - id: app:workflows
-    kind: app
-    default_enabled: true
-    effective_enabled: false
-    override: disabled
-    parent_id: null
-    source: backend/apps/workflows/app.yml
   - id: memory:health:appointments
     kind: memory
     default_enabled: false
@@ -148,7 +141,7 @@ feature_availability:
     kind: platform
     default_enabled: false
     effective_enabled: false
-    override: disabled
+    override: null
     parent_id: null
     source: platform
   - id: skill:models3d:generate
@@ -308,16 +301,16 @@ sections:
     - scripts/publish_stable_github_release.py
     - scripts/tests/test_publish_stable_github_release.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: preserve review media bucket compatibility'
     section: bug_fixes
     commits:
@@ -1059,14 +1052,7 @@ sections:
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: make stable releases authoritative'
-    commits:
-    - 27f8e88c7
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'feat: use Gemini 3.8 Flash for automatic routing'
@@ -1092,6 +1078,13 @@ unreleased_progress:
     related_features: []
 marketing_candidates:
   newsletter:
+  - title: 'fix: make stable releases authoritative'
+    commits:
+    - 27f8e88c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
   - title: 'fix: unblock Python SDK release'
     commits:
     - c313a92d2
@@ -1300,10 +1293,10 @@ marketing_candidates:
     commits:
     - 27f8e88c7
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix: unblock Python SDK release'
     commits:
     - c313a92d2
@@ -1541,7 +1534,7 @@ sources:
     short_sha: 27f8e88c7
     authored_at: '2026-09-21T23:19:04+00:00'
     subject: 'fix: make stable releases authoritative'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/publish-github-release.yml
@@ -2095,139 +2088,155 @@ sources:
     - scripts/tests/test_ci_schema_bundle.py
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates launched a public newsroom and social archive while upgrading its AI infrastructure with Gemini 3.8
-    Flash for automatic model routing. The update also focused heavily on application reliability, specifically regarding
-    issue reporting and AI skill execution.
+  overview: OpenMates introduced a public newsroom and social archive while upgrading its AI core to use Gemini 3.8 Flash
+    for more efficient routing. The update also focused heavily on refining the newsroom UI, improving composer draft handling,
+    and strengthening the reliability of issue reporting and AI skill execution.
   released_changes:
-  - text: OpenMates published a new public news blog and social archives, including a dedicated publication route and manifest
-      system.
+  - text: OpenMates launched a public news blog and social archives, featuring a newsroom interface aligned with the project's
+      design system.
     evidence:
       commits:
       - c6c58de28
+      - fda913a70
     release_status: released_main
-  - text: Gemini 3.8 Flash is now utilized for automatic AI model routing to improve processing efficiency.
+  - text: The AI engine now utilizes Gemini 3.8 Flash for automatic model routing, improving processing speed and selection
+      logic.
     evidence:
       commits:
       - d88d76bf6
     release_status: released_main
-  - text: Newsroom previews were updated to align with the Figma shell design, including layout and header adjustments.
-    evidence:
-      commits:
-      - fda913a70
-    release_status: released_main
   bug_fixes:
-  - text: AI skill reliability was improved by requiring explicit news search calls, preserving follow-up identities, and
-      suppressing fabricated tool results.
+  - text: Stable releases are now treated as authoritative within the CLI and server management workflows.
     evidence:
       commits:
+      - 27f8e88c7
+    release_status: released_main
+  - text: Resolved issues blocking the release of the Python SDK.
+    evidence:
+      commits:
+      - c313a92d2
+    release_status: released_main
+  - text: The composer now adopts saved drafts without requiring a full page reload.
+    evidence:
+      commits:
+      - 980044f9a
+    release_status: released_main
+  - text: Restored the latest news section to the chat sidebar.
+    evidence:
+      commits:
+      - bf8d9e272
+    release_status: released_main
+  - text: Refined AI skill reliability by requiring explicit news search calls, suppressing fabricated tool results, and preserving
+      mate identity during follow-ups.
+    evidence:
+      commits:
+      - 136c6b50f
       - 63af30199
       - e596775e9
       - 4304ca60e
-      - 136c6b50f
     release_status: released_main
-  - text: Issue reporting was made more durable with improved diagnostics for iPad audio sends and authenticated report storage.
+  - text: Improved the durability of issue reports and recovered audio sending capabilities for iPad users.
     evidence:
       commits:
       - f2fbe5fbb
       - 75227036b
     release_status: released_main
-  - text: The newsroom interface received extensive polish, including article-specific link previews, corrected sidebar icon
-      masks, and Vercel routing fixes.
+  - text: Fixed an issue where maps would fail to load without an app reload.
     evidence:
       commits:
-      - 8908b6f2a
+      - 185a03088
+    release_status: released_main
+  - text: Polished the newsroom experience with corrected layouts, sidebar toggles, article-specific link previews, and Vercel
+      routing fixes.
+    evidence:
+      commits:
+      - c474e9920
+      - 55b6375c9
       - d847d459d
-      - a92cd14cd
+      - 8908b6f2a
       - b298e4654
+      - a92cd14cd
+      - da96f56a4
       - cea68f51a
       - b84ca457c
-      - da96f56a4
-      - 55b6375c9
-      - c474e9920
-    release_status: released_main
-  - text: User experience fixes restored latest news to the chat sidebar, enabled draft adoption without composer reloads,
-      and recovered map loading and assistant speech replay.
-    evidence:
-      commits:
-      - bf8d9e272
-      - 980044f9a
-      - 185a03088
-      - 592da074d
-    release_status: released_main
-  - text: A blocking issue for the Python SDK release was resolved.
-    evidence:
-      commits:
-      - c313a92d2
     release_status: released_main
   unreleased_progress:
-  - text: Work is underway to make stable releases authoritative within the CLI and deployment workflows.
+  - text: Documentation updates for daily release intelligence and v0.19 planning.
     evidence:
       commits:
-      - 27f8e88c7
-    release_status: dev_only
+      - e81b760a5
+      - efeb976fe
+    release_status: released_main
   internal_progress:
-  - text: CI performance was optimized by enabling verified prepared builds by default and pinning the test harness across
-      consumers.
+  - text: Internal infrastructure updates focused on CI build efficiency, isolated test environments, and PDF generation for
+      specification approvals.
     evidence:
       commits:
-      - b3c8c3880
+      - 99c6ab220
+      - 4192ea708
+      - a080af6be
+      - f769a9c29
       - cf102512f
       - b4e6745b9
-      - 900be1a35
-      - f769a9c29
-    release_status: released_main
-  - text: Infrastructure updates included canonicalizing schema predicates and verifying Directus system collections.
-    evidence:
-      commits:
-      - 734f4d17c
       - 34fe7cfed
+      - 900be1a35
+      - 734f4d17c
+      - b3c8c3880
+      - e203b95cb
     release_status: released_main
   newsletter_recommendation:
     include:
-    - text: The launch of the public news blog and social archives.
+    - text: Launch of the public news blog and social archives.
       evidence:
         commits:
         - c6c58de28
-      reason: Major user-facing feature launch for public communication.
-    - text: Integration of Gemini 3.8 Flash for automatic AI model routing.
+      reason: Major new user-facing feature for community engagement.
+    - text: Integration of Gemini 3.8 Flash for faster, automatic model routing.
       evidence:
         commits:
         - d88d76bf6
-      reason: Significant AI capability upgrade ready for public announcement.
-    - text: Enhanced durability and actionability for user issue reports.
+      reason: Significant performance and intelligence upgrade for AI interactions.
+    - text: Seamless draft adoption in the message composer.
+      evidence:
+        commits:
+        - 980044f9a
+      reason: Direct improvement to the core chat and drafting experience.
+    - text: More robust and actionable issue reporting system.
       evidence:
         commits:
         - f2fbe5fbb
-      reason: Improves core application reliability and user support flow.
-    - text: Release of the unblocked Python SDK.
-      evidence:
-        commits:
-        - c313a92d2
-      reason: Relevant for developers using the OpenMates ecosystem.
+      reason: Enhances user trust and support reliability.
     exclude:
-    - text: Authoritative stable release logic for the CLI.
+    - text: Stable release authority fixes.
       evidence:
         commits:
         - 27f8e88c7
-      reason: This item is marked as dev_only and is not reachable from the main branch.
-    rationale: The primary focus for public communication should be the new newsroom and the AI routing upgrades, as these
-      provide the most visible value to users and developers.
+      reason: Technical fix for release management, less relevant for general users.
+    - text: Python SDK release unblocking.
+      evidence:
+        commits:
+        - c313a92d2
+      reason: Developer-focused SDK fix.
+    rationale: The launch of the public newsroom and the upgrade to Gemini 3.8 Flash represent the most significant product
+      updates for users. Improvements to the drafting experience and support tools provide immediate quality-of-life benefits.
   social_video_recommendations:
-  - idea: A walkthrough of the new OpenMates Newsroom and social archives.
-    priority: High
-    reason: The newsroom is a visually distinct new feature that serves as a hub for project updates.
+  - idea: A walkthrough of the new public newsroom, showing how users can browse social archives and project announcements
+      directly in the web app.
+    priority: high
+    reason: Visually distinct new feature that serves as a hub for community updates.
     evidence:
       commits:
       - c6c58de28
       - fda913a70
-  - idea: A technical demonstration of how Gemini 3.8 Flash handles automatic routing for different AI tasks.
-    priority: Medium
-    reason: Demonstrates the project's commitment to using state-of-the-art models for performance.
+  - idea: A technical short explaining how Gemini 3.8 Flash is used to route requests, demonstrating the speed of the new
+      automatic selection.
+    priority: medium
+    reason: Highlights the project's use of cutting-edge AI models to improve user experience.
     evidence:
       commits:
       - d88d76bf6
   quality_notes:
-  - The release shows a strong emphasis on UI/UX consistency between the newsroom and design specifications.
-  - Significant effort was directed toward AI routing reliability and preventing tool result fabrication.
-  - CI infrastructure is being actively optimized for faster, more reliable builds.
+  - Significant focus on UI/UX polish for the new publications feature.
+  - AI reliability improvements target specific edge cases in tool use and follow-up logic.
+  - Infrastructure work indicates a move toward more isolated and efficient CI pipelines.
   validation_warnings: []

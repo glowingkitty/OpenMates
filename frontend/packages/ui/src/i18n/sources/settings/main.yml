@@ -13540,6 +13540,18 @@ api_keys.created_warning:
   he: העתק את מפתח ה-API הזה עכשיו. לא תוכל לראות אותו שוב.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
+api_keys.legacy_replacement_warning:
+  context: Warning for an API key made before bearer and decryption credentials were separated
+  en: This older API key is disabled. Revoke it, then create a replacement and update the apps that use it.
+
+api_keys.limited_encryption_warning:
+  context: Warning while choosing scopes for a limited API key
+  en: Limited keys can decrypt only the personal Projects selected below. Other private content, including Tasks and Plans, remains unavailable without separate grants.
+
+api_keys.project_grants_title:
+  context: Heading for selecting personal Projects whose keys a limited API credential may decrypt
+  en: Projects this key can decrypt
+
 api_keys.copied_done:
   context: Confirmation button after copying a created API key
   en: I've copied the key

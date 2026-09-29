@@ -7,8 +7,8 @@ This is a LAST RESORT for users who lost ALL login methods AND their recovery ke
 Users who have their recovery key should use "Login with recovery key" instead.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field, SecretStr
+from typing import Optional, Dict, Any, Literal
 
 
 # ============================================================================
@@ -56,7 +56,7 @@ class RecoveryFullResetRequest(BaseModel):
     )
     
     # New account setup (similar to signup)
-    new_login_method: str = Field(..., description="'password' or 'passkey'")
+    new_login_method: Literal["password", "passkey"] = Field(..., description="'password' or 'passkey'")
     hashed_email: str = Field(..., description="SHA256(email) for lookup")
     encrypted_email: str = Field(..., description="Email encrypted with email_encryption_key")
     encrypted_email_with_master_key: str = Field(
@@ -64,7 +64,9 @@ class RecoveryFullResetRequest(BaseModel):
         description="Email encrypted with master key (for passkey login)"
     )
     user_email_salt: str = Field(..., description="Salt for email encryption key derivation")
-    lookup_hash: str = Field(..., description="Hash for authentication")
+    lookup_hash: Optional[str] = Field(None, description="Passkey lookup hash; omitted for password v2")
+    credential_version: int = Field(1, description="Password credential protocol version")
+    password_auth_key: Optional[SecretStr] = Field(None, description="Password v2 enrollment key; sealed by Vault")
     encrypted_master_key: str = Field(..., description="Master key wrapped with credentials")
     salt: str = Field(..., description="Salt for key derivation")
     key_iv: str = Field(..., description="IV for AES-GCM encryption")
@@ -88,6 +90,11 @@ class RecoveryFullResetRequest(BaseModel):
         default=None,
         description="Name of the 2FA app user selected"
     )
+
+
+class RecoveryCancelRequest(BaseModel):
+    email: str
+    verification_token: str
 
 
 # ============================================================================
@@ -121,6 +128,7 @@ class RecoveryVerifyResponse(BaseModel):
         default=False,
         description="Whether the user has 2FA configured. If False, frontend must show 2FA setup before reset."
     )
+    pending_until: Optional[str] = None
     error_code: Optional[str] = None
 
 
@@ -161,5 +169,8 @@ class RecoveryCompleteResponse(BaseModel):
     # If successful, return user info for immediate login
     user_id: Optional[str] = None
     username: Optional[str] = None
+    pending_until: Optional[str] = None
+    cancellation_token: Optional[str] = None
+    state: Optional[str] = None
     
     error_code: Optional[str] = None

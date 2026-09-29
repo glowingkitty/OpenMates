@@ -84,6 +84,12 @@
     data: EmbedFullscreenRawData;
     /** Close handler */
     onClose: () => void;
+    /** Exact source download for virtual connected files. */
+    onDownloadOverride?: () => Promise<void>;
+    /** Import a complete virtual connected file into the current Project. */
+    onImport?: () => Promise<void>;
+    /** Whether that import is already running in the parent. */
+    isImporting?: boolean;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
     /** Whether there is a previous embed to navigate to */
@@ -120,6 +126,9 @@
   let {
     data,
     onClose,
+    onDownloadOverride,
+    onImport,
+    isImporting = false,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -346,7 +355,8 @@
   async function handleDownload() {
     try {
       console.debug('[CodeEmbedFullscreen] Starting code file download');
-      await downloadCodeFile(renderCodeContent, renderLanguage, renderFilename);
+      if (onDownloadOverride) await onDownloadOverride();
+      else await downloadCodeFile(renderCodeContent, renderLanguage, renderFilename);
       notificationStore.success($text('embeds.code_file_downloaded'));
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to download code file:', error);
@@ -1520,6 +1530,8 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  {onImport}
+  {isImporting}
   currentEmbedId={embedId}
   embedIds={runArtifactChildIds}
   childEmbedTransformer={transformArtifactChild}

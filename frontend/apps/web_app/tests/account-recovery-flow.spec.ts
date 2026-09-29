@@ -68,14 +68,15 @@ const {
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
 } = getIsolatedTestAccount('account-recovery-flow.spec.ts');
 
-// contract-test: direct surface=gui.web assertions=auth.login.method-convergence,auth.session.lifecycle
-test('completes full account recovery flow with same password', async ({
+// contract-test: direct surface=gui.web assertions=auth.login.method-convergence,auth.session.lifecycle,auth.recovery.email-delay,auth.password.versioned-protection
+test('stages account recovery for 24 hours while existing login still works', async ({
 	page,
 	context
 }: {
 	page: any;
 	context: any;
 }) => {
+	let resetPasswordPayload: Record<string, unknown> | null = null;
 	// Listen for console logs
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -84,6 +85,9 @@ test('completes full account recovery flow with same password', async ({
 
 	// Listen for network requests
 	page.on('request', (request: any) => {
+		if (request.method() === 'POST' && request.url().endsWith('/v1/auth/recovery/reset-account')) {
+			resetPasswordPayload = JSON.parse(request.postData() || '{}');
+		}
 		const timestamp = new Date().toISOString();
 		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
 	});
@@ -346,16 +350,42 @@ test('completes full account recovery flow with same password', async ({
 	}
 
 	// ========================================================================
-	// Step 9: Wait for reset to complete
+	// Step 9: Email-only proof schedules a cancellable reset; it cannot
+	// immediately replace credentials or unlock encrypted history.
 	// ========================================================================
-	// After reset, the PasswordAndTfaOtp component dispatches 'backToEmail'
-	// which resets the login to the email step. The success notification is shown
-	// briefly. We wait for the email input to reappear as confirmation of success.
-	// The reset API call can take 10-20 seconds for data deletion.
+	await expect(page.getByRole('heading', { name: 'Account reset pending' })).toBeVisible({ timeout: 120000 });
+	expect(resetPasswordPayload).toMatchObject({ new_login_method: 'password', credential_version: 2 });
+	expect(resetPasswordPayload?.password_auth_key).toMatch(/^[A-Za-z0-9_-]{43}$/);
+	expect(resetPasswordPayload?.salt).toBe(resetPasswordPayload?.user_email_salt);
+	expect(resetPasswordPayload).not.toHaveProperty('lookup_hash');
+	await expect(page.getByText(/existing login methods and encrypted history remain available/i)).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Cancel account reset' })).toBeVisible();
+	await takeStepScreenshot(page, 'reset-pending');
+	await page.getByRole('button', { name: 'Back to login' }).click();
 	const emailReappeared = page.locator('input[type="email"][name="username"]');
-	await expect(emailReappeared).toBeVisible({ timeout: 120000 });
-	await takeStepScreenshot(page, 'reset-complete');
-	logRecoveryCheckpoint('Account reset completed, returned to login email step.');
+	await expect(emailReappeared).toBeVisible({ timeout: 15000 });
+	logRecoveryCheckpoint('Reset pending; returned to login email step.');
+	// Fetch a new email proof and cancel so this isolated account remains
+	// reusable and no later job can delete its encrypted history.
+	const cancelCodeRequestedAt = new Date().toISOString();
+	const reopenRecovery = page.getByTestId('cant-login-button');
+	await expect(reopenRecovery).toBeVisible();
+	await reopenRecovery.click();
+	const cancelCodeInput = page.locator('input#verification-code');
+	await expect(cancelCodeInput).toBeVisible();
+	const cancelEmail = await waitForMessage({
+		sentTo: OPENMATES_TEST_ACCOUNT_EMAIL,
+		subjectContains: 'Account Reset',
+		receivedAfter: cancelCodeRequestedAt,
+		timeoutMs: 120000
+	});
+	const cancelCode = extractSixDigitCode(cancelEmail);
+	expect(cancelCode).toBeTruthy();
+	await setToggleChecked(page.locator('#acknowledge-data-loss'), true);
+	await cancelCodeInput.fill(cancelCode);
+	await expect(page.getByRole('heading', { name: 'Account reset pending' })).toBeVisible({ timeout: 30000 });
+	await page.getByRole('button', { name: 'Cancel account reset' }).click();
+	await expect(emailReappeared).toBeVisible({ timeout: 15000 });
 
 	// Small delay to ensure notification was shown
 	await page.waitForTimeout(1000);
@@ -386,7 +416,7 @@ test('completes full account recovery flow with same password', async ({
 	// path assertions are stale; authenticated chat readiness is the stable signal.
 	await waitForChatReady(page, (msg: string) => logRecoveryCheckpoint(msg), 60000);
 	await takeStepScreenshot(page, 'login-success');
-	logRecoveryCheckpoint('Login successful after account recovery! Test complete.');
+	logRecoveryCheckpoint('Original credentials still work while recovery is pending.');
 
 	// Verify no missing translations after account recovery
 	await assertNoMissingTranslations(page);

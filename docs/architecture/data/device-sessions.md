@@ -78,6 +78,30 @@ plaintext display fields must preserve server-only security metadata. Targeted
 logout and revocation remove only the selected token entry; logout-all remains
 the explicit account-wide operation.
 
+### Paired Sessions
+
+Pairing v2 uses a client-to-client PAKE and a receiver-bound one-use login grant.
+The API relays PAKE messages and encrypted account-key material; the short PIN,
+ephemeral OPAQUE registration, and transfer key stay on the clients. The approving
+client must remain active until it verifies the receiver and releases the bundle.
+It reports success only after the receiver stores its session/key state and
+acknowledges completion.
+
+Every new v2 paired session has a durable record in `pair_session_deadlines`,
+indexed by a hash of its refresh token. Pending acknowledgement denies ordinary
+REST/WebSocket access. A selected numeric lifetime gives the record an absolute
+deadline. Rotation creates a mapping for the replacement token and retires the
+previous mapping; losing Redis state cannot remove the deadline. A null lifetime
+keeps the ordinary session policy but still requires acknowledgement. Active
+WebSocket connections with a numeric deadline close when it is reached.
+
+The approving session needs server-verified strong authentication from the last
+five minutes. Refreshing the cookie does not refresh that assurance. The
+[implementation contract](../../plans/pairing-pake-hardening/protocol.md) records
+wire fields and state transitions; the
+[hardening roadmap](../../plans/pairing-pake-hardening/security-roadmap.md)
+distinguishes this implementation from wider session and credential repairs.
+
 ### Device, Session, and Connection Identity
 
 - A device hash uses stable client characteristics and the user ID; country is
@@ -97,7 +121,7 @@ the explicit account-wide operation.
 |----------------------|-----------------------------------------------------|
 | Forget to logout     | Session expiry, explicit logout, and short-lived key storage when Stay Logged In is off |
 | Device theft         | Session auto-expires and master key can remain memory-only |
-| Network eavesdropping| 6-digit codes (1M combinations), 2-min TTL, HTTPS   |
+| Pairing interception | Client-only six-character PIN, PAKE peer confirmation, short-lived relay state, and HTTPS |
 | Session hijacking    | HTTP-only cookies, auto-expiry, session-local location re-authentication, targeted revocation |
 
 ## Related Docs

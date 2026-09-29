@@ -64,6 +64,7 @@ const {
 
 test.describe.configure({ mode: 'serial' });
 
+// contract-test: direct surface=gui.web assertions=auth.login.method-convergence,auth.session.lifecycle
 test('sets up recovery key in settings and logs in with recovery key', async ({
 	page,
 	context
@@ -140,7 +141,18 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'password-filled');
 	logCheckpoint('Filled password.');
 
-	await submitPasswordAndHandleOtp(page, OPENMATES_TEST_ACCOUNT_OTP_KEY, (msg: string) => logCheckpoint(msg));
+	const otpLoginRequest = page.waitForRequest((request: any) => {
+		if (request.method() !== 'POST' || !request.url().includes('/v1/auth/login')) return false;
+		return request.postDataJSON()?.code_type === 'otp';
+	});
+	await submitPasswordAndHandleOtp(
+		page,
+		OPENMATES_TEST_ACCOUNT_OTP_KEY,
+		(msg: string) => logCheckpoint(msg),
+		{ pasteFormattedOtp: true }
+	);
+	const otpLoginPayload = (await otpLoginRequest).postDataJSON();
+	expect(otpLoginPayload.tfa_code).toMatch(/^\d{6}$/);
 
 	// Wait for successful login - verify authenticated state
 	const authIndicator = page.locator('[data-authenticated="true"]');

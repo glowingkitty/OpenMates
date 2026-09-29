@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webSocketService } from "../websocketService";
 import * as wsTracing from "../tracing/wsSpans";
+import { authStore } from "../../stores/authState";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -163,5 +164,59 @@ describe("webSocketService message dispatch", () => {
       "WebSocket changed before message dispatch",
     );
     expect(socket.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("webSocketService connection preparation", () => {
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("waits for token refresh and socket open before sending a message", async () => {
+    let finishRefresh!: () => void;
+    const refreshPending = new Promise<boolean>((resolve) => {
+      finishRefresh = () => resolve(true);
+    });
+    const sockets: FakeSocket[] = [];
+    class FakeSocket {
+      static readonly OPEN = 1;
+      readyState = 0;
+      onopen: (() => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: (() => void) | null = null;
+      onclose: (() => void) | null = null;
+      send = vi.fn();
+      close = vi.fn(() => { this.readyState = 3; });
+      constructor(_url: string) { sockets.push(this); }
+      open() { this.readyState = FakeSocket.OPEN; this.onopen?.(); }
+    }
+    vi.stubGlobal("WebSocket", FakeSocket);
+    vi.spyOn(
+      webSocketService as unknown as {
+        refreshSessionForWebSocket: (reason: string) => Promise<boolean>;
+      },
+      "refreshSessionForWebSocket",
+    ).mockImplementation(() => refreshPending);
+    const service = webSocketService as unknown as { reconnectAttempts: number };
+    service.reconnectAttempts = 1;
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+
+    let sent = false;
+    const sending = webSocketService.sendMessage("chat_turn_preflight", {}).then(() => {
+      sent = true;
+    });
+    await Promise.resolve();
+    expect(sent).toBe(false);
+    expect(sockets).toHaveLength(0);
+
+    finishRefresh();
+    await vi.waitFor(() => expect(sockets).toHaveLength(1));
+    expect(sent).toBe(false);
+    sockets[0].open();
+    await sending;
+    expect(sockets[0].send).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"chat_turn_preflight"'),
+    );
+
+    authStore.set({ isAuthenticated: false, isInitialized: true });
+    webSocketService.disconnect();
+    vi.unstubAllGlobals();
   });
 });

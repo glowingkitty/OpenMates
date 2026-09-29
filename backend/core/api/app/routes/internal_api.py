@@ -6,6 +6,7 @@
 
 import logging
 import os
+import re
 import time
 import yaml
 from collections import Counter
@@ -750,6 +751,15 @@ class AnonymousChargeFinalizePayload(BaseModel):
     actual_credits: int = Field(..., ge=0)
 
 
+class AnonymousOperationCheckpointPayload(BaseModel):
+    operation_id: str = Field(..., min_length=1, max_length=255)
+    checkpoint_credits: int = Field(..., ge=0)
+
+
+class AnonymousRequestBudgetPayload(BaseModel):
+    parent_request_id: str = Field(..., min_length=1, max_length=255)
+
+
 class AnonymousOperationReleasePayload(BaseModel):
     operation_id: str = Field(..., min_length=1, max_length=255)
     reason: str = Field(default="provider_failed", min_length=1, max_length=128)
@@ -785,6 +795,54 @@ async def reserve_anonymous_operation(
         "operation_id": result.request_id,
         "reserved_credits": result.reserved_credits,
         "idempotent": result.reason in {"reserved", "finalized"},
+    }
+
+
+@router.post("/anonymous-usage/checkpoint-operation")
+async def checkpoint_anonymous_operation(
+    payload: AnonymousOperationCheckpointPayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    try:
+        result = await _anonymous_usage_service(directus_service, cache_service).checkpoint_operation(
+            payload.operation_id,
+            checkpoint_credits=payload.checkpoint_credits,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "anonymous_checkpoint_conflict", "message": str(exc)},
+        ) from exc
+    return {
+        "status": result.status,
+        "operation_id": result.operation_id,
+        "reserved_credits": result.reserved_credits,
+        "checkpoint_credits": result.checkpoint_credits,
+        "effective_hold_credits": result.effective_hold_credits,
+        "idempotent": result.idempotent,
+    }
+
+
+@router.post("/anonymous-usage/request-budget")
+async def get_anonymous_request_budget(
+    payload: AnonymousRequestBudgetPayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    try:
+        available = await _anonymous_usage_service(directus_service, cache_service).get_request_budget(
+            payload.parent_request_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "anonymous_request_closed", "message": str(exc)},
+        ) from exc
+    return {
+        "status": "available",
+        "parent_request_id": payload.parent_request_id,
+        "available_credits": available,
     }
 
 
@@ -1875,6 +1933,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
     summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
     failure_groups: Optional[List[Dict[str, str]]] = None  # Canonical suite/product-area email grouping
+    daily_digest: Optional[Dict[str, Any]] = None  # Structured, compact nightly CI email
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1917,7 +1976,7 @@ async def dispatch_test_summary_email(
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
 
-        celery_app.send_task(
+        task_result = celery_app.send_task(
             name="app.tasks.email_tasks.test_run_summary_email_task.send_test_run_summary",
             args=[
                 payload.recipient_email,
@@ -1939,15 +1998,36 @@ async def dispatch_test_summary_email(
                 "subject_override": payload.subject_override,
                 "summary_copy": payload.summary_copy,
                 "failure_groups": payload.failure_groups,
+                "daily_digest": payload.daily_digest,
             },
             queue="email",
         )
 
         logger.info("[InternalAPI] Test run summary email task dispatched successfully")
-        return {"status": "dispatched"}
+        return {"status": "dispatched", "task_id": getattr(task_result, "id", "")}
     except Exception as e:
         logger.error(f"[InternalAPI] Failed to dispatch test summary email: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to dispatch email task: {str(e)}")
+
+
+@router.get("/test-summary-email-status/{task_id}")
+async def test_summary_email_status(task_id: str) -> Dict[str, Any]:
+    """Internal-only delivery result for the scheduled notifier.
+
+    The router's shared service token is required; this route has no public
+    Caddy mapping, owner scope, paid work, or client-encrypted data. It returns
+    only a task state and the task's boolean provider-acceptance result.
+    """
+    if not re.fullmatch(r"[0-9a-f-]{36}", task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    result = celery_app.AsyncResult(task_id)
+    state = result.state
+    return {
+        "state": state,
+        "provider_accepted": bool(result.result) if state == "SUCCESS" else False,
+    }
 
 
 @router.post("/openobserve/push-test-run")
@@ -2640,15 +2720,14 @@ async def process_profile_image(
     proxy_url = f"/v1/users/{payload.user_id}/profile-image"
 
     try:
-        # 1. Always fetch profile from Directus to get vault_key_id + existing s3_key for cleanup
-        # (Cache only stores a subset of fields; profile_image_s3_key is not cached)
+        # 1. Read the existing image key directly from Directus. get_user_profile()
+        # is cache-first, so it can return the pre-upload image key (or no key).
         vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
-
-        profile_success, user_data, profile_msg = await directus_service.get_user_profile(
-            payload.user_id
+        user_data = await directus_service.get_user_fields_direct(
+            payload.user_id, ["vault_key_id", "profile_image_s3_key"]
         )
-        if not profile_success or not user_data:
-            logger.error(f"{log_prefix} Could not fetch user profile: {profile_msg}")
+        if user_data is None:
+            logger.error(f"{log_prefix} Could not fetch current profile image fields")
             raise HTTPException(status_code=404, detail="User not found")
 
         if not vault_key_id:
@@ -2705,6 +2784,14 @@ async def process_profile_image(
                     f"{log_prefix} Failed to delete old S3 object {old_s3_key}: {e} "
                     f"(Directus updated successfully — new image is active)"
                 )
+
+        # The decrypted profile cache may still say this user has no image.
+        # Evict it before the next login can copy that stale URL into the
+        # session cache.
+        try:
+            await cache_service.delete(f"user_profile:{payload.user_id}")
+        except Exception as e:
+            logger.warning(f"{log_prefix} Could not invalidate profile cache: {e}")
 
         # 5. Update Redis cache with the proxy URL for fast UI reads
         cache_success = await cache_service.update_user(

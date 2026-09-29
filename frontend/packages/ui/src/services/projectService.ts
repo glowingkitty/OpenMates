@@ -176,18 +176,27 @@ export class ProjectRemoteAccessError extends Error {
 export interface ProjectRemoteDirectoryEntry {
   path: string;
   kind: "file" | "directory";
+  previewable?: false;
+  sizeBytes?: number;
+  children?: Array<{ path: string; kind: "file" | "directory" }>;
+  childFileCount?: number;
+  childFolderCount?: number;
+  childFileSizeBytes?: number;
+  childSummaryTruncated?: boolean;
 }
 
 export interface ProjectRemoteDirectoryResult {
   entries: ProjectRemoteDirectoryEntry[];
   omitted: number;
   excluded: number;
+  nextCursor?: string;
 }
 
 export interface ProjectRemoteSearchMatch {
   path: string;
-  line: number;
-  snippet: string;
+  kind?: "file" | "directory";
+  line?: number;
+  snippet?: string;
 }
 
 export interface ProjectRemoteSearchResult {
@@ -202,6 +211,31 @@ export interface ProjectRemoteTextResult {
   sizeBytes: number;
   lineCount: number;
   expectedBase: string | null;
+}
+
+export interface ProjectRemoteImageChunkResult {
+  content_base64: string;
+  mime_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "image/avif";
+  size_bytes: number;
+  offset: number;
+  content_hash: string;
+}
+
+export interface ProjectRemoteFileChunkResult {
+  content_base64: string;
+  size_bytes: number;
+  offset: number;
+  file_identity: string;
+  chunk_hash: string;
+}
+
+export type ProjectRemoteTransferOperation = "copy_entries" | "move_entries";
+
+export interface ProjectRemoteTransferResult {
+  operation: ProjectRemoteTransferOperation;
+  destination_path: string;
+  completed: string[];
+  failed: Array<{ path: string; code: string }>;
 }
 
 export interface ProjectRemoteAccessContext {
@@ -472,6 +506,10 @@ export async function requestProjectRemoteAccess<T>(
   }
   if (!requestContext.ownerId)
     throw new ProjectRemoteAccessError("requester_identity_unavailable", "Authenticated user identity is unavailable");
+  const isUserFileTransfer = operation === "copy_entries" || operation === "move_entries";
+  if (isUserFileTransfer && (args.user_initiated !== true || !source.capabilities.includes("write_request"))) {
+    throw new ProjectRemoteAccessError("source_capability_denied", "This source does not allow file changes");
+  }
 
   let sourceSessionId = source.sourceSessionId;
   let keyEpoch = source.keyEpoch;
@@ -579,6 +617,7 @@ export async function requestProjectRemoteAccess<T>(
         key_epoch: keyEpoch,
         encrypted_envelope: encryptedEnvelope,
         ...writeContext,
+        ...(isUserFileTransfer ? { user_initiated: true } : {}),
       }),
       signal,
     },
@@ -608,7 +647,33 @@ export async function requestProjectRemoteAccess<T>(
     requester.handshake,
   );
   throwIfRemoteAccessAborted(signal);
-  return (operation === "read_text" ? normalizeProjectRemoteTextResult(opened) : opened) as T;
+  return (operation === "read_text" ? normalizeProjectRemoteTextResult(opened)
+    : operation === "read_image_chunk" ? normalizeProjectRemoteImageChunkResult(opened)
+    : operation === "read_file_chunk" ? normalizeProjectRemoteFileChunkResult(opened) : opened) as T;
+}
+
+/** Execute a user-confirmed copy or move entirely on the connected source host. */
+export async function transferProjectRemoteEntries(
+  project: ProjectViewModel,
+  source: ProjectSourceViewModel,
+  context: ProjectRemoteAccessContext,
+  input: { operation: ProjectRemoteTransferOperation; paths: string[]; destinationPath: string },
+  signal?: AbortSignal,
+): Promise<ProjectRemoteTransferResult> {
+  const strictPath = (value: string) => typeof value === "string" && value.length > 0 && value.length <= 4096
+    && !value.startsWith("/") && !value.includes("\\")
+    && value.split("/").every((part) => part.length > 0 && part !== "." && part !== ".." && !part.startsWith("."))
+    && ![...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+  if (!Array.isArray(input.paths) || input.paths.length < 1 || input.paths.length > 20
+    || new Set(input.paths).size !== input.paths.length || !input.paths.every(strictPath)
+    || (input.destinationPath !== "." && !strictPath(input.destinationPath))) {
+    throw new ProjectRemoteAccessError("invalid_path", "Select up to 20 files or folders within this Project");
+  }
+  return requestProjectRemoteAccess<ProjectRemoteTransferResult>(project, source, context, input.operation, {
+    paths: input.paths,
+    destination_path: input.destinationPath,
+    user_initiated: true,
+  }, signal);
 }
 
 async function discoverProjectRemoteRouting(
@@ -804,7 +869,20 @@ async function requestRemoteJson<T>(path: string, init: RequestInit): Promise<T>
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     throw new ProjectRemoteAccessError("source_offline", "The Project source request could not be sent");
   }
-  if (!response.ok) throw remoteAccessHttpError(response.status);
+  if (!response.ok) {
+    if (response.status === 409) {
+      // A valid login can outlive its server-side per-session device binding.
+      // Only this exact backend code should ask the user to establish a new login.
+      const body = await response.json().catch(() => null) as { detail?: unknown } | null;
+      if (body?.detail === "REQUESTER_DEVICE_IDENTITY_UNAVAILABLE") {
+        throw new ProjectRemoteAccessError(
+          "requester_device_identity_unavailable",
+          "Sign out and sign in again to reconnect this Project source",
+        );
+      }
+    }
+    throw remoteAccessHttpError(response.status);
+  }
   try {
     return (await response.json()) as T;
   } catch {
@@ -860,6 +938,37 @@ function normalizeProjectRemoteTextResult(value: unknown): ProjectRemoteTextResu
   };
 }
 
+function normalizeProjectRemoteImageChunkResult(value: unknown): ProjectRemoteImageChunkResult {
+  const result = parseRemoteObject(value, "The Project source returned an invalid image chunk");
+  if (typeof result.content_base64 !== "string" || result.content_base64.length > 175_000
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(result.content_base64)
+    || !["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"].includes(String(result.mime_type))
+    || typeof result.size_bytes !== "number" || !Number.isSafeInteger(result.size_bytes)
+    || result.size_bytes <= 0 || result.size_bytes > 2 * 1024 * 1024
+    || typeof result.offset !== "number" || !Number.isSafeInteger(result.offset)
+    || result.offset < 0 || result.offset >= result.size_bytes || result.offset % (128 * 1024) !== 0
+    || typeof result.content_hash !== "string" || !/^[a-f0-9]{64}$/.test(result.content_hash)) {
+    throw new Error("The Project source returned an invalid image chunk");
+  }
+  return result as unknown as ProjectRemoteImageChunkResult;
+}
+
+function normalizeProjectRemoteFileChunkResult(value: unknown): ProjectRemoteFileChunkResult {
+  const result = parseRemoteObject(value, "The Project source returned an invalid file chunk");
+  if (typeof result.content_base64 !== "string" || result.content_base64.length > 175_000
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(result.content_base64)
+    || typeof result.size_bytes !== "number" || !Number.isSafeInteger(result.size_bytes)
+    || result.size_bytes < 0
+    || typeof result.offset !== "number" || !Number.isSafeInteger(result.offset)
+    || result.offset < 0 || (result.size_bytes > 0 && result.offset >= result.size_bytes)
+    || result.offset % (128 * 1024) !== 0
+    || typeof result.file_identity !== "string" || !/^[a-f0-9]{64}$/.test(result.file_identity)
+    || typeof result.chunk_hash !== "string" || !/^[a-f0-9]{64}$/.test(result.chunk_hash)) {
+    throw new Error("The Project source returned an invalid file chunk");
+  }
+  return result as unknown as ProjectRemoteFileChunkResult;
+}
+
 function remoteAccessErrorMessage(code: string | undefined): string {
   const messages: Record<string, string> = {
     protected_path: "This file is protected or ignored",
@@ -869,9 +978,10 @@ function remoteAccessErrorMessage(code: string | undefined): string {
     operation_failed: "The remote source could not complete this request",
     file_changed: "The file changed. Read its current content and rebuild the edit",
     target_exists: "The create target already exists; its content was preserved",
+    source_missing: "The source is gone. Check the destination before trying again",
     invalid_patch: "The patch does not exactly match the current file",
     operation_conflict: "This operation identity was already used for different changes",
-    operation_unconfirmed: "A previous write outcome needs reconciliation before another attempt",
+    operation_unconfirmed: "A previous file operation may be incomplete. Inspect the destination before retrying",
     write_authorization_denied: "The originating chat no longer has permission to write this Project",
     ignored_path_requires_approval: "This ignored file requires explicit approval",
   };
@@ -1187,6 +1297,22 @@ export async function addExistingTargetToProject(
       updated_at: timestamp,
       position: timestamp,
     }),
+  });
+}
+
+/** Move one existing Project association to a different Project folder. */
+export async function moveProjectItemToFolder(
+  project: ProjectViewModel,
+  itemId: string,
+  folderId: string | null,
+  context: ProjectApiContext = {},
+): Promise<void> {
+  await requestJson(withProjectRemoteQuery(
+    `/v1/projects/${encodeURIComponent(project.project_id)}/items/${encodeURIComponent(itemId)}`,
+    { team_id: context.teamId },
+  ), {
+    method: "PATCH",
+    body: JSON.stringify({ folder_id: folderId, updated_at: nowSeconds() }),
   });
 }
 

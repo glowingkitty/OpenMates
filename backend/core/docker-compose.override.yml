@@ -7,6 +7,9 @@ services:
       # Enable pre-release platform gates only on the local development stack.
       BACKEND_CONFIG_FILE: "/app/backend/config/backend_config.dev.yml"
     volumes:
+      # Host cron and the CI coordinator publish canonical daily aggregates here.
+      # The product runtime checkout has its own test-results directory.
+      - /home/superdev/projects/OpenMates/test-results:/app/control-plane-test-results:ro
       # Read-only access to the openmates-marketing sibling repo so
       # send_newsletter.py can render issues authored outside this repo.
       # Only used on the dev machine; prod never runs send_newsletter.py.

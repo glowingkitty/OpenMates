@@ -52,7 +52,7 @@ claims:
 
 # CLI Package
 
-> npm package openmates, 0.21.x artifact line for product line v0.21, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
+> npm package openmates, 0.22.x artifact line for product line v0.22, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
 
 ## Why This Exists
 
@@ -63,6 +63,27 @@ The REST API cannot decrypt/encrypt chats (zero-knowledge architecture). The CLI
 ### Authentication
 
 Pair-auth login via magic link + PIN remains the default login path. `openmates signup` can create a password account from the terminal using hidden prompts and the same client-side encrypted signup crypto as the web app. Session data is stored in `~/.openmates` with strict `0o600` permissions.
+
+Pairing v2 keeps the PIN and PAKE private state on the two clients. The approving
+client hosts the ephemeral OPAQUE server role; the CLI hosts its client role.
+After mutual confirmation, the CLI decrypts a bundle containing the existing
+account key and a random receiver-bound session grant. It redeems that grant at
+the pairing completion endpoint, saves local credentials, and acknowledges the
+transfer before the server activates the session. It never submits a PIN or
+reusable account lookup credential. Legacy pairing endpoints require an update;
+there is no protocol downgrade. See the
+[protocol contract](../../plans/pairing-pake-hardening/protocol.md).
+
+A numeric pairing lifetime is an absolute server deadline, not a timer that
+restarts on token refresh. The CLI persists that deadline, removes expired local
+session material before another command uses it, and preserves it during writes.
+The CLI uses a functioning OS keyring when available, with a clearly identified
+owner-only credential file when no keyring is available. New writes do not use
+machine-ID-derived encryption. Legacy machine-ID records remain readable for
+migration; a locked or unavailable existing keyring entry never silently falls
+back to the file. This requires no `secret-tool` setup, automatic system-package
+installation, or another encryption password; see the
+[agreed hardening roadmap](../../plans/pairing-pake-hardening/security-roadmap.md).
 
 Named authentication profiles use `--profile <name>` or `OPENMATES_PROFILE=<name>`
 and store credentials under `~/.openmates/profiles/<name>/`. Logging into the

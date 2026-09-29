@@ -395,15 +395,15 @@ function buildSignupEmail(domain: string): string {
 	const timePart = `${month}${day}${hour}${minute}${second}${rand}`;
 
 	// Gmail +alias mode: openmates-e2e+jan15133342abc@gmail.com
-	const gmailTestAddress = process.env.GMAIL_TEST_ADDRESS;
+	const gmailTestAddress = process.env.OPENMATES_CI_MAILPIT_URL
+		? process.env.OPENMATES_CI_MAIL_TEST_ADDRESS
+		: process.env.GMAIL_TEST_ADDRESS;
 	if (gmailTestAddress && gmailTestAddress.includes('@')) {
 		const [localPart, gmailDomain] = gmailTestAddress.split('@');
 		return `${localPart}+${timePart}@${gmailDomain}`;
 	}
 
-	throw new Error(
-		`GMAIL_TEST_ADDRESS is required to build an automated signup address; legacy domain ${domain} is unsupported.`
-	);
+	throw new Error(`A signup test inbox address is required; legacy domain ${domain} is unsupported.`);
 }
 
 function deriveSignupCleanupApiUrl(): string {
@@ -925,6 +925,68 @@ async function checkEmailQuota(): Promise<{ available: boolean; current: number;
 	return { available: false, current: 0, limit: 0 };
 }
 
+/** Use the runner-local captured inbox for isolated signup; keep Gmail for live delivery tests. */
+function createSignupEmailClient(): ReturnType<typeof createEmailClient> | {
+	provider: 'mailpit';
+	waitForMessage: (opts: {
+		sentTo: string;
+		subjectContains?: string;
+		receivedAfter: string;
+		timeoutMs?: number;
+		pollIntervalMs?: number;
+	}) => Promise<any>;
+	extractSixDigitCode: (message: any) => string | null;
+} {
+	const mailpitUrl = process.env.OPENMATES_CI_MAILPIT_URL;
+	if (!mailpitUrl) return createEmailClient();
+	if (process.env.CI !== 'true' || mailpitUrl !== 'http://127.0.0.1:8025' ||
+		process.env.OPENMATES_CI_MAIL_TEST_ADDRESS !== 'ci-inbox@example.com') {
+		throw new Error('Signup mail capture requires the isolated CI inbox.');
+	}
+	return {
+		provider: 'mailpit',
+		async waitForMessage({ sentTo, subjectContains, receivedAfter, timeoutMs = 120000, pollIntervalMs = 1000 }) {
+			const address = sentTo.toLowerCase();
+			if (!/^ci-inbox\+[a-z0-9]+@example\.com$/.test(address)) {
+				throw new Error('Signup recipient must be a run-scoped CI inbox alias.');
+			}
+			const after = new Date(receivedAfter).getTime() - GMAIL_RECEIVED_AFTER_TOLERANCE_MS;
+			const deadline = Date.now() + timeoutMs;
+			while (Date.now() < deadline) {
+				const response = await fetch(`${mailpitUrl}/api/v1/messages?limit=100`, { signal: AbortSignal.timeout(10000) });
+				if (!response.ok) throw new Error(`Mailpit list failed (${response.status}).`);
+				const listing = await response.json();
+				for (const item of listing.messages || []) {
+					if (!item.To?.some((to: { Address: string }) => to.Address?.toLowerCase() === address)) continue;
+					if (new Date(item.Created).getTime() < after) continue;
+					if (subjectContains && !item.Subject?.toLowerCase().includes(subjectContains.toLowerCase())) continue;
+					const fullResponse = await fetch(`${mailpitUrl}/api/v1/message/${encodeURIComponent(item.ID)}`, { signal: AbortSignal.timeout(10000) });
+					if (!fullResponse.ok) throw new Error(`Mailpit message read failed (${fullResponse.status}).`);
+					const full = await fullResponse.json();
+					return {
+					subject: full.Subject,
+					received: full.Created,
+					recipients: full.To?.map((to: { Address: string }) => to.Address) || [],
+					text: { body: full.Text || '' },
+					html: { body: full.HTML || '' }
+				};
+				}
+				await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+			}
+			throw new Error('Timed out waiting for signup email in the CI inbox.');
+		},
+		extractSixDigitCode(message: any): string | null {
+			const content = [message.subject, message.text?.body, message.html?.body].join(' ');
+			return content.match(/\b\d{6}\b/)?.[0] || null;
+		}
+	};
+}
+
+async function checkSignupEmailQuota(): Promise<{ available: boolean; current: number; limit: number }> {
+	if (process.env.OPENMATES_CI_MAILPIT_URL) return { available: true, current: 0, limit: 999999 };
+	return checkEmailQuota();
+}
+
 /**
  * Decode a base32-encoded secret (RFC 4648) into a raw byte buffer.
  * This is required for TOTP generation without external libraries.
@@ -1307,6 +1369,8 @@ module.exports = {
 	createGmailClient,
 	createEmailClient,
 	checkEmailQuota,
+	createSignupEmailClient,
+	checkSignupEmailQuota,
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,

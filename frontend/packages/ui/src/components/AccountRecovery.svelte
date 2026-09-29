@@ -53,8 +53,9 @@
     // - 'passkey': Register passkey (shows loading while WebAuthn prompt is active)
     // - 'resetting': Loading screen while account is being reset
     // - 'complete': Reset complete, redirect to login
-    type RecoveryStep = 'code' | 'setup' | 'password' | '2fa_setup' | 'passkey' | 'resetting' | 'complete';
+    type RecoveryStep = 'code' | 'setup' | 'password' | '2fa_setup' | 'passkey' | 'resetting' | 'pending' | 'complete';
     let currentStep = $state<RecoveryStep>('code');
+    let pendingUntil = $state('');
     
     // Form data
     let email = $state('');
@@ -245,10 +246,11 @@
             
             if (data.success && data.verification_token) {
                 verificationToken = data.verification_token;
+                pendingUntil = data.pending_until || '';
                 // Store whether user already has 2FA configured
                 userHas2FA = data.has_2fa === true;
                 console.log('[AccountRecovery] User has 2FA:', userHas2FA);
-                currentStep = 'setup';
+                currentStep = pendingUntil && Date.now() < Date.parse(pendingUntil) ? 'pending' : 'setup';
             } else {
                 codeError = data.message || 'Invalid verification code. Please try again.';
                 notificationStore.error(codeError, 5000);
@@ -291,8 +293,7 @@
     
     /**
      * Submit password setup
-     * If user doesn't have 2FA, proceed to 2FA setup step first
-     * If user already has 2FA, proceed directly to reset
+     * 2FA enrollment is optional during password recovery.
      */
     async function submitPassword() {
         passwordError = '';
@@ -307,14 +308,7 @@
             return;
         }
         
-        // If user doesn't have 2FA, they need to set it up first
-        if (!userHas2FA) {
-            console.log('[AccountRecovery] User needs to set up 2FA before reset');
-            await setup2FA();
-        } else {
-            // User already has 2FA, proceed directly to reset
-            await resetWithPassword(newPassword);
-        }
+        await resetWithPassword(newPassword);
     }
     
     // ============================================================================
@@ -429,17 +423,13 @@
             const { encryptWithMasterKeyDirect } = await import('../services/cryptoService');
             const encryptedEmailWithMasterKey = await encryptWithMasterKeyDirect(email, masterKey);
             
-            // Generate password-based wrapping
-            const salt = cryptoService.generateSalt();
-            const saltB64 = cryptoService.uint8ArrayToBase64(salt);
-            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
-            
-            // Generate lookup hash from password
-            const lookupHash = await cryptoService.hashKey(password, emailSalt);
+            // Recovery creates a fresh versioned password credential.
+            const { derivePasswordV2, toBase64Url } = await import('../services/passwordV2');
+            const { authKey, wrapKey } = await derivePasswordV2(password, emailSalt);
+            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrapKey);
             
             // Hash email for server lookup
-            const hashedEmail = await cryptoService.hashEmail(email);
+            const hashedEmail = await cryptoService.hashEmail(email.toLowerCase().trim());
             
             // Build request body
             const requestBody: Record<string, unknown> = {
@@ -451,9 +441,10 @@
                 encrypted_email: encryptedEmailForServer,
                 encrypted_email_with_master_key: encryptedEmailWithMasterKey,
                 user_email_salt: emailSaltB64,
-                lookup_hash: lookupHash,
+                credential_version: 2,
+                password_auth_key: toBase64Url(authKey),
                 encrypted_master_key: encryptedMasterKey,
-                salt: saltB64,
+                salt: emailSaltB64,
                 key_iv: keyIv
             };
             
@@ -477,7 +468,11 @@
             
             const data = await response.json();
             
-            if (data.success) {
+            if (data.success && data.state === 'pending') {
+                pendingUntil = data.pending_until || '';
+                verificationToken = data.cancellation_token || verificationToken;
+                currentStep = 'pending';
+            } else if (data.success) {
                 // CRITICAL: Do NOT save master key or try to auto-login!
                 // The backend does NOT create a session - user must login with new credentials.
                 // Clear any crypto data that was generated during this process to ensure clean state.
@@ -523,7 +518,7 @@
         
         try {
             // Generate hashed email for lookup
-            const hashedEmail = await cryptoService.hashEmail(email);
+            const hashedEmail = await cryptoService.hashEmail(email.toLowerCase().trim());
             
             // Step 1: Initiate passkey registration with backend
             // For recovery, we use a special mode that doesn't require existing authentication
@@ -535,7 +530,7 @@
                 body: JSON.stringify({
                     hashed_email: hashedEmail,
                     user_id: null, // No existing user session for recovery
-                    username: null, // Username will be fetched from server
+                    username: email.split('@')[0], // Display name for WebAuthn prompt
                     recovery_mode: true // Indicate this is for account recovery
                 }),
                 credentials: 'include'
@@ -746,7 +741,11 @@
             
             const resetData = await resetResponse.json();
             
-            if (resetData.success) {
+            if (resetData.success && resetData.state === 'pending') {
+                pendingUntil = resetData.pending_until || '';
+                verificationToken = resetData.cancellation_token || verificationToken;
+                currentStep = 'pending';
+            } else if (resetData.success) {
                 // CRITICAL: Do NOT save master key or try to auto-login!
                 // The backend does NOT create a session - user must login with new credentials.
                 console.log('[AccountRecovery] Passkey reset successful, showing completion');
@@ -804,6 +803,24 @@
      */
     function backToLogin() {
         dispatch('back');
+    }
+
+    async function cancelPendingReset() {
+        const response = await fetch(getApiEndpoint(apiEndpoints.auth.recovery_cancel_reset), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, verification_token: verificationToken }),
+            credentials: 'include'
+        });
+        const data = await response.json();
+        if (data.success) {
+            pendingUntil = '';
+            verificationToken = '';
+            notificationStore.success('Account reset cancelled. Your data remains available.');
+            backToLogin();
+        } else {
+            notificationStore.error(data.message || 'Could not cancel account reset. Please try again.');
+        }
     }
     
     /**
@@ -978,17 +995,19 @@
             >
                 {#if isSettingUp || isSettingUp2FA}
                     <span class="loading-spinner"></span>
-                {:else if !userHas2FA}
-                    <!-- User needs to set up 2FA next -->
-                    {$text('common.continue')}
                 {:else}
                     {$text('login.complete_reset')}
                 {/if}
             </button>
+            {#if !userHas2FA}
+                <button type="button" onclick={setup2FA} disabled={isSettingUp || isSettingUp2FA}>
+                    {$text('login.recovery_optional_authenticator')}
+                </button>
+            {/if}
         </div>
         
     {:else if currentStep === '2fa_setup'}
-        <!-- 2FA Setup Step - Required for password users without existing 2FA -->
+        <!-- Optional authenticator setup during password recovery -->
         <div class="step-content" transition:slide>
             <button class="back-button" onclick={() => currentStep = 'password'}>
                 ← {$text('common.back')}
@@ -1096,6 +1115,13 @@
             </div>
         </div>
         
+    {:else if currentStep === 'pending'}
+        <div class="step-content" transition:slide>
+            <h3>Account reset pending</h3>
+            <p class="info-text">Your existing login methods and encrypted history remain available. You can cancel until {pendingUntil ? new Date(pendingUntil).toLocaleString() : 'the 24-hour delay ends'}.</p>
+            <button onclick={cancelPendingReset}>Cancel account reset</button>
+            <button onclick={backToLogin}>Back to login</button>
+        </div>
     {:else if currentStep === 'complete'}
         <div class="step-content" transition:slide>
             <div class="success-icon">✓</div>
@@ -1194,7 +1220,7 @@
     }
     
     .confirmation-section {
-        background: var(--color-grey-15);
+        background: var(--color-grey-10);
         border-radius: var(--radius-5);
         padding: var(--spacing-8);
     }
@@ -1405,7 +1431,7 @@
     }
     
     .app-item:hover:not(:disabled) {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border-color: var(--color-grey-30);
     }
     

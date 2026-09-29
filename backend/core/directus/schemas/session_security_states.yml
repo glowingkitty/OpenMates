@@ -1,0 +1,64 @@
+# Server authority for a logical first-party session. A row is retained after
+# expiry or revocation so a still-valid issuer credential cannot be revived by
+# a cache miss. Refresh rotation creates the successor before retiring this row.
+session_security_states:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    token_hash:
+      type: string
+      length: 64
+      required: true
+      unique: true
+      note: "SHA256 of the Directus refresh token; never the token itself."
+    user_id:
+      type: uuid
+      required: true
+    logical_session_id:
+      type: uuid
+      required: true
+    expires_at:
+      type: integer
+      required: true
+      note: "Absolute expiry in Unix seconds; refresh does not extend it."
+    revoked:
+      type: boolean
+      required: true
+      default: false
+    retired:
+      type: boolean
+      required: true
+      default: false
+    strong_verified_at:
+      type: integer
+      nullable: true
+      note: "Last server-verified strong proof; scoped to this logical session."
+    proof_method:
+      type: string
+      nullable: true
+      length: 32
+      note: "Provenance such as passkey, password_totp, or typed_password_email."
+    verified_login_method:
+      type: string
+      nullable: true
+      length: 32
+      note: "Server-verified method used to issue this login session."
+    verified_credential_version:
+      type: integer
+      nullable: true
+      note: "Credential version verified at login; refresh preserves it."
+    verified_lookup_digest:
+      type: string
+      nullable: true
+      length: 64
+      note: "SHA256 digest of the accepted legacy lookup hash, never the raw lookup hash."
+    login_verified_at:
+      type: integer
+      nullable: true
+      note: "Unix second of the verified login; refresh does not advance it."
+    risk_pending:
+      type: boolean
+      required: true
+      default: false

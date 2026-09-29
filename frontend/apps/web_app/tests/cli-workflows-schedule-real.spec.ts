@@ -54,7 +54,7 @@ steps:
   - id: report
     send_chat_message:
       title: Scheduled Berlin weather
-      message: Scheduled forecast completed.
+      message: "Scheduled forecast completed: {{steps.forecast.rain_summary}}"
       blocks:
         - id: weather
           source: $nodes.forecast.output.rain_summary

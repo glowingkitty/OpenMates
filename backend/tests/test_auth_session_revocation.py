@@ -119,9 +119,10 @@ def _stub_auth_session_imports(monkeypatch: pytest.MonkeyPatch):
 
 def _revoke_session(monkeypatch: pytest.MonkeyPatch):
     _stub_auth_session_imports(monkeypatch)
-    from backend.core.api.app.routes.auth_routes.auth_sessions import revoke_session
+    from backend.core.api.app.routes.auth_routes import auth_sessions
+    monkeypatch.setattr(auth_sessions, "revoke_session_state", AsyncMock())
 
-    return revoke_session
+    return auth_sessions.revoke_session
 
 
 @pytest.mark.asyncio

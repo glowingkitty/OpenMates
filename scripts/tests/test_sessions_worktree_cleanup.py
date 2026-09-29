@@ -3,7 +3,7 @@
 
 Cleanup may remove only old worktrees with an integration-safe classification.
 Safe reconciliation preserves recent, unique, and uncertain work, while the
-separate 72-hour hard expiry removes every managed classification. Deletion
+separate seven-day expiry removes only idle, recoverable worktrees. Deletion
 manifests intentionally retain metadata but no source or patch content.
 """
 
@@ -284,8 +284,8 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     old_inactive.mkdir()
     recent_active.mkdir()
     now = time.time()
-    os.utime(old_unique, (now - 73 * 3600, now - 73 * 3600))
-    os.utime(old_inactive, (now - 73 * 3600, now - 73 * 3600))
+    os.utime(old_unique, (now - 169 * 3600, now - 169 * 3600))
+    os.utime(old_inactive, (now - 169 * 3600, now - 169 * 3600))
     os.utime(recent_active, (now - 2 * 3600, now - 2 * 3600))
     sessions_file = tmp_path / "sessions.json"
     sessions_file.write_text(
@@ -315,7 +315,7 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     deleted_refs: list[str] = []
     monkeypatch.setattr(sessions, "_delete_worktree_checkpoint_ref", lambda sid: deleted_refs.append(sid) or True)
 
-    report = sessions.expire_managed_worktrees(max_age_hours=72, now_timestamp=now)
+    report = sessions.expire_managed_worktrees(max_age_hours=168, now_timestamp=now)
 
     assert removed == [old_inactive]
     assert report["deleted"] == ["inactive"]
@@ -329,9 +329,66 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     assert data["edit_leases"] == {"source.py": {"session_id": "old"}, "recent.py": {"session_id": "recent"}}
     manifest = data["worktree_deletion_manifests"][-1]
     assert manifest["session_id"] == "inactive"
-    assert manifest["reason"] == "hard_max_age_72h"
+    assert manifest["reason"] == "hard_max_age_168h"
     assert "patch" not in manifest
     assert "content" not in manifest
+
+
+def test_seven_day_expiry_ignores_stale_lifecycle_and_task_bindings(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    now = time.time()
+    old_timestamp = now - 8 * 24 * 3600
+    stale_activity = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(old_timestamp))
+    recent_activity = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600))
+    managed = tmp_path / "worktrees"
+    records = []
+    session_data = {}
+    for session_id, status, last_active in (
+        ("merged", "merged", stale_activity),
+        ("stale-task", "active", stale_activity),
+        ("recent-task", "active", recent_activity),
+        ("dirty", "merged", stale_activity),
+    ):
+        path = managed / f"agent-{session_id}"
+        path.mkdir(parents=True)
+        session = {
+            "codex_task_id": "task-id",
+            "last_active": last_active,
+            "lifecycle": {"version": sessions.WORKSPACE_LIFECYCLE_VERSION},
+            "worktree": {"path": str(path), "status": status},
+        }
+        session_data[session_id] = session
+        records.append({
+            "session_id": session_id,
+            "path": str(path),
+            "path_timestamp": old_timestamp,
+            "session": session,
+            "metadata": session["worktree"],
+        })
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(json.dumps({"sessions": session_data}), encoding="utf-8")
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_managed_worktree_records", lambda: records)
+    monkeypatch.setattr(
+        sessions,
+        "_hard_expiry_record_is_safely_disposable",
+        lambda record: (record["session_id"] != "dirty", "unique_changes"),
+    )
+    removed = []
+    monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda record: removed.append(record["session_id"]))
+    monkeypatch.setattr(sessions, "_delete_worktree_checkpoint_ref", lambda _session_id: True)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "", ""))
+
+    report = sessions.expire_managed_worktrees(max_age_hours=168, now_timestamp=now)
+
+    assert sorted(removed) == ["merged", "stale-task"]
+    assert report["deleted"] == ["merged", "stale-task"]
+    assert report["protected_live"] == ["recent-task"]
+    assert report["protected_unresolved"] == [{
+        "session_id": "dirty",
+        "path": str(managed / "agent-dirty"),
+        "reason": "unique_changes",
+    }]
 
 
 def test_hard_expiry_uses_created_at_instead_of_refreshed_directory_mtime(monkeypatch, tmp_path):

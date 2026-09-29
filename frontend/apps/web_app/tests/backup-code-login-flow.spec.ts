@@ -19,6 +19,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	createEmailClient,
 	generateTotp,
 	assertNoMissingTranslations,
 	getIsolatedTestAccount
@@ -53,6 +54,12 @@ const {
 // because the OTP key in env no longer matches the new server-side secret.
 test.describe.configure({ mode: 'serial', retries: 0 });
 
+async function waitForFreshTotpStep(page: any) {
+	const secondsIntoStep = Math.floor(Date.now() / 1000) % 30;
+	await page.waitForTimeout((30 - secondsIntoStep) * 1000 + 1000);
+}
+
+// contract-test: direct surface=gui.web assertions=auth.sensitive-actions.recent-verification,auth.login.method-convergence
 test('sets up backup codes in settings and logs in with a backup code', async ({
 	page,
 	context
@@ -63,7 +70,15 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
 	const loginPayloadsBeforeLogout: Array<Record<string, unknown>> = [];
+	const sensitiveTotpPurposes: string[] = [];
 	page.on('request', (request: any) => {
+		if (request.url().includes('/v1/auth/sensitive/totp/verify') && request.method() === 'POST') {
+			try {
+				sensitiveTotpPurposes.push(JSON.parse(request.postData() || '{}').purpose);
+			} catch {
+				sensitiveTotpPurposes.push('invalid-payload');
+			}
+		}
 		if (!request.url().includes('/v1/auth/login') || request.method() !== 'POST') {
 			return;
 		}
@@ -75,7 +90,7 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	});
 
 	test.slow();
-	test.setTimeout(360000); // Extra time for TOTP window waits (2 logins + 2FA setup) + full flow
+	test.setTimeout(480000); // Includes fresh TOTP windows and optional email delivery on account reruns.
 
 	const logCheckpoint = createSignupLogger('BACKUP_CODE_FLOW');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -85,7 +100,12 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await archiveExistingScreenshots(logCheckpoint);
 
 	// Validate required environment variables
-	skipWithoutCredentials(test, OPENMATES_TEST_ACCOUNT_EMAIL, OPENMATES_TEST_ACCOUNT_PASSWORD, OPENMATES_TEST_ACCOUNT_OTP_KEY);
+	skipWithoutCredentials(
+		test,
+		OPENMATES_TEST_ACCOUNT_EMAIL,
+		OPENMATES_TEST_ACCOUNT_PASSWORD,
+		OPENMATES_TEST_ACCOUNT_OTP_KEY
+	);
 
 	// Grant clipboard permissions for "Copy" actions
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -127,54 +147,64 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// spec must support both the already-enabled and currently-disabled states.
 	const changeAppButton = page.getByTestId('tfa-change-app-button');
 	const enableTfaButton = page.getByTestId('tfa-enable-button');
-	const tfaSetupButton = (await changeAppButton.isVisible({ timeout: 3000 }).catch(() => false))
-		? changeAppButton
-		: enableTfaButton;
+	const hasExistingTfa = await changeAppButton.isVisible({ timeout: 3000 }).catch(() => false);
+	let emailClient: ReturnType<typeof createEmailClient> = null;
+	if (!hasExistingTfa) {
+		try {
+			emailClient = createEmailClient(OPENMATES_TEST_ACCOUNT_EMAIL);
+		} catch {
+			// The isolated account does not use the configured Gmail test inbox.
+		}
+		test.skip(
+			!emailClient,
+			'Enabling 2FA from a password-only account requires the test inbox for one-use email proof.'
+		);
+	}
+	const tfaSetupButton = hasExistingTfa ? changeAppButton : enableTfaButton;
 	await expect(tfaSetupButton).toBeVisible({ timeout: 10000 });
 	await tfaSetupButton.click();
 	await takeStepScreenshot(page, 'tfa-change-triggered');
 	logCheckpoint('Clicked OTP setup action to start 2FA setup.');
 
-	// SecurityAuth modal: enter password
+	// An enrolled OTP proves the factor change directly. After a prior run has
+	// disabled it, password plus a one-use email code proves the same action.
 	const authModal = page.locator('[role="dialog"]');
 	await expect(authModal).toBeVisible({ timeout: 10000 });
-	const authPasswordInput = authModal.locator('[data-testid="password-input"], input[type="password"]');
-	await expect(authPasswordInput).toBeVisible();
-	await authPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-
-	await authModal.getByTestId('auth-btn').click();
-	logCheckpoint('Submitted password in SecurityAuth.');
-
-	// Wait for SecurityAuth to either show 2FA input or close (auth succeeded without 2FA).
-	// The async handlePasswordAuth calls the login endpoint — if it returns tfa_required,
-	// the 2FA input appears; otherwise onSuccess is called and the modal unmounts.
-	const authTfaInput = authModal.getByTestId('tfa-input');
-	const authTfaVisible = await Promise.race([
-		authTfaInput.waitFor({ state: 'visible', timeout: 10000 }).then(() => true),
-		authModal.waitFor({ state: 'hidden', timeout: 10000 }).then(() => false),
-	]).catch(() => false);
-
-	await takeStepScreenshot(page, 'auth-password');
-
-	if (authTfaVisible) {
-		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await authTfaInput.fill(authOtp);
-		// Auto-submits on 6 digits
-		logCheckpoint('Entered OTP in SecurityAuth.');
-		// Wait for SecurityAuth to close after OTP verification
-		await authModal.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-		logCheckpoint('SecurityAuth closed after OTP.');
+	if (hasExistingTfa) {
+		const authTfaInput = authModal.getByTestId('tfa-input');
+		await expect(authTfaInput).toBeVisible();
+		// Login consumed the prior account-wide TOTP time step.
+		await waitForFreshTotpStep(page);
+		await authTfaInput.fill(generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY));
 	} else {
-		logCheckpoint('SecurityAuth closed without 2FA (password was sufficient).');
+		const passwordInput = authModal.getByTestId('password-input');
+		await expect(passwordInput).toBeVisible();
+		await passwordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
+		const codeRequestedAt = new Date().toISOString();
+		await authModal.getByTestId('auth-btn').click();
+		const emailInput = authModal.getByTestId('auth-email-otp').locator('input');
+		await expect(emailInput).toBeVisible({ timeout: 15000 });
+		const message = await emailClient!.waitForMessage({
+			sentTo: OPENMATES_TEST_ACCOUNT_EMAIL,
+			receivedAfter: codeRequestedAt,
+			timeoutMs: 60000
+		});
+		const code = emailClient!.extractSixDigitCode(message);
+		expect(code, 'Expected a one-use factor-change email code.').toMatch(/^\d{6}$/);
+		await emailInput.fill(code);
 	}
+	await authModal.waitFor({ state: 'hidden', timeout: 15000 });
+	if (hasExistingTfa) expect(sensitiveTotpPurposes).toContain('factor_change');
+	logCheckpoint('Verified current account method for factor change.');
+	await takeStepScreenshot(page, 'auth-factor-change');
 
 	expect(
 		loginPayloadsBeforeLogout.length,
-		'Expected normal login plus settings SecurityAuth to call /auth/login before logout.'
-	).toBeGreaterThan(1);
+		'Expected ordinary login before settings verification.'
+	).toBeGreaterThanOrEqual(1);
 	expect(
 		loginPayloadsBeforeLogout.every((payload) => payload.stay_logged_in === true),
-		'Normal login and settings SecurityAuth must preserve Stay logged in in /auth/login payloads.'
+		'Ordinary login must preserve Stay logged in in /auth/login payloads.'
 	).toBe(true);
 
 	// TFA setup step: get new secret and enter OTP
@@ -262,7 +292,9 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await setToggleChecked(confirmCheckbox, true);
 	await expect(confirmCheckbox).toBeChecked();
 
-	const completeSetupButton = backupCodesContainer.getByRole('button', { name: /complete.*setup/i });
+	const completeSetupButton = backupCodesContainer.getByRole('button', {
+		name: /complete.*setup/i
+	});
 	await completeSetupButton.click();
 	logCheckpoint('Confirmed backup code storage and completed setup.');
 
@@ -301,7 +333,9 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// `.icon_back.visible` child indicating it's active (not on the main menu).
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
 	const bannerBackButton = page.getByTestId('banner-back-button').first();
-	const settingsBackButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+	const settingsBackButton = (await bannerBackButton
+		.isVisible({ timeout: 1000 })
+		.catch(() => false))
 		? bannerBackButton
 		: page.locator('#settings-back-button');
 	for (let i = 0; i < 5; i++) {
@@ -401,7 +435,9 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	// ========================================================================
 
 	await settingsMenuButton.click();
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({
+		timeout: 10000
+	});
 	await takeStepScreenshot(page, 'settings-open-before-disable');
 	logCheckpoint('Opened settings menu before disabling OTP.');
 
@@ -419,28 +455,21 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 
 	const disableAuthModal = page.locator('[role="dialog"]');
 	await expect(disableAuthModal).toBeVisible({ timeout: 10000 });
-	const disableAuthPasswordInput = disableAuthModal.locator('[data-testid="password-input"], input[type="password"]');
-	await expect(disableAuthPasswordInput).toBeVisible();
-	await disableAuthPasswordInput.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
-	await disableAuthModal.getByTestId('auth-btn').click();
-	logCheckpoint('Submitted password before disabling OTP.');
-
 	const disableAuthTfaInput = disableAuthModal.getByTestId('tfa-input');
-	const disableAuthTfaVisible = await Promise.race([
-		disableAuthTfaInput.waitFor({ state: 'visible', timeout: 10000 }).then(() => true),
-		disableAuthModal.waitFor({ state: 'hidden', timeout: 10000 }).then(() => false),
-	]).catch(() => false);
-
-	if (disableAuthTfaVisible) {
-		const disableAuthOtp = generateTotp(newTfaSecret);
-		await disableAuthTfaInput.fill(disableAuthOtp);
-		logCheckpoint('Entered current OTP before disabling OTP.');
-		await disableAuthModal.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-	}
+	await expect(disableAuthTfaInput).toBeVisible();
+	await waitForFreshTotpStep(page);
+	await disableAuthTfaInput.fill(generateTotp(newTfaSecret));
+	await disableAuthModal.waitFor({ state: 'hidden', timeout: 15000 });
+	logCheckpoint('Verified current OTP before disabling OTP.');
+	expect(
+		sensitiveTotpPurposes.filter((purpose) => purpose === 'factor_change').length
+	).toBeGreaterThanOrEqual(2);
 
 	const disableConfirm = page.getByTestId('tfa-disable-confirm');
 	await expect(disableConfirm).toBeVisible({ timeout: 15000 });
-	await expect(disableConfirm).toContainText(/less secure|weniger sicher|menos segura|moins sécurisé/i);
+	await expect(disableConfirm).toContainText(
+		/less secure|weniger sicher|menos segura|moins sécurisé/i
+	);
 	await takeStepScreenshot(page, 'tfa-disable-confirm');
 	logCheckpoint('Disable confirmation warning is visible.');
 

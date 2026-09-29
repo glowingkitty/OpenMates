@@ -60,6 +60,8 @@ import {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  devicePasswordFallbackAvailable,
+  devicePasswordCredentialVersion,
   deviceVerificationReason,
 } from "./authState";
 // Import auth types
@@ -114,6 +116,8 @@ async function performAuthCheck(
   captureReferralCodeFromUrl();
   needsDeviceVerification.set(false); // Reset verification need
   deviceVerificationType.set(null); // Reset verification type
+  devicePasswordFallbackAvailable.set(false);
+  devicePasswordCredentialVersion.set(null);
   deviceVerificationReason.set(null); // Reset verification reason
 
   try {
@@ -186,6 +190,14 @@ async function performAuthCheck(
       );
       needsDeviceVerification.set(true);
       deviceVerificationType.set(data.re_auth_required);
+      devicePasswordFallbackAvailable.set(
+        data.re_auth_required === "passkey" && data.password_fallback_available === true,
+      );
+      devicePasswordCredentialVersion.set(
+        data.re_auth_required === "passkey" && data.password_fallback_available === true
+          ? data.password_credential_version ?? null
+          : null,
+      );
       deviceVerificationReason.set(data.re_auth_reason || "new_device");
       authStore.update((state) => ({
         ...state,
@@ -461,6 +473,8 @@ async function performAuthCheck(
 
       needsDeviceVerification.set(false);
       deviceVerificationType.set(null);
+      devicePasswordFallbackAvailable.set(false);
+      devicePasswordCredentialVersion.set(null);
       deviceVerificationReason.set(null);
 
       // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
@@ -580,8 +594,6 @@ async function performAuthCheck(
           );
         }
 
-        await userDB.saveUserData(data.user);
-        if (!isCurrentSession()) return currentAuthResult();
         const tfa_enabled = !!data.user.tfa_enabled;
         const consent_privacy =
           !!data.user.consent_privacy_and_apps_default_settings;
@@ -718,6 +730,16 @@ async function performAuthCheck(
         // manual preference in localStorage, so local choices always win.
         applyServerDarkMode(userDarkMode);
         applyServerUiFont(userUiFont);
+
+        // The server has authenticated this session and supplied its profile.
+        // A blocked or damaged local IndexedDB must not leave settings showing
+        // the previous guest profile after a successful login.
+        try {
+          await userDB.saveUserData(data.user);
+          if (!isCurrentSession()) return currentAuthResult();
+        } catch (dbError) {
+          console.error("Failed to save user data to database:", dbError);
+        }
 
         try {
           await promoteGuestTopicPreferencesIfNeeded();

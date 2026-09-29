@@ -13,7 +13,8 @@ export const signupStore = writable({
   stayLoggedIn: false,
   encryptedMasterKey: '',
   salt: '',
-  loginMethod: '' // 'password' or 'passkey'
+  loginMethod: '', // 'password' or 'passkey'
+  signupTransactionToken: ''
 });
 
 export function clearSignupData() {
@@ -27,7 +28,8 @@ export function clearSignupData() {
     stayLoggedIn: false,
     encryptedMasterKey: '',
     salt: '',
-    loginMethod: ''
+    loginMethod: '',
+    signupTransactionToken: ''
   });
 }
 

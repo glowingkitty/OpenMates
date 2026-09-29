@@ -1,10 +1,9 @@
 /** Deterministic account-free Tasks workspace matching the Figma board state. */
 
 import '@fontsource-variable/lexend-deca';
-import taskBoardPreview from './TaskBoard.preview';
+import taskBoardPreview, { variants as boardVariants } from './TaskBoard.preview';
 
 const defaultProps = {
-  focus: 'tasks' as const,
   previewTasks: taskBoardPreview.tasks,
   previewPlans: taskBoardPreview.plans,
   previewProjectNames: taskBoardPreview.projectNames,
@@ -17,5 +16,9 @@ export const variants = {
   project: {
     ...defaultProps,
     compact: true,
+  },
+  manyBacklog: {
+    ...defaultProps,
+    previewTasks: boardVariants.manyBacklog.tasks,
   },
 };

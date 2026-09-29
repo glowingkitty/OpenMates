@@ -24,6 +24,11 @@ export const needsDeviceVerification = writable<boolean>(false);
 // Used alongside needsDeviceVerification to determine which verification UI to show.
 export const deviceVerificationType = writable<"2fa" | "passkey" | null>(null);
 
+// The risk challenge may offer password + email only when this account has a
+// password credential. Passkey-only accounts must not see an unusable option.
+export const devicePasswordFallbackAvailable = writable<boolean>(false);
+export const devicePasswordCredentialVersion = writable<number | null>(null);
+
 // Tracks WHY device verification is required ('new_device' or 'location_change').
 // Used to show a contextual security explanation to the user (e.g., location change warning).
 export const deviceVerificationReason = writable<

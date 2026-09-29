@@ -1,0 +1,2059 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-28'
+generated_at: '2026-09-29T00:20:23+00:00'
+range:
+  since: '2026-09-28T00:00:00+00:00'
+  until: '2026-09-29T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 23
+  section_counts:
+    features: 2
+    bug_fixes: 16
+    improvements: 0
+    docs: 1
+    tests: 4
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 16
+  dev_only_items: 23
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: polish workflow messages and run provenance'
+    section: features
+    commits:
+    - 752a8b0d9
+    authored_at: '2026-09-28T17:43:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_result_selection.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_delivery_history.py
+    - backend/tests/test_workflow_yaml_news_readiness.py
+    - backend/tests/test_workflow_yaml_typed_readiness.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workflow-rich-delivery/plan.yml
+    - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-run-provenance.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowRunProvenance.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/components/workflows/workflowVariableGradient.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:workflows, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: expose guest daily allowance percentage'
+    section: features
+    commits:
+    - 1ad45d47d
+    authored_at: '2026-09-28T11:36:47+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - docs/architecture/apps/rest-api.md
+    - frontend/apps/web_app/tests/anonymous-free-usage-status.spec.ts
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: restore Project Files source access guidance and root navigation'
+    section: bug_fixes
+    commits:
+    - 77777e887
+    authored_at: '2026-09-28T22:32:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: dedupe streamed anonymous replies'
+    section: bug_fixes
+    commits:
+    - 29d09d482
+    authored_at: '2026-09-28T22:14:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: open sole connected Project folders directly'
+    section: bug_fixes
+    commits:
+    - 6039ebf78
+    authored_at: '2026-09-28T21:07:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct connected Project file browsing'
+    section: bug_fixes
+    commits:
+    - 8e557521e
+    authored_at: '2026-09-28T20:51:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedContent.ts
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:code, platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow connected file chunks through remote route'
+    section: bug_fixes
+    commits:
+    - 0b047c85a
+    authored_at: '2026-09-28T19:15:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore anonymous child embed persistence'
+    section: bug_fixes
+    commits:
+    - abef7b84f
+    authored_at: '2026-09-28T19:09:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover profile and chat sync after blocked logout'
+    section: bug_fixes
+    commits:
+    - f8ffa8d4e
+    authored_at: '2026-09-28T18:46:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep workspace header aligned with Project and Workflow detail'
+    section: bug_fixes
+    commits:
+    - be8e1fd0e
+    authored_at: '2026-09-28T18:45:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept formatted authenticator codes on login'
+    section: bug_fixes
+    commits:
+    - e6ca3b324
+    authored_at: '2026-09-28T18:15:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/password-and-tfa-otp.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.preview.ts
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore connected Projects and Tasks workspace UI'
+    section: bug_fixes
+    commits:
+    - b96ae251f
+    authored_at: '2026-09-28T18:06:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/tests/test_project_remote_image_bridge.py
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.test.ts
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.ts
+    - frontend/apps/web_app/src/routes/plans/[plan_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/tests/components/project-readme-figma.spec.ts
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/helpers/create-project-plan.ts
+    - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+    - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/apps/web_app/tests/workspace-hash-routing.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/file/FileEmbedPreview.svelte
+    - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+    - frontend/packages/ui/src/components/plans/PlanCard.svelte
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.preview.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectRemoteDownload.test.ts
+    - frontend/packages/ui/src/services/projectReadme.ts
+    - frontend/packages/ui/src/services/projectRemoteDownload.ts
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/project_remote_access_live.mjs
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/workspace-shell/examples.yml
+    - specifications/features/workspace-shell/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:code:code, embed:file:file, platform:projects, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip Node cache setup in isolated pytest jobs'
+    section: bug_fixes
+    commits:
+    - c5f04a4e8
+    authored_at: '2026-09-28T16:41:33+00:00'
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore project repository browsing and align project and tasks UI'
+    section: bug_fixes
+    commits:
+    - 0b0a20a91
+    authored_at: '2026-09-28T14:03:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.preview.ts
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/project_remote_access_live.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore readable nightly test overview'
+    section: bug_fixes
+    commits:
+    - 3c92c0d83
+    authored_at: '2026-09-28T12:34:27+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/status_routes.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/daily_ci_digest.mjml
+    - backend/core/docker-compose.override.yml
+    - backend/tests/test_daily_ci_digest_email.py
+    - backend/tests/test_daily_test_status_route.py
+    - docs/plans/daily-test-digest/plan.yml
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/TestsSection.svelte
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/types.ts
+    - frontend/apps/web_app/tests/components/daily-test-digest.spec.ts
+    - frontend/apps/web_app/tests/status-page-daily-report.spec.ts
+    - frontend/packages/ui/src/components/status/DailyTestDigest.preview.ts
+    - frontend/packages/ui/src/components/status/DailyTestDigest.svelte
+    - scripts/ci_coverage.py
+    - scripts/daily_ci_notification.py
+    - scripts/run-tests-daily.sh
+    - scripts/signup_email_live_smoke.py
+    - scripts/tests/test_daily_ci_notification.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist daily CI coordinator across cron and reboot'
+    section: bug_fixes
+    commits:
+    - b33c1e6da
+    authored_at: '2026-09-28T11:12:11+00:00'
+    changed_paths:
+    - docs/architecture/isolated-github-tests.md
+    - scripts/ci_coordinator_service.py
+    - scripts/ci_dispatch.py
+    - scripts/daily_ci_notification.py
+    - scripts/tests/test_ci_coordinator_service.py
+    - scripts/tests/test_ci_dispatch.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore daily CI discovery and notifications'
+    section: bug_fixes
+    commits:
+    - '436985419'
+    authored_at: '2026-09-28T11:01:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/tests/test_internal_api.py
+    - scripts/ci_dispatch.py
+    - scripts/daily_ai_test_manifest.json
+    - scripts/daily_ci_notification.py
+    - scripts/run-tests-daily.sh
+    - scripts/test_schedule_setup.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_daily_ci_notification.py
+    - scripts/tests/test_test_schedule_setup.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover failed assistant replies and alert on failed chats'
+    section: bug_fixes
+    commits:
+    - 5090e8bf6
+    authored_at: '2026-09-28T09:55:16+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/answer_recovery.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/chat_failure_email_task.py
+    - backend/core/api/templates/email/chat-failure-alert.mjml
+    - backend/core/directus/extensions/anonymous-usage-transaction/src/operations.js
+    - backend/core/directus/extensions/anonymous-usage-transaction/test/operations.test.js
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+    - backend/core/directus/schemas/chat_turn_preflights.yml
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/tests/test_anonymous_answer_continuation.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_answer_recovery_integration.py
+    - backend/tests/test_chat_completion_recovery_retention.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_chat_failure_task_boundaries.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/architecture/core/chat-failure-notifications.md
+    - docs/plans/anonymous-final-answer-settlement/plan.yml
+    - docs/plans/chat-failure-alerts/plan.yml
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - specifications/architecture/operational-monitoring/examples.yml
+    - specifications/architecture/operational-monitoring/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: verify guest chats after production updates'
+    section: docs
+    commits:
+    - 9f4dd7fba
+    authored_at: '2026-09-28T10:49:53+00:00'
+    changed_paths:
+    - .agents/skills/update-prod-server/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: verify anonymous child embeds reload once'
+    section: tests
+    commits:
+    - f82d629fd
+    authored_at: '2026-09-28T22:36:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: enable AI fixture profile for R4SF3 regression'
+    section: tests
+    commits:
+    - 172c6b2fd
+    authored_at: '2026-09-28T21:39:07+00:00'
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover anonymous child embeds in isolated browser'
+    section: tests
+    commits:
+    - 097d32ce3
+    authored_at: '2026-09-28T20:12:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fail fast when anonymous dev usage is inactive'
+    section: tests
+    commits:
+    - efb53524b
+    authored_at: '2026-09-28T10:17:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: verify anonymous child embeds reload once'
+    commits:
+    - f82d629fd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore Project Files source access guidance and root navigation'
+    commits:
+    - 77777e887
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: dedupe streamed anonymous replies'
+    commits:
+    - 29d09d482
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: enable AI fixture profile for R4SF3 regression'
+    commits:
+    - 172c6b2fd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: open sole connected Project folders directly'
+    commits:
+    - 6039ebf78
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: correct connected Project file browsing'
+    commits:
+    - 8e557521e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: cover anonymous child embeds in isolated browser'
+    commits:
+    - 097d32ce3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow connected file chunks through remote route'
+    commits:
+    - 0b047c85a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore anonymous child embed persistence'
+    commits:
+    - abef7b84f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover profile and chat sync after blocked logout'
+    commits:
+    - f8ffa8d4e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep workspace header aligned with Project and Workflow detail'
+    commits:
+    - be8e1fd0e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: accept formatted authenticator codes on login'
+    commits:
+    - e6ca3b324
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore connected Projects and Tasks workspace UI'
+    commits:
+    - b96ae251f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: polish workflow messages and run provenance'
+    commits:
+    - 752a8b0d9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: skip Node cache setup in isolated pytest jobs'
+    commits:
+    - c5f04a4e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore project repository browsing and align project and tasks UI'
+    commits:
+    - 0b0a20a91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore readable nightly test overview'
+    commits:
+    - 3c92c0d83
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: expose guest daily allowance percentage'
+    commits:
+    - 1ad45d47d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: persist daily CI coordinator across cron and reboot'
+    commits:
+    - b33c1e6da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore daily CI discovery and notifications'
+    commits:
+    - '436985419'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: verify guest chats after production updates'
+    commits:
+    - 9f4dd7fba
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fail fast when anonymous dev usage is inactive'
+    commits:
+    - efb53524b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover failed assistant replies and alert on failed chats'
+    commits:
+    - 5090e8bf6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: restore connected Projects and Tasks workspace UI'
+    commits:
+    - b96ae251f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: restore Project Files source access guidance and root navigation'
+    commits:
+    - 77777e887
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: dedupe streamed anonymous replies'
+    commits:
+    - 29d09d482
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: open sole connected Project folders directly'
+    commits:
+    - 6039ebf78
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: correct connected Project file browsing'
+    commits:
+    - 8e557521e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: allow connected file chunks through remote route'
+    commits:
+    - 0b047c85a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore anonymous child embed persistence'
+    commits:
+    - abef7b84f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover profile and chat sync after blocked logout'
+    commits:
+    - f8ffa8d4e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep workspace header aligned with Project and Workflow detail'
+    commits:
+    - be8e1fd0e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: accept formatted authenticator codes on login'
+    commits:
+    - e6ca3b324
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore connected Projects and Tasks workspace UI'
+    commits:
+    - b96ae251f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: polish workflow messages and run provenance'
+    commits:
+    - 752a8b0d9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore project repository browsing and align project and tasks UI'
+    commits:
+    - 0b0a20a91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore readable nightly test overview'
+    commits:
+    - 3c92c0d83
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: expose guest daily allowance percentage'
+    commits:
+    - 1ad45d47d
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore daily CI discovery and notifications'
+    commits:
+    - '436985419'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover failed assistant replies and alert on failed chats'
+    commits:
+    - 5090e8bf6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: f82d629fdc35c1bf8c5b984133ca69a951e90e23
+    short_sha: f82d629fd
+    authored_at: '2026-09-28T22:36:05+00:00'
+    subject: 'test: verify anonymous child embeds reload once'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    related_feature_ids: []
+  - sha: 77777e8871efa70d216d3c14a33364475308c67f
+    short_sha: 77777e887
+    authored_at: '2026-09-28T22:32:58+00:00'
+    subject: 'fix: restore Project Files source access guidance and root navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/projects.yml
+    - frontend/packages/ui/src/services/__tests__/projectServiceRemoteAccess.test.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 29d09d482954ffcdb2c5eb3e5342d4a6c88f3b3d
+    short_sha: 29d09d482
+    authored_at: '2026-09-28T22:14:21+00:00'
+    subject: 'fix: dedupe streamed anonymous replies'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 172c6b2fd08f2fb800971493d937f98e5378a9b7
+    short_sha: 172c6b2fd
+    authored_at: '2026-09-28T21:39:07+00:00'
+    subject: 'test: enable AI fixture profile for R4SF3 regression'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_coverage_manifest.json
+    related_feature_ids: []
+  - sha: 6039ebf781261f7eb88ba3881dd869cb347f5fe0
+    short_sha: 6039ebf78
+    authored_at: '2026-09-28T21:07:22+00:00'
+    subject: 'fix: open sole connected Project folders directly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: 8e557521ee50a5f83ddfb7cfdfb445aaddb9ffee
+    short_sha: 8e557521e
+    authored_at: '2026-09-28T20:51:54+00:00'
+    subject: 'fix: correct connected Project file browsing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedContent.ts
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:code:code
+    - platform:projects
+  - sha: 097d32ce3ae617ff92f22d4eeb0889a8a0e36632
+    short_sha: 097d32ce3
+    authored_at: '2026-09-28T20:12:10+00:00'
+    subject: 'test: cover anonymous child embeds in isolated browser'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-child-embeds.spec.ts
+    - scripts/ci_coverage.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 0b047c85aa236153b7549ba94f12a8fcbdb2d9e3
+    short_sha: 0b047c85a
+    authored_at: '2026-09-28T19:15:56+00:00'
+    subject: 'fix: allow connected file chunks through remote route'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    related_feature_ids:
+    - platform:projects
+  - sha: abef7b84f2a18ab6ea0190a48d0dc125bd3f348e
+    short_sha: abef7b84f
+    authored_at: '2026-09-28T19:09:05+00:00'
+    subject: 'fix: restore anonymous child embed persistence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: f8ffa8d4e3f3eaf9467a708069b25c420fd2ae1d
+    short_sha: f8ffa8d4e
+    authored_at: '2026-09-28T18:46:39+00:00'
+    subject: 'fix: recover profile and chat sync after blocked logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: be8e1fd0e356d2a9247786fad469df5d62363636
+    short_sha: be8e1fd0e
+    authored_at: '2026-09-28T18:45:27+00:00'
+    subject: 'fix: keep workspace header aligned with Project and Workflow detail'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: e6ca3b3248c918bf92734ff6acbf38c457f63d3e
+    short_sha: e6ca3b324
+    authored_at: '2026-09-28T18:15:47+00:00'
+    subject: 'fix: accept formatted authenticator codes on login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/password-and-tfa-otp.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.preview.ts
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b96ae251f82ecbacd44db431285ea1738a4a81e9
+    short_sha: b96ae251f
+    authored_at: '2026-09-28T18:06:08+00:00'
+    subject: 'fix: restore connected Projects and Tasks workspace UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/tests/test_project_remote_image_bridge.py
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.test.ts
+    - frontend/apps/web_app/src/lib/workspaceHashRoute.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.ts
+    - frontend/apps/web_app/src/routes/plans/[plan_id]/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/tests/components/project-readme-figma.spec.ts
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    - frontend/apps/web_app/tests/helpers/create-project-plan.ts
+    - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+    - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    - frontend/apps/web_app/tests/workspace-hash-routing.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/projectRequester.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/file/FileEmbedPreview.svelte
+    - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+    - frontend/packages/ui/src/components/plans/PlanCard.svelte
+    - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    - frontend/packages/ui/src/components/plans/PlansWorkspacePage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectReadme.svelte
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.preview.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
+    - frontend/packages/ui/src/services/__tests__/projectRemoteDownload.test.ts
+    - frontend/packages/ui/src/services/projectReadme.ts
+    - frontend/packages/ui/src/services/projectRemoteDownload.ts
+    - frontend/packages/ui/src/services/projectRemoteSources.ts
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/project_remote_access_live.mjs
+    - specifications/features/projects/examples.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/workspace-shell/examples.yml
+    - specifications/features/workspace-shell/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - embed:code:code
+    - embed:file:file
+    - platform:projects
+    - platform:tasks
+  - sha: 752a8b0d9d2fe3545004e6a798a255b0585ca84d
+    short_sha: 752a8b0d9
+    authored_at: '2026-09-28T17:43:13+00:00'
+    subject: 'feat: polish workflow messages and run provenance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_models.py
+    - backend/core/api/app/services/workflow_result_selection.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_builder_v1.py
+    - backend/tests/test_workflow_delivery_history.py
+    - backend/tests/test_workflow_yaml_news_readiness.py
+    - backend/tests/test_workflow_yaml_typed_readiness.py
+    - backend/tests/test_workflows_routes_security.py
+    - docs/plans/workflow-rich-delivery/plan.yml
+    - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-run-provenance.spec.ts
+    - frontend/apps/web_app/tests/workflows-ai-authoring.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowRunProvenance.ts
+    - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowMessageEditor.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+    - frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+    - frontend/packages/ui/src/components/workflows/workflowExamples.ts
+    - frontend/packages/ui/src/components/workflows/workflowMessageTokens.ts
+    - frontend/packages/ui/src/components/workflows/workflowVariableGradient.ts
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/workflows-ui/examples.yml
+    - specifications/features/workflows-ui/specification.yml
+    - specifications/features/workflows/examples.yml
+    - specifications/features/workflows/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:workflows
+    - skill:ai:ask
+  - sha: c5f04a4e84b832c358654c2485ab5dc8c7738a1d
+    short_sha: c5f04a4e8
+    authored_at: '2026-09-28T16:41:33+00:00'
+    subject: 'fix: skip Node cache setup in isolated pytest jobs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/isolated-tests.yml
+    related_feature_ids: []
+  - sha: 0b0a20a9126b80b95654d42de431f8f268aac7a0
+    short_sha: 0b0a20a91
+    authored_at: '2026-09-28T14:03:49+00:00'
+    subject: 'fix: restore project repository browsing and align project and tasks UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
+    - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
+    - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectRemotePreviewCard.svelte
+    - frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.preview.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/tasks/TaskBoard.preview.ts
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+    - frontend/packages/ui/src/services/projectService.ts
+    - scripts/project_remote_access_live.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+    - platform:tasks
+  - sha: 3c92c0d83d396e6212c5463c0845b46207d4fbdc
+    short_sha: 3c92c0d83
+    authored_at: '2026-09-28T12:34:27+00:00'
+    subject: 'fix: restore readable nightly test overview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/status_routes.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/daily_ci_digest.mjml
+    - backend/core/docker-compose.override.yml
+    - backend/tests/test_daily_ci_digest_email.py
+    - backend/tests/test_daily_test_status_route.py
+    - docs/plans/daily-test-digest/plan.yml
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/TestsSection.svelte
+    - frontend/apps/web_app/src/routes/(minimal)/status/components/types.ts
+    - frontend/apps/web_app/tests/components/daily-test-digest.spec.ts
+    - frontend/apps/web_app/tests/status-page-daily-report.spec.ts
+    - frontend/packages/ui/src/components/status/DailyTestDigest.preview.ts
+    - frontend/packages/ui/src/components/status/DailyTestDigest.svelte
+    - scripts/ci_coverage.py
+    - scripts/daily_ci_notification.py
+    - scripts/run-tests-daily.sh
+    - scripts/signup_email_live_smoke.py
+    - scripts/tests/test_daily_ci_notification.py
+    related_feature_ids: []
+  - sha: 1ad45d47d0f424a962d8f44abf09a6ba7f6297e1
+    short_sha: 1ad45d47d
+    authored_at: '2026-09-28T11:36:47+00:00'
+    subject: 'feat: expose guest daily allowance percentage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - docs/architecture/apps/rest-api.md
+    - frontend/apps/web_app/tests/anonymous-free-usage-status.spec.ts
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/billing/examples.yml
+    - specifications/features/billing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: b33c1e6da5f08c0bcc7581d575f974b400514a2b
+    short_sha: b33c1e6da
+    authored_at: '2026-09-28T11:12:11+00:00'
+    subject: 'fix: persist daily CI coordinator across cron and reboot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/isolated-github-tests.md
+    - scripts/ci_coordinator_service.py
+    - scripts/ci_dispatch.py
+    - scripts/daily_ci_notification.py
+    - scripts/tests/test_ci_coordinator_service.py
+    - scripts/tests/test_ci_dispatch.py
+    related_feature_ids: []
+  - sha: 4369854199ce6182068ea3d1788cae3b32aeaef7
+    short_sha: '436985419'
+    authored_at: '2026-09-28T11:01:40+00:00'
+    subject: 'fix: restore daily CI discovery and notifications'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/tests/test_internal_api.py
+    - scripts/ci_dispatch.py
+    - scripts/daily_ai_test_manifest.json
+    - scripts/daily_ci_notification.py
+    - scripts/run-tests-daily.sh
+    - scripts/test_schedule_setup.py
+    - scripts/tests/test_ci_dispatch.py
+    - scripts/tests/test_daily_ci_notification.py
+    - scripts/tests/test_test_schedule_setup.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9f4dd7fba3eac9fc859840bb41479e3d57d48953
+    short_sha: 9f4dd7fba
+    authored_at: '2026-09-28T10:49:53+00:00'
+    subject: 'docs: verify guest chats after production updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/update-prod-server/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    related_feature_ids: []
+  - sha: efb53524bc9adc76cfc39fa7e7bc2034da07f3a5
+    short_sha: efb53524b
+    authored_at: '2026-09-28T10:17:41+00:00'
+    subject: 'test: fail fast when anonymous dev usage is inactive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5090e8bf6cd03f9254051a94383d29be6ae0a68c
+    short_sha: 5090e8bf6
+    authored_at: '2026-09-28T09:55:16+00:00'
+    subject: 'fix: recover failed assistant replies and alert on failed chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/model_usage_tracker.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/answer_recovery.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/main_processing_failure.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/chat_failure_email_task.py
+    - backend/core/api/templates/email/chat-failure-alert.mjml
+    - backend/core/directus/extensions/anonymous-usage-transaction/src/operations.js
+    - backend/core/directus/extensions/anonymous-usage-transaction/test/operations.test.js
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+    - backend/core/directus/schemas/chat_turn_preflights.yml
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/tests/test_anonymous_answer_continuation.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_answer_recovery_integration.py
+    - backend/tests/test_chat_completion_recovery_retention.py
+    - backend/tests/test_chat_failure_notifications.py
+    - backend/tests/test_chat_failure_task_boundaries.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - docs/architecture/core/chat-failure-notifications.md
+    - docs/plans/anonymous-final-answer-settlement/plan.yml
+    - docs/plans/chat-failure-alerts/plan.yml
+    - frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
+    - frontend/apps/web_app/tests/skill-news-search.spec.ts
+    - specifications/architecture/operational-monitoring/examples.yml
+    - specifications/architecture/operational-monitoring/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+llm_summary:
+  overview: OpenMates focused on enhancing the reliability of AI interactions and refining the guest user experience. Key
+    developments include the introduction of automated recovery for failed assistant replies and new tracking for guest usage
+    allowances. Significant progress was also made on the unreleased Projects, Tasks, and Workflows platforms through extensive
+    UI alignment and repository browsing fixes.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates polished workflow messages and added run provenance to the unreleased Workflows platform.
+    evidence:
+      commits:
+      - 752a8b0d9
+    release_status: dev_only
+  - text: The unreleased Projects and Tasks platforms received numerous fixes for repository browsing, file access, and workspace
+      UI alignment.
+    evidence:
+      commits:
+      - 77777e887
+      - 6039ebf78
+      - 8e557521e
+      - 0b047c85a
+      - b96ae251f
+      - 0b0a20a91
+    release_status: dev_only
+  - text: AI and anonymous usage features were improved with streamed reply deduplication, child embed persistence, and a
+      new guest daily allowance display.
+    evidence:
+      commits:
+      - 29d09d482
+      - abef7b84f
+      - 5090e8bf6
+      - 1ad45d47d
+    release_status: dev_only
+  - text: Core platform stability was enhanced by improving profile sync recovery after logout and allowing formatted authenticator
+      codes during login.
+    evidence:
+      commits:
+      - f8ffa8d4e
+      - be8e1fd0e
+      - e6ca3b324
+    release_status: dev_only
+  internal_progress:
+  - text: Internal CI systems were stabilized by restoring daily test discovery, improving notification reliability, and optimizing
+      Node cache handling in isolated jobs.
+    evidence:
+      commits:
+      - c5f04a4e8
+      - b33c1e6da
+      - '436985419'
+      - 3c92c0d83
+    release_status: dev_only
+  - text: Testing coverage was expanded for anonymous child embeds and AI regression profiles, alongside updated documentation
+      for production server verification.
+    evidence:
+      commits:
+      - f82d629fd
+      - 172c6b2fd
+      - 097d32ce3
+      - efb53524b
+      - 9f4dd7fba
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Workflow message polishing and run provenance.
+      evidence:
+        commits:
+        - 752a8b0d9
+      reason: Workflows is a disabled platform feature and the work is currently dev-only.
+    - text: Guest daily allowance tracking.
+      evidence:
+        commits:
+        - 1ad45d47d
+      reason: This feature is currently dev-only and not yet released to the main branch.
+    - text: Projects and Tasks workspace UI alignment.
+      evidence:
+        commits:
+        - b96ae251f
+        - 0b0a20a91
+      reason: Projects and Tasks are disabled platform features.
+    rationale: No changes from this period have been released to the main branch or marked as ready for public communication.
+      All work is currently in a dev-only state or related to disabled platform features.
+  social_video_recommendations:
+  - idea: Showcase the new AI 'Answer Recovery' system that prevents lost progress when an assistant reply fails.
+    priority: Low
+    reason: This provides a concrete reliability story, though it is currently in development.
+    evidence:
+      commits:
+      - 5090e8bf6
+  quality_notes:
+  - A high volume of bug fixes (16) and test additions (4) indicates a strong focus on platform stability and regression testing.
+  - Internal CI infrastructure received multiple updates to ensure reliable daily testing and notifications.
+  validation_warnings: []

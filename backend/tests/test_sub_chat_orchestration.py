@@ -8,6 +8,7 @@
 
 import asyncio
 import inspect
+from types import SimpleNamespace
 
 import pytest
 
@@ -24,6 +25,7 @@ from backend.apps.ai.sub_chat_orchestration import (
 )
 
 try:
+    from backend.apps.ai.processing import main_processor
     from backend.apps.ai.processing.main_processor import (
         _max_affordable_ai_output_tokens,
         _orchestrated_ai_output_token_limit,
@@ -32,6 +34,58 @@ try:
     )
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
+
+
+def test_parent_continuation_reserves_its_ai_charge_before_inference(monkeypatch: pytest.MonkeyPatch) -> None:
+    reservations = []
+
+    class OrchestrationService:
+        def __init__(self, directus_service):
+            assert directus_service is directus
+
+        async def execute(self, operation, payload):
+            reservations.append((operation, payload))
+
+    directus = object()
+    request = SimpleNamespace(
+        is_anonymous=False,
+        is_sub_chat_continuation=True,
+        orchestration_id="orchestration-id",
+        user_id_hash="owner-hash",
+        root_chat_id="root-chat-id",
+        chat_id="root-chat-id",
+        sub_chat_depth=0,
+    )
+    monkeypatch.setattr(main_processor, "SubChatOrchestrationService", OrchestrationService)
+    monkeypatch.setattr(main_processor, "_quote_ai_iteration_credits", lambda **_kwargs: 56)
+
+    operation_id = asyncio.run(main_processor._reserve_ai_iteration(
+        task_id="continuation-task-id",
+        iteration=0,
+        model_id="google/gemini-test",
+        system_prompt="Synthesize child reports",
+        message_history=[{"role": "user", "content": "Compare reports"}],
+        tools=None,
+        output_token_limit=1000,
+        request_data=request,
+        directus_service=directus,
+    ))
+
+    assert operation_id == "ai-ask:continuation-task-id:main:iteration:0:model:google/gemini-test"
+    assert reservations == [("reserve_operation", {
+        "protocol_version": 1,
+        "operation_id": operation_id,
+        "charge_id": "ai-ask:continuation-task-id:main",
+        "orchestration_id": "orchestration-id",
+        "hashed_user_id": "owner-hash",
+        "root_chat_id": "root-chat-id",
+        "actual_chat_id": "root-chat-id",
+        "depth": 0,
+        "app_id": "ai",
+        "skill_id": "ask",
+        "phase": "inference_0",
+        "quoted_credits": 56,
+    })]
 
 
 def test_template_expansion_is_capped() -> None:

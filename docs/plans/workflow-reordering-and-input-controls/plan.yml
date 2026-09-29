@@ -1,0 +1,164 @@
+schema_version: 2
+id: workflow-reordering-and-input-controls
+title: Workflow node reordering and typed skill inputs
+status: verified
+goal: >-
+  Workflow authors can reorder eligible nodes by dragging or using adjacent
+  move buttons, and every enabled app skill presents location and date inputs
+  with controls matching the input semantics.
+scope:
+  in: [graph edge reordering, move controls, location selection, calendar inputs, paired date ranges, enabled skill schema audit]
+  out: [new workflow node types, execution semantics, unrelated skill APIs]
+scenarios:
+  - id: S-1
+    title: Reorder a workflow
+    given: [A workflow has consecutive independent steps.]
+    when: [The author drags a step or uses an available move button.]
+    then: [The graph saves the new order while branches and dependencies stay valid.]
+  - id: S-2
+    title: Enter typed skill inputs
+    given: [The author edits an enabled app skill.]
+    when: [Its schema declares a place, date, time, URL, or paired date range.]
+    then: [The editor presents the corresponding picker or input control.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Buttons and drag moves persist valid order; invalid moves are hidden or rejected.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UNIT-REORDER, T-PW-PREVIEW, T-PW-ROUTE]
+  - id: AC-2
+    scenario: S-2
+    text: Enabled skill schemas select location, calendar date, time, URL, and combined range controls where appropriate.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-PY-SCHEMA, T-PW-PREVIEW, T-PW-ROUTE]
+tests:
+  - id: T-UNIT-REORDER
+    type: vitest
+    file: frontend/packages/ui/src/components/workflows/__tests__/workflowReordering.test.ts
+    command: cd frontend/packages/ui && ./node_modules/.bin/vitest run src/components/workflows/__tests__/workflowReordering.test.ts
+    assertions: [Adjacent and drag moves preserve connectivity and reject dependent or branch crossings.]
+    covers: [AC-1]
+    red_phase: {required: false, expected: known_gap, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/ui && ./node_modules/.bin/vitest run src/components/workflows/__tests__/workflowReordering.test.ts
+        run_id: local-2026-09-29-reordering
+        subject_commit: d2cbe02eac03f9c7bd889ab4e10314487164acf0
+        timestamp: '2026-09-29T02:40:36Z'
+        summary: 4 tests passed.
+  - id: T-PY-SCHEMA
+    type: pytest
+    file: backend/tests/test_workflow_app_ui_metadata.py
+    command: python3 -m pytest backend/tests/test_workflow_app_ui_metadata.py -q
+    assertions: [Every enabled capability declares applicable date and location semantics.]
+    covers: [AC-2]
+    red_phase: {required: false, expected: known_gap, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_app_ui_metadata.py -q
+        run_id: local-2026-09-29-skill-metadata
+        subject_commit: d2cbe02eac03f9c7bd889ab4e10314487164acf0
+        timestamp: '2026-09-29T02:40:36Z'
+        summary: 6 tests passed across all 40 enabled skills.
+  - id: T-PW-PREVIEW
+    type: playwright
+    file: frontend/apps/web_app/tests/components/workflow-graph-reorder-inputs.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session b867 --spec components/workflow-graph-reorder-inputs.spec.ts --mode component --no-prepared-builds
+    target: localhost
+    execution_environment: isolated_github_ci
+    assertions: [Bare preview shows contextual moves and typed fitness and travel inputs.]
+    covers: [AC-1, AC-2]
+    red_phase: {required: false, expected: known_gap, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py submit --session b867 --source d2cbe02eac03f9c7bd889ab4e10314487164acf0 --spec components/workflow-graph-reorder-inputs.spec.ts --mode component --no-prepared-builds
+        run_id: '36512922000'
+        subject_commit: d2cbe02eac03f9c7bd889ab4e10314487164acf0
+        timestamp: '2026-09-29T02:40:36Z'
+        execution_environment: isolated_github_ci
+        harness_commit: 4c083784227a6fd85a96baacd8a984e1710b153f
+        profile: component
+        artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/36512922000/artifacts/11009487001]
+  - id: T-PW-ROUTE
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-reorder-inputs.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session b867 --spec workflows-reorder-inputs.spec.ts --mode e2e
+    target: localhost
+    execution_environment: isolated_github_ci
+    assertions: [Persisted moves and real capability controls work in the editor.]
+    covers: [AC-1, AC-2]
+    red_phase: {required: false, expected: known_gap, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/ci_coordinator.py submit --session b867 --source d2cbe02eac03f9c7bd889ab4e10314487164acf0 --spec workflows-reorder-inputs.spec.ts --mode e2e
+        run_id: '36513331435'
+        subject_commit: d2cbe02eac03f9c7bd889ab4e10314487164acf0
+        timestamp: '2026-09-29T02:40:36Z'
+        execution_environment: isolated_github_ci
+        harness_commit: 4c083784227a6fd85a96baacd8a984e1710b153f
+        profile: e2e
+        artifacts: [https://github.com/glowingkitty/OpenMates/actions/runs/36513331435/artifacts/11009902357]
+implementation_state: {subject_commit: d2cbe02eac03f9c7bd889ab4e10314487164acf0}
+approvals:
+  specification: {status: not_required, reason: Existing workflow authoring behavior is being repaired.}
+  plan: {status: not_required, reason: The user directly authorized implementation in this chat.}
+decisions:
+  - id: D-1
+    status: active
+    decision: Allow reordering only across adjacent straight path steps whose output references remain upstream.
+    reason: Trigger, branch, and referenced steps have execution ordering semantics.
+    decided_at: '2026-09-29'
+tasks:
+  - id: TASK-7414
+    title: Reorder workflow nodes by drag and move controls
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files: [frontend/packages/ui/src/components/workflows/workflowReordering.ts]
+    verification_ids: [T-UNIT-REORDER, T-PW-PREVIEW, T-PW-ROUTE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [frontend/packages/ui/src/components/workflows/workflowReordering.ts], shared_files: []}
+  - id: TASK-4985
+    title: Correct workflow input controls for compatible app skills
+    status: done
+    phase: complete
+    covers: {scenarios: [S-2], acceptance_criteria: [AC-2]}
+    expected_files: [frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte]
+    verification_ids: [T-PY-SCHEMA, T-PW-PREVIEW, T-PW-ROUTE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte], shared_files: []}
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-7414
+    approach: Inspected graph edges and enabled skill schemas before implementation.
+    outcome: succeeded
+    recorded_at: '2026-09-29'
+handoff:
+  current_task_id: TASK-7414
+  next_action: Deploy the verified scoped change to dev.
+  command: python3 scripts/plan_validate.py docs/plans/workflow-reordering-and-input-controls/plan.yml
+  expected_outcome: The verified implementation is available on dev.
+  blocker: null
+  last_verified_commit: d2cbe02eac03f9c7bd889ab4e10314487164acf0

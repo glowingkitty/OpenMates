@@ -42,6 +42,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK key wrappers", () => {
+  // contract-test: direct surface=sdks.npm assertions=sdk.encryption.local-only,sdk.auth.credential-separation
   it("decrypts loaded chats using master wrapper rows before row-level fallback", async () => {
     const masterKey = new Uint8Array(randomBytes(32));
     const wrapperChatKey = new Uint8Array(randomBytes(32));
@@ -90,7 +91,7 @@ describe("OpenMates SDK key wrappers", () => {
         assert.equal((decrypted.chat as Record<string, unknown>).title, "Wrapper Title");
         assert.equal((decrypted.messages as Array<Record<string, unknown>>)[0].content, "Wrapper message");
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${material.apiKey.split(".")[0]}`,
     );
   });
 });

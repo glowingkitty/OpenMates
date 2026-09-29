@@ -48,6 +48,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev
+from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     MOST_DEMANDING_TIER,
     APPROVED_REQUEST_TIERS,
@@ -1231,6 +1232,7 @@ class PreprocessingResult(BaseModel):
     can_proceed: bool = False # Renamed from is_safe_to_proceed
     rejection_reason: Optional[str] = None # This will serve as error_type
     enable_subchats: bool = False # Whether sub-chats are enabled for this request.
+    ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
@@ -2200,7 +2202,26 @@ async def handle_preprocessing(
 
     decision_model = getattr(skill_config.default_llms, "decision_model", None)
     llm_call_result: Optional[LLMPreprocessingCallResult] = None
-    if decision_model:
+    if (request_data.user_preferences or {}).get("workflow_ai") is True:
+        # The Workflow graph already chose the source app and values. Keep credit,
+        # safety, model, and language handling below, but skip classification AI.
+        llm_call_result = LLMPreprocessingCallResult(
+            arguments={
+                "harmful_or_illegal": 0,
+                "misuse_risk": 0,
+                "category": "general_knowledge",
+                "topic_area": "general",
+                "complexity": "simple",
+                "relevant_app_skills": [],
+                "relevant_focus_modes": [],
+                "relevant_embedded_previews": [],
+                "load_app_settings_and_memories": [],
+                "output_language": user_system_language,
+                "llm_response_temp": 0.4,
+            },
+            raw_provider_response_summary={"purpose": "workflow_deterministic_preprocessing", "generated_text": False},
+        )
+    elif decision_model:
         try:
             logger.info(f"{log_prefix} Firing Jev bounded preprocessing decisions via {decision_model}.")
             decision_arguments = await decide_preprocessing_with_jev(
@@ -2259,6 +2280,12 @@ async def handle_preprocessing(
         )
 
     llm_analysis_args = llm_call_result.arguments
+    ai_model_topics = complete_ai_model_topics(
+        llm_analysis_args.get("ai_model_topics"),
+        request_data.current_user_content or (
+            latest_projected_user.get("content") if latest_projected_user else None
+        ),
+    )
     combined_raw_response_summary = llm_call_result.raw_provider_response_summary
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
@@ -3547,6 +3574,16 @@ async def handle_preprocessing(
                 f"{log_prefix} [DISCLAIMER] Category '{final_category}' is sensitive but "
                 f"disclaimer was shown recently, skipping"
             )
+
+    # Current model availability and subscription allowances can change faster than
+    # our provider catalogue. Make live lookup available for model conversations.
+    if (
+        ai_model_topics
+        and not user_requested_skills_only
+        and "web-search" in available_skill_ids
+        and "web-search" not in validated_relevant_skills
+    ):
+        validated_relevant_skills.append("web-search")
     
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
@@ -3556,6 +3593,7 @@ async def handle_preprocessing(
         harmful_or_illegal_score=harmful_or_illegal_val,
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
         enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
+        ai_model_topics=ai_model_topics,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)

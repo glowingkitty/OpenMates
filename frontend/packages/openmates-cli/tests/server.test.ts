@@ -104,6 +104,7 @@ import {
   selectLatestStableReleaseTag,
 } from "../src/releaseChannel.ts";
 import { publishServerBackupArchive } from "../src/serverBackupArchive.ts";
+import { ensureRuntimeMetricsDirectory } from "../src/serverRuntimePaths.ts";
 import {
   acquireServerUpdateLock,
   readServerUpdateStatus,
@@ -112,6 +113,45 @@ import {
 } from "../src/serverUpdateState.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
+
+describe("runtime metrics bind mount", () => {
+  it("creates owner-only directories before Compose can claim the host path", () => {
+    const installPath = join(tmpdir(), `openmates-metrics-${process.pid}-${Date.now()}`);
+    mkdirSync(installPath);
+    try {
+      ensureRuntimeMetricsDirectory(installPath);
+      ensureRuntimeMetricsDirectory(installPath);
+      for (const suffix of [".openmates", ".openmates/runtime-health", ".openmates/runtime-health/metrics"]) {
+        const info = statSync(join(installPath, suffix));
+        assert.equal(info.uid, process.getuid?.());
+        assert.equal(info.mode & 0o777, 0o700);
+      }
+    } finally {
+      rmSync(installPath, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a symlinked metrics path", () => {
+    const installPath = join(tmpdir(), `openmates-metrics-link-${process.pid}-${Date.now()}`);
+    mkdirSync(join(installPath, ".openmates", "runtime-health"), { recursive: true });
+    symlinkSync(tmpdir(), join(installPath, ".openmates", "runtime-health", "metrics"));
+    try {
+      assert.throws(() => ensureRuntimeMetricsDirectory(installPath), /must be a directory owned/);
+    } finally {
+      rmSync(installPath, { recursive: true, force: true });
+    }
+  });
+
+  it("prepares the path in image and source install flows before any Compose start", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const install = source.slice(source.indexOf("async function serverInstall"), source.indexOf("async function serverTest"));
+    assert.match(install, /mkdirSync\(installPath, \{ recursive: true \}\);\s*ensureRuntimeMetricsDirectory\(installPath\)/);
+    assert.match(install, /if \(cloneCode !== 0\)[\s\S]*?ensureRuntimeMetricsDirectory\(installPath\)/);
+    const start = source.slice(source.indexOf("async function serverStart"), source.indexOf("async function serverStop"));
+    assert.ok(start.indexOf("ensureRuntimeMetricsDirectory(installPath)") < start.indexOf('"up", "-d"'));
+  });
+});
+
 const TEST_STATE_DIR = join(tmpdir(), `openmates-cli-state-${process.pid}-${Date.now()}`);
 process.env.OPENMATES_STATE_DIR = TEST_STATE_DIR;
 after(() => {
@@ -883,7 +923,7 @@ describe("role-based server planning", () => {
 
   it("plans image updates with backup before pull/up and without git", () => {
     const plan = planUpdate({ role: "core", selectedServices: ["api"], dryRun: true });
-    assert.deepEqual(plan.steps, ["preflight", "backup:latest-pre-update", "pull", "up", "health-check"]);
+    assert.deepEqual(plan.steps, ["preflight", "backup:latest-pre-update", "pull", "up", "health-check", "caddy-update", "runtime-verification"]);
     assert.equal(plan.commands.some((command) => command.includes("git pull")), false);
     assert.equal(plan.backupName, "latest-pre-update-core.tar.gz");
   });

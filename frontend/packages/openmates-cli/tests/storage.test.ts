@@ -19,6 +19,7 @@ import {
   type OpenMatesSession,
   saveSession,
   loadSession,
+  getCredentialStorageMode,
   clearSession,
   purgeLocalPrivateData,
   saveLocalTeamKey,
@@ -129,6 +130,26 @@ describe("saveSession / loadSession", () => {
     const loaded = loadSession();
     assert.ok(loaded, "should return a session");
     assert.strictEqual(loaded.emailEncryptionKeyB64, session.emailEncryptionKeyB64);
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.pairing.expiry-upgrade,auth.pair-login.expiry
+  it("persists an absolute paired deadline and removes credentials after it passes", () => {
+    const deadline = Date.now() + 60_000;
+    saveSession({ ...SAMPLE_SESSION, autoLogoutMinutes: 30, pairedSessionExpiresAt: deadline }, { replace: true });
+    assert.strictEqual(loadSession()?.pairedSessionExpiresAt, deadline);
+    const saved = JSON.parse(readFileSync(join(STATE_DIR, "session.json"), "utf8"));
+    saved.pairedSessionExpiresAt = Date.now() - 1;
+    writeFileSync(join(STATE_DIR, "session.json"), JSON.stringify(saved), { mode: 0o600 });
+    assert.strictEqual(loadSession(), null);
+    assert.ok(!existsSync(join(STATE_DIR, "session.json")));
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.pairing.expiry-upgrade,auth.pair-login.expiry
+  it("does not extend a paired deadline during a refresh save", () => {
+    const deadline = Date.now() + 60_000;
+    saveSession({ ...SAMPLE_SESSION, pairedSessionExpiresAt: deadline }, { replace: true });
+    saveSession({ ...SAMPLE_SESSION, pairedSessionExpiresAt: deadline + 60_000 });
+    assert.strictEqual(loadSession()?.pairedSessionExpiresAt, deadline);
   });
 
   it("returns null when no session file exists", () => {
@@ -352,17 +373,19 @@ describe("keychain-aware session storage", () => {
     const filePath = join(STATE_DIR, "session.json");
     const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
     assert.ok(
-      ["keychain", "encrypted", "plaintext"].includes(onDisk.masterKeyStorage),
+      ["keychain", "file"].includes(onDisk.masterKeyStorage),
       `masterKeyStorage should be set, got: ${onDisk.masterKeyStorage}`,
     );
   });
 
-  it("master key is not stored as plaintext when keychain/encrypted available", () => {
+  // contract-test: direct surface=cli assertions=cli.credentials.storage-mode
+  it("reports keyring or permission-restricted host file truthfully", () => {
     saveSession(SAMPLE_SESSION);
     const filePath = join(STATE_DIR, "session.json");
     const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
 
     if (onDisk.masterKeyStorage === "keychain") {
+      assert.strictEqual(getCredentialStorageMode(), "os-keyring");
       assert.strictEqual(
         onDisk.masterKeyExportedB64,
         undefined,
@@ -373,19 +396,32 @@ describe("keychain-aware session storage", () => {
         undefined,
         "no encrypted data when using keychain",
       );
-    } else if (onDisk.masterKeyStorage === "encrypted") {
-      assert.strictEqual(
-        onDisk.masterKeyExportedB64,
-        undefined,
-        "plaintext key should not be on disk when encrypted",
-      );
-      assert.ok(
-        onDisk.masterKeyEncrypted,
-        "encrypted data should be present",
-      );
     } else {
-      // Plaintext fallback — key is on disk (least secure tier)
-      assert.ok(onDisk.masterKeyExportedB64, "plaintext key should be present");
+      assert.strictEqual(onDisk.masterKeyStorage, "file");
+      assert.strictEqual(getCredentialStorageMode(), "owner-only-file");
+      assert.strictEqual(onDisk.masterKeyExportedB64, SAMPLE_SESSION.masterKeyExportedB64);
+      assert.strictEqual(statSync(filePath).mode & 0o777, 0o600);
+      assert.strictEqual(statSync(STATE_DIR).mode & 0o777, 0o700);
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=cli.credentials.storage-mode
+  it("does not overwrite an unavailable existing keyring session", () => {
+    const filePath = join(STATE_DIR, "session.json");
+    clearSession();
+    writeFileSync(filePath, JSON.stringify({ ...SAMPLE_SESSION, masterKeyExportedB64: undefined, masterKeyStorage: "keychain" }), { mode: 0o600 });
+    const before = readFileSync(filePath, "utf-8");
+    const originalPath = process.env.PATH;
+    process.env.PATH = "";
+    try {
+      assert.throws(() => loadSession(), /Existing OS keyring entry is unavailable/);
+      assert.throws(() => saveSession(SAMPLE_SESSION), /Existing OS keyring entry is unavailable/);
+      assert.strictEqual(readFileSync(filePath, "utf-8"), before);
+      assert.throws(() => clearSession(), /OS keyring cleanup failed/);
+      assert.strictEqual(existsSync(filePath), false, "local session must be removed even if keyring erasure fails");
+    } finally {
+      process.env.PATH = originalPath;
+      rmSync(filePath, { force: true });
     }
   });
 

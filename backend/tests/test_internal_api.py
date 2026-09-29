@@ -22,6 +22,7 @@ def test_dispatch_test_summary_email_forwards_canonical_failure_groups(monkeypat
     class FakeCeleryApp:
         def send_task(self, **kwargs):
             captured.update(kwargs)
+            return type("TaskResult", (), {"id": "12345678-1234-1234-1234-123456789abc"})()
 
     monkeypatch.setattr(celery_config, "app", FakeCeleryApp())
     payload = internal_api.TestRunSummaryEmailPayload(
@@ -42,10 +43,29 @@ def test_dispatch_test_summary_email_forwards_canonical_failure_groups(monkeypat
 
     result = asyncio.run(internal_api.dispatch_test_summary_email(payload, request=None))
 
-    assert result == {"status": "dispatched"}
+    assert result == {"status": "dispatched", "task_id": "12345678-1234-1234-1234-123456789abc"}
     assert captured["kwargs"]["failure_groups"] == [
         {"title": "Playwright", "description": "Core chat"}
     ]
+
+
+def test_test_summary_email_status_returns_provider_result_without_task_error(monkeypatch) -> None:
+    try:
+        from backend.core.api.app.routes import internal_api
+        from backend.core.api.app.tasks import celery_config
+    except ImportError as exc:
+        pytest.skip(f"Backend dependencies not installed: {exc}")
+
+    class FakeCeleryApp:
+        def AsyncResult(self, _task_id):
+            return type("TaskResult", (), {"state": "SUCCESS", "result": True})()
+
+    monkeypatch.setattr(celery_config, "app", FakeCeleryApp())
+    status = asyncio.run(internal_api.test_summary_email_status("12345678-1234-1234-1234-123456789abc"))
+    assert status == {"state": "SUCCESS", "provider_accepted": True}
+    with pytest.raises(internal_api.HTTPException) as invalid:
+        asyncio.run(internal_api.test_summary_email_status("invalid"))
+    assert invalid.value.status_code == 400
 
 
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox

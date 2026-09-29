@@ -39,6 +39,9 @@ class FakeWorkflowPayloadCipher:
             "key_version": "test",
         }
 
+    def encrypt_json_many(self, payloads: list[Any], vault_key_id: str | None) -> list[dict[str, str]]:
+        return [self.encrypt_json(payload, vault_key_id) for payload in payloads]
+
     def decrypt_json(self, blob: dict[str, Any], vault_key_id: str | None) -> Any:
         del vault_key_id
         encrypted = base64.b64decode(str(blob["ciphertext"]).encode("ascii"))

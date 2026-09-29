@@ -43,10 +43,12 @@ struct NativeSignupPasswordRequest: Encodable, Equatable, Sendable {
     let encryptedMasterKey: String
     let keyIv: String
     let salt: String
-    let lookupHash: String
+    let lookupHash: String?
     let language: String
     let darkmode: Bool
     let pendingGiftCardCode: String?
+    var credentialVersion: Int? = nil
+    var passwordAuthKey: String? = nil
 }
 struct NativeSignupPasswordResponse: Decodable {
     struct CreatedUser: Decodable { let id: String; let username: String }
@@ -73,7 +75,8 @@ struct NativeSignupLoginProof {
               let user = response.user else { return false }
         return (expectedUserId == nil || user.id == expectedUserId) &&
             user.encryptedKey == request.encryptedMasterKey && user.keyIv == request.keyIv &&
-            user.salt == request.salt && user.userEmailSalt == request.userEmailSalt
+            user.salt == request.salt && user.userEmailSalt == request.userEmailSalt &&
+            user.credentialVersion == request.credentialVersion
     }
     func validatesMasterKey(_ actual: SymmetricKey) -> Bool {
         actual.withUnsafeBytes { Data($0) } == masterKey.withUnsafeBytes { Data($0) }
@@ -259,25 +262,32 @@ extension CryptoManager {
             throw NativeSignupError.invalidForm
         }
         let masterBytes = try random(32)
-        let wrappingSalt = try random(16)
         let emailSalt = try random(16)
         let keyIV = try random(12)
         let emailNonce = try random(24)
-        guard masterBytes.count == 32, wrappingSalt.count == 16, emailSalt.count == 16,
+        guard masterBytes.count == 32, emailSalt.count == 16,
               keyIV.count == 12, emailNonce.count == 24 else { throw NativeSignupError.invalidCryptoMaterial }
         let masterKey = SymmetricKey(data: masterBytes)
-        let wrappingKey = try deriveWrappingKeyFromPassword(password: password, salt: wrappingSalt)
+        let passwordKeys = try PasswordV2Keys(password: password, emailSalt: emailSalt)
+        let wrappingKey = passwordKeys.wrappingKey
         let wrapped = try encrypt(masterBytes, using: wrappingKey, nonceData: keyIV)
+        try verifyMasterKeyRoundTrip(
+            wrappedKeyBase64: wrapped.ciphertext.base64EncodedString(),
+            ivBase64: wrapped.nonce.base64EncodedString(),
+            wrappingKey: wrappingKey, expected: masterKey)
         let emailKey = deriveEmailEncryptionKey(email: form.email, salt: emailSalt)
         guard let sealed = Sodium().secretBox.seal(message: Array(form.email.utf8), secretKey: Array(emailKey), nonce: Array(emailNonce)) else {
             throw NativeSignupError.invalidCryptoMaterial
         }
-        return .init(request: NativeSignupPasswordRequest(
+        var request = NativeSignupPasswordRequest(
             hashedEmail: hashEmail(form.email), encryptedEmail: (emailNonce + Data(sealed)).base64EncodedString(),
             userEmailSalt: emailSalt.base64EncodedString(), username: form.username,
             inviteCode: configuration.inviteCode ?? "", encryptedMasterKey: wrapped.ciphertext.base64EncodedString(),
-            keyIv: wrapped.nonce.base64EncodedString(), salt: wrappingSalt.base64EncodedString(),
-            lookupHash: hashKey(password, salt: emailSalt), language: configuration.language,
-            darkmode: configuration.darkmode, pendingGiftCardCode: nil), masterKey: masterKey)
+            keyIv: wrapped.nonce.base64EncodedString(), salt: emailSalt.base64EncodedString(),
+            lookupHash: nil, language: configuration.language,
+            darkmode: configuration.darkmode, pendingGiftCardCode: nil)
+        request.credentialVersion = 2
+        request.passwordAuthKey = passwordKeys.authenticationKey.base64URLEncodedString()
+        return .init(request: request, masterKey: masterKey)
     }
 }

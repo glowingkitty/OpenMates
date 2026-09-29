@@ -20,6 +20,7 @@ steps:
   - id: report
     send_chat_message:
       title: Upcoming events
+      message: "Upcoming events: {{steps.events.results}}"
       blocks:
         - id: events
           source: $nodes.events.output.results

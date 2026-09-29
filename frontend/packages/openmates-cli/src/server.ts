@@ -14,7 +14,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import {
@@ -62,6 +62,7 @@ import {
   validateServerEnvironmentTarget,
 } from "./serverPlanning.js";
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
+import { applyCaddyPathUpdate, caddyHostOperation, verifyCaddyCoreRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
   applyRuntimeCheckResults,
   buildOperationalDeliveryReceipt,
@@ -100,6 +101,7 @@ import {
   type QuickServerTestOutcome,
 } from "./serverQuickTest.js";
 import { resolveStableImageTag } from "./releaseChannel.js";
+import { ensureRuntimeMetricsDirectory } from "./serverRuntimePaths.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -668,6 +670,7 @@ function defaultTemplateRefForVersion(version: string): string {
 }
 
 export function templateRefForImageTag(imageTag: string, packageVersion = ""): string {
+  if (/^sha-[a-f0-9]{40}$/i.test(imageTag)) return imageTag.slice(4);
   if (imageTag === "stable") return MAIN_BRANCH;
   const channelTag = IMAGE_CHANNEL_TAGS[imageTag as keyof typeof IMAGE_CHANNEL_TAGS];
   if (channelTag) return channelTag;
@@ -1248,13 +1251,7 @@ function targetSourceLinks(imageTag: string, templateRef: string): UpdateSourceL
   };
 }
 
-function installedImageMetadata(input: {
-  installPath: string;
-  role: ServerRole;
-  withOverrides: boolean;
-  templateRef: string;
-  requestedTag: string;
-}): { installedVersion: string; sourceLinks: UpdateSourceLinks } {
+function installedImageLabels(input: { installPath: string; role: ServerRole; withOverrides: boolean }): Record<string, string> {
   const containerId = execFileSync(
     "docker",
     [...composeArgs(input.installPath, input.withOverrides, "image", input.role), "ps", "-q", ROLE_PROVENANCE_SERVICE[input.role]],
@@ -1266,6 +1263,20 @@ function installedImageMetadata(input: {
     ["inspect", "--format", "{{json .Config.Labels}}", containerId],
     { cwd: input.installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
   )) as Record<string, string> | null;
+  if (labels?.["org.opencontainers.image.source"]?.trim().replace(/\.git$/, "") !== REPO_URL.replace(/\.git$/, "")) {
+    throw new Error("installed_image_source_unverified");
+  }
+  return labels;
+}
+
+function installedImageMetadata(input: {
+  installPath: string;
+  role: ServerRole;
+  withOverrides: boolean;
+  templateRef: string;
+  requestedTag: string;
+}): { installedVersion: string; sourceLinks: UpdateSourceLinks } {
+  const labels = installedImageLabels(input);
   const installedVersion = labels?.["org.opencontainers.image.version"]?.trim();
   if (!installedVersion) throw new Error("installed_image_version_unavailable");
   const imageSource = labels?.["org.opencontainers.image.source"]?.trim().replace(/\.git$/, "");
@@ -1732,23 +1743,34 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
   }
 }
 
-function restoreServerBackup(installPath: string, role: ServerRole, file: string): void {
+function validateExtractedServerBackup(tempDir: string, role: ServerRole): void {
+  verifyChecksums(tempDir);
+  const manifestPath = join(tempDir, "manifest.json");
+  if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string; backup_format_version?: number; recovery_scope?: string };
+  if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
+  if (role === "core" && manifest.backup_format_version === BACKUP_FORMAT_VERSION && manifest.recovery_scope !== "full-core") {
+    throw new Error("This backup records database and runtime state only; refusing unsafe full core restore.");
+  }
+}
+
+function withValidatedServerBackup(installPath: string, role: ServerRole, file: string, useBackup: (tempDir: string) => void, tempRoot = roleBackupDir(installPath, role)): void {
   const archivePath = resolve(file);
   if (!existsSync(archivePath)) throw new Error(`Backup file not found: ${archivePath}`);
-  mkdirSync(roleBackupDir(installPath, role), { recursive: true, mode: 0o700 });
-  const tempDir = mkdtempSync(join(roleBackupDir(installPath, role), ".restore-"));
-  const env = readEnvMap(installPath);
+  mkdirSync(tempRoot, { recursive: true, mode: 0o700 });
+  const tempDir = mkdtempSync(join(tempRoot, ".restore-"));
   try {
     execSync(`tar -xzf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)}`, { stdio: "pipe" });
-    verifyChecksums(tempDir);
-    const manifestPath = join(tempDir, "manifest.json");
-    if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string; backup_format_version?: number; recovery_scope?: string };
-    if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
-    if (role === "core" && manifest.backup_format_version === BACKUP_FORMAT_VERSION && manifest.recovery_scope !== "full-core") {
-      throw new Error("This backup records database and runtime state only; refusing unsafe full core restore.");
-    }
+    validateExtractedServerBackup(tempDir, role);
+    useBackup(tempDir);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
 
+function restoreServerBackup(installPath: string, role: ServerRole, file: string): void {
+  withValidatedServerBackup(installPath, role, file, (tempDir) => {
+    const env = readEnvMap(installPath);
     copyIfExists(join(tempDir, "runtime", ".env"), join(installPath, ".env"));
     copyIfExists(join(tempDir, "runtime", "config"), join(installPath, "config"));
 
@@ -1769,9 +1791,7 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
         closeSync(dumpFile);
       }
     }
-  } finally {
-    rmSync(tempDir, { recursive: true, force: true });
-  }
+  });
 }
 
 function restoreStopServices(
@@ -1915,6 +1935,7 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
+  ensureRuntimeMetricsDirectory(installPath);
   warnIfMissingLlmCredentials(installPath);
 
   let config = loadConfigForInstallPath(installPath);
@@ -1996,6 +2017,7 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
+  ensureRuntimeMetricsDirectory(installPath);
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
@@ -2196,6 +2218,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   if (!fromSource) {
     requireDocker();
     mkdirSync(installPath, { recursive: true });
+    ensureRuntimeMetricsDirectory(installPath);
 
     // Copy custom .env if provided before generated defaults are filled in.
     if (typeof flags["env-path"] === "string") {
@@ -2281,6 +2304,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   if (cloneCode !== 0) {
     throw new Error("Failed to clone the OpenMates repository.");
   }
+  ensureRuntimeMetricsDirectory(installPath);
 
   // Copy custom .env if provided
   if (typeof flags["env-path"] === "string") {
@@ -2695,6 +2719,79 @@ async function autoInstallRuntimeMonitoringServices(installPath: string, role: S
   return "installed";
 }
 
+function caddyUpdatePlan(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>) {
+  if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
+  const configPath = resolve(typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : "/etc/caddy/Caddyfile");
+  const required = role === "core" && getInstallDeploymentMode(installPath, config) === "official_cloud";
+  if (!existsSync(configPath) && required) throw new Error("Managed cloud Caddyfile is missing; update cannot proceed.");
+  return { configPath, status: existsSync(configPath) ? "planned" : "not_installed" };
+}
+
+async function updateServerCaddy(input: {
+  installPath: string; role: ServerRole; config: ServerConfig | null;
+  flags: Record<string, string | boolean>; mode: "image" | "source"; withOverrides: boolean;
+}): Promise<CaddyUpdateResult> {
+  const plan = caddyUpdatePlan(input.installPath, input.role, input.config, input.flags);
+  if (plan.status === "not_installed") return { status: "not_installed" };
+  const live = caddyHostOperation({ action: "read", configPath: plan.configPath }).content!;
+  const cloud = getInstallDeploymentMode(input.installPath, input.config) === "official_cloud";
+  let site: string | null = null;
+  let templatePath = `frontend/packages/openmates-cli/templates/caddy/${input.role}/Caddyfile`;
+  if (cloud && input.role === "core") {
+    const sites = ["api.openmates.org", "api.dev.openmates.org"].filter(name => live.split("\n").some(line => line.trim() === `${name} {`));
+    if (sites.length !== 1) throw new Error("caddy_managed_site_ambiguous");
+    site = sites[0];
+    templatePath = site === "api.openmates.org" ? "deployment/prod_server/Caddyfile" : "deployment/dev_server/Caddyfile";
+  } else if (cloud) {
+    templatePath = `deployment/${input.role}_server/Caddyfile`;
+  }
+  const revision = input.mode === "image"
+    ? installedImageLabels(input)["org.opencontainers.image.revision"]?.trim()
+    : exec("git rev-parse HEAD", input.installPath).trim();
+  if (!revision || !/^[a-f0-9]{40}$/i.test(revision)) throw new Error("caddy_release_revision_invalid");
+  let target: string;
+  if (input.mode === "source") {
+    target = readFileSync(join(input.installPath, templatePath), "utf8");
+  } else {
+    // Never use the installed CLI's old packaged routes or a moving branch.
+    const response = await fetch(`https://raw.githubusercontent.com/glowingkitty/OpenMates/${revision}/${templatePath}`, { signal: AbortSignal.timeout(15_000), redirect: "error" });
+    if (!response.ok) throw new Error("caddy_release_template_unavailable");
+    target = await response.text();
+  }
+  const env = readEnvMap(input.installPath);
+  const urls = deriveSelfHostCliUrls(readEnvContent(input.installPath));
+  const domain = env[`DEPLOY_${input.role.toUpperCase()}_DOMAIN`];
+  const hostname = site ?? domain ?? live.split("\n").map(line => /^([^\s{$]+)\s+\{$/.exec(line)?.[1]).find(Boolean);
+  if (!hostname) throw new Error("caddy_public_endpoint_unavailable");
+  const baseUrl = hostname.includes("://") ? hostname : `https://${hostname}`;
+  const endpoint = new URL(baseUrl);
+  if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) throw new Error("caddy_public_endpoint_invalid");
+  return applyCaddyPathUpdate({
+    installPath: input.installPath, role: input.role, configPath: plan.configPath,
+    site, target, revision,
+    verify: async () => {
+      if (input.role === "core") await verifyCaddyCoreRoutes(baseUrl, new URL(urls.appUrl).origin);
+      else {
+        const response = await fetch(`${baseUrl}/health`, { redirect: "error", signal: AbortSignal.timeout(5_000) });
+        if (!response.ok) throw new Error("caddy_health_route_failed");
+      }
+    },
+  });
+}
+
+async function runCaddyUpdateStep(input: Parameters<typeof updateServerCaddy>[0]): Promise<CaddyUpdateResult> {
+  writeUpdateStatus(input.installPath, input.role, { status: "in_progress", step: "caddy-update" });
+  try {
+    const result = await updateServerCaddy(input);
+    console.error(`Caddy: ${result.status}${result.revision ? ` (${result.revision.slice(0, 12)})` : ""}`);
+    return result;
+  } catch (error) {
+    const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
+    writeUpdateStatus(input.installPath, input.role, { status: "degraded", step: "caddy-update", caddy: { status: "failed", sanitizedReason: reason } });
+    throw new Error(`Caddy update failed (${reason}); update is degraded. Updated containers remain running.`);
+  }
+}
+
 async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Record<string, string | boolean>): Promise<void> {
   if (rest[0] === "status") {
     const installPath = resolveServerPath(flags);
@@ -2736,13 +2833,17 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
   const installPath = resolveServerPath(flags);
   const dryRun = flags["dry-run"] === true;
-  if (!dryRun) ensureGitWorkDirEnv(installPath);
+  if (!dryRun) {
+    ensureGitWorkDirEnv(installPath);
+    ensureRuntimeMetricsDirectory(installPath);
+  }
 
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
   const deploymentMode = getInstallDeploymentMode(installPath, config);
+  const caddyPlan = caddyUpdatePlan(installPath, role, config, flags);
   const releaseUpdateLock = dryRun ? () => undefined : acquireServerUpdateLock(installPath);
   try {
   const previousUpdateStatus = readUpdateStatus(installPath, role);
@@ -2784,6 +2885,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       targetImageTag: target.tag,
       channel: target.channel ?? null,
       templateRef,
+      caddy: caddyPlan,
       selectedServices: filterRequested ? selectedServices : "all",
       steps: safetyPlan.steps,
       backupName: safetyPlan.backupName,
@@ -2871,11 +2973,13 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
     console.error("Waiting for role health checks...");
     let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
+    let caddy: CaddyUpdateResult | null = null;
     try {
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "health-check" });
       await waitForServerHealth(installPath, role, {
         checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
       });
+      caddy = await runCaddyUpdateStep({ installPath, role, config, flags, mode: "image", withOverrides });
       const runtimeOutput = runRuntimeVerification(installPath, role, config);
       await persistRuntimeResult(installPath, role, runtimeOutput);
       if (runtimeOutput.status !== "passed") {
@@ -2890,6 +2994,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
           status: "degraded",
           targetImageTag: target.tag,
           step: "runtime-verification",
+          caddy,
           checks: runtimeOutput.checks,
           restoreStatus: runtimeOutput.restoreStatus,
           restoreCommand: runtimeOutput.restoreCommand,
@@ -2964,6 +3069,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       status: completion.updateStatus,
       targetImageTag: target.tag,
       installedVersion: imageMetadata.installedVersion,
+      caddy,
       updateMode: "image",
       sourceLinks: imageMetadata.sourceLinks,
       sourceLink: selectUpdateSourceLink(imageMetadata.sourceLinks)?.url,
@@ -2985,6 +3091,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         installedVersion: imageMetadata.installedVersion,
         sourceLinks: imageMetadata.sourceLinks,
         runtimeVerification: successfulRuntimeOutput,
+        caddy,
         quickTest,
         completionEmailDelivery: completion.delivery,
         completedAt: completion.completedAt,
@@ -3007,6 +3114,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         path: installPath,
         mode: "source",
         sourceStrategy,
+        caddy: caddyPlan,
         selectedServices: filterRequested ? selectedServices : "all",
         checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
         dryRun: true,
@@ -3063,8 +3171,10 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   const checkWebApp = shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
   let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
+  let caddy: CaddyUpdateResult | null = null;
   try {
     await waitForServerHealth(installPath, role, { checkWebApp });
+    caddy = await runCaddyUpdateStep({ installPath, role, config, flags, mode: "source", withOverrides });
     const runtimeOutput = runRuntimeVerification(installPath, role, config);
     await persistRuntimeResult(installPath, role, runtimeOutput);
     if (runtimeOutput.status !== "passed") {
@@ -3078,6 +3188,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       writeUpdateStatus(installPath, role, {
         status: "degraded",
         step: "runtime-verification",
+        caddy,
         checks: runtimeOutput.checks,
         restoreStatus: runtimeOutput.restoreStatus,
         restoreCommand: runtimeOutput.restoreCommand,
@@ -3138,6 +3249,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   writeUpdateStatus(installPath, role, {
     status: completion.updateStatus,
     installedVersion: sourceMetadata.installedVersion,
+    caddy,
     updateMode: "source",
     sourceLinks: sourceMetadata.sourceLinks,
     sourceLink: selectUpdateSourceLink(sourceMetadata.sourceLinks)?.url,
@@ -3159,6 +3271,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       installedVersion: sourceMetadata.installedVersion,
       sourceLinks: sourceMetadata.sourceLinks,
       runtimeVerification: successfulRuntimeOutput,
+      caddy,
       quickTest,
       completionEmailDelivery: completion.delivery,
       completedAt: completion.completedAt,
@@ -3410,6 +3523,7 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
+  ensureRuntimeMetricsDirectory(installPath);
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
@@ -3845,12 +3959,16 @@ async function serverRestore(flags: Record<string, string | boolean>): Promise<v
     }
   }
 
+  // Reject invalid or unsafe archives before touching running services. The
+  // restore path validates again after shutdown in case the archive changes.
+  withValidatedServerBackup(installPath, role, file, () => {}, tmpdir());
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
   const stopArgs = [...composeArgs(installPath, withOverrides, installMode, role), "stop", ...restoreStopServices(installPath, withOverrides, installMode, role)];
   let code = await runInteractive("docker", stopArgs, installPath);
   if (code !== 0) process.exit(code);
   restoreServerBackup(installPath, role, file);
+  ensureRuntimeMetricsDirectory(installPath);
   code = await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"], installPath);
   if (code !== 0) process.exit(code);
   await waitForServerHealth(installPath, role);
@@ -4242,6 +4360,7 @@ Command Options:
 
   update:
     --dry-run           Show update plan without changing files or containers
+    --caddy-config <file> Host Caddyfile (default: /etc/caddy/Caddyfile); automatically update managed routes
     --services <csv>    Update only selected role services
     --exclude <csv>     Update all role services except selected services
     --image-tag <tag>   Image mode: update to a specific prebuilt image tag

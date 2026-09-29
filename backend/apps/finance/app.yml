@@ -50,6 +50,13 @@ skills:
       expose_post: false
     tool_schema:
       type: object
+      x-ui:
+        control: date-range
+        start_field: start_date
+        end_field: end_date
+        min_offset_days: -3650
+        max_offset_days: 0
+        basic: false
       properties:
         period:
           x-ui:
@@ -61,10 +68,12 @@ skills:
           x-ui:
             basic: false
           type: string
+          format: date
         end_date:
           x-ui:
             basic: false
           type: string
+          format: date
         projection_horizon:
           x-ui:
             basic: false

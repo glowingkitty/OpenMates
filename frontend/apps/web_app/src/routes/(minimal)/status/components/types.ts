@@ -69,6 +69,19 @@ export type TestsData = {
 	categories: TestCategory[];
 };
 
+export type DailyTests = {
+	date: string;
+	fresh?: boolean;
+	status: string;
+	finalization: string;
+	areas: Record<'unit' | 'sdk_cli' | 'web_e2e', { executed: number; passed: number; failed: number; skipped: number }>;
+	apple_e2e: { status: string; counts: { executed: number; passed: number; failed: number; skipped: number } };
+	selected_specs: number | null;
+	admitted_specs: number;
+	held_specs: number | null;
+	signup: { executed: string[]; held: string[]; live_email: { status: string } };
+};
+
 export type IncidentUpdate = {
 	status: string;
 	timestamp: string;
@@ -104,5 +117,6 @@ export type StatusResponse = {
 	uptime_pct: number;
 	groups: ServiceGroupData[];
 	tests: TestsData;
+	daily_tests: DailyTests | null;
 	incidents: Incident[];
 };

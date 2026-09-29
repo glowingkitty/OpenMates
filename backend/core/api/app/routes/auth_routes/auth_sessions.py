@@ -22,6 +22,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_compliance_service,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.services.session_security_state import revoke_session_state
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
     invalidate_recovery_leases_for_device,
 )
@@ -296,6 +297,10 @@ async def revoke_session(
                 raise
             logger.info("Recovery extension unavailable; session invalidation is a safe no-op")
 
+    # Persist the tombstone before deleting the cache link. An issuer refresh
+    # against a cold cache must never resurrect the target session.
+    await revoke_session_state(request.app.state.directus_service, cache_service, target_hash, user_id)
+
     # 1. Delete the session cache entry — makes the session immediately invalid
     await cache_service.delete(f"session:{target_hash}")
 
@@ -377,6 +382,7 @@ async def logout_all_others(
                 if recovery_error.status_code != 404:
                     raise
                 logger.info("Recovery extension unavailable; session invalidation is a safe no-op")
+        await revoke_session_state(directus_service, cache_service, token_hash, user_id)
         # Delete session cache for each other token
         await cache_service.delete(f"session:{token_hash}")
         del tokens_map[token_hash]
@@ -454,6 +460,7 @@ async def logout_all_devices(
 
     # 2. Clear all user sessions from cache
     for token_hash in list(tokens_map.keys()):
+        await revoke_session_state(directus_service, cache_service, token_hash, user_id)
         await cache_service.delete(f"session:{token_hash}")
     await cache_service.delete(user_tokens_key)
 

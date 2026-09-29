@@ -216,6 +216,7 @@ describe("anonymousChatStorage", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
   it("stores anonymous chats in normal chatDB rows, not the legacy localStorage payload", async () => {
     const fetchMock = mockAnonymousFetch({
       messageId: "assistant-message",
@@ -251,6 +252,7 @@ describe("anonymousChatStorage", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
   it("keeps the feature notice out of anonymous request history", async () => {
     const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "First answer" });
     const storage = await loadStorage();
@@ -267,6 +269,7 @@ describe("anonymousChatStorage", () => {
     expect(JSON.stringify(secondRequest.message_history)).not.toContain(FEATURE_NOTICE);
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,billing.anonymous.local-only-content
   it("sends public example history when anonymous users continue a source chat", async () => {
     const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "Continued from source" });
     const storage = await loadStorage();
@@ -296,6 +299,7 @@ describe("anonymousChatStorage", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.message.identity-idempotent
   it("keeps the user message when the API echoes the client message ID", async () => {
     const storage = await loadStorage();
     const firstResponse = vi.fn(async (_url: string, init: RequestInit) => {
@@ -325,6 +329,7 @@ describe("anonymousChatStorage", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final,billing.anonymous.local-only-content
   it("emits the regular chat sync streaming lifecycle for anonymous responses", async () => {
     mockAnonymousFetch({
       messageId: "assistant-message",
@@ -385,6 +390,41 @@ describe("anonymousChatStorage", () => {
     expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith(expect.stringMatching(/^anonymous-/));
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.message.identity-idempotent
+  it("uses the streamed message ID when persisting the final anonymous response", async () => {
+    const streamedMessageId = "server-streamed-assistant";
+    const assistant = "Answer from the streamed response";
+    const frames = [
+      { type: "ai_typing_started", message_id: streamedMessageId },
+      { type: "ai_message_chunk", message_id: streamedMessageId, full_content_so_far: assistant, is_final_chunk: true },
+      { type: "completed", messageId: streamedMessageId, assistant },
+    ].map((payload) => `data: ${JSON.stringify(payload)}\n\n`).join("");
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(frames));
+        controller.close();
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body,
+    })));
+
+    const storage = await loadStorage();
+    const result = await storage.sendTextMessage({ markdown: "Stream an answer" });
+    const chunk = mockChatSyncService.dispatchEvent.mock.calls
+      .map(([event]) => event as CustomEvent)
+      .find((event) => event.type === "aiMessageChunk");
+
+    expect(chunk?.detail.message_id).toBe(streamedMessageId);
+    expect(result.assistantMessage.message_id).toBe(streamedMessageId);
+    expect((await storage.getMessagesForChat(result.chat.chat_id)).filter((message) => message.role === "assistant"))
+      .toEqual([expect.objectContaining({ message_id: streamedMessageId, content: assistant })]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("orders same-second anonymous request history by conversation turn", async () => {
     const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "First answer" });
     const storage = await loadStorage();
@@ -407,6 +447,7 @@ describe("anonymousChatStorage", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content,auth.session.isolation
   it("purges anonymous chat rows when the tab session key is missing", async () => {
     mockDbState.chats.set("anonymous-stale", {
       chat_id: "anonymous-stale",
@@ -430,6 +471,7 @@ describe("anonymousChatStorage", () => {
     expect(mockDbState.chats.has("anonymous-stale")).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.hard-capped-provider-metering
   it("marks the local user message failed when the anonymous request is rejected", async () => {
     const fetchMock = mockAnonymousFetch({ detail: { message: "Create an account to keep using OpenMates." } }, false, 429);
     const storage = await loadStorage();

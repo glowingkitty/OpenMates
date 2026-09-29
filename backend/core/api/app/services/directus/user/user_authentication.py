@@ -4,6 +4,10 @@ from typing import Dict, Any, Optional, Tuple
 import json
 
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
+from backend.core.api.app.services.credential_verification import typed_lookup_method, typed_lookup_wrapper
+from backend.core.api.app.services.password_v2 import (
+    has_password_v2_record, password_v2_record, verify_challenge_proof,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -444,7 +448,11 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
         logger.warning("Directus session refresh temporarily unavailable")
         raise SessionRefreshUnavailable() from error
 
-async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+async def login_user_with_lookup_hash(
+    self, hashed_email: str, lookup_hash: str | None, *, credential_version: int = 1,
+    challenge_id: str | None = None, password_proof: str | None = None,
+    session_id: str | None = None, cache_service=None, login_method: str | None = None,
+) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
     Authenticate a user with Directus using hashed_email and lookup_hash
     - First verifies the lookup_hash is valid for the user with the given hashed_email
@@ -457,7 +465,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
         url = f"{self.base_url}/users"
         params = {
             "filter": json.dumps({"hashed_email": {"_eq": hashed_email}}),
-            "fields": "id,lookup_hashes",
+            "fields": "id,lookup_hashes,credential_lookup_hashes,vault_key_id",
         }
         
         response = await self._make_api_request("GET", url, params=params)
@@ -478,11 +486,67 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
 
         user_id = user.get("id")
         lookup_hashes = user.get("lookup_hashes", [])
+        if isinstance(lookup_hashes, str):
+            try:
+                lookup_hashes = json.loads(lookup_hashes)
+            except ValueError:
+                lookup_hashes = []
+        if not isinstance(lookup_hashes, list):
+            lookup_hashes = []
         
-        # Check if the provided lookup_hash is in the user's lookup_hashes array
-        if lookup_hash not in lookup_hashes:
-            logger.warning(f"Invalid lookup hash for user {user_id}")
+        typed_credential = user.get("credential_lookup_hashes")
+        if credential_version == 2:
+            record = password_v2_record(typed_credential)
+            # A staged v2 verifier only proves the proposed replacement. Until
+            # explicit migration confirmation retires v1, ordinary login must
+            # continue through the still-active v1 password credential.
+            if not record or record.get("pending_v1_lookup_hash") or not cache_service or not await verify_challenge_proof(
+                cache_service, self.encryption_service, challenge_id=challenge_id,
+                password_proof=password_proof, hashed_email=hashed_email,
+                session_id=session_id, purpose="login", record=typed_credential,
+                vault_key_id=user.get("vault_key_id"),
+            ):
+                return False, None, "login.email_or_password_wrong"
+            verified_lookup_method = "password"
+            verified_wrapper_method = record["wrapper_method"]
+        elif credential_version == 1:
+            # A v2 password account cannot fall back to a retained v1 password
+            # hash. Recovery and passkey records keep their existing verifier.
+            if not isinstance(lookup_hash, str) or lookup_hash not in lookup_hashes:
+                return False, None, "login.email_or_password_wrong"
+            verified_lookup_method = typed_lookup_method(typed_credential, lookup_hash)
+            pending_v1 = password_v2_record(typed_credential)
+            if (pending_v1 and login_method in {None, "password"}
+                    and pending_v1.get("pending_v1_lookup_hash") == lookup_hash):
+                verified_lookup_method = "password"
+                verified_wrapper_method = pending_v1.get("pending_v1_wrapper_method")
+            else:
+                verified_wrapper_method = (typed_lookup_wrapper(typed_credential, verified_lookup_method, lookup_hash)
+                                           if verified_lookup_method else None)
+            if has_password_v2_record(typed_credential) and (
+                (login_method not in {"passkey", "recovery_key"} and not (
+                    pending_v1 and pending_v1.get("pending_v1_lookup_hash") == lookup_hash
+                )) or (verified_lookup_method == "password" and not (
+                    pending_v1 and pending_v1.get("pending_v1_lookup_hash") == lookup_hash
+                ))
+            ):
+                return False, None, "login.email_or_password_wrong"
+        else:
             return False, None, "login.email_or_password_wrong"
+        typed_records = user.get("credential_lookup_hashes")
+        if isinstance(typed_records, str):
+            if not typed_records.strip():
+                typed_records = None
+            else:
+                try:
+                    typed_records = json.loads(typed_records)
+                except ValueError:
+                    typed_records = False
+        # A missing record is an old account; a malformed record is not a
+        # license to relabel a mixed lookup hash as a recovery credential.
+        legacy_recovery_allowed = typed_records is None or (
+            isinstance(typed_records, dict) and "recovery_key" not in typed_records
+        )
             
         logger.info(f"Lookup hash verified for user {user_id}")
         
@@ -638,10 +702,60 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
             return True, {
                 "access_token": access_token,
                 "user": user_data,
-                "cookies": cookies_dict
+                "cookies": cookies_dict,
+                # Internal result only; never serialized to a client. A legacy
+                # mixed-list hit has no method-specific authority.
+                "verified_lookup_method": verified_lookup_method,
+                "verified_wrapper_method": verified_wrapper_method,
+                "verified_credential_version": credential_version,
+                "password_v2_present": has_password_v2_record(typed_credential),
+                "password_migration_pending": bool(
+                    credential_version == 2 and password_v2_record(typed_credential)
+                    and password_v2_record(typed_credential).get("pending_v1_lookup_hash")
+                ),
+                "legacy_recovery_allowed": legacy_recovery_allowed,
             }, "Authentication successful"
             
     except Exception as e:
         error_msg = f"Error during login with lookup hash: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return False, None, error_msg
+
+
+async def create_trusted_user_session(self, user_id: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """Mint a Directus session after a separate server-verified authorization.
+
+    This is intentionally not exposed as a route. Pairing calls it only after
+    consuming a receiver-bound, one-time grant. It never reads or returns a
+    password/passkey/recovery lookup hash.
+    """
+    try:
+        fields = await self.get_user_fields_direct(user_id, ["hashed_email"])
+        hashed_email = fields.get("hashed_email") if fields else None
+        # Account email hashes are Base64(SHA-256), normally 44 characters.
+        if not isinstance(hashed_email, str) or len(hashed_email) < 32:
+            return False, None, "Account login identity unavailable"
+        directus_email = f"{hashed_email[:64]}@example.com"
+        directus_password = await self.encryption_service.hash_email(directus_email)
+        async with httpx.AsyncClient() as client:
+            login_response = await client.post(
+                f"{self.base_url}/auth/login",
+                json={"email": directus_email, "password": directus_password, "mode": "cookie"},
+            )
+        if login_response.status_code != 200:
+            return False, None, "Directus session creation failed"
+        access_token = login_response.json().get("data", {}).get("access_token")
+        if not access_token:
+            return False, None, "Directus access token unavailable"
+        valid, token_user = await self.validate_token(access_token)
+        if not valid or not token_user or token_user.get("id") != user_id:
+            return False, None, "Directus session identity mismatch"
+        profile_ok, profile, _ = await self.get_user_profile(user_id)
+        if not profile_ok or not profile:
+            return False, None, "Account profile unavailable"
+        profile["id"] = user_id
+        cookies = dict(login_response.cookies.items())
+        return True, {"access_token": access_token, "user": profile, "cookies": cookies}, "Session created"
+    except Exception:
+        logger.exception("Trusted user session creation failed")
+        return False, None, "Directus session creation failed"

@@ -13,6 +13,13 @@ from types import SimpleNamespace
 from scripts import ci_environment
 
 
+def test_disposable_authenticator_code_matches_rfc_6238_vector(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts.ci_run_tests import generate_ci_totp
+
+    assert generate_ci_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", timestamp=59) == "287082"
+
+
 def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
     from scripts import ci_run_tests as runner
@@ -24,6 +31,7 @@ def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "ROOT", tmp_path)
     monkeypatch.setattr(runner, "RESULTS", tmp_path / "test-results")
     monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
     monkeypatch.setenv("CI_TEST_MODE", "pytest")
     monkeypatch.setenv("CI_SPECS_JSON", json.dumps([target]))
     monkeypatch.setenv("GITHUB_RUN_ID", "8")
@@ -279,9 +287,12 @@ def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
         calls.append((command, kwargs))
         return SimpleNamespace(returncode=0, stdout='{"api_key":"sk-api-synthetic"}')
     monkeypatch.setattr(runner.subprocess, "run", run)
-    assert runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"}) == "sk-api-synthetic"
+    account = {"OPENMATES_STATE_DIR": "/private/fresh", "OPENMATES_TEST_ACCOUNT_OTP_KEY": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"}
+    assert runner.provision_api_key(account) == "sk-api-synthetic"
     command, kwargs = calls[0]
     assert kwargs["env"]["OPENMATES_STATE_DIR"] == "/private/fresh"
+    assert len(kwargs["env"]["OPENMATES_CI_SENSITIVE_TOTP_CODE"]) == 6
+    assert "client.verifyTotpForCurrentSession" in command[3]
     assert "client.createApiKey" in command[3]
     assert "FIXTURE_CREDIT_LIMIT = 1000" in command[3] and "expiresAt:" in command[3]
     assert kwargs["capture_output"] is True
@@ -290,7 +301,7 @@ def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
     assert "chats.send" not in command[3]
     monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=1))
     with pytest.raises(RuntimeError, match="no shared-key fallback"):
-        runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"})
+        runner.provision_api_key(account)
 
 
 def test_signup_pacing_respects_real_rate_limit(monkeypatch):

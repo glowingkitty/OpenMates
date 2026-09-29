@@ -3,6 +3,7 @@ import logging
 import time
 import hashlib
 import base64
+import secrets
 from backend.core.api.app.schemas.auth import (
     RequestEmailCodeRequest, RequestEmailCodeResponse,
     CheckEmailCodeRequest, CheckEmailCodeResponse,
@@ -29,6 +30,7 @@ event_logger = logging.getLogger("app.events")
 GENERIC_EMAIL_CODE_MESSAGE = "If this email can create an account, a verification code will be sent."
 EXISTING_ACCOUNT_EMAIL_TASK = "app.tasks.email_tasks.existing_account_email_task.send_existing_account_email"
 EXISTING_ACCOUNT_EMAIL_COOLDOWN_SECONDS = 3600
+
 
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
@@ -310,7 +312,8 @@ async def check_confirm_email_code(
                 message="This email is already registered. Please log in instead."
             )
 
-        # Store email verification status and signup data in cache for password setup step
+        # Bind account creation to this client's verified email transaction.
+        transaction_token = secrets.token_urlsafe(32)
         verification_data = {
             "email": email,
             "username": code_request.username,
@@ -318,13 +321,17 @@ async def check_confirm_email_code(
             "language": code_request.language,
             "darkmode": code_request.darkmode,
             "verified_at": int(time.time()),
+            "transaction_token_hash": hashlib.sha256(transaction_token.encode("utf-8")).hexdigest(),
             "code_data": code_data  # Store invite code data for later use
         }
         
         # Store verification data in cache with 30 minute expiry
         # Use hashed_email for the cache key to match the lookup in auth_password.py
         verification_cache_key = f"email_verified:{hashed_email}"
-        await cache_service.set(verification_cache_key, verification_data, ttl=1800)  # 30 minutes
+        saved_proof = await cache_service.set(verification_cache_key, verification_data, ttl=1800)
+        saved_token = await cache_service.set(f"signup_transaction:{hashed_email}:{verification_data['transaction_token_hash']}", "1", ttl=1800)
+        if not saved_proof or not saved_token:
+            return CheckEmailCodeResponse(success=False, message="Could not save email verification. Please try again.")
         
         logger.info("Email verification successful, stored verification data in cache")
 
@@ -337,7 +344,8 @@ async def check_confirm_email_code(
         # Return success - user will proceed to secure account step
         return CheckEmailCodeResponse(
             success=True,
-            message="Email verified successfully. Please continue to secure your account."
+            message="Email verified successfully. Please continue to secure your account.",
+            signup_transaction_token=transaction_token,
         )
 
     except Exception as e:

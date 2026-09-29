@@ -2,6 +2,14 @@ project_root:
   context: Root breadcrumb label in the Project file browser
   en: Project root
   verified_by_human: []
+search_current_folder:
+  context: Heading for Project file search matches directly inside the open folder
+  en: 'Current folder:'
+  verified_by_human: []
+search_across_project:
+  context: Heading for Project file search matches outside the open folder. {project} is the decrypted Project name.
+  en: 'Across {project}:'
+  verified_by_human: []
 focus_active:
   context: Active Project focus pill in the chat composer. {project} is the decrypted Project name.
   en: Work on {project}
@@ -9,6 +17,14 @@ focus_active:
 connected_source:
   context: Badge for a folder or repository connected through the remote-access bridge
   en: Connected
+  verified_by_human: []
+source_session_reconnect:
+  context: Error when this browser's authenticated device identity is unavailable for a connected Project source
+  en: This browser session needs a fresh sign-in to access the connected source.
+  verified_by_human: []
+source_session_relogin:
+  context: Button to explicitly sign out and reopen login when the Project source needs a fresh browser identity
+  en: Sign out and sign in again
   verified_by_human: []
 remote_preview_transient:
   context: Privacy status below an on-demand remote file preview

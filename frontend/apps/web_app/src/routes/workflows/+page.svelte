@@ -185,6 +185,9 @@
 	let savedRunReady = $derived(
 		selectedWorkflow ? workflowGraphReady(selectedWorkflow.graph) : false
 	);
+	let hasTimeTrigger = $derived(
+		editorGraph?.nodes.some((node) => node.type === 'schedule_trigger') ?? false
+	);
 
 	onMount(() => {
 		if (window.location.pathname !== '/') {
@@ -907,6 +910,20 @@
 															onChange={updateEditorGraph}
 															onSave={saveNodeGraph}
 														/>
+														{#if hasTimeTrigger}
+															<div class="workflow-test-now-row">
+																<button
+																	type="button"
+																	class="workflow-test-now"
+																	data-testid="workflow-template-test-now"
+																	disabled={saving || editorDirty || !savedRunReady}
+																	onclick={() => void runSelectedWorkflow()}
+																>
+																	<span class="workflow-icon icon-play size-20" aria-hidden="true"></span>
+																	{$text('workflows.builder.test_now')}
+																</button>
+															</div>
+														{/if}
 													</div>
 												{/if}
 											</WorkflowVersionHistory>
@@ -1273,6 +1290,35 @@
 		color: var(--color-font-secondary);
 		background: var(--color-grey-10);
 		font-size: var(--font-size-small, 0.875rem);
+	}
+
+	.workflow-test-now-row {
+		display: flex;
+		justify-content: center;
+		padding: 0 1rem 2rem;
+	}
+
+	.workflow-test-now {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.55rem;
+		min-width: 12rem;
+		min-height: 3rem;
+		padding: 0.6rem 1.4rem;
+		border: 0;
+		border-radius: 1rem;
+		background: var(--color-button-primary);
+		color: var(--color-font-button);
+		box-shadow: var(--shadow-sm);
+		font: inherit;
+		font-weight: 650;
+		cursor: pointer;
+	}
+
+	.workflow-test-now:disabled {
+		opacity: 0.55;
+		cursor: not-allowed;
 	}
 
 	.empty-detail {

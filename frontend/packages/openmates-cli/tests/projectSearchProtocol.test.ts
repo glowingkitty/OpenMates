@@ -124,7 +124,7 @@ describe("Project search protocol", () => {
         glob: "**/*.ts",
         runRg: async () => { throw unavailable; },
       });
-      assert.deepEqual(files.matches, [{ path: "src/needle-file.ts" }]);
+      assert.deepEqual(files.matches, [{ path: "src/needle-file.ts", kind: "file" }]);
 
       const content = await searchRemoteSource({
         sourceRoot: root,
@@ -162,7 +162,7 @@ describe("Project search protocol", () => {
       assert.ok(calls[0]?.includes("--files"));
       assert.deepEqual(calls[0]?.slice(-2), ["--", "."]);
       assert.ok(!calls[0]?.includes("--token[$()]"));
-      assert.deepEqual(result.matches, [{ path: "src/--token[$()].ts" }]);
+      assert.deepEqual(result.matches, [{ path: "src/--token[$()].ts", kind: "file" }]);
       assert.equal(result.excluded, 1);
     } finally {
       rmSync(home, { recursive: true, force: true });

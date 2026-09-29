@@ -8,6 +8,7 @@ import asyncio
 import hashlib
 
 from backend.core.api.app.routes.auth_routes import auth_common
+from backend.core.api.app.routes.auth_routes import auth_session
 from backend.core.api.app.utils import device_fingerprint
 
 
@@ -142,3 +143,10 @@ def test_legacy_device_hash_remains_available_for_migration():
         )
         == expected
     )
+
+
+# contract-test: direct surface=rest_api assertions=auth.session.risk-reauth,auth.keys.independent-unlock
+def test_passkey_risk_challenge_offers_email_fallback_only_with_password_wrapper():
+    assert not auth_session._has_password_wrapper([{"login_method": "passkey_v2_abc"}])
+    assert auth_session._has_password_wrapper([{"login_method": "passkey_v2_abc"}, {"login_method": "password"}])
+    assert auth_session._has_password_wrapper([{"login_method": "password_v2_xyz"}])

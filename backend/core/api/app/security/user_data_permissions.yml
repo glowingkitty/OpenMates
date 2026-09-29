@@ -188,36 +188,122 @@ rest_modules:
     data_domains: [auth, sessions]
     rationale: Logout revokes current or all authenticated sessions.
   - path: backend/core/api/app/routes/auth_routes/auth_pair.py
-    expected_routes: 7
+    expected_routes: 3
+    actors: [unauthenticated]
+    access: [public_read]
+    data_domains: [auth]
+    rationale: Retired PIN-upload pairing routes only return update-required without parsing a request body.
+  - path: backend/core/api/app/routes/auth_routes/auth_pair_v2.py
+    expected_routes: 13
     actors: [unauthenticated, authenticated_owner]
-    access: [public_read, owner_write]
-    data_domains: [auth, sessions]
-    rationale: Pair-auth bridges unauthenticated polling with authenticated approval.
+    access: [public_read, public_write, owner_read, owner_write, token_read]
+    data_domains: [auth, sessions, encrypted_keys]
+    rationale: First-party PAKE relay with receiver capability and authenticated sender session; no API-key role.
     endpoints:
+      - method: POST
+        route: /initiate
+        function: initiate
+        actors: [unauthenticated]
+        access: [public_write]
+        data_domains: [auth]
+        auth_model: pair_token
+        rationale: Creates a bounded receiver-capability-bound pairing request.
       - method: GET
-        route: /pair/credentials
-        function: pair_credentials
+        route: /info/{token}
+        function: info
         actors: [authenticated_owner]
         access: [owner_read]
-        data_domains: [auth, sessions]
+        data_domains: [auth]
         auth_model: session_required
-        rationale: Pair credentials are returned only to the authenticated account approving a pair flow.
+        rationale: Prospective approver views minimal receiver metadata.
+      - method: GET
+        route: /account-check
+        function: account_check
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [auth, encrypted_keys]
+        auth_model: session_required
+        rationale: Current session obtains account-bound encrypted email and hash to confirm its local key before pairing.
       - method: POST
-        route: /pair/authorize/{token}
-        function: pair_authorize
+        route: /step-up
+        function: step_up
         actors: [authenticated_owner]
         access: [owner_write]
-        data_domains: [auth, sessions]
+        data_domains: [auth]
+        auth_model: session_required
+        rationale: Verifies recent strong auth on the current logical session.
+      - method: POST
+        route: /approve/{token}
+        function: approve
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth]
         auth_model: session_required_and_pair_token
-        rationale: Pair authorization requires the current authenticated owner plus the pair token.
+        rationale: Reserves one pairing with a verified authorizer session.
+      - method: GET
+        route: /receiver/{token}
+        function: receiver_poll
+        actors: [unauthenticated]
+        access: [token_read]
+        data_domains: [auth, encrypted_keys]
+        auth_model: pair_token
+        rationale: Receiver capability grants only its own opaque messages and bundle.
+      - method: GET
+        route: /authorizer/{token}
+        function: authorizer_poll
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [auth]
+        auth_model: session_required_and_pair_token
+        rationale: Bound approver receives only its receiver's PAKE messages.
+      - method: POST
+        route: /receiver/{token}/message
+        function: receiver_message
+        actors: [unauthenticated]
+        access: [token_read]
+        data_domains: [auth]
+        auth_model: pair_token
+        rationale: Receiver advances one opaque PAKE exchange.
+      - method: POST
+        route: /authorizer/{token}/message
+        function: authorizer_message
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth]
+        auth_model: session_required_and_pair_token
+        rationale: Bound approver advances one opaque PAKE exchange.
+      - method: POST
+        route: /authorize/{token}
+        function: authorize
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth, encrypted_keys]
+        auth_model: session_required_and_pair_token
+        rationale: Bound approver releases only ciphertext and a random grant hash.
+      - method: POST
+        route: /complete/{token}
+        function: complete
+        actors: [unauthenticated]
+        access: [token_read]
+        data_domains: [auth, sessions]
+        auth_model: pair_token
+        rationale: Receiver capability plus single-use grant mints a bound first-party session.
+      - method: POST
+        route: /acknowledge/{token}
+        function: acknowledge
+        actors: [unauthenticated]
+        access: [token_read]
+        data_domains: [auth]
+        auth_model: pair_token
+        rationale: Receiver confirms durable local storage before approver success.
       - method: DELETE
-        route: /pair/{token}
-        function: pair_cancel
-        actors: [authenticated_owner]
-        access: [owner_write]
-        data_domains: [auth, sessions]
-        auth_model: session_required_and_pair_token
-        rationale: Pair cancellation requires the authenticated owner plus the pair token.
+        route: /{token}
+        function: cancel
+        actors: [unauthenticated, authenticated_owner]
+        access: [token_read, owner_write]
+        data_domains: [auth]
+        auth_model: pair_token
+        rationale: Either bound role can terminate its own pairing.
   - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
     expected_routes: 8
     actors: [unauthenticated, authenticated_owner]

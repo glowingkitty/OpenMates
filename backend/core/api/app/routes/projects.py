@@ -25,6 +25,7 @@ from backend.core.api.app.services.project_remote_access_service import (
     ProjectRemoteAccessError,
     ProjectRemoteAccessService,
     WRITE_OPERATIONS,
+    USER_FILE_OPERATIONS,
 )
 from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
@@ -323,6 +324,11 @@ class ProjectItemCreateRequest(BaseModel):
     position: int = 0
 
 
+class ProjectItemMoveRequest(BaseModel):
+    folder_id: Optional[str] = None
+    updated_at: int = Field(ge=1)
+
+
 class ProjectEmbedKeyRequest(BaseModel):
     hashed_embed_id: str
     key_type: str = Field(pattern="^(master|chat|project)$")
@@ -377,17 +383,20 @@ class ProjectRemoteAccessRequestCreate(BaseModel):
 
     request_id: str = Field(min_length=1, max_length=128)
     requesting_client_id: str = Field(min_length=1, max_length=128)
-    operation: Literal["list", "search", "read_text", "create_file", "update_file"]
+    operation: Literal["list", "search", "read_text", "read_image_chunk", "read_file_chunk", "create_file", "update_file", "copy_entries", "move_entries"]
     key_epoch: int = Field(ge=1)
     encrypted_envelope: str = Field(min_length=1, max_length=350_000)
     chat_id: str | None = Field(default=None, min_length=1, max_length=128)
     operation_id: str | None = Field(default=None, min_length=1, max_length=128)
     proposal_digest: str | None = Field(default=None, pattern="^[a-f0-9]{64}$")
+    user_initiated: bool = False
 
     @model_validator(mode="after")
     def require_write_context(self):
         if self.operation in WRITE_OPERATIONS and not (self.chat_id and self.operation_id and self.proposal_digest):
             raise ValueError("Project writes require an originating chat and committed proposal")
+        if self.operation in USER_FILE_OPERATIONS and (not self.user_initiated or self.chat_id or self.operation_id or self.proposal_digest):
+            raise ValueError("File transfers require an explicit user action without chat-write context")
         return self
 
 
@@ -975,7 +984,10 @@ async def update_project_source_capabilities(
 
 
 @router.post("/{project_id}/sources/{source_id}/requests", status_code=202)
-@limiter.limit("60/minute")
+# This coarse IP limit must accommodate the service's separate per-user budgets:
+# 60 ordinary requests and 256 file chunks per minute. Multiple authenticated
+# users may also share an IP; the service enforces the tighter user limits.
+@limiter.limit("1000/minute")
 async def create_project_remote_access_request(
     project_id: str,
     source_id: str,
@@ -989,7 +1001,7 @@ async def create_project_remote_access_request(
 
     await _require_project_role(
         directus_service, team_id, current_user.id,
-        TEAM_MUTATE_ROLES if body.operation in WRITE_OPERATIONS else TEAM_READ_ROLES,
+        TEAM_MUTATE_ROLES if body.operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS else TEAM_READ_ROLES,
     )
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     source = await directus_service.project.get_source(
@@ -1045,6 +1057,7 @@ async def create_project_remote_access_request(
             chat_id=body.chat_id,
             operation_id=body.operation_id,
             proposal_digest=body.proposal_digest,
+            user_initiated=body.user_initiated,
         )
     except ProjectRemoteAccessError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
@@ -1088,6 +1101,41 @@ async def authorize_project_remote_write(
         f"{delivery['context_type']}:{delivery['context_id_hash']}:{delivery['requester_user_id']}:{delivery['chat_id']}".encode()
     ).hexdigest()
     return {"authorized": True, "operation_id": delivery["operation_id"], "authorization_scope": scope}
+
+
+@router.post("/{project_id}/sources/{source_id}/requests/{request_id}/authorize-transfer")
+@limiter.limit("60/minute")
+async def authorize_project_remote_transfer(
+    project_id: str, source_id: str, request_id: str,
+    body: ProjectRemoteWriteAuthorizeRequest, request: Request,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Check current requester and source authority before a user file action.
+
+    The relay stores no plaintext paths or file bytes. The host uses this
+    endpoint both before and inside the source mutation lock.
+    """
+    await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    service = ProjectRemoteAccessService(request.app.state.cache_service)
+    device_hash = await _authenticated_request_device_hash(request, current_user.id)
+    try:
+        delivery = await service.require_remote_user_file_request(
+            host_user_id=current_user.id, project_id=project_id, source_id=source_id,
+            source_session_id=body.source_session_id, request_id=request_id,
+            device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
+        )
+        requester_id = delivery["requester_user_id"]
+        await _require_project_role(directus_service, team_id, requester_id, TEAM_MUTATE_ROLES)
+        project = await directus_service.project.get_project(project_id, requester_id, team_id=team_id)
+        source = await directus_service.project.get_source(project_id, requester_id, source_id, team_id=team_id)
+        if (not project or not source or source.get("status") == "revoked"
+                or "write_request" not in set(source.get("capabilities") or [])):
+            raise ProjectRemoteAccessError("source_capability_denied", status_code=403)
+    except ProjectRemoteAccessError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+    return {"authorized": True, "operation": delivery["operation"]}
 
 
 @router.get("/{project_id}/sources/{source_id}/requests/{request_id}")
@@ -1461,6 +1509,36 @@ async def delete_item(
         team_id=team_id,
     )
     return {"deleted": deleted > 0, "deleted_count": deleted}
+
+
+@router.patch("/{project_id}/items/{project_item_id}")
+@limiter.limit("60/minute")
+async def move_item_to_folder(
+    request: Request,
+    project_id: str,
+    project_item_id: str,
+    body: ProjectItemMoveRequest,
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
+    project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    item = await directus_service.project.get_item(project_id, project_item_id, current_user.id, team_id=team_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Project item not found")
+    if membership and membership.get("role") == "member" and item.get("attached_by_user_hash") != hash_id(current_user.id):
+        raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
+    if body.folder_id and not await directus_service.project.folder_exists(
+        project_id, body.folder_id, current_user.id, team_id=team_id,
+    ):
+        raise HTTPException(status_code=400, detail="Folder not found in project")
+    moved = await directus_service.project.move_item_to_folder(item, body.folder_id, body.updated_at)
+    if not moved:
+        raise HTTPException(status_code=500, detail="Failed to move project item")
+    return {"item": moved}
 
 
 @router.post("/{project_id}/upload-embed")

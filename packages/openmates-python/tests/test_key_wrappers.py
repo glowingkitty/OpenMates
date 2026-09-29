@@ -25,6 +25,7 @@ def _encrypt_combined(value: bytes, key: bytes) -> str:
     return _b64(iv + AESGCM(key).encrypt(iv, value, None))
 
 
+# contract-test: direct surface=sdks.pip assertions=sdk.encryption.local-only,sdk.auth.credential-separation
 def test_pip_sdk_decrypts_chat_with_master_wrapper_before_row_key(monkeypatch):
     master_key = bytes([11]) * 32
     wrapper_chat_key = bytes([12]) * 32
@@ -47,7 +48,7 @@ def test_pip_sdk_decrypts_chat_with_master_wrapper_before_row_key(monkeypatch):
 
     def fake_post(url, *, json, headers, timeout):
         assert url.endswith("/v1/sdk/session")
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == f"Bearer {api_key.split('.')[0]}"
         return FakeResponse()
 
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)

@@ -11,6 +11,7 @@ import { get } from "svelte/store";
 import {
   FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY,
   PENDING_GIFT_CARD_CODE_STORAGE_KEY,
+  anonymousFreeUsageStatus,
   clearPendingGiftCardRedemption,
   freeTestingCreditsDeviceGrantReceived,
   freeTestingCreditsPromotion,
@@ -21,6 +22,7 @@ import {
   markPendingGiftCardRedemption,
   pendingGiftCardRedemption,
   refreshFreeTestingCreditsDeviceGrantFromStorage,
+  refreshAnonymousFreeUsageStatus,
   refreshPendingGiftCardRedemptionFromStorage,
   serverStatusStore,
   signupFreeTestingCreditsPromotion,
@@ -107,6 +109,7 @@ describe("serverStatusStore Free testing promotion", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
   it("shows active public promotion when the local device flag is absent", () => {
     setActivePromotion();
 
@@ -120,6 +123,7 @@ describe("serverStatusStore Free testing promotion", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
   it("hides signup promotion after the device is marked as already granted", () => {
     setActivePromotion();
 
@@ -134,6 +138,7 @@ describe("serverStatusStore Free testing promotion", () => {
     expect(get(signupFreeTestingCreditsPromotion)).toBeNull();
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
   it("marks the device when the Free testing grant notification is observed", () => {
     setActivePromotion();
 
@@ -143,6 +148,7 @@ describe("serverStatusStore Free testing promotion", () => {
     expect(get(signupFreeTestingCreditsPromotion)).toBeNull();
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
   it("hides signup promotion while a gift-card redemption is pending", () => {
     setActivePromotion();
 
@@ -163,6 +169,7 @@ describe("serverStatusStore Free testing promotion", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
   it("refreshes pending gift-card state from sessionStorage", () => {
     setActivePromotion();
     sessionStorageMock.setItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY, "AB23-CDEF-4567");
@@ -173,6 +180,7 @@ describe("serverStatusStore Free testing promotion", () => {
     expect(get(signupFreeTestingCreditsPromotion)).toBeNull();
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.purchase.provider-routing
   it("fails closed when localStorage reads throw", () => {
     setActivePromotion();
     vi.mocked(storage.getItem).mockImplementation(() => {
@@ -186,5 +194,71 @@ describe("serverStatusStore Free testing promotion", () => {
       active: true,
       grant_credits: 1000,
     });
+  });
+});
+
+describe("serverStatusStore anonymous free usage", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    installLocalStorageMock();
+    serverStatusStore.set({
+      status: {
+        is_self_hosted: false,
+        server_edition: "development",
+        domain: "app.dev.openmates.org",
+        ai_models_configured: true,
+        anonymous_free_usage: { active: true },
+      },
+      initialized: true,
+      loading: false,
+      error: null,
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.self-host.cloud-guard
+  it("leaves anonymous usage unavailable without requesting the cloud endpoint on self-host", async () => {
+    serverStatusStore.update((state) => ({
+      ...state,
+      status: state.status ? { ...state.status, is_self_hosted: true } : null,
+    }));
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await refreshAnonymousFreeUsageStatus()).toBeNull();
+    expect(get(anonymousFreeUsageStatus)).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.self-host.cloud-guard
+  it("treats an in-flight self-host 404 as unavailable", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(resolve => {
+      resolveResponse = resolve;
+    }));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const refresh = refreshAnonymousFreeUsageStatus();
+    serverStatusStore.update((state) => ({
+      ...state,
+      status: state.status ? { ...state.status, is_self_hosted: true } : null,
+    }));
+    resolveResponse({ ok: false, status: 404 } as Response);
+
+    expect(await refresh).toBeNull();
+    expect(get(anonymousFreeUsageStatus)).toBeNull();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.daily-remaining-percent
+  it.each([404, 500])("still reports cloud HTTP %i failures", async (status) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: false, status } as Response);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await refreshAnonymousFreeUsageStatus()).toBeNull();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[ServerStatusStore] Error fetching anonymous free usage status:",
+      `Failed to fetch anonymous free usage status: ${status}`,
+    );
   });
 });

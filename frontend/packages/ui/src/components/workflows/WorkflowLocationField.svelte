@@ -6,8 +6,8 @@
   type LocationSelection = {
     text: string;
     city: string;
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
   };
 
   let {
@@ -15,13 +15,15 @@
     latitude,
     longitude,
     mode,
+    label = '',
     required = false,
     onChange
   }: {
     value?: string;
     latitude?: number;
     longitude?: number;
-    mode: 'weather' | 'events' | 'home';
+    mode: 'weather' | 'events' | 'home' | 'city' | 'place';
+    label?: string;
     required?: boolean;
     onChange: (selection: LocationSelection) => void;
   } = $props();
@@ -38,9 +40,9 @@
     const city = String(attrs.city ?? '').trim();
     const name = String(attrs.name ?? '').trim();
     const address = String(attrs.address ?? '').trim();
-    if (mode === 'home' && !city) return;
+    if ((mode === 'home' || mode === 'city') && !city) return;
     onChange({
-      text: mode === 'home' ? city : name || city || address,
+      text: mode === 'home' || mode === 'city' ? city : name || city || address,
       city,
       latitude,
       longitude
@@ -56,11 +58,15 @@
     class="location-button"
     data-testid="workflow-node-location-picker"
     aria-expanded={open}
+    aria-label={label || tr('location')}
     onclick={() => open = !open}
   >
     <Pin size={16} aria-hidden="true" />
     <span>{value || tr('choose_location')}</span>
   </button>
+  {#if mode === 'place'}
+    <input type="text" value={value} aria-label={label || tr('location')} oninput={event => onChange({ text: event.currentTarget.value, city: '', latitude: undefined, longitude: undefined })} />
+  {/if}
   {#if mode === 'home'}<span class="help">{tr('home_location_scope')}</span>{/if}
   {#if open}
     <div class="map-shell" data-testid="workflow-location-map">
@@ -69,7 +75,7 @@
         allowImprecise={false}
         allowCurrentLocation={false}
         allowFullscreen={false}
-        requireCity={mode === 'home'}
+        requireCity={mode === 'home' || mode === 'city'}
         initialLatitude={latitude}
         initialLongitude={longitude}
         initialLocationText={value}
@@ -84,8 +90,9 @@
 <style>
   .location-field { grid-column:1/-1; display:grid; gap:var(--spacing-4); min-width:0; text-align:start; }
   .label { font-size:max(16px, 1rem); font-weight:650; }
-  .location-button { box-sizing:border-box; width:100%; min-height:3.375rem; display:flex; align-items:center; gap:var(--spacing-6); padding:.8rem 1.1rem; border:0; border-radius:var(--radius-8); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-primary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); text-align:start; cursor:pointer; }
+  .location-button { box-sizing:border-box; width:100%; min-height:3.375rem; display:flex; align-items:center; justify-content:flex-start; gap:var(--spacing-6); padding:.8rem 1.1rem; border:0; border-radius:var(--radius-8); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-primary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); text-align:start; cursor:pointer; }
   .location-button span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  input { box-sizing:border-box; width:100%; min-height:3rem; padding:.7rem 1rem; border:1px solid var(--color-grey-25); border-radius:var(--radius-8); background:var(--workflow-input-surface,var(--color-grey-10)); color:var(--color-font-primary); font:inherit; font-size:max(16px,1rem); }
   .help { color:var(--color-font-secondary); font-size:max(14px, .875rem); }
   .map-shell { position:relative; box-sizing:border-box; width:100%; min-width:0; min-height:28rem; overflow:hidden; border-radius:var(--radius-6); background:var(--color-grey-0); box-shadow:var(--shadow-sm); }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }

@@ -178,9 +178,11 @@ jobs:
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
+        if: inputs.mode != 'pytest'
         with:
           package_json_file: subject/package.json
       - uses: actions/setup-node@v4
+        if: inputs.mode != 'pytest'
         with:
           node-version: '24'
           cache: pnpm

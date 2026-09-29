@@ -9,6 +9,10 @@ from typing import Tuple, Dict, Any, Optional, TYPE_CHECKING
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
+from backend.core.api.app.services.pair_session_deadline import enforce_pair_deadline
+from backend.core.api.app.services.session_security_state import (
+    ensure_legacy_session_state, get_session_state_cached, token_hash,
+)
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
 if TYPE_CHECKING:
@@ -179,6 +183,9 @@ async def verify_authenticated_user(
             logger.info("No refresh token provided")
             return False, {}, None, "authentication_failed"
 
+        await enforce_pair_deadline(directus_service, cache_service, refresh_token)
+        await get_session_state_cached(directus_service, cache_service, token_hash(refresh_token))
+
         # Get user data from cache using refresh token
         user_data = await cache_service.get_user_by_token(refresh_token)
         
@@ -288,6 +295,9 @@ async def verify_authenticated_user(
             logger.warning("Invalid user data - missing user_id")
             return False, {}, refresh_token, "authentication_failed"
 
+        await ensure_legacy_session_state(
+            directus_service, cache_service, refresh_token, user_id,
+        )
         await directus_service.admin.repair_cached_admin_status(user_id, user_data)
 
         # If device verification is required

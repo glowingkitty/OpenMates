@@ -13,23 +13,25 @@ import XCTest
             form: form, configuration: config, random: { random.next($0) })
         let request = material.request
         XCTAssertEqual(request.hashedEmail, "cVv+0qOZTjYkxduzm3M+Gf8R/fU5X+6awyGBl9US08I=")
-        XCTAssertEqual(request.lookupHash, "JYnzsYvQLRIWfisPfF13eAQzB4+jdYYQPDIHNDNxuHU=")
+        XCTAssertNil(request.lookupHash)
+        XCTAssertEqual(request.credentialVersion, 2)
+        XCTAssertEqual(request.passwordAuthKey, "5Wpk69NCzimvU0ePVOn2B7-1bVhbHSNn0z8q__i1IQc")
         XCTAssertEqual(request.salt, "ICEiIyQlJicoKSorLC0uLw==")
-        XCTAssertEqual(request.userEmailSalt, "MDEyMzQ1Njc4OTo7PD0+Pw==")
-        XCTAssertEqual(request.keyIv, "QEFCQ0RFRkdISUpL")
-        XCTAssertEqual(request.encryptedMasterKey, "Q4913K+wSeMDG/KfHWhtInR671zI3rbBSrtU07qioQiepO5DNgMYx0ikIxZKmvR0")
+        XCTAssertEqual(request.userEmailSalt, request.salt)
+        XCTAssertEqual(request.keyIv, "MDEyMzQ1Njc4OTo7")
+        XCTAssertEqual(request.encryptedMasterKey, "ilsvildYGkVhsKPiWMsCGCbs3R7j9FMV+9nj/kcL6wwYTJPF8X7RWWx3xcXo+zbe")
         XCTAssertEqual(material.masterKey.withUnsafeBytes { Data($0).base64EncodedString() }, "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")
-        let emailKey = try XCTUnwrap(Data(base64Encoded: "ae4lhOTpPXlB4ixOaqCXHO5FS0+1JWpAIgz05XjFzQg="))
+        let emailKey = try XCTUnwrap(Data(base64Encoded: "8AHLU/w2MnUWP02kon0kvrZKB+Gk4yqYNlsSSqvE24k="))
         let envelope = try XCTUnwrap(Data(base64Encoded: request.encryptedEmail))
         XCTAssertEqual(envelope.count, 24 + 16 + form.email.utf8.count)
-        XCTAssertEqual(Array(envelope.prefix(24)), Array(UInt8(76)...UInt8(99)))
+        XCTAssertEqual(Array(envelope.prefix(24)), Array(UInt8(60)...UInt8(83)))
         let opened = Sodium().secretBox.open(nonceAndAuthenticatedCipherText: Array(envelope), secretKey: Array(emailKey))
         XCTAssertEqual(opened, Array(form.email.utf8))
         var tampered = Array(envelope); tampered[tampered.count - 1] ^= 1
         XCTAssertNil(Sodium().secretBox.open(nonceAndAuthenticatedCipherText: tampered, secretKey: Array(emailKey)))
         let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(request)) as? [String: Any])
-        XCTAssertEqual(Set(body.keys), Set(["hashed_email", "encrypted_email", "user_email_salt", "username", "invite_code", "encrypted_master_key", "key_iv", "salt", "lookup_hash", "language", "darkmode"]))
+        XCTAssertEqual(Set(body.keys), Set(["hashed_email", "encrypted_email", "user_email_salt", "username", "invite_code", "encrypted_master_key", "key_iv", "salt", "credential_version", "password_auth_key", "language", "darkmode"]))
         XCTAssertNil(body["password"]); XCTAssertNil(body["email"]); XCTAssertNil(body["master_key"])
     }
 

@@ -156,6 +156,11 @@ directus_users:
       type: json
       note: "Array of SHA-256 hashes of email+login_secret for zero-knowledge authentication across different login methods"
 
+    credential_lookup_hashes:
+      type: json
+      nullable: true
+      note: "Server-verified lookup hashes keyed by credential type and credential identifier; null for legacy untyped accounts"
+
     consent_privacy_and_apps_default_settings:
       type: string
       length: 256

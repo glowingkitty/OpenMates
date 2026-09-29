@@ -36,6 +36,7 @@ const {
 } = require('./helpers/embed-test-helpers');
 
 const NEWS_SEARCH_FIXTURE_QUERY = 'openmates_e2e_news_fixture_ai';
+const TERMINAL_RESPONSE_ERROR = /AI service encountered an error|Sorry, something went wrong while I was trying to process your message|try again in a moment/i;
 
 test.describe('App: News / Skill: search', () => {
 	test.setTimeout(120_000);
@@ -109,18 +110,33 @@ test.describe('App: News / Skill: search', () => {
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await startNewChat(page, logCheckpoint);
 
+		const assistantCountBeforeSearch = await page.getByTestId('message-assistant').count();
 		await sendMessage(
 			page,
 			withLiveMockMarker(`Search news for ${NEWS_SEARCH_FIXTURE_QUERY}`, 'news_search_web'),
 			logCheckpoint, takeStepScreenshot, 'news-search'
 		);
 
-		const embed = await waitForEmbedFinished(page, 'news', 'search');
+		const assistantMessages = page.getByTestId('message-assistant');
+		await expect(
+			assistantMessages,
+			'Tool continuation must finish as exactly one assistant turn.'
+		).toHaveCount(assistantCountBeforeSearch + 1, { timeout: 90_000 });
+		const assistantMessage = assistantMessages.nth(assistantCountBeforeSearch);
+		await expect(assistantMessage).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
+		await expect(assistantMessages).toHaveCount(assistantCountBeforeSearch + 1);
+		await expect(page.getByText(TERMINAL_RESPONSE_ERROR)).toHaveCount(0);
+
+		await waitForEmbedFinished(page, 'news', 'search');
+		const embed = assistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="news"][data-skill-id="search"][data-status="finished"]'
+		).first();
+		await expect(embed, 'Completed post-tool answer must retain its finished news result embed.').toBeVisible();
 		logCheckpoint('News search embed finished.');
 		await expect(embed, 'Finished news search card must keep the visible query.').toContainText(NEWS_SEARCH_FIXTURE_QUERY);
-		const assistantMessage = page.getByTestId('message-assistant').last();
-		await expect(assistantMessage).not.toContainText('app_skill_use');
-		await expect(assistantMessage).not.toContainText('embed_ref');
+		await expect(assistantMessage).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
+		await expect(assistantMessage).not.toContainText(TERMINAL_RESPONSE_ERROR);
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		const resultCards = await verifySearchGrid(fullscreenOverlay);
@@ -129,11 +145,18 @@ test.describe('App: News / Skill: search', () => {
 		await closeFullscreen(page, fullscreenOverlay);
 
 		await page.reload({ waitUntil: 'networkidle' });
-		const reloadedEmbed = await waitForEmbedFinished(page, 'news', 'search');
+		await expect(page.getByTestId('message-assistant')).toHaveCount(assistantCountBeforeSearch + 1, { timeout: 90_000 });
+		const reloadedAssistantMessage = page.getByTestId('message-assistant').nth(assistantCountBeforeSearch);
+		await expect(reloadedAssistantMessage).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+		await waitForEmbedFinished(page, 'news', 'search');
+		const reloadedEmbed = reloadedAssistantMessage.locator(
+			'[data-testid="embed-preview"][data-app-id="news"][data-skill-id="search"][data-status="finished"]'
+		).first();
+		await expect(reloadedEmbed, 'Reloaded post-tool answer must retain its finished news result embed.').toBeVisible();
 		await expect(reloadedEmbed, 'Reloaded news search card must keep the visible query.').toContainText(NEWS_SEARCH_FIXTURE_QUERY);
-		const reloadedAssistantMessage = page.getByTestId('message-assistant').last();
-		await expect(reloadedAssistantMessage).not.toContainText('app_skill_use');
-		await expect(reloadedAssistantMessage).not.toContainText('embed_ref');
+		await expect(reloadedAssistantMessage).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
+		await expect(reloadedAssistantMessage).not.toContainText(TERMINAL_RESPONSE_ERROR);
+		await expect(page.getByText(TERMINAL_RESPONSE_ERROR)).toHaveCount(0);
 		logCheckpoint('Reload preserved finished news search card without raw protocol text.');
 
 		// JDPC5: an implicit same-intent follow-up used to emit a TOON code
@@ -158,7 +181,7 @@ test.describe('App: News / Skill: search', () => {
 		await expect(followupEmbed).toContainText(/OpenAI/i);
 		await expect(followup.getByTestId('chat-mate-name')).toHaveText(originalMate);
 		await expect(followup).not.toContainText(/app_id:|skill_id:|app_skill_use|embed_ref|```toon/);
-		await expect(followup).not.toContainText(/AI service encountered an error|try again in a moment/i);
+		await expect(followup).not.toContainText(TERMINAL_RESPONSE_ERROR);
 		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 		await expect(followup.locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
 		const followupOverlay = await openFullscreen(page, followupEmbed);
@@ -177,7 +200,7 @@ test.describe('App: News / Skill: search', () => {
 		await expect(page.getByTestId('stop-processing-button')).toBeHidden({ timeout: 90_000 });
 		await expect(summary.locator('[data-testid="embed-preview"][data-skill-id="search"]')).toHaveCount(0);
 		await expect(summary).not.toContainText(/app_id:|skill_id:|```toon/);
-		await expect(summary).not.toContainText(/AI service encountered an error|try again in a moment/i);
+		await expect(summary).not.toContainText(TERMINAL_RESPONSE_ERROR);
 		await expect(summary.getByTestId('chat-mate-name')).toHaveText(originalMate);
 
 		await page.reload({ waitUntil: 'networkidle' });

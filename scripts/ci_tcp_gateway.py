@@ -96,6 +96,8 @@ class Gateway(socketserver.ThreadingTCPServer):
 if __name__ == "__main__":
     if os.environ.get("OPENMATES_CI_GATEWAY") != "github-isolated":
         raise RuntimeError("Gateway is only supported inside the isolated CI profile")
+    if os.environ.get("OPENMATES_CI_MAIL_CAPTURE") == "1":
+        TARGETS[8025] = ("mailpit", 8025)
     servers = [Gateway(("0.0.0.0", port), Forwarder) for port in TARGETS]
     if os.environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
         servers.append(Gateway(("0.0.0.0", PROVIDER_PROXY_PORT), ProviderProxy))

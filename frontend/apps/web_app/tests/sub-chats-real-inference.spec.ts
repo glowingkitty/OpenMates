@@ -26,6 +26,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);
@@ -40,7 +41,8 @@ test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', asy
 
 	const spawnPrompt =
 		'Use the start-sub-chats tool to create exactly two short research sub-chats: one for oceans and one for forests. ' +
-		'Do not search the web. Keep each sub-chat task simple and answer briefly in the parent chat after starting them.';
+		'Do not search the web. Keep each sub-chat task simple. After both finish, summarize their findings in the parent chat ' +
+		'and end the final answer with this exact sentence: Oceans and forests summary complete.';
 
 	await sendMessage(page, spawnPrompt, log, screenshot, 'spawn-sub-chats');
 	await waitForAssistantMessage(page, { timeout: 180_000, logCheckpoint: log });
@@ -54,6 +56,11 @@ test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', asy
 	expect(cardCount, 'Real LLM/tool pipeline should create at least one sub-chat card.').toBeGreaterThan(0);
 	log(`Sub-chat cards visible: ${cardCount}`);
 	await screenshot(page, 'sub-chat-cards-visible');
+	await expect(page.getByTestId('message-assistant').last()).toContainText(
+		'Oceans and forests summary complete.',
+		{ timeout: 180_000 }
+	);
+	await screenshot(page, 'parent-synthesis-completed');
 
 	await subChatCards.first().click();
 	await expect(page.getByTestId('return-to-parent-button')).toBeVisible({ timeout: 30_000 });

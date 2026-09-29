@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 # backend/tests/test_workflow_runtime_directus_deployment.py
 #
 # Deployment guard for the Workflow runtime transaction endpoint and migration.
@@ -6,6 +7,7 @@
 # Spec: docs/specs/workflows-v1/spec.yml (TASK-2)
 
 from pathlib import Path
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +16,15 @@ COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.selfhost.yml",
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
 )
+
+
+def test_all_editions_allow_fresh_workflow_reads_and_invalidate_cached_results() -> None:
+    """Creation saves twice; a cached empty version lookup must not insert twice."""
+    for path in COMPOSE_FILES:
+        cms = yaml.safe_load(path.read_text(encoding="utf-8"))["services"]["cms"]
+        environment = cms["environment"]
+        assert environment["CACHE_SKIP_ALLOWED"] == "true", path
+        assert environment["CACHE_AUTO_PURGE"] == "true", path
 
 
 def test_directus_images_and_development_setup_include_workflow_runtime_contract() -> None:

@@ -42,7 +42,12 @@ anonymous_free_usage_reservations:
     reserved_credits:
       type: integer
       default: 0
-      note: "Credits reserved before provider execution."
+      note: "Immutable credit quote reserved before provider execution."
+
+    checkpoint_credits:
+      type: integer
+      nullable: true
+      note: "Reduced reversible live hold after actual operation usage is known; null retains the original quote."
 
     finalized_credits:
       type: integer

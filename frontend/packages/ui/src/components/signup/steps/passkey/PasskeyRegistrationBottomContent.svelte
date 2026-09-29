@@ -97,6 +97,7 @@
                 },
                 body: JSON.stringify({
                     hashed_email: hashedEmail,
+                    signup_transaction_token: storeData.signupTransactionToken,
                     user_id: null, // New user signup
                     username: storeData.username // Send username for passkey displayName
                 }),

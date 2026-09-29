@@ -33,6 +33,24 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  // contract-test: supporting surface=cli assertions=auth.secrets.lifecycle
+  it("never places a refresh token in the WebSocket URL", async () => {
+    const rawRefreshToken = "raw-refresh-token-must-not-enter-query";
+    const upgrade = new Promise<string>((resolve) => {
+      server.once("connection", (socket, request) => {
+        resolve(request.url ?? "");
+        socket.close();
+      });
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "signed-ws-token", refreshToken: rawRefreshToken });
+    try {
+      await client.open();
+      const url = await upgrade;
+      assert.ok(url.includes("token=signed-ws-token"));
+      assert.equal(url.includes(rawRefreshToken), false);
+    } finally { client.close(); }
+  });
+
   // contract-test: supporting surface=cli assertions=projects.files.executor-wait,projects.files.wait-result-reconciliation
   it("keeps the Project executor connected until its matching continuation finishes", async () => {
     const chatId = "project-fixture-chat";

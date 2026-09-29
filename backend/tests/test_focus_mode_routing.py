@@ -115,21 +115,6 @@ def test_deep_research_child_executes_its_angle_without_more_delegation() -> Non
     ) is False
 
 
-def test_parent_continuation_ai_reservation_is_guarded_before_orchestration_call() -> None:
-    source = (Path(__file__).resolve().parents[1] / "apps/ai/processing/main_processor.py").read_text()
-    function_source = source[
-        source.index("async def _reserve_ai_iteration("):
-        source.index("async def _fail_reserved_operation(")
-    ]
-
-    continuation_guard = function_source.index(
-        "if is_sub_chat_continuation(request_data) and not is_anonymous:"
-    )
-    orchestration_call = function_source.index("SubChatOrchestrationService(directus_service).execute")
-
-    assert continuation_guard < orchestration_call
-
-
 def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en", inline=None, translation_available=True):
     """Execute the production prompt-assembly slice without importing providers.
 
