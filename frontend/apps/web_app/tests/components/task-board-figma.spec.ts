@@ -150,16 +150,23 @@ test('matches the five-column Figma board and keeps actions keyboard reachable',
     const matrix = new DOMMatrix(getComputedStyle(element).transform);
     return Math.round(Math.atan2(matrix.b, matrix.a) * 180 / Math.PI);
   });
-  await expect.poll(readPickedUpAngle).toBeGreaterThanOrEqual(9);
-  expect(await readPickedUpAngle()).toBeLessThanOrEqual(11);
+  await expect.poll(readPickedUpAngle).toBeGreaterThanOrEqual(2);
+  expect(await readPickedUpAngle()).toBeLessThanOrEqual(4);
   const dragImageAngle = await page.evaluate(() => {
     const transform = (window as unknown as { taskCardPreviewDragImageTransform: string }).taskCardPreviewDragImageTransform;
     const matrix = new DOMMatrix(transform);
     return Math.round(Math.atan2(matrix.b, matrix.a) * 180 / Math.PI);
   });
-  expect(dragImageAngle).toBeGreaterThanOrEqual(9);
-  expect(dragImageAngle).toBeLessThanOrEqual(11);
+  expect(dragImageAngle).toBeGreaterThanOrEqual(2);
+  expect(dragImageAngle).toBeLessThanOrEqual(4);
   await testInfo.attach('task-card-picked-up', { body: await todoCard.screenshot(), contentType: 'image/png' });
+  await page.getByTestId('task-column-in_progress').evaluate((element) => {
+    const dataTransfer = (window as unknown as { taskCardPreviewDataTransfer: DataTransfer }).taskCardPreviewDataTransfer;
+    element.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer }));
+  });
+  await expect(page.getByTestId('task-column-drop-target-in_progress')).toHaveText('Drop to mark In progress');
+  await expect(page.getByTestId('task-column-in_progress').locator('.task-column-list > :first-child')).toHaveAttribute('data-testid', 'task-column-drop-target-in_progress');
+  await testInfo.attach('task-column-drop-target-visible', { body: await board.screenshot(), contentType: 'image/png' });
   await page.getByTestId('task-column-in_progress').evaluate((element) => {
     const dataTransfer = (window as unknown as { taskCardPreviewDataTransfer: DataTransfer }).taskCardPreviewDataTransfer;
     element.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
@@ -276,11 +283,12 @@ test('renders the complete Figma Tasks workspace on desktop', async ({ page }, t
   const workspace = page.getByTestId('tasks-page');
   await expect(workspace).toBeVisible();
   await expect(page.getByTestId('tasks-figma-workspace')).toBeVisible();
-  await expect(page.getByTestId('tasks-daily-suggestion')).toContainText('Daily suggestion');
-  const suggestionBackground = await page.getByTestId('tasks-daily-suggestion').evaluate((element) => getComputedStyle(element).backgroundImage);
-  expect(suggestionBackground).toContain('linear-gradient');
-  expect(suggestionBackground).toContain('rgb(0, 64, 64)');
-  await expect(page.getByTestId('tasks-suggestion-create')).toBeVisible();
+  const inspirationArea = page.getByTestId('tasks-daily-inspiration-area');
+  await expect(inspirationArea).toBeVisible();
+  await expect(inspirationArea.getByTestId('daily-inspiration-banner')).toBeVisible();
+  await expect(inspirationArea.getByTestId('daily-inspiration-label')).toHaveText('Daily inspiration');
+  await expect(inspirationArea.getByTestId('daily-inspiration-phrase')).toContainText('next action');
+  await expect(inspirationArea.getByTestId('daily-inspiration-cta-text')).toHaveText('Click to create task');
   await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i);
   await expect(page.getByTestId('task-workspace-composer')).toBeVisible();
   await expectComposerInFront(page);
@@ -288,7 +296,7 @@ test('renders the complete Figma Tasks workspace on desktop', async ({ page }, t
   for (const status of statuses) await expect(page.getByTestId(`task-column-${status}`)).toBeAttached();
   await expectPreviewColumnCounts(page);
   await expect(page.getByTestId('task-board-summary')).toHaveCount(0);
-  const suggestionBox = await page.getByTestId('tasks-daily-suggestion').boundingBox();
+  const suggestionBox = await inspirationArea.boundingBox();
   const boardBox = await page.getByTestId('task-board').boundingBox();
   expect(suggestionBox).not.toBeNull();
   expect(boardBox).not.toBeNull();
@@ -324,6 +332,25 @@ test('renders the complete Figma Tasks workspace on desktop', async ({ page }, t
   expect((await searchField.locator('..').boundingBox())!.height).toBeLessThanOrEqual(34);
 });
 
+// contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity,tasks.lifecycle.visible
+test('scrolls the shared inspiration away when the task board is populated', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(`${workspacePreview(1320)}&variant=manyBacklog`);
+  await waitForComponentPreview(page);
+
+  const scrollLayer = page.getByTestId('tasks-workspace-scroll-layer');
+  const inspiration = page.getByTestId('tasks-daily-inspiration-area');
+  await expect(inspiration.getByTestId('daily-inspiration-banner')).toBeVisible();
+  const scrollSize = await scrollLayer.evaluate((element) => ({ visible: element.clientHeight, content: element.scrollHeight }));
+  expect(scrollSize.content, `Tasks scroll layer: ${JSON.stringify(scrollSize)}`).toBeGreaterThan(scrollSize.visible);
+  const before = await Promise.all([inspiration.boundingBox(), page.getByTestId('task-board').boundingBox()]);
+  await scrollLayer.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await expect.poll(() => scrollLayer.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  const after = await Promise.all([inspiration.boundingBox(), page.getByTestId('task-board').boundingBox()]);
+  expect(after[0]!.y).toBeLessThan(before[0]!.y);
+  expect(after[1]!.y).toBeLessThan(before[1]!.y);
+});
+
 // contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity
 test('keeps the Figma task toolbar readable in dark mode', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1512, height: 921 });
@@ -332,13 +359,13 @@ test('keeps the Figma task toolbar readable in dark mode', async ({ page }, test
 
   const filter = page.getByTestId('task-filter-button');
   const chips = page.getByTestId('task-filter-tags').locator('button');
-  const suggestionHeading = page.getByTestId('tasks-suggestion-heading');
-  const suggestionDescription = page.getByTestId('tasks-suggestion-description');
-  const suggestionCard = page.getByTestId('tasks-suggestion-card');
-  const suggestionCreate = page.getByTestId('tasks-suggestion-create');
-  await expect(suggestionHeading).toHaveText('Daily suggestion');
-  await expect(suggestionDescription).toContainText('Security is essential');
-  await expect(suggestionCard).toContainText('Double check security');
+  const suggestionHeading = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-label');
+  const suggestionDescription = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-phrase');
+  const suggestionCard = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-info-card');
+  const suggestionCreate = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-cta-text');
+  await expect(suggestionHeading).toHaveText('Daily inspiration');
+  await expect(suggestionDescription).toContainText('next action');
+  await expect(suggestionCard).toContainText('Task planning tip');
   await expect(suggestionCreate).toContainText('Click to create task');
   for (const element of [suggestionHeading, suggestionDescription, suggestionCard, suggestionCreate]) {
     await expect(element).toBeVisible();
@@ -401,4 +428,64 @@ test('keeps the complete Tasks workspace and composer contained on phone', async
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
   for (const status of statuses) await expect(page.getByTestId(`task-column-${status}`)).toBeAttached();
   await testInfo.attach('tasks-workspace-figma-mobile', { body: await workspace.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
+test('opens task and workflow run details beside the board when there is room', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(workspacePreview(1320));
+  await waitForComponentPreview(page);
+
+  const board = page.getByTestId('task-board');
+  await page.getByTestId('task-card').filter({ hasText: 'Design 3D model' }).getByTestId('task-card-open').click();
+  const taskPanel = page.getByTestId('task-detail-panel');
+  await expect(taskPanel).toBeVisible();
+  await expect(page.getByTestId('task-detail-fullscreen')).toHaveCSS('transform', /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  await expect(board).toBeVisible();
+  const [boardBox, taskBox] = await Promise.all([board.boundingBox(), taskPanel.boundingBox()]);
+  expect(boardBox && taskBox).toBeTruthy();
+  expect(boardBox!.x + boardBox!.width).toBeLessThanOrEqual(taskBox!.x + 2);
+  await page.getByTestId('task-detail-minimize').click();
+
+  await board.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+  await page.getByTestId('workflow-run-projection').click();
+  const runPanel = page.getByTestId('workflow-run-projection-detail');
+  await expect(runPanel).toHaveAttribute('data-presentation', 'split');
+  await expect(page.getByTestId('workflow-run-fullscreen')).toHaveCSS('transform', /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  await expect(board).toBeVisible();
+  const runBox = await runPanel.boundingBox();
+  expect(runBox!.height).toBeGreaterThan(500);
+  const runTitleBox = await page.getByTestId('embed-header-title').boundingBox();
+  expect(runTitleBox!.y).toBeLessThan(runBox!.y + 260);
+  const runId = page.getByTestId('workflow-run-detail-id');
+  await expect(runId).toHaveText('weather-report-run');
+  const runIdColors = await runId.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { foreground: style.color, background: style.backgroundColor };
+  });
+  expect(runIdColors.foreground).not.toBe(runIdColors.background);
+});
+
+// contract-test: supporting surface=gui.web assertions=tasks.detail.embed-responsive
+test('uses full overlay details on a narrow Tasks workspace', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 652 });
+  await page.goto(workspacePreview(393));
+  await waitForComponentPreview(page);
+
+  const board = page.getByTestId('task-board');
+  await board.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+  await page.getByTestId('workflow-run-projection').click();
+  const runPanel = page.getByTestId('workflow-run-projection-detail');
+  await expect(runPanel).toHaveAttribute('data-presentation', 'overlay');
+  await expect(page.getByTestId('workflow-run-fullscreen')).toHaveCSS('transform', /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  const bounds = await runPanel.boundingBox();
+  expect(bounds!.width).toBeGreaterThanOrEqual(390);
+  expect(bounds!.height).toBeGreaterThanOrEqual(650);
+  await page.getByTestId('task-detail-close').click();
+  await expect(runPanel).toHaveCount(0);
+
+  await board.evaluate((element) => { element.scrollLeft = 0; });
+  await page.getByTestId('task-card').filter({ hasText: 'Design 3D model' }).getByTestId('task-card-open').click();
+  await expect(page.getByTestId('task-detail-fullscreen')).toHaveCSS('transform', /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+  await expect(page.getByTestId('task-detail-panel')).toHaveCount(0);
 });

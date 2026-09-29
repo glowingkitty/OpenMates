@@ -27,6 +27,7 @@
     activityEntries,
     teamId,
     canAssignCodex = false,
+    presentation = 'overlay',
     onTaskChange,
     onClose,
   }: {
@@ -35,6 +36,7 @@
     activityEntries?: UserTaskActivityEntry[];
     teamId?: string;
     canAssignCodex?: boolean;
+    presentation?: 'split' | 'overlay';
     onTaskChange?: (task: UserTaskViewModel) => void;
     onClose: () => void;
   } = $props();
@@ -66,11 +68,12 @@
 
 <div
   class="task-detail-dialog"
-  role="dialog"
-  aria-modal="true"
+  class:split={presentation === 'split'}
+  role={presentation === 'split' ? 'region' : 'dialog'}
+  aria-modal={presentation === 'overlay' ? 'true' : undefined}
   aria-label={`Task details: ${task.title || 'Untitled task'}`}
   bind:this={dialogElement}
-  use:focusTrap
+  use:focusTrap={{ enabled: presentation === 'overlay' }}
 >
   <UnifiedEmbedFullscreen
     testId="task-detail-fullscreen"
@@ -97,6 +100,7 @@
 
 <style>
   .task-detail-dialog { position: absolute; inset: 0; z-index: var(--z-index-dropdown); }
+  .task-detail-dialog.split { z-index: 1; }
   .task-header-badges { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .task-header-badges span { padding: 6px 11px; border-radius: var(--radius-full); background: color-mix(in srgb, var(--color-grey-0) 22%, transparent); color: var(--color-grey-0); font-size: var(--font-size-xs); font-weight: 700; }
   .task-header-badges .priority { background: var(--color-error); }

@@ -47,6 +47,8 @@
   ];
   let recentlyDroppedTaskId = $state<string | null>(null);
   let recentlyDroppedPlanId = $state<string | null>(null);
+  let draggedTaskId = $state<string | null>(null);
+  let dropTargetStatus = $state<UserTaskStatus | null>(null);
   const initialVisibleCount = 30;
   const additionalVisibleCount = 20;
   let visibleCounts = $state<Partial<Record<UserTaskStatus, number>>>({});
@@ -85,6 +87,7 @@
 
   function handleDrop(event: DragEvent, status: UserTaskStatus): void {
     event.preventDefault();
+    dropTargetStatus = null;
     const planId = event.dataTransfer?.getData('application/x-openmates-plan-id');
     const taskId = event.dataTransfer?.getData('application/x-openmates-task-id') || (!planId ? event.dataTransfer?.getData('text/plain') : '');
     const plan = plans.find((candidate) => candidate.plan_id === planId);
@@ -103,6 +106,20 @@
       onMove(task, status);
     }
   }
+
+  function handleDragOver(event: DragEvent, status: UserTaskStatus): void {
+    event.preventDefault();
+    const task = tasks.find((candidate) => candidate.task_id === draggedTaskId);
+    dropTargetStatus = task && task.status !== status ? status : null;
+    if (event.dataTransfer) event.dataTransfer.dropEffect = dropTargetStatus ? 'move' : 'none';
+  }
+
+  function handleDragLeave(event: DragEvent, status: UserTaskStatus): void {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || !(event.currentTarget instanceof Node) || !event.currentTarget.contains(next)) {
+      if (dropTargetStatus === status) dropTargetStatus = null;
+    }
+  }
 </script>
 
 <div class="task-board" data-testid="task-board" data-board-state="mounted">
@@ -113,7 +130,8 @@
       data-testid={`task-column-${column.status}`}
       role="region"
       aria-label={`${column.title} task column`}
-      ondragover={(event) => event.preventDefault()}
+      ondragover={(event) => handleDragOver(event, column.status)}
+      ondragleave={(event) => handleDragLeave(event, column.status)}
       ondrop={(event) => handleDrop(event, column.status)}
     >
       <header>
@@ -126,6 +144,11 @@
       </header>
 
       <div class="task-column-list">
+        {#if dropTargetStatus === column.status}
+          <div class="task-column-drop-target" data-testid={`task-column-drop-target-${column.status}`} role="status">
+            Drop to mark {column.title}
+          </div>
+        {/if}
         {#each tasksFor(column.status).slice(0, visibleCount(column.status)) as task (task.task_id)}
           <TaskCard
             {task}
@@ -135,6 +158,8 @@
             {onDelete}
             {onCancelWorkflowRun}
             {onSelect}
+            onDragStart={(dragged) => { draggedTaskId = dragged.task_id; }}
+            onDragEnd={() => { draggedTaskId = null; dropTargetStatus = null; }}
             linkedProjectName={projectNames[task.linkedProjectIds[0]] ?? null}
             {assigneeAvatarUrl}
             wasRecentlyDropped={recentlyDroppedTaskId === task.task_id}
@@ -229,6 +254,19 @@
   }
 
   .task-column-list { display: flex; flex-direction: column; gap: var(--spacing-6); }
+  .task-column-drop-target {
+    display: grid;
+    place-items: center;
+    min-height: 5.5rem;
+    padding: var(--spacing-4);
+    border: 2px dashed var(--status-accent);
+    border-radius: var(--radius-8);
+    background: color-mix(in srgb, var(--status-accent) 12%, var(--color-grey-0));
+    color: var(--color-font-primary);
+    font-size: var(--font-size-p);
+    font-weight: 700;
+    text-align: center;
+  }
   .task-column-show-more {
     align-self: flex-start;
     border: 0;

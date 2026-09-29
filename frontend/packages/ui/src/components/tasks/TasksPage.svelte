@@ -106,6 +106,7 @@
   let plansEnabled = $derived(previewPlans !== null || (!hasPreviewData && featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true));
   let isCentralTasksWorkspace = $derived(!compact);
   let isNarrowTasksWorkspace = $derived(tasksPageWidth <= 900);
+  let canSplitTaskDetail = $derived(tasksPageWidth >= 1100);
 
   const boardPlans = $derived(plans.filter((plan) => plan.status !== 'archived'));
   const greetingName = $derived(formatGreetingName($userProfile.username));
@@ -209,13 +210,18 @@
 
   function handleSelectTask(task: TasksBoardItem): void {
     if (isWorkflowRunTaskProjectionViewModel(task) && task.workflowRunId) {
+      selectedTask = null;
       selectedWorkflowRunProjection = task;
       void revealTaskBoardPanel();
       return;
     }
     if (!isWorkflowRunTaskProjectionViewModel(task)) {
+      selectedWorkflowRunProjection = null;
       if (onOpenTask) onOpenTask(task, canAssignCodex, handleTaskChange);
-      else selectedTask = task;
+      else {
+        selectedTask = task;
+        void revealTaskBoardPanel();
+      }
     }
   }
 
@@ -525,34 +531,45 @@
     extractedProposals = extractedProposals.filter((candidate) => candidate !== proposal);
   }
 
+  function firstPositionIn(status: UserTaskStatus, movedTaskId: string, items: TasksBoardItem[]): number {
+    const positions = items.filter((candidate) => candidate.task_id !== movedTaskId && candidate.status === status).map((candidate) => candidate.position);
+    return Math.min(0, ...positions) - 1;
+  }
+
+  async function persistMove(task: UserTaskViewModel, status: UserTaskStatus, position: number): Promise<UserTaskViewModel> {
+    let updated = task;
+    if (status === 'done' && task.status !== 'done') updated = await completeUserTask(task);
+    else if (status === 'blocked' && task.status !== 'blocked') updated = await blockUserTask(task);
+    else if (task.status === 'blocked' && status !== 'blocked') updated = await unblockUserTask(task);
+    else if (status === 'backlog' && task.status !== 'backlog') updated = await skipUserTask(task);
+
+    const [moved] = await reorderUserTasks([{ task: updated, status, position }]);
+    if (!moved) throw new Error('Task reorder returned no task');
+    return moved;
+  }
+
   async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<void> {
-    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    if (isWorkflowRunTaskProjectionViewModel(task) || task.status === status) return;
     const previous = tasks;
-    tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status } : candidate);
+    const position = firstPositionIn(status, task.task_id, previous);
+    tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
     try {
       let updated: UserTaskViewModel;
-      if (status === 'done' && task.status !== 'done') {
-        updated = await completeUserTask(task);
-      } else if (status === 'blocked' && task.status !== 'blocked') {
-        updated = await blockUserTask(task);
-      } else if (task.status === 'blocked' && status !== 'blocked') {
-        updated = await unblockUserTask(task);
-        if (status !== 'todo') {
-          const [moved] = await reorderUserTasks([{ task: updated, status }]);
-          if (!moved) throw new Error('Task reorder returned no task');
-          updated = moved;
-        }
-      } else if (status === 'backlog' && task.status !== 'backlog') {
-        updated = await skipUserTask(task);
-      } else {
-        const [moved] = await reorderUserTasks([{ task, status }]);
-        if (!moved) throw new Error('Task reorder returned no task');
-        updated = moved;
+      try {
+        updated = await persistMove(task, status, position);
+      } catch (error) {
+        if (!(error instanceof Error) || !error.message.includes('Tasks API failed (409)')) throw error;
+        // Another client may have changed this task since the board loaded.
+        const latest = await listTaskBoardItems(filters());
+        const current = latest.find((candidate) => candidate.task_id === task.task_id);
+        if (!current || isWorkflowRunTaskProjectionViewModel(current)) throw error;
+        tasks = latest.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
+        updated = await persistMove(current, status, position);
       }
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
     } catch (error) {
-      tasks = previous;
+      try { tasks = await listTaskBoardItems(filters()); } catch { tasks = previous; }
       console.error('[TasksPage] Failed to update task:', error);
       notificationStore.error('Failed to update task');
     }
@@ -714,25 +731,6 @@
 
   {#if isCentralTasksWorkspace}
     <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
-      <section class="tasks-daily-suggestion" data-testid="tasks-daily-suggestion" aria-label="Daily suggestion">
-        <div class="tasks-suggestion-label">
-          <span class="tasks-suggestion-book" aria-hidden="true"></span>
-          <span data-testid="tasks-suggestion-heading">Daily suggestion</span>
-        </div>
-        <div class="tasks-suggestion-content">
-          <p data-testid="tasks-suggestion-description">Security is essential, especially in the age of AI. Review your public endpoints before launch.</p>
-          <article class="tasks-suggestion-card" data-testid="tasks-suggestion-card" aria-label="Suggested task">
-            <strong>Double check security and potential risks of FastAPI endpoints.</strong>
-            <span>OpenMates</span>
-          </article>
-        </div>
-        <button
-          type="button"
-          class="tasks-suggestion-create"
-          data-testid="tasks-suggestion-create"
-          onclick={() => { taskPromptValue = 'Create a task to double check security and potential risks of FastAPI endpoints'; }}
-        ><span aria-hidden="true">＋</span> Click to create task</button>
-      </section>
       <WorkspaceHomeShell
           surface="tasks"
           testId="tasks-workspace-home"
@@ -744,7 +742,7 @@
           showReportIssue
           onStartInspiration={handleStartTaskInspiration}
         >
-      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board" bind:this={taskBoardPanel}>
+      <svelte:fragment slot="top-right">
         <div class="task-workspace-toolbar">
           <div class="task-search-cluster" aria-label="Task search and filters">
             <div class="task-search-stack">
@@ -787,7 +785,8 @@
             {/if}
           </div>
         </div>
-
+      </svelte:fragment>
+      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board" bind:this={taskBoardPanel}>
         {#if isBoardLoading}
           <div class="tasks-state" data-testid="tasks-loading">Loading tasks...</div>
         {:else if hasLoadError}
@@ -796,7 +795,7 @@
             <button type="button" onclick={() => void refreshTasks()}>Retry</button>
           </div>
         {:else}
-          <div class="task-board-detail-layout" class:split={selectedWorkflowRunProjection && !isNarrowTasksWorkspace}>
+          <div class="task-board-detail-layout" class:split={(selectedWorkflowRunProjection || selectedTask) && canSplitTaskDetail}>
             <div class="task-board-stage">
               <TaskBoard
                 tasks={visibleTasks}
@@ -818,10 +817,20 @@
                 <div class="tasks-filter-empty" data-testid="tasks-empty">Click above to add your first task.</div>
               {/if}
             </div>
-            {#if selectedWorkflowRunProjection}
+            {#if selectedTask && canSplitTaskDetail}
+              <div class="task-detail-panel" data-testid="task-detail-panel">
+                <TaskDetailFullscreen
+                  task={selectedTask}
+                  {canAssignCodex}
+                  presentation="split"
+                  onTaskChange={handleTaskChange}
+                  onClose={() => { selectedTask = null; }}
+                />
+              </div>
+            {:else if selectedWorkflowRunProjection && canSplitTaskDetail}
               <WorkflowRunTaskDetail
                 projection={selectedWorkflowRunProjection}
-                presentation={isNarrowTasksWorkspace ? 'overlay' : 'split'}
+                presentation="split"
                 onClose={() => { selectedWorkflowRunProjection = null; }}
               />
             {/if}
@@ -1011,8 +1020,11 @@
     </div>
   {/if}
   {/if}
-  {#if selectedTask}
+  {#if selectedTask && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
     <TaskDetailFullscreen task={selectedTask} {canAssignCodex} onTaskChange={handleTaskChange} onClose={() => { selectedTask = null; }} />
+  {/if}
+  {#if selectedWorkflowRunProjection && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
+    <WorkflowRunTaskDetail projection={selectedWorkflowRunProjection} presentation="overlay" onClose={() => { selectedWorkflowRunProjection = null; }} />
   {/if}
 </section>
 {/if}
@@ -1103,7 +1115,8 @@
     background: var(--color-grey-20);
     overflow: hidden;
     padding: 0;
-    max-height: 100dvh;
+    height: 100dvh;
+    max-height: 100%;
     box-sizing: border-box;
   }
 
@@ -1128,103 +1141,6 @@
     border-radius: 17px;
     background: var(--color-grey-20);
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
-  }
-
-  .tasks-daily-suggestion {
-    position: relative;
-    z-index: 2;
-    flex: 0 0 clamp(180px, 33dvh, 322px);
-    box-sizing: border-box;
-    overflow: hidden;
-    border-radius: 17px;
-    padding: clamp(18px, 3vh, 28px) clamp(28px, 8vw, 250px);
-    background:
-      radial-gradient(circle at 72% 130%, color-mix(in srgb, var(--color-app-business-end) 72%, transparent), transparent 46%),
-      linear-gradient(135deg, var(--color-app-business-start), color-mix(in srgb, var(--color-app-business-start) 38%, var(--color-app-business-end)), var(--color-app-business-end));
-    color: var(--color-font-button);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  }
-
-  .tasks-suggestion-label {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-3);
-    color: color-mix(in srgb, var(--color-font-button) 58%, transparent);
-    font-size: var(--font-size-p);
-    font-weight: 700;
-  }
-
-  .tasks-suggestion-book {
-    width: 20px;
-    height: 18px;
-    border: 3px solid currentColor;
-    border-block-start: 0;
-    border-radius: 2px;
-    box-sizing: border-box;
-  }
-
-  .tasks-suggestion-content {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(210px, 0.72fr);
-    align-items: center;
-    gap: clamp(28px, 7vw, 110px);
-    width: min(100%, 680px);
-    margin: clamp(22px, 4vh, 42px) auto 0;
-  }
-
-  .tasks-suggestion-content > p {
-    margin: 0;
-    font-size: var(--font-size-p);
-    font-weight: 600;
-    line-height: 1.25;
-  }
-
-  .tasks-suggestion-card {
-    display: grid;
-    gap: var(--spacing-3);
-    padding: 14px 16px;
-    border-radius: var(--radius-5);
-    background: var(--color-grey-0);
-    color: var(--color-font-primary);
-    box-shadow: var(--shadow-lg);
-  }
-
-  .tasks-suggestion-card strong {
-    font-size: var(--font-size-p);
-    line-height: 1.22;
-  }
-
-  .tasks-suggestion-card span {
-    width: fit-content;
-    padding: 2px 7px;
-    border-radius: var(--radius-full);
-    background: var(--color-app-business-end);
-    color: var(--color-font-button);
-    font-size: var(--font-size-xxs);
-  }
-
-  .tasks-suggestion-create {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    margin: clamp(18px, 3vh, 34px) auto 0;
-    border: 0;
-    background: transparent;
-    color: color-mix(in srgb, var(--color-font-button) 58%, transparent);
-    font: inherit;
-    font-size: var(--font-size-p);
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  .tasks-suggestion-create:hover,
-  .tasks-suggestion-create:focus-visible {
-    color: var(--color-font-button);
-  }
-
-  .tasks-figma-workspace :global(.workspace-daily-inspiration-area) {
-    display: none;
   }
 
   .tasks-figma-workspace :global(.workspace-home-shell) {
@@ -1256,10 +1172,6 @@
   }
 
   .task-workspace-toolbar {
-    position: absolute;
-    inset-block-start: var(--spacing-8);
-    inset-inline: 22px;
-    z-index: 2;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -1425,7 +1337,18 @@
   }
 
   .task-board-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-5); min-width: 0; min-height: 0; }
-  .task-board-detail-layout.split { grid-template-columns: minmax(0, 1fr) minmax(360px, 40%); }
+  .task-board-detail-layout.split { grid-template-columns: minmax(0, 1fr) minmax(420px, 46%); }
+  .task-detail-panel,
+  .task-board-detail-layout.split :global(.workflow-run-task-detail) {
+    position: sticky;
+    top: var(--spacing-4);
+    align-self: start;
+    min-width: 0;
+    height: calc(100dvh - 7rem);
+    min-height: 30rem;
+    overflow: hidden;
+    border-radius: 17px;
+  }
 
   .task-board-stage :global(.task-board) {
     grid-template-columns: repeat(5, minmax(230px, 1fr));
@@ -1649,11 +1572,6 @@
       min-height: 0;
     }
 
-    .tasks-daily-suggestion {
-      flex-basis: 182px;
-      padding: 16px 22px;
-    }
-
     .compact-task-toolbar {
       margin-inline: var(--spacing-4);
     }
@@ -1664,32 +1582,6 @@
 
     .compact-filters {
       display: none;
-    }
-
-    .tasks-suggestion-label {
-      justify-content: flex-start;
-      font-size: var(--font-size-small);
-    }
-
-    .tasks-suggestion-content {
-      display: block;
-      margin-top: 18px;
-    }
-
-    .tasks-suggestion-content > p {
-      padding-inline-end: 24px;
-      font-size: var(--font-size-small);
-      line-height: 1.3;
-    }
-
-    .tasks-suggestion-card {
-      display: none;
-    }
-
-    .tasks-suggestion-create {
-      margin: 17px 0 0;
-      padding: 0;
-      font-size: var(--font-size-small);
     }
 
     .task-workspace-toolbar {

@@ -28,6 +28,8 @@ const FOCUSABLE_SELECTOR = [
 export interface FocusTrapOptions {
 	/** Called when the user presses Escape inside the trap. */
 	onEscape?: () => void;
+	/** Split panes leave the surrounding workspace keyboard reachable. */
+	enabled?: boolean;
 }
 
 export function focusTrap(node: HTMLElement, options?: FocusTrapOptions) {
@@ -35,6 +37,7 @@ export function focusTrap(node: HTMLElement, options?: FocusTrapOptions) {
 	if (typeof window === 'undefined') {
 		return { destroy() {} };
 	}
+	if (options?.enabled === false) return { destroy() {} };
 
 	const previouslyFocused = document.activeElement as HTMLElement | null;
 
