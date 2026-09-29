@@ -30,6 +30,7 @@ from backend.core.api.app.services.workflow_models import (
     validate_workflow_composition_refs,
     validate_workflow_readiness,
 )
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.typesafe.client import JevDecisionClient
 from backend.shared.providers.typesafe.models import ChoiceAnswer
 
@@ -86,7 +87,22 @@ class WorkflowNLPlanner:
         self.structured_call = structured_call or self._call_gemini
 
     def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(self.secrets_manager, SecretsManager):
+            return asyncio.run(self._plan_with_isolated_secrets(text=text, context=context))
         return asyncio.run(self._plan(text=text, context=context))
+
+    async def _plan_with_isolated_secrets(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+        # Input planning runs in a worker thread with its own event loop. Vault's
+        # application singleton owns an httpx client bound to the API loop, so a
+        # request-local manager prevents concurrent loops replacing that client.
+        manager = object.__new__(SecretsManager)
+        SecretsManager.__init__(manager)
+        manager.vault_token = self.secrets_manager.vault_token
+        planner = WorkflowNLPlanner(secrets_manager=manager, workflow_service=self.workflow_service)
+        try:
+            return await planner._plan(text=text, context=context)
+        finally:
+            await manager.aclose()
 
     async def _plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
         started = time.perf_counter()
