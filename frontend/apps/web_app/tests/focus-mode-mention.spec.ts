@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -11,7 +10,7 @@ test.beforeEach(async () => {
 	networkActivities.length = 0;
 });
 
-test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
+test.afterEach(async ({ page: _page }: { page: any }, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
 		console.log('\n--- DEBUG INFO ON FAILURE ---');
 		console.log('\n[RECENT CONSOLE LOGS]');
@@ -27,14 +26,10 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
-	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -84,6 +79,7 @@ function setupPageListeners(page: any): void {
 // Test: Focus mode can be manually triggered via MentionDropdown (@focus)
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=focus-modes.specializations
 test('focus mode can be manually triggered via mention dropdown', async ({
 	page
 }: {
@@ -158,6 +154,14 @@ test('focus mode can be manually triggered via mention dropdown', async ({
 	logCheckpoint(`Mention dropdown still visible after selection: ${dropdownAfter}`);
 	await expect(mentionDropdown).not.toBeVisible({ timeout: 3000 });
 	logCheckpoint('Mention dropdown closed after focus mode selection — trigger verified.');
+
+	// The Workflows clarification handoff uses this exact focus mode. Verify it
+	// is discoverable before any chat message or AI request is sent.
+	await messageEditor.click();
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.type('@clarify');
+	await expect(mentionDropdown).toBeVisible({ timeout: 5000 });
+	await expect(page.locator(SELECTORS.mentionDropdownFocusItem).filter({ hasText: 'Clarify workflows' })).toBeVisible();
 
 	logCheckpoint('Focus mode mention dropdown test completed successfully.');
 });

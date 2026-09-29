@@ -7,11 +7,12 @@
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import IconTabBar, { type IconTabItem } from '../IconTabBar.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity }: {
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity, onDraftIdentity }: {
     title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
     enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
     onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onOpenRuns: () => void; runsHref: string;
     onUpdateIdentity: (title: string, description: string) => Promise<void>;
+    onDraftIdentity: (title: string, description: string) => void;
   } = $props();
   let editing = $state(false); let draftTitle = $state(''); let draftDescription = $state('');
   const tr = (key: string) => $text(`workflows.builder.${key}`);
@@ -48,8 +49,8 @@
     <div data-testid="workflow-identity-icon" aria-hidden="true"><Identity size={38}/></div>
     {#if editing}
       <form onsubmit={async event => { event.preventDefault(); await onUpdateIdentity(draftTitle, draftDescription); editing = false; }}>
-        <input aria-label={tr('workflow_name')} bind:value={draftTitle} required/>
-        <input aria-label={tr('description')} bind:value={draftDescription}/>
+        <input aria-label={tr('workflow_name')} bind:value={draftTitle} oninput={() => onDraftIdentity(draftTitle, draftDescription)} required/>
+        <input aria-label={tr('description')} bind:value={draftDescription} oninput={() => onDraftIdentity(draftTitle, draftDescription)}/>
         <button class="save" type="submit" disabled={saving}>{tr('save')}</button>
       </form>
     {:else}

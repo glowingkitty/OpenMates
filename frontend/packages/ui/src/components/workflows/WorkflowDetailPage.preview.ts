@@ -19,6 +19,7 @@ const defaultProps = {
   onOpenRuns: () => {},
   runsHref: '#runs',
   onUpdateIdentity: async (_title: string, _description: string) => {},
+  onDraftIdentity: (_title: string, _description: string) => {},
 };
 
 export default defaultProps;

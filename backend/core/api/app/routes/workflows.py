@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import time
+import json
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -47,6 +48,7 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowRunNotCancellableError,
     WorkflowService,
     WorkflowVersionCurrentError,
+    _hash_owner_id,
 )
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_ai_service import (
@@ -183,6 +185,7 @@ class WorkflowInputStartRequest(BaseModel):
     selected_workflow_id: str | None = Field(default=None, min_length=1, max_length=200)
     selected_project_id: str | None = Field(default=None, min_length=1, max_length=200)
     timezone: str | None = Field(default=None, min_length=1, max_length=100)
+    optimistic_save: bool = False
 
     @model_validator(mode="after")
     def validate_input_source(self) -> WorkflowInputStartRequest:
@@ -1133,7 +1136,34 @@ async def start_workflow_input(
             selected_project_id=body.selected_project_id,
             timezone=body.timezone,
             vault_key_id=current_user.vault_key_id,
+            optimistic_save=body.optimistic_save,
         )
+        if result.status == "queued":
+            cache_key = f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{result.session_id}"
+            try:
+                client = await request.app.state.cache_service.client
+                if client is None:
+                    raise RuntimeError("Workflow input pending cache unavailable")
+                await client.set(cache_key, json.dumps({
+                    "session_id": result.session_id, "status": "queued", "event_cursor": result.event_cursor,
+                    "message": result.message,
+                }), ex=10)
+                from backend.core.api.app.tasks.workflow_tasks import commit_workflow_input_task
+
+                commit_workflow_input_task.apply_async(args=[result.session_id], queue="workflow")
+            except Exception:
+                # The encrypted queued plan is durable. If the fast cache/broker
+                # cannot wake a worker, finish synchronously instead of leaving
+                # the user waiting for periodic recovery.
+                committed = await run_in_threadpool(service.commit_queued, result.session_id)
+                if committed is not None:
+                    result = committed
+                try:
+                    client = await request.app.state.cache_service.client
+                    if client is not None:
+                        await client.delete(cache_key)
+                except Exception:
+                    pass
         return {"session": result.model_dump(mode="json")}
     except Exception as exc:
         _handle_workflow_input_error(exc)
@@ -1148,6 +1178,9 @@ async def get_workflow_input_session(
     service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
     try:
+        # A queued status response includes its renderable preview. The short
+        # Dragonfly marker deliberately contains no private graph, so status
+        # reads use the encrypted durable session as their source of truth.
         result = await run_in_threadpool(service.status, session_id, current_user.id, current_user.vault_key_id)
         return {"session": result.model_dump(mode="json")}
     except Exception as exc:
@@ -1207,6 +1240,13 @@ async def stop_workflow_input(
             session_id=session_id,
             vault_key_id=current_user.vault_key_id,
         )
+        if result.status == "stopped":
+            try:
+                client = await request.app.state.cache_service.client
+                if client is not None:
+                    await client.delete(f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{session_id}")
+            except Exception:
+                pass
         return {"session": result.model_dump(mode="json")}
     except Exception as exc:
         _handle_workflow_input_error(exc)

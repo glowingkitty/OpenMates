@@ -7055,6 +7055,7 @@ async function handleWorkflows(
       selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
       selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
       timezone: typeof flags.timezone === "string" ? flags.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
+      optimisticSave: flags.optimistic === true,
     });
     if (flags.json === true) {
       printJson(session);
@@ -7325,6 +7326,7 @@ function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
   if (session.message) kv("Message", session.message);
   if (session.error) kv("Error", session.error);
   if (session.workflow) kv("Workflow", `${session.workflow.title} (${session.workflow.id})`);
+  if (session.preview_workflow) kv("Preview (saving)", `${session.preview_workflow.title} (${session.preview_workflow.id})`);
   const metrics = session.authoring_metrics;
   if (metrics && typeof metrics.total_seconds === "number") kv("AI planning", `${metrics.total_seconds.toFixed(2)}s`);
   if (metrics && typeof metrics.estimated_cost_usd === "number") kv("Est. AI cost", `$${metrics.estimated_cost_usd.toFixed(5)}`);
@@ -14876,7 +14878,7 @@ function printWorkflowsHelp(): void {
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
-  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--optimistic] [--json]
   openmates workflows input-show <session-id> [--json]
   openmates workflows input-events <session-id> [--after <event-id>] [--json]
   openmates workflows input-follow-up <session-id> <text> [--json]

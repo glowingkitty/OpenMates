@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from threading import Event
@@ -56,15 +57,16 @@ class StubGemini:
     async def __call__(self, model, payload, schema):
         del schema
         self.models.append(model)
-        if model == "gemini-3.8-flash" and "criteria" in payload:
+        if "criteria" in payload:
             return ({"route": "create", "recipe": "rain_alert", "delivery": "chat", "cadence": "weekdays",
                      "horizon": "tomorrow", "city": "berlin", "timezone": "browser"},
                     {"input_tokens": 600, "output_tokens": 45})
         if model == "gemini-3.8-flash":
             return {"city": "Dresden"}, {"input_tokens": 100, "output_tokens": 5}
+        topic = "AI" if "event" in str(payload.get("request") or "").lower() else "Berlin news"
         return {"title": "Berlin umbrella alert", "description": "Weekday warning when tomorrow's Berlin forecast predicts rain.",
                 "category": "science", "icon": "cloud-rain", "message": "Take an umbrella.",
-                "search_query": "Berlin news", "ask_ai_prompt": "Summarize {{ $nodes.news.output.results }} in three bullets."}, {"input_tokens": 200, "output_tokens": 40}
+                "search_query": topic, "ask_ai_prompt": "Summarize {{ $nodes.news.output.results }} in three bullets."}, {"input_tokens": 200, "output_tokens": 40}
 
 
 def _input_service(jev=None, gemini=None):
@@ -97,6 +99,136 @@ def test_authoring_events_persist_in_encrypted_batches_and_restore_after_reconne
     assert [event.event_id for event in events] == list(range(1, result.event_cursor + 1))
     assert events[-1].type == "committed"
     assert events[-1].payload == {"mutation_type": "create_workflow", "workflow_id": result.workflow.id}
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.execution.lifecycle-visible
+def test_optimistic_create_replays_from_encrypted_session_and_commits_once():
+    workflows = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=workflows.payload_cipher, token="test-token")
+    fake_client = FakeDirectusClient()
+    repository._client = fake_client
+    planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                jev_client=StubJev(), structured_call=StubGemini())
+    api_service = WorkflowInputService(workflow_service=workflows, planner=planner, repository=repository)
+    queued = api_service.start(
+        user_id="alice", timezone="Europe/Berlin", optimistic_save=True,
+        text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains",
+    )
+    assert queued.status == "queued"
+    assert queued.workflow is None
+    assert queued.preview_workflow is not None
+    assert queued.preview_workflow.enabled is False
+    assert queued.preview_workflow.graph.nodes
+    assert not workflows.list_workflows("alice")
+    assert repository.queued_session_ids() == [queued.session_id]
+    assert sum(method == "POST" and collection == "workflow_input_sessions" for method, collection in fake_client.requests) == 1
+    assert sum(method == "POST" and collection == "workflow_input_events" for method, collection in fake_client.requests) == 1
+
+    api_service._sessions.clear()
+    reloaded_preview = api_service.status(queued.session_id, "alice").preview_workflow
+    assert reloaded_preview is not None and reloaded_preview.id == queued.preview_workflow.id
+    assert reloaded_preview.graph == queued.preview_workflow.graph
+
+    worker = WorkflowInputService(workflow_service=workflows, repository=repository)
+    committed = worker.commit_queued(queued.session_id)
+    assert committed is not None and committed.status == "executed"
+    assert committed.workflow is not None
+    assert committed.workflow.id == queued.preview_workflow.id
+    assert committed.preview_workflow is None
+    assert len(workflows.list_workflows("alice")) == 1
+    assert repository.queued_session_ids() == []
+    assert worker.commit_queued(queued.session_id) is None
+    assert worker.status(queued.session_id, "alice").undo_available is True
+    assert api_service.status(queued.session_id, "alice").status == "executed"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.execution.lifecycle-visible
+def test_optimistic_create_retries_after_mutation_write_failure_without_duplicate(monkeypatch):
+    workflows = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=workflows.payload_cipher, token="test-token")
+    repository._client = FakeDirectusClient()
+    planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                jev_client=StubJev(), structured_call=StubGemini())
+    service = WorkflowInputService(workflow_service=workflows, planner=planner, repository=repository)
+    queued = service.start(user_id="alice", optimistic_save=True,
+                           text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
+    save_mutation = repository.save_mutation
+    attempts = 0
+
+    def fail_once(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("temporary Directus error")
+        return save_mutation(*args, **kwargs)
+
+    monkeypatch.setattr(repository, "save_mutation", fail_once)
+    first = service.commit_queued(queued.session_id)
+    assert first is not None and first.status == "queued"
+    assert len(workflows.list_workflows("alice")) == 1
+    second = service.commit_queued(queued.session_id)
+    assert second is not None and second.status == "executed"
+    assert len(workflows.list_workflows("alice")) == 1
+    assert attempts == 2
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.edge-cases
+def test_optimistic_create_retry_repairs_trigger_after_partial_workflow_save(monkeypatch):
+    workflows = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=workflows.payload_cipher, token="test-token")
+    repository._client = FakeDirectusClient()
+    planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                jev_client=StubJev(), structured_call=StubGemini())
+    service = WorkflowInputService(workflow_service=workflows, planner=planner, repository=repository)
+    queued = service.start(user_id="alice", optimistic_save=True,
+                           text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
+    save_trigger = workflows.repository.save_trigger
+    attempts = 0
+
+    def fail_once(record):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise RuntimeError("temporary trigger storage error")
+        return save_trigger(record)
+
+    monkeypatch.setattr(workflows.repository, "save_trigger", fail_once)
+    first = service.commit_queued(queued.session_id)
+    assert first is not None and first.status == "queued"
+    workflow = workflows.list_workflows("alice")[0]
+    assert workflows.repository.get_trigger_for_workflow(workflow.id, "alice") is None
+
+    second = service.commit_queued(queued.session_id)
+    assert second is not None and second.status == "executed"
+    trigger = workflows.repository.get_trigger_for_workflow(workflow.id, "alice")
+    assert trigger is not None and trigger["version_id"] == second.workflow.current_version_id
+    assert len(workflows.list_workflows("alice")) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect
+def test_optimistic_edit_rejects_newer_manual_change_before_commit():
+    workflows = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=workflows.payload_cipher, token="test-token")
+    repository._client = FakeDirectusClient()
+    create_planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                       jev_client=StubJev(), structured_call=StubGemini())
+    create_service = WorkflowInputService(workflow_service=workflows, planner=create_planner, repository=repository)
+    created = create_service.start(user_id="alice", text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
+    assert created.workflow is not None
+    edit_planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                     jev_client=StubJev({"route": "update"}), structured_call=StubGemini())
+    edit_service = WorkflowInputService(workflow_service=workflows, planner=edit_planner, repository=repository)
+    queued = edit_service.start(user_id="alice", selected_workflow_id=created.workflow.id,
+                                text="Move this workflow to 8:30 Berlin time", optimistic_save=True)
+    assert queued.status == "queued"
+    assert queued.preview_workflow is not None
+    assert queued.preview_workflow.id == created.workflow.id
+    assert next(node for node in queued.preview_workflow.graph.nodes if node.id == "trigger").config["schedule"]["time"] == "08:30"
+    assert next(node for node in workflows.get_workflow(created.workflow.id, "alice").graph.nodes if node.id == "trigger").config["schedule"]["time"] == "07:00"
+    workflows.update_workflow(created.workflow.id, "alice", title="My later manual title")
+    result = edit_service.commit_queued(queued.session_id)
+    assert result is not None and result.status == "failed"
+    assert workflows.get_workflow(created.workflow.id, "alice").title == "My later manual title"
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
@@ -175,14 +307,105 @@ def test_cli_input_creates_disabled_ready_tomorrow_rain_recipe_with_identity_and
     assert len(workflows.list_workflows("alice")) == 1
 
 
+# contract-test: supporting surface=cli assertions=workflows.activation.reachable-side-effect
+def test_short_incomplete_request_saves_blank_titled_draft():
+    # Even if Jev guesses a known city and recipe, no city may enter the graph
+    # unless the user actually named it.
+    service, _ = _input_service()
+    result = service.start(user_id="alice", text="Rain alert")
+    assert result.status == "draft", result.error
+    assert result.workflow is not None
+    assert result.workflow.title == "Rain alert"
+    assert result.workflow.enabled is False
+    assert result.workflow.graph.nodes == []
+    assert result.undo_available is True
+
+
+# contract-test: infrastructure
+def test_incomplete_short_request_does_not_spend_a_metadata_call():
+    gemini = StubGemini()
+    service, _ = _input_service(gemini=gemini)
+    result = service.start(user_id="alice", text="Weekly rain alert")
+    assert result.status == "draft"
+    assert result.workflow is not None and result.workflow.title == "Weekly rain alert"
+    assert gemini.models == []
+
+
+# contract-test: supporting surface=cli assertions=workflows.actions.skill-contract
+def test_long_weather_request_cannot_use_a_city_guessed_by_jev():
+    service, workflows = _input_service()
+    result = service.start(user_id="alice", text=(
+        "Every weekday at 7, check tomorrow's weather and send me a chat message "
+        "reminding me to take an umbrella if rain is expected"))
+    assert result.status == "needs_clarification"
+    assert workflows.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=cli assertions=workflows.schedule.recurrence
+def test_short_complete_weekly_events_request_uses_monday_nine_default():
+    service, _ = _input_service(StubJev({"recipe": "events_digest", "cadence": "weekly", "horizon": "other"}))
+    result = service.start(user_id="alice", timezone="Europe/Berlin", text="Weekly AI event search for Berlin")
+    assert result.status == "executed", result.error
+    assert result.workflow is not None
+    nodes = {node.id: node for node in result.workflow.graph.nodes}
+    assert nodes["trigger"].config["schedule"] == {
+        "type": "weekly", "time": "09:00", "timezone": "Europe/Berlin", "weekdays": ["monday"],
+    }
+    assert nodes["events"].config["input"]["requests"][0]["query"] == "AI"
+    assert len(result.assumptions) == 2
+
+
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
-def test_jev_outage_uses_gemini_38_for_same_recipe_contract():
+def test_jev_outage_uses_flash_lite_for_same_recipe_contract():
     gemini = StubGemini()
     service, _ = _input_service(StubJev(unavailable=True), gemini)
     result = service.start(user_id="alice", timezone="Europe/Berlin",
                            text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
     assert result.status == "executed", result.error
-    assert gemini.models == ["gemini-3.8-flash", "gemini-3.5-flash-lite"]
+    assert gemini.models.count("gemini-3.5-flash-lite") == 2
+    assert result.authoring_metrics["bounded_fallback"] == "gemini-3.5-flash-lite"
+
+
+# contract-test: infrastructure
+def test_clear_create_drafts_metadata_while_jev_decides():
+    metadata_started = asyncio.Event()
+    jev_started = asyncio.Event()
+
+    class ConcurrentJev(StubJev):
+        async def evaluate(self, *, state, questions):
+            jev_started.set()
+            await asyncio.wait_for(metadata_started.wait(), timeout=1)
+            return await super().evaluate(state=state, questions=questions)
+
+    class ConcurrentGemini(StubGemini):
+        async def __call__(self, model, payload, schema):
+            if "criteria" not in payload:
+                metadata_started.set()
+                await asyncio.wait_for(jev_started.wait(), timeout=1)
+            return await super().__call__(model, payload, schema)
+
+    service, _ = _input_service(ConcurrentJev(), ConcurrentGemini())
+    result = service.start(user_id="alice", timezone="Europe/Berlin",
+                           text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if rain is expected")
+    assert result.status == "executed", result.error
+    assert result.authoring_metrics["metadata_prefetched"] is True
+
+
+# contract-test: supporting surface=cli assertions=workflows.actions.skill-contract
+def test_invalid_flash_lite_bounded_fallback_escalates_to_flash_38():
+    class InvalidLiteBoundedGemini(StubGemini):
+        async def __call__(self, model, payload, schema):
+            if model == "gemini-3.5-flash-lite" and "criteria" in payload:
+                self.models.append(model)
+                return {"route": "unknown"}, {"input_tokens": 100, "output_tokens": 5}
+            return await super().__call__(model, payload, schema)
+
+    gemini = InvalidLiteBoundedGemini()
+    service, _ = _input_service(StubJev(unavailable=True), gemini)
+    result = service.start(user_id="alice", timezone="Europe/Berlin",
+                           text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
+    assert result.status == "executed", result.error
+    assert "gemini-3.8-flash" in gemini.models
     assert result.authoring_metrics["bounded_fallback"] == "gemini-3.8-flash"
 
 
@@ -223,6 +446,19 @@ def test_explicit_external_channel_cannot_be_silently_replaced_by_chat():
     assert result.status == "needs_clarification"
     assert result.authoring_metrics["jev_calls"] == 0
     assert not workflows.list_workflows("alice")
+
+
+@pytest.mark.parametrize("instruction", [
+    "Create two workflows: a rain alert and an AI news digest",
+    "Create a weekday news digest and move my existing rain alert to 8",
+])
+# contract-test: supporting surface=cli assertions=workflows.activation.reachable-side-effect
+def test_explicit_batch_is_never_partially_saved(instruction):
+    service, workflows = _input_service()
+    result = service.start(user_id="alice", text=instruction, optimistic_save=True)
+    assert result.status == "needs_clarification"
+    assert result.authoring_metrics["jev_calls"] == 0
+    assert workflows.list_workflows("alice") == []
 
 
 # contract-test: direct surface=cli assertions=workflows.schedule.edge-cases

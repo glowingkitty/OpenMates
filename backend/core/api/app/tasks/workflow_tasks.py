@@ -12,6 +12,7 @@ import asyncio
 import hashlib
 import logging
 import time
+import redis
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -21,6 +22,8 @@ from backend.core.api.app.services.workflow_runner import WorkflowRunner
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeService
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
+from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_service import _hash_owner_id
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app, broker_url
 from backend.shared.python_utils.celery_dedup import (
@@ -32,6 +35,9 @@ from backend.shared.python_utils.celery_dedup import (
 logger = logging.getLogger(__name__)
 
 _WORKFLOW_SERVICE = WorkflowService(repository=DirectusWorkflowRepository())
+_INPUT_REPOSITORY = DirectusWorkflowInputRepository(payload_cipher=_WORKFLOW_SERVICE.payload_cipher)
+_INPUT_SERVICE = WorkflowInputService(workflow_service=_WORKFLOW_SERVICE, repository=_INPUT_REPOSITORY)
+_INPUT_COMMIT_LOCK_PREFIX = "workflow-input:commit:"
 _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 _SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
 
@@ -56,6 +62,35 @@ async def _run_with_workflow_services(
 
 def get_workflow_service() -> WorkflowService:
     return _WORKFLOW_SERVICE
+
+
+@app.task(name="workflows.commit_input", base=WorkflowServiceTask, bind=True)
+def commit_workflow_input_task(self: BaseServiceTask, session_id: str) -> dict[str, Any]:
+    lock_key = f"{_INPUT_COMMIT_LOCK_PREFIX}{session_id}"
+    if not acquire_celery_task_dedup_lock(lock_key, broker_url=broker_url, ttl_seconds=120):
+        return {"status": "already_committing"}
+    owner = None
+    try:
+        owner = _INPUT_REPOSITORY.queued_session_owner(session_id)
+        result = _INPUT_SERVICE.commit_queued(session_id)
+        return {"status": result.status if result is not None else "already_finished"}
+    finally:
+        if owner is not None:
+            try:
+                redis.Redis.from_url(broker_url).delete(
+                    f"workflow-input:pending:{_hash_owner_id(owner[0])}:{session_id}"
+                )
+            except Exception:
+                logger.warning("Could not evict pending workflow cache for session %s", session_id)
+        release_celery_task_dedup_lock(lock_key, broker_url=broker_url)
+
+
+@app.task(name="workflows.replay_queued_inputs", base=WorkflowServiceTask, bind=True)
+def replay_queued_workflow_inputs_task(self: BaseServiceTask, limit: int = 100) -> dict[str, Any]:
+    session_ids = _INPUT_REPOSITORY.queued_session_ids(limit=limit)
+    for session_id in session_ids:
+        commit_workflow_input_task.apply_async(args=[session_id], queue="workflow")
+    return {"queued": len(session_ids)}
 
 
 def _acquire_scheduled_execution_lock(trigger_id: str) -> bool:

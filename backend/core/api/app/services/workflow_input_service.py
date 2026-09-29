@@ -166,6 +166,33 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
         }
         return session
 
+    def queued_session_ids(self, limit: int = 100) -> list[str]:
+        rows = self._get_items(
+            self.SESSIONS, {"status": {"_eq": "queued"}},
+            fields="session_id", sort="created_at", limit=limit,
+        )
+        return [str(row["session_id"]) for row in rows if row.get("session_id")]
+
+    def queued_session_owner(self, session_id: str) -> tuple[str, str | None] | None:
+        """Recover a queued owner's identity only inside the trusted commit worker."""
+        row = self._find_one(self.SESSIONS, {"_and": [
+            {"session_id": {"_eq": session_id}}, {"status": {"_eq": "queued"}},
+        ]})
+        if not row:
+            return None
+        ref = row.get("encrypted_state_ref")
+        if not isinstance(ref, str) or not ref:
+            raise RuntimeError("Queued workflow input is missing encrypted state")
+        blob = self.get_encrypted_blob(ref)
+        if not blob:
+            raise RuntimeError("Queued workflow input encrypted state is unavailable")
+        key_ref = blob.get("vault_key_ref")
+        state = self.payload_cipher.decrypt_json(blob, key_ref)
+        user_id = state.get("queued_user_id") if isinstance(state, dict) else None
+        if not isinstance(user_id, str) or _hash_owner_id(user_id) != row.get("hashed_user_id"):
+            raise RuntimeError("Queued workflow input owner verification failed")
+        return user_id, str(key_ref) if key_ref else None
+
     def save_event(self, event: WorkflowInputEvent, user_id: str, vault_key_id: str | None) -> None:
         payload_blob = self._save_private_blob(
             user_id=user_id,
@@ -435,8 +462,10 @@ class WorkflowInputSessionResult(BaseModel):
     error: str | None = None
     error_code: str | None = None
     workflow: WorkflowDetail | None = None
+    preview_workflow: WorkflowDetail | None = None
     project_item: dict[str, Any] | None = None
     undo_available: bool = False
+    assumptions: list[str] = Field(default_factory=list)
     authoring_metrics: dict[str, Any] | None = None
 
 
@@ -458,6 +487,11 @@ class _ClarificationPlan(_PlanModel):
 class _DraftPlan(_PlanModel):
     action: Literal["draft"]
     draft_graph: WorkflowGraph
+
+
+class _CreateEmptyWorkflowPlan(_PlanModel):
+    action: Literal["create_empty_workflow"]
+    title: str = Field(min_length=1, max_length=200)
 
 
 class _CreateWorkflowPlan(_PlanModel):
@@ -492,7 +526,7 @@ class _LinkWorkflowToProjectPlan(_PlanModel):
 
 
 WorkflowInputPlan: TypeAlias = Annotated[
-    _ClarificationPlan | _DraftPlan | _CreateWorkflowPlan | _UpdateWorkflowPlan | _LinkWorkflowToProjectPlan,
+    _ClarificationPlan | _DraftPlan | _CreateEmptyWorkflowPlan | _CreateWorkflowPlan | _UpdateWorkflowPlan | _LinkWorkflowToProjectPlan,
     Field(discriminator="action"),
 ]
 WORKFLOW_INPUT_PLAN_ADAPTER = TypeAdapter(WorkflowInputPlan)
@@ -531,11 +565,15 @@ class WorkflowInputService:
         selected_project_id: str | None = None,
         timezone: str | None = None,
         vault_key_id: str | None = None,
+        optimistic_save: bool = False,
     ) -> WorkflowInputSessionResult:
         started = time.perf_counter()
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
         key_resolved_at = time.perf_counter()
-        session = self._create_session(user_id, selected_workflow_id, selected_project_id, resolved_vault_key_id)
+        session = self._create_session(
+            user_id, selected_workflow_id, selected_project_id, resolved_vault_key_id,
+            persist_initial=not (optimistic_save and input_type == "text"),
+        )
         session["timezone"] = timezone
         session["_timings"] = {
             "key_resolution_seconds": key_resolved_at - started,
@@ -544,7 +582,8 @@ class WorkflowInputService:
         session["_batch_events"] = True
         session["_batch_owner_thread"] = threading.get_ident()
         try:
-            result = self._process_input(session, text=text, input_type=input_type, audio_ref=audio_ref, vault_key_id=resolved_vault_key_id)
+            result = self._process_input(session, text=text, input_type=input_type, audio_ref=audio_ref,
+                                         vault_key_id=resolved_vault_key_id, optimistic_save=optimistic_save)
         finally:
             self._flush_persistence(session, resolved_vault_key_id)
             session.pop("_batch_events", None)
@@ -578,9 +617,55 @@ class WorkflowInputService:
         session["_batch_owner_thread"] = threading.get_ident()
         try:
             self._append_event(session, "followup_received", {"text_length": len(text)}, vault_key_id=resolved_vault_key_id)
-            return self._process_input(session, text=text, input_type="text", audio_ref=None, vault_key_id=resolved_vault_key_id)
+            return self._process_input(session, text=text, input_type="text", audio_ref=None,
+                                       vault_key_id=resolved_vault_key_id, optimistic_save=False)
         finally:
             self._flush_persistence(session, resolved_vault_key_id)
+            session.pop("_batch_events", None)
+            session.pop("_batch_owner_thread", None)
+
+    def commit_queued(self, session_id: str) -> WorkflowInputSessionResult | None:
+        """Replay an encrypted queued plan; safe to retry after worker loss."""
+        if not isinstance(self.repository, DirectusWorkflowInputRepository):
+            raise WorkflowInputUnavailableError(WORKFLOW_INPUT_ACTION_UNAVAILABLE, "Queued workflow persistence is unavailable.")
+        owner = self.repository.queued_session_owner(session_id)
+        if owner is None:
+            return None
+        user_id, vault_key_id = owner
+        # Directus is the replay authority. The API process may still hold a
+        # newer in-memory copy from a failed final flush.
+        session = self.repository.get_session(session_id, user_id, vault_key_id)
+        if session is None:
+            raise WorkflowNotFoundError(session_id)
+        self._sessions[session_id] = session
+        if session["status"] != "queued":
+            return self._result(session)
+        plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(session.get("pending_plan"))
+        session["commit_attempts"] = int(session.get("commit_attempts") or 0) + 1
+        session["_batch_events"] = True
+        session["_batch_owner_thread"] = threading.get_ident()
+        try:
+            self._append_event(session, "commit_started", {}, vault_key_id=vault_key_id)
+            result = self._apply_plan(session, plan, vault_key_id)
+            session.pop("pending_plan", None)
+            session.pop("pending_before", None)
+            session.pop("queued_user_id", None)
+            return result
+        except (ValueError, ValidationError, WorkflowNotFoundError) as exc:
+            logger.exception("Queued workflow commit failed for session %s", session_id)
+            return self._fail_session(session, "commit_failed", "WORKFLOW_INPUT_COMMIT_FAILED",
+                                      "The workflow could not be saved. Please try again.", vault_key_id, exc)
+        except Exception as exc:
+            logger.exception("Queued workflow commit will retry for session %s", session_id)
+            session["status"] = "queued"
+            session["workflow"] = None
+            if session["commit_attempts"] >= 20:
+                return self._fail_session(session, "commit_failed", "WORKFLOW_INPUT_COMMIT_FAILED",
+                                          "The workflow could not be saved. Please try again.", vault_key_id, exc)
+            self._append_event(session, "commit_retry", {}, status="error", vault_key_id=vault_key_id)
+            return self._result(session)
+        finally:
+            self._flush_persistence(session, vault_key_id)
             session.pop("_batch_events", None)
             session.pop("_batch_owner_thread", None)
 
@@ -714,6 +799,7 @@ class WorkflowInputService:
         input_type: str,
         audio_ref: dict[str, Any] | None,
         vault_key_id: str | None,
+        optimistic_save: bool = False,
     ) -> WorkflowInputSessionResult:
         try:
             if input_type == "audio":
@@ -743,7 +829,11 @@ class WorkflowInputService:
                 )
             self._append_event(session, "input_received", {"text_length": len(sanitized_text)}, vault_key_id=vault_key_id)
             self._append_event(session, "planning_started", {}, vault_key_id=vault_key_id)
-            self._flush_persistence(session, vault_key_id)
+            # The optimistic text endpoint has not returned a session ID yet
+            # and cannot be stopped by the caller while planning. Persist its
+            # events with the validated queued plan in one encrypted batch.
+            if not (optimistic_save and input_type == "text"):
+                self._flush_persistence(session, vault_key_id)
             if self.planner is None:
                 raise WorkflowInputUnavailableError(
                     WORKFLOW_INPUT_PLANNER_UNAVAILABLE,
@@ -759,6 +849,8 @@ class WorkflowInputService:
                 return self._result(session)
             validated_plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(plan)
             self._append_event(session, "validation_passed", {}, vault_key_id=vault_key_id)
+            if optimistic_save and isinstance(validated_plan, (_CreateWorkflowPlan, _UpdateWorkflowPlan)):
+                return self._queue_plan(session, validated_plan, vault_key_id)
             return self._apply_plan(session, validated_plan, vault_key_id)
         except WorkflowInputUnavailableError as exc:
             return self._fail_session(session, "capability_unavailable", exc.code, str(exc), vault_key_id)
@@ -769,6 +861,37 @@ class WorkflowInputService:
         except Exception as exc:  # Boundary: logs internal detail and returns a safe durable error state.
             logger.exception("Workflow input processing failed for session %s", session["id"])
             return self._fail_session(session, "failed", "WORKFLOW_INPUT_PROCESSING_FAILED", "Workflow input processing failed.", vault_key_id, exc)
+
+    def _queue_plan(
+        self,
+        session: dict[str, Any],
+        plan: _CreateWorkflowPlan | _UpdateWorkflowPlan,
+        vault_key_id: str | None,
+    ) -> WorkflowInputSessionResult:
+        if not isinstance(self.repository, DirectusWorkflowInputRepository):
+            return self._apply_plan(session, plan, vault_key_id)
+        if isinstance(plan, _CreateWorkflowPlan):
+            validate_workflow_readiness(plan.graph, require_schedule=True)
+            validate_workflow_composition_refs(plan.graph)
+            session["assumptions"] = list(plan.assumptions)
+        else:
+            workflow_id = plan.workflow_id or session.get("selected_workflow_id")
+            if not workflow_id:
+                raise ValueError("update_workflow requires workflow_id or a selected workflow")
+            cached = session.get("_selected_workflow_detail")
+            before = cached if isinstance(cached, WorkflowDetail) and cached.id == workflow_id else self.workflow_service.get_workflow(
+                workflow_id, session["user_id"], vault_key_id,
+            )
+            graph = plan.graph or before.graph
+            validate_workflow_readiness(graph, require_schedule=before.enabled)
+            validate_workflow_composition_refs(graph, before.graph)
+            session["pending_before"] = before.model_dump(mode="json")
+        session["pending_plan"] = plan.model_dump(mode="json", by_alias=True)
+        session["queued_user_id"] = session["user_id"]
+        session["status"] = "queued"
+        session["message"] = "Workflow prepared. Saving now."
+        self._append_event(session, "queued", {}, vault_key_id=vault_key_id)
+        return self._result(session)
 
     def _apply_plan(
         self,
@@ -793,6 +916,27 @@ class WorkflowInputService:
                 vault_key_id=vault_key_id,
             )
             return self._result(session)
+        if isinstance(plan, _CreateEmptyWorkflowPlan):
+            graph = WorkflowGraph.model_validate({"version": 2, "trigger_node_id": None, "nodes": [], "edges": []})
+            workflow_started = time.perf_counter()
+            workflow = self.workflow_service.create_workflow(
+                session["user_id"], plan.title, graph, enabled=False,
+                source="workflow_input", created_by_assistant=True, vault_key_id=vault_key_id,
+            )
+            self._record_timing(session, "workflow_persistence_seconds", workflow_started)
+            session["status"] = "draft"
+            session["workflow"] = workflow
+            self._append_mutation(
+                session,
+                WorkflowInputMutation(
+                    id=str(uuid.uuid4()), type="create_workflow", target_type="workflow",
+                    target_id=workflow.id, after=workflow.model_dump(mode="json"),
+                    created_at=int(time.time()),
+                ),
+                vault_key_id,
+            )
+            self._append_event(session, "draft_saved", {"workflow_id": workflow.id}, vault_key_id=vault_key_id)
+            return self._result(session, workflow=workflow)
         if isinstance(plan, _CreateWorkflowPlan):
             return self._create_workflow(session, plan, vault_key_id)
         if isinstance(plan, _UpdateWorkflowPlan):
@@ -807,6 +951,7 @@ class WorkflowInputService:
         plan: _CreateWorkflowPlan,
         vault_key_id: str | None,
     ) -> WorkflowInputSessionResult:
+        session["assumptions"] = list(plan.assumptions)
         for assumption in plan.assumptions:
             self._append_event(session, "assumption", {"text_length": len(assumption)}, vault_key_id=vault_key_id)
         graph = plan.graph.model_dump(mode="json", by_alias=True)
@@ -827,14 +972,17 @@ class WorkflowInputService:
             description=plan.description,
             category=plan.category,
             icon=plan.icon,
+            workflow_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:create")) if session.get("pending_plan") else None,
+            initial_version_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:version")) if session.get("pending_plan") else None,
         )
         self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
+        session["message"] = None
         session["workflow"] = workflow
         self._append_mutation(
             session,
             WorkflowInputMutation(
-                id=str(uuid.uuid4()),
+                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:mutation")) if session.get("pending_plan") else str(uuid.uuid4()),
                 type="create_workflow",
                 target_type="workflow",
                 target_id=workflow.id,
@@ -857,7 +1005,10 @@ class WorkflowInputService:
             raise ValueError("update_workflow requires workflow_id or a selected workflow")
         workflow_read_started = time.perf_counter()
         cached = session.get("_selected_workflow_detail")
-        before = cached if isinstance(cached, WorkflowDetail) and cached.id == workflow_id else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
+        pending_before = session.get("pending_before")
+        before = (WorkflowDetail.model_validate(pending_before) if isinstance(pending_before, dict)
+                  else cached if isinstance(cached, WorkflowDetail) and cached.id == workflow_id
+                  else self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id))
         self._record_timing(session, "workflow_read_seconds", workflow_read_started)
         graph = plan.graph or before.graph
         validate_workflow_readiness(graph, require_schedule=before.enabled)
@@ -874,14 +1025,16 @@ class WorkflowInputService:
             vault_key_id=vault_key_id,
             expected_record_version=before.version,
             known_prior=before,
+            new_version_id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:version")) if session.get("pending_plan") else None,
         )
         self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
+        session["message"] = None
         session["workflow"] = workflow
         self._append_mutation(
             session,
             WorkflowInputMutation(
-                id=str(uuid.uuid4()),
+                id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:mutation")) if session.get("pending_plan") else str(uuid.uuid4()),
                 type="update_workflow",
                 target_type="workflow",
                 target_id=workflow.id,
@@ -976,6 +1129,8 @@ class WorkflowInputService:
         selected_workflow_id: str | None,
         selected_project_id: str | None,
         vault_key_id: str | None,
+        *,
+        persist_initial: bool = True,
     ) -> dict[str, Any]:
         now = int(time.time())
         session = {
@@ -992,13 +1147,16 @@ class WorkflowInputService:
             "workflow": None,
             "project_item": None,
             "message": None,
+            "assumptions": [],
+            "commit_attempts": 0,
             "cancellation_requested_at": None,
             "created_at": now,
             "updated_at": now,
             "expires_at": now + WORKFLOW_INPUT_SESSION_TTL_SECONDS,
         }
         self._sessions[session["id"]] = session
-        self._persist_session(session, vault_key_id)
+        if persist_initial:
+            self._persist_session(session, vault_key_id)
         return session
 
     def _require_session(self, session_id: str, user_id: str, vault_key_id: str | None) -> dict[str, Any]:
@@ -1009,10 +1167,11 @@ class WorkflowInputService:
 
     def _get_session(self, session_id: str, user_id: str | None, vault_key_id: str | None) -> dict[str, Any]:
         session = self._sessions.get(session_id)
-        if session is None and user_id is not None and self.repository is not None:
-            session = self.repository.get_session(session_id, user_id, vault_key_id)
-            if session is not None:
-                self._sessions[session_id] = session
+        if (session is None or session.get("status") == "queued") and user_id is not None and self.repository is not None:
+            refreshed = self.repository.get_session(session_id, user_id, vault_key_id)
+            if refreshed is not None:
+                session = refreshed
+                self._sessions[session_id] = refreshed
         if session is None:
             raise KeyError(session_id)
         return session
@@ -1046,6 +1205,7 @@ class WorkflowInputService:
         self._persist_session(session, vault_key_id)
 
     def _append_mutation(self, session: dict[str, Any], mutation: WorkflowInputMutation, vault_key_id: str | None) -> None:
+        session["mutations"] = [item for item in session["mutations"] if item.id != mutation.id]
         session["mutations"].append(mutation)
         self._save_mutation(session, mutation, vault_key_id)
 
@@ -1096,10 +1256,42 @@ class WorkflowInputService:
             error=error,
             error_code=error_code,
             workflow=workflow or session.get("workflow"),
+            preview_workflow=self._queued_preview(session),
             project_item=project_item or session.get("project_item"),
-            undo_available=session["status"] == "executed" and self._last_undoable_mutation(session) is not None,
+            undo_available=session["status"] in {"executed", "draft"} and self._last_undoable_mutation(session) is not None,
+            assumptions=list(session.get("assumptions") or []),
             authoring_metrics=session.get("authoring_metrics"),
         )
+
+    def _queued_preview(self, session: dict[str, Any]) -> WorkflowDetail | None:
+        """Return a validated renderable graph while its durable save is pending."""
+        if session.get("status") != "queued" or not isinstance(session.get("pending_plan"), dict):
+            return None
+        plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(session["pending_plan"])
+        version_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:version"))
+        if isinstance(plan, _CreateWorkflowPlan):
+            now = int(time.time())
+            return WorkflowDetail.model_validate({
+                "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"workflow-input:{session['id']}:create")),
+                "title": plan.title, "description": plan.description,
+                "category": plan.category or "general_knowledge", "icon": plan.icon or "help-circle",
+                "status": "disabled", "enabled": False, "source": "workflow_input",
+                "created_by_assistant": True, "current_version_id": version_id,
+                "created_at": now, "updated_at": now,
+                "trigger_summary": self.workflow_service._trigger_summary(plan.graph),
+                "graph": plan.graph,
+            })
+        if isinstance(plan, _UpdateWorkflowPlan) and isinstance(session.get("pending_before"), dict):
+            before = WorkflowDetail.model_validate(session["pending_before"])
+            return before.model_copy(update={
+                "title": plan.title or before.title,
+                "graph": plan.graph or before.graph,
+                "version": before.version + 1,
+                "current_version_id": version_id,
+                "updated_at": int(time.time()),
+                "trigger_summary": self.workflow_service._trigger_summary(plan.graph or before.graph),
+            })
+        return None
 
     def _persist_session(self, session: dict[str, Any], vault_key_id: str | None) -> None:
         if self.repository is not None:
@@ -1149,5 +1341,10 @@ def _session_private_state(session: dict[str, Any]) -> dict[str, Any]:
         "workflow": workflow.model_dump(mode="json") if isinstance(workflow, WorkflowDetail) else deepcopy(workflow),
         "project_item": deepcopy(session.get("project_item")),
         "message": session.get("message"),
+        "assumptions": list(session.get("assumptions") or []),
+        "pending_plan": deepcopy(session.get("pending_plan")),
+        "pending_before": deepcopy(session.get("pending_before")),
+        "queued_user_id": session.get("queued_user_id"),
+        "commit_attempts": int(session.get("commit_attempts") or 0),
         "cancellation_requested_at": session.get("cancellation_requested_at"),
     }

@@ -1607,6 +1607,11 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=60),
         'options': {'queue': 'workflow'},
     },
+    'replay-queued-workflow-inputs': {
+        'task': 'workflows.replay_queued_inputs',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'workflow'},
+    },
     # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.
     # Runs Sunday at 03:00 UTC so it doesn't overlap with the daily auto-delete at 02:30 UTC.
     'charge-storage-fees-weekly': {

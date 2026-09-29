@@ -1229,8 +1229,26 @@ class WorkflowService:
         slug_lookup_hash: str | None = None,
         category: str | None = None,
         icon: str | None = None,
+        workflow_id: str | None = None,
+        initial_version_id: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
+        if workflow_id is not None:
+            existing = self.repository.get_workflow(workflow_id, user_id)
+            if existing is not None:
+                if existing.get("source") != source or existing.get("current_version_id") != initial_version_id:
+                    raise ValueError("Workflow idempotency key conflicts with an existing workflow")
+                # The first attempt may have saved the workflow record and then
+                # failed while saving its separately persisted trigger.
+                vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
+                graph = WorkflowGraph.model_validate(
+                    self._load_encrypted_blob(existing["encrypted_graph_ref"], vault_key_id)
+                )
+                previous_next_run_at = existing.get("next_run_at")
+                self._sync_workflow_trigger(existing, graph, user_id, vault_key_id, replace_config_refs=True)
+                if existing.get("next_run_at") != previous_next_run_at:
+                    existing = self.repository.save_workflow(existing)
+                return self._detail_from_record(existing, vault_key_id)
         validate_encrypted_slug_metadata(
             {"encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash},
             record_label="Workflow",
@@ -1258,8 +1276,8 @@ class WorkflowService:
                 raise ValueError("temporary workflows must auto-delete no sooner than seven days after creation")
         if workflow_lifecycle == WorkflowLifecycle.PERSISTED and auto_delete_at is not None:
             raise ValueError("auto_delete_at is only valid for temporary workflows")
-        workflow_id = str(uuid.uuid4())
-        version_id = str(uuid.uuid4())
+        workflow_id = workflow_id or str(uuid.uuid4())
+        version_id = initial_version_id or str(uuid.uuid4())
         graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
         payloads: list[tuple[str, Any]] = [("workflow_title", title)]
         if description is not None:
@@ -1349,6 +1367,7 @@ class WorkflowService:
         icon: str | None = None,
         expected_record_version: int | None = None,
         known_prior: WorkflowDetail | None = None,
+        new_version_id: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         validate_encrypted_slug_metadata(
@@ -1359,6 +1378,15 @@ class WorkflowService:
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
+        if new_version_id is not None and record.get("current_version_id") == new_version_id:
+            if expected_record_version is not None and int(record.get("version") or 0) != expected_record_version + 1:
+                raise ValueError("Workflow changed after the AI edit was saved. Reload it and retry.")
+            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
+            previous_next_run_at = record.get("next_run_at")
+            self._sync_workflow_trigger(record, graph, user_id, vault_key_id, replace_config_refs=True)
+            if record.get("next_run_at") != previous_next_run_at:
+                record = self.repository.save_workflow(record)
+            return self._detail_from_record(record, vault_key_id)
         if expected_record_version is not None and int(record.get("version") or 0) != expected_record_version:
             raise ValueError("Workflow changed while the AI edit was being prepared. Reload it and retry.")
         if known_prior is not None and (known_prior.id != workflow_id or known_prior.version != int(record.get("version") or 0)):
@@ -1413,7 +1441,7 @@ class WorkflowService:
             record["encrypted_icon_checksum"] = icon_blob["checksum"]
         if graph is not None:
             assert workflow_graph is not None
-            version_id = str(uuid.uuid4())
+            version_id = new_version_id or str(uuid.uuid4())
             graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
             graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload, vault_key_id=vault_key_id)
             versions = list(record.get("versions") or [])

@@ -391,6 +391,10 @@ describe("OpenMatesClient workflows", () => {
     await withServer(
       (request, body) => {
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
+          if (body.optimistic_save === true) {
+            assert.deepEqual(body, { text: "weekly weather", input_type: "text", selected_project_id: PROJECT_ID, optimistic_save: true });
+            return { session: { session_id: "session-2", status: "queued", event_cursor: 4, undo_available: false, preview_workflow: { id: "wf-preview", title: "Weekly weather" } } };
+          }
           assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_project_id: PROJECT_ID });
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
         }
@@ -415,6 +419,9 @@ describe("OpenMatesClient workflows", () => {
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
         assert.equal((await client.startWorkflowInput({ text: "alert me if it rains", selectedProjectId: PROJECT_ID })).session_id, "session-1");
+        const optimistic = await client.startWorkflowInput({ text: "weekly weather", selectedProjectId: PROJECT_ID, optimisticSave: true });
+        assert.equal(optimistic.status, "queued");
+        assert.equal(optimistic.preview_workflow?.title, "Weekly weather");
         assert.equal((await client.getWorkflowInputSession("session-1")).status, "executed");
         assert.equal((await client.listWorkflowInputEvents("session-1", 2))[0]?.type, "validation_passed");
         assert.equal((await client.followUpWorkflowInput("session-1", "weekdays only")).event_cursor, 7);
@@ -422,6 +429,7 @@ describe("OpenMatesClient workflows", () => {
         assert.equal((await client.undoWorkflowInput("session-1")).status, "undone");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/workflows/input"],
           ["POST", "/v1/workflows/input"],
           ["GET", "/v1/workflows/input/session-1"],
           ["GET", "/v1/workflows/input/session-1/events?after_event_id=2"],

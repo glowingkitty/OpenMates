@@ -60,6 +60,10 @@
     "./services/shortUrlEncryption": {
       "types": "./src/services/shortUrlEncryption.ts",
       "default": "./src/services/shortUrlEncryption.ts"
+    },
+    "./services/workflowInputService": {
+      "types": "./src/services/workflowInputService.ts",
+      "default": "./src/services/workflowInputService.ts"
     }
   },
   "scripts": {

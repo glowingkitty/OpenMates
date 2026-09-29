@@ -603,6 +603,198 @@ builder.new_workflow_placeholder:
   en: "Enter a name for a new workflow"
   verified_by_human: []
 
+builder.ai_new:
+  context: Pill above a newly AI-created workflow card
+  en: New
+  de: Neu
+  verified_by_human: []
+
+builder.ai_edit_placeholder:
+  context: Prompt placeholder for changing an open workflow with AI
+  en: Describe a change to this workflow
+  de: Beschreibe eine Änderung an diesem Workflow
+  verified_by_human: []
+
+builder.ai_edit_submit:
+  context: Button to submit an AI edit to an open workflow
+  en: Update workflow
+  de: Workflow aktualisieren
+  verified_by_human: []
+
+builder.ai_edit_submitting:
+  context: Button while an AI workflow edit is processing
+  en: Updating...
+  de: Wird aktualisiert...
+  verified_by_human: []
+
+builder.ai_changes_saved:
+  context: Heading confirming an AI workflow edit was durably saved
+  en: AI changes saved
+  de: KI-Änderungen gespeichert
+  verified_by_human: []
+
+builder.ai_removed:
+  context: Label before the titles of nodes removed by AI
+  en: 'Removed:'
+  de: 'Entfernt:'
+  verified_by_human: []
+
+builder.ai_added_nodes:
+  context: Summary of nodes added by AI; count is shown separately
+  en: added nodes highlighted below.
+  de: hinzugefügte Knoten unten hervorgehoben.
+  verified_by_human: []
+
+builder.ai_edited_nodes:
+  context: Summary of nodes edited by AI; count is shown separately
+  en: edited nodes highlighted below.
+  de: bearbeitete Knoten unten hervorgehoben.
+  verified_by_human: []
+
+builder.ai_undo:
+  context: Button to undo a saved AI workflow edit
+  en: Undo AI changes
+  de: KI-Änderungen rückgängig machen
+  verified_by_human: []
+
+builder.ai_node_added:
+  context: Visual label on a node added by AI
+  en: AI added
+  de: KI hinzugefügt
+  verified_by_human: []
+
+builder.ai_node_edited:
+  context: Visual label on a node edited by AI
+  en: AI edited
+  de: KI bearbeitet
+  verified_by_human: []
+
+builder.voice_connecting:
+  context: Workflow voice input connecting status
+  en: Connecting microphone...
+  de: Mikrofon wird verbunden...
+  verified_by_human: []
+
+builder.voice_listening:
+  context: Workflow voice input recording status
+  en: Listening...
+  de: Hört zu...
+  verified_by_human: []
+
+builder.voice_correcting:
+  context: Workflow voice input correction status
+  en: Correcting transcript...
+  de: Transkript wird korrigiert...
+  verified_by_human: []
+
+builder.voice_preview:
+  context: Placeholder while waiting for workflow voice transcription
+  en: Your words will appear here as you speak.
+  de: Deine Worte erscheinen hier während du sprichst.
+  verified_by_human: []
+
+builder.voice_cancel:
+  context: Cancel a workflow voice recording
+  en: Cancel
+  de: Abbrechen
+  verified_by_human: []
+
+builder.voice_finish:
+  context: Finish a workflow voice recording
+  en: Finish
+  de: Fertig
+  verified_by_human: []
+
+builder.voice_dialog:
+  context: Accessible name for workflow voice recording controls
+  en: Record workflow instruction
+  de: Workflow-Anweisung aufnehmen
+  verified_by_human: []
+
+builder.voice_microphone_unavailable:
+  context: Error when workflow voice input cannot access the microphone
+  en: Microphone unavailable.
+  de: Mikrofon nicht verfügbar.
+  verified_by_human: []
+
+builder.voice_no_speech:
+  context: Error when workflow voice input contains no speech
+  en: No speech was detected.
+  de: Es wurde keine Sprache erkannt.
+  verified_by_human: []
+
+builder.voice_transcription_failed:
+  context: Error when workflow voice input transcription fails
+  en: Transcription failed.
+  de: Transkription fehlgeschlagen.
+  verified_by_human: []
+
+builder.ai_draft_unsaved:
+  context: Error when a workflow input draft lacks a persisted workflow
+  en: The draft has not been saved. Please try again.
+  de: Der Entwurf wurde nicht gespeichert. Bitte versuche es erneut.
+  verified_by_human: []
+
+builder.ai_failed:
+  context: Generic workflow authoring failure
+  en: The workflow could not be created. Please try again.
+  de: Der Workflow konnte nicht erstellt werden. Bitte versuche es erneut.
+  verified_by_human: []
+
+builder.ai_missing_result:
+  context: Error when workflow authoring reports success without saved workflow data
+  en: The workflow request finished without a saved workflow.
+  de: Die Workflow-Anfrage wurde ohne gespeicherten Workflow abgeschlossen.
+  verified_by_human: []
+
+builder.ai_undo_failed:
+  context: Generic failure when undoing an AI workflow change
+  en: AI changes could not be undone.
+  de: KI-Änderungen konnten nicht rückgängig gemacht werden.
+  verified_by_human: []
+
+builder.ai_undo_conflict:
+  context: Failure to undo because a newer manual workflow version exists
+  en: AI changes could not be undone. Open version history to review the workflow.
+  de: KI-Änderungen konnten nicht rückgängig gemacht werden. Öffne den Versionsverlauf, um den Workflow zu prüfen.
+  verified_by_human: []
+
+builder.ai_saving:
+  context: Pending confirmation while an AI workflow is being saved
+  en: Workflow prepared. Saving now.
+  de: Workflow vorbereitet. Wird jetzt gespeichert.
+  verified_by_human: []
+
+builder.ai_preview_label:
+  context: Label for a validated workflow preview while background saving continues
+  en: Workflow preview
+  de: Workflow-Vorschau
+  verified_by_human: []
+
+builder.ai_preview_saving:
+  context: Status pill on a workflow preview awaiting durable save
+  en: Saving...
+  de: Wird gespeichert...
+  verified_by_human: []
+
+builder.ai_preview_pending:
+  context: Clarifies that a visible workflow preview has not been saved yet
+  en: This preview is waiting for its save to finish.
+  de: Diese Vorschau wartet noch auf den Abschluss des Speicherns.
+  verified_by_human: []
+
+builder.ai_preview_steps:
+  context: Heading for proposed workflow steps in a pending preview
+  en: Proposed steps
+  de: Vorgeschlagene Schritte
+  verified_by_human: []
+
+builder.ai_check_status:
+  context: Retry checking a pending AI workflow save after a connection error
+  en: Check save status
+  de: Speicherstatus prüfen
+  verified_by_human: []
+
 builder.list:
   context: Workflow progressive builder control
   en: "list"

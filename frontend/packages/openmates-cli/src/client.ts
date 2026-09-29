@@ -1237,6 +1237,7 @@ export interface WorkflowInputStartParams {
   selectedWorkflowId?: string | null;
   selectedProjectId?: string | null;
   timezone?: string | null;
+  optimisticSave?: boolean;
 }
 
 export interface WorkflowInputEvent {
@@ -1257,6 +1258,8 @@ export interface WorkflowInputSessionResult {
   message?: string | null;
   error?: string | null;
   workflow?: WorkflowDetail | null;
+  preview_workflow?: WorkflowDetail | null;
+  assumptions?: string[];
   project_item?: Record<string, unknown> | null;
   undo_available: boolean;
   authoring_metrics?: Record<string, unknown> | null;
@@ -9623,6 +9626,7 @@ export class OpenMatesClient {
         ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: selectedWorkflowId } : {}),
         ...(params.selectedProjectId !== undefined ? { selected_project_id: selectedProjectId } : {}),
         ...(params.timezone !== undefined ? { timezone: params.timezone } : {}),
+        ...(params.optimisticSave !== undefined ? { optimistic_save: params.optimisticSave } : {}),
       },
       this.getCliRequestHeaders(),
     );

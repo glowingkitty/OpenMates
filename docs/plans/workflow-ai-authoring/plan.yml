@@ -53,6 +53,11 @@ current_state:
 
 confirmed_decisions:
   - A multi-workflow request is atomic: create none if any requested workflow needs clarification.
+  - A short complete instruction creates a ready disabled workflow through the normal Jev recipe path. A short incomplete instruction creates a persisted disabled blank workflow with the exact request as its title and opens its editor. A longer request that cannot be implemented goes to clarification chat.
+  - When a schedule omits its time, use 09:00 in the browser timezone or the explicitly requested timezone. When a weekly schedule omits its day, use Monday. Show these assumptions to the user.
+  - Run the bounded Gemini fallback only when Jev is unavailable or its answer fails confidence or validation. Draft creation metadata with Gemini Flash-Lite concurrently with clear Jev create requests. Escalate the bounded fallback to Gemini 3.8 Flash if Flash-Lite fails.
+  - Show a queued save state while the encrypted, durable plan is committed; use Dragonfly for a short-lived status cache and replay queued plans after worker loss. A workflow is shown as created only after the commit succeeds.
+  - Return the validated graph as a renderable preview as soon as planning finishes. Show it on the landing page or in the editor with a Saving state while the server commits it; enable actions and mark it New only after the save succeeds.
   - Save newly generated workflows disabled; save edits immediately while preserving their enabled state.
   - Prompt to save or discard unsaved manual edits before sending an AI edit.
   - Auto-submit a corrected recording; show raw transcription for review if correction fails.
@@ -152,7 +157,7 @@ scenarios:
     title: One or several valid workflows
     given: [The user is on the Workflows landing page.]
     when: [The user describes one or several workflows.]
-    then: [Every valid workflow is created disabled with an LLM title, description, and icon; the landing page shows a New pill above each card.]
+    then: [Every valid workflow is created disabled with an LLM title, description, and icon; the landing page shows a New pill above each card. A short incomplete request becomes a disabled blank workflow with the exact request as its title. Missing weekly day and time default to Monday at 09:00 and are shown as assumptions.]
   - id: S-2
     title: Ambiguous or unsupported request
     given: [At least one requested workflow cannot be built reliably.]

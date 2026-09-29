@@ -3224,6 +3224,14 @@
 			onMessage: async (messageText: string, autoSend: boolean) => {
 				deepLinkProcessed = true;
 				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
+				const workflowClarification = sessionStorage.getItem('workflow_clarification_new_chat') === 'true';
+				if (workflowClarification) {
+					sessionStorage.removeItem('workflow_clarification_new_chat');
+					// Reset ActiveChat's current chat, draft context and temporary ID before
+					// dispatching the prefill. Clearing only the store can reuse an open chat.
+					if (activeChat?.resetToNewChat) await activeChat.resetToNewChat();
+					else activeChatStore.setWithoutHashUpdate(null);
+				}
 				// Store message for MessageInput to pick up via custom event
 				// Docs links open a new-chat draft when no chat is active. In-chat
 				// fallback links keep the current chat and only prefill its composer.

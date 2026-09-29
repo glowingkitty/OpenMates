@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
+import type { Page, Route } from '@playwright/test';
 /**
  * Workflows input home coverage.
  *
  * Purpose: verifies the deployed Workflows landing keeps Daily Inspiration,
- * renders one mixed recent/example row, and uses a restrained composer to
- * create manual drafts without invoking workflow-input planning.
+ * renders one mixed recent/example row, and only marks an AI workflow New
+ * after the workflow-input session reports a committed result.
  * Security: uses the shared E2E account and deletes only workflows created by
  * this spec run.
  */
@@ -26,10 +27,6 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
-function workflowDetailsHashUrlPattern(workflowId: string): RegExp {
-	return new RegExp(`/#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
-}
-
 function blankWorkflowGraph(index: number) {
 	return {
 		version: 1,
@@ -41,16 +38,22 @@ function blankWorkflowGraph(index: number) {
 				title: `Spec schedule ${index}`,
 				config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } }
 			},
+			{ id: 'message', type: 'send_chat_message', title: 'Spec message', config: { title: 'Spec message', message: 'Ready' } },
 			{ id: 'end', type: 'end', title: 'Done', config: {} }
 		],
-		edges: [{ from: 'trigger', to: 'end' }]
+		edges: [{ from: 'trigger', to: 'message' }, { from: 'message', to: 'end' }]
 	};
 }
 
+test.use({
+	launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+	permissions: ['microphone']
+});
+
 test.describe('Workflows input home', () => {
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft
-	test('preserves home content and creates a title-only manual draft', async ({ page }) => {
-		test.setTimeout(180000);
+	test('preserves home content and marks a committed AI workflow New', async ({ page }: { page: Page }) => {
+		test.setTimeout(240000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
 
@@ -60,12 +63,7 @@ test.describe('Workflows input home', () => {
 			console.log(`[WORKFLOWS_INPUT_E2E] ${message} ${JSON.stringify(metadata)}`);
 		};
 		const screenshot = async () => {};
-		const workflowInputRequests: string[] = [];
-		const recordWorkflowInputRequest = (request: { url: () => string }) => {
-			if (new URL(request.url()).pathname.startsWith('/v1/workflows/input')) {
-				workflowInputRequests.push(request.url());
-			}
-		};
+		let committedWorkflow: Record<string, unknown> | null = null;
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, log, screenshot);
@@ -81,9 +79,10 @@ test.describe('Workflows input home', () => {
 						run_content_retention: index % 2 === 0 ? 'last_5' : 'none'
 					}
 				});
-				expect(response.ok()).toBe(true);
+				expect(response.ok(), await response.text()).toBe(true);
 				const data = await response.json();
 				createdWorkflowIds.add(data.workflow.id);
+				if (index === 5) committedWorkflow = data.workflow;
 			}
 
 			await page.setViewportSize({ width: 1024, height: 844 });
@@ -138,39 +137,229 @@ test.describe('Workflows input home', () => {
 			const allGridBox = await page.getByTestId('all-workflows-grid').boundingBox();
 			const allComposerBox = await page.getByTestId('workflow-input-composer').boundingBox();
 			if (!allGridBox || !allComposerBox) throw new Error('All workflows grid and composer must be measurable.');
-			expect(allGridBox.y + allGridBox.height).toBeLessThan(allComposerBox.y);
+			// Rounded scroll-container borders can extend about one CSS pixel under
+			// the fixed composer without hiding a control or card.
+			expect(allGridBox.y + allGridBox.height).toBeLessThanOrEqual(allComposerBox.y + 2);
 
 			await page.getByTestId('workflows-back-to-recent').click();
 			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByTestId('all-workflows-grid')).toHaveCount(0);
 
-			page.on('request', recordWorkflowInputRequest);
-			const createDraftResponse = page.waitForResponse(
-				(response) => new URL(response.url()).pathname === '/v1/workflows' && response.request().method() === 'POST' && response.ok(),
-				{ timeout: 30000 }
-			);
+			if (!committedWorkflow) throw new Error('Seed workflow missing');
+			const saved = committedWorkflow;
+			const preview = { ...saved, title: 'Daily school weather preview', description: 'A proposed weather briefing before school.' };
+			let allowCommit = false;
+			await page.route('**/v1/workflows/input/workflow-input-spec', async (route: Route) => {
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: allowCommit
+					? { session_id: 'workflow-input-spec', status: 'executed', workflow: saved, undo_available: true, mutations: [{ type: 'create_workflow', target_id: saved.id }] }
+					: { session_id: 'workflow-input-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: preview }
+				}) });
+			});
+			await page.route('**/v1/workflows/input', async (route: Route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				const payload = route.request().postDataJSON();
+				expect(payload.text).toBe('Daily school weather');
+				expect(payload.timezone).toBeTruthy();
+				expect(payload.optimistic_save).toBe(true);
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+					session_id: 'workflow-input-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: preview
+				} }) });
+			});
 			await page.getByTestId('workflow-input-textarea').focus();
 			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
 			await page.getByTestId('workflow-input-textarea').fill('Daily school weather');
 			await expect(page.getByTestId('workflow-input-submit')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-submit')).toBeEnabled();
 			await page.getByTestId('workflow-input-submit').click();
-			const draftData = await createDraftResponse;
-			const draft = (await draftData.json()).workflow;
+			await expect(page.getByTestId('workflow-ai-pending')).toContainText('Saving now');
+			await expect(page.getByTestId('workflow-ai-pending-preview')).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-preview-title')).toHaveText('Daily school weather preview');
+			await expect(page.getByTestId('workflow-ai-preview-description')).toContainText('proposed weather briefing');
+			await expect(page.getByTestId('workflow-ai-preview-steps').locator('li')).not.toHaveCount(0);
+			await expect(page.getByTestId('workflow-ai-saving-pill')).toHaveText('Saving...');
+			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveAttribute('data-disabled', 'true');
+			await expect(page.getByTestId('workflow-new-pill')).toHaveCount(0);
+			allowCommit = true;
+			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			const newCard = page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: String(saved.title) });
+			await expect(newCard).toBeVisible();
+			await expect(newCard.locator('..').getByTestId('workflow-new-pill')).toHaveText('New');
+			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
+
+			const shortRequest = `School weather ${Date.now()}`;
+			const draftResponse = await page.request.post(`${apiUrl}/v1/workflows`, { data: {
+				title: shortRequest,
+				graph: { version: 2, trigger_node_id: 'manual', nodes: [{ id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} }], edges: [] },
+				enabled: false
+			} });
+			expect(draftResponse.ok()).toBe(true);
+			const draft = (await draftResponse.json()).workflow;
 			createdWorkflowIds.add(draft.id);
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
-			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(draft.id));
-			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily school weather');
-			expect(draft.title).toBe('Daily school weather');
-			expect(draft.enabled).toBe(false);
-			expect(draft.graph.nodes).toHaveLength(1);
-			expect(draft.graph.nodes[0].id).toBe('manual');
-			expect(draft.graph.nodes[0].type).toBe('manual_trigger');
-			expect(draft.graph.edges).toHaveLength(0);
-			expect(workflowInputRequests).toEqual([]);
+			await page.unroute('**/v1/workflows/input');
+			await page.route('**/v1/workflows/input', async (route: Route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				expect(route.request().postDataJSON().text).toBe(shortRequest);
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+					session_id: 'workflow-draft-spec', status: 'draft', workflow: draft
+				} }) });
+			});
+			await page.getByTestId('workflow-input-textarea').fill(shortRequest);
+			await page.getByTestId('workflow-input-submit').click();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(shortRequest);
+			await expect(page.getByTestId('workflow-management')).toBeVisible();
+
+			const editedPreview = { ...draft, title: `${shortRequest} revised`, description: 'A validated edit awaiting save.' };
+			let failEditorSave = false;
+			await page.route('**/v1/workflows/input/workflow-editor-preview-spec', async (route: Route) => {
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: failEditorSave
+					? { session_id: 'workflow-editor-preview-spec', status: 'failed', error: 'Could not save the workflow.' }
+					: { session_id: 'workflow-editor-preview-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: editedPreview }
+				}) });
+			});
+			await page.unroute('**/v1/workflows/input');
+			await page.route('**/v1/workflows/input', async (route: Route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				const payload = route.request().postDataJSON();
+				expect(payload.selected_workflow_id).toBe(draft.id);
+				expect(payload.optimistic_save).toBe(true);
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+					session_id: 'workflow-editor-preview-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: editedPreview
+				} }) });
+			});
+			await page.getByTestId('workflow-ai-edit-textarea').fill('Revise this workflow');
+			await page.getByTestId('workflow-ai-edit-submit').click();
+			await expect(page.getByTestId('workflow-ai-pending-preview')).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-preview-title')).toHaveText(editedPreview.title);
+			await expect(page.getByTestId('workflow-ai-preview-graph')).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-preview-graph').getByTestId('workflow-node-card')).not.toHaveCount(0);
+			await expect(page.getByTestId('workflow-ai-saving-pill')).toBeVisible();
+			failEditorSave = true;
+			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(shortRequest);
+			await expect(page.getByTestId('workflows-error')).toContainText('Could not save the workflow.');
+
+			const updatedWorkflow = {
+				...draft,
+				title: `${shortRequest} updated`,
+				graph: {
+					...draft.graph,
+					nodes: [
+						{ ...draft.graph.nodes[0], title: 'Manual start revised' },
+						{ id: 'summary', type: 'send_chat_message', title: 'Summary delivered', config: { title: 'Summary delivered', message: 'Ready' } }
+					],
+					edges: [{ from: 'manual', to: 'summary' }]
+				}
+			};
+			const changes = {
+				workflow_id: draft.id,
+				added_node_ids: ['summary'],
+				edited_node_ids: ['manual'],
+				removed_nodes: [{ id: 'retired', title: 'Old reminder' }]
+			};
+			let allowEditCommit = false;
+			await page.route('**/v1/workflows/input/workflow-editor-success-spec', async (route: Route) => {
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: allowEditCommit
+					? { session_id: 'workflow-editor-success-spec', status: 'executed', workflow: updatedWorkflow, changes: [changes], undo_available: true, mutations: [{ type: 'update_workflow', target_id: draft.id, before: { graph: draft.graph }, after: { graph: updatedWorkflow.graph } }] }
+					: { session_id: 'workflow-editor-success-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: updatedWorkflow }
+				}) });
+			});
+			let undoConflicts = true;
+			await page.route('**/v1/workflows/input/workflow-editor-success-spec/undo', async (route: Route) => {
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: undoConflicts
+					? { session_id: 'workflow-editor-success-spec', status: 'executed', error_code: 'WORKFLOW_INPUT_UNDO_CONFLICT', error: 'A newer change prevents Undo.' }
+					: { session_id: 'workflow-editor-success-spec', status: 'undone' }
+				}) });
+			});
+			await page.unroute('**/v1/workflows/input');
+			await page.route('**/v1/workflows/input', async (route: Route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				const payload = route.request().postDataJSON();
+				expect(payload.selected_workflow_id).toBe(draft.id);
+				expect(payload.optimistic_save).toBe(true);
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+					session_id: 'workflow-editor-success-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: updatedWorkflow
+				} }) });
+			});
+			await page.getByTestId('workflow-ai-edit-textarea').fill('Update the steps');
+			await page.getByTestId('workflow-ai-edit-submit').click();
+			await expect(page.getByTestId('workflow-ai-preview-title')).toHaveText(updatedWorkflow.title);
+			await expect(page.getByTestId('workflow-ai-preview-graph')).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-undo')).toHaveCount(0);
+			allowEditCommit = true;
+			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(updatedWorkflow.title);
+			await expect(page.getByTestId('workflow-ai-changes')).toContainText('Old reminder');
+			await expect(page.locator('[data-testid="workflow-node-card"][data-node-id="manual"]')).toHaveAttribute('data-ai-change', 'edited');
+			await expect(page.locator('[data-testid="workflow-node-card"][data-node-id="summary"]')).toHaveAttribute('data-ai-change', 'added');
+			await expect(page.getByTestId('workflow-ai-undo')).toBeEnabled();
+			await page.getByTestId('workflow-ai-undo').click();
+			await expect(page.getByTestId('workflows-error')).toContainText('A newer change prevents Undo.');
+			await expect(page.getByTestId('workflow-ai-open-history')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(updatedWorkflow.title);
+			undoConflicts = false;
+			await page.getByTestId('workflow-ai-undo').click();
+			await expect(page.getByTestId('workflow-ai-changes')).toHaveCount(0);
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(shortRequest);
+
+			await page.getByTestId('workspace-detail-title').click();
+			const identityInput = page.locator('.workflow-detail-header form input').first();
+			await identityInput.fill(`${shortRequest} manual draft`);
+			await page.getByTestId('workflow-detail-back').click();
+			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
+			await page.getByTestId('workflow-guard-stay').click();
+			await expect(identityInput).toHaveValue(`${shortRequest} manual draft`);
+			await page.getByTestId('workflow-detail-back').click();
+			await page.getByTestId('workflow-guard-discard').click();
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: shortRequest }).click();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(shortRequest);
+			await page.getByTestId('workspace-detail-title').click();
+			await page.locator('.workflow-detail-header form input').first().fill(`${shortRequest} manually saved`);
+			await page.getByTestId('workflow-detail-back').click();
+			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
+			await page.getByTestId('workflow-guard-save').click();
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: `${shortRequest} manually saved` })).toBeVisible();
+
+			let correctionFails = false;
+			await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
+				socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-2602', sample_rate: 16000 }));
+				socket.onMessage(rawMessage => {
+					const message = JSON.parse(String(rawMessage));
+					if (message.type !== 'input_audio.end') return;
+					socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'Weather tomorrow', language: 'en', model: 'voxtral-mini-transcribe-realtime-2602' }));
+					socket.send(JSON.stringify({ type: 'correction.started', model: 'gemini-3.5-flash' }));
+					socket.send(JSON.stringify(correctionFails
+						? { type: 'correction.failed' }
+						: { type: 'correction.done', transcript: 'Weather tomorrow at 08:00', correction_model: 'gemini-3.5-flash' }));
+				});
+			});
+			const voiceSubmittedTexts: string[] = [];
+			await page.unroute('**/v1/workflows/input');
+			await page.route('**/v1/workflows/input', async (route: Route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				voiceSubmittedTexts.push(route.request().postDataJSON().text);
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+					session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.'
+				} }) });
+			});
+			await page.getByTestId('workflow-input-mic').click();
+			await expect(page.getByTestId('workflow-voice-input')).toBeVisible();
+			await expect(page.getByTestId('workflow-voice-input').getByRole('status')).toContainText('Listening');
+			await page.getByTestId('workflow-voice-finish').click();
+			await expect.poll(() => voiceSubmittedTexts.length).toBe(1);
+			expect(voiceSubmittedTexts[0]).toBe('Weather tomorrow at 08:00');
+			await expect(page.getByTestId('workflow-voice-input')).toHaveCount(0);
+			correctionFails = true;
+			await page.getByTestId('workflow-input-mic').click();
+			await expect(page.getByTestId('workflow-voice-input').getByRole('status')).toContainText('Listening');
+			await page.getByTestId('workflow-voice-finish').click();
+			await expect(page.getByTestId('workflow-voice-input')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Weather tomorrow');
+			expect(voiceSubmittedTexts).toHaveLength(1);
 		} finally {
-			page.off('request', recordWorkflowInputRequest);
 			for (const workflowId of createdWorkflowIds) {
 				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
 			}

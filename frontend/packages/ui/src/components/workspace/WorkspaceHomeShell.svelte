@@ -15,6 +15,7 @@
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { dailyInspirationStore, type DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
+  import { text } from '../../i18n/translations';
 
   type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans' | 'teams';
 
@@ -215,7 +216,7 @@
             <WorkspaceContinueCard
               title={item.title}
               summary={item.summary ?? null}
-              badge={item.badge ?? null}
+              badge={surface === 'workflows' && item.badge === 'New' ? null : (item.badge ?? null)}
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
@@ -247,11 +248,13 @@
         {#each actionItems as item (item.id)}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
+          <div class="workflow-card-placement" class:new-workflow={surface === 'workflows' && item.badge === 'New'}>
+          {#if surface === 'workflows' && item.badge === 'New'}<span class="workflow-new-pill" data-testid="workflow-new-pill">{$text('workflows.builder.ai_new')}</span>{/if}
           {#if isTallViewport}
             <WorkspaceContinueCard
               title={item.title}
               summary={item.summary ?? null}
-              badge={item.badge ?? null}
+              badge={surface === 'workflows' && item.badge === 'New' ? null : (item.badge ?? null)}
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
@@ -289,6 +292,7 @@
               </div>
             </button>
           {/if}
+          </div>
         {/each}
       </div>
       {#if hasBrowseControls}
@@ -795,6 +799,9 @@
     width: 100%;
     max-width: 100%;
   }
+  .workflow-card-placement{display:contents}
+  .workflow-card-placement.new-workflow{display:flex;flex-direction:column;align-items:center;gap:.45rem;flex:0 0 auto}
+  .workflow-new-pill{display:inline-flex;padding:.25rem .8rem;border-radius:999px;background:var(--color-button-primary);color:var(--color-font-button);font-size:14px;font-weight:700}
 
   .recent-chats-scroll-container::-webkit-scrollbar {
     display: none;
