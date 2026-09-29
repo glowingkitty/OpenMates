@@ -42,7 +42,11 @@ from backend.core.api.app.utils.report_issue_ids import (
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
-from backend.core.api.app.services.session_security_state import require_recent_strong_proof
+from backend.core.api.app.services.session_security_state import (
+    get_session_state_cached,
+    require_recent_strong_proof,
+    token_hash,
+)
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.utils.issue_report_auth import resolve_issue_report_user_id
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
@@ -4346,19 +4350,20 @@ async def delete_account(
             
             logger.info(f"2FA authentication verified for account deletion: user {user_id}")
         elif delete_request.auth_method == "email_otp":
-            # Verify that the user completed email OTP verification recently.
-            # The /verify-action-code endpoint stores a short-lived token in cache
-            # when the code is successfully verified.
-            verified_key = f"action_verified:{user_id}:delete_account"
-            verified_status = "verified" if delete_request.require_email_verification else await cache_service.get(verified_key)
-            if verified_status != "verified":
-                logger.warning(f"Email OTP not verified for account deletion: user {user_id}")
-                raise HTTPException(status_code=401, detail="Email verification required")
-
-            # Delete the verified token so it can't be reused
+            # The current browser flow proves both the account secret and a
+            # one-use email code through /auth/sensitive/email/verify. The
+            # five-minute proof above is tied to this refresh-token session;
+            # the older settings action-code cache alone is not sufficient.
             if not delete_request.require_email_verification:
-                await cache_service.delete(verified_key)
-            logger.info(f"Email OTP authentication verified for account deletion: user {user_id}")
+                session_state = await get_session_state_cached(
+                    directus_service, cache_service, token_hash(refresh_token),
+                    user_id=user_id, allow_risk=False,
+                )
+                if not session_state or session_state.get("proof_method") not in {
+                    "password_v2_email", "typed_password_email", "legacy_account_secret_email",
+                }:
+                    raise HTTPException(status_code=401, detail="Password and email verification required")
+            logger.info(f"Password and email authentication verified for account deletion: user {user_id}")
         else:
             raise HTTPException(status_code=400, detail="Invalid authentication method")
         

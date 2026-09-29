@@ -1,7 +1,8 @@
 """
 CLI account deletion contract tests.
 
-The public web deletion flow can use email OTP as one authentication method.
+The public web deletion flow requires session-bound password and email proof
+for password-only accounts.
 The CLI has a stricter dedicated command: every deletion requires a verified
 email code, and accounts with 2FA must also provide a current TOTP code.
 These tests verify the backend fail-closed flag before any destructive task.
@@ -92,7 +93,11 @@ from backend.core.api.app.routes import settings
 
 
 def fake_request():
-    return Request({"type": "http", "method": "POST", "path": "/v1/settings/delete-account", "headers": [], "client": ("127.0.0.1", 12345)})
+    return Request({
+        "type": "http", "method": "POST", "path": "/v1/settings/delete-account",
+        "headers": [(b"cookie", b"auth_refresh_token=test-refresh-token")],
+        "client": ("127.0.0.1", 12345),
+    })
 
 
 class FakeDeleteCache:
@@ -130,12 +135,17 @@ class FakePreviewDirectus:
         raise AssertionError("Zero-balance delete previews must not query refund collections")
 
 
+# contract-test: supporting surface=rest_api assertions=auth.sensitive-actions.recent-verification
 @pytest.mark.anyio
 async def test_cli_delete_requires_verified_email_code_before_auth(monkeypatch):
     async def fake_preview(**kwargs):
         return SimpleNamespace()
 
+    async def verified_session(*args, **kwargs):
+        return None
+
     monkeypatch.setattr(settings, "_calculate_delete_account_preview", fake_preview)
+    monkeypatch.setattr(settings, "require_recent_strong_proof", verified_session)
     monkeypatch.setattr(
         settings,
         "generate_device_fingerprint_hash",
@@ -162,17 +172,23 @@ async def test_cli_delete_requires_verified_email_code_before_auth(monkeypatch):
     assert exc_info.value.detail == "Email verification required"
 
 
+# contract-test: supporting surface=rest_api assertions=auth.sensitive-actions.recent-verification
 @pytest.mark.anyio
 def test_sensitive_action_email_codes_allow_team_delete_step_up():
     assert "delete_account" in settings.ALLOWED_VERIFICATION_ACTIONS
     assert "delete_team" in settings.ALLOWED_VERIFICATION_ACTIONS
 
 
+# contract-test: supporting surface=rest_api assertions=auth.sensitive-actions.recent-verification
 async def test_delete_account_passkey_requires_recent_webauthn_proof(monkeypatch):
     async def fake_preview(**kwargs):
         return SimpleNamespace()
 
+    async def verified_session(*args, **kwargs):
+        return None
+
     monkeypatch.setattr(settings, "_calculate_delete_account_preview", fake_preview)
+    monkeypatch.setattr(settings, "require_recent_strong_proof", verified_session)
     monkeypatch.setattr(
         settings,
         "generate_device_fingerprint_hash",
@@ -199,6 +215,46 @@ async def test_delete_account_passkey_requires_recent_webauthn_proof(monkeypatch
     assert exc_info.value.detail == "Invalid passkey authentication"
 
 
+# contract-test: supporting surface=rest_api assertions=auth.sensitive-actions.recent-verification
+@pytest.mark.anyio
+async def test_delete_account_rejects_legacy_email_code_without_password_proof(monkeypatch):
+    async def fake_preview(**kwargs):
+        return SimpleNamespace()
+
+    async def verified_session(*args, **kwargs):
+        return None
+
+    async def old_email_only_session(*args, **kwargs):
+        return {"proof_method": None}
+
+    monkeypatch.setattr(settings, "_calculate_delete_account_preview", fake_preview)
+    monkeypatch.setattr(settings, "require_recent_strong_proof", verified_session)
+    monkeypatch.setattr(settings, "get_session_state_cached", old_email_only_session)
+    monkeypatch.setattr(
+        settings,
+        "generate_device_fingerprint_hash",
+        lambda *args, **kwargs: ("device-hash", None, None, None, None, None, None, None),
+    )
+
+    route = getattr(settings.delete_account, "__wrapped__", settings.delete_account)
+    with pytest.raises(HTTPException) as exc_info:
+        await route(
+            request=fake_request(),
+            delete_request=settings.DeleteAccountRequest(
+                confirm_data_deletion=True, auth_method="email_otp",
+            ),
+            current_user=SimpleNamespace(id="user-1", vault_key_id="vault-key-1"),
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+            compliance_service=SimpleNamespace(),
+            cache_service=FakeDeleteCache({"action_verified:user-1:delete_account": "verified"}),
+        )
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Password and email verification required"
+
+
+# contract-test: supporting surface=rest_api assertions=auth.signup.current-flow
 @pytest.mark.anyio
 async def test_delete_preview_zero_balance_skips_refund_collection_queries():
     cache = FakePreviewCache()
