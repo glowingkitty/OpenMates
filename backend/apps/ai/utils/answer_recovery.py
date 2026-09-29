@@ -327,13 +327,18 @@ class AnswerRecoveryState:
                 *self._attempted_models,
             }
 
+        candidates = [
+            model_id
+            for model_id in remaining
+            if model_id and model_id not in failed_or_attempted
+        ]
+        # A model that ignored the no-tools request may share that behavior
+        # with other models on the same provider. Prefer an already configured
+        # provider alternative for the last answer-only attempt.
+        current_provider = current_model_id.partition("/")[0]
         next_id = next(
-            (
-                model_id
-                for model_id in remaining
-                if model_id and model_id not in failed_or_attempted
-            ),
-            None,
+            (model_id for model_id in candidates if model_id.partition("/")[0] != current_provider),
+            candidates[0] if candidates else None,
         )
         if next_id is None:
             return None

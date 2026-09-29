@@ -464,17 +464,17 @@ assertions:
     supporting_tests:
     - &id040
       path: backend/tests/test_answer_recovery_integration.py
-      line: 356
+      line: 371
       name: test_forbidden_final_tool_call_retries_same_model_with_clean_evidence
       surface: gui.web
     - &id041
       path: backend/tests/test_answer_recovery_integration.py
-      line: 378
+      line: 393
       name: test_forbidden_clean_retry_uses_one_configured_alternate
       surface: gui.web
     - &id042
       path: backend/tests/test_answer_recovery_integration.py
-      line: 451
+      line: 495
       name: test_repeated_forbidden_calls_without_alternate_fail_once_and_stop
       surface: gui.web
     - &id043
