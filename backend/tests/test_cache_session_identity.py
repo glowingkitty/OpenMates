@@ -129,3 +129,14 @@ async def test_legacy_session_cannot_borrow_another_sessions_refresh_expiry():
     cache.saved["user:alice"] = {"user_id": "alice", "id": "alice", "token_expiry": 9999999999}
     cache.saved["session:" + hashlib.sha256(b"legacy").hexdigest()] = {"user_id": "alice"}
     assert (await cache.get_user_by_token("legacy"))["token_expiry"] == 0
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=auth.session.lifecycle
+async def test_stale_session_write_preserves_new_profile_image_url():
+    cache = SessionExpiryCache()
+    image_url = "/v1/users/alice/profile-image"
+    await cache.set_user({"user_id": "alice", "profile_image_url": image_url})
+    await cache.set_user({"user_id": "alice", "profile_image_url": None}, refresh_token="older-session")
+
+    assert (await cache.get_user_by_token("older-session"))["profile_image_url"] == image_url

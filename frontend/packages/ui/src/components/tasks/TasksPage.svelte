@@ -672,7 +672,7 @@
       assigneeAvatarUrl = previewAssigneeAvatarUrl;
       return;
     }
-    if (!profileImageUrl || !userId) {
+    if (!userId) {
       assigneeAvatarUrl = null;
       return;
     }

@@ -2720,15 +2720,14 @@ async def process_profile_image(
     proxy_url = f"/v1/users/{payload.user_id}/profile-image"
 
     try:
-        # 1. Always fetch profile from Directus to get vault_key_id + existing s3_key for cleanup
-        # (Cache only stores a subset of fields; profile_image_s3_key is not cached)
+        # 1. Read the existing image key directly from Directus. get_user_profile()
+        # is cache-first, so it can return the pre-upload image key (or no key).
         vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
-
-        profile_success, user_data, profile_msg = await directus_service.get_user_profile(
-            payload.user_id
+        user_data = await directus_service.get_user_fields_direct(
+            payload.user_id, ["vault_key_id", "profile_image_s3_key"]
         )
-        if not profile_success or not user_data:
-            logger.error(f"{log_prefix} Could not fetch user profile: {profile_msg}")
+        if user_data is None:
+            logger.error(f"{log_prefix} Could not fetch current profile image fields")
             raise HTTPException(status_code=404, detail="User not found")
 
         if not vault_key_id:
@@ -2785,6 +2784,14 @@ async def process_profile_image(
                     f"{log_prefix} Failed to delete old S3 object {old_s3_key}: {e} "
                     f"(Directus updated successfully — new image is active)"
                 )
+
+        # The decrypted profile cache may still say this user has no image.
+        # Evict it before the next login can copy that stale URL into the
+        # session cache.
+        try:
+            await cache_service.delete(f"user_profile:{payload.user_id}")
+        except Exception as e:
+            logger.warning(f"{log_prefix} Could not invalidate profile cache: {e}")
 
         # 5. Update Redis cache with the proxy URL for fast UI reads
         cache_success = await cache_service.update_user(

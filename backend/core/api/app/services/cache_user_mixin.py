@@ -157,6 +157,9 @@ class UserCacheMixin:
     # (which may write partial dicts) from wiping fields required for passkey login.
     _PROTECTED_PROFILE_FIELDS = (
         "username",
+        # An image upload updates this field in the account cache. A concurrent
+        # session refresh holding an older null snapshot must not erase it.
+        "profile_image_url",
         "encrypted_email_with_master_key",
         "encrypted_email_address",
         "hashed_email",

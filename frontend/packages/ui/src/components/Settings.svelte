@@ -975,7 +975,7 @@ changes to the documentation (to keep the documentation up to date).
     $effect(() => {
         const url = $userProfile.profile_image_url;
         const userId = $userProfile.user_id;
-        if (!url || !userId) {
+        if (!userId) {
             resolvedProfileImageBlobUrl = null;
             return;
         }

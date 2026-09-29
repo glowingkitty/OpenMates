@@ -34,6 +34,7 @@ const _cache = new Map<string, string>();
  * first fetch resolves, due to an unrelated store update).
  */
 const _inflight = new Map<string, Promise<string | null>>();
+const _generations = new Map<string, number>();
 
 /**
  * Determine whether a profile_image_url is a legacy public URL or a proxy path.
@@ -50,6 +51,8 @@ function isLegacyUrl(url: string): boolean {
  *
  * - Legacy public URLs: returned immediately without fetching.
  * - Proxy paths: fetched with credentials, blob URL created and cached.
+ * - Missing URL for an authenticated user: try that user's proxy endpoint.
+ *   A stale session cache may omit the URL even while the image exists.
  * - In-flight deduplication: concurrent calls for the same userId share one request.
  *
  * @param profileImageUrl   The value of userProfile.profile_image_url
@@ -58,18 +61,20 @@ function isLegacyUrl(url: string): boolean {
  *                          Required for relative proxy paths.
  * @param userId            Owner user ID — used as cache key.
  * @returns                 A URL safe to use in `<img src>` or `style="background-image: url(...)"`
- *                          Returns `null` if the fetch fails or profileImageUrl is falsy.
+ *                          Returns `null` if the fetch fails or the image does not exist.
  */
 export async function getProfileImageBlobUrl(
   profileImageUrl: string | null | undefined,
   apiBaseUrl: string,
   userId: string,
 ): Promise<string | null> {
-  if (!profileImageUrl) return null;
+  if (!userId) return null;
+
+  const imageUrl = profileImageUrl || `/v1/users/${encodeURIComponent(userId)}/profile-image`;
 
   // Legacy public-read URL — no auth needed, return directly.
-  if (isLegacyUrl(profileImageUrl)) {
-    return profileImageUrl;
+  if (isLegacyUrl(imageUrl)) {
+    return imageUrl;
   }
 
   // Check in-memory result cache first.
@@ -82,14 +87,16 @@ export async function getProfileImageBlobUrl(
 
   // Start a new fetch and register it in the in-flight map immediately so
   // any concurrent caller can share it before the first await yields.
-  const fetchPromise = (async (): Promise<string | null> => {
+  const generation = _generations.get(userId) ?? 0;
+  const fetchPromise = Promise.resolve().then(async (): Promise<string | null> => {
     try {
-      const fullUrl = profileImageUrl.startsWith("/")
-        ? `${apiBaseUrl}${profileImageUrl}`
-        : profileImageUrl;
+      const fullUrl = imageUrl.startsWith("/")
+        ? `${apiBaseUrl}${imageUrl}`
+        : imageUrl;
 
       const response = await fetch(fullUrl, { credentials: "include" });
 
+      if (response.status === 404) return null;
       if (!response.ok) {
         console.error(
           `[profileImageService] Failed to fetch profile image for ${userId}: ` +
@@ -99,6 +106,7 @@ export async function getProfileImageBlobUrl(
       }
 
       const blob = await response.blob();
+      if ((_generations.get(userId) ?? 0) !== generation) return null;
       const blobUrl = URL.createObjectURL(blob);
       _cache.set(userId, blobUrl);
       return blobUrl;
@@ -110,9 +118,9 @@ export async function getProfileImageBlobUrl(
       return null;
     } finally {
       // Always clear the in-flight entry so failed fetches can be retried.
-      _inflight.delete(userId);
+      if (_inflight.get(userId) === fetchPromise) _inflight.delete(userId);
     }
-  })();
+  });
 
   _inflight.set(userId, fetchPromise);
   return fetchPromise;
@@ -128,6 +136,7 @@ export async function getProfileImageBlobUrl(
  * @param userId  The user whose cached profile image should be cleared.
  */
 export function invalidateProfileImageCache(userId: string): void {
+  _generations.set(userId, (_generations.get(userId) ?? 0) + 1);
   const existing = _cache.get(userId);
   if (existing && !isLegacyUrl(existing)) {
     // Only revoke blob: URLs — legacy https:// URLs should not be revoked.
