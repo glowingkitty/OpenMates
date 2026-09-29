@@ -3,9 +3,9 @@
 # OpenMates Agent Worktree Reconciliation Timer Installer
 #
 # Installs a user-level systemd oneshot and hourly timer on the dev machine.
-# The job first enforces the unconditional 72-hour hard lifetime without a
-# network dependency, then integrates current eligible checkpoints and safely
-# reconciles younger worktrees. Legacy state is never merged.
+# The job first removes idle, recoverable worktrees older than seven days
+# without a network dependency, then integrates current eligible checkpoints
+# and safely reconciles younger worktrees. Unique work is preserved.
 # Run manually after deploying lifecycle changes to the root control plane.
 # =============================================================================
 set -euo pipefail
@@ -34,7 +34,7 @@ Type=oneshot
 WorkingDirectory=$EXECUTION_ROOT
 TimeoutStartSec=50min
 Nice=10
-ExecStart=/bin/bash -lc 'expire_status=0; /usr/bin/python3 $EXECUTION_ROOT/scripts/sessions.py worktree expire --max-age-hours 72 || expire_status=\$?; fetch_status=0; git fetch origin dev || fetch_status=\$?; if [ "\$fetch_status" -eq 0 ]; then /usr/bin/python3 $EXECUTION_ROOT/scripts/sessions.py worktree auto-integrate || echo "WARNING: checkpoint auto-integration failed; hard expiry already completed"; /usr/bin/python3 $EXECUTION_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe || echo "WARNING: safe reconciliation failed; hard expiry already completed"; else echo "WARNING: git fetch failed; hard expiry already completed"; fi; exit "\$expire_status"'
+ExecStart=/bin/bash -lc 'expire_status=0; /usr/bin/python3 $EXECUTION_ROOT/scripts/sessions.py worktree expire --max-age-hours 168 || expire_status=\$?; fetch_status=0; git fetch origin dev || fetch_status=\$?; if [ "\$fetch_status" -eq 0 ]; then /usr/bin/python3 $EXECUTION_ROOT/scripts/sessions.py worktree auto-integrate || echo "WARNING: checkpoint auto-integration failed; hard expiry already completed"; /usr/bin/python3 $EXECUTION_ROOT/scripts/sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe || echo "WARNING: safe reconciliation failed; hard expiry already completed"; else echo "WARNING: git fetch failed; hard expiry already completed"; fi; exit "\$expire_status"'
 EOF
 
 cat > "$SYSTEMD_DIR/worktree-reconciliation.timer" <<EOF

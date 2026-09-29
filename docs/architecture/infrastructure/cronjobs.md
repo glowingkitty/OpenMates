@@ -113,7 +113,7 @@ Read the real current runtime definitions before changing any retained schedule.
 ## Retained worktree maintenance
 
 The independent `worktree-reconciliation-setup.sh` service retains its existing
-`sessions.py worktree expire --max-age-hours 72` and
+`sessions.py worktree expire --max-age-hours 168` and
 `sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`
 operations. It preserves source-free manifests for 30 days. This shared
 repository maintenance is outside scheduler retirement; no registration
