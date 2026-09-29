@@ -11,11 +11,12 @@ from backend.tests.runtime_import_stubs import install_code_route_import_stubs
 
 install_code_route_import_stubs()
 
-from backend.core.api.app.services.workflow_input_service import WorkflowInputService
+from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
 from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner, _google_usage
 from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry, _FilesystemWorkflowMetadataRegistry
 from backend.shared.providers.typesafe.models import DecisionResponse
+from backend.tests.test_workflows_models import FakeDirectusClient
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -69,6 +70,31 @@ def _input_service(jev=None, gemini=None):
     planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
                                 jev_client=jev or StubJev(), structured_call=gemini or StubGemini())
     return WorkflowInputService(workflow_service=workflows, planner=planner), workflows
+
+
+# contract-test: supporting surface=cli assertions=workflows.content.encrypted-retained
+def test_authoring_events_persist_in_encrypted_batches_and_restore_after_reconnect():
+    workflows = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=workflows.payload_cipher, token="test-token")
+    fake_client = FakeDirectusClient()
+    repository._client = fake_client
+    planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                jev_client=StubJev(), structured_call=StubGemini())
+    service = WorkflowInputService(workflow_service=workflows, planner=planner, repository=repository)
+
+    result = service.start(user_id="alice", timezone="Europe/Berlin",
+                           text="Every weekday at 7 Berlin time, check tomorrow's Berlin weather and send me a chat message if rain is expected")
+
+    assert result.status == "executed", result.error
+    assert result.workflow is not None
+    assert result.authoring_metrics is not None
+    assert result.authoring_metrics["service_seconds"] >= 0
+    assert sum(method == "POST" and collection == "workflow_input_events" for method, collection in fake_client.requests) == 2
+    service._sessions.clear()
+    events = service.events(result.session_id, user_id="alice")
+    assert [event.event_id for event in events] == list(range(1, result.event_cursor + 1))
+    assert events[-1].type == "committed"
+    assert events[-1].payload == {"mutation_type": "create_workflow", "workflow_id": result.workflow.id}
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract,workflows.schedule.edge-cases

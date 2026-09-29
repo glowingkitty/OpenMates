@@ -75,6 +75,9 @@ class WorkflowInputRepository(Protocol):
     def save_event(self, event: WorkflowInputEvent, user_id: str, vault_key_id: str | None) -> None:
         """Persist an append-only encrypted event body."""
 
+    def save_events(self, events: list[WorkflowInputEvent], user_id: str, vault_key_id: str | None) -> None:
+        """Persist one request's ordered events with encrypted payloads."""
+
     def save_mutation(
         self,
         mutation: WorkflowInputMutation,
@@ -189,6 +192,37 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
             if exc.response.status_code != 409:
                 raise
 
+    def save_events(self, events: list[WorkflowInputEvent], user_id: str, vault_key_id: str | None) -> None:
+        if not events:
+            return
+        # The synchronous input route exposes its progress after the request
+        # completes. One encrypted batch preserves every event while avoiding a
+        # Vault call and a Directus blob round trip for each graph node.
+        payload_blob = self._save_private_blob(
+            user_id=user_id,
+            kind=WORKFLOW_INPUT_EVENT_BLOB_KIND,
+            ref=self._blob_ref(WORKFLOW_INPUT_EVENT_BLOB_KIND, f"batch/{uuid.uuid4()}"),
+            payload={"_event_payloads": {str(event.event_id): event.payload for event in events}},
+            expires_at=None,
+            vault_key_id=vault_key_id,
+        )
+        rows = [
+            {
+                "id": event.id,
+                "session_id": event.session_id,
+                "hashed_user_id": _hash_owner_id(user_id),
+                "event_id": event.event_id,
+                "type": event.type,
+                "status": event.status,
+                "redacted_summary": event.redacted_summary,
+                "encrypted_payload_ref": payload_blob["ref"],
+                "encrypted_payload_checksum": payload_blob["checksum"],
+                "created_at": event.created_at,
+            }
+            for event in events
+        ]
+        self._request("POST", f"/items/{self.EVENTS}", json=rows)
+
     def save_mutation(
         self,
         mutation: WorkflowInputMutation,
@@ -246,11 +280,16 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
         }
         items = self._get_items(self.EVENTS, filters, sort="event_id", limit=-1)
         events: list[WorkflowInputEvent] = []
+        payload_cache: dict[str, dict[str, Any]] = {}
         for item in items:
             payload_ref = item.get("encrypted_payload_ref")
             if not isinstance(payload_ref, str) or not payload_ref:
                 raise RuntimeError("Workflow input event is missing its encrypted payload")
-            payload = self._load_private_blob(user_id, payload_ref, vault_key_id)
+            if payload_ref not in payload_cache:
+                payload_cache[payload_ref] = self._load_private_blob(user_id, payload_ref, vault_key_id)
+            payload = payload_cache[payload_ref]
+            if "_event_payloads" in payload:
+                payload = payload["_event_payloads"].get(str(item["event_id"]))
             if not isinstance(payload, dict):
                 raise RuntimeError("Workflow input event payload is invalid")
             events.append(
@@ -491,10 +530,27 @@ class WorkflowInputService:
         timezone: str | None = None,
         vault_key_id: str | None = None,
     ) -> WorkflowInputSessionResult:
+        started = time.perf_counter()
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
+        key_resolved_at = time.perf_counter()
         session = self._create_session(user_id, selected_workflow_id, selected_project_id, resolved_vault_key_id)
         session["timezone"] = timezone
-        return self._process_input(session, text=text, input_type=input_type, audio_ref=audio_ref, vault_key_id=resolved_vault_key_id)
+        session["_timings"] = {
+            "key_resolution_seconds": key_resolved_at - started,
+            "initial_session_seconds": time.perf_counter() - key_resolved_at,
+        }
+        session["_batch_events"] = True
+        try:
+            result = self._process_input(session, text=text, input_type=input_type, audio_ref=audio_ref, vault_key_id=resolved_vault_key_id)
+        finally:
+            self._flush_persistence(session, resolved_vault_key_id)
+            session.pop("_batch_events", None)
+        result.authoring_metrics = {
+            **(result.authoring_metrics or {}),
+            "service_seconds": round(time.perf_counter() - started, 3),
+            "service_stages_seconds": {key: round(value, 3) for key, value in session["_timings"].items()},
+        }
+        return result
 
     def follow_up(
         self,
@@ -514,8 +570,13 @@ class WorkflowInputService:
                 error_code=WORKFLOW_INPUT_SESSION_STATE_INVALID,
             )
         session["status"] = "running"
-        self._append_event(session, "followup_received", {"text_length": len(text)}, vault_key_id=resolved_vault_key_id)
-        return self._process_input(session, text=text, input_type="text", audio_ref=None, vault_key_id=resolved_vault_key_id)
+        session["_batch_events"] = True
+        try:
+            self._append_event(session, "followup_received", {"text_length": len(text)}, vault_key_id=resolved_vault_key_id)
+            return self._process_input(session, text=text, input_type="text", audio_ref=None, vault_key_id=resolved_vault_key_id)
+        finally:
+            self._flush_persistence(session, resolved_vault_key_id)
+            session.pop("_batch_events", None)
 
     def stop(
         self,
@@ -656,6 +717,7 @@ class WorkflowInputService:
                         "Audio transcription is not available for workflow input.",
                     )
                 self._append_event(session, "transcribing_started", {}, vault_key_id=vault_key_id)
+                self._flush_persistence(session, vault_key_id)
                 text = self.transcriber(audio_ref or {})
                 self._append_event(session, "transcript_ready", {"text_length": len(text)}, vault_key_id=vault_key_id)
             if input_type != "text" and input_type != "audio":
@@ -675,12 +737,16 @@ class WorkflowInputService:
                 )
             self._append_event(session, "input_received", {"text_length": len(sanitized_text)}, vault_key_id=vault_key_id)
             self._append_event(session, "planning_started", {}, vault_key_id=vault_key_id)
+            self._flush_persistence(session, vault_key_id)
             if self.planner is None:
                 raise WorkflowInputUnavailableError(
                     WORKFLOW_INPUT_PLANNER_UNAVAILABLE,
                     "Structured workflow planning is not available.",
                 )
-            plan = self.planner.plan(text=sanitized_text, context=self._planner_context(session, vault_key_id))
+            context_started = time.perf_counter()
+            context = self._planner_context(session, vault_key_id)
+            self._record_timing(session, "context_seconds", context_started)
+            plan = self.planner.plan(text=sanitized_text, context=context)
             if isinstance(plan, dict) and isinstance(plan.get("_authoring_metrics"), dict):
                 session["authoring_metrics"] = plan.pop("_authoring_metrics")
             validated_plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(plan)
@@ -737,6 +803,7 @@ class WorkflowInputService:
         validate_workflow_readiness(plan.graph, require_schedule=True)
         validate_workflow_composition_refs(plan.graph)
         self._stream_draft_nodes(session, graph, vault_key_id)
+        workflow_started = time.perf_counter()
         workflow = self.workflow_service.create_workflow(
             session["user_id"],
             plan.title,
@@ -749,6 +816,7 @@ class WorkflowInputService:
             category=plan.category,
             icon=plan.icon,
         )
+        self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
         session["workflow"] = workflow
         self._append_mutation(
@@ -775,11 +843,14 @@ class WorkflowInputService:
         workflow_id = plan.workflow_id or session.get("selected_workflow_id")
         if not workflow_id:
             raise ValueError("update_workflow requires workflow_id or a selected workflow")
+        workflow_read_started = time.perf_counter()
         before = self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
+        self._record_timing(session, "workflow_read_seconds", workflow_read_started)
         graph = plan.graph or before.graph
         validate_workflow_readiness(graph, require_schedule=before.enabled)
         validate_workflow_composition_refs(graph, before.graph)
         self._stream_draft_nodes(session, graph.model_dump(mode="json", by_alias=True), vault_key_id)
+        workflow_started = time.perf_counter()
         workflow = self.workflow_service.update_workflow(
             workflow_id,
             session["user_id"],
@@ -787,6 +858,7 @@ class WorkflowInputService:
             graph=graph,
             vault_key_id=vault_key_id,
         )
+        self._record_timing(session, "workflow_persistence_seconds", workflow_started)
         session["status"] = "executed"
         session["workflow"] = workflow
         self._append_mutation(
@@ -942,6 +1014,9 @@ class WorkflowInputService:
         )
         session["events"].append(event)
         session["updated_at"] = event.created_at
+        if session.get("_batch_events"):
+            session.setdefault("_pending_events", []).append(event)
+            return
         if self.repository is not None:
             self.repository.save_event(event, session["user_id"], vault_key_id)
         self._persist_session(session, vault_key_id)
@@ -952,8 +1027,11 @@ class WorkflowInputService:
 
     def _save_mutation(self, session: dict[str, Any], mutation: WorkflowInputMutation, vault_key_id: str | None) -> None:
         if self.repository is not None:
+            started = time.perf_counter()
             self.repository.save_mutation(mutation, session["id"], session["user_id"], vault_key_id)
-        self._persist_session(session, vault_key_id)
+            self._record_timing(session, "mutation_persistence_seconds", started)
+        if not session.get("_batch_events"):
+            self._persist_session(session, vault_key_id)
 
     def _last_undoable_mutation(self, session: dict[str, Any]) -> WorkflowInputMutation | None:
         for mutation in reversed(session["mutations"]):
@@ -1002,6 +1080,31 @@ class WorkflowInputService:
     def _persist_session(self, session: dict[str, Any], vault_key_id: str | None) -> None:
         if self.repository is not None:
             self.repository.save_session(session, vault_key_id)
+
+    def _flush_persistence(self, session: dict[str, Any], vault_key_id: str | None) -> None:
+        if not session.get("_batch_events") or self.repository is None:
+            return
+        pending = session.get("_pending_events") or []
+        if not pending:
+            return
+        started = time.perf_counter()
+        save_events = getattr(self.repository, "save_events", None)
+        if callable(save_events):
+            save_events(pending, session["user_id"], vault_key_id)
+        else:
+            for event in pending:
+                self.repository.save_event(event, session["user_id"], vault_key_id)
+        session["_pending_events"] = []
+        self._record_timing(session, "event_persistence_seconds", started)
+        started = time.perf_counter()
+        self._persist_session(session, vault_key_id)
+        self._record_timing(session, "session_persistence_seconds", started)
+
+    @staticmethod
+    def _record_timing(session: dict[str, Any], name: str, started: float) -> None:
+        timings = session.get("_timings")
+        if isinstance(timings, dict):
+            timings[name] = timings.get(name, 0.0) + time.perf_counter() - started
 
     def _resolve_vault_key_id(self, user_id: str, vault_key_id: str | None) -> str | None:
         return self.workflow_service.resolve_user_vault_key_id(user_id, vault_key_id)

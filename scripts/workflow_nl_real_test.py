@@ -62,6 +62,10 @@ def run(api_url: str, state_dir: Path, command: str) -> dict[str, Any]:
                     nodes = {node["id"]: node for node in workflow["graph"]["nodes"]}
                     assert nodes["weather"]["config"]["input"]["start_date"]["$date"] == "tomorrow"
                     assert nodes["trigger"]["config"]["schedule"]["timezone"] == "Europe/Berlin"
+                    events, _ = cli_json(command, api_url, state_dir, ["workflows", "input-events", result["session_id"]])
+                    assert [event["event_id"] for event in events] == list(range(1, len(events) + 1))
+                    assert events[-1]["type"] == "committed"
+                    assert events[-1]["payload"]["workflow_id"] == workflow["id"]
                 if label == "news_ai":
                     nodes = {node["id"]: node for node in workflow["graph"]["nodes"]}
                     assert "{{ $nodes.news.output.results }}" in nodes["ask"]["config"]["input"]["prompt"]
@@ -72,6 +76,8 @@ def run(api_url: str, state_dir: Path, command: str) -> dict[str, Any]:
                 "node_count": len(workflow.get("graph", {}).get("nodes") or []),
                 "wall_seconds": wall_seconds,
                 "planning_seconds": metrics.get("total_seconds"),
+                "service_seconds": metrics.get("service_seconds"),
+                "service_stages_seconds": metrics.get("service_stages_seconds"),
                 "jev_seconds": metrics.get("jev_seconds"),
                 "jev_calls": metrics.get("jev_calls"),
                 "gemini_calls": metrics.get("gemini_calls"),
@@ -90,7 +96,7 @@ def run(api_url: str, state_dir: Path, command: str) -> dict[str, Any]:
         assert trigger["config"]["schedule"]["time"] == "08:30"
         cases.append({"case": "edit", "status": edited["status"], "wall_seconds": edit_wall,
                       **{key: value for key, value in (edited.get("authoring_metrics") or {}).items()
-                         if key in {"total_seconds", "jev_calls", "gemini_calls", "estimated_cost_usd", "bounded_fallback"}}})
+                         if key in {"total_seconds", "service_seconds", "service_stages_seconds", "jev_calls", "gemini_calls", "estimated_cost_usd", "bounded_fallback"}}})
         undone, undo_wall = cli_json(command, api_url, state_dir, ["workflows", "input-undo", edited["session_id"]])
         assert undone.get("status") == "undone", undone
         cases.append({"case": "undo", "status": undone["status"], "wall_seconds": undo_wall})

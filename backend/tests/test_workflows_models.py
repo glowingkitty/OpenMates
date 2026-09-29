@@ -47,9 +47,11 @@ class FakeDirectusResponse:
 class FakeDirectusClient:
     def __init__(self) -> None:
         self.collections: dict[str, dict[str, dict[str, Any]]] = {}
+        self.requests: list[tuple[str, str]] = []
 
     def request(self, method: str, url: str, **kwargs: Any) -> FakeDirectusResponse:
         collection, item_id = self._parse_url(url)
+        self.requests.append((method, collection))
         rows = self.collections.setdefault(collection, {})
         if method == "GET":
             filters = json.loads(kwargs.get("params", {}).get("filter", "{}"))
@@ -57,10 +59,14 @@ class FakeDirectusClient:
             limit = int(kwargs.get("params", {}).get("limit", 100))
             return FakeDirectusResponse(200, {"data": data if limit == -1 else data[:limit]})
         if method == "POST":
-            payload = dict(kwargs["json"])
-            payload.setdefault("id", payload.get("ref") or f"fake-{len(rows) + 1}")
-            rows[payload["id"]] = payload
-            return FakeDirectusResponse(200, {"data": payload})
+            values = kwargs["json"] if isinstance(kwargs["json"], list) else [kwargs["json"]]
+            created = []
+            for value in values:
+                payload = dict(value)
+                payload.setdefault("id", payload.get("ref") or f"fake-{len(rows) + 1}")
+                rows[payload["id"]] = payload
+                created.append(payload)
+            return FakeDirectusResponse(200, {"data": created if isinstance(kwargs["json"], list) else created[0]})
         if method == "PATCH" and item_id:
             rows[item_id].update(kwargs["json"])
             return FakeDirectusResponse(200, {"data": rows[item_id]})
