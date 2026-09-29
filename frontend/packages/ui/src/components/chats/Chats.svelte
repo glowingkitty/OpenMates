@@ -39,7 +39,7 @@
 	// --- Search imports ---
 	import SearchBar from './search/SearchBar.svelte';
 	import SearchResults from './search/SearchResults.svelte';
-	import { search as performSearch, warmUpSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
+	import { search as performSearch, warmUpSearchIndex, invalidateChatSearchIndex, type SearchResults as SearchResultsType } from '../../services/searchService';
 	import { searchStore, openSearch, closeSearch, setSearchQuery, setSearching } from '../../stores/searchStore';
 	import { navigateToSettings } from '../../stores/settingsNavigationStore';
 	import { messageHighlightStore, searchTextHighlightStore } from '../../stores/messageHighlightStore';
@@ -1039,6 +1039,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// Invalidate last message cache if a new message was added
 		if (detail.newMessage || detail.type === 'message_added') {
 			chatListCache.invalidateLastMessage(detail.chat_id);
+			invalidateChatSearchIndex(detail.chat_id);
 		}
 		
 	// If a draft was deleted and we have the updated chat object, patch directly

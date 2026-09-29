@@ -2541,6 +2541,42 @@
         messageInputFieldRef?.focus();
     }
 
+    async function handleEmbedSuggestionClick(embedId: string): Promise<void> {
+        const { loadEmbedsWithRetry } = await import('../services/embedResolver');
+        const { resolveEmbedFullscreenTarget } = await import('../services/embedFullscreenController');
+        const [embed] = await loadEmbedsWithRetry([embedId]);
+        if (!embed) {
+            notificationStore.error(get(text)('chat.suggestions.embed_unavailable'));
+            return;
+        }
+        const target = await resolveEmbedFullscreenTarget(embedId, {
+            embedType: embed.type,
+            exampleResolver: (id) => {
+                const example = getExampleChatEmbed(id);
+                return example?.parent_embed_id
+                    ? { targetEmbedId: example.parent_embed_id, focusChildEmbedId: id }
+                    : null;
+            },
+        });
+        if (target.targetEmbedId !== embedId) {
+            const [parent] = await loadEmbedsWithRetry([target.targetEmbedId]);
+            if (!parent) {
+                notificationStore.error(get(text)('chat.suggestions.embed_unavailable'));
+                return;
+            }
+        }
+        // The result can belong to any chat. Keep the current chat and draft in
+        // place; the embed-only route avoids attributing it to the open chat.
+        dispatchEmbedFullscreen({
+            embedId: target.targetEmbedId,
+            focusChildEmbedId: target.focusChildEmbedId,
+            attrs: {},
+            embedData: null,
+            decodedContent: null,
+            hasChatContext: false,
+        });
+    }
+
     /**
      * Navigate to an existing chat when selected from the suggestion area's chat search results.
      * Fetches the full Chat object from IndexedDB and loads it via loadChat(), matching the
@@ -14029,6 +14065,7 @@
                                    onSuggestionClick={handleSuggestionClick}
                                    onChatNavigate={handleChatNavigate}
                                    onFileSelect={handleFileSuggestionClick}
+                                   onEmbedSelect={handleEmbedSuggestionClick}
                                />
                          {/if}
 
@@ -14079,6 +14116,7 @@
                                 messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
                                 onFileSelect={handleFileSuggestionClick}
+                                onEmbedSelect={handleEmbedSuggestionClick}
                                 currentChatId={currentChat?.chat_id}
                             />
                         {/if}
