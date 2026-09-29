@@ -80,17 +80,17 @@ verification:
   - Isolated GitHub browser runs for signup-skip-2fa-flow.spec.ts, signup-flow-passkey.spec.ts, cli-created-account-login.spec.ts, passkey-login-alternatives.spec.ts, backup-code-login-flow.spec.ts, recovery-key-login-flow.spec.ts, account-recovery-flow.spec.ts, multi-session-encryption.spec.ts, cli-pair-login.spec.ts, and pair-web-receiver.spec.ts.
   - Report native Xcode build and device evidence separately; Rust typecheck alone is not an Apple app build.
 handoff:
-  current_state: Exact auth, CLI, and SDK specification approvals are recorded for session c526. Security implementation remains in the isolated worktree, pending final cross-client evidence and a legacy password-change rollout decision. Dev issue R4SF3 exposed a cross-tab IndexedDB deletion race that hid the signed-in profile, credits, and newer chats locally while server data remained intact. A two-file repair was separately deployed to dev in commit f8ffa8d4e3f3eaf9467a708069b25c420fd2ae1d; its passkey login CI check passed. The full security patch has not been deployed.
+  current_state: Exact auth, CLI, and SDK specification approvals are recorded for session c526. The security patch was deployed to dev in commit 12b3ed594604a8839df0285d9e33209f09ba7072; Vercel succeeded and the coordinated API/worker restart finished healthy on that exact runtime commit. Focused backend auth pytest passed 155 tests and the final isolated password signup/login, passkey signup/login, and delayed-recovery cancellation run passed 3/3. Provider-email signup and full-reset E2Es remain held by CI credentials; native Apple runtime validation was explicitly waived. The legacy password-change rollout decision remains open. Dev issue R4SF3 was separately repaired in commit f8ffa8d4e3f3eaf9467a708069b25c420fd2ae1d.
   next_action: >
-    Self-host run 36561596658 passed all three password signup/login, passkey
-    signup/login, and delayed-recovery cancellation E2Es on source
-    a92e27f4309bad6e2a13a66445fc6d955ad39d59; the five focused recovery
-    tests pass locally. Report these as passed and separately identify the
-    provider-email signup and full-reset E2Es as blocked by unavailable isolated
-    Brevo/Gmail credentials and aliases. Keep ordinary legacy login available.
-    Do not run Apple validation or unrelated work. AC-6 remains open for the
-    held provider-delivery suites and any outstanding approved scope.
+    Keep ordinary legacy login available. Add an isolated CI email capture
+    transport and inbox reader for the held signup and recovery browser flows,
+    while retaining separate real Brevo/Gmail delivery checks. Add the
+    post-deadline destructive recovery completion test with a runner-local
+    clock or disposable database only. Do not run Apple validation or unrelated
+    work. AC-6 remains open for those held flows and any outstanding approved
+    scope.
   ci_evidence:
+    - Dev security deployment 12b3ed594604a8839df0285d9e33209f09ba7072 passed Specification, lint, translations, and SDK cleartext audits; Vercel succeeded and coordinated API/worker restart completed healthy on the exact commit. Focused auth pytest passed 155/155. The broad pytest gate was explicitly skipped because unrelated task-planner test stubs broke collection; no auth test failure was waived.
     - Pairing component CI run 36432998400 failed because its localized refresh button was selected by English text; the component and test now share data-testid pair-receiver-refresh and require rerun.
     - Existing signup-skip-2fa-flow, signup-flow-passkey, and account-recovery-flow specs are held by the CI dependency manifest for external Brevo/Gmail delivery; preserve those checks and add an isolated core signup proof rather than silently skip the requested signup E2E.
     - Initial source 5eee43e72e5cc262108bc1188bd841f1a1478881 omitted the newly created passwordV2Core.ts from the session file list; browser CI could not resolve that import and the installer stopped before signup. The file and native Rust lockfile are now tracked; source 71b7e2968ff3e73a2247e0923e9d34aec77d9acf contains them and has fresh CI submissions.
