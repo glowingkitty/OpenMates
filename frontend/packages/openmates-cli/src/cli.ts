@@ -154,7 +154,7 @@ import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
-  discoverRemoteAccessRepositories,
+  remoteAccessHostingCandidates,
   listRemoteAccessSources,
   resolveRemoteAccessRoots,
   remoteAccessSourceType,
@@ -4612,12 +4612,8 @@ async function handleRemoteAccess(
       ...(hostingContext.teamId ? { team: hostingContext.teamId } : {}),
     };
     const roots = resolveRemoteAccessRoots(typeof flags.path === "string" ? flags.path : undefined);
-    const discovery = discoverRemoteAccessRepositories(roots);
-    const candidateRoots = typeof flags.path === "string"
-      ? roots
-      : discovery.repositories.length > 0
-        ? discovery.repositories.map((candidate) => candidate.rootPath)
-        : roots;
+    const discovery = remoteAccessHostingCandidates(roots, typeof flags.path === "string");
+    const candidateRoots = discovery.candidateRoots;
     const masterKey = client.getMasterKeyBytes();
     const projects = await loadProjects(client, masterKey, hostingFlags, hostingContext);
     const bindings = await resolveRemoteAccessBindings(client, masterKey, projects, candidateRoots, hostingFlags, hostingContext);

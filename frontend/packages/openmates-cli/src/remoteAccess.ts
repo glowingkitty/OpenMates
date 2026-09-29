@@ -257,6 +257,22 @@ export function discoverRemoteAccessRepositories(roots: string[]): {
   };
 }
 
+/** Explicit --path already names the approved source; discovery is only for cwd mode. */
+export function remoteAccessHostingCandidates(
+  roots: string[],
+  explicitPath: boolean,
+  discover: typeof discoverRemoteAccessRepositories = discoverRemoteAccessRepositories,
+): { candidateRoots: string[]; permissionDenied: string[] } {
+  if (explicitPath) return { candidateRoots: roots, permissionDenied: [] };
+  const result = discover(roots);
+  return {
+    candidateRoots: result.repositories.length > 0
+      ? result.repositories.map((candidate) => candidate.rootPath)
+      : roots,
+    permissionDenied: result.permissionDenied,
+  };
+}
+
 export function remoteAccessSourceType(rootPath: string): RemoteAccessSourceRecord["sourceType"] {
   const gitMarker = join(rootPath, ".git");
   return existsSync(gitMarker) ? "local_git_repository" : "local_folder";

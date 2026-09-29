@@ -39489,19 +39489,19 @@ assertions:
       surface: cli
     - &id4733
       path: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
-      line: 665
+      line: 679
       name: reads a large raster image in bounded chunks and denies ignored or unsupported
         files
       surface: cli
     - &id4734
       path: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
-      line: 694
+      line: 708
       name: downloads exact binary and empty files in bounded chunks under the source
         path policy
       surface: cli
     - &id4735
       path: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
-      line: 752
+      line: 766
       name: reports a direct private file read with the stable public protected-path
         code
       surface: cli
@@ -40292,7 +40292,7 @@ assertions:
       surface: cli
     - &id4820
       path: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
-      line: 665
+      line: 679
       name: reads a large raster image in bounded chunks and denies ignored or unsupported
         files
       surface: cli
@@ -42072,7 +42072,7 @@ assertions:
       surface: gui.web
     - &id5029
       path: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
-      line: 694
+      line: 708
       name: downloads exact binary and empty files in bounded chunks under the source
         path policy
       surface: cli

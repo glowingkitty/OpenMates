@@ -30,6 +30,7 @@ import {
   readRemoteAccessFileChunk,
   readRemoteAccessTextFile,
   remoteAccessOperationErrorCode,
+  remoteAccessHostingCandidates,
   remoteAccessSourceType,
   resolveRemoteAccessRoots,
   resolveRemoteCachePath,
@@ -420,6 +421,19 @@ const timer = setInterval(() => {
     } finally {
       rmSync(home, { recursive: true, force: true });
     }
+  });
+
+  it("does not scan nested repositories when an explicit source path is approved", () => {
+    const roots = ["/approved/repository"];
+    const explicit = remoteAccessHostingCandidates(roots, true, () => {
+      throw new Error("recursive discovery must not run for --path");
+    });
+    assert.deepEqual(explicit, { candidateRoots: roots, permissionDenied: [] });
+    const automatic = remoteAccessHostingCandidates(roots, false, () => ({
+      repositories: [{ rootPath: "/approved/repository/nested", displayName: "nested" }],
+      permissionDenied: [],
+    }));
+    assert.deepEqual(automatic.candidateRoots, ["/approved/repository/nested"]);
   });
 
   it("classifies explicit ordinary folders separately from Git repositories", () => {
