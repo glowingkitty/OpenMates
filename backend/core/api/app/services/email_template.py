@@ -13,6 +13,7 @@ from backend.core.api.app.services.email.variable_processor import process_templ
 from backend.core.api.app.services.email.renderer import render_mjml_template
 from backend.core.api.app.services.email.mjml_processor import image_cache
 from backend.core.api.app.services.email.brevo_provider import BrevoProvider
+from backend.core.api.app.services.email.ci_mail_provider import CiMailProvider
 from backend.core.api.app.services.email_sender_profiles import sender_profile_for_template
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
@@ -149,6 +150,7 @@ class EmailTemplateService:
 
         # Brevo provider instance is created lazily in send_email()
         self._brevo_provider = None
+        self._ci_mail_provider = None
 
         # Default sender info
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
@@ -238,14 +240,16 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        brevo_api_key = await self.secrets_manager.get_secret(
-            secret_path="kv/data/providers/brevo",
-            secret_key="api_key"
-        )
-
-        if not brevo_api_key:
-            logger.error("Cannot send email: Brevo API key not found in Vault")
-            return False
+        ci_mail_capture = os.getenv("OPENMATES_CI_MAIL_CAPTURE") == "1"
+        brevo_api_key = None
+        if not ci_mail_capture:
+            brevo_api_key = await self.secrets_manager.get_secret(
+                secret_path="kv/data/providers/brevo",
+                secret_key="api_key"
+            )
+            if not brevo_api_key:
+                logger.error("Cannot send email: Brevo API key not found in Vault")
+                return False
         try:
             # Initialize default context if needed
             if context is None:
@@ -503,11 +507,18 @@ class EmailTemplateService:
             send_attempt_time = datetime.now(timezone.utc)
             logger.info(f"[EMAIL_SEND_TIMING] Attempting to send email at {send_attempt_time.isoformat()} UTC")
             
-            # Create the Brevo provider lazily and send the email
-            if not self._brevo_provider or self._brevo_provider.api_key != brevo_api_key:
-                self._brevo_provider = BrevoProvider(api_key=brevo_api_key)
+            # Only the isolated CI stack can select its local SMTP inbox.
+            # All deployed runtimes continue to use the Vault-backed Brevo key.
+            if ci_mail_capture:
+                if self._ci_mail_provider is None:
+                    self._ci_mail_provider = CiMailProvider()
+                provider = self._ci_mail_provider
+            else:
+                if not self._brevo_provider or self._brevo_provider.api_key != brevo_api_key:
+                    self._brevo_provider = BrevoProvider(api_key=brevo_api_key)
+                provider = self._brevo_provider
 
-            return await self._brevo_provider.send_email(
+            return await provider.send_email(
                 sender_name=sender_name,
                 sender_email=sender_email,
                 recipient_email=recipient_email,

@@ -10190,6 +10190,10 @@ async function handleSignup(client: OpenMatesClient, flags: Record<string, strin
     giftCardResult = await client.redeemGiftCard(flags["gift-card-code"]);
   }
 
+  // Security setup can rotate the refresh cookie. Persist the final jar so the
+  // next CLI process does not load the retired token saved at account creation.
+  client.getSession();
+
   const response = {
     success: true,
     user: signup.user ?? null,
