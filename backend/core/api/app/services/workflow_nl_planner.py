@@ -77,6 +77,10 @@ StructuredCall = Callable[[str, dict[str, Any], dict[str, Any]], Awaitable[tuple
 class WorkflowNLPlanner:
     """Synchronous adapter for WorkflowInputService's threadpool boundary."""
 
+    # The current recipe planner can edit a selected workflow only. Loading and
+    # decrypting the whole library cannot change its outcome for this pilot.
+    requires_workflow_overview = False
+
     def __init__(
         self,
         *,

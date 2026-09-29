@@ -97,6 +97,19 @@ def test_authoring_events_persist_in_encrypted_batches_and_restore_after_reconne
     assert events[-1].payload == {"mutation_type": "create_workflow", "workflow_id": result.workflow.id}
 
 
+# contract-test: supporting surface=cli assertions=workflows.content.encrypted-retained
+def test_recipe_authoring_does_not_decrypt_unrelated_workflows(monkeypatch):
+    service, workflows = _input_service()
+
+    def unexpected_list(*args, **kwargs):
+        raise AssertionError("Recipe authoring loaded unrelated workflows")
+
+    monkeypatch.setattr(workflows, "list_workflows", unexpected_list)
+    result = service.start(user_id="alice", timezone="Europe/Berlin",
+                           text="Every weekday at 7 Berlin time, check tomorrow's Berlin weather and send me a chat message if rain is expected")
+    assert result.status == "executed", result.error
+
+
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract,workflows.schedule.edge-cases
 def test_cli_input_creates_disabled_ready_tomorrow_rain_recipe_with_identity_and_metrics():
     service, workflows = _input_service()

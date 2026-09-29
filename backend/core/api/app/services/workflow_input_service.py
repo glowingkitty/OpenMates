@@ -205,6 +205,7 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
             payload={"_event_payloads": {str(event.event_id): event.payload for event in events}},
             expires_at=None,
             vault_key_id=vault_key_id,
+            create_only=True,
         )
         rows = [
             {
@@ -370,10 +371,10 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
         payload: dict[str, Any],
         expires_at: int | None,
         vault_key_id: str | None,
+        create_only: bool = False,
     ) -> dict[str, Any]:
         encrypted = self.payload_cipher.encrypt_json(payload, vault_key_id)
-        return self.save_encrypted_blob(
-            {
+        blob = {
                 "ref": ref,
                 "owner_hash": _hash_owner_id(user_id),
                 "kind": kind,
@@ -384,7 +385,7 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
                 "expires_at": expires_at,
                 "created_at": int(time.time()),
             }
-        )
+        return self.create_encrypted_blob(blob) if create_only else self.save_encrypted_blob(blob)
 
     def _load_private_blob(self, user_id: str, ref: str, vault_key_id: str | None) -> Any:
         blob = self.get_encrypted_blob(ref)
@@ -930,7 +931,11 @@ class WorkflowInputService:
             self._append_event(session, "draft_node_added", {"node_type": str(node_type)}, vault_key_id=vault_key_id)
 
     def _planner_context(self, session: dict[str, Any], vault_key_id: str | None) -> dict[str, Any]:
-        workflows = [item.model_dump(mode="json") for item in self.workflow_service.list_workflows(session["user_id"], vault_key_id)]
+        workflows = (
+            [item.model_dump(mode="json") for item in self.workflow_service.list_workflows(session["user_id"], vault_key_id)]
+            if getattr(self.planner, "requires_workflow_overview", True)
+            else []
+        )
         selected_workflow_id = session.get("selected_workflow_id")
         selected_workflow = None
         if selected_workflow_id:

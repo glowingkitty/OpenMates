@@ -280,6 +280,7 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     service = workflow_service(repository=repository)
 
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
+    assert not [request for request in fake_client.requests if request == ("GET", "workflow_encrypted_blobs")]
     loaded = service.get_workflow(workflow.id, "alice")
     raw_workflow_rows = json.dumps(fake_client.collections["workflows"], sort_keys=True)
     raw_blob_rows = json.dumps(fake_client.collections["workflow_encrypted_blobs"], sort_keys=True)
