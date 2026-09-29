@@ -1236,6 +1236,7 @@ export interface WorkflowInputStartParams {
   audioRef?: Record<string, unknown> | null;
   selectedWorkflowId?: string | null;
   selectedProjectId?: string | null;
+  timezone?: string | null;
 }
 
 export interface WorkflowInputEvent {
@@ -1258,6 +1259,7 @@ export interface WorkflowInputSessionResult {
   workflow?: WorkflowDetail | null;
   project_item?: Record<string, unknown> | null;
   undo_available: boolean;
+  authoring_metrics?: Record<string, unknown> | null;
 }
 
 export interface WorkflowInputSessionDetail extends WorkflowInputSessionResult {
@@ -9620,6 +9622,7 @@ export class OpenMatesClient {
         ...(params.audioRef !== undefined ? { audio_ref: params.audioRef } : {}),
         ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: selectedWorkflowId } : {}),
         ...(params.selectedProjectId !== undefined ? { selected_project_id: selectedProjectId } : {}),
+        ...(params.timezone !== undefined ? { timezone: params.timezone } : {}),
       },
       this.getCliRequestHeaders(),
     );

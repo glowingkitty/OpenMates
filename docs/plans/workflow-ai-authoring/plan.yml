@@ -1,7 +1,7 @@
 schema_version: 2
 id: workflow-ai-authoring
 title: AI workflow creation and editing from the web workspace
-status: draft
+status: approved
 goal: >-
   Let users describe one or multiple workflows in the Workflows workspace, by
   typing or recording speech, and have AI create valid workflows or edit existing
@@ -77,7 +77,8 @@ architecture_draft:
   - Extend and validate deterministic runtime date values for tomorrow before offering the tomorrow-weather recipe; require semantic checks in addition to graph validity, so a today forecast cannot silently satisfy a tomorrow request.
   - Fall back to an LLM planner for novel graph topology, unsupported recipes, free text, and semantic repair; generate title, description, and icon with an LLM on every creation. Benchmark valid workflows per dollar and end-to-end latency against an LLM-only baseline.
   - Benchmark Gemini 3.5 Flash-Lite against Gemini 3.8 Flash for Ask AI instructions containing exact earlier-node references, workflow title and description, and icon selection. Promote to 3.8 only for cases where Lite fails fidelity or validation; retain a provider-independent text fallback.
-  - For a Jev outage, coalesce bounded decisions into one strict-schema fast-LLM call where possible, then use the same deterministic recipes and validation. Use Cerebras Qwen 3.8 27B as the leading independent candidate after a small pilot, and benchmark it against Groq GPT-OSS 20B/120B and Google Flash-Lite on a larger corpus before fixing production order. Strict JSON syntax alone does not establish semantic correctness.
+  - For a Jev outage or low-confidence bounded decision, coalesce fields into one Gemini 3.8 Flash structured-output call, then use the same deterministic recipes and validation. Measure latency and semantic accuracy against Jev. Strict JSON syntax alone does not establish semantic correctness.
+  - Finish the backend and CLI real-inference pilot and report per-request quality, provider cost, and wall-clock time before implementing the web workspace UI.
   - Bound per-request Jev waves and concurrency; handle 429/Retry-After with a fallback. OpenRouter publishes provider-passthrough limits for paid keys but no fixed Jev requests-per-second value, so measure sustained throughput before setting production concurrency.
   - Before major implementation, build a 30-50 case synthetic Jev evaluation corpus covering routing, recipe and bounded-field choices, ambiguity, multi-workflow intent, and timezones; repeat cases and compare with an LLM baseline. After a thin recipe compiler exists, measure full-graph validity, semantic fidelity, latency, fallback frequency, and cost end to end on a larger corpus.
   - Produce a structured batch plan with create, update, or clarify operations; validate all targets, ownership, capability bindings, graph readiness, and idempotency before a transactional commit, because the current single-workflow service does not make multiple writes atomic. Stage encrypted payloads, make owner-visible record/version changes one database transaction, and synchronize schedules through an idempotent post-commit path.

@@ -22,6 +22,7 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 from backend.core.api.app.services.feature_availability_guards import ensure_workflows_enabled
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner
 from backend.core.api.app.services.workflow_identity_service import (
     WorkflowIdentity,
     WorkflowIdentityService,
@@ -181,6 +182,7 @@ class WorkflowInputStartRequest(BaseModel):
     audio_ref: dict[str, str | int] | None = None
     selected_workflow_id: str | None = Field(default=None, min_length=1, max_length=200)
     selected_project_id: str | None = Field(default=None, min_length=1, max_length=200)
+    timezone: str | None = Field(default=None, min_length=1, max_length=100)
 
     @model_validator(mode="after")
     def validate_input_source(self) -> WorkflowInputStartRequest:
@@ -566,6 +568,10 @@ def get_workflow_input_service(request: Request) -> WorkflowInputService:
     if service is None:
         service = WorkflowInputService(
             workflow_service=get_workflow_service(request),
+            planner=WorkflowNLPlanner(
+                secrets_manager=getattr(request.app.state, "secrets_manager", None),
+                workflow_service=get_workflow_service(request),
+            ),
             repository=DirectusWorkflowInputRepository(payload_cipher=get_workflow_service(request).payload_cipher),
         )
         request.app.state.workflow_input_service = service
@@ -1125,6 +1131,7 @@ async def start_workflow_input(
             audio_ref=body.audio_ref,
             selected_workflow_id=body.selected_workflow_id,
             selected_project_id=body.selected_project_id,
+            timezone=body.timezone,
             vault_key_id=current_user.vault_key_id,
         )
         return {"session": result.model_dump(mode="json")}

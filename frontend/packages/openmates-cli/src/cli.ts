@@ -7054,6 +7054,7 @@ async function handleWorkflows(
       text,
       selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
       selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
+      timezone: typeof flags.timezone === "string" ? flags.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     if (flags.json === true) {
       printJson(session);
@@ -7324,6 +7325,10 @@ function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
   if (session.message) kv("Message", session.message);
   if (session.error) kv("Error", session.error);
   if (session.workflow) kv("Workflow", `${session.workflow.title} (${session.workflow.id})`);
+  const metrics = session.authoring_metrics;
+  if (metrics && typeof metrics.total_seconds === "number") kv("AI planning", `${metrics.total_seconds.toFixed(2)}s`);
+  if (metrics && typeof metrics.estimated_cost_usd === "number") kv("Est. AI cost", `$${metrics.estimated_cost_usd.toFixed(5)}`);
+  if (session.workflow && !session.workflow.enabled) kv("Activation", "Disabled; enable it when you are ready.");
 }
 
 function printWorkflowRun(run: WorkflowRunDetail): void {
@@ -14867,7 +14872,7 @@ function printWorkflowsHelp(): void {
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
-  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--json]
   openmates workflows input-show <session-id> [--json]
   openmates workflows input-events <session-id> [--after <event-id>] [--json]
   openmates workflows input-follow-up <session-id> <text> [--json]

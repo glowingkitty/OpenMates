@@ -18,7 +18,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
 from backend.core.api.app.services.workflow_input_security import redacted_event_summary, sanitize_workflow_input_text
-from backend.core.api.app.services.workflow_models import WorkflowDetail, WorkflowGraph
+from backend.core.api.app.services.workflow_models import WorkflowDetail, WorkflowGraph, validate_workflow_composition_refs, validate_workflow_readiness
 from backend.core.api.app.services.workflow_service import (
     DirectusWorkflowRepository,
     WorkflowNotFoundError,
@@ -39,6 +39,7 @@ WORKFLOW_INPUT_TRANSCRIPTION_UNAVAILABLE = "WORKFLOW_INPUT_TRANSCRIPTION_UNAVAIL
 WORKFLOW_INPUT_ACTION_UNAVAILABLE = "WORKFLOW_INPUT_ACTION_UNAVAILABLE"
 WORKFLOW_INPUT_SESSION_STATE_INVALID = "WORKFLOW_INPUT_SESSION_STATE_INVALID"
 WORKFLOW_INPUT_UNDO_UNAVAILABLE = "WORKFLOW_INPUT_UNDO_UNAVAILABLE"
+WORKFLOW_INPUT_UNDO_CONFLICT = "WORKFLOW_INPUT_UNDO_CONFLICT"
 
 EventPayloadValue: TypeAlias = str | int | bool | None
 
@@ -395,6 +396,7 @@ class WorkflowInputSessionResult(BaseModel):
     workflow: WorkflowDetail | None = None
     project_item: dict[str, Any] | None = None
     undo_available: bool = False
+    authoring_metrics: dict[str, Any] | None = None
 
 
 class WorkflowInputSessionDetail(WorkflowInputSessionResult):
@@ -420,6 +422,9 @@ class _DraftPlan(_PlanModel):
 class _CreateWorkflowPlan(_PlanModel):
     action: Literal["create_workflow"]
     title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2_000)
+    category: str | None = None
+    icon: str | None = None
     graph: WorkflowGraph
     enabled: bool = False
     assumptions: list[str] = Field(default_factory=list, max_length=20)
@@ -483,10 +488,12 @@ class WorkflowInputService:
         audio_ref: dict[str, Any] | None = None,
         selected_workflow_id: str | None = None,
         selected_project_id: str | None = None,
+        timezone: str | None = None,
         vault_key_id: str | None = None,
     ) -> WorkflowInputSessionResult:
         resolved_vault_key_id = self._resolve_vault_key_id(user_id, vault_key_id)
         session = self._create_session(user_id, selected_workflow_id, selected_project_id, resolved_vault_key_id)
+        session["timezone"] = timezone
         return self._process_input(session, text=text, input_type=input_type, audio_ref=audio_ref, vault_key_id=resolved_vault_key_id)
 
     def follow_up(
@@ -548,6 +555,22 @@ class WorkflowInputService:
                 error="No workflow input mutation is available to undo.",
                 error_code=WORKFLOW_INPUT_UNDO_UNAVAILABLE,
             )
+        if mutation.target_type == "workflow":
+            try:
+                current = self.workflow_service.get_workflow(mutation.target_id, user_id, resolved_vault_key_id)
+            except WorkflowNotFoundError:
+                current = None
+            expected_version = (mutation.after or {}).get("current_version_id")
+            expected = mutation.after or {}
+            if (current is None or current.current_version_id != expected_version
+                    or any(getattr(current, field) != expected.get(field) for field in ("title", "description", "category", "icon", "enabled"))
+                    or current.model_dump(mode="json").get("graph") != expected.get("graph")):
+                self._append_event(session, "undo_conflict", {"target_id": mutation.target_id}, status="error", vault_key_id=resolved_vault_key_id)
+                return self._result(
+                    session,
+                    error="This workflow changed after the AI edit. Open version history to restore it without losing later changes.",
+                    error_code=WORKFLOW_INPUT_UNDO_CONFLICT,
+                )
         if mutation.type == "create_workflow":
             self.workflow_service.delete_workflow(mutation.target_id, user_id)
         elif mutation.type == "update_workflow" and mutation.before:
@@ -556,6 +579,9 @@ class WorkflowInputService:
                 user_id,
                 title=mutation.before.get("title"),
                 graph=mutation.before.get("graph"),
+                description=mutation.before.get("description"),
+                category=mutation.before.get("category"),
+                icon=mutation.before.get("icon"),
                 vault_key_id=resolved_vault_key_id,
             )
         elif mutation.type == "link_workflow_to_project" and self.project_linker is not None:
@@ -655,6 +681,8 @@ class WorkflowInputService:
                     "Structured workflow planning is not available.",
                 )
             plan = self.planner.plan(text=sanitized_text, context=self._planner_context(session, vault_key_id))
+            if isinstance(plan, dict) and isinstance(plan.get("_authoring_metrics"), dict):
+                session["authoring_metrics"] = plan.pop("_authoring_metrics")
             validated_plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(plan)
             self._append_event(session, "validation_passed", {}, vault_key_id=vault_key_id)
             return self._apply_plan(session, validated_plan, vault_key_id)
@@ -706,15 +734,20 @@ class WorkflowInputService:
         for assumption in plan.assumptions:
             self._append_event(session, "assumption", {"text_length": len(assumption)}, vault_key_id=vault_key_id)
         graph = plan.graph.model_dump(mode="json", by_alias=True)
+        validate_workflow_readiness(plan.graph, require_schedule=True)
+        validate_workflow_composition_refs(plan.graph)
         self._stream_draft_nodes(session, graph, vault_key_id)
         workflow = self.workflow_service.create_workflow(
             session["user_id"],
             plan.title,
             plan.graph,
-            enabled=plan.enabled,
+            enabled=False,
             source="workflow_input",
             created_by_assistant=True,
             vault_key_id=vault_key_id,
+            description=plan.description,
+            category=plan.category,
+            icon=plan.icon,
         )
         session["status"] = "executed"
         session["workflow"] = workflow
@@ -744,6 +777,8 @@ class WorkflowInputService:
             raise ValueError("update_workflow requires workflow_id or a selected workflow")
         before = self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
         graph = plan.graph or before.graph
+        validate_workflow_readiness(graph, require_schedule=before.enabled)
+        validate_workflow_composition_refs(graph, before.graph)
         self._stream_draft_nodes(session, graph.model_dump(mode="json", by_alias=True), vault_key_id)
         workflow = self.workflow_service.update_workflow(
             workflow_id,
@@ -836,6 +871,7 @@ class WorkflowInputService:
             "selected_workflow": selected_workflow,
             "projects": [],
             "selected_project_id": session.get("selected_project_id"),
+            "timezone": session.get("timezone"),
         }
 
     def _create_session(
@@ -852,6 +888,8 @@ class WorkflowInputService:
             "status": "running",
             "selected_workflow_id": selected_workflow_id,
             "selected_project_id": selected_project_id,
+            "timezone": None,
+            "authoring_metrics": None,
             "events": [],
             "mutations": [],
             "draft_graph": None,
@@ -958,6 +996,7 @@ class WorkflowInputService:
             workflow=workflow or session.get("workflow"),
             project_item=project_item or session.get("project_item"),
             undo_available=session["status"] == "executed" and self._last_undoable_mutation(session) is not None,
+            authoring_metrics=session.get("authoring_metrics"),
         )
 
     def _persist_session(self, session: dict[str, Any], vault_key_id: str | None) -> None:
@@ -973,6 +1012,8 @@ def _session_private_state(session: dict[str, Any]) -> dict[str, Any]:
     return {
         "selected_workflow_id": session.get("selected_workflow_id"),
         "selected_project_id": session.get("selected_project_id"),
+        "timezone": session.get("timezone"),
+        "authoring_metrics": deepcopy(session.get("authoring_metrics")),
         "draft_graph": deepcopy(session.get("draft_graph")),
         "workflow": workflow.model_dump(mode="json") if isinstance(workflow, WorkflowDetail) else deepcopy(workflow),
         "project_item": deepcopy(session.get("project_item")),
