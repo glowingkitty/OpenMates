@@ -2070,12 +2070,6 @@ async def _reserve_ai_iteration(
     is_anonymous = bool(getattr(request_data, "is_anonymous", False))
     if not request_data.orchestration_id and not is_anonymous:
         return None
-    if is_sub_chat_continuation(request_data) and not is_anonymous:
-        logger.info(
-            "Skipping AI iteration reservation for sub-chat parent continuation; "
-            "the continuation output limit was already fitted to orchestration credits."
-        )
-        return None
     if not directus_service and not is_anonymous:
         raise RuntimeError("Orchestrated AI reservation requires Directus")
     quote = _quote_ai_iteration_credits(
