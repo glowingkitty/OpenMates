@@ -147,6 +147,28 @@ def test_jev_outage_uses_gemini_38_for_same_recipe_contract():
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_low_confidence_jev_retries_once_before_gemini_fallback():
+    class UncertainOnceJev(StubJev):
+        async def evaluate(self, *, state, questions):
+            response = await super().evaluate(state=state, questions=questions)
+            if self.calls == 1:
+                response.answers["route"].confidence = 0.2
+            return response
+
+    gemini = StubGemini()
+    jev = UncertainOnceJev()
+    service, _ = _input_service(jev, gemini)
+    result = service.start(user_id="alice", timezone="Europe/Berlin",
+                           text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
+
+    assert result.status == "executed", result.error
+    assert jev.calls == 2
+    assert gemini.models == ["gemini-3.5-flash-lite"]
+    assert result.authoring_metrics["jev_low_confidence_retries"] == 1
+    assert result.authoring_metrics.get("bounded_fallback") is None
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
 def test_unsupported_delivery_creates_nothing_and_requests_clarification():
     service, workflows = _input_service(StubJev({"delivery": "email"}))
     result = service.start(user_id="alice", text="Every weekday at 7 email tomorrow's Berlin rain forecast")

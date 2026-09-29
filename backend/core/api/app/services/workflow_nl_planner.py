@@ -71,6 +71,10 @@ class WorkflowNLPlanningError(ValueError):
     """A request needs human clarification before any Workflow mutation."""
 
 
+class WorkflowNLDecisionUncertain(ValueError):
+    """A Jev answer did not meet the recipe confidence gate."""
+
+
 StructuredCall = Callable[[str, dict[str, Any], dict[str, Any]], Awaitable[tuple[dict[str, Any], dict[str, int]]]]
 
 
@@ -183,30 +187,37 @@ class WorkflowNLPlanner:
             }),
         }
         try:
-            began = time.perf_counter()
-            response = await self.jev_client.evaluate(state=state, questions=questions)
-            metrics["jev_calls"] += 1
-            metrics["jev_seconds"] = round(time.perf_counter() - began, 3)
-            tokens = response.usage.input_tokens
-            metrics["input_tokens"]["jev-1.13"] = tokens
-            metrics["estimated_cost_usd"] += tokens * JEV_INPUT_USD_PER_MILLION / 1_000_000
-            decisions: dict[str, str] = {}
-            for name, question in questions.items():
-                answer = response.answers.get(name)
-                if not isinstance(answer, ChoiceAnswer) or answer.choice not in question["criteria"]:
-                    raise ValueError(f"Jev omitted {name}")
-                # Scoped pilot mistakes were confined to confidence <= 0.45.
-                recipe = decisions.get("recipe")
-                route = decisions.get("route")
-                relevant = (name == "route" or route == "create" and
-                            (name in {"recipe", "delivery", "cadence", "timezone"} or
-                             name in {"horizon", "city"} and recipe in {"rain_alert", "weather_update"}) or
-                            route == "update" and name == "timezone")
-                if relevant and answer.confidence < (0.46 if name in {"route", "recipe", "delivery"} else 0.30):
-                    raise ValueError(f"Jev was uncertain about {name}")
-                decisions[name] = answer.choice
-            decisions["provider"] = "jev"
-            return decisions
+            for attempt in range(2):
+                began = time.perf_counter()
+                response = await self.jev_client.evaluate(state=state, questions=questions)
+                metrics["jev_calls"] += 1
+                metrics["jev_seconds"] = round(metrics.get("jev_seconds", 0) + time.perf_counter() - began, 3)
+                tokens = response.usage.input_tokens
+                metrics["input_tokens"]["jev-1.13"] = metrics["input_tokens"].get("jev-1.13", 0) + tokens
+                metrics["estimated_cost_usd"] += tokens * JEV_INPUT_USD_PER_MILLION / 1_000_000
+                try:
+                    decisions: dict[str, str] = {}
+                    for name, question in questions.items():
+                        answer = response.answers.get(name)
+                        if not isinstance(answer, ChoiceAnswer) or answer.choice not in question["criteria"]:
+                            raise ValueError(f"Jev omitted {name}")
+                        # Scoped pilot mistakes were confined to confidence <= 0.45.
+                        recipe = decisions.get("recipe")
+                        route = decisions.get("route")
+                        relevant = (name == "route" or route == "create" and
+                                    (name in {"recipe", "delivery", "cadence", "timezone"} or
+                                     name in {"horizon", "city"} and recipe in {"rain_alert", "weather_update"}) or
+                                    route == "update" and name == "timezone")
+                        if relevant and answer.confidence < (0.46 if name in {"route", "recipe", "delivery"} else 0.30):
+                            raise WorkflowNLDecisionUncertain(f"Jev was uncertain about {name}")
+                        decisions[name] = answer.choice
+                except WorkflowNLDecisionUncertain:
+                    if attempt == 0:
+                        metrics["jev_low_confidence_retries"] = 1
+                        continue
+                    raise
+                decisions["provider"] = "jev"
+                return decisions
         except Exception as exc:
             logger.info("Workflow Jev decision fell back to Gemini", extra={"reason": type(exc).__name__})
             metrics["bounded_fallback"] = "gemini-3.8-flash"
