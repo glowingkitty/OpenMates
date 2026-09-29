@@ -1946,6 +1946,7 @@
             </div>
           </div>
           {/if}
+        {/if}
 
           <div class="browser-toolbar">
             <span class="muted">{projectSearchActive ? `${orderedSearchResults.length} matches` : activeRemoteSource ? `${remotePageIndex * FILES_PAGE_SIZE + (remoteEntries.length ? 1 : 0)}–${remotePageIndex * FILES_PAGE_SIZE + remoteEntries.length} of ${remoteEntryCount} entries` : `${storedEntryCount} entries`}</span>
@@ -1954,7 +1955,6 @@
               <button type="button" class:active={viewMode === 'list'} onclick={() => (viewMode = 'list')}>List</button>
             </div>
           </div>
-        {/if}
 
         <div class:browser-grid={viewMode === 'tile'} class:browser-list={viewMode === 'list'} data-testid="project-browser-list">
             <div class="project-action-expander" class:expanded={showCreateMenu} data-testid="project-action-expander">

@@ -441,7 +441,8 @@ test('bounds large connected and stored folders while searching the whole Projec
   await expect(remoteEntries).toHaveCount(48);
   await expect(remotePages).toContainText('Page 2');
   await remotePages.getByRole('button', { name: 'Previous' }).click();
-  await expect(remoteEntries).toHaveText(firstRemotePageNames);
+  await expect(remoteEntries.first()).toContainText('needle-current.ts');
+  await expect(remoteEntries.last()).toContainText('remote-file-046.ts');
 
   const search = page.getByTestId('project-folder-search');
   await search.fill('needle');

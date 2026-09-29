@@ -42042,7 +42042,7 @@ assertions:
       surface: gui.web
     - &id5024
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 494
+      line: 495
       name: pages a legacy connected source response containing 500 entries
       surface: gui.web
     - &id5025
@@ -42338,37 +42338,37 @@ assertions:
       surface: gui.web
     - &id5054
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 494
+      line: 495
       name: pages a legacy connected source response containing 500 entries
       surface: gui.web
     - &id5055
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 517
+      line: 518
       name: loads one-level children for both connected source folder cards
       surface: gui.web
     - &id5056
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 535
+      line: 536
       name: keeps the Project overview readable in dark mode
       surface: gui.web
     - &id5057
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 548
+      line: 549
       name: keeps shared folder and embed previews readable in dark mode
       surface: gui.web
     - &id5058
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 568
+      line: 569
       name: embeds the same five-status task board without legacy compact forms
       surface: gui.web
     - &id5059
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 603
+      line: 604
       name: uses the chat sidebar list pattern for project navigation
       surface: gui.web
     - &id5060
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 618
+      line: 619
       name: keeps project header controls visible while scrolling at ${width}px
       surface: gui.web
     - &id5061
@@ -45363,7 +45363,7 @@ assertions:
       surface: rest_api
     - &id5426
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 568
+      line: 569
       name: embeds the same five-status task board without legacy compact forms
       surface: gui.web
     - &id5427
@@ -47955,7 +47955,7 @@ assertions:
       surface: rest_api
     - &id5724
       path: frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
-      line: 568
+      line: 569
       name: embeds the same five-status task board without legacy compact forms
       surface: gui.web
     - &id5725
