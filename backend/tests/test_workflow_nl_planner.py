@@ -12,7 +12,7 @@ from backend.tests.runtime_import_stubs import install_code_route_import_stubs
 install_code_route_import_stubs()
 
 from backend.core.api.app.services.workflow_input_service import WorkflowInputService
-from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner
+from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner, _google_usage
 from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry, _FilesystemWorkflowMetadataRegistry
 from backend.shared.providers.typesafe.models import DecisionResponse
@@ -169,3 +169,10 @@ def test_news_ai_recipe_uses_generated_grounded_instruction():
     nodes = {node.id: node for node in result.workflow.graph.nodes}
     assert nodes["ask"].config["input"]["prompt"] == "Summarize {{ $nodes.news.output.results }} in three bullets."
     assert nodes["send"].config["message"] == "{{ $nodes.ask.output.answer }}"
+
+
+# contract-test: direct surface=cli assertions=workflows.ai-ask.execution
+def test_gemini_cost_usage_includes_reasoning_tokens():
+    assert _google_usage({"promptTokenCount": 80, "candidatesTokenCount": 20, "thoughtsTokenCount": 35}) == {
+        "input_tokens": 80, "output_tokens": 55,
+    }

@@ -250,15 +250,19 @@ class WorkflowNLPlanner:
             "title": {"type": "string"}, "description": {"type": "string"},
             "icon": {"type": "string", "enum": IDENTITY_ICONS},
             "category": {"type": "string", "enum": sorted(WORKFLOW_CATEGORIES)},
-            "message": {"type": "string"}, "search_query": {"type": "string"},
         }
+        if recipe == "reminder":
+            metadata_properties["message"] = {"type": "string"}
+        if recipe in {"news_digest", "news_ai_digest"}:
+            metadata_properties["search_query"] = {"type": "string"}
         if recipe == "news_ai_digest":
             metadata_properties["ask_ai_prompt"] = {"type": "string"}
         metadata_schema = {"type": "object", "properties": metadata_properties,
                            "required": list(metadata_properties), "additionalProperties": False}
         metadata_payload = {
-            "task": "Write a short title and description, choose one allowed icon and category, and fill only the requested free text. The workflow will be saved disabled.",
+            "task": "Write a short title and description that faithfully state the schedule and conditions. Choose one allowed icon and category, and fill only the requested free text. The workflow will be saved disabled.",
             "request": text, "recipe": recipe, "city": city, "time": local_time, "timezone": timezone,
+            "cadence": decisions["cadence"],
             "horizon": decisions["horizon"] if city else None,
         }
         if recipe == "news_ai_digest":
@@ -321,6 +325,8 @@ class WorkflowNLPlanner:
             "contents": [{"role": "user", "parts": [{"text": json.dumps(payload, ensure_ascii=False)}]}],
             "generationConfig": {"responseMimeType": "application/json", "responseSchema": _google_schema(schema), "temperature": 0},
         }
+        if model == "gemini-3.8-flash":
+            body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "low"}
         async with httpx.AsyncClient(timeout=25) as client:
             response = await client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
@@ -329,11 +335,7 @@ class WorkflowNLPlanner:
         response.raise_for_status()
         result = response.json()
         content = result["candidates"][0]["content"]["parts"][0]["text"]
-        usage = result.get("usageMetadata") or {}
-        return json.loads(content), {
-            "input_tokens": int(usage.get("promptTokenCount") or 0),
-            "output_tokens": int(usage.get("candidatesTokenCount") or 0),
-        }
+        return json.loads(content), _google_usage(result.get("usageMetadata") or {})
 
 
 def _choice(instructions: str, criteria: dict[str, str]) -> dict[str, Any]:
@@ -347,6 +349,14 @@ def _google_schema(value: Any) -> Any:
     if isinstance(value, list):
         return [_google_schema(child) for child in value]
     return value
+
+
+def _google_usage(usage: dict[str, Any]) -> dict[str, int]:
+    # Gemini bills reasoning tokens at the output rate too.
+    return {
+        "input_tokens": int(usage.get("promptTokenCount") or 0),
+        "output_tokens": int(usage.get("candidatesTokenCount") or 0) + int(usage.get("thoughtsTokenCount") or 0),
+    }
 
 
 def _record_gemini(metrics: dict[str, Any], model: str, usage: dict[str, int]) -> None:
