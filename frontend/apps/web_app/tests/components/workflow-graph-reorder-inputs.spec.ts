@@ -13,7 +13,7 @@ test('workflow card movement and typed skill inputs render in bare preview', asy
   await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
 
   const fitness = page.locator('[data-node-id="fitness"]');
-  await expect(fitness.getByTestId('workflow-node-summary')).toHaveAttribute('draggable', 'true');
+  await expect(fitness.getByTestId('workflow-node-summary')).toHaveAttribute('data-can-drag', 'true');
   await fitness.getByTestId('workflow-node-summary').click();
   await expect(fitness.getByTestId('workflow-node-move-up')).toHaveCount(0);
   const moveDown = fitness.getByTestId('workflow-node-move-down');
@@ -82,4 +82,45 @@ test('workflow app cards and input placeholders align left in dark theme', async
   await expect(card.locator('.app-card-name')).toHaveCSS('text-align', 'start');
   await expect(card.locator('.app-card-description')).toHaveCSS('text-align', 'start');
   await test.info().attach('workflow-picker-dark', { body: await page.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+test('drag reveals contrasted drop containers and add-step navigation keeps one panel', async ({ page }: { page: Page }) => {
+  test.setTimeout(60000);
+  await page.goto(preview, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+  const source = page.locator('[data-node-id="stays"]').getByTestId('workflow-node-summary');
+  const bounds = await source.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds!.x + bounds!.width / 2 + 20, bounds!.y + bounds!.height / 2 + 20, { steps: 5 });
+  await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute('data-dragging-node-id', 'stays', { timeout: 5000 });
+  const drop = page.locator('[data-testid="workflow-node-drop-zone"][data-after-node-id="trigger"]');
+  await expect(drop).toBeVisible({ timeout: 5000 });
+  await expect(drop).toHaveText('Drop here to move');
+  const target = await drop.boundingBox();
+  expect(target).not.toBeNull();
+  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 8 });
+  await expect(drop).toHaveClass(/drop-slot/);
+  await test.info().attach('workflow-drag-target', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.mouse.up();
+
+  const surface = page.getByTestId('workflow-slot-surface').last();
+  await surface.scrollIntoViewIfNeeded();
+  const original = await surface.elementHandle();
+  expect(original).not.toBeNull();
+  await expect(surface).toHaveCSS('border-top-style', 'dashed');
+  await surface.getByTestId('workflow-add-step').click();
+  await expect(surface).toHaveClass(/expanded/);
+  await expect(surface.getByTestId('workflow-step-menu')).toBeVisible();
+  await surface.getByTestId('workflow-step-app-skill-action').click();
+  await expect(surface.getByTestId('app-store-card').first()).toBeVisible();
+  await surface.getByTestId('app-store-card').first().click();
+  await expect(surface.getByTestId('app-store-card').first()).toBeVisible();
+  await surface.getByTestId('app-store-card').first().click();
+  await expect(surface.getByTestId('workflow-node-expanded')).toBeVisible();
+  expect(await surface.evaluate((node, first) => node === first, original)).toBe(true);
+  await expect(surface).toBeInViewport();
+  await test.info().attach('workflow-expanded-slot', { body: await page.screenshot(), contentType: 'image/png' });
 });

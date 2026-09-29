@@ -18,13 +18,13 @@
   import { workflowFieldIcon } from './workflowFieldIcon';
   import { workflowSkillInputSummary } from './workflowSkillSummary';
   import { workflowOutputExamples, workflowUpstreamOutputs } from './workflowOutputExamples';
-  import { workflowApiRequest, workflowWorkspaceStore, type WorkflowGraph, type WorkflowNode, type WorkflowNodeRun } from '../../stores/workflowWorkspaceStore';
+  import { workflowApiRequest, workflowWorkspaceStore, type WorkflowGraph, type WorkflowNode, type WorkflowNodeRun, type WorkflowRunDetail } from '../../stores/workflowWorkspaceStore';
   import type { Chat } from '../../types/chat';
   import type { AppMetadata } from '../../types/apps';
   import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema } from './workflowBuilder';
-  import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeTo, moveWorkflowNodeAfter } from './workflowReordering';
+  import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeAfter } from './workflowReordering';
 
-  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, onSave = null }: {
+  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, onChange, onSave = null }: {
     graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
     onChange: (graph: WorkflowGraph) => void; onSave?: ((graph: WorkflowGraph) => Promise<void>) | null;
   } = $props();
@@ -39,8 +39,9 @@
   let expandedReadOnly = $state<string | null>(null);
   let busy = $state(false);
   let draggingNodeId = $state<string | null>(null);
-  let dropTargetId = $state<string | null>(null);
   let dropSlotId = $state<string | null>(null);
+  let pointerCandidate: { id: string; pointerId: number; x: number; y: number } | null = null;
+  let suppressNodeClick = false;
   let nodeError = $state('');
   let testStatus = $state<'idle' | 'processing' | 'completed' | 'cancelled' | 'failed'>('idle');
   let testingRunId = $state<string | null>(null);
@@ -131,10 +132,10 @@
     const target = nodeEditor ?? graphPanel?.querySelector<HTMLElement>('[data-testid="workflow-node-expanded"], [data-testid="workflow-step-menu"]');
     if (!target) return;
     const reduceMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center', inline: 'nearest' });
+    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'nearest' });
     target.focus({ preventScroll: true });
   }
-  function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; deleteArmed = false; nodeError = ''; preview = null; insertion = slot; picker = kind; void scrollEditorIntoView(); }
+  function openPicker(kind: typeof picker, slot: Insertion): void { if (busy || testStatus === 'processing') return; draft = null; deleteArmed = false; nodeError = ''; preview = null; insertion = slot; picker = kind; }
   function resetAskHints(): void { askHintRevision += 1; if (askHintTimer) clearTimeout(askHintTimer); askHintTimer = null; askSuggestions = []; askVerdict = 'idle'; askReminder = ''; }
   function closeEditor(immediate = false): void {
     const close = () => { draft = null; picker = null; deleteArmed = false; nodeError = ''; preview = null; chooseChat = false; showReferences = false; showAllVariables = false; showOutputFields = false; resetAskHints(); };
@@ -199,7 +200,7 @@
     }
     if (type === 'check') draft.config = { mode: 'exact', predicate: { left: '', op: '', right: '' } };
     if (type === 'send_chat_message') { draft.config = { title: '', message: '', blocks: [] }; chooseChat = true; void loadChats(); }
-    void scrollEditorIntoView(replacementId ?? undefined);
+    if (replacementId) void scrollEditorIntoView(replacementId);
   }
   async function configureAskAi(): Promise<void> {
     if (!askCapability) await loadCapabilities();
@@ -322,75 +323,80 @@
   async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
   async function persistReorder(next: WorkflowGraph | null, focusNodeId?: string): Promise<void> {
     if (!next || !onSave || busy || readOnly || testStatus === 'processing') return;
+    const previous = graph;
     busy = true;
     nodeError = '';
+    onChange(next);
     try {
       await onSave(next);
       if (focusNodeId && draft?.id === focusNodeId) void scrollEditorIntoView(focusNodeId);
-    } catch (error) { failForUser(error, 'save_failed'); }
+    } catch (error) {
+      const savedGraph = $workflowWorkspaceStore.selectedWorkflow?.graph;
+      if (JSON.stringify(savedGraph) !== JSON.stringify(next)) onChange(previous);
+      failForUser(error, 'save_failed');
+    }
     finally { busy = false; }
   }
   function moveDraft(direction: 'up' | 'down'): void {
     if (!draft) return;
     void persistReorder(moveWorkflowNode(graph, draft.id, direction), draft.id);
   }
-  function startNodeDrag(event: DragEvent, nodeId: string): void {
-    if (readOnly || busy || testStatus === 'processing' || !onSave) { event.preventDefault(); return; }
-    draggingNodeId = nodeId;
-    dropSlotId = null;
-    event.dataTransfer?.setData('text/plain', nodeId);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  function startPointerDrag(event: PointerEvent, nodeId: string): void {
+    if (event.button !== 0 || event.pointerType !== 'mouse' || readOnly || busy || !onSave || (!canMoveWorkflowNode(graph, nodeId, 'up') && !canMoveWorkflowNode(graph, nodeId, 'down'))) return;
+    pointerCandidate = { id: nodeId, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
   }
-  function overNode(event: DragEvent, targetId: string): void {
-    if (!draggingNodeId || !moveWorkflowNodeTo(graph, draggingNodeId, targetId)) return;
+  function pointerDropTarget(x: number, y: number): HTMLElement | null {
+    return document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-testid="workflow-node-drop-zone"]') ?? null;
+  }
+  function movePointerDrag(event: PointerEvent): void {
+    if (!pointerCandidate || event.pointerId !== pointerCandidate.pointerId) return;
+    if (!draggingNodeId && Math.hypot(event.clientX - pointerCandidate.x, event.clientY - pointerCandidate.y) < 6) return;
+    draggingNodeId = pointerCandidate.id;
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    dropTargetId = targetId;
-    dropSlotId = null;
+    const target = pointerDropTarget(event.clientX, event.clientY);
+    dropSlotId = target?.dataset.afterNodeId ?? null;
   }
-  function overSlot(event: DragEvent, afterId: string): void {
-    if (!draggingNodeId || !moveWorkflowNodeAfter(graph, draggingNodeId, afterId)) return;
-    event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    dropSlotId = afterId;
-    dropTargetId = null;
-  }
-  function dropAtSlot(event: DragEvent, afterId: string): void {
-    const sourceId = draggingNodeId;
+  function finishPointerDrag(event: PointerEvent): void {
+    if (!pointerCandidate || event.pointerId !== pointerCandidate.pointerId) return;
+    const sourceId = pointerCandidate.id;
+    pointerCandidate = null;
+    const wasDragging = draggingNodeId === sourceId;
+    const target = wasDragging ? pointerDropTarget(event.clientX, event.clientY) : null;
+    const afterId = target?.dataset.afterNodeId;
     draggingNodeId = null;
     dropSlotId = null;
-    if (!sourceId) return;
-    const next = moveWorkflowNodeAfter(graph, sourceId, afterId);
-    if (!next) return;
-    event.preventDefault();
-    void persistReorder(next);
-  }
-  function dropNode(event: DragEvent, targetId: string): void {
-    const sourceId = draggingNodeId;
-    draggingNodeId = null;
-    dropTargetId = null;
-    if (!sourceId) return;
-    const next = moveWorkflowNodeTo(graph, sourceId, targetId);
-    if (!next) return;
-    event.preventDefault();
-    void persistReorder(next);
+    if (wasDragging) {
+      suppressNodeClick = true;
+      setTimeout(() => { suppressNodeClick = false; }, 0);
+    }
+    if (afterId) void persistReorder(moveWorkflowNodeAfter(graph, sourceId, afterId));
   }
   function requestDelete(): void { if (!deleteArmed) { deleteArmed = true; return; } void deleteNode(); }
   async function testNode(): Promise<void> {
     if (!draft || !workflowId || testStatus === 'processing') return;
-    const node = structuredClone($state.snapshot(draft)); const revision = ++testRevision; testStatus = 'processing'; nodeError = '';
+    const node = structuredClone($state.snapshot(draft)); const revision = ++testRevision; testStatus = 'processing'; nodeError = ''; showOutputFields = true;
+    const pending = (status: string | undefined) => !status || ['accepted', 'queued', 'running', 'cancellation_requested'].includes(status);
+    const finish = (run: WorkflowRunDetail): void => {
+      const result = run.node_runs?.find(item => item.node_id === node.id);
+      if (run.status === 'completed') {
+        testOutputs = { ...testOutputs, [node.id]: result?.output_summary ?? run.output_summary ?? {} };
+        testStatus = 'completed';
+      } else {
+        testStatus = run.status === 'cancelled' ? 'cancelled' : 'failed';
+        console.error('[Workflow test]', result?.error_summary ?? run.error_summary ?? run.status);
+        nodeError = tr('output_test_failed');
+      }
+      testingRunId = null;
+    };
     try {
       const upstreamOutputs = workflowUpstreamOutputs(graph, node.id, availableTestOutputs, insertion);
-      const data = await workflowApiRequest<{ run: { id: string } }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(node.id)}/test`, { method: 'POST', body: JSON.stringify({ node, input: {}, upstream_outputs: upstreamOutputs }) });
+      const data = await workflowApiRequest<{ run: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(node.id)}/test`, { method: 'POST', body: JSON.stringify({ node, input: {}, upstream_outputs: upstreamOutputs }) });
+      if (revision !== testRevision) return;
+      if (!pending(data.run.status)) { finish(data.run); return; }
       testingRunId = data.run.id;
       for (let attempt = 0; attempt < 60 && revision === testRevision; attempt++) {
         const run = await workflowWorkspaceStore.getWorkflowRun(workflowId, data.run.id);
-        if (!['accepted', 'queued', 'running', 'cancellation_requested'].includes(run.status)) {
-          const result = run.node_runs?.find(item => item.node_id === node.id);
-          if (run.status === 'completed') { testOutputs = { ...testOutputs, [node.id]: result?.output_summary ?? run.output_summary ?? {} }; testStatus = 'completed'; }
-          else { testStatus = run.status === 'cancelled' ? 'cancelled' : 'failed'; console.error('[Workflow test]', result?.error_summary ?? run.error_summary ?? run.status); nodeError = tr('output_test_failed'); }
-          testingRunId = null; return;
-        }
+        if (!pending(run.status)) { finish(run); return; }
         await new Promise(resolve => setTimeout(resolve, Math.min(1500 + attempt * 500, 5000)));
       }
       if (revision === testRevision) { testStatus = 'idle'; nodeError = tr('test_pending'); }
@@ -430,7 +436,10 @@
   <button type="button" class="output-toggle" data-testid="workflow-show-output-fields" aria-expanded={showOutputFields} onclick={() => showOutputFields = !showOutputFields}>{tr(showOutputFields ? 'hide_output_fields' : 'show_output_fields')}</button>
   {#if showOutputFields}
     <div class="output-heading" data-testid="workflow-output-heading"><h4><span class="section-icon" data-testid="workflow-output-icon"><Upload size={18} aria-hidden="true"/></span>{tr('output')}:</h4><span data-testid="workflow-output-example-heading">{tr(tested ? 'test_output' : 'example')}:</span></div>
-    <WorkflowOutputFields {properties} {values} {appId} {path}/>
+    {#if testStatus === 'processing'}<div class="output-progress" role="status" data-testid="workflow-test-output-loading"><span class="output-spinner" aria-hidden="true"></span>{tr('processing')}</div>
+    {:else if testStatus === 'failed' || testStatus === 'cancelled'}<p class="error" role="status" data-testid="workflow-test-output-error">{nodeError || tr('output_test_failed')}</p>
+    {:else if tested}<div class="tested-output" data-testid="workflow-output-fields"><WorkflowValueView value={values} {appId} {path}/></div>
+    {:else}<WorkflowOutputFields {properties} {values} {appId} {path}/>{/if}
   {/if}
 {/snippet}
 
@@ -440,15 +449,26 @@
 
 {#snippet slotControls(slot: Insertion)}
   {#if !readOnly}
-    {#if sameSlot(slot) && (picker || (draft && !graph.nodes.some(node => node.id === draft?.id)))}
-      {#if picker}{@render pickerPanel()}{:else if draft}{@render editor()}{/if}
-    {:else}
+    {#if !slot.after && !graph.nodes.length && !(sameSlot(slot) && (picker || draft))}
       <div class="add-controls" class:blank={!slot.after && !graph.nodes.length} data-testid="workflow-action-palette">
         {#if !graph.nodes.some(isTrigger) && !slot.branch}{@render choice('calendar-clock', tr('add_trigger'), () => openPicker('trigger', slot), 'workflow-add-time-trigger')}{/if}
-        {#if !slot.after && !graph.nodes.length}{@render choice('blocks', tr('add_action'), () => openPicker('action', slot), 'workflow-add-step')}{:else}<button type="button" class="nothing" data-testid="workflow-add-step" onclick={() => openPicker('action', slot)}>{tr('do_nothing_add_step')}</button>{/if}
+        {@render choice('blocks', tr('add_action'), () => openPicker('action', slot), 'workflow-add-step')}
+      </div>
+    {:else}
+      {@const expanded = sameSlot(slot) && (picker || (draft && !graph.nodes.some(node => node.id === draft?.id)))}
+      <div class="slot-surface" class:expanded={!!expanded} data-testid="workflow-slot-surface" data-after-node-id={slot.after ?? ''}>
+        {#if expanded}
+          {#if picker}{@render pickerPanel()}{:else if draft}{@render editor()}{/if}
+        {:else}
+          <button type="button" class="nothing" data-testid="workflow-add-step" onclick={() => openPicker('action', slot)}>{tr('do_nothing_add_step')}</button>
+        {/if}
       </div>
     {/if}
   {/if}
+{/snippet}
+
+{#snippet dropZone(afterId: string)}
+  <div class="drop-here" class:drop-slot={dropSlotId === afterId} role="group" aria-label={tr('drop_here_move')} data-testid="workflow-node-drop-zone" data-after-node-id={afterId}>{tr('drop_here_move')}</div>
 {/snippet}
 
 {#snippet pickerPanel()}
@@ -587,30 +607,37 @@
     {@const run = nodeRuns.find(item => item.node_id === node.id)}
     {@const rawRunStatus = String(isMessage(node) && run?.output_summary?.status ? run.output_summary.status : run?.status ?? '')}
     {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
-    <article class="flow-node" class:drop-target={dropTargetId === node.id} data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`} ondragover={event => overNode(event, node.id)} ondragleave={() => { if (dropTargetId === node.id) dropTargetId = null; }} ondrop={event => dropNode(event, node.id)}>
+    <article class="flow-node" data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`}>
       {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
-        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} draggable={!readOnly && !isTrigger(node)} ondragstart={event => startNodeDrag(event, node.id)} ondragend={() => { draggingNodeId = null; dropTargetId = null; dropSlotId = null; }} onclick={() => edit(node)}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
+        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} class:dragging={draggingNodeId === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} data-can-drag={!readOnly && !!onSave && (canMoveWorkflowNode(graph, node.id, 'up') || canMoveWorkflowNode(graph, node.id, 'down'))} onpointerdown={event => startPointerDrag(event, node.id)} onclick={() => { if (!suppressNodeClick && !draggingNodeId) edit(node); }}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
         {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{tr('output_step_failed')}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
       {/if}
     </article>
     {#if isCheck(node)}
       {@const continuation = nextId(node.id)}
       <div class="branch-group">
-        {#each node.config?.mode === 'ai' ? ['true','false','unsure'] : ['yes','no'] as branch}{@const target = nextId(node.id, branch) ?? nextId(node.id, branch === 'yes' ? 'true' : branch === 'no' ? 'false' : branch)}<div class="branch"><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{tr(branch === 'true' || branch === 'yes' ? 'if_true' : branch === 'unsure' ? 'if_unsure' : 'else')}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{#if sameSlot({ after: node.id, branch }) && (picker || draft)}{@render slotControls({ after: node.id, branch })}{:else}<button type="button" class="nothing" onclick={() => openPicker('action', { after: node.id, branch })}>{tr('do_nothing_add_step')}</button>{/if}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
+        {#each node.config?.mode === 'ai' ? ['true','false','unsure'] : ['yes','no'] as branch}{@const target = nextId(node.id, branch) ?? nextId(node.id, branch === 'yes' ? 'true' : branch === 'no' ? 'false' : branch)}<div class="branch"><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{tr(branch === 'true' || branch === 'yes' ? 'if_true' : branch === 'unsure' ? 'if_unsure' : 'else')}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{@render slotControls({ after: node.id, branch })}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
       </div>
     {/if}
     {@const next = nextId(node.id)}
-    {#if next && next !== stopAt && graph.nodes.find(item => item.id === next)?.type !== 'end'}<div class="connector" role="group" class:drop-slot={dropSlotId === node.id} data-testid="workflow-node-drop-zone" data-after-node-id={node.id} ondragover={event => overSlot(event, node.id)} ondragleave={() => { if (dropSlotId === node.id) dropSlotId = null; }} ondrop={event => dropAtSlot(event, node.id)}>{tr('then')}</div>{@render chain(next, [...visited, node.id], stopAt)}
-    {:else if !readOnly}<div class="connector" role="group" class:drop-slot={dropSlotId === node.id} data-testid="workflow-node-drop-zone" data-after-node-id={node.id} ondragover={event => overSlot(event, node.id)} ondragleave={() => { if (dropSlotId === node.id) dropSlotId = null; }} ondrop={event => dropAtSlot(event, node.id)}>{tr('then')}</div>{@render slotControls({ after: node.id })}{/if}
+    {#if next && next !== stopAt && graph.nodes.find(item => item.id === next)?.type !== 'end'}
+      {#if draggingNodeId && moveWorkflowNodeAfter(graph, draggingNodeId, node.id)}{@render dropZone(node.id)}{:else}<div class="connector">{tr('then')}</div>{/if}
+      {@render chain(next, [...visited, node.id], stopAt)}
+    {:else if !readOnly}
+      <div class="connector">{tr('then')}</div>
+      {#if draggingNodeId && moveWorkflowNodeAfter(graph, draggingNodeId, node.id)}{@render dropZone(node.id)}{:else}{@render slotControls({ after: node.id })}{/if}
+    {/if}
   {/if}
 {/snippet}
 
-<section class="graph-panel" bind:this={graphPanel} data-testid={testId} data-read-only={readOnly ? 'true' : 'false'} aria-busy={busy}>
+<section class="graph-panel" bind:this={graphPanel} data-testid={testId} data-read-only={readOnly ? 'true' : 'false'} data-dragging-node-id={draggingNodeId ?? ''} aria-busy={busy}>
   <div class="graph-canvas" class:blank={!graph.nodes.some(node => node.type !== 'end')}><div class="node-stack" data-testid="workflow-node-stack">
     {#each rootNodes as root}{@render chain(root.id)}{/each}
     {#if !graph.nodes.some(node => node.type !== 'end')}{@render slotControls({ after: null })}{/if}
   </div></div>
 </section>
+
+<svelte:window onpointermove={movePointerDrag} onpointerup={finishPointerDrag} />
 
 <style>
   .workflow-icon{display:inline-block;flex:0 0 auto;width:var(--workflow-icon-size);height:var(--workflow-icon-size);background:currentColor;-webkit-mask:var(--workflow-icon) center/contain no-repeat;mask:var(--workflow-icon) center/contain no-repeat}
@@ -619,9 +646,20 @@
   .node-app-icon{display:grid;place-items:center}.graph-panel{margin-block:1.75rem}.node-summary.branded .node-app-icon{color:var(--color-font-button)}
   .node-summary{box-sizing:border-box;width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem;gap:.55rem}
   .node-summary.expanded{width:min(42rem,100%);border-radius:1rem 1rem 0 0}.node-summary.expanded+.editor{border-radius:0 0 1rem 1rem}.check-source{font-size:14px;color:var(--color-font-secondary)}
-  .node-summary[draggable="true"]{cursor:grab}.node-summary[draggable="true"]:active{cursor:grabbing}.flow-node.drop-target>.node-summary{outline:3px solid var(--color-primary);outline-offset:3px}
-  .connector[data-testid="workflow-node-drop-zone"]{box-sizing:border-box;min-width:min(21rem,100%);min-height:3.5rem;display:grid;place-items:center;border:2px dashed transparent;border-radius:.7rem;transition:background .15s ease,border-color .15s ease}
-  .connector.drop-slot{border-color:var(--color-primary);background:var(--color-grey-20);color:var(--color-primary)}
+  .node-summary[data-can-drag="true"]{cursor:grab}.node-summary[data-can-drag="true"]:active{cursor:grabbing}
+  .node-summary.dragging{opacity:.55}
+  .slot-surface,.drop-here{box-sizing:border-box;width:min(21rem,100%);min-height:9.25rem;border:2px dashed var(--color-font-secondary);border-radius:1rem;text-align:center}
+  .slot-surface{height:9.25rem;overflow:hidden;background:transparent;interpolate-size:allow-keywords;transition:width var(--duration-slow,.3s) ease,height var(--duration-slow,.3s) ease,border-color var(--duration-normal,.2s) ease,background-color var(--duration-normal,.2s) ease}
+  .slot-surface:hover,.slot-surface:focus-within{border-color:var(--color-primary)}
+  .slot-surface.expanded{width:min(48.3rem,100%);height:auto;min-height:11rem;border:1px solid var(--color-grey-20);background:var(--color-grey-0)}
+  .slot-surface>.nothing{width:100%;height:100%;border:0}
+  .slot-surface.expanded>.editor{box-shadow:none;border:0;width:100%;border-radius:0}
+  .drop-here{display:grid;place-items:center;margin:.5rem 0;padding:1rem;background:var(--color-grey-10);color:var(--color-font-primary);font-weight:650;animation:editor-swap .16s ease-out;transition:border-color .15s ease,background-color .15s ease}
+  .drop-here.drop-slot{border-color:var(--color-primary);background:var(--color-grey-20);color:var(--color-primary)}
+  .output-progress{display:flex;align-items:center;justify-content:center;gap:.65rem;min-height:5rem;color:var(--color-font-secondary)}
+  .output-spinner{display:inline-block;width:1.15rem;height:1.15rem;border:.18rem solid var(--color-grey-30);border-top-color:var(--color-primary);border-radius:50%;animation:workflow-spin .8s linear infinite}
+  .tested-output{min-width:0;text-align:start}
+  @keyframes workflow-spin{to{transform:rotate(360deg)}}
   .node-summary.branded .check-source{color:var(--color-font-button);opacity:.9}
   .branch-label{display:flex;align-items:center;justify-content:center;gap:.4rem}
   .type{background:#315aef;color:white}.type[data-value-type="number"]{background:#b3213c}.type[data-value-type="date"]{background:#eb9d00}.type[data-value-type="boolean"]{background:#7651b5}
@@ -682,7 +720,7 @@
   .add-controls.blank .choice { position:relative; z-index:1; }
   .branch-group { width:min(23.5rem, 100%); }
   .branch-group:has(.editor) { width:min(48.3rem, 100%); padding-inline:0; }
-  .nothing { width:min(21rem, 100%); }
+  .nothing { width:min(21rem, 100%);border:2px dashed var(--color-font-secondary); }
   :global(::view-transition-group(*)) { animation-duration:var(--duration-slow, .3s); animation-timing-function:cubic-bezier(.32, 0, .2, 1); }
   :global(::view-transition-old(root)), :global(::view-transition-new(root)) { animation:none; }
   .primary { min-width:11rem; border-radius:var(--radius-8); }
@@ -712,4 +750,5 @@
     .add-controls.blank { gap:.75rem; }
     .chat-destination .card-scroll { padding-inline:calc(50% - 7.5rem); }
   }
+  @media(prefers-reduced-motion:reduce){.slot-surface,.drop-here{transition:none;animation:none}.output-spinner{animation:none}}
 </style>

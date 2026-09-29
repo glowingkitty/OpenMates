@@ -650,7 +650,42 @@ builder.today:
 
 builder.next_week:
   context: Relative date range option in a Workflow App skill input
-  en: "Next week"
+  en: "Next calendar week"
+  verified_by_human: []
+
+builder.next_seven_days:
+  context: Rolling seven-day range beginning today in a Workflow App skill input
+  en: "Next 7 days"
+  verified_by_human: []
+
+builder.next_seven_days_start:
+  context: Rolling seven-day range start in a Workflow App skill input
+  en: "Start of next 7 days"
+  verified_by_human: []
+
+builder.next_seven_days_end:
+  context: Rolling seven-day range end in a Workflow App skill input
+  en: "End of next 7 days"
+  verified_by_human: []
+
+builder.drop_here_move:
+  context: Visible workflow node reorder target shown during drag
+  en: "Drop here to move"
+  verified_by_human: []
+
+builder.previous_result:
+  context: Button to show the previous workflow test result preview
+  en: "Previous result"
+  verified_by_human: []
+
+builder.next_result:
+  context: Button to show the next workflow test result preview
+  en: "Next result"
+  verified_by_human: []
+
+builder.result_position:
+  context: Current position and total number of workflow test result previews
+  en: "{current} of {total}"
   verified_by_human: []
 
 builder.next_week_start:
@@ -1271,6 +1306,11 @@ builder.run_history:
 builder.run_now:
   context: Workflow progressive builder control
   en: "Run now"
+  verified_by_human: []
+
+builder.test_now:
+  context: Button below a saved Workflow template with a time trigger that starts a full test run
+  en: "Test now"
   verified_by_human: []
 
 builder.delete_workflow:

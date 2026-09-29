@@ -70,7 +70,7 @@ test.describe('Workflows editor', () => {
 					config: {
 						app_id: 'weather',
 						skill_id: 'forecast',
-						input: { location: 'Berlin', days: 1 }
+						input: { location: 'Berlin', latitude: 52.52, longitude: 13.405, days: 1 }
 					}
 				},
 				{
@@ -107,9 +107,10 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-version-history')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-version-selector')).toHaveCount(0);
-			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
 			await expect(page.getByTestId('run-workflow')).toBeEnabled();
 			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+			await expect(page.getByTestId('workflow-template-test-now')).toHaveCount(0);
 
 			// Nodes loaded into the route's reactive graph must open and save without
 			// passing a Svelte proxy directly to structuredClone.
@@ -133,6 +134,7 @@ test.describe('Workflows editor', () => {
 			expect(scheduled.ok()).toBe(true);
 			await page.reload();
 			const trigger = page.locator('[data-node-id="trigger"]');
+			await expect(page.getByTestId('workflow-template-test-now')).toBeEnabled();
 			await trigger.getByTestId('workflow-node-summary').click();
 			await expect(trigger.getByTestId('workflow-time-trigger-schedule')).toHaveValue('daily');
 			const triggerSave = page.waitForResponse(
@@ -157,7 +159,13 @@ test.describe('Workflows editor', () => {
 			await node.getByTestId('workflow-node-summary').click();
 			await expect(node.getByTestId('workflow-node-expanded')).toBeVisible();
 			await node.getByTestId('workflow-node-location-picker').click();
+			const searched = page.waitForResponse(
+				response => response.url().includes('/v1/geocode/search?') &&
+					new URL(response.url()).searchParams.get('q') === 'Hamburg',
+				{ timeout: 10_000 }
+			);
 			await node.getByTestId('map-location-search-input').fill('Hamburg');
+			expect((await searched).ok()).toBe(true);
 			await node.getByTestId('map-location-search-result').click();
 			await node.getByTestId('map-location-select').click();
 			await expect(node.getByTestId('workflow-node-save')).toBeVisible();
@@ -215,6 +223,28 @@ test.describe('Workflows editor', () => {
 			await expect(
 				page.locator('[data-node-id="weather"]').getByTestId('workflow-node-summary')
 			).toContainText('Hamburg');
+			const runPage = await page.context().newPage();
+			try {
+				await runPage.route(`**/v1/workflows/${workflow.id}/run`, (route) =>
+					route.fulfill({ json: { run: {
+						id: 'fixture-template-run', workflow_id: workflow.id,
+						version_id: workflow.current_version_id, status: 'queued',
+						trigger_type: 'test', started_at: Date.now() / 1000
+					} } })
+				);
+				await runPage.goto(page.url(), { waitUntil: 'domcontentloaded' });
+				const testNow = runPage.getByTestId('workflow-template-test-now');
+				await expect(testNow).toBeVisible();
+				await expect(testNow).toHaveText('Test now');
+				await expect(testNow).toBeEnabled();
+				const runRequest = runPage.waitForRequest((request) =>
+					request.url().endsWith(`/v1/workflows/${workflow.id}/run`) &&
+					request.method() === 'POST'
+				);
+				await testNow.click();
+				expect((await runRequest).postDataJSON()).toEqual({ mode: 'test', input: {} });
+				await expect(runPage).toHaveURL(/workflow-tab=runs/);
+			} finally { await runPage.close(); }
 			await page.getByTestId('workflow-more-options').locator('summary').click();
 			await expect(page.getByTestId('workflow-version-history')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-selector')).toHaveCSS('font-size', '14px');

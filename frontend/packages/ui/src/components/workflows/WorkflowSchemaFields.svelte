@@ -286,7 +286,7 @@
       {:else if spec.type === 'boolean'}
         <SettingsDropdown value={String(current ?? false)} options={[{ value: 'true', label: tr('true') }, { value: 'false', label: tr('false') }]} ariaLabel={spec.title || label(name)} onChange={value => change(value === 'true')}/>
       {:else if dynamic}
-        <SettingsDropdown value={String(record(current).$date)} options={[{ value: 'today', label: tr('today') }, { value: 'next_week_start', label: tr('next_week_start') }, { value: 'next_week_end', label: tr('next_week_end') }]} ariaLabel={spec.title || label(name)} onChange={value => change({ $date: value, format: spec.format === 'date-time' ? 'datetime' : 'date' })}/>
+        <SettingsDropdown value={String(record(current).$date)} options={[{ value: 'today', label: tr('today') }, { value: 'next_seven_days_start', label: tr('next_seven_days_start') }, { value: 'next_seven_days_end', label: tr('next_seven_days_end') }, { value: 'next_week_start', label: tr('next_week_start') }, { value: 'next_week_end', label: tr('next_week_end') }]} ariaLabel={spec.title || label(name)} onChange={value => change({ $date: value, format: spec.format === 'date-time' ? 'datetime' : 'date' })}/>
       {:else}
         <SettingsInput
           {id}
@@ -299,7 +299,7 @@
         />
       {/if}
       {#if spec.format?.includes('date') || /(^date|_date|date_|start_time|end_time)/.test(name)}
-        <button type="button" class="variable" onclick={() => change({ $date: name.includes('end') ? 'next_week_end' : name.includes('start') ? 'next_week_start' : 'today', format: spec.format === 'date-time' ? 'datetime' : 'date' })}>⌘ {tr('dynamic_date')}</button>
+        <button type="button" class="variable" onclick={() => change({ $date: name.includes('end') ? 'next_seven_days_end' : name.includes('start') ? 'next_seven_days_start' : 'today', format: spec.format === 'date-time' ? 'datetime' : 'date' })}>⌘ {tr('dynamic_date')}</button>
       {/if}
       {#if compatible.length}
         <div class="variable-picker">
@@ -376,6 +376,11 @@
   .field :global(.settings-dropdown-wrapper) { padding:0; }
   .field :global(.settings-input),
   .field :global(.settings-dropdown) { background:var(--workflow-input-surface, var(--color-grey-10)); }
+  .field :global(.settings-input),
+  .field :global(.settings-input::placeholder),
+  .field :global(.workflow-message-editor),
+  .field :global(.workflow-message-editor .tiptap),
+  .field :global(.workflow-message-editor .tiptap p) { text-align:left; }
   .field :global(.settings-dropdown) { min-height:3.375rem; }
   .variable-picker { display:grid; min-width:0; gap:var(--spacing-2); }
   .variable-chips { display:flex; flex-wrap:nowrap; min-width:0; max-width:100%; gap:var(--spacing-2); justify-content:flex-start; overflow-x:auto; padding:var(--spacing-2); }

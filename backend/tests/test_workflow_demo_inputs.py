@@ -64,6 +64,15 @@ def test_today_end_datetime_uses_local_timezone_and_inclusive_boundary() -> None
     ) == "2026-09-14T23:59:59+02:00"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_next_seven_days_follow_each_run_in_its_timezone() -> None:
+    value = {"start_date": {"$date": "next_seven_days_start", "format": "date"},
+             "end_date": {"$date": "next_seven_days_end", "format": "datetime"}}
+    assert resolve_workflow_runtime_values(
+        value, now=stamp("2026-09-29T23:30:00+02:00"), timezone="Europe/Berlin"
+    ) == {"start_date": "2026-09-29", "end_date": "2026-10-05T23:59:59+02:00"}
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
 @pytest.mark.parametrize("app,alias", [("news", "articles"), ("events", "events"), ("home", "listings")])
 def test_search_results_are_flat_and_identity_ignores_tracking(app: str, alias: str) -> None:

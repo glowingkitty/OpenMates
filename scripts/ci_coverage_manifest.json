@@ -224,6 +224,7 @@
         "components/workflow-detail-tabs.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
         "components/workflow-graph-reorder-inputs.spec.ts",
+        "components/workflow-value-view.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/password-and-tfa-otp.spec.ts",
