@@ -37,6 +37,7 @@
         "export-account-flow.spec.ts",
         "focus-mode-mention.spec.ts",
         "focus-mode-settings.spec.ts",
+        "gpt61-sol-model-picker.spec.ts",
         "import-account-dedupe.spec.ts",
         "import-account-limits.spec.ts",
         "import-account-v1.spec.ts",

@@ -17,6 +17,7 @@ PROVIDERS_DIR = REPO_ROOT / "backend" / "providers"
 CAPABILITY_LEVELS = {"low", "medium", "high", "max"}
 EXPECTED_CAPABILITIES = {
     "gpt-6-astra": "max",
+    "gpt-6.1-sol": "high",
     "gpt-6-luna": "low",
     "gpt-6-sol": "high",
     "gpt-5.6-luna": "low",
@@ -50,7 +51,7 @@ def _ai_ask_models() -> list[dict[str, Any]]:
 def test_every_ai_ask_model_has_explicit_capability_and_release_date() -> None:
     models = _ai_ask_models()
 
-    assert len(models) == 42
+    assert len(models) == 43
     for model in models:
         assert model.get("capability_level") in CAPABILITY_LEVELS, model["id"]
         assert date.fromisoformat(model["release_date"]), model["id"]
@@ -65,6 +66,12 @@ def test_named_model_capabilities_match_the_approved_scale() -> None:
 
     assert models_by_id["qwen-3.8-27b"]["capability_level"] == "low"
     assert models_by_id["qwen-3.8-27b"]["allow_auto_select"] is False
+
+    sol = models_by_id["gpt-6.1-sol"]
+    assert sol["release_date"] == "2026-09-29"
+    assert sol["reasoning_effort"] == "medium"
+    assert sol["servers"][0]["model_id"] == "gpt-6.1-sol"
+    assert sol["costs"]["cached_input_per_million_token"]["price"] == 0.10
 
 
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants

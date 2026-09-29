@@ -1,8 +1,8 @@
 # contract-test-file: infrastructure
-# Tests Astra's stateless Responses transport at the provider boundary.
+# Tests stateless Responses transport at the provider boundary.
 # Synthetic SDK events exercise real request conversion and stream handling.
 # Opaque reasoning must survive tool continuation without provider storage.
-# Real dev inference remains a separate required verification gate.
+# Real dev inference verifies provider availability separately.
 # contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
 
 import asyncio
@@ -17,7 +17,8 @@ from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, Op
 
 
 @pytest.mark.parametrize("stream", [False, True])
-def test_astra_reasoning_tool_roundtrip(stream, monkeypatch):
+@pytest.mark.parametrize("model_id,reasoning_effort", [("gpt-6-astra", "xhigh"), ("gpt-6.1-sol", "medium")])
+def test_reasoning_tool_roundtrip(stream, model_id, reasoning_effort, monkeypatch):
     from backend.apps.ai.llm_providers import openai_client
     provider = yaml.safe_load((Path(__file__).parents[1] / "providers/openai.yml").read_text())
     models = {m["id"]: m for m in provider["models"]}
@@ -37,7 +38,7 @@ def test_astra_reasoning_tool_roundtrip(stream, monkeypatch):
 
     async def run():
         monkeypatch.setattr(openai_client, "_openai_direct_client", SimpleNamespace(responses=SimpleNamespace(create=create)))
-        result = await openai_client._invoke_openai_direct_api(task_id="test", model_id="gpt-6-astra", messages=[{"role": "user", "content": "Build an app"}], tools=[{"type": "function", "function": {"name": "lookup", "parameters": {"type": "object"}}}], tool_choice="required", max_tokens=100, stream=stream)
+        result = await openai_client._invoke_openai_direct_api(task_id="test", model_id=model_id, messages=[{"role": "user", "content": "Build an app"}], tools=[{"type": "function", "function": {"name": "lookup", "parameters": {"type": "object"}}}], tool_choice="required", max_tokens=100, stream=stream)
         if stream:
             chunks = [chunk async for chunk in result]
             assert isinstance(chunks[-1], OpenAIUsageMetadata)
@@ -47,8 +48,8 @@ def test_astra_reasoning_tool_roundtrip(stream, monkeypatch):
         return result.tool_calls_made[0]
 
     tool = asyncio.run(run())
-    assert captured["model"] == "gpt-6-astra"
-    assert captured["reasoning"] == {"effort": "xhigh"}
+    assert captured["model"] == model_id
+    assert captured["reasoning"] == {"effort": reasoning_effort}
     assert captured["store"] is False
     assert "previous_response_id" not in captured
     assert captured["tools"][0]["strict"] is False
