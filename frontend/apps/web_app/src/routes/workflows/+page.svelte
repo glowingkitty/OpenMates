@@ -120,6 +120,7 @@
 	let creationSessionRestored = false;
 	let undoConflict = $state(false);
 	let authoringAssumptions = $state<string[]>([]);
+	let authoringAssumptionsWorkflowId = $state<string | null>(null);
 	let pendingSaveSessionId = $state<string | null>(null);
 	let pendingSaveMessage = $state<string | null>(null);
 	let pendingPreviewWorkflow = $state<WorkflowDetail | null>(null);
@@ -434,6 +435,7 @@
 	async function selectWorkflow(workflowId: string) {
 		routeError = null;
 		const sameWorkflowAlreadySelected = $workflowWorkspaceStore.selectedWorkflowId === workflowId;
+		if (!sameWorkflowAlreadySelected) authoringReminder = null;
 		const workflow = await workflowWorkspaceStore.selectWorkflow(workflowId);
 		if (sameWorkflowAlreadySelected && editorDirty) return;
 		selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
@@ -479,6 +481,7 @@
 				newWorkflowIds = saved.workflowIds;
 				createdAiWorkflowIds = saved.workflowIds;
 				authoringAssumptions = session.assumptions ?? [];
+				authoringAssumptionsWorkflowId = saved.workflowIds.length === 1 ? saved.workflowIds[0] : null;
 			}).catch(() => sessionStorage.removeItem('workflow-ai-last-batch'));
 		} catch {
 			sessionStorage.removeItem('workflow-ai-last-batch');
@@ -626,6 +629,7 @@
 		if (saving) return;
 		const before = workflowId && selectedWorkflow?.id === workflowId ? selectedWorkflow : null;
 		authoringAssumptions = [];
+		authoringAssumptionsWorkflowId = null;
 		undoConflict = false;
 		pendingPreviewWorkflow = null;
 		pendingPreviewTargetId = workflowId ?? null;
@@ -687,7 +691,13 @@
 				sessionStorage.setItem('workflow-ai-last-batch', JSON.stringify({ sessionId: session.session_id, workflowIds: created.map(item => item.id) }));
 				newWorkflowIds = [...new Set([...created.map(item => item.id), ...newWorkflowIds])];
 				showAllWorkflows = false;
-				openWorkflowHome();
+				if (created.length === 1 && committed.length === 1) {
+					authoringAssumptionsWorkflowId = created[0].id;
+					await selectWorkflow(created[0].id);
+					openWorkflowDetails(created[0].id);
+				} else {
+					openWorkflowHome();
+				}
 			}
 			const editedWorkflowId = workflowId ?? session.mutations?.find(item => item.type === 'update_workflow')?.target_id;
 			if (editedWorkflowId) {
@@ -706,6 +716,7 @@
 						...workflowNodeChanges(before?.graph.nodes ?? mutation?.before?.graph?.nodes ?? [], updated.graph.nodes)
 					};
 					aiSession = session;
+					authoringAssumptionsWorkflowId = editedWorkflowId;
 					localStorage.setItem(`workflow-ai-session:${editedWorkflowId}`, session.session_id);
 				}
 			}
@@ -757,11 +768,14 @@
 				return;
 			}
 			createdAiSession = null;
+			const undoingOpenWorkflow = selectedWorkflow && createdAiWorkflowIds.includes(selectedWorkflow.id);
 			sessionStorage.removeItem('workflow-ai-last-batch');
 			newWorkflowIds = newWorkflowIds.filter(id => !createdAiWorkflowIds.includes(id));
 			createdAiWorkflowIds = [];
 			authoringAssumptions = [];
+			authoringAssumptionsWorkflowId = null;
 			await workflowWorkspaceStore.loadWorkflows({ force: true });
+			if (undoingOpenWorkflow) openWorkflowHome();
 		} catch (cause) {
 			routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_undo_failed');
 		} finally {
@@ -1122,7 +1136,7 @@
 							{#if pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === null}
 								<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing"/>
 							{/if}
-							{#if authoringAssumptions.length}<p class="workflow-ai-assumptions" data-testid="workflow-ai-assumptions" role="status">{authoringAssumptions.join(' ')}</p>{/if}
+							{#if createdAiWorkflowIds.length > 1 && authoringAssumptions.length}<p class="workflow-ai-assumptions" data-testid="workflow-ai-assumptions" role="status">{authoringAssumptions.join(' ')}</p>{/if}
 							{#if createdAiSession?.undo_available}<button type="button" class="workflow-ai-created-undo" data-testid="workflow-ai-created-undo" disabled={saving} onclick={() => void undoCreatedAiChanges()}>{$text('workflows.builder.ai_undo')}</button>{/if}
 						</svelte:fragment>
 					</WorkspaceHomeShell>
@@ -1133,6 +1147,7 @@
 						class="workflow-management"
 						class:opening={workflowOpening}
 						class:closing={workflowClosing}
+						class:composer-docked={!!selectedWorkflow && !isRunsView && !!editorGraph}
 						data-testid="workflow-management"
 						transition:fullscreenWorkflowMotion
 						onintrostart={() => {
@@ -1207,27 +1222,17 @@
 											>
 												{#if editorGraph}
 													<div data-testid="workflow-editor">
-														{#if authoringReminder}<p
-																class="workflow-authoring-reminder"
-																data-testid="workflow-authoring-reminder"
-																role="status"
-															>
-																{authoringReminder}
-															</p>{/if}
-													<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
-														<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
-															placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
-															disabled={saving || !!pendingSaveSessionId} submitting={saving} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
-															submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
-															onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
-															onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
-															onRecordingClose={() => { voiceTarget = null; }}/>
-														{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
-													</div>
+													{#if authoringReminder || (authoringAssumptionsWorkflowId === selectedWorkflow.id && authoringAssumptions.length) || createdAiWorkflowIds.includes(selectedWorkflow.id)}
+														<div class="workflow-authoring-info" data-testid="workflow-authoring-info" role="status">
+															{#if createdAiWorkflowIds.includes(selectedWorkflow.id)}<p>{$text('workflows.builder.ai_created_disabled')}</p>{/if}
+															{#if authoringReminder}<p data-testid="workflow-authoring-reminder">{authoringReminder}</p>{/if}
+															{#if authoringAssumptionsWorkflowId === selectedWorkflow.id}{#each authoringAssumptions as assumption}<p>{assumption}</p>{/each}{/if}
+															{#if createdAiWorkflowIds.includes(selectedWorkflow.id) && createdAiSession?.undo_available}<button type="button" data-testid="workflow-ai-created-undo" disabled={saving} onclick={() => void undoCreatedAiChanges()}>{$text('workflows.builder.ai_undo')}</button>{/if}
+														</div>
+													{/if}
 													{#if aiChange && !pendingPreviewWorkflow && aiChange.workflow_id === selectedWorkflow.id}
 														<div class="workflow-ai-changes" data-testid="workflow-ai-changes" role="status">
 															<strong>{$text('workflows.builder.ai_changes_saved')}</strong>
-															{#if authoringAssumptions.length}<p>{authoringAssumptions.join(' ')}</p>{/if}
 															{#if aiChange.removed_nodes.length}<p>{$text('workflows.builder.ai_removed')} {aiChange.removed_nodes.map(node => node.title).join(', ')}</p>{/if}
 															{#if aiChange.added_node_ids.length}<p>{aiChange.added_node_ids.length} {$text('workflows.builder.ai_added_nodes')}</p>{/if}
 															{#if aiChange.edited_node_ids.length}<p>{aiChange.edited_node_ids.length} {$text('workflows.builder.ai_edited_nodes')}</p>{/if}
@@ -1275,6 +1280,18 @@
 								{/if}
 							</section>
 						</div>
+						{#if selectedWorkflow && !isRunsView && editorGraph}
+							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
+								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
+									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
+									disabled={saving || !!pendingSaveSessionId} submitting={saving} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
+									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
+									onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
+									onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
+									onRecordingClose={() => { voiceTarget = null; }}/>
+								{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
+							</div>
+						{/if}
 					</section>
 				{/if}
 
@@ -1375,12 +1392,15 @@
 <NotificationStack />
 
 <style>
-	.workflow-ai-composer{margin:1.5rem auto;max-width:42rem;padding:0 1rem}
+	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:0;padding:12px 1rem max(12px,env(safe-area-inset-bottom));background:var(--color-grey-10);box-shadow:0 -8px 24px color-mix(in srgb,var(--color-grey-100) 9%,transparent)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
 	.workflow-ai-created-undo{display:block;margin:.75rem auto;border:0;border-radius:.7rem;padding:.55rem .9rem;background:var(--color-button-primary);color:var(--color-font-button);font:inherit;cursor:pointer}
 	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}
 	.workflow-ai-pending button{border:1px solid var(--color-button-primary);border-radius:.7rem;padding:.35rem .7rem;background:transparent;color:var(--color-primary);font:inherit;cursor:pointer}
 	.workflow-ai-changes{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:1rem 1.25rem;border:1px solid var(--color-button-primary);border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary)}
+	.workflow-authoring-info{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:.75rem 1rem;border-radius:var(--radius-8,20px);color:var(--color-font-secondary);background:var(--color-grey-10);font-size:var(--font-size-small,.875rem)}
+	.workflow-authoring-info p{margin:.25rem 0}
+	.workflow-authoring-info button{margin-top:.5rem;border:0;border-radius:.7rem;padding:.5rem .8rem;background:var(--color-button-primary);color:var(--color-font-button);font:inherit;cursor:pointer}
 	.workflow-ai-changes p{margin:.45rem 0}
 	.workflow-ai-changes button{margin-top:.5rem;border:0;border-radius:.7rem;padding:.55rem .9rem;background:var(--color-button-primary);color:var(--color-font-button);font:inherit;cursor:pointer}
 	.workflows-route-state {
@@ -1480,6 +1500,21 @@
 		display: grid;
 		gap: 16px;
 		padding-block-end: 36px;
+	}
+
+	.workflow-management.composer-docked {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+		overflow: hidden;
+		padding-block-end: 0;
+	}
+
+	.workflow-management.composer-docked .management-grid {
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
+		padding-block-end: 2rem;
 	}
 
 	.empty-detail h2 {
@@ -1625,17 +1660,6 @@
 		border-radius: var(--radius-8, 20px);
 		color: var(--color-error, #b00020);
 		background: color-mix(in srgb, var(--color-error, #b00020) 10%, transparent);
-	}
-
-	.workflow-authoring-reminder {
-		width: min(42rem, calc(100% - 2rem));
-		box-sizing: border-box;
-		margin: 1rem auto 0;
-		padding: 0.75rem 1rem;
-		border-radius: var(--radius-8, 20px);
-		color: var(--color-font-secondary);
-		background: var(--color-grey-10);
-		font-size: var(--font-size-small, 0.875rem);
 	}
 
 	.workflow-test-now-row {

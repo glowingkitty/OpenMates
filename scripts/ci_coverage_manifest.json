@@ -221,6 +221,7 @@
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
         "components/workflow-ai-pending-preview.spec.ts",
+        "components/workflow-prompt-composer.spec.ts",
         "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",

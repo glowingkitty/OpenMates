@@ -88,6 +88,7 @@
   class="workspace-prompt-composer"
   class:focused
   class:has-text={hasText}
+  class:recording
   data-testid={testId}
   data-surface={surface}
   onsubmit={(event) => {
@@ -160,6 +161,11 @@
     border-radius: 24px;
     padding-left: 56px;
     padding-right: var(--spacing-5);
+  }
+
+  .workspace-prompt-composer.recording {
+    min-height: 220px;
+    border-radius: 24px;
   }
 
   .workspace-prompt-ai-icon {

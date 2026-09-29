@@ -633,6 +633,12 @@ builder.ai_changes_saved:
   de: KI-Änderungen gespeichert
   verified_by_human: []
 
+builder.ai_created_disabled:
+  context: Info above a newly AI-created workflow's nodes reminding the user to activate it
+  en: Saved as disabled. Activate this workflow when you're ready.
+  de: Als deaktiviert gespeichert. Aktiviere diesen Workflow, wenn du bereit bist.
+  verified_by_human: []
+
 builder.ai_removed:
   context: Label before the titles of nodes removed by AI
   en: 'Removed:'
