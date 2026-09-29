@@ -953,6 +953,32 @@ class EncryptionService:
         ciphertext, key_version = await self.encrypt(plaintext, key_name=key_id, context=context)
         
         return ciphertext, key_version
+
+    async def encrypt_many_with_user_key(self, plaintexts: list[str], key_id: str) -> list[Tuple[str, str]]:
+        """Encrypt several values for one user with one Vault transit batch request."""
+        if not plaintexts:
+            return []
+        if not key_id or any(not isinstance(value, str) or not value for value in plaintexts):
+            raise ValueError("Batch encryption requires a user key and nonempty plaintexts")
+        context = base64.b64encode(key_id.encode()).decode("utf-8")
+        result = await self._vault_request(
+            "post",
+            f"{self.transit_mount}/encrypt/{key_id}",
+            {"batch_input": [
+                {"plaintext": base64.b64encode(value.encode()).decode("utf-8"), "context": context}
+                for value in plaintexts
+            ]},
+        )
+        items = result.get("data", {}).get("batch_results")
+        if not isinstance(items, list) or len(items) != len(plaintexts):
+            raise RuntimeError("Vault returned an incomplete encryption batch")
+        encrypted: list[Tuple[str, str]] = []
+        for item in items:
+            ciphertext = item.get("ciphertext") if isinstance(item, dict) else None
+            if not isinstance(ciphertext, str) or not ciphertext.startswith("vault:v") or item.get("error"):
+                raise RuntimeError("Vault returned an invalid encryption batch item")
+            encrypted.append((ciphertext, ciphertext.split(":")[1]))
+        return encrypted
     
     async def decrypt_with_user_key(self, ciphertext: str, key_id: str) -> Optional[str]:
         """
