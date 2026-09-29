@@ -48,7 +48,7 @@
     import type { AudioWaveformData } from '../utils/audioWaveform';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
-    import { forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
+    import { CHUNK_ERROR_MESSAGE, forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
     import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
     import FocusModeContextMenu from './embeds/FocusModeContextMenu.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore'; // For resolving active focus mode name in header banner
@@ -14524,13 +14524,18 @@
                                 </div>
                             </div>
                         {/if}
-                    {:catch}
+                    {:catch error}
                         <div class="embed-fullscreen-fallback">
                             <div class="fullscreen-header">
                                 <button onclick={handleCloseEmbedFullscreen}>Close</button>
                             </div>
                             <div class="fullscreen-content">
-                                <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                                {#if isChunkLoadError(error)}
+                                    <p data-testid="embed-fullscreen-chunk-error">{CHUNK_ERROR_MESSAGE}</p>
+                                    <button type="button" class="embed-fullscreen-refresh" data-testid="embed-fullscreen-refresh" onclick={forcePageReload}>Refresh app</button>
+                                {:else}
+                                    <p>Fullscreen view could not be loaded. Please close this view and try again.</p>
+                                {/if}
                             </div>
                         </div>
                     {/await}
@@ -14677,6 +14682,15 @@
 {/if}
 
 <style>
+    .embed-fullscreen-refresh {
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 16px;
+        background: var(--color-button-primary);
+        color: var(--color-font-button);
+        font: inherit;
+        cursor: pointer;
+    }
     /* 
      * Responsive design: Uses JavaScript-based width detection for true container-based responsiveness.
      * Container width is bound to a reactive variable, and classes are applied dynamically.

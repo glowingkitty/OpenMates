@@ -103,12 +103,17 @@ export async function loadFullscreenComponent(
 	const cached = fullscreenComponentPromises.get(key);
 	if (cached) return cached;
 
-	const promise = loadFullscreenComponentUncached(key).then((component) => {
-		// Keep successful imports shared, but let closing and reopening the view
-		// retry a failed import instead of reusing a permanently cached null.
-		if (!component) fullscreenComponentPromises.delete(key);
-		return component;
-	});
+	const promise = loadFullscreenComponentUncached(key)
+		.then((component) => {
+			// Keep successful imports shared, but let closing and reopening the view
+			// retry a failed import instead of reusing a permanently cached null.
+			if (!component) fullscreenComponentPromises.delete(key);
+			return component;
+		})
+		.catch((error) => {
+			fullscreenComponentPromises.delete(key);
+			throw error;
+		});
 	fullscreenComponentPromises.set(key, promise);
 	return promise;
 }
@@ -135,9 +140,9 @@ async function loadFullscreenComponentUncached(
 	} catch (error) {
 		if (isChunkLoadError(error)) {
 			logChunkLoadError('embedFullscreenResolver', error);
-			// The fullscreen host already provides a close/retry error state.
-			// A failed lazy load must not navigate away from the current chat.
-			return null;
+			// Preserve this cause so the host can offer a user-controlled refresh.
+			// Reloading here would risk losing an unsaved chat draft.
+			throw error;
 		}
 		console.error(
 			`[embedFullscreenResolver] Failed to load fullscreen component for key="${key}", path="${importPath}"`,

@@ -74,13 +74,16 @@ class StubGemini:
     async def __call__(self, model, payload, schema):
         del schema
         self.models.append(model)
+        if "existing_queries" in payload:
+            return {"queries": ["AI", "queer community"], "location": "", "online_only": False}, {"input_tokens": 140, "output_tokens": 25}
         if "criteria" in payload:
             return ({"route": "create", "recipe": "rain_alert", "delivery": "chat", "cadence": "weekdays",
                      "horizon": "tomorrow", "city": "berlin", "timezone": "browser"},
                     {"input_tokens": 600, "output_tokens": 45})
         if model == "gemini-3.8-flash":
             return {"city": "Dresden"}, {"input_tokens": 100, "output_tokens": 5}
-        topic = "AI" if "event" in str(payload.get("request") or "").lower() else "Berlin news"
+        request = str(payload.get("request") or "").lower()
+        topic = "Startups" if "startup" in request else "AI" if "event" in request else "Berlin news"
         return {"title": "Berlin umbrella alert", "description": "Weekday warning when tomorrow's Berlin forecast predicts rain.",
                 "category": "science", "icon": "cloud-rain", "message": "Take an umbrella.",
                 "search_query": topic, "ask_ai_prompt": "Summarize {{ $nodes.news.output.results }} in three bullets."}, {"input_tokens": 200, "output_tokens": 40}
@@ -370,6 +373,50 @@ def test_short_complete_weekly_events_request_uses_monday_nine_default():
     }
     assert nodes["events"].config["input"]["requests"][0]["query"] == "AI"
     assert len(result.assumptions) == 2
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_selected_events_edit_adds_two_topics_even_when_jev_calls_them_multiple_workflows():
+    service, workflows = _input_service(StubJev({"recipe": "events_digest", "cadence": "weekly"}))
+    created = service.start(user_id="alice", timezone="Europe/Berlin", text="Weekly startup event search for Berlin")
+    assert created.status == "executed", created.error
+    assert created.workflow is not None
+    before = created.workflow
+    edit_planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                     jev_client=StubJev({"route": "multiple"}), structured_call=StubGemini())
+    edit_service = WorkflowInputService(workflow_service=workflows, planner=edit_planner)
+    edited = edit_service.start(
+        user_id="alice", selected_workflow_id=before.id, timezone="Europe/Berlin",
+        text="Also search for AI meetups and some queer meetups I'm curious about",
+    )
+    assert edited.status == "executed", edited.error
+    assert edited.workflow is not None
+    assert edited.workflow.id == before.id
+    assert edited.workflow.enabled is False
+    before_nodes = {node.id: node for node in before.graph.nodes}
+    after_nodes = {node.id: node for node in edited.workflow.graph.nodes}
+    assert after_nodes["trigger"] == before_nodes["trigger"]
+    assert after_nodes["send"] == before_nodes["send"]
+    requests = after_nodes["events"].config["input"]["requests"]
+    assert [item["query"] for item in requests] == ["Startups", "AI", "queer community"]
+    assert all(item["location"] == "Berlin" for item in requests)
+    assert edited.authoring_metrics["event_searches_added"] == 2
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_selected_events_edit_does_not_discard_a_second_creation_request():
+    service, workflows = _input_service(StubJev({"recipe": "events_digest", "cadence": "weekly"}))
+    created = service.start(user_id="alice", timezone="Europe/Berlin", text="Weekly startup event search for Berlin")
+    assert created.workflow is not None
+    edit_planner = WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                     jev_client=StubJev({"route": "multiple"}), structured_call=StubGemini())
+    edit_service = WorkflowInputService(workflow_service=workflows, planner=edit_planner)
+    edited = edit_service.start(
+        user_id="alice", selected_workflow_id=created.workflow.id, timezone="Europe/Berlin",
+        text="Also search for AI meetups and create a weekly news digest",
+    )
+    assert edited.status == "needs_clarification"
+    assert workflows.get_workflow(created.workflow.id, "alice").graph == created.workflow.graph
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract

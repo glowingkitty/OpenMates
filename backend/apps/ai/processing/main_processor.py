@@ -143,6 +143,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_deep_research_tool_choice,
     should_expose_subchat_tool,
     should_force_deep_research_delegation,
+    workflow_clarification_skill_scope,
 )
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
@@ -3111,6 +3112,17 @@ async def handle_main_processing(
                 f"{sorted(companions_to_add)} (triggered by preselected skills)"
             )
             preselected_skills = expanded_preselected_skills
+
+    clarification_skills = workflow_clarification_skill_scope(
+        active_focus_id=request_data.active_focus_id,
+        relevant_focus_modes=getattr(preprocessing_results, "relevant_focus_modes", []) or [],
+        explicit_focus_mention=getattr(preprocessing_results, "user_requested_focus_only", False),
+    )
+    if clarification_skills is not None:
+        preselected_skills = clarification_skills
+        # The search verb describes the future workflow, not a request to use
+        # an Events/News search tool in the clarification chat now.
+        user_requested_skills_only = False
 
     task_tool_context = None
     task_context_prompt = ""

@@ -52,9 +52,14 @@ test('a failed fullscreen chunk preserves the current page', async ({ page }) =>
   const result = await page.evaluate(async (mapModule) => {
     const resolverUrl = mapModule.split('/src/components/')[0] + '/src/services/embedFullscreenResolver.ts';
     const resolver = await import(/* @vite-ignore */ resolverUrl);
-    return await resolver.loadFullscreenComponent('maps-place');
+    try {
+      await resolver.loadFullscreenComponent('maps-place');
+      return 'unexpected success';
+    } catch (error) {
+      return String(error);
+    }
   }, mapSourceUrl);
-  expect(result).toBeNull();
+  expect(result).toMatch(/dynamically imported module|module script/i);
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(timeOrigin);
   await expect(page.getByTestId('embed-leaflet-map')).toHaveAttribute('data-map-ready', 'true');
 });

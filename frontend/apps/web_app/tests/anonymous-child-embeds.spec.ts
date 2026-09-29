@@ -107,6 +107,33 @@ async function storedEmbedIds(page: any): Promise<string[]> {
 }
 
 test.describe('Anonymous child embeds', () => {
+	// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+	test('offers a refresh when an older tab cannot load an embed fullscreen chunk', async ({ page }: { page: any }) => {
+		test.setTimeout(90_000);
+		await mockAnonymousAccess(page);
+		await mockAnonymousEmbedStream(page);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await expect(editor).toBeVisible({ timeout: 10_000 });
+		await editor.click();
+		await editor.pressSequentially('Search for OpenMates');
+		await page.locator('[data-action="send-message"]').click();
+		const answer = page.getByTestId('message-assistant').last();
+		await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 30_000 });
+		let chunkFailures = 0;
+		let blockedUrl = '';
+		await page.route('**/*.js*', (route: any) => {
+			if (chunkFailures > 0 || route.request().resourceType() !== 'script') return route.continue();
+			chunkFailures += 1;
+			blockedUrl = route.request().url();
+			return route.abort();
+		});
+		await answer.getByRole('link', { name: 'OpenMates source' }).click();
+		await expect(page.getByTestId('embed-fullscreen-chunk-error'), `Blocked script: ${blockedUrl}`).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByTestId('embed-fullscreen-refresh')).toBeVisible();
+		expect(chunkFailures).toBeGreaterThan(0);
+	});
+
 	// contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
 	test('stores parent and child, resolves the child ref, and reloads without an account', async ({ page }: { page: any }) => {
 		test.setTimeout(90_000);

@@ -14,7 +14,26 @@ from backend.apps.ai.processing.focus_mode_routing import (
     should_expose_subchat_tool,
     should_force_deep_research_delegation,
     should_enable_subchats_for_active_focus,
+    workflow_clarification_skill_scope,
 )
+
+
+def test_explicit_workflow_clarification_uses_only_workflow_skills() -> None:
+    assert workflow_clarification_skill_scope(
+        active_focus_id=None,
+        relevant_focus_modes=["workflows-clarify_workflows"],
+        explicit_focus_mention=True,
+    ) == {"workflows-search", "workflows-create-or-modify"}
+    assert workflow_clarification_skill_scope(
+        active_focus_id="workflows-clarify_workflows",
+        relevant_focus_modes=[],
+        explicit_focus_mention=False,
+    ) == {"workflows-search", "workflows-create-or-modify"}
+    assert workflow_clarification_skill_scope(
+        active_focus_id=None,
+        relevant_focus_modes=["workflows-clarify_workflows"],
+        explicit_focus_mention=False,
+    ) is None
 
 
 def test_relevant_deep_research_does_not_enable_subchats_by_itself() -> None:

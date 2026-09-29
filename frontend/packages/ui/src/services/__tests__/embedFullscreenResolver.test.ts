@@ -22,7 +22,7 @@ describe('fullscreen lazy import recovery', () => {
       .mockImplementationOnce(() => { throw new Error('Importing a module script failed'); })
       .mockImplementationOnce(() => { throw new Error('Temporary load error'); })
       .mockReturnValue(component);
-    expect(await loadFullscreenComponent('maps-place')).toBeNull();
+    await expect(loadFullscreenComponent('maps-place')).rejects.toThrow('Importing a module script failed');
     expect(mocks.reload).not.toHaveBeenCalled();
     expect(await loadFullscreenComponent('maps-place')).toBeNull();
     expect(await loadFullscreenComponent('maps-place')).toBe(component);

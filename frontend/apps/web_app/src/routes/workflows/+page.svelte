@@ -618,11 +618,15 @@
 		}
 	}
 
-	function handoffWorkflowClarification(instruction: string): void {
-		// This same-origin deep link creates a new chat and sends the exact request with the focus mention.
+	function handoffWorkflowClarification(instruction: string, workflowId?: string): void {
+		// Keep the exact instruction and the editor target together in the new chat.
+		const target = workflowId && selectedWorkflow?.id === workflowId ? selectedWorkflow : null;
+		const context = target
+			? `\n\nWorkflow editor context: I was changing my existing workflow ${JSON.stringify(target.title)} (ID ${target.id}). Keep this workflow as the target. Clarify the change before carrying out any of the workflow's future search or delivery actions.`
+			: '\n\nWorkflow workspace context: Clarify the workflow creation or edit before carrying out its future search or delivery actions.';
 		sessionStorage.setItem('docs_auto_send', 'true');
 		sessionStorage.setItem('workflow_clarification_new_chat', 'true');
-		void goto(`/#message=${encodeURIComponent(`@focus:workflows:clarify_workflows ${instruction}`)}`);
+		void goto(`/#message=${encodeURIComponent(`@focus:workflows:clarify_workflows ${instruction}${context}`)}`);
 	}
 
 	async function authorWorkflow(instruction: string, workflowId?: string, existingSessionId?: string): Promise<void> {
@@ -657,7 +661,7 @@
 			pendingPreviewTargetId = null;
 			sessionStorage.removeItem('workflow-ai-pending');
 			if (session.status === 'needs_clarification') {
-				handoffWorkflowClarification(instruction);
+				handoffWorkflowClarification(instruction, workflowId);
 				return;
 			}
 			if (session.status === 'draft') {

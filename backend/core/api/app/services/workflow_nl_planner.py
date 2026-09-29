@@ -81,6 +81,11 @@ LIKELY_EXISTING_WORKFLOW_EDIT = re.compile(
     r"\b(?:change|update|modify|edit|move|delete|remove|existing|my workflow)\b",
     re.IGNORECASE,
 )
+APPEND_EVENT_SEARCH = re.compile(
+    r"\b(?:also|add|include)\b.{0,100}\b(?:search|find|look for)\b|"
+    r"\b(?:search|find|look for)\b.{0,100}\b(?:also|as well)\b",
+    re.IGNORECASE | re.DOTALL,
+)
 SHORT_WORKFLOW_TITLE_MAX_WORDS = 12
 SHORT_WORKFLOW_TITLE_MAX_CHARS = 100
 
@@ -172,6 +177,7 @@ class WorkflowNLPlanner:
         started = time.perf_counter()
         metrics: dict[str, Any] = {"jev_calls": 0, "gemini_calls": 0, "input_tokens": {}, "output_tokens": {}, "estimated_cost_usd": 0.0}
         metadata_task: asyncio.Task[tuple[dict[str, Any], dict[str, int]]] | None = None
+        event_queries_task: asyncio.Task[dict[str, Any]] | None = None
         try:
             # A mistaken channel selection would silently change the requested
             # effect. Check explicit unsupported destinations before any model call.
@@ -179,6 +185,14 @@ class WorkflowNLPlanner:
                 raise WorkflowNLPlanningError("The requested delivery channel is not available in the current workflow recipes. Please clarify it in chat.")
             if EXPLICIT_MULTIPLE_WORKFLOWS.search(text) or EXPLICIT_MIXED_OPERATIONS.search(text):
                 raise WorkflowNLPlanningError("This request describes multiple workflow changes. Please clarify them in chat before saving them together.")
+            event_append = bool(
+                APPEND_EVENT_SEARCH.search(text)
+                and not re.search(r"\b(?:create|make|build|set up)\b", text, re.IGNORECASE)
+                and not re.search(r"\b(?:new|another|separate)\s+workflow\b", text, re.IGNORECASE)
+                and _selected_event_search_node(context.get("selected_workflow"))
+            )
+            if event_append:
+                event_queries_task = asyncio.create_task(self._extract_event_queries(text, context, metrics))
             # Identity and free text are required on every new workflow. For clear
             # creates they can be drafted while Jev selects bounded graph fields.
             # Do not make a speculative bounded fallback call: that is needed only
@@ -187,12 +201,12 @@ class WorkflowNLPlanner:
                 metadata_task = asyncio.create_task(self._generate_metadata(text, context))
             decisions = await self._decide(text, context, metrics)
             route = decisions["route"]
-            if route == "multiple":
+            if route == "multiple" and not event_append:
                 raise WorkflowNLPlanningError("This request describes multiple workflows. Please clarify each workflow in chat before saving them together.")
-            if route == "update":
+            if route == "update" or event_append:
                 if not context.get("selected_workflow"):
                     context = {**context, "selected_workflow": await self._select_existing_workflow(text, context, metrics)}
-                plan = self._update(text, context, decisions)
+                plan = await self._update(text, context, decisions, metrics, event_queries_task)
             elif route == "create":
                 try:
                     plan = await self._create(text, context, decisions, metrics, metadata_task)
@@ -211,10 +225,11 @@ class WorkflowNLPlanner:
         except (WorkflowValidationError, ValidationError):
             plan = {"action": "needs_clarification", "message": "I could not build an executable workflow for every part of this request. Please clarify it in chat."}
         finally:
-            if metadata_task is not None and not metadata_task.done():
-                metadata_task.cancel()
-            if metadata_task is not None:
-                await asyncio.gather(metadata_task, return_exceptions=True)
+            for task in (metadata_task, event_queries_task):
+                if task is not None and not task.done():
+                    task.cancel()
+                if task is not None:
+                    await asyncio.gather(task, return_exceptions=True)
         metrics["total_seconds"] = round(time.perf_counter() - started, 3)
         plan["_authoring_metrics"] = metrics
         return plan
@@ -502,13 +517,102 @@ class WorkflowNLPlanner:
                 "graph": validated.model_dump(mode="json", by_alias=True), "enabled": False,
                 "assumptions": assumptions}
 
-    def _update(self, text: str, context: dict[str, Any], decisions: dict[str, str]) -> dict[str, Any]:
+    async def _extract_event_queries(self, text: str, context: dict[str, Any], metrics: dict[str, Any]) -> dict[str, Any]:
+        selected = context.get("selected_workflow")
+        node = _selected_event_search_node(selected)
+        if node is None:
+            raise WorkflowNLPlanningError("Open the event-search workflow you want to change first.")
+        current_requests = node["config"]["input"]["requests"]
+        schema = {"type": "object", "properties": {
+            "queries": {"type": "array", "items": {"type": "string"}},
+            "location": {"type": "string"}, "online_only": {"type": "boolean"},
+        }, "required": ["queries", "location", "online_only"], "additionalProperties": False}
+        payload = {
+            "task": "Extract only the NEW event-search topics the user wants to ADD to this selected workflow. "
+                    "Return one short topical query per distinct topic (for example AI and queer community are two queries). "
+                    "Omit provider words such as meetup, Luma and Eventbrite from queries. Do not include an existing query. "
+                    "Set location only when the user explicitly names a city in this edit, otherwise use an empty string. "
+                    "Set online_only only when the user explicitly requests virtual or online events. "
+                    "Return an empty queries array if the request does not clearly add event-search topics.",
+            "request": text,
+            "existing_queries": [str(item.get("query") or "") for item in current_requests],
+        }
+        for model in ("gemini-3.5-flash-lite", "gemini-3.8-flash"):
+            try:
+                result, usage = await self.structured_call(model, payload, schema)
+                _record_gemini(metrics, model, usage)
+                queries = result.get("queries")
+                if (isinstance(queries, list) and 1 <= len(queries) <= 4
+                        and all(isinstance(query, str) and 0 < len(query.strip()) <= 250 for query in queries)
+                        and isinstance(result.get("location"), str)
+                        and isinstance(result.get("online_only"), bool)):
+                    return result
+            except Exception:
+                logger.info("Workflow event-topic extraction failed", extra={"model": model})
+        raise WorkflowNLPlanningError("Which event topics should I add to this workflow?")
+
+    async def _update(self, text: str, context: dict[str, Any], decisions: dict[str, str],
+                      metrics: dict[str, Any], event_queries_task: asyncio.Task[dict[str, Any]] | None = None) -> dict[str, Any]:
         selected = context.get("selected_workflow")
         if not isinstance(selected, dict) or not selected.get("id"):
             raise WorkflowNLPlanningError("Which existing workflow should I update? Open it or select it first.")
         graph = deepcopy(selected.get("graph"))
         if not isinstance(graph, dict):
             raise WorkflowNLPlanningError("I could not read the selected workflow graph.")
+        if event_queries_task is not None:
+            extracted = await event_queries_task
+            node = _selected_event_search_node({"graph": graph})
+            if node is None:
+                raise WorkflowNLPlanningError("This workflow has no single event search to extend.")
+            requests = node["config"]["input"]["requests"]
+            scope_fields = ("location", "lat", "lon", "event_type", "start_date", "end_date", "count")
+            if any(tuple(item.get(field) for field in scope_fields) != tuple(requests[0].get(field) for field in scope_fields)
+                   for item in requests[1:]):
+                raise WorkflowNLPlanningError("Which existing event-search location and date range should the new topics use?")
+            location = str(extracted["location"]).strip()
+            if location and location.casefold() not in text.casefold():
+                raise WorkflowNLPlanningError("Which city should the new event searches use?")
+            online_only = extracted["online_only"]
+            if online_only and not re.search(r"\b(?:online|virtual|remote)\b", text, re.IGNORECASE):
+                raise WorkflowNLPlanningError("Should the new event searches be online-only?")
+            if location and online_only:
+                raise WorkflowNLPlanningError("Should the new event searches use the named city or online-only events?")
+            existing_queries = {str(item.get("query") or "").strip().casefold() for item in requests}
+            additions: list[dict[str, Any]] = []
+            for raw_query in extracted["queries"]:
+                query = " ".join(raw_query.split())
+                if not query or query.casefold() in existing_queries:
+                    continue
+                new_request = deepcopy(requests[0])
+                new_request.pop("id", None)
+                new_request.pop("relevance_criteria", None)
+                new_request["query"] = query
+                if location:
+                    new_request.pop("lat", None)
+                    new_request.pop("lon", None)
+                    new_request["location"] = location
+                    new_request["event_type"] = "PHYSICAL"
+                elif online_only:
+                    for field in ("location", "lat", "lon"):
+                        new_request.pop(field, None)
+                    new_request["event_type"] = "ONLINE"
+                elif not (new_request.get("location") or
+                          new_request.get("lat") is not None and new_request.get("lon") is not None or
+                          new_request.get("event_type") == "ONLINE"):
+                    raise WorkflowNLPlanningError("Which city or online scope should the new event searches use?")
+                additions.append(new_request)
+                existing_queries.add(query.casefold())
+            if not additions:
+                raise WorkflowNLPlanningError("The requested event topics are already in this workflow.")
+            if len(requests) + len(additions) > 8:
+                raise WorkflowNLPlanningError("This workflow already has too many event searches. Which topics should I keep?")
+            node["config"]["input"]["requests"] = [*requests, *additions]
+            metrics["event_searches_added"] = len(additions)
+            validated = WorkflowGraph.model_validate(graph)
+            validate_workflow_readiness(validated, require_schedule=bool(selected.get("enabled")))
+            validate_workflow_composition_refs(validated, WorkflowGraph.model_validate(selected["graph"]))
+            return {"action": "update_workflow", "workflow_id": selected["id"],
+                    "graph": validated.model_dump(mode="json", by_alias=True)}
         local_time = _extract_time(text)
         if local_time is None:
             raise WorkflowNLPlanningError("Which change should I make to the selected workflow?")
@@ -550,6 +654,24 @@ class WorkflowNLPlanner:
 
 def _choice(instructions: str, criteria: dict[str, str]) -> dict[str, Any]:
     return {"type": "choice", "instructions": instructions, "criteria": criteria}
+
+
+def _selected_event_search_node(selected: Any) -> dict[str, Any] | None:
+    if not isinstance(selected, dict) or not isinstance(selected.get("graph"), dict):
+        return None
+    nodes = selected["graph"].get("nodes")
+    if not isinstance(nodes, list):
+        return None
+    matches = [node for node in nodes if isinstance(node, dict) and node.get("type") == "app_skill_action"
+               and isinstance(node.get("config"), dict) and node["config"].get("app_id") == "events"
+               and node["config"].get("skill_id") == "search"]
+    if len(matches) != 1:
+        return None
+    input_value = matches[0]["config"].get("input")
+    requests = input_value.get("requests") if isinstance(input_value, dict) else None
+    if not isinstance(requests, list) or not requests or not all(isinstance(item, dict) for item in requests):
+        return None
+    return matches[0]
 
 
 def _google_schema(value: Any) -> Any:

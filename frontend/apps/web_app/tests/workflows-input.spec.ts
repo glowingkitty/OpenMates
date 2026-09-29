@@ -386,6 +386,7 @@ test.describe('Workflows input home', () => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
 		let correctionFails = false;
+		let correctedTranscript = 'Weather tomorrow at 08:00';
 		let socketConnections = 0;
 		await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
 			socketConnections += 1;
@@ -402,7 +403,7 @@ test.describe('Workflows input home', () => {
 				socket.send(JSON.stringify({ type: 'correction.started', model: 'gemini-3.5-flash' }));
 				socket.send(JSON.stringify(correctionFails
 					? { type: 'correction.failed' }
-					: { type: 'correction.done', transcript: 'Weather tomorrow at 08:00', correction_model: 'gemini-3.5-flash' }));
+					: { type: 'correction.done', transcript: correctedTranscript, correction_model: 'gemini-3.5-flash' }));
 			});
 		});
 		const log = (message: string, metadata: Record<string, unknown> = {}) => {
@@ -411,9 +412,11 @@ test.describe('Workflows input home', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, log, async () => {});
 		const submittedTexts: string[] = [];
+		const selectedWorkflowIds: Array<string | undefined> = [];
 		await page.route('**/v1/workflows/input', async (route: Route) => {
 			if (route.request().method() !== 'POST') return route.continue();
 			submittedTexts.push(route.request().postDataJSON().text);
+			selectedWorkflowIds.push(route.request().postDataJSON().selected_workflow_id);
 			await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
 				session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.'
 			} }) });
@@ -437,5 +440,26 @@ test.describe('Workflows input home', () => {
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toHaveCount(0);
 		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Weather tomorrow');
 		expect(submittedTexts).toHaveLength(1);
+
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		const create = await page.request.post(`${apiUrl}/v1/workflows`, {
+			data: { title: `Voice edit spec ${Date.now()}`, graph: blankWorkflowGraph(7), enabled: false }
+		});
+		expect(create.ok(), await create.text()).toBe(true);
+		const workflowId = (await create.json()).workflow.id as string;
+		try {
+			correctionFails = false;
+			correctedTranscript = 'Also search for AI meetups and queer meetups';
+			await page.goto(getE2EDebugUrl(`/workflows#workflow-id=${encodeURIComponent(workflowId)}&tab=details`), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('workflow-ai-edit-mic')).toBeVisible();
+			await page.getByTestId('workflow-ai-edit-mic').click();
+			await expect(page.getByTestId('workflow-ai-edit-composer').getByTestId('record-overlay')).toBeVisible();
+			await page.getByTestId('workflow-ai-edit-composer').getByTestId('record-finish-button').click();
+			await expect.poll(() => submittedTexts.length).toBe(2);
+			expect(submittedTexts[1]).toBe(correctedTranscript);
+			expect(selectedWorkflowIds[1]).toBe(workflowId);
+		} finally {
+			await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+		}
 	});
 });
