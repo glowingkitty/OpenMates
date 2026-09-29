@@ -56856,7 +56856,7 @@ assertions:
       surface: gui.web
     - &id6804
       path: frontend/apps/web_app/tests/workflows-input.spec.ts
-      line: 379
+      line: 384
       name: streams a workflow recording and submits only corrected text
       surface: gui.web
     - &id6805

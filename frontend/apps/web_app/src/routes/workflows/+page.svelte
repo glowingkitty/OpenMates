@@ -1137,7 +1137,6 @@
 								<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing"/>
 							{/if}
 							{#if createdAiWorkflowIds.length > 1 && authoringAssumptions.length}<p class="workflow-ai-assumptions" data-testid="workflow-ai-assumptions" role="status">{authoringAssumptions.join(' ')}</p>{/if}
-							{#if createdAiSession?.undo_available}<button type="button" class="workflow-ai-created-undo" data-testid="workflow-ai-created-undo" disabled={saving} onclick={() => void undoCreatedAiChanges()}>{$text('workflows.builder.ai_undo')}</button>{/if}
 						</svelte:fragment>
 					</WorkspaceHomeShell>
 				{/if}
@@ -1394,7 +1393,6 @@
 <style>
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:0;padding:12px 1rem max(12px,env(safe-area-inset-bottom));background:var(--color-grey-10);box-shadow:0 -8px 24px color-mix(in srgb,var(--color-grey-100) 9%,transparent)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
-	.workflow-ai-created-undo{display:block;margin:.75rem auto;border:0;border-radius:.7rem;padding:.55rem .9rem;background:var(--color-button-primary);color:var(--color-font-button);font:inherit;cursor:pointer}
 	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}
 	.workflow-ai-pending button{border:1px solid var(--color-button-primary);border-radius:.7rem;padding:.35rem .7rem;background:transparent;color:var(--color-primary);font:inherit;cursor:pointer}
 	.workflow-ai-changes{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:1rem 1.25rem;border:1px solid var(--color-button-primary);border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary)}

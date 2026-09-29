@@ -182,8 +182,12 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-new-pill')).toHaveCount(0);
 			allowCommit = true;
 			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-management')).toBeVisible();
+			const management = page.getByTestId('workflow-management');
+			await expect(management).toBeVisible();
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText(String(saved.title));
+			await management.evaluate(async (element: HTMLElement) => {
+				await Promise.all(element.getAnimations().map((animation) => animation.finished));
+			});
 			const info = page.getByTestId('workflow-authoring-info');
 			await expect(info).toContainText('Runs at 09:00 Berlin time.');
 			await expect(info).toContainText('Activate this workflow');
@@ -197,11 +201,12 @@ test.describe('Workflows input home', () => {
 			const dockedBeforeScroll = await editorComposer.boundingBox();
 			if (!dockedBeforeScroll) throw new Error('Workflow editor composer must be measurable.');
 			expect(844 - dockedBeforeScroll.y - dockedBeforeScroll.height).toBeLessThan(32);
-			await page.getByTestId('workflow-management').locator('.management-grid').evaluate((element: HTMLElement) => { element.scrollTop = element.scrollHeight; });
+			await management.locator('.management-grid').evaluate((element: HTMLElement) => { element.scrollTop = element.scrollHeight; });
 			const dockedAfterScroll = await editorComposer.boundingBox();
 			expect(Math.abs((dockedAfterScroll?.y ?? 0) - dockedBeforeScroll.y)).toBeLessThan(2);
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-created-undo')).toHaveCount(0);
 			const newCard = page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: String(saved.title) });
 			await expect(newCard).toBeVisible();
 			await expect(newCard.locator('..').getByTestId('workflow-new-pill')).toHaveText('New');
