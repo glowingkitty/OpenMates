@@ -345,7 +345,10 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
         key.replace(prefix, "OPENMATES_TEST_ACCOUNT_"): value
         for key, value in values.items()
     }
-    fixture_invite = secrets.token_hex(9)
+    # The web signup input accepts exactly twelve alphanumeric characters and
+    # sends them to the API in XXXX-XXXX-XXXX form.
+    invite_chars = secrets.token_hex(6).upper()
+    fixture_invite = f"{invite_chars[:4]}-{invite_chars[4:8]}-{invite_chars[8:]}"
     request(
         "http://localhost:8055/items/invite_codes",
         {"code": fixture_invite, "remaining_uses": 20, "is_admin": False},
