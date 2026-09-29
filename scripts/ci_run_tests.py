@@ -529,6 +529,7 @@ def run_e2e(
                     if "mailpit" in profile["services"]:
                         env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
                         env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
+                        env["SIGNUP_TEST_EMAIL_DOMAINS"] = profile["services"]["api"]["environment"]["SIGNUP_TEST_EMAIL_DOMAINS"]
                 account_free = component or artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
