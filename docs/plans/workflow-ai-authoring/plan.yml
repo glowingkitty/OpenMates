@@ -249,7 +249,7 @@ tests:
 tasks:
   - id: TASK-7413
     title: Plan AI workflow creation and editing
-    status: done
+    status: in_progress
     phase: complete
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
     expected_files: [docs/plans/workflow-ai-authoring/plan.yml]
@@ -262,7 +262,7 @@ tasks:
       shared_files: []
 
 implementation_state:
-  subject_commit: 0e018935a
+  subject_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
 approvals:
   specification: {status: pending}
   plan: {status: pending}
@@ -283,7 +283,7 @@ handoff:
   next_action: Define the product Specification and begin the authoring-contract evaluation phase when implementation starts.
   command: Use this Plan as the source for implementation Tasks and focused verification.
   expected_outcome: A validated mixed-batch Workflow authoring path across workspace and chat.
-  last_verified_commit: 0e018935a
+  last_verified_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
 
 remaining_engineering_decisions:
   - Set recipe coverage, Jev confidence gates, provider fallback order, batch-size cap, and latency/cost targets from the repeatable evaluation corpus.
