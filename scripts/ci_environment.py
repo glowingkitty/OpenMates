@@ -362,7 +362,6 @@ def compose_profile(
         services["mailpit"] = {
             "image": MAILPIT_IMAGE,
             "mem_limit": 128 * MIB,
-            "ports": ["127.0.0.1:8025:8025"],
             "environment": {"MP_MAX_MESSAGES": "1000"},
         }
         for name in ("api", "core-worker"):
@@ -432,6 +431,9 @@ def compose_profile(
             "networks": ["default", "ingress"],
             "mem_limit": 64 * MIB,
         }
+        if mail_capture:
+            services["runner-gateway"]["ports"].append("127.0.0.1:8025:8025")
+            services["runner-gateway"]["environment"]["OPENMATES_CI_MAIL_CAPTURE"] = "1"
 
     if public_provider:
         services["runner-gateway"]["environment"]["OPENMATES_CI_PUBLIC_PROVIDER_PROXY"] = "1"

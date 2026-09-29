@@ -56,8 +56,11 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
 
     profile = compose_profile("a" * 40, mail_capture=True)
     assert profile["networks"]["default"]["internal"] is True
-    assert profile["services"]["mailpit"]["ports"] == ["127.0.0.1:8025:8025"]
+    assert "ports" not in profile["services"]["mailpit"]
     assert profile["services"]["mailpit"].get("networks") is None
+    gateway = profile["services"]["runner-gateway"]
+    assert "127.0.0.1:8025:8025" in gateway["ports"]
+    assert gateway["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
     for name in ("api", "core-worker"):
         service = profile["services"][name]
         assert service["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
