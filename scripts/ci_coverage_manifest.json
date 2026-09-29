@@ -206,6 +206,7 @@
         "components/pdf-view-preview.spec.ts",
         "components/project-file-approval.spec.ts",
         "components/project-readme-figma.spec.ts",
+        "components/projects-file-actions.spec.ts",
         "components/remote-command-review.spec.ts",
         "components/projects-remote-preview.spec.ts",
         "components/projects-workspace-figma.spec.ts",

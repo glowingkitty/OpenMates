@@ -361,8 +361,11 @@ test('opens a connected source inside the Files grid with shared folder previews
   const nestedPath = page.getByLabel('Project folder path');
   await expect(nestedPath.getByText('frontend', { exact: true })).toBeVisible();
   await expect(nestedPath.getByText('.', { exact: true })).toHaveCount(0);
-  await nestedPath.getByRole('button', { name: 'OpenMates repository' }).click();
+  await expect(nestedPath).toHaveText(/^\s*\/\s*frontend\s*$/);
+  await expect(page.getByTestId('project-folders-panel').locator('.section-title h3')).toHaveCount(0);
+  await nestedPath.getByRole('button', { name: 'Project root' }).click();
   await expect(nestedPath).toHaveCount(0);
+  await page.getByTestId('project-connected-source-root').locator('.unified-embed-preview').click();
   await connectedFolder.locator('.unified-embed-preview').click();
   await page.getByRole('button', { name: 'Project root' }).click();
   await page.getByTestId('project-folder-card').first().locator('.unified-embed-preview').click();
@@ -402,6 +405,69 @@ test('opens a connected source inside the Files grid with shared folder previews
     && scrolledTabsBox!.y + scrolledTabsBox!.height > remoteBrowserBox!.y;
   expect(tabsOverlapRemote).toBe(false);
   await testInfo.attach('projects-connected-source-scrolled', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity,projects.files.connected-embed-previews
+test('aligns the Files grid with Project panels and uses typed list icons without scaling rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'connectedSource'));
+  await waitForProjectsPreview(page);
+
+  const filesPanel = page.getByTestId('project-folders-panel');
+  const filesBox = await filesPanel.boundingBox();
+  const actionBox = await page.getByTestId('project-action-expander').boundingBox();
+  const folderBox = await page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' }).boundingBox();
+  const fileBox = await page.getByTestId('project-remote-entry').filter({ hasText: 'README.md' }).boundingBox();
+  expect(filesBox && actionBox && folderBox && fileBox).toBeTruthy();
+  expect(filesBox!.width).toBeLessThanOrEqual(1024);
+  expect(Math.abs(actionBox!.width - folderBox!.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(folderBox!.width - fileBox!.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(actionBox!.y - folderBox!.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(folderBox!.y - fileBox!.y)).toBeLessThanOrEqual(2);
+
+  await page.getByTestId('project-tab-tasks').hover();
+  await expect(page.getByTestId('project-tab-tasks').locator('.tab-icon')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  const folderRow = page.getByTestId('project-remote-entry').filter({ hasText: 'frontend' });
+  const fileRow = page.getByTestId('project-remote-entry').filter({ hasText: 'README.md' });
+  await expect(folderRow.locator('.remote-list-icon')).toHaveAttribute('data-app', 'files');
+  await expect(fileRow.locator('.remote-list-icon')).toHaveAttribute('data-app', 'docs');
+  await folderRow.hover();
+  await expect(folderRow).toHaveCSS('scale', '1');
+  await expect(folderRow).toHaveCSS('transform', 'none');
+  await expect.poll(async () => {
+    const rowBackground = await folderRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const baseBackground = await fileRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    return rowBackground !== baseBackground;
+  }).toBe(true);
+
+  await page.getByTestId('project-tab-overview').click();
+  const overviewBox = await page.getByTestId('project-overview-panel').boundingBox();
+  expect(overviewBox).not.toBeNull();
+  expect(Math.abs(filesBox!.width - overviewBox!.width)).toBeLessThanOrEqual(1);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
+test('uses matching app icons and hover treatment for stored Project file rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'folders'));
+  await waitForProjectsPreview(page);
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+
+  const codeRow = page.getByTestId('project-item-card').filter({ hasText: 'ProjectsPage.svelte' });
+  const docsRow = page.getByTestId('project-item-card').filter({ hasText: 'Project brief' });
+  const pdfRow = page.getByTestId('project-item-card').filter({ hasText: 'architecture.pdf' });
+  await expect(codeRow.locator('.item-list-icon')).toHaveAttribute('data-app', 'code');
+  await expect(docsRow.locator('.item-list-icon')).toHaveAttribute('data-app', 'docs');
+  await expect(pdfRow.locator('.item-list-icon')).toHaveAttribute('data-app', 'pdf');
+  await codeRow.hover();
+  await expect(codeRow).toHaveCSS('scale', '1');
+  await expect(codeRow).toHaveCSS('transform', 'none');
+  await expect.poll(async () => {
+    const highlighted = await codeRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const normal = await docsRow.evaluate((element) => getComputedStyle(element).backgroundColor);
+    return highlighted !== normal;
+  }).toBe(true);
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews
@@ -598,6 +664,20 @@ test('embeds the same five-status task board without legacy compact forms', asyn
   await expect(page.getByTestId('task-create-form')).toHaveCount(0);
   await expect(page.getByTestId('task-extract-card')).toHaveCount(0);
   await testInfo.attach('projects-tasks-figma-desktop', { body: await page.getByTestId('projects-page').screenshot(), contentType: 'image/png' });
+
+  await page.getByTestId('task-card-open').first().click();
+  const taskDialog = page.getByRole('dialog', { name: /^Task details:/ });
+  await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible();
+  expect(await taskDialog.evaluate((element) => element.parentElement?.getAttribute('data-testid'))).toBe('projects-page');
+  const dialogBox = await taskDialog.boundingBox();
+  const projectBox = await page.getByTestId('projects-page').boundingBox();
+  expect(dialogBox).not.toBeNull();
+  expect(projectBox).not.toBeNull();
+  expect(Math.abs(dialogBox!.x - projectBox!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dialogBox!.width - projectBox!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(dialogBox!.height - projectBox!.height)).toBeLessThanOrEqual(1);
+  await page.getByTestId('task-detail-minimize').click();
+  await expect(taskDialog).toHaveCount(0);
 });
 
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity

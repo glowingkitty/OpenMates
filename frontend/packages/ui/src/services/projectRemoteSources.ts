@@ -8,7 +8,7 @@ export type ProjectSourceType = "local_folder" | "local_git_repository" | "remot
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request" | "run_command";
 export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
 export type ProjectWriteMode = "apply_and_show" | "always_ask";
-export type ProjectRemoteAccessOperation = "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file";
+export type ProjectRemoteAccessOperation = "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file" | "copy_entries" | "move_entries";
 
 export interface ProjectDefaultFocus {
   focus_id: string;

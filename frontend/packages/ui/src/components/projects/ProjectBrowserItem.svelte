@@ -39,6 +39,19 @@
   let resolvedContent = $state<Record<string, unknown> | null>(null);
   let childFullscreenDispatchedAt = 0;
   let loadGeneration = 0;
+  type ListApp = 'files' | 'code' | 'docs' | 'sheets' | 'images' | 'pdf';
+  function listAppForItem(name: string, embedType: string | undefined): ListApp {
+    const lowerName = name.toLowerCase();
+    const type = embedType?.toLowerCase() ?? '';
+    if (/\.(png|jpe?g|gif|webp|avif|svg)$/.test(lowerName) || type.startsWith('images-')) return 'images';
+    if (lowerName.endsWith('.pdf') || type.startsWith('pdf')) return 'pdf';
+    if (/\.(xlsx?|csv|ods)$/.test(lowerName) || type.startsWith('sheets-')) return 'sheets';
+    if (/\.(md|mdx|txt|rst|docx?|odt)$/.test(lowerName) || type.startsWith('docs-')) return 'docs';
+    if (/\.(py|tsx?|jsx?|mjs|cjs|java|go|rs|rb|sh|css|html|json|ya?ml|toml|sql|swift|kt|xml|plist|entitlements|gradle|php|c|h|cpp|hpp)$/.test(lowerName)
+      || type.startsWith('code-')) return 'code';
+    return 'files';
+  }
+  let listApp = $derived(listAppForItem(displayName || item.target_id, item.metadata.embed_type?.toString()));
 
   onMount(() => {
     let mounted = false;
@@ -176,8 +189,8 @@
     onclick={activateItem}
     onkeydown={activateItem}
   >
+    <span class="item-list-icon" data-app={listApp} aria-hidden="true"></span>
     <div class="browser-item-meta">
-      <span class="item-kind">{item.metadata.embed_type?.toString() || item.item_type}</span>
       <strong>{displayName || item.target_id}</strong>
       <small>{item.item_type}</small>
     </div>
@@ -197,15 +210,33 @@
   }
 
   .browser-item.list {
-    display: flex;
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
     align-items: center;
+    gap: var(--spacing-5);
     min-height: 4rem;
     padding: 0 var(--spacing-7);
     border: 1px solid var(--color-grey-20);
     border-radius: var(--radius-5);
     background: var(--color-grey-0);
     box-shadow: none;
+    scale: 1;
+    transition: background-color 0.2s ease;
   }
+
+  .browser-item.list:hover { background: var(--color-grey-20); scale: 1; transform: none; }
+  .item-list-icon { position: relative; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--color-app-files); }
+  .item-list-icon::after { position: absolute; inset: 0.65rem; content: ''; background: var(--color-white-fixed, #fff); -webkit-mask: var(--icon-url-files) center / contain no-repeat; mask: var(--icon-url-files) center / contain no-repeat; }
+  .item-list-icon[data-app='code'] { background: var(--color-app-code); }
+  .item-list-icon[data-app='code']::after { -webkit-mask-image: var(--icon-url-coding); mask-image: var(--icon-url-coding); }
+  .item-list-icon[data-app='docs'] { background: var(--color-app-docs); }
+  .item-list-icon[data-app='docs']::after { -webkit-mask-image: var(--icon-url-docs); mask-image: var(--icon-url-docs); }
+  .item-list-icon[data-app='sheets'] { background: var(--color-app-sheets); }
+  .item-list-icon[data-app='sheets']::after { -webkit-mask-image: var(--icon-url-sheets); mask-image: var(--icon-url-sheets); }
+  .item-list-icon[data-app='images'] { background: var(--color-app-images); }
+  .item-list-icon[data-app='images']::after { -webkit-mask-image: var(--icon-url-image); mask-image: var(--icon-url-image); }
+  .item-list-icon[data-app='pdf'] { background: var(--color-app-pdfeditor); }
+  .item-list-icon[data-app='pdf']::after { -webkit-mask-image: var(--icon-url-pdf); mask-image: var(--icon-url-pdf); }
 
   .browser-item.actionable {
     cursor: pointer;
@@ -234,26 +265,18 @@
   }
 
   .browser-item-meta {
-    display: grid;
-    gap: var(--spacing-3);
-    padding: var(--spacing-8);
-  }
-
-  .list .browser-item-meta {
-    grid-template-columns: minmax(5.625rem, 8.75rem) 1fr auto;
+    display: flex;
+    min-width: 0;
     align-items: center;
-    width: 100%;
-    padding: 0;
+    justify-content: space-between;
+    gap: var(--spacing-5);
   }
 
-  .item-kind,
+  .browser-item-meta strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .browser-item-meta small { flex: 0 0 auto; color: var(--color-font-secondary); }
+
   small {
     color: var(--color-font-secondary);
     font-size: var(--font-size-xs);
-  }
-
-  .item-kind {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 </style>

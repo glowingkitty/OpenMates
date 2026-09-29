@@ -33,7 +33,8 @@ MAX_FILE_CHUNKS_PER_MINUTE = 256
 STATE_LOCK_TTL_SECONDS = 10
 STATE_LOCK_WAIT_SECONDS = 5
 WRITE_OPERATIONS = {"create_file", "update_file"}
-ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS}
+USER_FILE_OPERATIONS = {"copy_entries", "move_entries"}
+ALLOWED_OPERATIONS = {"list", "search", "read_text", "read_image_chunk", "read_file_chunk", *WRITE_OPERATIONS, *USER_FILE_OPERATIONS}
 RELEASE_LOCK_SCRIPT = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -363,12 +364,15 @@ class ProjectRemoteAccessService:
         chat_id: str | None = None,
         operation_id: str | None = None,
         proposal_digest: str | None = None,
+        user_initiated: bool = False,
     ) -> dict[str, Any]:
         _validate_envelope(encrypted_envelope)
         if operation not in ALLOWED_OPERATIONS:
             raise ProjectRemoteAccessError("unsupported_operation")
         if operation in WRITE_OPERATIONS and not (chat_id and operation_id and proposal_digest):
             raise ProjectRemoteAccessError("write_context_required", status_code=403)
+        if operation in USER_FILE_OPERATIONS and not user_initiated:
+            raise ProjectRemoteAccessError("user_action_required", status_code=403)
 
         context_type, context_id = _context(user_id, team_id)
         async with self._state_lock(context_type, context_id):
@@ -380,7 +384,7 @@ class ProjectRemoteAccessService:
                     await mark_team_host_offline(host_user_id)
                 raise ProjectRemoteAccessError("source_offline", status_code=404)
             required_capability = (
-                "write_request" if operation in WRITE_OPERATIONS
+                "write_request" if operation in WRITE_OPERATIONS | USER_FILE_OPERATIONS
                 else "search" if operation == "search" else "read"
             )
             if required_capability not in set(binding.get("capabilities") or []):
@@ -431,6 +435,8 @@ class ProjectRemoteAccessService:
                 # The commitment is keyed by the Project key on the clients. No
                 # plaintext path, content hash, patch, or instruction is stored.
                 request.update(chat_id=chat_id, operation_id=operation_id, proposal_digest=proposal_digest)
+            if operation in USER_FILE_OPERATIONS:
+                request["user_initiated"] = True
             await self.cache.set(request_key, request, ttl=REQUEST_CACHE_TTL_SECONDS)
             if status == "delivered":
                 in_flight.append(request_id)
@@ -487,6 +493,36 @@ class ProjectRemoteAccessService:
             or request.get("source_session_id") != source_session_id
             or request.get("device_fingerprint_hash") != device_fingerprint_hash
             or request.get("operation") not in WRITE_OPERATIONS
+            or request.get("status") != "delivered"
+            or int(request.get("deadline_at") or 0) <= now
+        ):
+            raise ProjectRemoteAccessError("write_request_unavailable", status_code=403)
+        binding = await self.get_active_binding(
+            host_user_id, project_id, source_id, now=now, team_id=team_id,
+        )
+        if (binding.get("source_session_id") != source_session_id
+                or binding.get("device_fingerprint_hash") != device_fingerprint_hash
+                or binding.get("key_epoch") != request.get("key_epoch")
+                or "write_request" not in set(binding.get("capabilities") or [])):
+            raise ProjectRemoteAccessError("source_session_changed", status_code=409)
+        return request
+
+    async def require_remote_user_file_request(
+        self, *, host_user_id: str, project_id: str, source_id: str,
+        source_session_id: str, request_id: str, device_fingerprint_hash: str,
+        now: int, team_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Resolve an explicit user file action against its live host binding."""
+        context_type, context_id = _context(host_user_id, team_id)
+        request = await self.cache.get(self._request_key(context_id, request_id, context_type))
+        if not isinstance(request, dict) or (
+            request.get("host_user_id") != host_user_id
+            or request.get("project_id") != project_id
+            or request.get("source_id") != source_id
+            or request.get("source_session_id") != source_session_id
+            or request.get("device_fingerprint_hash") != device_fingerprint_hash
+            or request.get("operation") not in USER_FILE_OPERATIONS
+            or request.get("user_initiated") is not True
             or request.get("status") != "delivered"
             or int(request.get("deadline_at") or 0) <= now
         ):
@@ -741,6 +777,8 @@ class ProjectRemoteAccessService:
                 chat_id=request["chat_id"], operation_id=request["operation_id"],
                 proposal_digest=request["proposal_digest"],
             )
+        if request["operation"] in USER_FILE_OPERATIONS:
+            payload["user_initiated"] = True
         if request["context_type"] == "team":
             payload["routing_identity"] = self._routing_identity(request)
         published = await self.cache.publish_event(

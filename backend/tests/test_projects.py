@@ -23,6 +23,7 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
     ProjectAskRequest,
     ProjectCreateRequest,
     ProjectMoveRequest,
+    ProjectItemMoveRequest,
     ProjectRestoreRequest,
     ProjectSettingsUpdateRequest,
     ask_projects,
@@ -34,6 +35,7 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
     list_project_history,
     list_project_sources,
     move_project_to_team,
+    move_item_to_folder,
     restore_project_from_history,
     update_project_settings,
 )
@@ -202,6 +204,75 @@ async def test_delete_item_for_project_target_filters_project_type_target_and_us
         },
     )
     directus.update_item.assert_awaited_once_with("projects", "project-row", {"item_count": 3})
+
+
+@pytest.mark.anyio
+async def test_project_item_move_looks_up_exact_owned_association_and_changes_only_folder() -> None:
+    row = {"id": "item-row", "project_item_id": "item-1"}
+    directus = SimpleNamespace(
+        get_items=AsyncMock(return_value=[row]),
+        update_item=AsyncMock(return_value={**row, "hashed_folder_id": hash_id("folder-1")}),
+    )
+    methods = ProjectMethods(directus)
+
+    item = await methods.get_item("project-1", "item-1", "user-1")
+    moved = await methods.move_item_to_folder(item, "folder-1", 123)
+
+    assert moved["hashed_folder_id"] == hash_id("folder-1")
+    params = directus.get_items.await_args.kwargs["params"]
+    assert params["filter[hashed_project_id][_eq]"] == hash_id("project-1")
+    assert params["filter[project_item_id][_eq]"] == "item-1"
+    assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
+    assert params["filter[hashed_team_id][_null]"] is True
+    directus.update_item.assert_awaited_once_with(
+        "project_items", "item-row", {"hashed_folder_id": hash_id("folder-1"), "updated_at": 123},
+    )
+
+
+@pytest.mark.anyio
+async def test_project_item_move_rejects_other_member_item() -> None:
+    project = SimpleNamespace(
+        get_project=AsyncMock(return_value={"project_id": "project-1"}),
+        get_item=AsyncMock(return_value={"id": "item-row", "attached_by_user_hash": hash_id("other-user")}),
+        folder_exists=AsyncMock(return_value=True),
+        move_item_to_folder=AsyncMock(),
+    )
+    directus = SimpleNamespace(
+        team=SimpleNamespace(require_team_role=AsyncMock(return_value={"role": "member"})),
+        project=project,
+    )
+
+    with pytest.raises(HTTPException) as error:
+        await move_item_to_folder(
+            request=make_request("PATCH"), project_id="project-1", project_item_id="item-1",
+            body=ProjectItemMoveRequest(folder_id="folder-1", updated_at=123), team_id="team-1",
+            current_user=SimpleNamespace(id="user-1"), directus_service=directus,
+        )
+    assert error.value.status_code == 403
+    project.move_item_to_folder.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_project_item_move_validates_destination_and_allows_project_root() -> None:
+    item = {"id": "item-row", "attached_by_user_hash": hash_id("user-1")}
+    project = SimpleNamespace(
+        get_project=AsyncMock(return_value={"project_id": "project-1"}),
+        get_item=AsyncMock(return_value=item),
+        folder_exists=AsyncMock(return_value=False),
+        move_item_to_folder=AsyncMock(return_value={**item, "hashed_folder_id": None}),
+    )
+    directus = SimpleNamespace(project=project)
+    args = dict(request=make_request("PATCH"), project_id="project-1", project_item_id="item-1",
+                team_id=None, current_user=SimpleNamespace(id="user-1"), directus_service=directus)
+
+    with pytest.raises(HTTPException) as error:
+        await move_item_to_folder(body=ProjectItemMoveRequest(folder_id="missing", updated_at=123), **args)
+    assert error.value.status_code == 400
+    project.move_item_to_folder.assert_not_awaited()
+
+    result = await move_item_to_folder(body=ProjectItemMoveRequest(folder_id=None, updated_at=124), **args)
+    assert result["item"]["hashed_folder_id"] is None
+    project.move_item_to_folder.assert_awaited_once_with(item, None, 124)
 
 
 @pytest.mark.anyio

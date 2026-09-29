@@ -62,6 +62,7 @@
     previewPlans = null,
     previewProjectNames = {},
     previewAssigneeAvatarUrl = null,
+    onOpenTask = null,
   }: {
     projectId?: string | null;
     chatId?: string | null;
@@ -70,6 +71,7 @@
     previewPlans?: UserPlanViewModel[] | null;
     previewProjectNames?: Record<string, string>;
     previewAssigneeAvatarUrl?: string | null;
+    onOpenTask?: ((task: UserTaskViewModel, canAssignCodex: boolean, onTaskChange: (task: UserTaskViewModel) => void) => void) | null;
   } = $props();
 
   let tasks = $state<TasksBoardItem[]>([]);
@@ -211,7 +213,10 @@
       void revealTaskBoardPanel();
       return;
     }
-    if (!isWorkflowRunTaskProjectionViewModel(task)) selectedTask = task;
+    if (!isWorkflowRunTaskProjectionViewModel(task)) {
+      if (onOpenTask) onOpenTask(task, canAssignCodex, handleTaskChange);
+      else selectedTask = task;
+    }
   }
 
   function parseTaskStatus(request: string): UserTaskStatus | null {

@@ -229,6 +229,15 @@ export interface ProjectRemoteFileChunkResult {
   chunk_hash: string;
 }
 
+export type ProjectRemoteTransferOperation = "copy_entries" | "move_entries";
+
+export interface ProjectRemoteTransferResult {
+  operation: ProjectRemoteTransferOperation;
+  destination_path: string;
+  completed: string[];
+  failed: Array<{ path: string; code: string }>;
+}
+
 export interface ProjectRemoteAccessContext {
   ownerId: string;
   teamId?: string | null;
@@ -497,6 +506,10 @@ export async function requestProjectRemoteAccess<T>(
   }
   if (!requestContext.ownerId)
     throw new ProjectRemoteAccessError("requester_identity_unavailable", "Authenticated user identity is unavailable");
+  const isUserFileTransfer = operation === "copy_entries" || operation === "move_entries";
+  if (isUserFileTransfer && (args.user_initiated !== true || !source.capabilities.includes("write_request"))) {
+    throw new ProjectRemoteAccessError("source_capability_denied", "This source does not allow file changes");
+  }
 
   let sourceSessionId = source.sourceSessionId;
   let keyEpoch = source.keyEpoch;
@@ -604,6 +617,7 @@ export async function requestProjectRemoteAccess<T>(
         key_epoch: keyEpoch,
         encrypted_envelope: encryptedEnvelope,
         ...writeContext,
+        ...(isUserFileTransfer ? { user_initiated: true } : {}),
       }),
       signal,
     },
@@ -636,6 +650,30 @@ export async function requestProjectRemoteAccess<T>(
   return (operation === "read_text" ? normalizeProjectRemoteTextResult(opened)
     : operation === "read_image_chunk" ? normalizeProjectRemoteImageChunkResult(opened)
     : operation === "read_file_chunk" ? normalizeProjectRemoteFileChunkResult(opened) : opened) as T;
+}
+
+/** Execute a user-confirmed copy or move entirely on the connected source host. */
+export async function transferProjectRemoteEntries(
+  project: ProjectViewModel,
+  source: ProjectSourceViewModel,
+  context: ProjectRemoteAccessContext,
+  input: { operation: ProjectRemoteTransferOperation; paths: string[]; destinationPath: string },
+  signal?: AbortSignal,
+): Promise<ProjectRemoteTransferResult> {
+  const strictPath = (value: string) => typeof value === "string" && value.length > 0 && value.length <= 4096
+    && !value.startsWith("/") && !value.includes("\\")
+    && value.split("/").every((part) => part.length > 0 && part !== "." && part !== ".." && !part.startsWith("."))
+    && ![...value].some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+  if (!Array.isArray(input.paths) || input.paths.length < 1 || input.paths.length > 20
+    || new Set(input.paths).size !== input.paths.length || !input.paths.every(strictPath)
+    || (input.destinationPath !== "." && !strictPath(input.destinationPath))) {
+    throw new ProjectRemoteAccessError("invalid_path", "Select up to 20 files or folders within this Project");
+  }
+  return requestProjectRemoteAccess<ProjectRemoteTransferResult>(project, source, context, input.operation, {
+    paths: input.paths,
+    destination_path: input.destinationPath,
+    user_initiated: true,
+  }, signal);
 }
 
 async function discoverProjectRemoteRouting(
@@ -940,9 +978,10 @@ function remoteAccessErrorMessage(code: string | undefined): string {
     operation_failed: "The remote source could not complete this request",
     file_changed: "The file changed. Read its current content and rebuild the edit",
     target_exists: "The create target already exists; its content was preserved",
+    source_missing: "The source is gone. Check the destination before trying again",
     invalid_patch: "The patch does not exactly match the current file",
     operation_conflict: "This operation identity was already used for different changes",
-    operation_unconfirmed: "A previous write outcome needs reconciliation before another attempt",
+    operation_unconfirmed: "A previous file operation may be incomplete. Inspect the destination before retrying",
     write_authorization_denied: "The originating chat no longer has permission to write this Project",
     ignored_path_requires_approval: "This ignored file requires explicit approval",
   };
@@ -1258,6 +1297,22 @@ export async function addExistingTargetToProject(
       updated_at: timestamp,
       position: timestamp,
     }),
+  });
+}
+
+/** Move one existing Project association to a different Project folder. */
+export async function moveProjectItemToFolder(
+  project: ProjectViewModel,
+  itemId: string,
+  folderId: string | null,
+  context: ProjectApiContext = {},
+): Promise<void> {
+  await requestJson(withProjectRemoteQuery(
+    `/v1/projects/${encodeURIComponent(project.project_id)}/items/${encodeURIComponent(itemId)}`,
+    { team_id: context.teamId },
+  ), {
+    method: "PATCH",
+    body: JSON.stringify({ folder_id: folderId, updated_at: nowSeconds() }),
   });
 }
 

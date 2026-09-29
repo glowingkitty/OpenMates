@@ -62,6 +62,7 @@ import {
 } from "./remoteAccessCrypto.js";
 import type { OpenMatesClient } from "./client.js";
 import { executeRemoteFileMutation, RemoteFileMutationError } from "./remoteFileWrites.js";
+import { executeRemoteFileTransfer, RemoteFileTransferError } from "./remoteFileTransfers.js";
 import { createRemoteCommandSourceController } from "./remoteCommandSource.js";
 import { inspectRemoteCommandCapability } from "./remoteCommandRuntime.js";
 import { prepareRemoteHttpsConnectNetworkConfinement } from "./remoteCommandNetwork.js";
@@ -942,6 +943,24 @@ async function handleLiveRemoteAccessRequest(
               || current.operation_id !== mutation.operation_id) throw new Error("write_authorization_denied");
           },
         });
+      } else if (frame.operation === "copy_entries" || frame.operation === "move_entries") {
+        if (frame.user_initiated !== true || bootstrap.arguments.user_initiated !== true) {
+          throw new Error("write_authorization_denied");
+        }
+        const context = binding.teamId ? { teamId: binding.teamId } : { personal: true };
+        const authorize = async () => {
+          const grant = await client.authorizeProjectRemoteTransfer(
+            frame.project_id, frame.source_id, frame.request_id, sourceSessionId, context,
+          );
+          if (grant.operation !== frame.operation) throw new Error("write_authorization_denied");
+        };
+        result = await executeRemoteFileTransfer({
+          sourceRoot: binding.source.rootPath,
+          operation: frame.operation,
+          paths: bootstrap.arguments.paths,
+          destinationPath: bootstrap.arguments.destination_path,
+          authorize,
+        });
       } else {
         let approvedIgnoredPath: string | null = null;
         const requestedPath = typeof bootstrap.arguments.path === "string" ? bootstrap.arguments.path : ".";
@@ -1037,6 +1056,7 @@ async function executeRemoteAccessOperation(
 
 export function remoteAccessOperationErrorCode(error: unknown): string {
   if (error instanceof RemoteFileMutationError) return error.code;
+  if (error instanceof RemoteFileTransferError) return error.code;
   if (error instanceof ProjectSearchProtocolError) return error.code;
   if (error instanceof ProjectPathAccessError) {
     return error.code === "private_path" ? "protected_path" : error.code;
@@ -1175,8 +1195,9 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
       throw new ProjectSearchProtocolError("invalid_search_path");
     }
     priorityAbsolute = resolveApprovedPath(sourceRoot, priorityPath);
-    if (!statSync(priorityAbsolute).isDirectory() || policy.isPrivate(priorityPath, true)
-      || policy.isIgnored(priorityPath, true) || isHiddenSearchPath(priorityPath)) {
+    if (!statSync(priorityAbsolute).isDirectory() || (priorityPath !== "." && (
+      policy.isPrivate(priorityPath, true) || policy.isIgnored(priorityPath, true)
+    )) || isHiddenSearchPath(priorityPath)) {
       throw new ProjectSearchProtocolError("invalid_search_path");
     }
   }

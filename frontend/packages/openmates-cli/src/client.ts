@@ -819,12 +819,13 @@ export interface ActiveProjectFocus {
 export interface ProjectRemoteAccessRequestInput {
   request_id: string;
   requesting_client_id: string;
-  operation: "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file";
+  operation: "list" | "search" | "read_text" | "read_image_chunk" | "read_file_chunk" | "create_file" | "update_file" | "copy_entries" | "move_entries";
   key_epoch: number;
   encrypted_envelope: string;
   chat_id?: string;
   operation_id?: string;
   proposal_digest?: string;
+  user_initiated?: boolean;
 }
 
 export interface ProjectRemoteAccessRequestResult {
@@ -9733,6 +9734,26 @@ export class OpenMatesClient {
     );
     if (!response.ok || response.data.authorized !== true) {
       throw this.projectRequestError("remote write authorization", response);
+    }
+    return response.data;
+  }
+
+  async authorizeProjectRemoteTransfer(
+    projectId: string,
+    sourceId: string,
+    requestId: string,
+    sourceSessionId: string,
+    options: TeamContextOptions = {},
+  ): Promise<{ authorized: boolean; operation: "copy_entries" | "move_entries" }> {
+    this.requireSession();
+    const path = `/v1/projects/${encodeURIComponent(projectId)}/sources/${encodeURIComponent(sourceId)}/requests/${encodeURIComponent(requestId)}/authorize-transfer`;
+    const response = await this.http.post<{ authorized: boolean; operation: "copy_entries" | "move_entries" }>(
+      this.appendTeamQuery(path, options),
+      { source_session_id: sourceSessionId },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || response.data.authorized !== true) {
+      throw this.projectRequestError("remote transfer authorization", response);
     }
     return response.data;
   }

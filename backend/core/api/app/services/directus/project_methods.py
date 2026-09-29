@@ -755,6 +755,27 @@ class ProjectMethods:
         response = await self.directus_service.get_items("project_items", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 
+    async def get_item(
+        self, project_id: str, project_item_id: str, user_id: str, team_id: str | None = None,
+    ) -> Optional[Dict[str, Any]]:
+        params = {
+            "filter[hashed_project_id][_eq]": hash_id(project_id),
+            "filter[project_item_id][_eq]": project_item_id,
+            "fields": ITEM_FIELDS,
+            "limit": 1,
+        }
+        params.update(_owner_params(user_id, team_id))
+        response = await self.directus_service.get_items("project_items", params=params, no_cache=True)
+        return response[0] if isinstance(response, list) and response else None
+
+    async def move_item_to_folder(
+        self, item: Dict[str, Any], folder_id: str | None, updated_at: int,
+    ) -> Optional[Dict[str, Any]]:
+        return await self.directus_service.update_item(
+            "project_items", item["id"],
+            {"hashed_folder_id": hash_id(folder_id) if folder_id else None, "updated_at": updated_at},
+        )
+
     async def create_item(
         self,
         user_id: str,

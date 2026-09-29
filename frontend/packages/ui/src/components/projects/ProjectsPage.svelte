@@ -12,6 +12,7 @@
   import { text } from '@repo/ui';
   import { SettingsTabs } from '../settings/elements';
   import UnifiedEmbedPreview from '../embeds/UnifiedEmbedPreview.svelte';
+  import EmbedContextMenu from '../embeds/EmbedContextMenu.svelte';
   import CodeEmbedFullscreen from '../embeds/code/CodeEmbedFullscreen.svelte';
   import FileEmbedFullscreen from '../embeds/file/FileEmbedFullscreen.svelte';
   import ImageEmbedFullscreen from '../embeds/images/ImageEmbedFullscreen.svelte';
@@ -20,7 +21,8 @@
   import ProjectWorkspaceHeader from './ProjectWorkspaceHeader.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
-  import type { TasksBoardItem } from '../../services/userTaskService';
+  import TaskDetailFullscreen from '../tasks/TaskDetailFullscreen.svelte';
+  import type { TasksBoardItem, UserTaskViewModel } from '../../services/userTaskService';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { notificationStore } from '../../stores/notificationStore';
@@ -39,11 +41,14 @@
     deleteProject,
     getProject,
     getProjectContents,
+    addExistingTargetToProject,
     listProjectSources,
     ProjectRemoteAccessError,
     readEncryptedProjectFile,
     listProjects,
+    moveProjectItemToFolder,
     requestProjectRemoteAccess,
+    transferProjectRemoteEntries,
     updateProjectMetadata,
     uploadFileToProject,
     type ProjectFolderViewModel,
@@ -149,6 +154,11 @@
 
   let projects = $state<ProjectViewModel[]>([]);
   let selectedProject = $state<ProjectViewModel | null>(null);
+  let projectTaskOverlay = $state<{
+    task: UserTaskViewModel;
+    canAssignCodex: boolean;
+    onTaskChange: (task: UserTaskViewModel) => void;
+  } | null>(null);
   let folders = $state<ProjectFolderViewModel[]>([]);
   let items = $state<ProjectItemViewModel[]>([]);
   let sources = $state<ProjectSourceViewModel[]>([]);
@@ -160,6 +170,16 @@
   let uploadInput = $state<HTMLInputElement>();
   let hasLoadError = $state(false);
   let viewMode = $state<'tile' | 'list'>('tile');
+  type RemoteTransferMode = 'copy' | 'move';
+  type RemoteSelection = { sourceId: string; path: string; kind: 'file' | 'directory' };
+  let selectingRemoteEntries = $state(false);
+  let selectedRemoteEntries = $state<RemoteSelection[]>([]);
+  let stagedRemoteTransfer = $state<{ projectId: string; sourceId: string; paths: string[]; mode: RemoteTransferMode } | null>(null);
+  let selectedStoredItems = $state<ProjectItemViewModel[]>([]);
+  let stagedStoredTransfer = $state<{ projectId: string; items: ProjectItemViewModel[]; mode: RemoteTransferMode } | null>(null);
+  let storedContextMenu = $state<{ x: number; y: number; item: ProjectItemViewModel } | null>(null);
+  let remoteTransferBusy = $state(false);
+  let remoteContextMenu = $state<{ x: number; y: number; entry: RemoteSelection } | null>(null);
   let currentFolder = $state<ProjectFolderViewModel | null>(null);
   let currentFolderTrail = $state<ProjectFolderViewModel[]>([]);
   let currentFolderHash = $state<string | null>(null);
@@ -176,6 +196,18 @@
   let activeRemoteSourceId = $state<string | null>(null);
   let remotePath = $state('.');
   let remotePathParts = $derived(remotePath.split('/').filter((part) => part && part !== '.'));
+  type RemoteListApp = 'files' | 'code' | 'docs' | 'sheets' | 'images' | 'pdf';
+  function remoteListApp(path: string, isDirectory = false): RemoteListApp {
+    if (isDirectory) return 'files';
+    const name = path.split('/').pop()?.toLowerCase() ?? '';
+    if (/\.(png|jpe?g|gif|webp|avif|svg)$/.test(name)) return 'images';
+    if (name.endsWith('.pdf')) return 'pdf';
+    if (/\.(xlsx?|csv|ods)$/.test(name)) return 'sheets';
+    if (/\.(md|mdx|txt|rst|docx?|odt)$/.test(name)) return 'docs';
+    if (/\.(py|tsx?|jsx?|mjs|cjs|java|go|rs|rb|sh|css|html|json|ya?ml|toml|sql|swift|kt|xml|plist|entitlements|gradle|php|c|h|cpp|hpp)$/.test(name)
+      || /^(dockerfile|makefile|gemfile|rakefile|justfile)$/.test(name)) return 'code';
+    return 'files';
+  }
   let remoteEntries = $state<ProjectRemoteDirectoryEntry[]>([]);
   let remotePageIndex = $state(0);
   let remotePageCursors = $state<(string | null)[]>([null]);
@@ -230,6 +262,10 @@
   let projectMainElement = $state<HTMLElement>();
   let autoBrowsedProjectId: string | null = null;
   let viewerSplitOpen = $derived(workspaceWidth >= 1024 && (!!activeRemoteFullscreen || !!activeRemoteGenericFile || !!activeRemoteImage || !!activeStoredFullscreen));
+
+  $effect(() => {
+    if (activeTab !== 'tasks') projectTaskOverlay = null;
+  });
 
   // Open the connected repository directly; its directory is the Files view.
   $effect(() => {
@@ -469,7 +505,7 @@
             project, source,
             { ownerId: $userProfile.user_id || '', teamId: getActiveTeamContextSnapshot().teamId },
             'search', { query, target: 'files', mode: 'literal', path: '.', max_results: 100,
-              ...(source.source_id === activeRemoteSourceId ? { priority_path: remotePath } : {}) }, controller.signal,
+              ...(source.source_id === activeRemoteSourceId && remotePath !== '.' ? { priority_path: remotePath } : {}) }, controller.signal,
           ) };
         }));
         if (controller.signal.aborted || generation !== projectSearchGeneration || selectedProject?.project_id !== project.project_id) return;
@@ -731,6 +767,7 @@
 
   function clearSelectedProject(): void {
     selectedProject = null;
+    projectTaskOverlay = null;
     folders = [];
     items = [];
     sources = [];
@@ -746,6 +783,7 @@
 
   async function selectProject(project: ProjectViewModel, updateHash = true): Promise<void> {
     selectedProject = project;
+    projectTaskOverlay = null;
     activeTab = 'overview';
     currentFolder = null;
     currentFolderTrail = [];
@@ -1056,6 +1094,148 @@
     }
   }
 
+  function remoteEntrySelected(sourceId: string, path: string): boolean {
+    return selectedRemoteEntries.some((entry) => entry.sourceId === sourceId && entry.path === path);
+  }
+
+  function toggleRemoteSelection(entry: RemoteSelection): void {
+    selectedRemoteEntries = remoteEntrySelected(entry.sourceId, entry.path)
+      ? selectedRemoteEntries.filter((candidate) => candidate.sourceId !== entry.sourceId || candidate.path !== entry.path)
+      : [...selectedRemoteEntries, entry];
+  }
+
+  function handleRemoteSelectionClick(event: MouseEvent, entry: RemoteSelection): void {
+    if (!selectingRemoteEntries) return;
+    event.preventDefault();
+    event.stopPropagation();
+    toggleRemoteSelection(entry);
+  }
+
+  function openRemoteContextMenu(event: MouseEvent, entry: RemoteSelection): void {
+    event.preventDefault();
+    event.stopPropagation();
+    remoteContextMenu = { x: event.clientX, y: event.clientY, entry };
+  }
+
+  function stageRemoteTransfer(mode: RemoteTransferMode, entries: RemoteSelection[]): void {
+    if (!selectedProject || entries.length === 0) return;
+    const sourceId = entries[0].sourceId;
+    if (entries.some((entry) => entry.sourceId !== sourceId)) {
+      notificationStore.error('Select files from one connected source at a time');
+      return;
+    }
+    stagedRemoteTransfer = {
+      projectId: selectedProject.project_id,
+      sourceId,
+      paths: entries.map((entry) => entry.path),
+      mode,
+    };
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    notificationStore.success(`${entries.length} ${entries.length === 1 ? 'item' : 'items'} ${mode === 'copy' ? 'copied' : 'selected to move'}. Open a destination folder and choose ${mode === 'copy' ? 'Paste' : 'Move here'}.`);
+  }
+
+  function storedItemSelected(itemId: string): boolean {
+    return selectedStoredItems.some((item) => item.project_item_id === itemId);
+  }
+
+  function handleStoredSelectionClick(event: MouseEvent, item: ProjectItemViewModel): void {
+    if (!selectingRemoteEntries) return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectedStoredItems = storedItemSelected(item.project_item_id)
+      ? selectedStoredItems.filter((candidate) => candidate.project_item_id !== item.project_item_id)
+      : [...selectedStoredItems, item];
+  }
+
+  function openStoredContextMenu(event: MouseEvent, item: ProjectItemViewModel): void {
+    event.preventDefault();
+    event.stopPropagation();
+    storedContextMenu = { x: event.clientX, y: event.clientY, item };
+  }
+
+  function stageStoredTransfer(mode: RemoteTransferMode, itemsToTransfer: ProjectItemViewModel[]): void {
+    if (!selectedProject || itemsToTransfer.length === 0) return;
+    stagedStoredTransfer = { projectId: selectedProject.project_id, items: [...itemsToTransfer], mode };
+    selectingRemoteEntries = false;
+    selectedStoredItems = [];
+    notificationStore.success(`${itemsToTransfer.length} ${itemsToTransfer.length === 1 ? 'item' : 'items'} ${mode === 'copy' ? 'copied' : 'selected to move'}. Open a destination folder and choose ${mode === 'copy' ? 'Paste' : 'Move here'}.`);
+  }
+
+  function stageSelectedFiles(mode: RemoteTransferMode): void {
+    if (selectedRemoteEntries.length && selectedStoredItems.length) {
+      notificationStore.error('Select connected files or OpenMates items separately');
+      return;
+    }
+    if (selectedRemoteEntries.length) stageRemoteTransfer(mode, selectedRemoteEntries);
+    else stageStoredTransfer(mode, selectedStoredItems);
+  }
+
+  async function commitStoredTransfer(): Promise<void> {
+    const staged = stagedStoredTransfer;
+    const project = selectedProject;
+    if (!staged || !project || staged.projectId !== project.project_id || activeRemoteSource || currentVirtualPath !== null || remoteTransferBusy) return;
+    remoteTransferBusy = true;
+    let completed = 0;
+    let remaining = [...staged.items];
+    try {
+      const teamId = getActiveTeamContextSnapshot().teamId;
+      for (const item of staged.items) {
+        if (staged.mode === 'copy') {
+          await addExistingTargetToProject(project, item.target_id, item.item_type,
+            projectBrowserItemName(item), currentFolder?.folder_id ?? undefined, item.metadata, { teamId });
+        } else {
+          await moveProjectItemToFolder(project, item.project_item_id, currentFolder?.folder_id ?? null, { teamId });
+        }
+        completed += 1;
+        remaining = remaining.filter((candidate) => candidate.project_item_id !== item.project_item_id);
+        stagedStoredTransfer = remaining.length ? { ...staged, items: remaining } : null;
+      }
+      notificationStore.success(`${completed} ${completed === 1 ? 'item' : 'items'} ${staged.mode === 'copy' ? 'pasted' : 'moved'}`);
+      await refreshSelectedProject();
+      broadcastProjectFilesChanged(project.project_id);
+    } catch (error) {
+      notificationStore.error(`${completed ? `${completed} completed; ` : ''}${error instanceof Error ? error.message : 'Could not transfer Project items'}`);
+      if (completed) await refreshSelectedProject();
+    } finally {
+      remoteTransferBusy = false;
+    }
+  }
+
+  async function commitRemoteTransfer(): Promise<void> {
+    const staged = stagedRemoteTransfer;
+    const project = selectedProject;
+    const source = sources.find((candidate) => candidate.source_id === staged?.sourceId);
+    if (!staged || !project || !source || !activeRemoteSource || !$userProfile.user_id || remoteTransferBusy
+      || staged.projectId !== project.project_id || staged.sourceId !== activeRemoteSource.source_id) return;
+    remoteTransferBusy = true;
+    let completed = 0;
+    let remaining = [...staged.paths];
+    let failed = 0;
+    try {
+      // Each encrypted request is bounded; retain uncommitted paths if a later batch fails.
+      for (let offset = 0; offset < staged.paths.length; offset += 20) {
+        const paths = staged.paths.slice(offset, offset + 20);
+        const result = await transferProjectRemoteEntries(project, source,
+          { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId },
+          { operation: staged.mode === 'copy' ? 'copy_entries' : 'move_entries', paths, destinationPath: remotePath });
+        completed += result.completed.length;
+        failed += result.failed.length;
+        const done = new Set(result.completed);
+        remaining = remaining.filter((path) => !done.has(path));
+        stagedRemoteTransfer = remaining.length ? { ...staged, paths: remaining } : null;
+      }
+      if (completed) notificationStore.success(`${completed} ${completed === 1 ? 'item' : 'items'} ${staged.mode === 'copy' ? 'pasted' : 'moved'}`);
+      if (failed) notificationStore.error(`${failed} ${failed === 1 ? 'item' : 'items'} could not be ${staged.mode === 'copy' ? 'copied' : 'moved'}. The remaining selection is still available.`);
+      await browseRemoteSource(source, remotePath);
+    } catch (error) {
+      notificationStore.error(`${completed ? `${completed} completed; ` : ''}${error instanceof Error ? error.message : 'Could not transfer files'}`);
+      if (completed) await browseRemoteSource(source, remotePath);
+    } finally {
+      remoteTransferBusy = false;
+    }
+  }
+
   function cancelRemoteDownload(): void {
     remoteDownloadController?.abort();
   }
@@ -1102,6 +1282,13 @@
 
   function resetRemoteBrowser(): void {
     cancelProjectSearch();
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    stagedRemoteTransfer = null;
+    remoteContextMenu = null;
+    selectedStoredItems = [];
+    stagedStoredTransfer = null;
+    storedContextMenu = null;
     folderSearchQuery = '';
     cancelRemoteDownload();
     autoBrowsedProjectId = null;
@@ -1134,6 +1321,11 @@
 
   function clearRemoteNavigation(): void {
     cancelProjectSearch();
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    selectedStoredItems = [];
+    remoteContextMenu = null;
+    storedContextMenu = null;
     folderSearchQuery = '';
     autoBrowsedProjectId = null;
     resetRootPrefetch();
@@ -1309,6 +1501,9 @@
 
   async function browseRemoteSource(source: ProjectSourceViewModel, path = '.', pageIndex = 0): Promise<void> {
     if (!selectedProject) return;
+    selectingRemoteEntries = false;
+    selectedRemoteEntries = [];
+    remoteContextMenu = null;
     cancelProjectSearch();
     folderSearchQuery = '';
     const cursor = path === remotePath && source.source_id === activeRemoteSourceId
@@ -1723,13 +1918,17 @@
     {@const listedFolder = remoteEntries.find((candidate) => candidate.path === entry.path && candidate.kind === 'directory')}
     {#if source}
       {#if viewMode === 'list'}
-        <button class="remote-list-entry" data-testid="project-search-result" type="button" onclick={() => void openRemoteEntry(source, { path: entry.path, kind: entry.entryKind })}>
-          <span class="remote-list-icon" class:folder-list-icon={entry.entryKind === 'directory'} class:file-icon={entry.entryKind === 'file'} aria-hidden="true"></span>
+        <button class="remote-list-entry" class:selected={remoteEntrySelected(entry.sourceId, entry.path)} data-testid="project-search-result" type="button"
+          onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: entry.sourceId, path: entry.path, kind: entry.entryKind }) : void openRemoteEntry(source, { path: entry.path, kind: entry.entryKind })}
+          oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: entry.sourceId, path: entry.path, kind: entry.entryKind })}>
+          <span class="remote-list-icon" data-app={remoteListApp(entry.path, entry.entryKind === 'directory')} aria-hidden="true"></span>
           <strong>{searchResultName(entry)}</strong>
           <small>{source.displayName || source.source_id} / {entry.path}</small>
         </button>
       {:else if entry.entryKind === 'directory'}
-        <div class="folder-preview remote-preview-badged search-result-card" data-testid="project-search-result">
+        <div class="folder-preview remote-preview-badged search-result-card" class:selected={remoteEntrySelected(entry.sourceId, entry.path)} data-testid="project-search-result"
+          onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: entry.sourceId, path: entry.path, kind: 'directory' })}
+          oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: entry.sourceId, path: entry.path, kind: 'directory' })}>
           <span class="remote-cloud-badge" role="img" aria-label="Stored remotely"></span>
           <UnifiedEmbedPreview id={`${entry.sourceId}:${entry.path}`} presentationOnly appId="files" skillId="file"
             skillIconName="files" appIconName="files" status="finished" showSkillIcon={false}
@@ -1751,7 +1950,9 @@
         {@const preview = normalizeRemoteFilePreview({ sourceId: entry.sourceId, path: entry.path,
           displayName: searchResultName(entry), language: classifyRemotePreviewPath(entry.path).language,
           snippet: '', previewPolicy: 'metadata_only', safetyFlags: [] })}
-        <div class="search-result-card" data-testid="project-search-result">
+        <div class="search-result-card" class:selected={remoteEntrySelected(entry.sourceId, entry.path)} data-testid="project-search-result"
+          onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: entry.sourceId, path: entry.path, kind: 'file' })}
+          oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: entry.sourceId, path: entry.path, kind: 'file' })}>
           <ProjectRemotePreviewCard {preview} sourceLabel={source.displayName || source.source_id}
             onOpenFullscreen={() => void openRemoteFile(source, entry.path)}
             onOpenFile={() => void openRemoteFileDetails(source, entry.path)} />
@@ -1760,7 +1961,9 @@
       {/if}
     {/if}
   {:else if entry.kind === 'item'}
-    <div class="search-result-card" data-testid="project-search-result">
+    <div class="search-result-card stored-item-entry" class:selected={storedItemSelected(entry.item.project_item_id)} data-testid="project-search-result"
+      onclickcapture={(event) => handleStoredSelectionClick(event, entry.item)}
+      oncontextmenucapture={(event) => openStoredContextMenu(event, entry.item)}>
       <ProjectBrowserItem item={entry.item} {viewMode} displayName={projectBrowserItemName(entry.item)}
         loadProjectEmbed={loadProjectEmbed} onOpenFullscreen={openStoredFullscreen} />
     </div>
@@ -1911,9 +2114,9 @@
           {#if !activeRemoteSource || remotePathParts.length > 0}
           <div class="section-title">
             <div>
-              <h3>{activeRemoteSource ? remotePathParts.at(-1) : currentVirtualPath?.split('/').at(-1) || currentFolder?.name || 'Untitled folder'}</h3>
+              {#if !activeRemoteSource}<h3>{currentVirtualPath?.split('/').at(-1) || currentFolder?.name || 'Untitled folder'}</h3>{/if}
             <nav class="project-breadcrumbs" aria-label="Project folder path">
-              <button class="breadcrumb-button" type="button" onclick={openRoot}>{$text('projects.project_root')}</button>
+              <button class="breadcrumb-button" type="button" onclick={openRoot} aria-label="Project root">/</button>
               {#each currentFolderTrail as folder, index (folder.folder_id)}
                 <span class="breadcrumb-separator">/</span>
                 {#if index === currentFolderTrail.length - 1}
@@ -1931,15 +2134,13 @@
                 {/if}
               {/each}
               {#if activeRemoteSource}
-                <span class="breadcrumb-separator">/</span>
-                <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, '.')}>{activeRemoteSource.displayName || 'Source root'}</button>
                 {#each remotePathParts as part, index}
-                  <span class="breadcrumb-separator">/</span>
                   {#if index === remotePathParts.length - 1}
                     <span class="breadcrumb-current" aria-current="page">{part}</span>
                   {:else}
                     <button class="breadcrumb-button" type="button" onclick={() => void browseRemoteSource(activeRemoteSource, remotePathParts.slice(0, index + 1).join('/'))}>{part}</button>
                   {/if}
+                  {#if index < remotePathParts.length - 1}<span class="breadcrumb-separator">/</span>{/if}
                 {/each}
               {/if}
               </nav>
@@ -1950,6 +2151,24 @@
 
           <div class="browser-toolbar">
             <span class="muted">{projectSearchActive ? `${orderedSearchResults.length} matches` : activeRemoteSource ? `${remotePageIndex * FILES_PAGE_SIZE + (remoteEntries.length ? 1 : 0)}–${remotePageIndex * FILES_PAGE_SIZE + remoteEntries.length} of ${remoteEntryCount} entries` : `${storedEntryCount} entries`}</span>
+            <div class="file-selection-actions" data-testid="project-file-selection-actions">
+              {#if selectingRemoteEntries}
+                <span class="selected-count">{selectedRemoteEntries.length + selectedStoredItems.length} selected</span>
+                <button type="button" data-testid="project-file-copy-selected" disabled={selectedRemoteEntries.length + selectedStoredItems.length === 0 || remoteTransferBusy} onclick={() => stageSelectedFiles('copy')}>Copy</button>
+                <button type="button" data-testid="project-file-move-selected" disabled={selectedRemoteEntries.length + selectedStoredItems.length === 0 || remoteTransferBusy} onclick={() => stageSelectedFiles('move')}>Move</button>
+                <button type="button" data-testid="project-file-cancel-selection" onclick={() => { selectingRemoteEntries = false; selectedRemoteEntries = []; selectedStoredItems = []; }}>Cancel</button>
+              {:else}
+                {#if stagedRemoteTransfer?.projectId === selectedProject.project_id && stagedRemoteTransfer.sourceId === activeRemoteSource?.source_id}
+                  <button type="button" data-testid="project-file-commit-transfer" disabled={remoteTransferBusy} onclick={() => void commitRemoteTransfer()}>{stagedRemoteTransfer.mode === 'copy' ? 'Paste' : 'Move here'}</button>
+                  <button type="button" data-testid="project-file-cancel-transfer" disabled={remoteTransferBusy} onclick={() => (stagedRemoteTransfer = null)}>Cancel</button>
+                {/if}
+                {#if stagedStoredTransfer?.projectId === selectedProject.project_id && !activeRemoteSource && currentVirtualPath === null}
+                  <button type="button" data-testid="project-file-commit-transfer" disabled={remoteTransferBusy} onclick={() => void commitStoredTransfer()}>{stagedStoredTransfer.mode === 'copy' ? 'Paste' : 'Move here'}</button>
+                  <button type="button" data-testid="project-file-cancel-transfer" disabled={remoteTransferBusy} onclick={() => (stagedStoredTransfer = null)}>Cancel</button>
+                {/if}
+                <button type="button" data-testid="project-file-select" onclick={() => { selectingRemoteEntries = true; selectedRemoteEntries = []; selectedStoredItems = []; }}>Select</button>
+              {/if}
+            </div>
             <div class="view-toggle" aria-label="Project view mode">
               <button type="button" class:active={viewMode === 'tile'} onclick={() => (viewMode = 'tile')}>Tile</button>
               <button type="button" class:active={viewMode === 'list'} onclick={() => (viewMode = 'list')}>List</button>
@@ -2057,7 +2276,7 @@
                 </div>
               {:else}
                 <button class="folder-entry list" data-testid="project-folder-card" type="button" onclick={() => void openFolder(folder)}>
-                  <span class="folder-icon">Folder</span>
+                  <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{folder.name || 'Untitled folder'}</strong>
                   <small>{cardEntries.length} {cardEntries.length === 1 ? 'file' : 'files'}</small>
                 </button>
@@ -2090,13 +2309,16 @@
               {:else}
                 <button class="folder-entry list remote-preview-badged" data-testid="project-virtual-folder-card" type="button" onclick={() => openVirtualFolder(folder)}>
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
-                  <span class="folder-icon">Folder</span>
+                  <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{folder.name}</strong>
                   <small>Hosted path</small>
                 </button>
               {/if}
             {/each}
             {#each pageBrowserItems as item (item.project_item_id)}
+              <div class="stored-item-entry" class:selected={storedItemSelected(item.project_item_id)}
+                onclickcapture={(event) => handleStoredSelectionClick(event, item)}
+                oncontextmenucapture={(event) => openStoredContextMenu(event, item)}>
               <ProjectBrowserItem
                 {item}
                 {viewMode}
@@ -2104,6 +2326,7 @@
                 loadProjectEmbed={loadProjectEmbed}
                 onOpenFullscreen={openStoredFullscreen}
               />
+              </div>
             {/each}
             {#each pageBrowserSources as source (source.source_id)}
               {#if viewMode === 'tile'}
@@ -2148,7 +2371,7 @@
                   onclick={() => void browseRemoteSource(source)}
                 >
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
-                  <span class="source-root-icon">{$text('projects.connected_source')}</span>
+                  <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                   <strong>{source.displayName || source.source_id}</strong>
                   <small>{source.status === 'connected' ? remoteRootStatus(source.source_id) : source.status.replaceAll('_', ' ')}</small>
                 </button>
@@ -2181,13 +2404,17 @@
                 {#each visibleRemoteEntries as entry (entry.path)}
                   {#if entry.kind === 'directory'}
                     {#if viewMode === 'list'}
-                      <button class="remote-list-entry" data-testid="project-remote-entry" data-kind="directory" type="button" onclick={() => void openRemoteEntry(activeRemoteSource, entry)}>
-                        <span class="remote-list-icon folder-list-icon" aria-hidden="true"></span>
+                      <button class="remote-list-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="directory" type="button"
+                        onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' }) : void openRemoteEntry(activeRemoteSource, entry)}
+                        oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' })}>
+                        <span class="remote-list-icon" data-app="files" aria-hidden="true"></span>
                         <strong>{entry.path.split('/').at(-1) || entry.path}</strong>
                         <small>{remoteFolderStatus(entry)}</small>
                       </button>
                     {:else}
-                    <div class="folder-preview remote-preview-badged" data-testid="project-remote-entry" data-kind="directory">
+                    <div class="folder-preview remote-preview-badged" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="directory"
+                      onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' })}
+                      oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'directory' })}>
                       <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
                       <UnifiedEmbedPreview
                         id={`${activeRemoteSource.source_id}:${entry.path}`}
@@ -2222,13 +2449,17 @@
                   {:else}
                     {@const previewEntry = remoteEntryPreview(activeRemoteSource, entry)}
                     {#if viewMode === 'list'}
-                      <button class="remote-list-entry" data-testid="project-remote-entry" data-kind="file" type="button" onclick={() => void openRemoteFile(activeRemoteSource, entry.path)}>
-                        <span class="remote-list-icon file-icon" aria-hidden="true"></span>
+                      <button class="remote-list-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="file" type="button"
+                        onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' }) : void openRemoteFile(activeRemoteSource, entry.path)}
+                        oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' })}>
+                        <span class="remote-list-icon" data-app={remoteListApp(entry.path)} aria-hidden="true"></span>
                         <strong>{entry.path.split('/').at(-1) || entry.path}</strong>
                         <small>{entry.sizeBytes === undefined ? 'File' : remoteFileSizeLabel(entry.sizeBytes)}</small>
                       </button>
                     {:else}
-                    <div class="remote-file-entry" data-testid="project-remote-entry" data-kind="file">
+                    <div class="remote-file-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, entry.path)} data-testid="project-remote-entry" data-kind="file"
+                      onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' })}
+                      oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: entry.path, kind: 'file' })}>
                       <ProjectRemotePreviewCard
                         preview={previewEntry.preview}
                         sourceLabel={previewEntry.sourceLabel}
@@ -2257,12 +2488,17 @@
               {#each remotePreviewEntries.filter((entry) => entry.preview.embed.content.source_id === activeRemoteSource.source_id
                 && !remoteEntries.some((remoteEntry) => remoteEntry.path === entry.preview.embed.content.path)) as previewEntry (previewEntry.preview.embed.embed_id)}
                 {#if viewMode === 'list'}
-                  <button class="remote-list-entry" type="button" onclick={() => void openRemotePreview(previewEntry.preview)}>
-                    <span class="remote-list-icon file-icon" aria-hidden="true"></span>
+                  <button class="remote-list-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, previewEntry.preview.embed.content.path)} type="button"
+                    onclick={(event) => selectingRemoteEntries ? handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' }) : void openRemotePreview(previewEntry.preview)}
+                    oncontextmenu={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' })}>
+                    <span class="remote-list-icon" data-app={remoteListApp(previewEntry.preview.embed.content.path)} aria-hidden="true"></span>
                     <strong>{previewEntry.preview.embed.content.display_name}</strong>
                     <small>File</small>
                   </button>
                 {:else}
+                <div class="remote-file-entry" class:selected={remoteEntrySelected(activeRemoteSource.source_id, previewEntry.preview.embed.content.path)}
+                  onclickcapture={(event) => handleRemoteSelectionClick(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' })}
+                  oncontextmenucapture={(event) => openRemoteContextMenu(event, { sourceId: activeRemoteSource.source_id, path: previewEntry.preview.embed.content.path, kind: 'file' })}>
                 <ProjectRemotePreviewCard
                   preview={previewEntry.preview}
                   sourceLabel={previewEntry.sourceLabel}
@@ -2271,6 +2507,7 @@
                   onOpenFullscreen={() => void openRemotePreview(previewEntry.preview)}
                   onOpenFile={() => void openRemoteFileDetails(activeRemoteSource, previewEntry.preview.embed.content.path, previewEntry.preview.embed.content.size_bytes)}
                 />
+                </div>
                 {/if}
               {/each}
             </div>
@@ -2290,6 +2527,9 @@
             compact
             previewTasks={previewState?.tasks ?? null}
             previewProjectNames={previewState ? { [selectedProject.project_id]: selectedProject.name || 'Untitled project' } : {}}
+            onOpenTask={(task, canAssignCodex, onTaskChange) => {
+              projectTaskOverlay = { task, canAssignCodex, onTaskChange };
+            }}
           />
         {/key}
       </section>
@@ -2359,6 +2599,17 @@
             />
           </svelte:fragment>
         </WorkspaceHomeShell>
+      {/if}
+      {#if projectTaskOverlay && activeTab === 'tasks' && selectedProject}
+        <TaskDetailFullscreen
+          task={projectTaskOverlay.task}
+          canAssignCodex={projectTaskOverlay.canAssignCodex}
+          onTaskChange={(task) => {
+            projectTaskOverlay?.onTaskChange(task);
+            if (projectTaskOverlay) projectTaskOverlay = { ...projectTaskOverlay, task };
+          }}
+          onClose={() => { projectTaskOverlay = null; }}
+        />
       {/if}
     </section>
 
@@ -2451,6 +2702,38 @@
       </aside>
     {/if}
   </div>
+{/if}
+
+{#if remoteContextMenu}
+  <EmbedContextMenu
+    x={remoteContextMenu.x}
+    y={remoteContextMenu.y}
+    show
+    showView={false}
+    showShare={false}
+    showCopy
+    showMove
+    showDownload={remoteContextMenu.entry.kind === 'file'}
+    onClose={() => (remoteContextMenu = null)}
+    onCopy={() => remoteContextMenu && stageRemoteTransfer('copy', [remoteContextMenu.entry])}
+    onMove={() => remoteContextMenu && stageRemoteTransfer('move', [remoteContextMenu.entry])}
+    onDownload={() => { if (remoteContextMenu?.entry.kind === 'file') void downloadRemoteFileOrNotify(remoteContextMenu.entry.sourceId, remoteContextMenu.entry.path); }}
+  />
+{/if}
+
+{#if storedContextMenu}
+  <EmbedContextMenu
+    x={storedContextMenu.x}
+    y={storedContextMenu.y}
+    show
+    showView={false}
+    showShare={false}
+    showCopy
+    showMove
+    onClose={() => (storedContextMenu = null)}
+    onCopy={() => storedContextMenu && stageStoredTransfer('copy', [storedContextMenu.item])}
+    onMove={() => storedContextMenu && stageStoredTransfer('move', [storedContextMenu.item])}
+  />
 {/if}
 
 {#if pendingProjectName}
@@ -2815,6 +3098,7 @@
 
   .project-tabs :global(.settings-tabs-wrapper) { padding: 0; }
   .project-tabs :global(.settings-tab.active .tab-icon) { background-color: var(--color-white-fixed, #fff); }
+  .project-tabs :global(.settings-tab:hover .tab-icon) { background-color: var(--color-white-fixed, #fff); }
 
   .project-panel {
     position: relative;
@@ -2836,7 +3120,6 @@
 
   .overview-panel :global(.project-readme) { border: 0; }
 
-  .folders-panel { width: min(80rem, calc(100% - clamp(var(--spacing-8), 5vw, var(--spacing-20)))); max-width: 80rem; }
   .tasks-panel { max-width: 64rem; padding: var(--spacing-8); overflow-x: auto; }
 
   .folder-summary-row {
@@ -2931,7 +3214,8 @@
   .project-action-expander {
     display: grid;
     min-width: 0;
-    width: fit-content;
+    width: min(18.75rem, 100%);
+    justify-self: center;
   }
 
   .browser-grid > .project-action-expander.expanded {
@@ -2952,8 +3236,9 @@
 
   .project-actions button {
     display: grid;
-    min-width: 6rem;
+    min-width: 0;
     min-height: 7rem;
+    flex: 1;
     place-items: center;
     align-content: center;
     gap: var(--spacing-4);
@@ -3079,7 +3364,29 @@
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 16px;
+    flex-wrap: wrap;
   }
+
+  .file-selection-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-inline-start: auto;
+  }
+
+  .file-selection-actions button {
+    min-height: 2.5rem;
+    padding: var(--spacing-2) var(--spacing-5);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    transition: background-color var(--duration-normal) var(--easing-default);
+  }
+
+  .file-selection-actions button:hover:not(:disabled) { background: var(--color-grey-20); }
+  .file-selection-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .selected-count { color: var(--color-font-secondary); }
 
   .view-toggle {
     display: inline-flex;
@@ -3148,7 +3455,7 @@
 
   .remote-list-entry {
     display: grid;
-    grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--spacing-5);
     width: 100%;
@@ -3160,14 +3467,27 @@
     box-shadow: none;
     color: var(--color-font-primary);
     text-align: start;
+    scale: 1;
+    transition: background-color 0.2s ease;
   }
 
+  .remote-list-entry:hover { background: var(--color-grey-20); scale: 1; transform: none; }
+  .remote-list-entry.selected { background: var(--color-grey-20); outline: 2px solid var(--color-primary); }
   .remote-list-entry strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .remote-list-entry small { color: var(--color-font-secondary); }
   .remote-list-entry:focus-visible { outline: 2px solid var(--color-focus, var(--color-font-primary)); }
-  .remote-list-icon { width: 1.25rem; height: 1.25rem; background: var(--color-font-secondary); }
-  .remote-list-icon.folder-list-icon { -webkit-mask: var(--icon-url-files) center / contain no-repeat; mask: var(--icon-url-files) center / contain no-repeat; }
-  .remote-list-icon.file-icon { -webkit-mask: var(--icon-url-code, var(--icon-url-files)) center / contain no-repeat; mask: var(--icon-url-code, var(--icon-url-files)) center / contain no-repeat; }
+  .remote-list-icon { position: relative; width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--color-app-files); }
+  .remote-list-icon::after { position: absolute; inset: 0.65rem; content: ''; background: var(--color-white-fixed, #fff); -webkit-mask: var(--icon-url-files) center / contain no-repeat; mask: var(--icon-url-files) center / contain no-repeat; }
+  .remote-list-icon[data-app='code'] { background: var(--color-app-code); }
+  .remote-list-icon[data-app='code']::after { -webkit-mask-image: var(--icon-url-coding); mask-image: var(--icon-url-coding); }
+  .remote-list-icon[data-app='docs'] { background: var(--color-app-docs); }
+  .remote-list-icon[data-app='docs']::after { -webkit-mask-image: var(--icon-url-docs); mask-image: var(--icon-url-docs); }
+  .remote-list-icon[data-app='sheets'] { background: var(--color-app-sheets); }
+  .remote-list-icon[data-app='sheets']::after { -webkit-mask-image: var(--icon-url-sheets); mask-image: var(--icon-url-sheets); }
+  .remote-list-icon[data-app='images'] { background: var(--color-app-images); }
+  .remote-list-icon[data-app='images']::after { -webkit-mask-image: var(--icon-url-image); mask-image: var(--icon-url-image); }
+  .remote-list-icon[data-app='pdf'] { background: var(--color-app-pdfeditor); }
+  .remote-list-icon[data-app='pdf']::after { -webkit-mask-image: var(--icon-url-pdf); mask-image: var(--icon-url-pdf); }
 
   .folder-entry,
   .source-root-entry {
@@ -3182,19 +3502,20 @@
   .folder-entry.list,
   .source-root-entry.list {
     display: grid;
-    grid-template-columns: minmax(90px, 140px) 1fr auto;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
     align-items: center;
-    min-height: 64px;
-    padding: 0 14px;
+    gap: var(--spacing-5);
+    min-height: 4rem;
+    padding: var(--spacing-4) var(--spacing-7);
+    border: 1px solid var(--color-grey-20);
+    background: var(--color-grey-0);
     box-shadow: none;
+    scale: 1;
+    transition: background-color 0.2s ease;
   }
 
-  .folder-icon {
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
+  .folder-entry.list:hover,
+  .source-root-entry.list:hover:not(:disabled) { background: var(--color-grey-20); scale: 1; transform: none; }
 
   .folder-preview {
     display: flex;
@@ -3209,8 +3530,7 @@
   }
 
   .folder-preview.remote-preview-badged {
-    width: fit-content;
-    max-width: 100%;
+    width: min(18.75rem, 100%);
     justify-self: center;
   }
 
@@ -3237,7 +3557,9 @@
   }
 
   .folder-preview :global(.unified-embed-preview) {
-    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    flex: 0 1 auto;
   }
 
   .folder-child-row > span:nth-child(2) {
@@ -3286,13 +3608,6 @@
   .source-root-entry:disabled {
     cursor: not-allowed;
     opacity: 0.68;
-  }
-
-  .source-root-icon {
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   .project-breadcrumbs {
@@ -3347,8 +3662,20 @@
     justify-self: center;
   }
 
+  .stored-item-entry { min-width: 0; width: 100%; }
+
   .remote-file-entry :global(.remote-preview-card) {
     width: 100%;
+  }
+
+  .remote-file-entry.selected :global(.remote-preview-card),
+  .folder-preview.selected :global(.unified-embed-preview),
+  .search-result-card.selected :global(.remote-preview-card),
+  .stored-item-entry.selected :global(.unified-embed-preview),
+  .stored-item-entry.selected :global(.browser-item.list) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-5);
   }
 
 
@@ -3379,7 +3706,7 @@
       padding-inline: var(--spacing-5);
     }
 
-    .remote-list-entry { grid-template-columns: 1.5rem minmax(0, 1fr); }
+    .remote-list-entry { grid-template-columns: 2.5rem minmax(0, 1fr); }
     .remote-list-entry small { display: none; }
 
     .folder-summary-row {

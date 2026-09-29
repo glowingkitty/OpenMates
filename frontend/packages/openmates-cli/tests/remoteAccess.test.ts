@@ -557,6 +557,10 @@ const timer = setInterval(() => {
         const result = await searchRemoteSource({ sourceRoot: root, target: "files", query: "DESIGN", path: ".", runRg });
         assert.deepEqual(result.matches, expected);
         assert.equal(result.omitted, 0);
+        const rootPriority = await searchRemoteSource({
+          sourceRoot: root, target: "files", query: "DESIGN", path: ".", priorityPath: ".", runRg,
+        });
+        assert.deepEqual(rootPriority.matches, expected);
         const bounded = await searchRemoteSource({ sourceRoot: root, target: "files", query: "DESIGN", path: ".", maxResults: 2, runRg });
         assert.deepEqual(bounded.matches, expected.slice(0, 2));
         assert.equal(bounded.omitted, 2);
