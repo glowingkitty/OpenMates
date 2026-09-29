@@ -1,7 +1,8 @@
-"""Dev-only, real-inference E2E check for current coding-subscription answers.
+"""Dev-only, real-inference E2E check for recent AI model answers.
 
 Run with an isolated authenticated OPENMATES_STATE_DIR and a disposable
-OPENMATES_AI_MODEL_TEST_PROJECT. This check intentionally does not run in CI.
+OPENMATES_AI_MODEL_TEST_PROJECT. The optional ``--mode plans`` also checks
+current subscription sourcing. This check intentionally does not run in CI.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ MODEL_PROMPT = (
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("plans", "models"), default="plans")
+    parser.add_argument("--mode", choices=("plans", "models"), default="models")
     args = parser.parse_args()
     state_dir = os.environ["OPENMATES_STATE_DIR"]
     project = os.environ["OPENMATES_AI_MODEL_TEST_PROJECT"]
