@@ -3676,7 +3676,7 @@ async function handleProjectFiles(
     operation = "search";
     const query = requiredStringFlag(rest[2], "search query");
     if (Buffer.byteLength(query, "utf8") > 256) throw new CliContractError("query_too_large", "Search query exceeds 256 bytes.");
-    argumentsValue = { query };
+    argumentsValue = { query, target: "files", mode: "literal", path: "." };
   } else {
     operation = "read_text";
     argumentsValue = { path: safeRelativeProjectPath(requiredStringFlag(rest[2], "relative path")) };
