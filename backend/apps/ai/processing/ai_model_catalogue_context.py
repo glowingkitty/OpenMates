@@ -9,7 +9,7 @@ from typing import Any, Mapping, Sequence
 MODEL_FAMILIES = ("llm", "image", "video", "audio")
 MAX_MODELS_PER_PROVIDER = 3
 MAX_MODELS_PER_FAMILY = 18
-MAX_RELEASE_AGE_DAYS = 540
+MAX_RELEASE_AGE_DAYS = 365
 
 
 def _family(model: Mapping[str, Any]) -> str | None:
@@ -52,8 +52,19 @@ def build_ai_model_catalogue_context(
                 continue
             if released and (today - released).days > MAX_RELEASE_AGE_DAYS:
                 continue
-            description = " ".join(str(model.get("description") or "").split())[:180]
+            description = " ".join(str(model.get("description") or "").split())[:160]
             details = f"{provider_name} — {model['name']}"
+            core = []
+            if model.get("capability_level") in {"low", "medium", "high", "max"}:
+                core.append(f"capability {model['capability_level']}")
+            if model.get("reasoning") is True:
+                core.append("reasoning")
+            for label, key in (("input", "input_types"), ("output", "output_types")):
+                modalities = model.get(key)
+                if isinstance(modalities, list) and modalities:
+                    core.append(f"{label} {', '.join(str(value) for value in modalities[:5])}")
+            if core:
+                details += f" ({'; '.join(core)})"
             if description:
                 details += f": {description}"
             grouped[family][str(provider_id)].append((released, str(model["name"]), details))
@@ -75,6 +86,7 @@ def build_ai_model_catalogue_context(
     lines.append(
         "Use these dates as a recency anchor. Prefer current relevant models in comparisons; "
         "discuss older models when the user explicitly requests them or historical context needs them. "
+        "Treat entries without a release date as available options with unknown recency. "
         "Do not present this catalogue as a complete list of worldwide releases. "
         "Subscription prices, included usage, rate limits, and recent announcements are NOT in this catalogue. "
         "For those changing facts, use an available web search and cite current primary sources; "

@@ -15,7 +15,7 @@ def test_current_models_are_selected_by_family_and_future_entries_are_omitted() 
         "openai": {
             "name": "OpenAI",
             "models": [
-                {"name": "Current Text", "for_app_skill": "ai.ask", "release_date": "2026-09-20", "description": "Current language model"},
+                {"name": "Current Text", "for_app_skill": "ai.ask", "release_date": "2026-09-20", "description": "Current language model", "capability_level": "high", "reasoning": True, "input_types": ["text", "image"], "output_types": ["text"]},
                 {"name": "Old Text", "for_app_skill": "ai.ask", "release_date": "2023-01-01"},
                 {"name": "Future Text", "for_app_skill": "ai.ask", "release_date": "2026-10-01"},
                 {"name": "Current Image", "for_app_skill": "images.generate", "release_date": "2026-08-01"},
@@ -31,6 +31,7 @@ def test_current_models_are_selected_by_family_and_future_entries_are_omitted() 
     assert "Old Text" not in context
     assert "Future Text" not in context
     assert "Current Image" not in context
+    assert "capability high; reasoning; input text, image; output text" in context
     assert "Subscription prices, included usage" in context
     assert build_ai_model_catalogue_context(providers, [], today=date(2026, 9, 29)) == ""
 
