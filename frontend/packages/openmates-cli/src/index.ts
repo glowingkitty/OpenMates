@@ -32,7 +32,7 @@ export {
 } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { SUPPORT_URL, renderSupportInfo } from "./support.js";
-export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";
+export { OpenMates, OpenMatesApiError, OpenMatesConfigError, OpenMatesUnavailableError } from "./sdk.js";
 export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 export {
   buildCreatePlanCriterionInput,

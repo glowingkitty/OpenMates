@@ -29,9 +29,22 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.utils.ws_token import create_ws_token
+from backend.core.api.app.services.session_security_state import set_session_risk_pending
+from backend.core.api.app.services.password_v2 import has_password_v2_record
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _has_password_wrapper(encryption_keys: list[dict]) -> bool:
+    return any(
+        method == "password" or (
+            isinstance(method, str) and method.startswith("password_v2_")
+        )
+        for item in encryption_keys
+        if isinstance(item, dict)
+        for method in [item.get("login_method")]
+    )
 
 
 async def _has_free_testing_credits_grant(
@@ -222,6 +235,7 @@ async def get_session(
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
+                await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Device verification required",
@@ -240,10 +254,35 @@ async def get_session(
                 has_passkeys = len(passkeys) > 0 if passkeys else False
             except Exception as e:
                 logger.error(f"Error checking passkeys for user {user_id[:6]}: {e}", exc_info=True)
-                has_passkeys = False
+                # An outage must not make a risk-challenged session look like an
+                # account with no enrolled factor.
+                raise HTTPException(status_code=503, detail="Authentication methods temporarily unavailable") from e
             
             if has_passkeys:
                 logger.warning(f"Re-auth triggered for user {user_id[:6]} (reason: {re_auth_reason}, passkeys configured).")
+                try:
+                    encryption_keys = await directus_service.get_items(
+                        "encryption_keys",
+                        {
+                            "filter[hashed_user_id][_eq]": hashed_user_id,
+                            "fields": "login_method",
+                        },
+                        raise_on_error=True,
+                    )
+                    password_fallback_available = _has_password_wrapper(encryption_keys)
+                    password_credential_version = None
+                    if password_fallback_available:
+                        password_fields = await directus_service.get_user_fields_direct(
+                            user_id, ["credential_lookup_hashes"],
+                        )
+                        if not isinstance(password_fields, dict):
+                            raise RuntimeError("Password credential state unavailable")
+                        password_credential_version = (2 if has_password_v2_record(
+                            password_fields.get("credential_lookup_hashes")) else 1)
+                except Exception as exc:
+                    logger.error("Could not load password fallback capability for risk challenge: %s", type(exc).__name__)
+                    password_fallback_available = False
+                    password_credential_version = None
                 minimal_user_info = UserResponse(
                     id=user_id,
                     account_id=user_data.get("account_id"),
@@ -266,11 +305,14 @@ async def get_session(
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
+                await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Passkey verification required",
                     re_auth_required="passkey",
                     re_auth_reason=re_auth_reason, # "new_device" or "location_change"
+                    password_fallback_available=password_fallback_available,
+                    password_credential_version=password_credential_version,
                     user=minimal_user_info, # Send user info for the verification screen
                     require_invite_code=require_invite_code
                 )
@@ -472,6 +514,7 @@ async def get_session(
                 darkmode=user_data.get("darkmode", False),
                 ui_font=user_data.get("ui_font", "lexend"),
                 invoice_counter=user_data.get("invoice_counter", 0),
+                credential_version=user_data.get("credential_version"),
                 # Low balance auto top-up fields
                 # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
                     auto_topup_low_balance_enabled=bool(user_data.get("auto_topup_low_balance_enabled", False)),

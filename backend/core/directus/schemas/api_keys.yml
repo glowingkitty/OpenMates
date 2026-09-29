@@ -13,9 +13,16 @@ api_keys:
     key_hash:
       type: string
       length: 64
-      note: "SHA-256 hash of the full API key (used for validation and encryption key lookup)"
+      note: "SHA-256 hash of the bearer component only; client decryption secret is never sent"
       required: true
       unique: true
+    credential_version:
+      type: integer
+      note: "Version 2 separates bearer authentication from client-only key unwrapping; missing or older records require replacement"
+      required: false
+    resource_key_grants:
+      type: json
+      note: "Owner-verified, client-wrapped keys for selected personal resources; never an account-root key"
     encrypted_key_prefix:
       type: string
       length: 512

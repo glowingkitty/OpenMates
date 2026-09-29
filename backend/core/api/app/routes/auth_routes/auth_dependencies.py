@@ -13,6 +13,10 @@ from typing import Any, Optional, TYPE_CHECKING
 
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
+from backend.core.api.app.services.pair_session_deadline import enforce_pair_deadline
+from backend.core.api.app.services.session_security_state import (
+    ensure_legacy_session_state, get_session_state_cached, token_hash,
+)
 from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
@@ -240,6 +244,11 @@ async def get_current_user(
     """
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
+    await enforce_pair_deadline(directus_service, cache_service, refresh_token)
+    await get_session_state_cached(
+        directus_service, cache_service, token_hash(refresh_token),
+        allow_risk=bool(request and getattr(request.state, "allow_session_risk", False)),
+    )
     
     cache_ttl: Optional[int] = None
 
@@ -260,6 +269,9 @@ async def get_current_user(
             cached_data = None
         else:
             await directus_service.admin.repair_cached_admin_status(cached_user_id, cached_data)
+            await ensure_legacy_session_state(
+                directus_service, cache_service, refresh_token, cached_user_id,
+            )
             # Ensure all fields expected by the User model are present, providing defaults if necessary
             await _set_session_auth_state(request, cache_service, cached_user_id, refresh_token)
             return User(
@@ -488,6 +500,7 @@ async def get_current_user(
         cache_service, old_refresh_token=old_refresh_token,
         new_refresh_token=refresh_token, user_id=user.id,
     )
+    await ensure_legacy_session_state(directus_service, cache_service, refresh_token, user.id)
     await _set_session_auth_state(request, cache_service, user.id, refresh_token)
     
     return user

@@ -16,8 +16,8 @@ scope:
     - Login lookup, password plus 2FA, backup-code, recovery-key, passkey PRF, and pair-login session completion.
     - Session cookie, WebSocket token, cache-miss recovery, stay-logged-in TTL, and re-authentication semantics.
     - First-party web, native Apple, and CLI client access boundaries for auth routes.
+    - Server-enforced sensitive-action verification, credential replacement, and cancellable destructive email recovery.
   excludes:
-    - Destructive account reset after all credentials are lost.
     - Billing setup, credit purchase, payment method setup, and auto-top-up onboarding.
     - Provider-specific WebAuthn authenticator UX beyond PRF, challenge, origin, and relying-party semantics.
     - Public developer API-key authentication and magic-link login, which are not implemented account-access paths.
@@ -73,12 +73,12 @@ models:
   WrappedAccountKey:
     login_method:
       type: enum
-      values: [password, passkey, security_key, recovery_key, pair]
+      values: [password, passkey, security_key, recovery_key]
       required: true
     lookup_hash:
       type: string
-      required: true
-      constraints: {proves_client_secret: true}
+      nullable: true
+      constraints: {legacy_compatibility_only: true, caller_method_label_is_not_proof: true}
     encrypted_master_key:
       type: encrypted_blob
       nullable: true
@@ -130,6 +130,10 @@ models:
       constraints: {deterministic_from_rp_id: true}
 
   PairLoginGrant:
+    protocol_version:
+      type: integer
+      required: true
+      constraints: {value: 2, insecure_fallback: forbidden}
     token:
       type: string
       required: true
@@ -137,11 +141,23 @@ models:
     encrypted_bundle:
       type: encrypted_blob
       nullable: true
-      constraints: {server_plaintext_bundle: forbidden, ttl_seconds: 120}
+      constraints: {server_plaintext_bundle: forbidden, release_before_peer_confirmation: forbidden}
     pin:
       type: string
       required: true
-      constraints: {length: 6, max_attempts: 5}
+      constraints: {length: 6, client_only: true, server_transmission: forbidden, exchanges_per_pin: 1}
+    receiver_token_hash:
+      type: sha256
+      required: true
+      constraints: {client_generated_capability_bytes: 32, scope: initiating_device}
+    grant_hash:
+      type: sha256
+      nullable: true
+      constraints: {grant_secret_bytes: 32, grant_secret_inside_confirmed_channel: true, consumption: atomic_single_use}
+    pair_expires_at:
+      type: unix_seconds
+      nullable: true
+      constraints: {server_enforced: true, refresh_extension: forbidden, sibling_sessions_affected: forbidden}
 
   AuthSession:
     session_id:
@@ -187,8 +203,8 @@ assertions:
     depends_on: [models.SignupStepSequence, models.SignupClientSurface, examples.signup_flows, examples.signup_client_surfaces]
   - id: auth.signup.access-gates
     type: security
-    must: Account creation requires the active invite-code and domain policy, rejects invalid usernames and duplicate username/email hashes, stores new users as non-admin regardless of invite-code metadata, and creates the user only after required email verification is represented by the hashed-email verification cache.
-    depends_on: [models.SignupIdentity, examples.signup_access_gates]
+    must: Account creation requires the active invite-code and domain policy, rejects invalid usernames and duplicate username/email hashes, stores new users as non-admin regardless of invite-code metadata, and creates the user only after required email verification and authentication proofs are bound to that signup transaction.
+    depends_on: [models.SignupIdentity, examples.signup_transactions]
   - id: auth.keys.client-wrapped
     type: privacy
     must: Account access stores hashed email, encrypted email, lookup hashes, salts, key IVs, WebAuthn public keys, and client-wrapped master keys only; plaintext passwords, raw master keys, PRF outputs, recovery keys, pair-login bundle plaintext, and raw refresh tokens are not persisted or returned in JSON responses.
@@ -199,8 +215,40 @@ assertions:
     depends_on: [models.LoginLookupResponse, examples.lookup_enumeration]
   - id: auth.login.method-convergence
     type: behavior
-    must: Password plus OTP, password plus backup code, recovery-key, passkey PRF, and pair-login paths all converge on the same session finalization contract; password accounts with configured OTP require a valid OTP or unused backup code, while recovery-key, passkey, and pair-login are standalone strong login methods that do not add an extra OTP challenge.
-    depends_on: [models.WrappedAccountKey, models.AuthSession, examples.login_methods]
+    must: Password with or without optional OTP enrollment, password plus backup code when OTP is configured, recovery-key, passkey PRF, and pair-login paths all converge on the same session finalization contract; password accounts with configured OTP require a valid OTP or unused backup code, while recovery-key, passkey, and pair-login do not add an extra OTP challenge.
+    depends_on: [models.WrappedAccountKey, models.AuthSession]
+  - id: auth.login.verified-method
+    type: security
+    must: The server determines the authentication method from a verified, typed credential or a purpose-bound single-use authentication result, never from a caller's method label. Password login works without mandatory 2FA enrollment, but an enrolled OTP factor is required for that account's password login and verification errors fail closed. Existing untyped credential records retain ordinary login and local key unlock until a safe typed replacement is committed; they do not acquire a new exemption from an unverified method label. Passkey, recovery-key, and pairing exemptions require their own valid proofs. A reusable lookup credential is not exported to an existing session as a substitute for such proof.
+    depends_on: [examples.verified_login_method]
+  - id: auth.keys.independent-unlock
+    type: behavior
+    must: A user can sign in on a fresh supported device and locally unwrap the existing account master key using their ordinary password, supported passkey PRF, or recovery key. This does not require another device online or a separate encryption password on every login. Email access alone cannot unwrap existing chats; authentication and wrapping migrations preserve existing history and installed login methods.
+    depends_on: [models.WrappedAccountKey, examples.independent_unlock]
+  - id: auth.password.versioned-protection
+    type: security
+    must: Password authentication and master-key wrapping use a versioned, reviewed design with benchmarked memory-hard password processing and no retained fast password-derived verifier that bypasses that cost. Migration occurs after successful client-side password unlock and commits the new authentication record and wrapper together before retiring the old record; interrupted migration preserves a usable credential and never requires an extra login secret.
+    depends_on: [examples.password_protection]
+  - id: auth.sensitive-actions.recent-verification
+    type: security
+    must: The server gates password and recovery-key replacement, factor changes, backup-code regeneration, API-key creation, device approval, and account-contact changes on server-verified recent assurance within five minutes on the same logical session. An enrolled passkey or authenticator method is preferred; when no OTP factor is enrolled, a typed password re-entry plus a short-lived one-use email code is an allowed fallback for password-capable accounts, including those with a passkey unavailable on this device. Until an older account has a typed credential, a re-entered accepted untyped account secret plus the same one-use email code is a temporary legacy fallback for sensitive actions on an active session; its assurance is labeled legacy and never claimed as proof of the current password, and it cannot be used for an account with typed password records. Email verification is not labeled 2FA and email alone never authorizes the action or unlocks the master key. The recent verification may be reused without another prompt; cookie refresh, frontend flags, another session's verification, and a pending risk challenge cannot authorize the action. Transaction proofs are bound to the user, logical session, purpose, and proposed target when applicable, and consumed atomically when required.
+    depends_on: [models.SessionSecurityState]
+  - id: auth.credentials.atomic-replacement
+    type: security
+    must: Credential and factor replacement atomically installs the new typed credential and corresponding key wrapper, retires the previous credential of that type, and invalidates stale authentication caches. Failure preserves the last usable committed state. The server identifies the replaced credential instead of trusting an optional client-supplied old hash; unrelated enrolled methods are preserved and ambiguous legacy records require a safe association before removal.
+    depends_on: [examples.credential_replacement]
+  - id: auth.proofs.single-use
+    type: security
+    must: WebAuthn and other one-use authentication challenges are purpose-, account-, transaction-, and where applicable session-bound and atomically claimed. Concurrent backup-code use can succeed only once; a previously accepted OTP step cannot be replayed for another authorization. Attempts are rate-limited and factor replacement invalidates prior factor caches. Invalid or replayed proof never partially authorizes login or a sensitive mutation.
+    depends_on: [examples.single_use_proofs]
+  - id: auth.signup.transaction-bound
+    type: security
+    must: Required email verification is bound to a client-held signup transaction rather than being transferable between callers who know the email. Account creation verifies the requested authentication method, including WebAuthn registration, before committing the account and its credentials; failed or replayed proofs leave no usable partially authorized account.
+    depends_on: [models.SignupIdentity, examples.signup_transactions]
+  - id: auth.recovery.email-delay
+    type: behavior
+    must: Email-only destructive recovery creates a notified, cancellable request with a 24-hour delay before any irreversible reset. Existing authenticated access can cancel during that period. Email verification cannot decrypt existing history. After the delay, a staged idempotent reset verifies its authorization and completes required cleanup, credential replacement, and authoritative session revocation without reporting success on partial failure; normal password, passkey, and recovery-key login do not acquire this delay.
+    depends_on: [examples.destructive_recovery]
   - id: auth.login.passkey-alternative-methods
     type: behavior
     must: While a passkey login request is pending, the web login screen keeps email/password and phone/PC login controls visible; the email/password control includes its email icon, and choosing either alternative cancels the pending passkey request before switching methods.
@@ -211,12 +259,36 @@ assertions:
     depends_on: [models.PasskeyCredential, models.WrappedAccountKey, examples.passkey_flows]
   - id: auth.pair-login.single-use-zk
     type: security
-    must: Pair login issues a short-lived token for the initiating device, lets an authenticated device upload only an opaque PIN-encrypted credentials bundle, limits PIN attempts, returns the bundle once to the initiating device, deletes all pair keys on success or lockout, and then completes through the normal /auth/login session path with login_method pair.
+    must: Pair login uses a versioned client-to-client PAKE through the API relay; only the approving and receiving clients know the short PIN, PAKE private state, and transfer key. The approving client confirms the receiving peer before releasing an authenticated encrypted bundle containing the existing account master key. The exchange binds protocol version, pairing token, both roles, receiver identity, approving account, and selected lifetime. Each PIN permits one peer exchange; wrong PIN, context mismatch, tampering, or replay fails closed and requires a fresh pairing.
     depends_on: [models.PairLoginGrant, models.AuthSession, examples.pair_login]
+  - id: auth.pair-login.session-grant
+    type: security
+    must: Pairing completion requires an expiring single-use grant issued by the authenticated approving account and bound to the initiating receiver capability and session. The grant secret travels inside the confirmed encrypted bundle and is consumed atomically by the API before shared session finalization. Pairing never exports a reusable password, passkey, or recovery lookup credential; a caller-supplied login_method pair cannot authorize login, and legacy pairing requests receive an explicit update-required response without insecure fallback.
+    depends_on: [models.PairLoginGrant, models.AuthSession, examples.pair_grants]
+  - id: auth.pair-login.approval-assurance
+    type: security
+    must: Approving a paired device requires server-verified assurance on the same logical session within five minutes. Fresh enrolled OTP or passkey verification is preferred; a password-capable account without enrolled OTP may instead re-enter its typed password and verify a short-lived one-use email code, both bound to that session. An account with only untyped legacy credential records may temporarily re-enter an accepted account secret with the one-use email code; this is recorded as legacy assurance rather than proven current-password verification. Email alone never authorizes pairing or unwraps the account key. Cookie refresh, another session's verification, frontend flags, and unverified method labels cannot establish or renew approval assurance. A pending risk challenge prevents approval.
+    depends_on: [models.SessionSecurityState]
+  - id: auth.pair-login.lifecycle
+    type: behavior
+    must: The user approves on an unlocked device, sees its locally generated PIN, and enters that PIN on the receiver. The approving client remains active through key confirmation and bundle release. Cancellation, timeout, failure, and acknowledged success are distinct; the approving UI reports success only after the receiver completes login and acknowledges local storage of its required session and key material. Leaving before release aborts the exchange, temporary secrets are discarded, and ordinary password, passkey, and recovery-key login remain independent of any other online device.
+    depends_on: [models.PairLoginGrant, examples.pair_lifecycle]
+  - id: auth.pair-login.expiry
+    type: security
+    must: A numeric pairing auto-logout choice establishes an absolute server-enforced session deadline that survives issuer token rotation, cache eviction, and reconnects. REST and WebSocket access cease at that deadline and clients stop using expired paired credentials. The default no-auto-logout choice retains the ordinary session policy; expiry and targeted revocation never invalidate sibling sessions.
+    depends_on: [models.PairLoginGrant, models.SessionSecurityState, examples.pair_expiry]
   - id: auth.session.lifecycle
     type: behavior
     must: Session finalization normalizes Directus refresh cookies into OpenMates auth cookies, uses 24-hour default and 30-day stay-logged-in TTLs for cookies and cache, returns a short-lived ws_token instead of the raw refresh token in JSON, refreshes expiring tokens, preserves the same logical session and its security state across refresh-token rotation, and falls back from cache miss to Directus token refresh without downgrading stay-logged-in sessions.
     depends_on: [models.AuthSession, models.SessionSecurityState, examples.session_lifecycle]
+  - id: auth.session.authoritative-enforcement
+    type: security
+    must: Session expiry, targeted revocation, logout, and pending risk restrictions are enforced by the server across REST, refresh, and WebSocket access, including live connections and cold caches. A revoked or expired credential cannot be revived by the issuer-refresh fallback; unavailable security state fails closed without being confused with an ordinary profile-cache miss. Client-supplied internal markers never substitute for credential or WebSocket signature verification. Normal refresh preserves the session's applicable lifetime and restrictions, and targeted changes preserve sibling sessions.
+    depends_on: [models.SessionSecurityState, examples.authoritative_sessions]
+  - id: auth.secrets.lifecycle
+    type: privacy
+    must: Auth responses expose refresh credentials only through their intended protected credential transport and never as redundant JSON fields or URL query parameters. Validation errors and diagnostic output omit passwords, lookup credentials, OTPs, recovery keys, PINs, PRF outputs, grants, capabilities, cookies, and raw key material. Logout awaits required local credential and key cleanup, clears local session cookies even when remote logout fails, and does not report successful erasure when cleanup failed.
+    depends_on: [examples.secret_lifecycle]
   - id: auth.session.isolation
     type: security
     must: Each authenticated refresh-token chain is an independently governed logical session; expiry, logout, revocation, location updates, and pending re-authentication affect only that session, while sibling sessions remain authenticated and retain their own security state. Account-wide invalidation occurs only for an explicit log-out-all action, account deletion, or a separately specified severe account-compromise response.
@@ -241,7 +313,7 @@ applies_to:
   cli:
     required: true
     parity: semantic
-    role: CLI account access supports signup plus pair login and uses the same auth route, client-wrapped key, session cookie, and ws_token semantics after /auth/login.
+    role: CLI account access supports signup plus pair login and uses shared session finalization, client-wrapped keys, session cookies, and ws_token semantics after the verified authentication flow completes.
   sdks:
     required: false
     role: SDKs may reuse authenticated sessions or developer auth where implemented, but do not own consumer signup and cannot bypass account-access security boundaries.

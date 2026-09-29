@@ -11,6 +11,7 @@ import hashlib
 import sys
 from decimal import Decimal
 from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -458,6 +459,11 @@ def test_ws_auth_cached_profile_enables_signed_daily_real_budget_path(tmp_path, 
         ),
     )
     monkeypatch.setattr(auth_ws.ComplianceService, "log_auth_event_safe", lambda **_kwargs: None)
+    monkeypatch.setattr(auth_ws, "get_pair_deadline_hash", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        auth_ws, "get_session_state_cached",
+        AsyncMock(return_value={"user_id": user_id, "expires_at": 4102444800}),
+    )
 
     async def run() -> dict:
         auth_data = await auth_ws.get_current_user_ws(fake_ws)

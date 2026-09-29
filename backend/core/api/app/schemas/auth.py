@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, SecretStr, model_validator
 from typing import Optional, Dict, Any, List
 from backend.core.api.app.schemas.user import UserResponse
 
@@ -65,11 +65,15 @@ class CheckEmailCodeResponse(BaseModel):
     success: bool
     message: str
     user: Optional[Dict[str, Any]] = None  # Include user data in the response
+    signup_transaction_token: Optional[str] = None
 
 class LoginRequest(BaseModel):
     """Schema for login request"""
     hashed_email: str = Field(..., description="Hashed email for lookup")
-    lookup_hash: str = Field(..., description="Hash of email + password for authentication")
+    lookup_hash: Optional[str] = Field(None, description="Legacy credential lookup hash")
+    credential_version: int = Field(1, description="Password protocol version")
+    challenge_id: Optional[str] = None
+    password_proof: Optional[str] = None
     session_id: Optional[str] = Field(None, description="Browser session ID for device fingerprint uniqueness (UUID from sessionStorage). Required for login, optional for signup.")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
@@ -77,6 +81,15 @@ class LoginRequest(BaseModel):
     login_method: Optional[str] = Field(None, description="Login method used ('password', 'passkey', 'security_key', 'recovery_key')")
     credential_id: Optional[str] = Field(None, description="Credential ID for passkey login (to look up specific encryption key)")
     stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
+
+    @model_validator(mode="after")
+    def require_protocol_proof(self):
+        if self.credential_version == 2:
+            if self.login_method != "password" or not self.challenge_id or not self.password_proof or not self.session_id:
+                raise ValueError("Invalid password v2 login request")
+        elif self.credential_version != 1 or not self.lookup_hash:
+            raise ValueError("Legacy lookup hash required")
+        return self
     
     class Config:
         json_schema_extra = {
@@ -99,6 +112,7 @@ class LoginResponse(BaseModel):
     user: Optional[UserResponse] = None
     tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
     ws_token: Optional[str] = None  # Short-lived HMAC WebSocket token (NOT the refresh token). Safari iOS compatibility.
+    pair_expires_at: Optional[int] = None  # Absolute server-enforced deadline for numeric pair auto-logout.
     
     class Config:
         json_schema_extra = {
@@ -151,6 +165,8 @@ class SessionResponse(BaseModel):
     token_refresh_needed: bool = False
     re_auth_required: Optional[str] = None # e.g., "2fa", "passkey"
     re_auth_reason: Optional[str] = None # e.g., "new_device", "location_change" - explains WHY re-auth is needed (for UI messaging)
+    password_fallback_available: bool = False  # A risk-challenged passkey session also has a password wrapper.
+    password_credential_version: Optional[int] = None
     require_invite_code: bool = True  # Default to True for backward compatibility
     ws_token: Optional[str] = None  # Short-lived HMAC WebSocket token (NOT the refresh token). Safari iOS compatibility.
     # Active Sessions: device info for the current request so client can encrypt and register it
@@ -160,6 +176,7 @@ class SessionResponse(BaseModel):
 class SetupPasswordRequest(BaseModel):
     """Request for setting up password and creating user account"""
     hashed_email: str = Field(..., description="Hashed email for lookup")
+    signup_transaction_token: Optional[str] = Field(None, description="Proof returned by email verification for this signup")
     encrypted_email: str = Field(..., description="Client-side encrypted email")
     user_email_salt: str = Field(..., description="Salt used for email encryption (base64)")
     username: str = Field(..., description="User's username")
@@ -167,7 +184,9 @@ class SetupPasswordRequest(BaseModel):
     encrypted_master_key: str = Field(..., description="Encrypted master key")
     key_iv: str = Field(..., description="IV used for master key encryption (base64)")
     salt: str = Field(..., description="Salt used for key derivation")
-    lookup_hash: str = Field(..., description="Hash of email + password for authentication")
+    lookup_hash: Optional[str] = Field(None, description="Legacy credential lookup hash")
+    credential_version: int = Field(1, description="Password protocol version")
+    password_auth_key: Optional[SecretStr] = Field(None, description="Password v2 enrollment key")
     language: str = Field("en", description="User's preferred language")
     darkmode: bool = Field(False, description="User's dark mode preference")
     pending_gift_card_code: Optional[str] = Field(
@@ -241,6 +260,7 @@ class PasskeyRegistrationCompleteRequest(BaseModel):
     client_data_json: str = Field(..., description="Base64-encoded client data JSON")
     authenticator_data: str = Field(..., description="Base64-encoded authenticator data")
     hashed_email: str = Field(..., description="Hashed email for user lookup")
+    signup_transaction_token: Optional[str] = Field(None, description="Proof returned by email verification for this signup")
     username: str = Field(..., description="User's username")
     invite_code: str = Field(..., description="Invite code for signup")
     encrypted_email: str = Field(..., description="Client-side encrypted email (encrypted with email_encryption_key)")

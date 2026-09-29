@@ -149,6 +149,15 @@ class OpenMatesApiError(RuntimeError):
         self.data = data
 
 
+class OpenMatesUnavailableError(RuntimeError):
+    """Typed exclusion for sensitive API-key management through SDK bearers."""
+
+    code = "unavailable_requires_first_party_verification"
+
+    def __init__(self, action: str):
+        super().__init__(f"API key {action} requires verified web Settings or an authenticated CLI session")
+
+
 @dataclass(frozen=True)
 class ChatResponse:
     """Simple response wrapper for chat messages."""
@@ -545,7 +554,7 @@ class OpenMates:
             origin = f"{parsed_api_url.scheme}://{parsed_api_url.netloc}"
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {self._api_key}",
+            "Authorization": f"Bearer {_split_api_key_credential(self._api_key or '')[0]}",
             "Origin": origin,
             "X-OpenMates-SDK": "pip",
             "X-OpenMates-Device-Identity": self._device_id,
@@ -594,6 +603,18 @@ class OpenMates:
                 {"sdk_name": "pip", "device_identity": self._device_id},
             )
         return self._sdk_session
+
+    def _get_project_grant_key(self, project_id: str) -> bytes | None:
+        session = self._get_sdk_session()
+        if session.get("key_wrapper"):
+            return None
+        for grant in session.get("resource_key_grants") or []:
+            if not isinstance(grant, dict) or grant.get("resource_type") != "project" or grant.get("resource_id") != project_id:
+                continue
+            return _unwrap_api_key_master_key(
+                self._api_key or "", grant.get("encrypted_key", ""), grant.get("salt", ""), grant.get("key_iv", "")
+            )
+        return None
 
     def _resolve_loaded_chat_key(
         self,
@@ -1183,9 +1204,10 @@ def _b64decode(value: str) -> bytes:
 
 
 def _derive_api_key_wrapping_key(api_key: str, salt_b64: str) -> bytes:
+    _, decryption_secret = _split_api_key_credential(api_key)
     return hashlib.pbkdf2_hmac(
         "sha256",
-        api_key.encode("utf-8"),
+        (decryption_secret or api_key).encode("utf-8"),
         _b64decode(salt_b64),
         SDK_KDF_ITERATIONS,
         dklen=32,
@@ -2665,7 +2687,10 @@ def _is_task_version_conflict(exc: OpenMatesApiError) -> bool:
 
 
 def _encrypt_raw_key_for_api_key(raw_key: bytes, api_key: str, salt: bytes) -> tuple[str, str]:
-    wrapping_key = hashlib.pbkdf2_hmac("sha256", api_key.encode("utf-8"), salt, SDK_KDF_ITERATIONS, dklen=32)
+    _, decryption_secret = _split_api_key_credential(api_key)
+    if not decryption_secret:
+        raise OpenMatesConfigError("Client decryption secret is required")
+    wrapping_key = hashlib.pbkdf2_hmac("sha256", decryption_secret.encode("utf-8"), salt, SDK_KDF_ITERATIONS, dklen=32)
     iv = os.urandom(AES_GCM_IV_LENGTH)
     encrypted = AESGCM(wrapping_key).encrypt(iv, raw_key, None)
     return base64.b64encode(encrypted).decode("utf-8"), base64.b64encode(iv).decode("utf-8")
@@ -2675,18 +2700,28 @@ def _generate_api_key() -> str:
     return API_KEY_PREFIX + "".join(secrets.choice(API_KEY_CHARS) for _ in range(API_KEY_RANDOM_LENGTH))
 
 
+def _split_api_key_credential(value: str) -> tuple[str, str | None]:
+    bearer, separator, decryption_secret = value.partition(".")
+    if separator and (not decryption_secret or "." in decryption_secret):
+        raise OpenMatesConfigError("Invalid API key setup credential")
+    return bearer, decryption_secret if separator else None
+
+
 def _create_api_key_material(name: str, master_key: bytes) -> tuple[str, dict[str, Any]]:
-    api_key = _generate_api_key()
+    bearer = _generate_api_key()
+    decryption_secret = _generate_api_key().removeprefix(API_KEY_PREFIX)
+    api_key = f"{bearer}.{decryption_secret}"
     salt = os.urandom(16)
     encrypted_master_key, key_iv = _encrypt_raw_key_for_api_key(master_key, api_key, salt)
-    key_prefix = f"{api_key[:12]}..."
+    key_prefix = f"{bearer[:12]}..."
     return api_key, {
         "encrypted_name": _encrypt_aes_gcm_text(name.strip(), master_key),
-        "api_key_hash": hashlib.sha256(api_key.encode("utf-8")).hexdigest(),
+        "api_key_hash": hashlib.sha256(bearer.encode("utf-8")).hexdigest(),
         "encrypted_key_prefix": _encrypt_aes_gcm_text(key_prefix, master_key),
         "encrypted_master_key": encrypted_master_key,
         "salt": base64.b64encode(salt).decode("utf-8"),
         "key_iv": key_iv,
+        "credential_version": 2,
     }
 
 
@@ -4640,20 +4675,27 @@ class OpenMatesProjects:
 
     def list(self, *, personal: bool = False, team_id: str | None = None, include_archived: bool | None = None) -> list[dict[str, Any]]:
         context_team_id = _project_context(personal=personal, team_id=team_id)
-        wrapping_key = _project_wrapping_key(self._client, context_team_id)
+        session = self._client._get_sdk_session()
+        if not session.get("key_wrapper") and context_team_id:
+            raise OpenMatesConfigError("Limited Project grants support personal Projects only")
+        wrapping_key = _project_wrapping_key(self._client, context_team_id) if session.get("key_wrapper") else None
         records = self._client._get(_with_query(
             "/v1/projects",
             include_archived="true" if include_archived else "false" if include_archived is not None else None,
             team_id=context_team_id,
         )).get("projects", [])
-        return [
-            _public_project(_decrypt_project_record_with_key(
-                project,
-                _project_key_from_record(project, wrapping_key, context_team_id),
-            ))
-            for project in records
-            if isinstance(project, dict)
-        ]
+        projects = []
+        for project in records:
+            if not isinstance(project, dict):
+                continue
+            if wrapping_key is None:
+                project_key = self._client._get_project_grant_key(str(project.get("project_id")))
+                if project_key is None:
+                    continue
+            else:
+                project_key = _project_key_from_record(project, wrapping_key, context_team_id)
+            projects.append(_public_project(_decrypt_project_record_with_key(project, project_key)))
+        return projects
 
     def show(self, project_id: str, *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
         context_team_id = _project_context(personal=personal, team_id=team_id)
@@ -4662,7 +4704,14 @@ class OpenMatesProjects:
         project = response.get("project")
         if not isinstance(project, dict):
             raise OpenMatesApiError(404, {"detail": "Project not found"})
-        key = _project_key_from_record(project, _project_wrapping_key(self._client, context_team_id), context_team_id)
+        if self._client._get_sdk_session().get("key_wrapper"):
+            key = _project_key_from_record(project, _project_wrapping_key(self._client, context_team_id), context_team_id)
+        else:
+            if context_team_id:
+                raise OpenMatesConfigError("Limited Project grants support personal Projects only")
+            key = self._client._get_project_grant_key(resolved_project_id)
+            if key is None:
+                raise OpenMatesConfigError(f"Project {resolved_project_id} has no key grant")
         return _public_project(_decrypt_project_record_with_key(project, key))
 
     def create(self, payload: dict[str, Any], *, personal: bool = False, team_id: str | None = None) -> dict[str, Any]:
@@ -5757,22 +5806,10 @@ class OpenMatesApiKeys:
         credit_limit: dict[str, Any] | None = None,
         expires_at: str | None = None,
     ) -> dict[str, Any]:
-        clean_name = name.strip()
-        if not clean_name:
-            raise OpenMatesConfigError("API key name is required")
-        master_key = self._client._get_master_key()
-        api_key, material = _create_api_key_material(clean_name, master_key)
-        record = self._client._post("/v1/sdk/settings/api-keys", {
-            **material,
-            "full_access": full_access,
-            "scopes": scopes or {},
-            "credit_limit": credit_limit,
-            "expires_at": expires_at,
-        })
-        return {"api_key": api_key, "key": self._decrypt_record(record, master_key)}
+        raise OpenMatesUnavailableError("create")
 
     def revoke(self, key_id: str) -> dict[str, Any]:
-        return self._client._delete(f"/v1/sdk/settings/api-keys/{quote(key_id, safe='')}")
+        raise OpenMatesUnavailableError("revoke")
 
     def _decrypt_record(self, record: dict[str, Any], master_key: bytes) -> dict[str, Any]:
         encrypted_name = record.get("encrypted_name") if isinstance(record.get("encrypted_name"), str) else ""

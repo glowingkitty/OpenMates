@@ -947,6 +947,21 @@ password_changed_success:
   sv: Ditt lösenord har ändrats framgångsrikt.
   he: הסיסמה שלך שונתה בהצלחה.
   verified_by_human: []
+password_legacy_retained_warning:
+  context: Warning after password change when an older password credential remains active during safe migration
+  en: Your new password is ready, but an older sign-in credential remains active for compatibility. Keep the old credential secure until it is retired.
+  de: Ihr neues Passwort ist bereit, aber eine ältere Anmeldeberechtigung bleibt aus Kompatibilitätsgründen aktiv. Schützen Sie sie, bis sie entfernt wurde.
+  verified_by_human: []
+password_legacy_retained_title:
+  context: Success heading when the new password is installed but an older credential remains active
+  en: New password ready; older credential remains
+  de: Neues Passwort bereit; ältere Anmeldeberechtigung bleibt bestehen
+  verified_by_human: []
+password_legacy_binding_required:
+  context: Password change is safely deferred because existing legacy sign-in credentials cannot be identified reliably
+  en: This password cannot be changed safely yet because an older sign-in credential has not been identified. Your current password still works. Please contact support to complete the migration.
+  de: Dieses Passwort kann noch nicht sicher geändert werden, weil eine ältere Anmeldeberechtigung nicht eindeutig zugeordnet ist. Ihr bisheriges Passwort funktioniert weiterhin. Bitte wenden Sie sich an den Support, um die Umstellung abzuschließen.
+  verified_by_human: []
 password_added_success:
   context: Success message after adding password
   en: Password has been added to your account successfully.

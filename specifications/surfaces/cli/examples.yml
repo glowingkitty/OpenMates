@@ -142,3 +142,23 @@ generated_file_failures:
     filename: track.wav
   expect:
     rejected_before_generation: true
+
+credential_storage:
+- id: working-keyring-later-locked
+  given: The CLI saved a session while the OS keyring was working, then that keyring became locked or failed on read.
+  when: The CLI loads the existing session for another command.
+  then: The CLI reports the keyring access failure and preserves the stored session without silently switching to a local file or overwriting credentials; the original save used the keyring automatically without extra setup.
+- id: keyring-unavailable-restricted-fallback
+  given: No usable OS keyring is available when a headless host stores its first CLI session.
+  when: The CLI saves the new credentials.
+  then: The CLI clearly indicates local-file storage and uses a 0600 file under a 0700 directory without a new password or tool installation or claiming machine-ID encryption is keyring-equivalent.
+
+pairing_session:
+- id: paired-session-deadline
+  given: A paired CLI session has an absolute auto-logout deadline that has passed.
+  when: The user runs another CLI command.
+  then: The CLI does not use the expired credential, removes local paired-session material, and reports that fresh login is needed; another device session remains valid.
+- id: legacy-pairing-requires-upgrade
+  given: An older CLI attempts the retired pairing protocol.
+  when: The server rejects its legacy pairing request.
+  then: The CLI presents a minimum safe upgrade path and requires a new login; it does not retry through legacy pairing.

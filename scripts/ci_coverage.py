@@ -36,6 +36,13 @@ CORE_SPECS = frozenset({
     "debug-logging-settings.spec.ts",
     "model-toggle-settings.spec.ts",
     "backup-code-login-flow.spec.ts",
+    # PAKE pairing uses only the isolated core auth/Redis/Directus stack and
+    # local browser/CLI crypto; no external email or inference provider.
+    "components/pairing-components.spec.ts",
+    "components/password-settings-sensitive.spec.ts",
+    "components/device-verification-fallback.spec.ts",
+    "components/tfa-sensitive-settings.spec.ts",
+    "pair-web-receiver.spec.ts",
     "backup-codes-settings.spec.ts",
     "recovery-key-settings.spec.ts",
 

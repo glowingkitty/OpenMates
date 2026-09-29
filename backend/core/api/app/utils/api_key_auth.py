@@ -87,23 +87,16 @@ class ApiKeyAuthService:
             # Hash the provided API key
             api_key_hash = await self.hash_api_key(api_key)
 
-            # Try cache first for API key record (not user_info, as device approval must be checked each time)
-            cache_key = f"api_key_record:{api_key_hash}"
-            cached_api_key_record = await self.cache_service.get(cache_key)
-            
-            api_key_record = None
-            if cached_api_key_record:
-                api_key_record = cached_api_key_record
-            else:
-                # Query api_keys collection directly (much more efficient than querying all users)
-                api_key_record = await self.directus_service.get_api_key_by_hash(api_key_hash)
-                
-                if api_key_record:
-                    # Cache API key record for 5 minutes (device approval is checked separately)
-                    await self.cache_service.set(cache_key, api_key_record, ttl=300)
-                
+            # The key row is the revocation authority. A five-minute cached row
+            # could authenticate a deleted key, so read it on every request.
+            api_key_record = await self.directus_service.get_api_key_by_hash(api_key_hash)
             if not api_key_record:
                 raise ApiKeyNotFoundError("API key not found")
+
+            # Legacy keys mixed server authentication with client decryption
+            # material. They remain visible for replacement but cannot authenticate.
+            if type(api_key_record.get("credential_version")) is not int or api_key_record["credential_version"] != 2:
+                raise ApiKeyNotFoundError("API key requires replacement")
 
             # Check if API key is expired
             expires_at = api_key_record.get('expires_at')
@@ -119,11 +112,13 @@ class ApiKeyAuthService:
                         expires_dt = expires_dt.replace(tzinfo=timezone.utc)
                     
                     now = datetime.now(timezone.utc)
-                    if expires_dt < now:
+                    if expires_dt <= now:
                         raise ApiKeyNotFoundError("API key has expired")
-                except Exception as e:
-                    logger.warning(f"Error checking API key expiration: {e}")
-                    # Don't fail if we can't parse expiration, but log it
+                except ApiKeyNotFoundError:
+                    raise
+                except (TypeError, ValueError, AttributeError, OverflowError) as exc:
+                    logger.warning("API key has invalid expiration metadata")
+                    raise ApiKeyNotFoundError("Invalid API key expiration") from exc
 
             # Get user_id from the API key record
             user_id = api_key_record.get('user_id')
@@ -163,11 +158,7 @@ class ApiKeyAuthService:
                 updated = await self.directus_service.update_api_key_last_used(
                     api_key_hash, last_used_at=last_used_at
                 )
-                if updated:
-                    # Refresh cached record so subsequent requests reflect the latest usage
-                    api_key_record["last_used_at"] = last_used_at
-                    await self.cache_service.set(cache_key, api_key_record, ttl=300)
-                else:
+                if not updated:
                     logger.warning("API key last_used_at update returned False")
             except Exception as e:
                 logger.warning(f"Failed to update API key last_used timestamp: {e}")

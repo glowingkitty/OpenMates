@@ -17,6 +17,11 @@ import time
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import HTTPException
+from backend.core.api.app.services.pair_session_deadline import get_pair_deadline, transfer_pair_deadline
+from backend.core.api.app.services.session_security_state import (
+    get_session_state_cached, transfer_session_state,
+)
+from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
 ROTATION_GRACE_SECONDS = 15
 ROTATION_WAIT_SECONDS = 8
@@ -58,6 +63,11 @@ async def refresh_session_token(cache_service, directus_service, refresh_token: 
         redis = await cache_service.client
         if redis is None:
             raise SessionRefreshUnavailable()
+        paired = await get_pair_deadline(directus_service, cache_service, refresh_token)
+        await get_session_state_cached(
+            directus_service, cache_service,
+            hashlib.sha256(refresh_token.encode()).hexdigest(),
+        )
         while time.monotonic() < deadline:
             encoded = await cache_service.get(result_key)
             if encoded:
@@ -71,6 +81,10 @@ async def refresh_session_token(cache_service, directus_service, refresh_token: 
                         # A completed rotation whose new session was removed is
                         # not an authentication fallback (e.g. explicit revoke).
                         return False, None, "Invalid or expired token"
+                    await get_session_state_cached(
+                        directus_service, cache_service, new_token_hash,
+                        user_id=result["user_id"],
+                    )
                     return True, result["auth_data"], "Token refreshed"
                 await asyncio.sleep(0.05)
                 continue
@@ -84,6 +98,18 @@ async def refresh_session_token(cache_service, directus_service, refresh_token: 
                 if await cache_service.get(result_key):
                     continue
                 success, auth_data, message = await directus_service.refresh_token(refresh_token)
+                if success:
+                    new_token = extract_directus_refresh_token((auth_data or {}).get("cookies", {}))
+                    if not new_token:
+                        raise SessionRefreshUnavailable()
+                    await transfer_session_state(
+                        directus_service, cache_service, refresh_token, new_token,
+                    )
+                if success and paired:
+                    await transfer_pair_deadline(
+                        directus_service, cache_service, refresh_token, new_token,
+                        paired[0], paired[1],
+                    )
                 saved = await cache_service.set(
                     result_key,
                     _encode(refresh_token, {"success": success, "auth_data": auth_data, "published": False, "expires_at": time.time() + ROTATION_GRACE_SECONDS}),

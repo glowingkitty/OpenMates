@@ -14,7 +14,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import {
@@ -101,6 +101,7 @@ import {
   type QuickServerTestOutcome,
 } from "./serverQuickTest.js";
 import { resolveStableImageTag } from "./releaseChannel.js";
+import { ensureRuntimeMetricsDirectory } from "./serverRuntimePaths.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -1742,23 +1743,34 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
   }
 }
 
-function restoreServerBackup(installPath: string, role: ServerRole, file: string): void {
+function validateExtractedServerBackup(tempDir: string, role: ServerRole): void {
+  verifyChecksums(tempDir);
+  const manifestPath = join(tempDir, "manifest.json");
+  if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string; backup_format_version?: number; recovery_scope?: string };
+  if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
+  if (role === "core" && manifest.backup_format_version === BACKUP_FORMAT_VERSION && manifest.recovery_scope !== "full-core") {
+    throw new Error("This backup records database and runtime state only; refusing unsafe full core restore.");
+  }
+}
+
+function withValidatedServerBackup(installPath: string, role: ServerRole, file: string, useBackup: (tempDir: string) => void, tempRoot = roleBackupDir(installPath, role)): void {
   const archivePath = resolve(file);
   if (!existsSync(archivePath)) throw new Error(`Backup file not found: ${archivePath}`);
-  mkdirSync(roleBackupDir(installPath, role), { recursive: true, mode: 0o700 });
-  const tempDir = mkdtempSync(join(roleBackupDir(installPath, role), ".restore-"));
-  const env = readEnvMap(installPath);
+  mkdirSync(tempRoot, { recursive: true, mode: 0o700 });
+  const tempDir = mkdtempSync(join(tempRoot, ".restore-"));
   try {
     execSync(`tar -xzf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)}`, { stdio: "pipe" });
-    verifyChecksums(tempDir);
-    const manifestPath = join(tempDir, "manifest.json");
-    if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string; backup_format_version?: number; recovery_scope?: string };
-    if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
-    if (role === "core" && manifest.backup_format_version === BACKUP_FORMAT_VERSION && manifest.recovery_scope !== "full-core") {
-      throw new Error("This backup records database and runtime state only; refusing unsafe full core restore.");
-    }
+    validateExtractedServerBackup(tempDir, role);
+    useBackup(tempDir);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
 
+function restoreServerBackup(installPath: string, role: ServerRole, file: string): void {
+  withValidatedServerBackup(installPath, role, file, (tempDir) => {
+    const env = readEnvMap(installPath);
     copyIfExists(join(tempDir, "runtime", ".env"), join(installPath, ".env"));
     copyIfExists(join(tempDir, "runtime", "config"), join(installPath, "config"));
 
@@ -1779,9 +1791,7 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
         closeSync(dumpFile);
       }
     }
-  } finally {
-    rmSync(tempDir, { recursive: true, force: true });
-  }
+  });
 }
 
 function restoreStopServices(
@@ -1925,6 +1935,7 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
+  ensureRuntimeMetricsDirectory(installPath);
   warnIfMissingLlmCredentials(installPath);
 
   let config = loadConfigForInstallPath(installPath);
@@ -2006,6 +2017,7 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
+  ensureRuntimeMetricsDirectory(installPath);
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
@@ -2206,6 +2218,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   if (!fromSource) {
     requireDocker();
     mkdirSync(installPath, { recursive: true });
+    ensureRuntimeMetricsDirectory(installPath);
 
     // Copy custom .env if provided before generated defaults are filled in.
     if (typeof flags["env-path"] === "string") {
@@ -2291,6 +2304,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   if (cloneCode !== 0) {
     throw new Error("Failed to clone the OpenMates repository.");
   }
+  ensureRuntimeMetricsDirectory(installPath);
 
   // Copy custom .env if provided
   if (typeof flags["env-path"] === "string") {
@@ -2819,7 +2833,10 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
   const installPath = resolveServerPath(flags);
   const dryRun = flags["dry-run"] === true;
-  if (!dryRun) ensureGitWorkDirEnv(installPath);
+  if (!dryRun) {
+    ensureGitWorkDirEnv(installPath);
+    ensureRuntimeMetricsDirectory(installPath);
+  }
 
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
@@ -3506,6 +3523,7 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
+  ensureRuntimeMetricsDirectory(installPath);
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
@@ -3941,12 +3959,16 @@ async function serverRestore(flags: Record<string, string | boolean>): Promise<v
     }
   }
 
+  // Reject invalid or unsafe archives before touching running services. The
+  // restore path validates again after shutdown in case the archive changes.
+  withValidatedServerBackup(installPath, role, file, () => {}, tmpdir());
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
   const stopArgs = [...composeArgs(installPath, withOverrides, installMode, role), "stop", ...restoreStopServices(installPath, withOverrides, installMode, role)];
   let code = await runInteractive("docker", stopArgs, installPath);
   if (code !== 0) process.exit(code);
   restoreServerBackup(installPath, role, file);
+  ensureRuntimeMetricsDirectory(installPath);
   code = await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"], installPath);
   if (code !== 0) process.exit(code);
   await waitForServerHealth(installPath, role);

@@ -279,6 +279,15 @@ export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['a
         if (!get(serverStatusStore).status) {
             await initializeServerStatus();
         }
+        // Anonymous free usage is an official-cloud feature. Self-hosted servers
+        // intentionally return 404 for this endpoint, so do not request it.
+        if (get(serverStatusStore).status?.is_self_hosted) {
+            serverStatusStore.update(state => ({
+                ...state,
+                status: state.status ? { ...state.status, anonymous_free_usage: null } : null
+            }));
+            return null;
+        }
         const anonymousId = anonymousChatStorage.getAnonymousId();
         const url = new URL(getApiEndpoint('/v1/anonymous/free-usage/status'));
         url.searchParams.set('anonymous_id', anonymousId);
@@ -287,6 +296,14 @@ export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['a
         });
 
         if (!response.ok) {
+            // Status may have changed while the request was in flight.
+            if (response.status === 404 && get(serverStatusStore).status?.is_self_hosted) {
+                serverStatusStore.update(state => ({
+                    ...state,
+                    status: state.status ? { ...state.status, anonymous_free_usage: null } : null
+                }));
+                return null;
+            }
             throw new Error(`Failed to fetch anonymous free usage status: ${response.status}`);
         }
 

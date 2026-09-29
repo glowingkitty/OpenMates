@@ -71,11 +71,19 @@
     let isTouchDevice = false;
 
     // Auto-validate if invite code is not required using Svelte 5 runes
+    let autoValidatedWithoutInvite = $state(false);
     $effect(() => {
         if (!$requireInviteCode && !isValidated) {
             console.debug("Invite code not required, auto-validating");
             isValidated = true;
             is_admin = false; // Non-invite users are not admins
+            autoValidatedWithoutInvite = true;
+        } else if ($requireInviteCode && autoValidatedWithoutInvite) {
+            // The session check may supply invite_only after this step mounts.
+            // Re-open invite entry instead of proceeding with an empty code.
+            isValidated = false;
+            is_admin = false;
+            autoValidatedWithoutInvite = false;
         }
     });
 

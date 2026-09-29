@@ -1,19 +1,27 @@
 /*
  * OpenMates CLI crypto utilities.
  *
- * Purpose: keep pair-login and chat metadata crypto in one Node-safe module.
- * Architecture: mirrors the web pair flow in settings pair components.
+ * Purpose: keep account and chat metadata crypto in one Node-safe module.
+ * Architecture: pairs use the shared @repo/pairing-crypto PAKE module.
  * Architecture doc: docs/architecture/openmates-cli.md
- * Security: AES-256-GCM + PBKDF2-SHA256(100k) to match server/browser flows.
+ * Security: account and chat keys remain client-side.
  * Tests: frontend/packages/openmates-cli/tests/crypto.test.ts
  */
 
-import { webcrypto, createHash } from "node:crypto";
+import { webcrypto, createHash, createHmac } from "node:crypto";
+import { argon2id } from "hash-wasm";
 import nacl from "tweetnacl";
 
 const cryptoApi = globalThis.crypto ?? webcrypto;
-const PAIR_KDF_ITERATIONS = 100_000;
 const SIGNUP_KDF_ITERATIONS = 100_000;
+export const PASSWORD_KDF_V2 = Object.freeze({
+  version: 2,
+  algorithm: "argon2id",
+  memoryKiB: 65_536,
+  iterations: 3,
+  parallelism: 1,
+  hashLength: 32,
+});
 const AES_GCM_IV_LENGTH = 12;
 const EMAIL_SALT_LENGTH = 16;
 const MASTER_KEY_LENGTH = 32;
@@ -407,6 +415,86 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
   return new Uint8Array(derivedBits);
 }
 
+/** Versioned password-only material; existing recovery and API-key wrappers stay on their legacy KDF. */
+export async function derivePasswordMaterialV2(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  if (!password || salt.length < 16) throw new Error("Argon2id password derivation requires a password and at least 16 salt bytes");
+  const output = await argon2id({
+    password,
+    salt,
+    memorySize: PASSWORD_KDF_V2.memoryKiB,
+    iterations: PASSWORD_KDF_V2.iterations,
+    parallelism: PASSWORD_KDF_V2.parallelism,
+    hashLength: PASSWORD_KDF_V2.hashLength,
+    outputType: "binary",
+  });
+  if (!(output instanceof Uint8Array) || output.length !== PASSWORD_KDF_V2.hashLength) {
+    throw new Error("Argon2id password derivation failed");
+  }
+  return output;
+}
+
+export async function derivePasswordKeysV2(password: string, userEmailSalt: Uint8Array): Promise<{ authKey: Uint8Array; wrapKey: Uint8Array }> {
+  const material = await derivePasswordMaterialV2(password, userEmailSalt);
+  const hkdfKey = await cryptoApi.subtle.importKey("raw", toArrayBuffer(material), "HKDF", false, ["deriveBits"]);
+  const expand = async (label: string): Promise<Uint8Array> => new Uint8Array(await cryptoApi.subtle.deriveBits({
+    name: "HKDF",
+    hash: "SHA-256",
+    salt: new Uint8Array(0),
+    info: new TextEncoder().encode(label),
+  }, hkdfKey, 256));
+  try {
+    return {
+      authKey: await expand("openmates/password-v2/auth"),
+      wrapKey: await expand("openmates/password-v2/wrap"),
+    };
+  } finally {
+    material.fill(0);
+  }
+}
+
+export function passwordProofV2(authKey: Uint8Array, nonceB64url: string, purpose: string): string {
+  if (!/^[a-z0-9_]+$/.test(purpose)) throw new Error("Invalid password proof purpose");
+  const nonce = base64UrlToBytes(nonceB64url, "password challenge nonce", 32);
+  return createHmac("sha256", authKey)
+    .update(Buffer.from(`openmates/password-v2/proof\0${purpose}\0`, "utf8"))
+    .update(nonce)
+    .digest("base64url");
+}
+
+/** Open a password wrapper after a verified login; missing version is legacy PBKDF2. */
+export async function unwrapPasswordMasterKey(params: {
+  password: string;
+  credentialVersion?: number | null;
+  encryptedMasterKeyB64: string;
+  saltB64: string;
+  keyIvB64: string;
+}): Promise<Uint8Array | null> {
+  let wrappingKeyBytes: Uint8Array | null = null;
+  try {
+    const salt = base64ToBytes(params.saltB64);
+    if (params.credentialVersion === 2) {
+      const keys = await derivePasswordKeysV2(params.password, salt);
+      keys.authKey.fill(0);
+      wrappingKeyBytes = keys.wrapKey;
+    } else if (params.credentialVersion == null || params.credentialVersion === 1) {
+      wrappingKeyBytes = await deriveKeyFromPassword(params.password, salt);
+    } else {
+      return null;
+    }
+    const wrappingKey = await cryptoApi.subtle.importKey(
+      "raw", toArrayBuffer(wrappingKeyBytes), { name: "AES-GCM" }, false, ["decrypt"],
+    );
+    return new Uint8Array(await cryptoApi.subtle.decrypt(
+      { name: "AES-GCM", iv: toArrayBuffer(base64ToBytes(params.keyIvB64)) },
+      wrappingKey, toArrayBuffer(base64ToBytes(params.encryptedMasterKeyB64)),
+    ));
+  } catch {
+    return null;
+  } finally {
+    wrappingKeyBytes?.fill(0);
+  }
+}
+
 export async function encryptEmail(email: string, key: Uint8Array): Promise<string> {
   if (key.length !== MASTER_KEY_LENGTH) {
     throw new Error(`Email encryption key must be 32 bytes, got ${key.length}`);
@@ -449,18 +537,52 @@ export interface SignupCryptoMaterial {
   encryptedMasterKey: string;
   keyIv: string;
   saltB64: string;
-  lookupHash: string;
+  credentialVersion: 2;
+  passwordAuthKey: string;
+}
+
+export interface PasswordMigrationMaterialV2 {
+  oldLookupHash: string;
+  passwordAuthKey: string;
+  encryptedMasterKey: string;
+  saltB64: string;
+  keyIv: string;
+}
+
+/** Rewrap an already-unlocked account key before asking the server to atomically retire a legacy password. */
+export async function createPasswordMigrationMaterialV2(
+  password: string,
+  masterKeyB64: string,
+  userEmailSaltB64: string,
+): Promise<PasswordMigrationMaterialV2> {
+  const userEmailSalt = base64ToBytes(userEmailSaltB64);
+  const { authKey, wrapKey } = await derivePasswordKeysV2(password, userEmailSalt);
+  try {
+    const wrapper = await encryptRawKeyWithAesGcm(base64ToBytes(masterKeyB64), wrapKey);
+    return {
+      oldLookupHash: await hashKey(password, userEmailSalt),
+      passwordAuthKey: Buffer.from(authKey).toString("base64url"),
+      encryptedMasterKey: wrapper.wrapped,
+      saltB64: userEmailSaltB64,
+      keyIv: wrapper.iv,
+    };
+  } finally {
+    authKey.fill(0);
+    wrapKey.fill(0);
+  }
 }
 
 export async function createSignupCryptoMaterial(email: string, password: string): Promise<SignupCryptoMaterial> {
   const normalizedEmail = email.trim().toLowerCase();
   const emailSalt = generateSalt(EMAIL_SALT_LENGTH);
-  const passwordSalt = generateSalt(EMAIL_SALT_LENGTH);
   const masterKey = generateSalt(MASTER_KEY_LENGTH);
   const emailEncryptionKeyB64 = await deriveEmailEncryptionKeyB64(normalizedEmail, bytesToBase64(emailSalt));
   const emailEncryptionKey = base64ToBytes(emailEncryptionKeyB64);
-  const wrappingKey = await deriveKeyFromPassword(password, passwordSalt);
-  const encryptedMasterKey = await encryptRawKeyWithAesGcm(masterKey, wrappingKey);
+  const { authKey, wrapKey } = await derivePasswordKeysV2(password, emailSalt);
+  const encryptedMasterKey = await encryptRawKeyWithAesGcm(masterKey, wrapKey);
+  const passwordAuthKey = Buffer.from(authKey).toString("base64url");
+  authKey.fill(0);
+  wrapKey.fill(0);
 
   return {
     hashedEmail: await hashEmail(normalizedEmail),
@@ -471,8 +593,9 @@ export async function createSignupCryptoMaterial(email: string, password: string
     masterKeyB64: bytesToBase64(masterKey),
     encryptedMasterKey: encryptedMasterKey.wrapped,
     keyIv: encryptedMasterKey.iv,
-    saltB64: bytesToBase64(passwordSalt),
-    lookupHash: await hashKey(password, emailSalt),
+    saltB64: bytesToBase64(emailSalt),
+    credentialVersion: 2,
+    passwordAuthKey,
   };
 }
 
@@ -510,6 +633,15 @@ export interface ApiKeyCryptoMaterial {
   saltB64: string;
 }
 
+/** The displayed setup credential contains two independent random secrets. */
+export function splitApiKeyCredential(value: string): { bearer: string; decryptionSecret: string | null } {
+  const [bearer, decryptionSecret, extra] = value.split(".");
+  if (extra || (decryptionSecret !== undefined && !decryptionSecret)) {
+    throw new Error("Invalid API key setup credential");
+  }
+  return { bearer, decryptionSecret: decryptionSecret ?? null };
+}
+
 function generateApiKey(): string {
   let result = API_KEY_PREFIX;
   const maxUnbiasedValue = Math.floor(256 / API_KEY_CHARS.length) * API_KEY_CHARS.length;
@@ -533,15 +665,17 @@ export async function createApiKeyCryptoMaterial(
   masterKeyB64: string,
 ): Promise<ApiKeyCryptoMaterial> {
   const masterKey = base64ToBytes(masterKeyB64);
-  const apiKey = generateApiKey();
-  const keyPrefix = `${apiKey.slice(0, 12)}...`;
+  const bearer = generateApiKey();
+  const decryptionSecret = generateApiKey().slice(API_KEY_PREFIX.length);
+  const apiKey = `${bearer}.${decryptionSecret}`;
+  const keyPrefix = `${bearer.slice(0, 12)}...`;
   const wrappingSalt = generateSalt(EMAIL_SALT_LENGTH);
-  const wrappingKey = await deriveKeyFromPassword(apiKey, wrappingSalt);
+  const wrappingKey = await deriveKeyFromPassword(decryptionSecret, wrappingSalt);
   const encryptedMasterKey = await encryptRawKeyWithAesGcm(masterKey, wrappingKey);
 
   return {
     apiKey,
-    apiKeyHash: sha256Hex(apiKey),
+    apiKeyHash: sha256Hex(bearer),
     encryptedName: await encryptWithAesGcmCombined(name.trim(), masterKey),
     encryptedKeyPrefix: await encryptWithAesGcmCombined(keyPrefix, masterKey),
     encryptedMasterKey: encryptedMasterKey.wrapped,
@@ -557,7 +691,10 @@ export async function unwrapApiKeyMasterKey(params: {
   keyIvB64: string;
 }): Promise<Uint8Array | null> {
   try {
-    const wrappingKeyBytes = await deriveKeyFromPassword(params.apiKey, base64ToBytes(params.saltB64));
+    const { decryptionSecret } = splitApiKeyCredential(params.apiKey);
+    // Old ciphertext may still be opened offline. The server separately rejects
+    // legacy bearers for new API requests and requires replacement.
+    const wrappingKeyBytes = await deriveKeyFromPassword(decryptionSecret ?? params.apiKey, base64ToBytes(params.saltB64));
     const wrappingKey = await cryptoApi.subtle.importKey(
       "raw",
       toArrayBuffer(wrappingKeyBytes),
@@ -574,49 +711,6 @@ export async function unwrapApiKeyMasterKey(params: {
   } catch {
     return null;
   }
-}
-
-export async function derivePairKey(
-  pin: string,
-  upperToken: string,
-): Promise<CryptoKey> {
-  const encoder = new TextEncoder();
-  const keyMaterial = await cryptoApi.subtle.importKey(
-    "raw",
-    encoder.encode(pin),
-    "PBKDF2",
-    false,
-    ["deriveKey"],
-  );
-  return cryptoApi.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: encoder.encode(upperToken),
-      iterations: PAIR_KDF_ITERATIONS,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
-export async function decryptBundle(params: {
-  encryptedBundleB64: string;
-  ivB64: string;
-  pin: string;
-  token: string;
-}): Promise<unknown> {
-  const aesKey = await derivePairKey(params.pin, params.token.toUpperCase());
-  const iv = base64ToBytes(params.ivB64);
-  const ciphertext = base64ToBytes(params.encryptedBundleB64);
-  const plaintext = await cryptoApi.subtle.decrypt(
-    { name: "AES-GCM", iv: toArrayBuffer(iv) },
-    aesKey,
-    toArrayBuffer(ciphertext),
-  );
-  return JSON.parse(new TextDecoder().decode(plaintext));
 }
 
 export async function decryptWithAesGcmCombined(

@@ -1,5 +1,6 @@
 import logging
 import hashlib
+import time
 from typing import Any, Optional, Dict
 
 from backend.shared.python_utils.app_memory_policy import is_removed_app_memory
@@ -250,6 +251,11 @@ class UserCacheMixin:
                 elif isinstance(previous_link, dict) and previous_link.get("user_id") == user_id:
                     if "token_expiry" in previous_link:
                         session_link_data["token_expiry"] = previous_link["token_expiry"]
+                if isinstance(previous_link, dict) and previous_link.get("user_id") == user_id and "pair_pending_ack" in previous_link:
+                    session_link_data["pair_pending_ack"] = previous_link["pair_pending_ack"]
+                    session_link_data["pair_expires_at"] = previous_link.get("pair_expires_at")
+                    if previous_link.get("pair_expires_at") is not None:
+                        session_ttl = min(session_ttl, max(1, int(previous_link["pair_expires_at"]) - int(time.time())))
                 session_set_success = await self.set(session_cache_key, session_link_data, ttl=session_ttl)
                 logger.debug(f"Cache SET result for session link key '{session_cache_key}': {session_set_success}")
 

@@ -420,6 +420,7 @@ class EmailTemplateService:
             transactional_templates = {
                 'confirm-email', 'new-device-login', 'backup-code-was-used',
                 'existing-account',
+                'account-recovery-pending',
                 'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation',
                 'signup_milestone', 'issue_report', 'issue_report_confirmation',
                 'community_share_notification',

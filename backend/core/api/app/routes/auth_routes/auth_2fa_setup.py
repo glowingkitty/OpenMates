@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 import logging
 import time
 
@@ -24,6 +24,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 # Import utils and common functions
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.services.session_security_state import require_recent_strong_proof
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip # Import the new helper
 
 # Import helpers from the new utils file
@@ -55,6 +56,22 @@ BACKUP_CODE_SIGNUP_STEPS = (
 def get_encryption_service():
     return EncryptionService()
 
+
+async def require_2fa_change_assurance(directus_service, cache_service,
+                                       refresh_token: str, user_id: str) -> None:
+    """Keep first-time signup optional while guarding later factor changes."""
+    account = await directus_service.get_user_fields_direct(
+        user_id, ["signup_completed", "last_opened"],
+    )
+    if not isinstance(account, dict):
+        raise HTTPException(503, "Account verification unavailable")
+    if (account.get("signup_completed") is False
+            and str(account.get("last_opened") or "").startswith("/signup/")):
+        return
+    await require_recent_strong_proof(
+        directus_service, cache_service, refresh_token, user_id,
+    )
+
 @router.post("/initiate", response_model=Setup2FAResponse)
 async def setup_2fa(
     request: Request,
@@ -84,6 +101,7 @@ async def setup_2fa(
         user_id = user_data.get("user_id")
         if not user_id:
             return Setup2FAResponse(success=False, message="User ID not found")
+        await require_2fa_change_assurance(directus_service, cache_service, refresh_token, user_id)
 
         # Get user profile data
         logger.info(f"Attempting to get user profile for user_id: {user_id}")
@@ -226,6 +244,8 @@ async def setup_2fa(
         logger.info(f"Successfully initiated 2FA setup for user {user_id}. Returning secret and otpauth_url.")
         return response_payload
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in setup_2fa: {str(e)}", exc_info=True)
         return Setup2FAResponse(success=False, message=f"An error occurred during 2FA setup: {str(e)}")
@@ -255,6 +275,7 @@ async def verify_signup_2fa(
             return VerifySignup2FAResponse(success=False, message="Not authenticated")
 
         user_id = user_data.get("user_id")
+        await require_2fa_change_assurance(directus_service, cache_service, refresh_token, user_id)
 
         # Get 2FA setup data from cache (specific to signup flow)
         setup_data = await cache_service.get(f"2fa_setup:{user_id}")
@@ -322,6 +343,8 @@ async def verify_signup_2fa(
 
         return VerifySignup2FAResponse(success=True, message="Verification successful")
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in verify_signup_2fa: {str(e)}", exc_info=True)
         return VerifySignup2FAResponse(success=False, message="An error occurred during 2FA verification")
@@ -340,7 +363,7 @@ async def request_backup_codes(
 
     try:
         # Corrected unpacking to include the fourth return value
-        is_auth, user_data, _, _ = await verify_authenticated_user(
+        is_auth, user_data, refresh_token, _ = await verify_authenticated_user(
             request, cache_service, directus_service
         )
 
@@ -348,6 +371,7 @@ async def request_backup_codes(
             return BackupCodesResponse(success=False, message="Not authenticated")
 
         user_id = user_data.get("user_id")
+        await require_2fa_change_assurance(directus_service, cache_service, refresh_token, user_id)
 
         # RESILIENT BACKUP CODE GENERATION:
         # Check if 2FA is actually enabled in the user profile (persistent state) instead of
@@ -403,6 +427,8 @@ async def request_backup_codes(
             backup_codes=backup_codes
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in request_backup_codes: {str(e)}", exc_info=True)
         return BackupCodesResponse(success=False, message="An error occurred while generating backup codes")
@@ -437,6 +463,7 @@ async def confirm_codes_stored(
             return ConfirmCodesStoredResponse(success=False, message="Not authenticated")
 
         user_id = user_data.get("user_id")
+        await require_2fa_change_assurance(directus_service, cache_service, refresh_token, user_id)
         current_time = int(time.time())
 
         # Only update last_opened if user is currently in the signup flow
@@ -476,6 +503,8 @@ async def confirm_codes_stored(
             message="Backup codes confirmed and stored successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in confirm_codes_stored: {str(e)}", exc_info=True)
         return ConfirmCodesStoredResponse(success=False, message="An error occurred while confirming backup codes")
@@ -504,6 +533,7 @@ async def setup_2fa_provider(
             return Setup2FAProviderResponse(success=False, message="Not authenticated")
 
         user_id = user_data.get("user_id")
+        await require_2fa_change_assurance(directus_service, cache_service, refresh_token, user_id)
         vault_key_id = user_data.get("vault_key_id")
         if not vault_key_id:
             logger.error(f"Vault key ID not found for user {user_id} when saving 2FA provider.")
@@ -541,6 +571,8 @@ async def setup_2fa_provider(
             message="2FA app name saved successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in setup_2fa_provider: {str(e)}", exc_info=True)
         return Setup2FAProviderResponse(success=False, message="An error occurred while saving 2FA provider")
@@ -573,6 +605,10 @@ async def reset_backup_codes(
 
     try:
         user_id = current_user.id
+        await require_2fa_change_assurance(
+            directus_service, cache_service,
+            request.cookies.get("auth_refresh_token"), user_id,
+        )
 
         # Step 1: Verify user has 2FA enabled
         success, user_profile, _ = await directus_service.get_user_profile(user_id)
@@ -635,6 +671,8 @@ async def reset_backup_codes(
             backup_codes=backup_codes
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in reset_backup_codes: {str(e)}", exc_info=True)
         return BackupCodesResponse(

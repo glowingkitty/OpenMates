@@ -8,14 +8,14 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { Writable } from "node:stream";
 import qrcode from "qrcode-terminal";
 
 import {
-  decryptBundle,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
   deriveChatCompletionRecoveryKeypair,
@@ -31,8 +31,14 @@ import {
   deriveTeamInviteKey,
   createRecoveryKeyMaterial,
   createApiKeyCryptoMaterial,
+  splitApiKeyCredential,
   createSignupCryptoMaterial,
+  createPasswordMigrationMaterialV2,
+  derivePasswordKeysV2,
+  passwordProofV2,
+  unwrapPasswordMasterKey,
   hashEmail,
+  hashKey,
   type RecoveryKeyMaterial,
   type ApiKeyCryptoMaterial,
   type ChatCompletionRecoveryEnvelope,
@@ -134,6 +140,7 @@ import {
   objectSlugMatches,
 } from "./objectSlugs.js";
 import { hasRememberMessageReference, rewriteRememberMessageReferences } from "./rememberMessage.js";
+import { createPairContext, createPairReceiver, generateReceiverCapability } from "@repo/pairing-crypto";
 
 const PROMPT_INJECTION_DISABLED = "disabled";
 const DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS = 20_000;
@@ -2230,11 +2237,17 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
 // Interfaces
 // ---------------------------------------------------------------------------
 
-interface PairBundle {
-  lookup_hash: string;
-  hashed_email: string;
-  user_email_salt: string;
-  master_key_exported: string;
+interface PairReceiverState {
+  status: string;
+  expires_at?: number;
+  authorizer_user_id?: string;
+  authorizer_device_name?: string | null;
+  auto_logout_minutes?: number | null;
+  session_id?: string;
+  receiver_token_hash?: string;
+  message?: string;
+  encrypted_bundle?: string;
+  iv?: string;
 }
 
 export interface ChatListItem {
@@ -3050,6 +3063,7 @@ export class OpenMatesClient {
   }
 
   hasSession(): boolean {
+    this.expirePairedSessionIfNeeded();
     return this.session !== null;
   }
 
@@ -3967,7 +3981,7 @@ export class OpenMatesClient {
     promptInjectionProtection?: boolean;
   }): Promise<Record<string, unknown>> {
     const headers = this.getCliRequestHeaders();
-    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    if (params.apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(params.apiKey).bearer}`;
     const response = await this.http.post<Record<string, unknown>>(
       `/v1/sdk/connected-account-skills/${encodeURIComponent(params.appId)}/${encodeURIComponent(params.skillId)}`,
       {
@@ -4265,18 +4279,163 @@ export class OpenMatesClient {
   // Auth
   // -------------------------------------------------------------------------
 
-  async loginWithPairAuth(): Promise<void> {
-    const localDeviceName = this.getLocalDeviceName();
-    const initiate = await this.http.post<{ token?: string }>(
-      "/v1/auth/pair/initiate",
-      { device_hint: localDeviceName },
+  /** Programmatic password login; the interactive CLI command uses device pairing. */
+  async loginWithPassword(params: {
+    email: string;
+    password: string;
+    tfaCode?: string;
+    codeType?: "otp" | "backup";
+  }): Promise<{
+    status: "authenticated" | "tfa_required";
+    credentialVersion?: 1 | 2;
+    migrationStatus?: "typed_retired" | "legacy_retained" | "pending" | "deferred_recent_verification";
+  }> {
+    const email = params.email.trim().toLowerCase();
+    const hashedEmail = await hashEmail(email);
+    const sessionId = randomUUID();
+    const previousCookies = this.http.getCookieMap();
+    const lookup = await this.http.post<{ user_email_salt?: string }>(
+      "/v1/auth/lookup", { hashed_email: hashedEmail }, this.getCliRequestHeaders(),
+    );
+    if (!lookup.ok || !lookup.data.user_email_salt) {
+      throw new Error(`Password login lookup failed (HTTP ${lookup.status})`);
+    }
+    const userEmailSalt = lookup.data.user_email_salt;
+    const saltBytes = base64ToBytes(userEmailSalt);
+    if (saltBytes.length < 16) throw new Error("Password login returned an invalid salt");
+    const emailEncryptionKeyB64 = await deriveEmailEncryptionKeyB64(email, userEmailSalt);
+
+    const challenge = await this.http.post<{ challenge_id?: string; nonce?: string }>(
+      "/v1/auth/password-v2/challenge",
+      { hashed_email: hashedEmail, session_id: sessionId, purpose: "login" },
       this.getCliRequestHeaders(),
     );
-    if (!initiate.ok || !initiate.data.token) {
-      throw new Error("Failed to initiate pair login");
+    if (!challenge.ok || !challenge.data.challenge_id || !challenge.data.nonce) {
+      throw new Error(`Password login challenge failed (HTTP ${challenge.status})`);
+    }
+    const { authKey, wrapKey } = await derivePasswordKeysV2(params.password, saltBytes);
+    let proof: string;
+    try {
+      proof = passwordProofV2(authKey, challenge.data.nonce, "login");
+    } finally {
+      authKey.fill(0);
+      wrapKey.fill(0);
+    }
+    type LoginResult = {
+      success?: boolean; message?: string; tfa_required?: boolean; ws_token?: string;
+      user?: {
+        id?: string; credential_version?: number; encrypted_key?: string;
+        key_iv?: string; salt?: string; user_email_salt?: string;
+      };
+    };
+    const common = {
+      hashed_email: hashedEmail,
+      session_id: sessionId,
+      login_method: "password",
+      email_encryption_key: emailEncryptionKeyB64,
+      ...(params.tfaCode ? { tfa_code: params.tfaCode, code_type: params.codeType ?? "otp" } : {}),
+    };
+    const v2 = await this.http.post<LoginResult>(
+      "/v1/auth/login",
+      { ...common, credential_version: 2, challenge_id: challenge.data.challenge_id, password_proof: proof },
+      this.getCliRequestHeaders(),
+    );
+    if (!v2.ok) {
+      this.http.replaceCookies(previousCookies);
+      throw new Error(`Password login unavailable (HTTP ${v2.status})`);
+    }
+    let login = v2;
+    let credentialVersion: 1 | 2 = 2;
+    // Public lookup is intentionally uniform. A v2 attempt precedes the legacy
+    // request; the server rejects typed password-v1 fallback for v2 accounts.
+    if (!v2.data.success || v2.data.tfa_required) {
+      const legacyLookupHash = await hashKey(params.password, saltBytes);
+      const v1 = await this.http.post<LoginResult>(
+        "/v1/auth/login",
+        { ...common, credential_version: 1, lookup_hash: legacyLookupHash },
+        this.getCliRequestHeaders(),
+      );
+      if (v1.ok && v1.data.success && !v1.data.tfa_required) {
+        login = v1;
+        credentialVersion = 1;
+      } else if (v2.data.tfa_required || v1.data.tfa_required) {
+        this.http.replaceCookies(previousCookies);
+        return { status: "tfa_required" };
+      } else {
+        this.http.replaceCookies(previousCookies);
+        throw new Error(v2.data.message ?? v1.data.message ?? "Password login failed");
+      }
+    }
+
+    const user = login.data.user;
+    const receivedVersion = user?.credential_version;
+    if (receivedVersion !== credentialVersion || !user?.id || !user.encrypted_key ||
+        !user.key_iv || !user.salt || user.user_email_salt !== userEmailSalt ||
+        !this.http.getCookieMap().auth_refresh_token) {
+      this.http.replaceCookies(previousCookies);
+      throw new Error("Password login returned incomplete account key or session data");
+    }
+    const masterKey = await unwrapPasswordMasterKey({
+      password: params.password,
+      credentialVersion,
+      encryptedMasterKeyB64: user.encrypted_key,
+      saltB64: user.salt,
+      keyIvB64: user.key_iv,
+    });
+    if (!masterKey || masterKey.length !== 32) {
+      await this.http.post("/v1/auth/logout", {}, this.getCliRequestHeaders()).catch(() => undefined);
+      this.http.replaceCookies(previousCookies);
+      throw new Error("Password login could not open the account key");
+    }
+    const session: OpenMatesSession = {
+      apiUrl: this.apiUrl,
+      sessionId,
+      wsToken: login.data.ws_token ?? null,
+      cookies: this.http.getCookieMap(),
+      masterKeyExportedB64: bytesToBase64(masterKey),
+      emailEncryptionKeyB64,
+      hashedEmail,
+      userEmailSalt,
+      createdAt: Date.now(),
+      authorizerDeviceName: null,
+      autoLogoutMinutes: null,
+    };
+    masterKey.fill(0);
+    saveSession(session, { replace: true });
+    this.session = session;
+    if (credentialVersion === 1) {
+      try {
+        const migrationStatus = await this.migrateLegacyPasswordCredential(params.password);
+        return { status: "authenticated", credentialVersion, migrationStatus };
+      } catch {
+        // The verified legacy session and locally opened master key remain usable.
+        return { status: "authenticated", credentialVersion, migrationStatus: "pending" };
+      }
+    }
+    return { status: "authenticated", credentialVersion };
+  }
+
+  async loginWithPairAuth(): Promise<void> {
+    const localDeviceName = this.getLocalDeviceName();
+    const capability = await generateReceiverCapability();
+    const sessionId = randomUUID();
+    const initiate = await this.http.post<{ protocol_version?: number; token?: string; expires_at?: number; message?: string }>(
+      "/v1/auth/pair/v2/initiate",
+      { receiver_token_hash: capability.hash, session_id: sessionId, device_hint: localDeviceName },
+      this.getCliRequestHeaders(),
+    );
+    if (!initiate.ok || initiate.data.protocol_version !== 2 || !initiate.data.token ||
+        typeof initiate.data.expires_at !== "number" || !Number.isSafeInteger(initiate.data.expires_at)) {
+      throw new Error(initiate.data.message ?? "Pair login requires an updated OpenMates server and client.");
     }
 
     const token = initiate.data.token.toUpperCase();
+    const pairPath = `/v1/auth/pair/v2/${token}`;
+    const receiverHeaders = {
+      ...this.getCliRequestHeaders(),
+      "X-OpenMates-Pair-Receiver": capability.secret,
+    };
+    const previousCookies = this.http.getCookieMap();
     const appBase = deriveAppUrl(this.apiUrl);
     const loginUrl = `${appBase}/#pair=${token}`;
 
@@ -4289,81 +4448,125 @@ export class OpenMatesClient {
     stdout.write("Waiting for authorization...\n");
     stdout.write("Press E to cancel.\n");
 
-    const pollResult = await this.waitForPairAuthorization(token);
-    if (pollResult.authorizerDeviceName) {
-      stdout.write(`Authorized by: ${pollResult.authorizerDeviceName}\n`);
-    }
-
-    const pin = await this.prompt("Enter 6-char pairing PIN: ");
-    const complete = await this.http.post<{
-      success?: boolean;
-      encrypted_bundle?: string;
-      iv?: string;
-      message?: string;
-      authorizer_device_name?: string | null;
-      auto_logout_minutes?: number | null;
-    }>(
-      `/v1/auth/pair/complete/${token}`,
-      { pin: pin.trim().toUpperCase() },
-      this.getCliRequestHeaders(),
-    );
-
-    if (
-      !complete.ok ||
-      !complete.data.success ||
-      !complete.data.encrypted_bundle ||
-      !complete.data.iv
-    ) {
-      throw new Error(complete.data.message ?? "Pair completion failed");
-    }
-
-    const bundle = (await decryptBundle({
-      encryptedBundleB64: complete.data.encrypted_bundle,
-      ivB64: complete.data.iv,
-      pin: pin.trim().toUpperCase(),
-      token,
-    })) as PairBundle;
-
-    const sessionId = randomUUID();
-    const login = await this.http.post<{
-      success?: boolean;
-      message?: string;
-      ws_token?: string;
-    }>(
-      "/v1/auth/login",
-      {
-        hashed_email: bundle.hashed_email,
-        lookup_hash: bundle.lookup_hash,
+    let completed = false;
+    let storedNewSession = false;
+    let receiver: Awaited<ReturnType<typeof createPairReceiver>> | null = null;
+    try {
+      const approved = await this.waitForPairAuthorization(token, receiverHeaders, initiate.data.expires_at);
+      if (approved.session_id !== sessionId || approved.receiver_token_hash !== capability.hash ||
+          !approved.authorizer_user_id ||
+          !("auto_logout_minutes" in approved) ||
+          ![null, 30, 60, 240, 480, 1440].includes(approved.auto_logout_minutes ?? null)) {
+        throw new Error("Pairing context does not match this receiver.");
+      }
+      if (approved.authorizer_device_name) {
+        stdout.write(`Authorized by: ${approved.authorizer_device_name}\n`);
+      }
+      const context = createPairContext({
+        token,
         session_id: sessionId,
-        stay_logged_in: true,
-        login_method: "pair",
-      },
-      this.getCliRequestHeaders(),
-    );
-
-    if (!login.ok || !login.data.success) {
-      throw new Error(
-        login.data.message ?? "Login failed after pair completion",
+        receiver_token_hash: capability.hash,
+        authorizer_user_id: approved.authorizer_user_id,
+        auto_logout_minutes: (approved.auto_logout_minutes ?? null) as null | 30 | 60 | 240 | 480 | 1440,
+      });
+      const pin = (await this.prompt("Enter 6-char pairing PIN: ", true)).trim().toUpperCase();
+      const cryptoExit = this.installPairExitListener();
+      try {
+        receiver = await createPairReceiver(context, pin);
+        if (cryptoExit.canceled) throw new Error("Pairing canceled by user");
+      } finally {
+        cryptoExit.cleanup();
+      }
+      const request = await this.http.post<{ success?: boolean; message?: string }>(
+        `/v1/auth/pair/v2/receiver/${token}/message`,
+        { stage: "request", message: receiver.request },
+        receiverHeaders,
       );
+      if (!request.ok || !request.data.success) throw new Error(request.data.message ?? "Pair request failed.");
+
+      const response = await this.waitForPairState(token, receiverHeaders, initiate.data.expires_at,
+        new Set(["response"]), approved);
+      if (!response.message) throw new Error("Pair response is missing.");
+      const finishMessage = await receiver.receiveResponse(response.message);
+      const finish = await this.http.post<{ success?: boolean; message?: string }>(
+        `/v1/auth/pair/v2/receiver/${token}/message`,
+        { stage: "finish", message: finishMessage },
+        receiverHeaders,
+      );
+      if (!finish.ok || !finish.data.success) throw new Error(finish.data.message ?? "Pair proof was rejected.");
+
+      const ready = await this.waitForPairState(token, receiverHeaders, initiate.data.expires_at,
+        new Set(["ready"]), approved);
+      if (!ready.encrypted_bundle || !ready.iv) throw new Error("Pair bundle is missing.");
+      const bundle = await receiver.decryptBundle(ready.encrypted_bundle, ready.iv);
+      if (bundle.protocol_version !== 2 || bundle.user_id !== approved.authorizer_user_id ||
+          !bundle.hashed_email || !bundle.user_email_salt || !bundle.master_key_exported || !bundle.grant_secret) {
+        throw new Error("Pair bundle identity or account data is invalid.");
+      }
+      const encryptedEmail = bundle.account_context?.encrypted_email_with_master_key;
+      if (!encryptedEmail) throw new Error("Pair bundle is missing authenticated email metadata.");
+      const email = await decryptWithAesGcmCombined(encryptedEmail, base64ToBytes(bundle.master_key_exported));
+      if (!email || await hashEmail(email) !== bundle.hashed_email) {
+        throw new Error("Pair bundle master key does not match the account email.");
+      }
+      const emailEncryptionKeyB64 = await deriveEmailEncryptionKeyB64(email, bundle.user_email_salt);
+
+      const complete = await this.http.post<{
+        success?: boolean; message?: string; ws_token?: string; pair_expires_at?: number | null;
+        user?: { id?: string };
+      }>(`/v1/auth/pair/v2/complete/${token}`, { grant_secret: bundle.grant_secret }, receiverHeaders);
+      if (!complete.ok || !complete.data.success) throw new Error(complete.data.message ?? "Pair completion failed.");
+      completed = true;
+      if (complete.data.user?.id !== approved.authorizer_user_id ||
+          !this.http.getCookieMap().auth_refresh_token) {
+        throw new Error("Pair completion returned an invalid account session.");
+      }
+      const deadline = complete.data.pair_expires_at;
+      if (approved.auto_logout_minutes != null &&
+          (typeof deadline !== "number" || !Number.isSafeInteger(deadline) || deadline <= Date.now() / 1000 ||
+           deadline > Date.now() / 1000 + approved.auto_logout_minutes * 60 + 10)) {
+        throw new Error("Pair session deadline is missing or invalid.");
+      }
+      if (approved.auto_logout_minutes === null && deadline != null) {
+        throw new Error("Pair session lifetime differs from the approved selection.");
+      }
+      const session: OpenMatesSession = {
+        apiUrl: this.apiUrl,
+        sessionId,
+        wsToken: complete.data.ws_token ?? null,
+        cookies: this.http.getCookieMap(),
+        masterKeyExportedB64: bundle.master_key_exported,
+        emailEncryptionKeyB64,
+        hashedEmail: bundle.hashed_email,
+        userEmailSalt: bundle.user_email_salt,
+        createdAt: Date.now(),
+        authorizerDeviceName: approved.authorizer_device_name ?? null,
+        autoLogoutMinutes: approved.auto_logout_minutes ?? null,
+        pairedSessionExpiresAt: typeof deadline === "number" ? deadline * 1000 : null,
+      };
+      // The grant is pending acknowledgement. Store all local key material first;
+      // /auth/session is unavailable until the receiver acknowledges durability.
+      saveSession(session, { replace: true });
+      storedNewSession = true;
+      this.session = session;
+      await this.acknowledgePairReceiver(token, receiverHeaders, initiate.data.expires_at, approved);
+    } catch (error) {
+      if (completed) {
+        await this.http.post("/v1/auth/logout", {}, this.getCliRequestHeaders()).catch(() => undefined);
+        await this.http.delete(pairPath, undefined, receiverHeaders).catch(() => undefined);
+        if (storedNewSession) {
+          purgeLocalPrivateData();
+          this.session = null;
+        }
+        this.http.replaceCookies(previousCookies);
+      }
+      throw error;
+    } finally {
+      receiver?.abort();
+      if (!completed) {
+        await this.http.delete(pairPath, undefined, receiverHeaders).catch(() => undefined);
+      }
     }
-
-    const session: OpenMatesSession = {
-      apiUrl: this.apiUrl,
-      sessionId,
-      wsToken: login.data.ws_token ?? null,
-      cookies: this.http.getCookieMap(),
-      masterKeyExportedB64: bundle.master_key_exported,
-      hashedEmail: bundle.hashed_email,
-      userEmailSalt: bundle.user_email_salt,
-      createdAt: Date.now(),
-      authorizerDeviceName: complete.data.authorizer_device_name ?? null,
-      autoLogoutMinutes: complete.data.auto_logout_minutes ?? null,
-    };
-
-    await this.hydrateEmailEncryptionKey(session);
-
-    this.session = session;
-    saveSession(session, { replace: true });
   }
 
   async whoAmI(): Promise<Record<string, unknown>> {
@@ -4478,8 +4681,11 @@ export class OpenMatesClient {
         .post("/v1/auth/logout", {}, this.getCliRequestHeaders())
         .catch(() => undefined);
     }
-    purgeLocalPrivateData();
-    this.session = null;
+    try {
+      purgeLocalPrivateData();
+    } finally {
+      this.session = null;
+    }
   }
 
   async requestSignupEmailCode(params: {
@@ -4513,8 +4719,8 @@ export class OpenMatesClient {
     code: string;
     language?: string;
     darkmode?: boolean;
-  }): Promise<unknown> {
-    const response = await this.http.post(
+  }): Promise<{ success?: boolean; signup_transaction_token?: string }> {
+    const response = await this.http.post<{ success?: boolean; message?: string; signup_transaction_token?: string }>(
       "/v1/auth/check_confirm_email_code",
       {
         code: params.code,
@@ -4536,6 +4742,7 @@ export class OpenMatesClient {
     email: string;
     username: string;
     password: string;
+    signupTransactionToken?: string;
     inviteCode?: string;
     language?: string;
     darkmode?: boolean;
@@ -4552,7 +4759,9 @@ export class OpenMatesClient {
         encrypted_master_key: material.encryptedMasterKey,
         key_iv: material.keyIv,
         salt: material.saltB64,
-        lookup_hash: material.lookupHash,
+        credential_version: material.credentialVersion,
+        password_auth_key: material.passwordAuthKey,
+        signup_transaction_token: params.signupTransactionToken ?? null,
         language: params.language ?? "en",
         darkmode: params.darkmode ?? false,
       },
@@ -4583,6 +4792,104 @@ export class OpenMatesClient {
       user: response.data.user,
       crypto: material,
     };
+  }
+
+  /** Migrate a locally unlocked legacy password wrapper without changing the account master key. */
+  async migrateLegacyPasswordCredential(password: string): Promise<"typed_retired" | "legacy_retained" | "deferred_recent_verification"> {
+    const session = this.requireSession();
+    const material = await createPasswordMigrationMaterialV2(
+      password, session.masterKeyExportedB64, session.userEmailSalt,
+    );
+    const expectedMaster = base64ToBytes(session.masterKeyExportedB64);
+    const matchesMaster = (opened: Uint8Array | null): boolean => {
+      if (!opened) return false;
+      try {
+        return expectedMaster.length === 32 && opened.length === expectedMaster.length &&
+          timingSafeEqual(opened, expectedMaster);
+      } finally {
+        opened.fill(0);
+      }
+    };
+    try {
+      const localOpen = await unwrapPasswordMasterKey({
+        password, credentialVersion: 2,
+        encryptedMasterKeyB64: material.encryptedMasterKey,
+        saltB64: material.saltB64, keyIvB64: material.keyIv,
+      });
+      if (!matchesMaster(localOpen)) throw new Error("Password migration wrapper does not open the current account key");
+      const response = await this.http.post<{
+        success?: boolean; message?: string; migration_status?: string; legacy_password_retained?: boolean;
+        detail?: { error?: string };
+      }>(
+      "/v1/auth/password-v2/migrate",
+      {
+        old_lookup_hash: material.oldLookupHash,
+        password_auth_key: material.passwordAuthKey,
+        encrypted_master_key: material.encryptedMasterKey,
+        salt: material.saltB64,
+        key_iv: material.keyIv,
+      },
+      this.getCliRequestHeaders(),
+      );
+      if (response.status === 428 && response.data.detail?.error === "recent_verification_required") {
+        return "deferred_recent_verification";
+      }
+      if (!response.ok || response.data.success !== true) {
+        throw new Error(response.data.message ?? `Password migration staging failed (HTTP ${response.status})`);
+      }
+      if (response.data.migration_status === "legacy_retained") {
+        return "legacy_retained";
+      }
+      if (response.data.migration_status !== "pending_confirmation") {
+        throw new Error("Password migration staging returned an invalid status");
+      }
+
+      const challenge = await this.http.post<{ challenge_id?: string; nonce?: string }>(
+        "/v1/auth/password-v2/staged-challenge", {}, this.getCliRequestHeaders(),
+      );
+      if (!challenge.ok || !challenge.data.challenge_id || !challenge.data.nonce) {
+        throw new Error("Password migration challenge unavailable");
+      }
+      const { authKey, wrapKey } = await derivePasswordKeysV2(password, base64ToBytes(session.userEmailSalt));
+      let proof: string;
+      try {
+        proof = passwordProofV2(authKey, challenge.data.nonce, "migration");
+      } finally {
+        authKey.fill(0);
+        wrapKey.fill(0);
+      }
+      const verified = await this.http.post<{
+        encrypted_key?: string; salt?: string; key_iv?: string; credential_version?: number;
+      }>(
+        "/v1/auth/password-v2/verify-staged",
+        { challenge_id: challenge.data.challenge_id, password_proof: proof },
+        this.getCliRequestHeaders(),
+      );
+      if (!verified.ok || verified.data.credential_version !== 2 ||
+          !verified.data.encrypted_key || !verified.data.salt || !verified.data.key_iv) {
+        throw new Error("Password migration staged wrapper unavailable");
+      }
+      const stagedOpen = await unwrapPasswordMasterKey({
+        password, credentialVersion: 2,
+        encryptedMasterKeyB64: verified.data.encrypted_key,
+        saltB64: verified.data.salt, keyIvB64: verified.data.key_iv,
+      });
+      if (!matchesMaster(stagedOpen)) throw new Error("Password migration staged wrapper does not match the account key");
+      const confirmed = await this.http.post<{
+        success?: boolean; migration_status?: string; legacy_password_retained?: boolean;
+        detail?: { error?: string };
+      }>("/v1/auth/password-v2/confirm-migration", {}, this.getCliRequestHeaders());
+      if (confirmed.status === 428 && confirmed.data.detail?.error === "recent_verification_required") {
+        return "deferred_recent_verification";
+      }
+      if (!confirmed.ok || confirmed.data.success !== true ||
+          confirmed.data.migration_status !== "typed_retired") {
+        throw new Error("Password migration confirmation failed");
+      }
+      return "typed_retired";
+    } finally {
+      expectedMaster.fill(0);
+    }
   }
 
   async startTotpSetup(): Promise<TotpSetupStartResult> {
@@ -8267,7 +8574,7 @@ export class OpenMatesClient {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
     };
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     // include_unavailable=true: show all production-stage skills regardless
     // of provider API key availability — matches web app's static metadata.
     const response = await this.http.get(
@@ -8414,7 +8721,7 @@ export class OpenMatesClient {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
     };
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     const response = await this.http.get(
       `/v1/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}`,
       headers,
@@ -8561,7 +8868,7 @@ export class OpenMatesClient {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
     };
-    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    if (params.apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(params.apiKey).bearer}`;
     const anonymous = !params.apiKey && !this.hasSession();
     if (anonymous) {
       let anonymousId = loadAnonymousId();
@@ -8630,21 +8937,20 @@ export class OpenMatesClient {
     return null;
   }
 
-  async getCodeRunStreamAuth(): Promise<{ sessionId: string; token: string; fallbackToken?: string } | null> {
+  async getCodeRunStreamAuth(): Promise<{ sessionId: string; token: string } | null> {
     const session = this.session;
     if (!session) return null;
     await this.refreshWsToken();
-    const token = session.wsToken || session.cookies.auth_refresh_token;
+    const token = session.wsToken;
     if (!token) return null;
-    const fallbackToken = session.cookies.auth_refresh_token;
-    return { sessionId: session.sessionId, token, fallbackToken };
+    return { sessionId: session.sessionId, token };
   }
 
   async getCodeRunStatus(path: string, apiKey?: string): Promise<Record<string, unknown>> {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
     };
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     const response = await this.http.get<Record<string, unknown>>(path, headers);
     if (!response.ok) {
       throw new Error(`Code Run status request failed with HTTP ${response.status}`);
@@ -8657,7 +8963,7 @@ export class OpenMatesClient {
       ...this.getCliRequestHeaders(),
       Accept: "image/svg+xml,application/octet-stream",
     };
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     const response = await this.http.getBinary(path, headers);
     if (!response.ok) {
       throw new Error(`Raw resource request failed with HTTP ${response.status}`);
@@ -8694,7 +9000,7 @@ export class OpenMatesClient {
     const headers: Record<string, string> = {
       ...this.getCliRequestHeaders(),
     };
-    if (params.apiKey) headers.Authorization = `Bearer ${params.apiKey}`;
+    if (params.apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(params.apiKey).bearer}`;
     const response = await this.http.post(
       "/v1/apps/travel/booking-link",
       {
@@ -10594,7 +10900,7 @@ export class OpenMatesClient {
     if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     const headers = this.getCliRequestHeaders();
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     let response = await this.http.get(
       normalizedPath,
       headers,
@@ -10633,7 +10939,8 @@ export class OpenMatesClient {
         encrypted_name: material.encryptedName,
         api_key_hash: material.apiKeyHash,
         encrypted_key_prefix: material.encryptedKeyPrefix,
-        encrypted_master_key: material.encryptedMasterKey,
+        encrypted_master_key: (options.fullAccess ?? true) ? material.encryptedMasterKey : null,
+        credential_version: 2,
         salt: material.saltB64,
         key_iv: material.keyIv,
         full_access: options.fullAccess ?? true,
@@ -10702,7 +11009,7 @@ export class OpenMatesClient {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
     const headers = this.getCliRequestHeaders();
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     const response = await this.http.post(
       normalizedPath,
       body,
@@ -10721,7 +11028,7 @@ export class OpenMatesClient {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
     const headers = this.getCliRequestHeaders();
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     const response = await this.http.delete(
       normalizedPath,
       body,
@@ -10744,7 +11051,7 @@ export class OpenMatesClient {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
     const headers = this.getCliRequestHeaders();
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${splitApiKeyCredential(apiKey).bearer}`;
     const response = await this.http.patch(
       normalizedPath,
       body,
@@ -12181,10 +12488,19 @@ export class OpenMatesClient {
   }
 
   private requireSession(): OpenMatesSession {
+    this.expirePairedSessionIfNeeded();
     if (!this.session) {
       throw new Error(`Not logged in. Run \`${this.loginRecoveryCommand()}\`.`);
     }
     return this.session;
+  }
+
+  private expirePairedSessionIfNeeded(): void {
+    if (!this.session || typeof this.session.pairedSessionExpiresAt !== "number" ||
+        this.session.pairedSessionExpiresAt > Date.now()) return;
+    if (!this.explicitSession) purgeLocalPrivateData();
+    this.session = null;
+    this.http.replaceCookies({});
   }
 
   getMasterKeyBytes(): Uint8Array {
@@ -12243,7 +12559,7 @@ export class OpenMatesClient {
       apiUrl: session.apiUrl,
       sessionId: randomUUID(),
       wsToken: session.wsToken,
-      refreshToken: session.cookies.auth_refresh_token ?? null,
+      refreshToken: null,
       // Same User-Agent as login so OS-based device fingerprint hash matches.
       userAgent: this.getCliUserAgent(),
       // Node.js ws library doesn't auto-send cookies on upgrade requests.
@@ -12904,43 +13220,122 @@ export class OpenMatesClient {
     }
   }
 
-  private async prompt(question: string): Promise<string> {
-    const rl = createInterface({ input: stdin, output: stdout });
+  private async prompt(question: string, secret = false): Promise<string> {
+    const hideInput = secret && stdin.isTTY;
+    const mutedOutput = hideInput ? new Writable({ write(_chunk, _encoding, done) { done(); } }) : null;
+    if (hideInput) stdout.write(question);
+    const rl = createInterface({
+      input: stdin,
+      output: mutedOutput ?? stdout,
+      terminal: hideInput || undefined,
+    });
     try {
-      return await rl.question(question);
+      return await rl.question(hideInput ? "" : question);
     } finally {
       rl.close();
+      if (hideInput) stdout.write("\n");
     }
   }
 
-  private async waitForPairAuthorization(token: string): Promise<{
-    authorizerDeviceName: string | null;
-  }> {
+  private async waitForPairAuthorization(
+    token: string,
+    receiverHeaders: Record<string, string>,
+    expiresAt: number,
+  ): Promise<PairReceiverState> {
+    return this.waitForPairState(token, receiverHeaders, expiresAt, new Set(["approved"]));
+  }
+
+  private async acknowledgePairReceiver(
+    token: string,
+    receiverHeaders: Record<string, string>,
+    expiresAt: number,
+    approved: PairReceiverState,
+  ): Promise<void> {
+    let lastFailure = "Pair acknowledgement was not confirmed.";
+    for (let attempt = 0; attempt < 3 && Date.now() < expiresAt * 1000; attempt++) {
+      try {
+        const acknowledgement = await this.http.post<{ success?: boolean; message?: string }>(
+          `/v1/auth/pair/v2/acknowledge/${token}`, undefined, receiverHeaders);
+        if (acknowledgement.ok && acknowledgement.data.success) return;
+        lastFailure = acknowledgement.data.message ?? `Pair acknowledgement failed (HTTP ${acknowledgement.status}).`;
+      } catch {
+        lastFailure = "Pair acknowledgement response was interrupted.";
+      }
+      // A committed ACK may have lost its HTTP response. Read the durable state
+      // before revoking a receiver session that the authorizer already accepted.
+      let state: PairReceiverState | null = null;
+      try {
+        const poll = await this.http.get<PairReceiverState>(
+          `/v1/auth/pair/v2/receiver/${token}`, receiverHeaders);
+        if (poll.ok) state = poll.data;
+      } catch { /* Retry the idempotent acknowledgement after a readback failure. */ }
+      if (state) {
+        if (state.status === "failed" || state.status === "cancelled") {
+          throw new Error(`Pairing ${state.status} during acknowledgement.`);
+        }
+        // The relay's acknowledging state has no peer metadata until its
+        // durable session activation finishes; a retry safely resumes it.
+        if (state.status === "acknowledging") {
+          if (attempt < 2) await sleep(300);
+          continue;
+        }
+        if (state.status === "expired") {
+          throw new Error("Pairing expired during acknowledgement.");
+        }
+        if (state.session_id !== approved.session_id ||
+            state.receiver_token_hash !== approved.receiver_token_hash ||
+            state.authorizer_user_id !== approved.authorizer_user_id ||
+            state.auto_logout_minutes !== approved.auto_logout_minutes) {
+          throw new Error("Pairing context changed during acknowledgement.");
+        }
+        if (state.status === "acknowledged") return;
+      }
+      if (attempt < 2) await sleep(300);
+    }
+    throw new Error(lastFailure);
+  }
+
+  private async waitForPairState(
+    token: string,
+    receiverHeaders: Record<string, string>,
+    expiresAt: number,
+    wanted: ReadonlySet<string>,
+    approved?: PairReceiverState,
+  ): Promise<PairReceiverState> {
     const exitState = this.installPairExitListener();
-    let status = "waiting";
-    let authorizerDeviceName: string | null = null;
     try {
-      while (status === "waiting") {
+      while (true) {
         if (exitState.canceled) throw new Error("Pairing canceled by user");
+        if (Date.now() >= expiresAt * 1000) throw new Error("Pair token expired before completion");
         await sleep(2_000);
         if (exitState.canceled) throw new Error("Pairing canceled by user");
-        const poll = await this.http.get<{
-          status?: string;
-          authorizer_device_name?: string;
-        }>(`/v1/auth/pair/poll/${token}`, this.getCliRequestHeaders());
-        if (!poll.ok) continue;
-        status = poll.data.status ?? "waiting";
-        authorizerDeviceName =
-          typeof poll.data.authorizer_device_name === "string"
-            ? poll.data.authorizer_device_name
-            : null;
-        if (status === "expired")
-          throw new Error("Pair token expired before authorization");
+        const poll = await this.http.get<PairReceiverState>(
+          `/v1/auth/pair/v2/receiver/${token}`, receiverHeaders);
+        if (!poll.ok) {
+          if (poll.status === 404 || poll.status === 410) throw new Error("Pair token expired or was cancelled");
+          if (poll.status >= 500) continue;
+          throw new Error(`Pair polling failed (HTTP ${poll.status})`);
+        }
+        const state = poll.data;
+        if (typeof state.expires_at === "number" && state.expires_at !== expiresAt) {
+          throw new Error("Pair expiry changed during the exchange.");
+        }
+        // Terminal relay responses intentionally omit peer metadata. Report the
+        // actual failure before comparing fields that are no longer present.
+        if (state.status === "failed" || state.status === "cancelled" || state.status === "expired") {
+          throw new Error(`Pairing ${state.status}. Start a new pairing.`);
+        }
+        if (approved && (state.session_id !== approved.session_id ||
+            state.receiver_token_hash !== approved.receiver_token_hash ||
+            state.authorizer_user_id !== approved.authorizer_user_id ||
+            state.auto_logout_minutes !== approved.auto_logout_minutes)) {
+          throw new Error("Pairing context changed during the exchange.");
+        }
+        if (wanted.has(state.status)) return state;
       }
     } finally {
       exitState.cleanup();
     }
-    return { authorizerDeviceName };
   }
 
   private installPairExitListener(): {

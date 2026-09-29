@@ -47,6 +47,8 @@ const mocks = vi.hoisted(() => {
       addEventListener: vi.fn(),
       on: vi.fn(),
       sendMessage: vi.fn(),
+      isConnected: vi.fn(() => false),
+      forceReconnect: vi.fn(),
     },
     chatDB: {
       getAllMessages: vi.fn(async () => []),
@@ -193,5 +195,30 @@ describe("ChatSynchronizationService reconnect sync state", () => {
     await Promise.resolve();
 
     expect(startPhasedSync).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it("does not force a reconnect when installing clients before the socket opens or repeating the same install", () => {
+    const projectFileExecutor = { stop: vi.fn() };
+    const remoteCommandClient = { stop: vi.fn() };
+
+    const dispose = chatSyncService.installProjectAgentClients(
+      projectFileExecutor as unknown as Parameters<typeof chatSyncService.installProjectAgentClients>[0],
+      remoteCommandClient as unknown as Parameters<typeof chatSyncService.installProjectAgentClients>[1],
+    );
+    expect(mocks.webSocketService.forceReconnect).not.toHaveBeenCalled();
+
+    mocks.webSocketService.isConnected.mockReturnValue(true);
+    const repeatedDispose = chatSyncService.installProjectAgentClients(
+      projectFileExecutor as unknown as Parameters<typeof chatSyncService.installProjectAgentClients>[0],
+      remoteCommandClient as unknown as Parameters<typeof chatSyncService.installProjectAgentClients>[1],
+    );
+    expect(projectFileExecutor.stop).not.toHaveBeenCalled();
+    expect(remoteCommandClient.stop).not.toHaveBeenCalled();
+    expect(mocks.webSocketService.forceReconnect).not.toHaveBeenCalled();
+
+    repeatedDispose();
+    dispose();
+    mocks.webSocketService.isConnected.mockReturnValue(false);
   });
 });

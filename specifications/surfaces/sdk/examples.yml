@@ -12,16 +12,10 @@ sdk_auth:
       device_id_file_contains_api_key: false
       device_id_file_mode: '0600'
   - id: approved-device-session
-    request:
-      headers:
-        Authorization: Bearer sk-api-example
-        X-OpenMates-SDK: npm
-        X-OpenMates-Device-Identity: sdk-device-1
-      operation_scope: chats.read_existing
-    expect:
-      session_allowed: true
-      key_wrapper_returned: true
-      operation_allowed: true
+    assertion_ids: [sdk.auth.approved-api-key-device]
+    given: An npm SDK credential has a current chats.read_existing scope and its stable device identity is approved.
+    when: The SDK sends only its bearer component with SDK and device identity headers for a chat read.
+    then: The backend permits that scoped operation and returns the permitted key wrapper without returning plaintext key material.
   - id: cli-owned-caller-uses-cli-sdk-identity
     request:
       headers:
@@ -32,16 +26,10 @@ sdk_auth:
       allowed_for_cli_owned_api_key_callers: true
       npm_pip_required_surface_unchanged: true
   - id: pending-device-blocked
-    request:
-      headers:
-        Authorization: Bearer sk-api-example
-        X-OpenMates-SDK: pip
-        X-OpenMates-Device-Identity: pending-device
-      device_state: pending
-    expect_error:
-      code: device_approval_required
-      operation_executed: false
-      credits_charged: false
+    assertion_ids: [sdk.auth.approved-api-key-device]
+    given: A pip SDK credential belongs to a device whose approval is pending.
+    when: The device requests an otherwise scoped paid operation.
+    then: The backend rejects it before execution or charging credits, even if the bearer value itself is valid.
   - id: scope-and-budget-checked-before-work
     request:
       operation_scope: billing.usage_export
@@ -52,23 +40,32 @@ sdk_auth:
       operation_executed: false
       credits_charged: false
   - id: api-key-create-stores-only-derived-material
-    input:
-      name: Local Script
-      full_access: true
-      credit_limit: {period: daily, credits: 100}
-    expect:
-      plaintext_key_revealed_once_to_caller: true
-      server_payload_contains: [api_key_hash, encrypted_name, encrypted_key_prefix, encrypted_master_key, salt, key_iv]
-      server_payload_forbidden: [plaintext_api_key, plaintext_name, plaintext_master_key]
+    assertion_ids: [sdk.auth.credential-separation]
+    given: A user creates a full-access SDK credential named Local Script.
+    when: The client creates and reveals its composite setup credential once.
+    then: It sends only the bearer hash, encrypted display fields, and client-material-wrapped account key to the backend; the client-only decryption component and plaintext account key stay off the wire.
+  - id: bearer-cannot-unwrap
+    assertion_ids: [sdk.auth.credential-separation]
+    given: A setup credential contains separately generated bearer authentication and client-only decryption components.
+    when: Someone obtains only a bearer value from a request header or diagnostic.
+    then: That value may identify the SDK request but cannot unwrap the account or resource key wrapper without the distinct client-only component.
+  - id: legacy-key-migration
+    assertion_ids: [sdk.auth.legacy-key-migration]
+    given: An existing SDK key uses its bearer value to unwrap account-key material.
+    when: The user migrates to separated SDK credentials.
+    then: The old SDK key is revoked and a new separated credential is issued; cookie logout alone does not migrate it, and the account master key is not rotated automatically.
 
 sdk_encryption:
   - id: session-wrapper-unwrapped-only-locally
-    sdk_session:
-      contains: [encrypted_key, salt, key_iv]
-      forbidden: [plaintext_master_key, plaintext_api_key, raw_chat_key]
-    expect:
-      sdk_decrypts_master_key_in_memory: true
-      backend_durable_plaintext_master_key: false
+    assertion_ids: [sdk.encryption.local-only]
+    given: An SDK session receives a permitted encrypted key wrapper, salt, and IV.
+    when: The SDK opens a private resource using its client-only decryption material.
+    then: It unwraps the permitted key in local memory; the backend stores and returns neither the plaintext account key nor the raw resource key.
+  - id: limited-grant-and-cached-revocation
+    assertion_ids: [sdk.auth.limited-resource-keys]
+    given: A limited SDK grant allows one project but its authorization is later revoked while a key wrapper remains cached.
+    when: The SDK requests another server operation on that project after revocation.
+    then: The backend rejects the new operation and never gave the grant the account master key; revocation does not erase the resource key or ciphertext the client already retained for offline decryption.
   - id: missing-wrapper-fails-before-saved-chat-send
     input:
       operation: chats.send
@@ -78,12 +75,10 @@ sdk_encryption:
       typed_config_error: true
       chat_send_request_started: false
   - id: loaded-chat-decrypts-from-ciphertext
-    durable_state:
-      contains: [encrypted_title, encrypted_content, encrypted_chat_key, chat_key_wrappers]
-      forbidden: [plaintext_title, plaintext_message, raw_chat_key]
-    expect:
-      sdk_may_return_transient_plaintext_fields: true
-      durable_plaintext_written: false
+    assertion_ids: [sdk.encryption.local-only]
+    given: A saved chat has encrypted title, content, and chat-key wrappers in durable storage.
+    when: An authorized SDK client loads and decrypts the chat.
+    then: It may return transient plaintext fields locally while all persisted chat fields remain ciphertext and no raw chat key is written to backend storage.
   - id: wrapper-row-precedes-row-level-chat-key-fallback
     durable_state:
       encrypted_chat_key: stale-row-chat-key-ciphertext

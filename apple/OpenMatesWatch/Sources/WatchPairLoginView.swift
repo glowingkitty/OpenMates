@@ -1,5 +1,5 @@
 // Watch short-URL/PIN pair-login view.
-// Presents the existing OpenMates Magic Pair Login flow in a compact standalone
+// Presents the OpenMates PAKE Pair Login flow in a compact standalone
 // watchOS layout: show a short URL, poll authorization state, then auto-submit a
 // sanitized six-character PIN. Runtime logic lives in PairLoginRuntime.
 
@@ -533,6 +533,9 @@ struct WatchPairLoginView: View {
 
     private func startPairing(serverProfile: ServerProfile? = nil, force: Bool) {
         if !force, pairState.token != nil || pairState.initiationTask != nil { return }
+        if let oldToken = pairState.token, let oldProfile = pairState.activeTokenServerProfile {
+            Task { await PairV2Runtime.cancel(token: oldToken, serverProfile: oldProfile) }
+        }
         let serverProfile = serverProfile ?? pairState.serverProfile
         let generation = pairState.beginAttempt(serverProfile: serverProfile)
         NativeDiagnostics.info(
@@ -549,6 +552,7 @@ struct WatchPairLoginView: View {
                         generation: generation,
                         serverProfile: serverProfile
                       ) else {
+                    await PairV2Runtime.cancel(token: initiation.token, serverProfile: serverProfile)
                     NativeDiagnostics.warning(
                         "phase=view.initiate.ignored reason=stale generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
                         category: watchPairLoginDiagnosticsCategory
@@ -606,7 +610,7 @@ struct WatchPairLoginView: View {
                     guard !Task.isCancelled,
                           pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
                           pairState.token == token else { return }
-                    if response.status == "ready" {
+                    if response.status == "approved" {
                         pairState.fallbackTask?.cancel()
                         pairState.showsManualFallback = false
                         pairState.status = .ready
@@ -615,7 +619,7 @@ struct WatchPairLoginView: View {
                             category: watchPairLoginDiagnosticsCategory
                         )
                         if pairState.pin.count == 6 { submitPinIfReady() }
-                    } else if response.status == "expired" {
+                    } else if ["failed", "cancelled"].contains(response.status) {
                         pairState.fallbackTask?.cancel()
                         pairState.status = .expired
                         NativeDiagnostics.warning(
@@ -623,7 +627,7 @@ struct WatchPairLoginView: View {
                             category: watchPairLoginDiagnosticsCategory
                         )
                     }
-                    if response.status == "ready" || response.status == "expired" { return }
+                    if response.status == "approved" || response.status == "failed" || response.status == "cancelled" { return }
                 } catch {
                     guard !Task.isCancelled,
                           pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
@@ -764,7 +768,9 @@ struct WatchPairLoginView: View {
                 guard pairState.token == token,
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
-                try await authStore.completePairLogin(result)
+                try await authStore.completePairLogin(result) {
+                    try await PairLoginRuntime.acknowledge(token: token, serverProfile: serverProfile)
+                }
             } catch PairLoginRuntimeError.completeFailed(let kind) {
                 guard pairState.token == token,
                       pairState.activeTokenServerProfile == serverProfile,
@@ -775,6 +781,8 @@ struct WatchPairLoginView: View {
                       pairState.activeTokenServerProfile == serverProfile,
                       pairState.serverProfile == serverProfile else { return }
                 pairState.errorMessage = error.localizedDescription
+                pairState.pin = ""
+                pairState.status = .failed
                 pairState.isSubmitting = false
             }
         }

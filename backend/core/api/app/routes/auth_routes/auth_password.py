@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 import logging
 import hashlib
+import hmac
+import secrets
 from backend.core.api.app.schemas.auth import SetupPasswordRequest, SetupPasswordResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -25,17 +27,31 @@ from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.utils.server_mode import get_server_edition, validate_request_domain
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.routes.auth_routes.signup_transaction import verify_signup_transaction
+from backend.core.api.app.routes.auth_routes.auth_signup_cleanup import rollback_incomplete_signup
+from backend.core.api.app.services.password_v2 import (
+    KDF_ID, decode_key, encode_key, issue_challenge, proof_message, seal_auth_key,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
+
+async def _safe_setup_password_request(request: Request) -> SetupPasswordRequest:
+    # FastAPI's default validation response can echo the entire submitted body.
+    # This request contains a one-time authentication subkey, so redact errors.
+    try:
+        return SetupPasswordRequest.model_validate(await request.json())
+    except Exception:
+        raise HTTPException(400, "Invalid password setup request") from None
+
 @router.post("/setup_password", response_model=SetupPasswordResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
 async def setup_password(
     request: Request,
-    setup_request: SetupPasswordRequest,
     response: Response,
+    setup_request: SetupPasswordRequest = Depends(_safe_setup_password_request),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
@@ -47,6 +63,16 @@ async def setup_password(
     This endpoint validates that the email was previously verified and creates the user account.
     """
     try:
+        is_v2 = setup_request.credential_version == 2
+        if is_v2:
+            try:
+                auth_key = decode_key(setup_request.password_auth_key.get_secret_value())
+            except (AttributeError, ValueError):
+                return SetupPasswordResponse(success=False, message="Invalid password setup")
+            if setup_request.lookup_hash or setup_request.salt != setup_request.user_email_salt:
+                return SetupPasswordResponse(success=False, message="Invalid password setup")
+        elif setup_request.credential_version != 1 or not setup_request.lookup_hash:
+            return SetupPasswordResponse(success=False, message="Invalid password setup")
         invite_code = setup_request.invite_code
         code_data = None
         
@@ -72,10 +98,14 @@ async def setup_password(
 
         # Check if email was verified by looking for verification data in cache
         # Use hashed_email for lookup instead of plaintext email
-        verification_cache_key = f"email_verified:{setup_request.hashed_email}"
-        verification_data = await cache_service.get(verification_cache_key)
+        requires_email_verification = get_server_edition() != "self_hosted" or require_domain_restriction
+        verification_data = await verify_signup_transaction(
+            cache_service, hashed_email=setup_request.hashed_email,
+            username=setup_request.username, invite_code=invite_code or "",
+            transaction_token=setup_request.signup_transaction_token,
+        ) if requires_email_verification else {}
         
-        if not verification_data and (get_server_edition() != "self_hosted" or require_domain_restriction):
+        if not verification_data and requires_email_verification:
             logger.warning("Password setup attempted without email verification")
             return SetupPasswordResponse(
                 success=False,
@@ -130,6 +160,15 @@ async def setup_password(
         # privileges are granted separately with `openmates server make-admin`.
         is_admin = False
 
+        if requires_email_verification:
+            verification_data = await verify_signup_transaction(
+                cache_service, hashed_email=setup_request.hashed_email,
+                username=setup_request.username, invite_code=invite_code or "",
+                transaction_token=setup_request.signup_transaction_token, consume=True,
+            )
+            if not verification_data:
+                return SetupPasswordResponse(success=False, message="Email verification expired. Please verify your email again.")
+
         # Create the user account with encrypted email
         success, user_data, create_message = await directus_service.create_user(
             username=setup_request.username,
@@ -141,6 +180,7 @@ async def setup_password(
             darkmode=setup_request.darkmode,
             is_admin=is_admin,
             role=None,
+            login_method="password_v2" if is_v2 else "password",
         )
 
         if not success:
@@ -185,12 +225,28 @@ async def setup_password(
                 exc_info=True,
             )
 
+        # Seal the v2 verifier with the per-user Vault key before publishing it.
+        # A failure here leaves no usable account and triggers signup rollback.
+        if is_v2:
+            try:
+                sealed_auth_key = await seal_auth_key(
+                    encryption_service,
+                    password_auth_key=setup_request.password_auth_key.get_secret_value(),
+                    vault_key_id=vault_key_id,
+                )
+            except Exception:
+                await rollback_incomplete_signup(directus_service, user_id)
+                return SetupPasswordResponse(success=False, message="Failed to set up account encryption. Please try again.")
+            wrapper_method = f"password_v2_{secrets.token_hex(16)}"
+        else:
+            wrapper_method = "password"
+
         # Create encryption key record
         try:
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
             success = await directus_service.create_encryption_key(
                 hashed_user_id=hashed_user_id,
-                login_method='password',
+                login_method=wrapper_method,
                 encrypted_key=setup_request.encrypted_master_key,
                 salt=setup_request.salt,
                 key_iv=setup_request.key_iv
@@ -199,19 +255,31 @@ async def setup_password(
                 logger.info(f"Successfully created encryption key record for user {user_id}")
             else:
                 logger.error(f"Failed to create encryption key for user {user_id}")
+                await rollback_incomplete_signup(directus_service, user_id)
                 return SetupPasswordResponse(
                     success=False,
                     message="Failed to set up account encryption. Please try again."
                 )
         except Exception as e:
             logger.error(f"Failed to create encryption key for user {user_id}: {e}", exc_info=True)
+            await rollback_incomplete_signup(directus_service, user_id)
             return SetupPasswordResponse(
                 success=False,
                 message="Failed to set up account encryption. Please try again."
             )
 
-        # Lookup hash is already added during user creation
-        logger.info(f"Lookup hash was added during user creation for user {user_id}")
+        if is_v2:
+            committed = await directus_service.update_user(user_id, {
+                "credential_lookup_hashes": {"password": {
+                    "version": 2, "kdf": KDF_ID,
+                    "sealed_auth_key": sealed_auth_key,
+                    "wrapper_method": wrapper_method,
+                    "legacy_password_retained": False,
+                }},
+            })
+            if not committed:
+                await rollback_incomplete_signup(directus_service, user_id)
+                return SetupPasswordResponse(success=False, message="Failed to set up account encryption. Please try again.")
 
         # Generate device fingerprint and add to connected devices
         # Note: connection_hash will be None since no session_id is available during signup
@@ -279,8 +347,7 @@ async def setup_password(
             status="success"
         )
 
-        # Clean up verification cache
-        await cache_service.delete(verification_cache_key)
+        # The transaction proof was atomically consumed before account creation.
 
         # Log successful account creation
         event_logger.info(f"User account created successfully - ID: {user_id}")
@@ -304,10 +371,21 @@ async def setup_password(
 
         # Login the user to get cookies for authentication
         # We need to use the hashed email and lookup hash for authentication
-        auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
-            hashed_email=setup_request.hashed_email,
-            lookup_hash=setup_request.lookup_hash
-        )
+        if is_v2:
+            session_id = secrets.token_urlsafe(24)
+            challenge = await issue_challenge(cache_service, hashed_email=setup_request.hashed_email,
+                                             session_id=session_id, purpose="login")
+            nonce = decode_key(challenge["nonce"])
+            proof = encode_key(hmac.new(auth_key, proof_message("login", nonce), hashlib.sha256).digest())
+            auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
+                hashed_email=setup_request.hashed_email, lookup_hash=None,
+                credential_version=2, challenge_id=challenge["challenge_id"],
+                password_proof=proof, session_id=session_id, cache_service=cache_service,
+            )
+        else:
+            auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
+                hashed_email=setup_request.hashed_email, lookup_hash=setup_request.lookup_hash,
+            )
         
         if not auth_success or not auth_data:
             logger.error(f"Failed to authenticate user after creation: {auth_message}")
@@ -363,6 +441,7 @@ async def setup_password(
             "lookup_hashes": user_profile.get("lookup_hashes", []),
             "account_id": user_data.get("account_id"),  # From the original user_data
             "user_email_salt": setup_request.user_email_salt,  # Include the salt
+            "credential_version": 2 if is_v2 else 1,
             # Monthly subscription fields (cleartext fields, not sensitive)
             "stripe_customer_id": user_profile.get("stripe_customer_id"),
             "stripe_subscription_id": user_profile.get("stripe_subscription_id"),
@@ -396,11 +475,14 @@ async def setup_password(
         mock_login_data = LoginRequest(
             hashed_email=setup_request.hashed_email,
             lookup_hash=setup_request.lookup_hash,
-            session_id=None,  # No session_id during signup - connection_hash will be None
+            session_id=session_id if is_v2 else None,  # Signup has no connection hash.
+            challenge_id=challenge["challenge_id"] if is_v2 else None,
+            password_proof=proof if is_v2 else None,
             email_encryption_key=None,  # Not available during signup
             tfa_code=None,
             code_type=None,
             login_method="password",
+            credential_version=2 if is_v2 else 1,
             stay_logged_in=False  # Default to short session for signup
         )
         
@@ -476,12 +558,13 @@ async def setup_password(
             user={
                 "id": user_id,
                 "username": setup_request.username,
-                "is_admin": is_admin
+                "is_admin": is_admin,
+                "credential_version": 2 if is_v2 else 1,
             }
         )
 
-    except Exception as e:
-        logger.error(f"Error setting up password: {str(e)}", exc_info=True)
+    except Exception:
+        logger.error("Error setting up password", exc_info=True)
         return SetupPasswordResponse(
             success=False,
             message="An error occurred while setting up your password."

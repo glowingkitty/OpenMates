@@ -1,0 +1,71 @@
+id: pairing-pake-hardening
+title: Client-to-client PAKE pairing
+status: implementing
+# Goal-first profile: OpenMates Tasks owns execution status and dependencies.
+# The strict schema currently requires a duplicate task ledger; use the supported
+# lightweight profile to preserve the repository's user-approved workflow rules.
+task_id: dfef6abd-29db-4e03-b777-f5d9d07ac01b
+session: c526
+goal: >
+  Start implementing and testing the pairing related changes which we agreed on,
+  using GPT-6 Sol sub-agents.
+scope:
+  in:
+    - Replace server-visible PIN encryption with a client-to-client PAKE and explicit peer confirmation before account-key transfer.
+    - Preserve the existing approve, display PIN, enter PIN interaction; keep the approving client active until completion.
+    - Migrate web, CLI, and native Apple pairing consumers together with an explicit protocol version and no insecure fallback.
+    - Replace exported reusable lookup credentials with an expiring receiver-bound single-use session grant.
+    - Enforce the approving user's selected pairing-session lifetime across refresh and cache loss.
+    - Update the owning authentication Specification, architecture documentation, unit tests, and isolated product E2E coverage.
+  out:
+    - SDK API-key encryption redesign, unrelated login-method repairs, password KDF migration, and destructive recovery changes.
+    - Unrelated sensitive-action routes; this patch enforces the accepted five-minute same-session policy for pairing approval.
+    - Sharing-password policy changes, explicitly deferred by the user.
+    - Production deployment or destructive historical account-key or ciphertext migration.
+decisions:
+  - id: D-1
+    decision: The PIN is generated and used only on the two participating clients; the relay never receives the PIN, a static PIN verifier, PAKE registration secrets, or unencrypted account-key material.
+  - id: D-2
+    decision: Use an established PAKE implementation with documented provenance and cross-client interoperability; do not invent curve arithmetic or a new protocol.
+  - id: D-3
+    decision: The approving client stays online through receiver PIN entry and mutual confirmation; cancellation, wrong PIN, timeout, or protocol failure cannot release the master-key bundle or report success.
+  - id: D-4
+    decision: Existing password, passkey, and recovery-key wrapping and independent fresh-device login are preserved.
+  - id: D-5
+    decision: Legacy pairing protocols are rejected explicitly rather than silently downgraded; old clients require an update.
+  - id: D-6
+    decision: User approvals in this conversation authorize the pairing implementation; the documentation records those approved semantics without reopening approval rounds.
+  - id: D-7
+    decision: Pair approval requires server-verified strong authentication from the same logical session within five minutes, otherwise reauthentication; refresh never extends that window.
+  - id: D-8
+    decision: Pin OPAQUE JS 1.1.0 and native opaque-ke 4.0.0 with Argon2id v0x13 at 8192 KiB, three iterations, and one lane; the OPAQUE server role and temporary registration remain inside the approving client.
+  - id: D-9
+    decision: The wider CLI storage policy is automatic working-keyring use with a clearly identified owner-only local-file fallback; no mandatory secret-tool setup or automatic system-package installation. The separate storage refactor and other agreed workstreams are recorded in security-roadmap.md.
+acceptance_criteria:
+  - id: AC-1
+    text: Matching clients establish and confirm a session key without sending the PIN or an offline-testable PIN verifier to the relay; wrong PIN, context mismatch, tampering, and replay fail closed.
+    required: true
+  - id: AC-2
+    text: Only an authenticated approving client can authorize its pairing; receiver capabilities and grant consumption prevent cross-session access and concurrent double completion.
+    required: true
+  - id: AC-3
+    text: No pairing route returns a reusable lookup credential, and public login_method pair cannot authorize a session.
+    required: true
+  - id: AC-4
+    text: Successful web, CLI, and native pairing restores the existing account master key and history; sender closure, expiry, and cancellation have truthful outcomes.
+    required: true
+  - id: AC-5
+    text: A selected absolute session deadline remains effective after refresh and cache misses without affecting sibling sessions.
+    required: true
+  - id: AC-6
+    text: Focused local tests and isolated GitHub product E2E cover the changed protocol and preserve existing contract metadata; unsupported native verification is reported rather than claimed.
+    required: true
+verification:
+  - Local protocol known-answer or dependency interoperability tests and negative protocol tests.
+  - Focused backend pairing, grant, expiry, refresh, origin, and isolation tests.
+  - Focused CLI and native pairing tests; appropriate build/type checks.
+  - Isolated cli-pair-login.spec.ts and relevant web receiver/authorizer coverage.
+  - Independent code review of protocol composition before considering the patch ready for deployment.
+handoff:
+  current_state: OPAQUE-based v2 web, CLI, backend, and Apple source implementation is in session c526. Focused protocol/backend/component checks pass. Real isolated CLI pairing passed in CI run 36468742225 and web receiver pairing passed in run 36470162510 after legacy-account email-envelope compatibility and internal completion-session repairs. The security patch remains undeployed.
+  next_action: Retain no-PIN-on-server and one-use grant guarantees while completing the wider authentication signup/login regression plan. Obtain native Xcode build and runtime evidence before claiming Apple pairing parity; the configured Mac was unreachable and its helper reported UNSUPPORTED_REMOTE_OPERATION on 2026-09-28.

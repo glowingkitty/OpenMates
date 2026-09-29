@@ -60,6 +60,8 @@ import {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  devicePasswordFallbackAvailable,
+  devicePasswordCredentialVersion,
   deviceVerificationReason,
 } from "./authState";
 // Import auth types
@@ -114,6 +116,8 @@ async function performAuthCheck(
   captureReferralCodeFromUrl();
   needsDeviceVerification.set(false); // Reset verification need
   deviceVerificationType.set(null); // Reset verification type
+  devicePasswordFallbackAvailable.set(false);
+  devicePasswordCredentialVersion.set(null);
   deviceVerificationReason.set(null); // Reset verification reason
 
   try {
@@ -186,6 +190,14 @@ async function performAuthCheck(
       );
       needsDeviceVerification.set(true);
       deviceVerificationType.set(data.re_auth_required);
+      devicePasswordFallbackAvailable.set(
+        data.re_auth_required === "passkey" && data.password_fallback_available === true,
+      );
+      devicePasswordCredentialVersion.set(
+        data.re_auth_required === "passkey" && data.password_fallback_available === true
+          ? data.password_credential_version ?? null
+          : null,
+      );
       deviceVerificationReason.set(data.re_auth_reason || "new_device");
       authStore.update((state) => ({
         ...state,
@@ -461,6 +473,8 @@ async function performAuthCheck(
 
       needsDeviceVerification.set(false);
       deviceVerificationType.set(null);
+      devicePasswordFallbackAvailable.set(false);
+      devicePasswordCredentialVersion.set(null);
       deviceVerificationReason.set(null);
 
       // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything

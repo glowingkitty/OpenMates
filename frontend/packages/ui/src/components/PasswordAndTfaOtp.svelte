@@ -8,9 +8,9 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import InputWarning from './common/InputWarning.svelte';
-    import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { tfaAppIcons } from '../config/tfa';
     import * as cryptoService from '../services/cryptoService';
+    import { loginWithPasswordVersions, requirePasswordCredentialVersion, derivePasswordV2, migrateUnlockedLegacyPassword } from '../services/passwordV2';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
     import {
@@ -196,65 +196,30 @@
             // Generate hashed email and lookup hash
             const hashed_email = await cryptoService.hashEmail(email);
             
-            // Generate lookup hash (password + salt)
-            // According to security.md: lookup_hash = SHA256(login_secret + salt)
-            // We need to use the user_email_salt as the salt for the lookup hash
             const userEmailSalt = cryptoService.getEmailSalt();
-            
             if (!userEmailSalt) {
-                console.error('Email salt not found in storage. Cannot generate lookup hash.');
                 errorMessage = 'Authentication data not found. Please try logging in again.';
                 return;
             }
-            
-            // Use the hashKey function from cryptoService which properly handles salt
-            const lookup_hash = await cryptoService.hashKey(password, userEmailSalt);
-
-            // Prepare request body
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- login payload is extended conditionally below
-            const requestBody: any = {
-                hashed_email,
-                lookup_hash,
-                stay_logged_in: stayLoggedIn  // Send stay logged in preference
+            const fields: Record<string, unknown> = {
+                stay_logged_in: stayLoggedIn,
             };
-
-            // Add 2FA code if provided and required
             if (tfaRequiredState && tfaCode) {
-                requestBody.tfa_code = tfaCode;
-                requestBody.code_type = isBackupMode ? 'backup' : 'otp';
+                fields.tfa_code = tfaCode;
+                fields.code_type = isBackupMode ? 'backup' : 'otp';
             }
-            
-            // Add email encryption key for zero-knowledge email decryption
-            const email_encryption_key = cryptoService.getEmailEncryptionKeyForApi();
-            if (email_encryption_key) {
-                requestBody.email_encryption_key = email_encryption_key;
-            }
-
-            // Add sessionId for device fingerprint uniqueness (multi-browser support)
-            requestBody.session_id = getSessionId();
-
-            // Send single login request
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                body: JSON.stringify(requestBody),
-                credentials: 'include'
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            if (emailEncryptionKey) fields.email_encryption_key = emailEncryptionKey;
+            const { response, data } = await loginWithPasswordVersions({
+                password, hashedEmail: hashed_email, userEmailSalt,
+                sessionId: getSessionId(), fields,
             });
-
-            // Check for rate limiting first
             if (response.status === 429) {
-                console.warn("Rate limit hit for password/TFA login");
                 isRateLimited = true;
                 localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
                 setRateLimitTimer(RATE_LIMIT_DURATION);
                 return;
             }
-
-            const data = await response.json();
             normalizePostSignupLoginUser(data.user);
             
             // Debug logging to understand response structure
@@ -525,6 +490,8 @@
         }
 
         // ── Phase 1: Critical crypto operations (blocks login on failure) ──
+        let unlockedMasterKey: CryptoKey | null = null;
+        let legacyEmailSalt: Uint8Array | null = null;
         // Decrypt and save master key (Web Crypto API)
         try {
             // Decode salt from base64
@@ -535,7 +502,14 @@
             }
 
             // Derive wrapping key from password
-            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+            const credentialVersion = requirePasswordCredentialVersion(data.user.credential_version);
+            const emailSalt = cryptoService.getEmailSalt();
+            if (credentialVersion === 2 && (!emailSalt || cryptoService.uint8ArrayToBase64(emailSalt) !== data.user.salt)) {
+                throw new Error('Password wrapper salt does not match this account');
+            }
+            const wrappingKey = credentialVersion === 2
+                ? (await derivePasswordV2(password, salt)).wrapKey
+                : await cryptoService.deriveKeyFromPassword(password, salt);
 
             // Unwrap master key with IV (Web Crypto API)
             const keyIv = data.user.key_iv || ''; // IV for key unwrapping
@@ -546,6 +520,11 @@
                 console.error('[PasswordAndTfaOtp] Master key decryption returned null/undefined');
                 errorMessage = 'Failed to decrypt master key. Please try again.';
                 return;
+            }
+
+            if (credentialVersion === 1) {
+                unlockedMasterKey = masterKey;
+                legacyEmailSalt = cryptoService.getEmailSalt();
             }
 
             // Save extractable master key to IndexedDB
@@ -587,6 +566,8 @@
         // prop to '' before Phase 2 async code below can use it.
         const emailForStorage = email;
 
+        const passwordForMigration = unlockedMasterKey && legacyEmailSalt ? password : null;
+
         // Clear sensitive data before dispatching
         password = '';
         tfaCode = '';
@@ -595,6 +576,12 @@
             user: data.user,
             inSignupFlow: inSignupFlow
         });
+
+        if (passwordForMigration && legacyEmailSalt && unlockedMasterKey) {
+            void migrateUnlockedLegacyPassword(passwordForMigration, legacyEmailSalt, unlockedMasterKey)
+                .catch((error) => console.warn('[PasswordLogin] Safe legacy migration deferred:', error));
+        }
+
 
         // ── Phase 2: Non-critical post-login operations (non-blocking) ──
         // These operations run after the loginSuccess dispatch. Failures here do NOT

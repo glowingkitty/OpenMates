@@ -236,12 +236,18 @@ importers:
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
+      '@serenity-kit/opaque':
+        specifier: 1.1.0
+        version: 1.1.0
       '@toon-format/toon':
         specifier: 2.3.1
         version: 2.3.1
       ahocorasick:
         specifier: 1.0.2
         version: 1.0.2
+      hash-wasm:
+        specifier: 4.12.0
+        version: 4.12.0
       ignore:
         specifier: 7.0.5
         version: 7.0.5
@@ -267,6 +273,9 @@ importers:
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@repo/pairing-crypto':
+        specifier: workspace:*
+        version: link:../pairing-crypto
       '@types/node':
         specifier: ^24.5.0
         version: 24.5.2
@@ -288,6 +297,22 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+
+  frontend/packages/pairing-crypto:
+    dependencies:
+      '@serenity-kit/opaque':
+        specifier: 1.1.0
+        version: 1.1.0
+    devDependencies:
+      '@types/node':
+        specifier: ^24.5.0
+        version: 24.5.2
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.5.2)(@vitest/coverage-v8@4.1.8)(jsdom@25.0.1)(vite@7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0))
 
   frontend/packages/secret-scanner:
     dependencies:
@@ -366,6 +391,9 @@ importers:
       '@opentelemetry/sdk-trace-web':
         specifier: ^2.8.0
         version: 2.8.0(@opentelemetry/api@1.9.1)
+      '@repo/pairing-crypto':
+        specifier: workspace:*
+        version: link:../pairing-crypto
       '@stripe/stripe-js':
         specifier: ^7.9.0
         version: 7.9.0
@@ -441,6 +469,9 @@ importers:
       function-plot:
         specifier: 1.25.4
         version: 1.25.4
+      hash-wasm:
+        specifier: 4.12.0
+        version: 4.12.0
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
@@ -1621,6 +1652,10 @@ packages:
   '@secretlint/types@10.2.2':
     resolution: {integrity: sha512-Nqc90v4lWCXyakD6xNyNACBJNJ0tNCwj2WNk/7ivyacYHxiITVgmLUFXTBOeCdy79iz6HtN9Y31uw/jbLrdOAg==}
     engines: {node: '>=20.0.0'}
+
+  '@serenity-kit/opaque@1.1.0':
+    resolution: {integrity: sha512-Y6v/+hRMn0MdMEk5+/ArM0vPIiFfFEbdTZc7oAx+cWyvGODGezAQ/sMjXBVogf7NsS9z9EV0Ve5paZCVULuedw==}
+    hasBin: true
 
   '@sindresorhus/merge-streams@2.3.0':
     resolution: {integrity: sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg==}
@@ -3416,6 +3451,9 @@ packages:
   has-tostringtag@1.0.2:
     resolution: {integrity: sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==}
     engines: {node: '>= 0.4'}
+
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
 
   hasown@2.0.4:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
@@ -5825,13 +5863,13 @@ snapshots:
       '@remotion/timeline-utils': 4.0.512
       '@rspack/core': 1.7.11
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
-      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23))
+      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(postcss@8.5.23))
       esbuild: 0.28.1
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       react-refresh: 0.18.0
       remotion: 4.0.512(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23))
+      style-loader: 4.0.0(webpack@5.105.0(postcss@8.5.23))
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.23)
     transitivePeerDependencies:
       - '@minify-html/node'
@@ -6241,6 +6279,8 @@ snapshots:
       istextorbinary: 9.5.0
 
   '@secretlint/types@10.2.2': {}
+
+  '@serenity-kit/opaque@1.1.0': {}
 
   '@sindresorhus/merge-streams@2.3.0': {}
 
@@ -7458,7 +7498,7 @@ snapshots:
       utrie: 1.0.2
     optional: true
 
-  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23)):
+  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(postcss@8.5.23)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.5.23)
       postcss: 8.5.23
@@ -8236,6 +8276,8 @@ snapshots:
   has-tostringtag@1.0.2:
     dependencies:
       has-symbols: 1.1.0
+
+  hash-wasm@4.12.0: {}
 
   hasown@2.0.4:
     dependencies:
@@ -9537,7 +9579,7 @@ snapshots:
     dependencies:
       boundary: 2.0.0
 
-  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.23)):
+  style-loader@4.0.0(webpack@5.105.0(postcss@8.5.23)):
     dependencies:
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.23)
 
@@ -9938,7 +9980,7 @@ snapshots:
       std-env: 4.1.0
       tinybench: 2.9.0
       tinyexec: 1.0.4
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 7.3.6(@types/node@24.5.2)(terser@5.44.0)(yaml@2.9.0)
       why-is-node-running: 2.3.0

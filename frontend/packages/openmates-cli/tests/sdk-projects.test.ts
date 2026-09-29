@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMates } from "../src/sdk.ts";
-import { createApiKeyCryptoMaterial, decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "../src/crypto.ts";
+import { bytesToBase64, createApiKeyCryptoMaterial, decryptWithAesGcmCombined, deriveKeyFromPassword, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "../src/crypto.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
@@ -50,6 +50,41 @@ async function withServer(
 }
 
 describe("OpenMates SDK Projects", () => {
+  // contract-test: direct surface=sdks.npm assertions=sdk.auth.limited-resource-keys,projects.keys.client-wrapped
+  it("decrypts only selected personal Projects with a limited key", async () => {
+    const accountKey = Buffer.alloc(32, 31);
+    const selectedKey = Buffer.alloc(32, 32);
+    const unrelatedKey = Buffer.alloc(32, 33);
+    const material = await createApiKeyCryptoMaterial("limited project", bytesToBase64(accountKey));
+    const salt = new Uint8Array(16).fill(7);
+    const derived = await deriveKeyFromPassword(material.apiKey.split(".")[1], salt);
+    const iv = new Uint8Array(12).fill(8);
+    const wrappingKey = await crypto.subtle.importKey("raw", derived, "AES-GCM", false, ["encrypt"]);
+    const wrapped = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, wrappingKey, selectedKey));
+    const selected = { project_id: PROJECT_ID, encrypted_project_key: await encryptBytesWithAesGcm(selectedKey, accountKey), encrypted_name: await encryptWithAesGcmCombined("Selected", selectedKey) };
+    const unrelated = { project_id: WORKFLOW_ID, encrypted_project_key: await encryptBytesWithAesGcm(unrelatedKey, accountKey), encrypted_name: await encryptWithAesGcmCombined("Unrelated", unrelatedKey) };
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/sdk/session") return {
+          key_wrapper: null,
+          resource_key_grants: [{ resource_type: "project", resource_id: PROJECT_ID, encrypted_key: bytesToBase64(wrapped), salt: bytesToBase64(salt), key_iv: bytesToBase64(iv) }],
+        };
+        if (request.url === "/v1/projects" || request.url?.startsWith("/v1/projects?")) return { projects: [selected, unrelated] };
+        if (request.url === `/v1/projects/${PROJECT_ID}`) return { project: selected };
+        if (request.url === `/v1/projects/${WORKFLOW_ID}`) return { project: unrelated };
+        throw new Error(`Unexpected ${request.url}`);
+      },
+      async (apiUrl) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "limited-device" });
+        assert.deepEqual((await client.projects.list({ personal: true })).map((project) => project.name), ["Selected"]);
+        assert.equal((await client.projects.show(PROJECT_ID, { personal: true })).name, "Selected");
+        await assert.rejects(client.projects.show(WORKFLOW_ID, { personal: true }), /no key grant/);
+        await assert.rejects(client.masterKey(), /did not include API-key-wrapped master key/);
+      },
+      `Bearer ${material.apiKey.split(".")[0]}`,
+    );
+  });
+
   // contract-test: direct surface=sdks.npm assertions=projects.access.explicit-context,projects.lifecycle.encrypted-crud,projects.keys.client-wrapped,projects.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("provides explicit Personal and Team encrypted CRUD without live file methods", async () => {
     const masterKey = Buffer.alloc(32, 3);
@@ -127,7 +162,7 @@ describe("OpenMates SDK Projects", () => {
         assert.equal("files" in client.projects, false);
         assert.ok(seen.some((request) => request.url?.includes(`team_id=${teamId}`)));
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${material.apiKey.split(".")[0]}`,
     );
   });
 
@@ -212,7 +247,7 @@ describe("OpenMates SDK Projects", () => {
         assert.ok(deleteUrls.some((url) => url.includes("item_type=embed") && url.includes("target_id=embed-1")));
         assert.equal(seen.some((request) => request.url?.includes("/sources")), false);
       },
-      `Bearer ${material.apiKey}`,
+      `Bearer ${material.apiKey.split(".")[0]}`,
     );
   });
 });

@@ -1,0 +1,10 @@
+<mjml>
+  <mj-head><mj-title>Account reset requested</mj-title></mj-head>
+  <mj-body>
+    <mj-section><mj-column>
+      <mj-text font-size="22px">Account reset requested</mj-text>
+      <mj-text>A request was made to reset your OpenMates account. Your existing login methods and encrypted history remain available during the next 24 hours. Return to account recovery with a new email code to cancel the request. After 24 hours, a fresh email code is required to complete the reset and permanently remove encrypted history.</mj-text>
+      <mj-text>If you did not request this, cancel it from the account recovery screen as soon as possible.</mj-text>
+    </mj-column></mj-section>
+  </mj-body>
+</mjml>

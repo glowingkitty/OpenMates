@@ -76,6 +76,13 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
+                    if (!data.signup_transaction_token) {
+                        errorMessage = 'Email verification could not be completed. Please try again.';
+                        showError = true;
+                        isVerifying = false;
+                        return;
+                    }
+                    signupStore.update(store => ({ ...store, signupTransactionToken: data.signup_transaction_token }));
                     // In the new architecture, email verification doesn't create a user yet
                     // It just verifies the email and stores verification status in cache
 

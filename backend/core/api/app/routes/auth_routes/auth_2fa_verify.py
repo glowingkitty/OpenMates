@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Request
 import logging
-import pyotp
 import hashlib # Added for temporary hash generation
 
 # Import schemas
@@ -22,6 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_common import (
     set_session_security_country,
     verify_authenticated_user,
 )
+from backend.core.api.app.services.session_security_state import claim_totp_step, mark_recent_strong_proof
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, parse_user_agent, get_geo_data_from_ip # Updated imports
 # Import Celery app instance
 from backend.core.api.app.tasks.celery_config import app
@@ -139,8 +139,7 @@ async def verify_device_2fa(
             return VerifyDevice2FAResponse(success=False, message="Could not verify 2FA status or code. Please try again.")
 
         # Verify the TOTP code using the directly fetched secret
-        totp = pyotp.TOTP(decrypted_secret)
-        if not totp.verify(verify_request.tfa_code, valid_window=1):
+        if not await claim_totp_step(cache_service, user_id, decrypted_secret, verify_request.tfa_code):
             logger.warning(f"Invalid device verification 2FA code for user {user_id}")
             # Log compliance event ONLY for invalid code attempt
             compliance_service.log_auth_event(
@@ -161,7 +160,7 @@ async def verify_device_2fa(
             logger.info(f"Added/updated device hash {stable_hash[:8]}... in DB and cache for user {user_id}.")
         else:
             logger.error(f"Failed to add/update device hash {stable_hash[:8]}... for user {user_id}: {update_msg}")
-            # Continue even if DB update fails, as the user has successfully verified.
+            return VerifyDevice2FAResponse(success=False, message="Device verification temporarily unavailable")
 
         # Advance only the verified logical session's country baseline.
         try:
@@ -174,6 +173,12 @@ async def verify_device_2fa(
             )
         except Exception as e:
             logger.error(f"Failed to update session security country for user {user_id}: {e}", exc_info=True)
+            return VerifyDevice2FAResponse(success=False, message="Device verification temporarily unavailable")
+
+        await mark_recent_strong_proof(
+            directus_service, cache_service, refresh_token, user_id,
+            method="totp", clear_risk=True,
+        )
 
         # Log successful verification for compliance without IP (only failed attempts keep IP)
         compliance_service.log_auth_event_safe(

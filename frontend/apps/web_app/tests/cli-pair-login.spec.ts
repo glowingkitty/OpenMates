@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable no-console */
 // @privacy-promise: cli-no-credential-prompts
 export {};
 
@@ -29,15 +28,18 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const {
 	createSignupLogger,
 	createStepScreenshotter,
-	generateTotp,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	fillMessageEditor,
+	loginToTestAccount,
+	startNewChat
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -49,24 +51,25 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 	? '/workspace/cli/dist/cli.js'
 	: path.resolve(__dirname, '../../../packages/openmates-cli/dist/cli.js');
 
-const consoleLogs: string[] = [];
-
-test.beforeEach(async () => {
-	consoleLogs.length = 0;
-});
-
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo: any) => {
-	if (testInfo.status !== 'passed') {
-		console.log(
-			'\n--- CLI PAIR LOGIN DEBUG ---\n' +
-				consoleLogs.slice(-40).join('\n') +
-				'\n--- END DEBUG ---\n'
-		);
-	}
-});
-
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+async function browserSessionUserId(page: any, apiUrl: string): Promise<string> {
+	return page.evaluate(async (endpoint: string) => {
+		const sessionId = sessionStorage.getItem('session_id');
+		if (!sessionId) throw new Error('Browser session ID is missing');
+		const response = await fetch(`${endpoint}/v1/auth/session`, {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ session_id: sessionId })
+		});
+		const body = await response.json().catch(() => ({}));
+		if (!response.ok || body.success !== true || !body.user?.id) {
+			throw new Error(`Browser session rejected with HTTP ${response.status}`);
+		}
+		return String(body.user.id);
+	}, apiUrl);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -101,7 +104,10 @@ function deriveApiUrl(baseUrl: string): string {
  * The process runs with OPENMATES_API_URL pointing at the same backend
  * as the Playwright web app.
  */
-function spawnCliLogin(apiUrl: string): {
+function spawnCliLogin(
+	apiUrl: string,
+	homeDir: string
+): {
 	process: any;
 	stdout: string[];
 	stderr: string[];
@@ -118,6 +124,8 @@ function spawnCliLogin(apiUrl: string): {
 	const child = spawn('node', [CLI_DIST, 'login'], {
 		env: {
 			...process.env,
+			HOME: homeDir,
+			OPENMATES_API_KEY: undefined,
 			OPENMATES_API_URL: apiUrl,
 			NODE_PATH: path.join(cliDir, 'node_modules'),
 			// Force non-TTY so stdin.setRawMode is skipped (the E key listener)
@@ -129,13 +137,11 @@ function spawnCliLogin(apiUrl: string): {
 	child.stdout.on('data', (data: Buffer) => {
 		const line = data.toString();
 		stdout.push(line);
-		consoleLogs.push(`[CLI stdout] ${line.trim()}`);
 	});
 
 	child.stderr.on('data', (data: Buffer) => {
 		const line = data.toString();
 		stderr.push(line);
-		consoleLogs.push(`[CLI stderr] ${line.trim()}`);
 	});
 
 	return {
@@ -177,7 +183,6 @@ function spawnCliLogin(apiUrl: string): {
 		/** Write the PIN to the CLI's stdin. */
 		sendPin(pin: string) {
 			child.stdin.write(pin + '\n');
-			consoleLogs.push(`[CLI stdin] sent PIN: ${pin}`);
 		},
 
 		/** Wait for the CLI process to exit (up to 30s). */
@@ -206,6 +211,7 @@ function spawnCliLogin(apiUrl: string): {
  */
 async function runCliCommand(
 	apiUrl: string,
+	homeDir: string,
 	args: string[],
 	timeoutMs = 20_000
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
@@ -214,6 +220,8 @@ async function runCliCommand(
 		const child = spawn('node', [CLI_DIST, ...args], {
 			env: {
 				...process.env,
+				HOME: homeDir,
+				OPENMATES_API_KEY: undefined,
 				OPENMATES_API_URL: apiUrl,
 				NODE_PATH: path.join(cliDir, 'node_modules')
 			},
@@ -243,8 +251,9 @@ async function runCliCommand(
 // ---------------------------------------------------------------------------
 
 test.describe('CLI Pair Login', () => {
-	test.setTimeout(120_000); // Allow 2 min for the full flow including OTP retries
+	test.setTimeout(240_000); // Includes account login, encrypted draft sync, and PAKE exchange
 
+	// contract-test: direct surface=cli assertions=auth.pair-login.single-use-zk,auth.pair-login.session-grant,auth.session.isolation
 	test('full pair-auth flow: CLI login → web approve → PIN → whoami', async ({
 		page
 	}: {
@@ -258,107 +267,240 @@ test.describe('CLI Pair Login', () => {
 		});
 		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
 		const apiUrl = deriveApiUrl(baseUrl);
+		const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-pair-e2e-'));
+		let draftChatId: string | null = null;
+		const pairRequests: Array<{ url: string; body: string }> = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/auth/pair/')) {
+				pairRequests.push({ url: request.url(), body: request.postData() || '' });
+			}
+		});
 		logCheckpoint(`Using API URL: ${apiUrl} (derived from ${baseUrl})`);
 
-		// Capture browser console logs for debugging
-		page.on('console', (msg: any) => {
-			consoleLogs.push(`[browser] ${msg.type()}: ${msg.text()}`);
-		});
-
-		// ---------------------------------------------------------------
-		// Step 1: Log in to the test account in the browser
-		// ---------------------------------------------------------------
-		logCheckpoint('Step 1: Logging in to test account via browser...');
-		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		await takeStepScreenshot(page, 'logged-in');
-
-		// ---------------------------------------------------------------
-		// Step 2: Start CLI login in background → capture pair token
-		// ---------------------------------------------------------------
-		logCheckpoint('Step 2: Starting CLI login process...');
-		const cli = spawnCliLogin(apiUrl);
-
-		let token: string;
 		try {
-			token = await cli.waitForToken();
-		} catch (err) {
-			cli.kill();
-			throw err;
+			// ---------------------------------------------------------------
+			// Step 1: Log in to the test account in the browser
+			// ---------------------------------------------------------------
+			logCheckpoint('Step 1: Logging in to test account via browser...');
+			await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+			await takeStepScreenshot(page, 'logged-in');
+			const browserUserId = await browserSessionUserId(page, apiUrl);
+			const draftMarker = `Pair key transfer ${Date.now().toString(36)}`;
+			await startNewChat(page, () => undefined);
+			draftChatId = await page
+				.locator('[data-action="message-input"]')
+				.last()
+				.getAttribute('data-current-chat-id');
+			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
+			await fillMessageEditor(page, page.getByTestId('message-editor'), draftMarker);
+			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15_000 });
+			await expect
+				.poll(
+					async () =>
+						page.evaluate(
+							async ({ endpoint, chatId }: { endpoint: string; chatId: string }) => {
+								const response = await fetch(
+									`${endpoint}/v1/drafts/${encodeURIComponent(chatId)}`,
+									{
+										credentials: 'include'
+									}
+								);
+								const data = await response.json().catch(() => ({}));
+								return response.ok && typeof data.draft?.encrypted_draft_md === 'string';
+							},
+							{ endpoint: apiUrl, chatId: draftChatId! }
+						),
+					{ timeout: 30_000 }
+				)
+				.toBe(true);
+
+			// ---------------------------------------------------------------
+			// Step 2: Start CLI login in background → capture pair token
+			// ---------------------------------------------------------------
+			logCheckpoint('Step 2: Starting CLI login process...');
+			const cli = spawnCliLogin(apiUrl, cliHome);
+
+			let token: string;
+			try {
+				token = await cli.waitForToken();
+			} catch (err) {
+				cli.kill();
+				throw err;
+			}
+			logCheckpoint('CLI received a pair token.');
+			await takeStepScreenshot(page, 'cli-token-received');
+
+			// ---------------------------------------------------------------
+			// Step 3: Navigate to the pair URL in the browser
+			// ---------------------------------------------------------------
+			const pairUrl = `${baseUrl}/#pair=${token}`;
+			logCheckpoint('Step 3: Opening the pairing URL.');
+			await page.goto(pairUrl);
+
+			// Wait for the pair confirmation page to load (Allow/Deny buttons)
+			const allowButton = page.getByTestId('pair-allow-button');
+			await expect(allowButton).toBeVisible({ timeout: 15000 });
+			logCheckpoint('Pair confirmation page visible — Allow button found.');
+			await takeStepScreenshot(page, 'pair-confirm');
+
+			// ---------------------------------------------------------------
+			// Step 4: Click Allow to authorize the CLI device
+			// ---------------------------------------------------------------
+			logCheckpoint('Step 4: Clicking Allow...');
+			await allowButton.click();
+
+			// Wait for PIN display to appear
+			const pinDisplay = page.getByTestId('pair-pin-display');
+			await expect(pinDisplay).toBeVisible({ timeout: 15000 });
+			logCheckpoint('PIN display visible.');
+			// The PIN is local to the sender; do not include it in screenshots or logs.
+
+			// ---------------------------------------------------------------
+			// Step 5: Read the PIN and send it to the CLI
+			// ---------------------------------------------------------------
+			const pinText = await pinDisplay.textContent();
+			// PIN is displayed as "ABC DEF" (with space), strip to get raw 6-char PIN
+			const pin = (pinText || '').replace(/\s/g, '').trim();
+			logCheckpoint('Step 5: Read the locally displayed PIN.');
+			expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+			expect(
+				pairRequests.some((request) => request.url.includes('/v1/auth/pair/v2/approve/'))
+			).toBe(true);
+			expect(pairRequests.some((request) => request.url.includes('/v1/auth/pair/authorize/'))).toBe(
+				false
+			);
+
+			// Send PIN to CLI stdin
+			cli.sendPin(pin);
+			logCheckpoint('Sent PIN to CLI.');
+
+			// ---------------------------------------------------------------
+			// Step 6: Wait for CLI to complete login
+			// ---------------------------------------------------------------
+			logCheckpoint('Step 6: Waiting for CLI to complete login...');
+			const { code: loginCode, output: loginOutput } = await cli.waitForExit();
+			logCheckpoint(`CLI exited with code ${loginCode}.`);
+
+			expect(loginOutput).toContain('Login successful');
+			expect(loginCode).toBe(0);
+			logCheckpoint('CLI login completed successfully.');
+			await takeStepScreenshot(page, 'cli-login-done');
+
+			// ---------------------------------------------------------------
+			// Step 7: Verify session works with whoami
+			// ---------------------------------------------------------------
+			logCheckpoint('Step 7: Running whoami to verify session...');
+			const whoami = await runCliCommand(apiUrl, cliHome, ['whoami', '--json']);
+			logCheckpoint(`whoami exit=${whoami.code}`);
+
+			expect(whoami.code).toBe(0);
+			const whoamiData = JSON.parse(whoami.stdout);
+			expect(whoamiData).toHaveProperty('username');
+			expect(String(whoamiData.id)).toBe(browserUserId);
+
+			// The authorizer's logical session must survive minting the receiver session.
+			expect(await browserSessionUserId(page, apiUrl)).toBe(browserUserId);
+			for (const request of pairRequests) {
+				expect(request.body, `Raw PIN leaked in ${new URL(request.url).pathname}`).not.toContain(
+					pin
+				);
+			}
+			expect(
+				pairRequests.some((request) => request.url.includes('/v1/auth/pair/v2/authorize/'))
+			).toBe(true);
+
+			// This draft existed before the CLI had a session. Its plaintext must
+			// decrypt after a fresh receiver sync, without calling an AI provider.
+			await expect
+				.poll(
+					async () => {
+						const result = await runCliCommand(
+							apiUrl,
+							cliHome,
+							['drafts', 'get', draftChatId!, '--refresh'],
+							30_000
+						);
+						if (result.code !== 0) return null;
+						try {
+							return JSON.parse(result.stdout).draft?.markdown ?? null;
+						} catch {
+							return null;
+						}
+					},
+					{ timeout: 60_000, intervals: [1_000, 2_000, 5_000] }
+				)
+				.toBe(draftMarker);
+			const clearDraft = await runCliCommand(
+				apiUrl,
+				cliHome,
+				['drafts', 'clear', draftChatId!],
+				10_000
+			);
+			expect(clearDraft.code).toBe(0);
+			draftChatId = null;
+
+			// ---------------------------------------------------------------
+			// Step 8: Clean up — logout
+			// ---------------------------------------------------------------
+			logCheckpoint('Step 8: Running logout to clean up...');
+			const logout = await runCliCommand(apiUrl, cliHome, ['logout']);
+			logCheckpoint(`logout exit=${logout.code}`);
+			expect(logout.code).toBe(0);
+		} finally {
+			if (draftChatId) {
+				await runCliCommand(apiUrl, cliHome, ['drafts', 'clear', draftChatId], 10_000).catch(
+					() => undefined
+				);
+			}
+			fs.rmSync(cliHome, { recursive: true, force: true });
 		}
-		logCheckpoint(`Got pair token: ${token}`);
-		await takeStepScreenshot(page, 'cli-token-received');
+	});
 
-		// ---------------------------------------------------------------
-		// Step 3: Navigate to the pair URL in the browser
-		// ---------------------------------------------------------------
-		const pairUrl = `${baseUrl}/#pair=${token}`;
-		logCheckpoint(`Step 3: Navigating to pair URL: ${pairUrl}`);
-		await page.goto(pairUrl);
-
-		// Wait for the pair confirmation page to load (Allow/Deny buttons)
-		const allowButton = page.getByTestId('pair-allow-button');
-		await expect(allowButton).toBeVisible({ timeout: 15000 });
-		logCheckpoint('Pair confirmation page visible — Allow button found.');
-		await takeStepScreenshot(page, 'pair-confirm');
-
-		// ---------------------------------------------------------------
-		// Step 4: Click Allow to authorize the CLI device
-		// ---------------------------------------------------------------
-		logCheckpoint('Step 4: Clicking Allow...');
-		await allowButton.click();
-
-		// Wait for PIN display to appear
-		const pinDisplay = page.getByTestId('pair-pin-display');
-		await expect(pinDisplay).toBeVisible({ timeout: 15000 });
-		logCheckpoint('PIN display visible.');
-		await takeStepScreenshot(page, 'pair-pin-shown');
-
-		// ---------------------------------------------------------------
-		// Step 5: Read the PIN and send it to the CLI
-		// ---------------------------------------------------------------
-		const pinText = await pinDisplay.textContent();
-		// PIN is displayed as "ABC DEF" (with space), strip to get raw 6-char PIN
-		const pin = (pinText || '').replace(/\s/g, '').trim();
-		logCheckpoint(`Step 5: Read PIN from web app: "${pin}" (raw from "${pinText}")`);
-		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
-
-		// Send PIN to CLI stdin
-		cli.sendPin(pin);
-		logCheckpoint('Sent PIN to CLI.');
-
-		// ---------------------------------------------------------------
-		// Step 6: Wait for CLI to complete login
-		// ---------------------------------------------------------------
-		logCheckpoint('Step 6: Waiting for CLI to complete login...');
-		const { code: loginCode, output: loginOutput } = await cli.waitForExit();
-		logCheckpoint(`CLI exited with code ${loginCode}. Output: ${loginOutput.slice(-200)}`);
-		consoleLogs.push(`[CLI full output] ${loginOutput}`);
-
-		expect(loginOutput).toContain('Login successful');
-		expect(loginCode).toBe(0);
-		logCheckpoint('CLI login completed successfully.');
-		await takeStepScreenshot(page, 'cli-login-done');
-
-		// ---------------------------------------------------------------
-		// Step 7: Verify session works with whoami
-		// ---------------------------------------------------------------
-		logCheckpoint('Step 7: Running whoami to verify session...');
-		const whoami = await runCliCommand(apiUrl, ['whoami', '--json']);
-		logCheckpoint(`whoami exit=${whoami.code} stdout=${whoami.stdout.slice(0, 200)}`);
-		consoleLogs.push(`[whoami stdout] ${whoami.stdout}`);
-		consoleLogs.push(`[whoami stderr] ${whoami.stderr}`);
-
-		expect(whoami.code).toBe(0);
-		const whoamiData = JSON.parse(whoami.stdout);
-		expect(whoamiData).toHaveProperty('username');
-		logCheckpoint(`whoami returned username: ${whoamiData.username}`);
-
-		// ---------------------------------------------------------------
-		// Step 8: Clean up — logout
-		// ---------------------------------------------------------------
-		logCheckpoint('Step 8: Running logout to clean up...');
-		const logout = await runCliCommand(apiUrl, ['logout']);
-		logCheckpoint(`logout exit=${logout.code}`);
-		expect(logout.code).toBe(0);
+	// contract-test: direct surface=cli assertions=auth.pair-login.single-use-zk,auth.pair-login.session-grant,auth.session.isolation
+	test('wrong local PIN fails before bundle release and preserves the sender session', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || '';
+		const apiUrl = deriveApiUrl(baseUrl);
+		const cliHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-pair-wrong-pin-'));
+		const pairPaths: string[] = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/auth/pair/')) {
+				pairPaths.push(new URL(request.url()).pathname);
+			}
+		});
+		let cli: ReturnType<typeof spawnCliLogin> | null = null;
+		try {
+			await loginToTestAccount(
+				page,
+				() => undefined,
+				async () => undefined
+			);
+			const senderId = await browserSessionUserId(page, apiUrl);
+			cli = spawnCliLogin(apiUrl, cliHome);
+			const token = await cli.waitForToken();
+			await page.goto(`${baseUrl}/#pair=${token}`);
+			await page.getByTestId('pair-allow-button').click();
+			const pinDisplay = page.getByTestId('pair-pin-display');
+			await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
+			const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '').trim();
+			expect(pin).toMatch(/^[A-Z0-9]{6}$/);
+			const wrongPin = `${pin[0] === 'A' ? 'B' : 'A'}${pin.slice(1)}`;
+			cli.sendPin(wrongPin);
+			const result = await cli.waitForExit();
+			expect(result.code).not.toBe(0);
+			expect(result.code).not.toBeNull();
+			expect(
+				pairPaths.some((path) => path.includes('/v1/auth/pair/v2/authorize/')),
+				'No encrypted master bundle should be released after a wrong PIN'
+			).toBe(false);
+			expect(await browserSessionUserId(page, apiUrl)).toBe(senderId);
+		} finally {
+			cli?.kill();
+			fs.rmSync(cliHome, { recursive: true, force: true });
+		}
 	});
 });

@@ -10,6 +10,8 @@ import {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  devicePasswordFallbackAvailable,
+  devicePasswordCredentialVersion,
   deviceVerificationReason,
   authInitialState,
 } from "./authState";
@@ -30,6 +32,8 @@ export {
   isCheckingAuth,
   needsDeviceVerification,
   deviceVerificationType,
+  devicePasswordFallbackAvailable,
+  devicePasswordCredentialVersion,
   deviceVerificationReason,
   authInitialState,
 };

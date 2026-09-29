@@ -6,6 +6,7 @@ from backend.core.api.app.routes.auth_routes.auth_login import router as login_r
 from backend.core.api.app.routes.auth_routes.auth_logout import router as logout_router
 from backend.core.api.app.routes.auth_routes.auth_session import router as session_router
 from backend.core.api.app.routes.auth_routes.auth_password import router as password_router
+from backend.core.api.app.routes.auth_routes.auth_password_v2 import router as password_v2_router
 # Import new refactored 2FA routers
 from backend.core.api.app.routes.auth_routes.auth_2fa_setup import router as twofa_setup_router
 from backend.core.api.app.routes.auth_routes.auth_2fa_verify import router as twofa_verify_router
@@ -22,6 +23,7 @@ from backend.core.api.app.routes.auth_routes.auth_sessions import router as sess
 # Import pair login router (magic QR / token-based cross-device login)
 from backend.core.api.app.routes.auth_routes.auth_pair import router as pair_router
 from backend.core.api.app.routes.auth_routes.auth_methods import router as auth_methods_router
+from backend.core.api.app.routes.auth_routes.auth_sensitive import router as sensitive_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -72,6 +74,7 @@ event_logger = logging.getLogger("app.events")
 router.include_router(invite_router)
 router.include_router(email_router)
 router.include_router(password_router)
+router.include_router(password_v2_router)
 router.include_router(login_router)
 router.include_router(logout_router)
 router.include_router(session_router)
@@ -91,3 +94,4 @@ router.include_router(sessions_router)
 # Include pair login router
 router.include_router(pair_router)
 router.include_router(auth_methods_router)
+router.include_router(sensitive_router)

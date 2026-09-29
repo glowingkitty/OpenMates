@@ -7,6 +7,8 @@ import base64
 import json
 import pyotp # Added for 2FA verification
 import os # For generating random bytes and environment detection
+import secrets
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
@@ -17,7 +19,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.services.limiter import limiter
-from typing import Optional
+from typing import Literal, Optional
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent, truncate_ip, derive_device_name # Updated imports
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
@@ -29,6 +31,7 @@ from backend.core.api.app.utils.newsletter_utils import update_newsletter_regist
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
+from backend.core.api.app.services.session_security_state import register_session_state
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
 from backend.core.api.app.utils.ws_token import create_ws_token
@@ -54,6 +57,24 @@ since the decryption keys are never stored on the server.
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PairingSessionContext:
+    """Internal session metadata after a receiver-bound pairing grant is claimed.
+
+    Pairing has already authenticated through the one-use grant. It must not
+    impersonate an external password login or attach a credential proof to the
+    resulting session.
+    """
+
+    session_id: str
+    login_method: Literal["pairing"] = "pairing"
+    stay_logged_in: bool = False
+    credential_version: None = None
+    hashed_email: None = None
+    lookup_hash: None = None
+    email_encryption_key: None = None
 
 GENERIC_LOOKUP_METHOD = "password"
 GENERIC_LOOKUP_METHODS = ["password", "recovery_key"]
@@ -291,20 +312,43 @@ async def login(
     Accepts optional tfa_code for the second step of 2FA login.
     """
     logger.info("Processing POST /login")
+
+    # A caller-supplied method label is not proof of pair authorization. The
+    # retired flow used it to bypass OTP after exporting a reusable lookup hash.
+    if login_data.login_method == "pair":
+        return LoginResponse(success=False, message="Pairing protocol update required")
     
     try:
         # Step 1: Check if hashed_email and lookup_hash are provided
-        if not login_data.hashed_email or not login_data.lookup_hash:
+        is_v2_password = login_data.credential_version == 2 and login_data.login_method == "password"
+        if not login_data.hashed_email or (
+            not is_v2_password and not login_data.lookup_hash
+        ) or (is_v2_password and not (login_data.challenge_id and login_data.password_proof and login_data.session_id)):
             logger.warning("Login attempt without required hashed_email or lookup_hash")
             return LoginResponse(success=False, message="Invalid login request: missing required parameters")
         
         # Step 2: Authenticate user with hashed_email and lookup_hash
-        auth_success, auth_data, message = await directus_service.login_user_with_lookup_hash(
-            hashed_email=login_data.hashed_email,
-            lookup_hash=login_data.lookup_hash
-        )
+        if is_v2_password:
+            auth_success, auth_data, message = await directus_service.login_user_with_lookup_hash(
+                hashed_email=login_data.hashed_email, lookup_hash=None,
+                credential_version=2, challenge_id=login_data.challenge_id,
+                password_proof=login_data.password_proof, session_id=login_data.session_id,
+                cache_service=cache_service,
+            )
+        else:
+            auth_success, auth_data, message = await directus_service.login_user_with_lookup_hash(
+                hashed_email=login_data.hashed_email, lookup_hash=login_data.lookup_hash,
+                login_method=login_data.login_method,
+            )
+
+        # Defense in depth for older service implementations or cached login
+        # results: a staged v2 password cannot become an ordinary login until
+        # the user explicitly confirms retirement of the v1 credential.
+        if is_v2_password and auth_data and auth_data.get("password_migration_pending"):
+            auth_success, auth_data = False, None
         
-        # Check if this is a recovery key login
+        # This label affects only the generic error shown before an account is
+        # known. It must never grant an authentication-method exemption.
         is_recovery_key_login = login_data.login_method == "recovery_key"
         if is_recovery_key_login:
             logger.info("Recovery key login detected from request")
@@ -407,6 +451,37 @@ async def login(
             logger.error("User ID missing after successful password validation.")
             return LoginResponse(success=False, message="Internal server error: User ID missing.")
 
+        verified_method = auth_data.get("verified_lookup_method")
+        verified_passkey_assertion = False
+        legacy_recovery_login = False
+        if login_data.login_method in ("passkey", "recovery_key"):
+            if login_data.login_method == "recovery_key":
+                if verified_method != "recovery_key" and not (
+                    verified_method is None and auth_data.get("legacy_recovery_allowed") is True
+                ):
+                    return LoginResponse(success=False, message="login.recovery_key_wrong")
+                # Existing accounts stored password/recovery hashes in one
+                # untyped array. Keep their ordinary recovery-key login usable
+                # during migration, but never seed sensitive-action assurance.
+                legacy_recovery_login = verified_method is None
+            else:
+                credential_id = login_data.credential_id
+                expected_method = (f"passkey_{hashlib.sha256(credential_id.encode()).hexdigest()}"
+                                   if credential_id else None)
+                if verified_method not in (None, expected_method) or not login_data.session_id:
+                    return LoginResponse(success=False, message="Passkey verification required")
+                proof_key = f"passkey:login-proof:{user_id}:{login_data.session_id}:{expected_method}"
+                if await cache_service.get_and_delete(proof_key) != "verified":
+                    return LoginResponse(success=False, message="Passkey verification required")
+                verified_passkey_assertion = True
+        elif verified_method in ("recovery_key",) or (isinstance(verified_method, str) and verified_method.startswith("passkey_")):
+            # A method-specific credential cannot be relabeled as a password.
+            return LoginResponse(success=False, message="Invalid authentication method")
+        is_recovery_key_login = verified_method == "recovery_key" or legacy_recovery_login
+        recovery_tfa_bypass_allowed = verified_method == "recovery_key" or (
+            legacy_recovery_login and not auth_data.get("password_v2_present")
+        )
+
         # Generate device fingerprint hashes
         # - device_hash: For device detection and "new device" emails (without sessionId)
         # - connection_hash: For WebSocket connection management (with sessionId)
@@ -506,15 +581,15 @@ async def login(
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
 
-        # --- Scenario 1: 2FA Not Enabled OR Recovery Key / Passkey / Pair Login ---
-        # Recovery keys, passkeys, and pair logins bypass 2FA — all are standalone strong
-        # authentication methods. Pair login: both devices explicitly approved the session
-        # and the credentials bundle was ZK-encrypted; 2FA on top is redundant and breaks the flow.
-        is_passkey_login = login_data.login_method == "passkey"
-        is_pair_login = login_data.login_method == "pair"
+        # --- Scenario 1: 2FA Not Enabled OR Recovery Key / Passkey Login ---
+        # Preserve legacy recovery-key login during migration. Its mixed lookup
+        # list cannot establish method provenance, so it never seeds the
+        # separate sensitive-action proof even though ordinary login proceeds.
+        is_passkey_login = verified_passkey_assertion
+        is_pair_login = False  # Legacy pair login is rejected before credential lookup.
         
-        if not tfa_enabled or is_recovery_key_login or is_passkey_login or is_pair_login:
-            if is_recovery_key_login:
+        if not tfa_enabled or recovery_tfa_bypass_allowed or is_passkey_login or is_pair_login:
+            if recovery_tfa_bypass_allowed:
                 logger.info("Recovery key login detected - bypassing 2FA and proceeding with login finalization.")
             elif is_passkey_login:
                 logger.info("Passkey login detected - bypassing 2FA and proceeding with login finalization.")
@@ -539,7 +614,8 @@ async def login(
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
                     login_data=login_data, # Pass login_data for email_encryption_key
-                    country_code=country_code # Pass country code for session-level location tracking
+                    country_code=country_code, # Pass country code for session-level location tracking
+                    pair_strong_proof=is_passkey_login,
                 )
             if refresh_token:
                 token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -608,10 +684,8 @@ async def login(
             # There is no separate "pair" encryption key stored in the DB.
             if is_pair_login:
                 login_method_for_key = "password"
-            elif login_data.login_method and login_data.login_method != "pair":
-                login_method_for_key = login_data.login_method
             elif is_recovery_key_login:
-                login_method_for_key = "recovery_key"
+                login_method_for_key = auth_data.get("verified_wrapper_method") or "recovery_key"
             elif is_passkey_login:
                 # For passkey login, we need to find the specific encryption key for this passkey
                 # The login_method format is "passkey_{credential_id_hash}"
@@ -663,7 +737,7 @@ async def login(
                 # For now, let's set login_method_for_key to "passkey" but handle the case where it returns nothing gracefully
                 login_method_for_key = "passkey"
             else:
-                login_method_for_key = "password"
+                login_method_for_key = auth_data.get("verified_wrapper_method") or "password"
             
             logger.debug(f"Using login_method '{login_method_for_key}' for encryption key lookup (requested: {login_data.login_method})")
             
@@ -699,6 +773,7 @@ async def login(
             
             if encryption_key_data:
                 user_profile.update(encryption_key_data)
+                user_profile["credential_version"] = auth_data.get("verified_credential_version", 1)
             
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
@@ -793,6 +868,7 @@ async def login(
                     encrypted_key=user_profile.get("encrypted_key"),
                     key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
+                    credential_version=user_profile.get("credential_version"),
                     user_email_salt=user_profile.get("user_email_salt"),
                     # Low balance auto top-up fields
                     # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
@@ -926,7 +1002,9 @@ async def login(
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
                     login_data=login_data, # Pass login_data for email_encryption_key
-                    country_code=country_code # Pass country code for session-level location tracking
+                    country_code=country_code, # Pass country code for session-level location tracking
+                    # The OTP was verified by the server in this branch.
+                    pair_strong_proof=True,
                 )
                 if refresh_token:
                     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -934,11 +1012,14 @@ async def login(
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+                encryption_key_data = await directus_service.get_encryption_key(
+                    hashed_user_id, auth_data.get("verified_wrapper_method") or (
+                        "recovery_key" if is_recovery_key_login else "password"))
                 if not encryption_key_data:
                     logger.error(f"Encryption key not found for user {user_id}. Login failed.")
                     return LoginResponse(success=False, message="Login failed. Please try again later.")
                 user_profile.update(encryption_key_data)
+                user_profile["credential_version"] = auth_data.get("verified_credential_version", 1)
 
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_otp = user_profile.get("last_opened")
@@ -1024,6 +1105,7 @@ async def login(
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
+                        credential_version=user_profile.get("credential_version"),
                         user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
                         # Low balance auto top-up fields
                         # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
@@ -1098,9 +1180,9 @@ async def login(
                     return LoginResponse(success=False, message="login.no_backup_codes_remaining", tfa_required=True)
 
                 # Step 4: Verify the plain text code against Directus Argon2 hashes
-                logger.info(f"Attempting to verify plain text backup code against Directus Argon2 hashes. Provided code: '{login_data.tfa_code[:1]}***'") # Log only first char
+                logger.info("Attempting to verify backup code against Directus Argon2 hashes")
                 is_valid, matched_index = verify_backup_code(login_data.tfa_code, hashed_codes_from_directus)
-                logger.info(f"Backup code verification result against Directus Argon2 hashes: {is_valid}, Matched index: {matched_index}")
+                logger.info("Backup code verification result: %s", is_valid)
 
                 if not is_valid:
                     logger.warning(f"Invalid backup code provided for user {user_id} (did not match Directus hashes).")
@@ -1247,7 +1329,9 @@ async def login(
                     latitude=latitude, # Pass latitude
                     longitude=longitude, # Pass longitude
                     login_data=login_data, # Pass login_data for email_encryption_key
-                    country_code=country_code # Pass country code for session-level location tracking
+                    country_code=country_code, # Pass country code for session-level location tracking
+                    # The one-time backup factor was consumed by the server.
+                    pair_strong_proof=True,
                 )
                 if refresh_token:
                     token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -1255,11 +1339,14 @@ async def login(
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+                encryption_key_data = await directus_service.get_encryption_key(
+                    hashed_user_id, auth_data.get("verified_wrapper_method") or (
+                        "recovery_key" if is_recovery_key_login else "password"))
                 if not encryption_key_data:
                     logger.error(f"Encryption key not found for user {user_id}. Login failed.")
                     return LoginResponse(success=False, message="Login failed. Please try again later.")
                 user_profile.update(encryption_key_data)
+                user_profile["credential_version"] = auth_data.get("verified_credential_version", 1)
                 
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_backup = user_profile.get("last_opened")
@@ -1345,6 +1432,7 @@ async def login(
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
+                        credential_version=user_profile.get("credential_version"),
                         user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
                         # Low balance auto top-up fields
                         # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
@@ -1395,8 +1483,9 @@ async def finalize_login_session(
     device_location_str: str, # Added location string
     latitude: Optional[float], # Added latitude
     longitude: Optional[float], # Added longitude
-    login_data: LoginRequest, # Added login_data parameter for email_encryption_key
-    country_code: Optional[str] = None # Country code from geo-IP lookup, stored for session-level location change detection
+    login_data: LoginRequest | PairingSessionContext,
+    country_code: Optional[str] = None, # Country code from geo-IP lookup, stored for session-level location change detection
+    pair_strong_proof: bool = False,
 ):
     """
     Helper function to perform common session finalization tasks:
@@ -1427,6 +1516,32 @@ async def finalize_login_session(
     if "cookies" in auth_data:
         logger.info(f"Setting {len(auth_data['cookies'])} cookies")
         refresh_token = extract_directus_refresh_token(auth_data["cookies"])
+        if refresh_token and user.get("id"):
+            verified_method = auth_data.get("verified_lookup_method")
+            verified_version = auth_data.get("verified_credential_version")
+            verified_login_method = None
+            verified_lookup_digest = None
+            if verified_method == "password" and login_data.login_method == "password":
+                verified_login_method = "password"
+            elif (verified_method is None and login_data.login_method == "password"
+                  and verified_version == 1):
+                # Mixed legacy list: accepted account secret, not typed proof.
+                verified_login_method = "legacy_account_secret"
+            elif verified_method == "recovery_key" or login_data.login_method == "recovery_key":
+                verified_login_method = "recovery_key"
+            elif isinstance(verified_method, str) and verified_method.startswith("passkey_"):
+                verified_login_method = "passkey"
+            elif login_data.login_method == "passkey":
+                verified_login_method = "passkey"
+            if verified_login_method in {"password", "legacy_account_secret"} and verified_version == 1 and login_data.lookup_hash:
+                verified_lookup_digest = hashlib.sha256(login_data.lookup_hash.encode()).hexdigest()
+            await register_session_state(
+                directus_service, cache_service, refresh_token, user["id"],
+                ttl_seconds=cookie_max_age, strong_proof=pair_strong_proof,
+                verified_login_method=verified_login_method,
+                verified_credential_version=verified_version if verified_login_method else None,
+                verified_lookup_digest=verified_lookup_digest,
+            )
         for name, value in auth_data["cookies"].items():
             cookie_name = normalize_directus_cookie(name)
 
@@ -1606,6 +1721,8 @@ async def finalize_login_session(
                     cached_user_data["last_online_timestamp"] = current_time
                     # Store stay_logged_in preference for session endpoint to use
                     cached_user_data["stay_logged_in"] = login_data.stay_logged_in
+                    if login_data.credential_version is not None:
+                        cached_user_data["credential_version"] = login_data.credential_version
                     # Set token_expiry so the /session endpoint knows when to refresh the access token.
                     # Without this, token_expiry defaults to 0 → expires_soon is always True → every
                     # /session call rotates the refresh token, causing race-condition logouts.
@@ -1633,6 +1750,8 @@ async def finalize_login_session(
                     else:
                         # Ensure stay_logged_in is set in the profile data
                         user_profile["stay_logged_in"] = login_data.stay_logged_in
+                        if login_data.credential_version is not None:
+                            user_profile["credential_version"] = login_data.credential_version
                         user_profile["last_online_timestamp"] = current_time
                         # Set token_expiry so /session knows when the access token needs refreshing.
                         user_profile["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
@@ -1662,6 +1781,7 @@ async def finalize_login_session(
                 # rather than all connections for this user.  See auth_sessions.py.
                 "connection_hash": connection_hash,
                 "stay_logged_in": login_data.stay_logged_in,
+                "pair_auth_binding": secrets.token_hex(32),
                 "device_name": derive_device_name(user_agent),
                 "ip_truncated": truncate_ip(client_ip),
                 "country_code": country_code or "Unknown",
@@ -1675,6 +1795,11 @@ async def finalize_login_session(
             # Token list TTL should be longer than individual session TTL
             token_list_ttl = cache_ttl * 7 if login_data.stay_logged_in else cache_service.SESSION_TTL * 7
             await cache_service.set(user_tokens_key, current_tokens, ttl=token_list_ttl)
+            if pair_strong_proof:
+                await cache_service.set(
+                    f"pair:stepup:{current_tokens[token_hash]['pair_auth_binding']}",
+                    "verified", ttl=300,
+                )
             logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} active)")
 
     logger.info("Login session finalization complete.")

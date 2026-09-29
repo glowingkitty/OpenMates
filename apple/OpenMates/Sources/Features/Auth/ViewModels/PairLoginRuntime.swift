@@ -1,6 +1,6 @@
 // Shared pair-login runtime for Apple auth surfaces.
-// Owns the backend request sequence and cryptographic bundle decode for the
-// QR/PIN Magic Pair Login flow while keeping each platform's SwiftUI view small.
+// Owns the QR/PIN entry points while PairV2Runtime performs client-to-client
+// PAKE, grant completion, and backend message relay.
 // Used by the regular iOS/macOS login surface and by the standalone Watch app.
 // Does not store sessions; callers decide how to persist the authenticated user.
 
@@ -110,6 +110,7 @@ struct WatchPairAttemptState: Equatable {
 
 enum PairLoginRuntime {
     private static let diagnosticsCategory = "pair_login"
+    private static let pinAlphabet = Set("ABCDEFGHJKLMNPQRTUVWXY3468")
 
     static func normalizedPIN(_ rawValue: String) -> String {
         String(
@@ -118,6 +119,10 @@ enum PairLoginRuntime {
                 .filter { $0.isLetter || $0.isNumber }
                 .prefix(6)
         )
+    }
+
+    static func isValidPIN(_ pin: String) -> Bool {
+        pin.count == 6 && pin.allSatisfy { pinAlphabet.contains($0) }
     }
 
     static func buildPairURL(webAppURL: URL, token: String) -> String {
@@ -160,43 +165,11 @@ enum PairLoginRuntime {
         deviceHint: String = officialAppDeviceHint,
         serverProfile: ServerProfile = ServerProfile.current()
     ) async throws -> PairLoginInitiation {
-        logInfo("phase=initiate.start \(serverDiagnostics(serverProfile)) deviceHint=\(deviceHint)")
-        do {
-            let response: PairInitiateResponse = try await APIClient.shared.request(
-                .post,
-                path: "/v1/auth/pair/initiate",
-                serverProfile: serverProfile,
-                body: PairInitiateRequest(deviceHint: deviceHint)
-            )
-            let token = response.token.uppercased()
-            let pairURLString = buildPairURL(webAppURL: serverProfile.webBaseURL, token: token)
-            let pairHost = serverProfile.webBaseURL.host() ?? "unknown"
-            logInfo("phase=initiate.success \(serverDiagnostics(serverProfile)) expiresIn=\(response.expiresIn) pairHost=\(pairHost)")
-            return PairLoginInitiation(
-                token: token,
-                pairURLString: pairURLString
-            )
-        } catch {
-            logError("phase=initiate.failed \(serverDiagnostics(serverProfile)) errorType=\(type(of: error))")
-            throw error
-        }
+        try await PairV2Runtime.initiate(deviceHint: deviceHint, serverProfile: serverProfile)
     }
 
-    static func poll(token: String, serverProfile: ServerProfile = ServerProfile.current()) async throws -> PairPollResponse {
-        do {
-            let response: PairPollResponse = try await APIClient.shared.request(
-                .get,
-                path: "/v1/auth/pair/poll/\(token)",
-                serverProfile: serverProfile
-            )
-            if response.status != "waiting" {
-                logInfo("phase=poll.status \(serverDiagnostics(serverProfile)) status=\(response.status)")
-            }
-            return response
-        } catch {
-            logError("phase=poll.failed \(serverDiagnostics(serverProfile)) errorType=\(type(of: error))")
-            throw error
-        }
+    static func poll(token: String, serverProfile: ServerProfile = ServerProfile.current()) async throws -> PairV2ReceiverPoll {
+        try await PairV2Runtime.poll(token: token, serverProfile: serverProfile)
     }
 
     static func complete(
@@ -205,116 +178,35 @@ enum PairLoginRuntime {
         stayLoggedIn: Bool,
         serverProfile: ServerProfile = ServerProfile.current()
     ) async throws -> PairLoginResult {
-        logInfo("phase=complete.start \(serverDiagnostics(serverProfile)) stayLoggedIn=\(stayLoggedIn)")
-        let completeResponse: PairCompleteResponse
         do {
-            completeResponse = try await APIClient.shared.request(
-                .post,
-                path: "/v1/auth/pair/complete/\(token)",
-                serverProfile: serverProfile,
-                body: PairCompleteRequest(pin: pin)
-            )
+            return try await PairV2Runtime.complete(token: token, pin: pin, serverProfile: serverProfile)
         } catch {
-            logError("phase=complete.failed \(serverDiagnostics(serverProfile)) step=completeRequest errorType=\(type(of: error))")
+            await PairV2Runtime.cancel(token: token, serverProfile: serverProfile)
             throw error
         }
-
-        guard completeResponse.success else {
-            logWarning("phase=complete.rejected \(serverDiagnostics(serverProfile)) kind=\(failureKind(for: completeResponse.message))")
-            throw PairLoginRuntimeError.completeFailed(failureKind(for: completeResponse.message))
-        }
-
-        let (bundle, masterKey) = try await decryptLoginBundle(from: completeResponse, token: token, pin: pin)
-        let loginResponse: LoginResponse
-        do {
-            loginResponse = try await APIClient.shared.request(
-                .post,
-                path: "/v1/auth/login",
-                serverProfile: serverProfile,
-                body: LoginRequest(
-                    hashedEmail: bundle.hashedEmail,
-                    lookupHash: bundle.lookupHash,
-                    loginMethod: "pair",
-                    tfaCode: nil,
-                    codeType: nil,
-                    emailEncryptionKey: nil,
-                    stayLoggedIn: stayLoggedIn,
-                    sessionId: WatchCompatibleSession.nativeSessionId,
-                    deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
-                )
-            )
-        } catch {
-            logError("phase=complete.failed \(serverDiagnostics(serverProfile)) step=loginRequest errorType=\(type(of: error))")
-            throw error
-        }
-        logInfo("phase=complete.success \(serverDiagnostics(serverProfile)) loginSuccess=\(loginResponse.success) needsDeviceVerification=\(loginResponse.needsDeviceVerification ?? false)")
-        return PairLoginResult(loginResponse: loginResponse, masterKey: masterKey, serverProfile: serverProfile)
     }
 
     static func authorize(
         token: String,
         currentUser: UserProfile,
         authorizerDeviceName: String,
+        autoLogoutMinutes: Int? = nil,
         serverProfile: ServerProfile = ServerProfile.current()
     ) async throws -> String {
-        let pin = try generatePairPIN()
-        let credentials: PairCredentialsResponse = try await APIClient.shared.request(
-            .get,
-            path: "/v1/auth/pair/credentials",
-            serverProfile: serverProfile
+        try await PairV2Runtime.authorize(
+            token: token, currentUser: currentUser,
+            authorizerDeviceName: authorizerDeviceName,
+            autoLogoutMinutes: autoLogoutMinutes, serverProfile: serverProfile
         )
-        guard let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUser.id) else {
-            throw AuthError.missingAuthData
-        }
-        let masterKeyExported = masterKey.withUnsafeBytes { Data($0).base64EncodedString() }
-        let bundleJSON = try JSONSerialization.data(withJSONObject: [
-            "lookup_hash": credentials.lookupHash,
-            "hashed_email": credentials.hashedEmail,
-            "user_email_salt": credentials.userEmailSalt,
-            "master_key_exported": masterKeyExported,
-        ])
-        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
-        let encrypted = try await CryptoManager.shared.encrypt(bundleJSON, using: pairKey)
-        let response: PairAuthorizeResponse = try await APIClient.shared.request(
-            .post,
-            path: "/v1/auth/pair/authorize/\(token.uppercased())",
-            serverProfile: serverProfile,
-            body: PairAuthorizeRequest(
-                encryptedBundle: encrypted.ciphertext.base64EncodedString(),
-                iv: encrypted.nonce.base64EncodedString(),
-                pin: pin,
-                authorizerDeviceName: authorizerDeviceName
-            )
-        )
-        guard response.success else { throw AuthError.invalidCredentials }
-        return pin
     }
 
-    static func decryptLoginBundle(
-        from response: PairCompleteResponse,
-        token: String,
-        pin: String
-    ) async throws -> (PairLoginBundle, SymmetricKey) {
-        guard let encryptedBundle = response.encryptedBundle,
-              let iv = response.iv,
-              let encryptedData = Data(base64Encoded: encryptedBundle),
-              let ivData = Data(base64Encoded: iv) else {
-            throw AuthError.missingAuthData
+    static func acknowledge(token: String, serverProfile: ServerProfile = ServerProfile.current()) async throws {
+        do {
+            try await PairV2Runtime.acknowledge(token: token, serverProfile: serverProfile)
+        } catch {
+            await PairV2Runtime.cancel(token: token, serverProfile: serverProfile)
+            throw error
         }
-
-        let pairKey = try await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
-        let plaintext = try await CryptoManager.shared.decryptAESGCM(
-            ciphertext: encryptedData,
-            iv: ivData,
-            key: pairKey
-        )
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let bundle = try decoder.decode(PairLoginBundle.self, from: plaintext)
-        guard let masterKeyData = Data(base64Encoded: bundle.masterKeyExported) else {
-            throw AuthError.missingAuthData
-        }
-        return (bundle, SymmetricKey(data: masterKeyData))
     }
 
     static func generatePairPIN() throws -> String {
@@ -659,6 +551,10 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         sendAcknowledgment(.approvalStarted, token: request.token)
         do {
             try await performApproval(request, authManager: authManager)
+        } catch APIError.httpError(let status, _) where status == 401 || status == 403 || status == 428 {
+            // Recent-auth assurance needs an on-device step-up. Keep the Watch
+            // request pending and do not tell the Watch approval has failed.
+            throw APIError.httpError(status: status, message: "Pair approval requires recent authentication")
         } catch {
             if pendingRequest?.token == request.token {
                 lastError = error.localizedDescription

@@ -496,21 +496,36 @@ export class ChatSynchronizationService extends EventTarget {
     projectFileExecutor: BrowserProjectFileExecutor,
     remoteCommandClient: BrowserRemoteCommandClient,
   ): () => void {
-    this.clearProjectFileExecutor(false);
-    this.clearRemoteCommandClient(false);
-    this.projectFileExecutor = projectFileExecutor;
-    this.remoteCommandClient = remoteCommandClient;
-    // Set both flags before opening/replacing a socket so even a cold-connect
-    // URL cannot advertise only half of the installed Project agent runtime.
-    setProjectFileJobsCapabilityEnabled(true);
-    setRemoteCommandJobsCapabilityEnabled(true);
-    if (get(authStore).isAuthenticated) {
-      webSocketService.forceReconnect("Project agent clients installed");
+    if (
+      this.projectFileExecutor !== projectFileExecutor ||
+      this.remoteCommandClient !== remoteCommandClient
+    ) {
+      const capabilitiesChanged =
+        !this.projectFileExecutor || !this.remoteCommandClient;
+      this.clearProjectFileExecutor(false);
+      this.clearRemoteCommandClient(false);
+      this.projectFileExecutor = projectFileExecutor;
+      this.remoteCommandClient = remoteCommandClient;
+      // Set both flags before opening/replacing a socket so even a cold-connect
+      // URL cannot advertise only half of the installed Project agent runtime.
+      setProjectFileJobsCapabilityEnabled(true);
+      setRemoteCommandJobsCapabilityEnabled(true);
+      if (
+        capabilitiesChanged &&
+        webSocketService.isConnected() &&
+        get(authStore).isAuthenticated
+      ) {
+        webSocketService.forceReconnect("Project agent clients installed");
+      }
     }
     return () => {
+      const capabilitiesChanged =
+        this.projectFileExecutor === projectFileExecutor ||
+        this.remoteCommandClient === remoteCommandClient;
       this.clearProjectFileExecutor(false, projectFileExecutor);
       this.clearRemoteCommandClient(false, remoteCommandClient);
       if (
+        capabilitiesChanged &&
         webSocketService.isConnected() &&
         get(authStore).isAuthenticated &&
         !get(isLoggingOut) &&

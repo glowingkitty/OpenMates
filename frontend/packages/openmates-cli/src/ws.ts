@@ -412,9 +412,8 @@ export class OpenMatesWsClient {
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
-    // Use || (not ??) so empty-string wsToken falls through to refreshToken.
-    // create_ws_token() returns "" when INTERNAL_API_SHARED_TOKEN is unset.
-    const token = options.wsToken || options.refreshToken || "";
+    // Refresh credentials may travel as protected cookies, never in a URL.
+    const token = options.wsToken || "";
     const query = new URLSearchParams({
       sessionId: options.sessionId,
       token,

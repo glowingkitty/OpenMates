@@ -15,7 +15,9 @@
     import SettingsLoadingState from '../elements/SettingsLoadingState.svelte';
     import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
     import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
+    import SecurityAuth from '../security/SecurityAuth.svelte';
     import { appSkillsStore } from '../../../stores/appSkillsStore';
+    import { listProjects, type ProjectViewModel } from '../../../services/projectService';
     import {
         encryptWithMasterKeyDirect,
         decryptWithMasterKey,
@@ -43,6 +45,7 @@
         scopes?: Record<string, unknown>;
         credit_limit?: { period: string; credits: number } | null;
         pending_device_count?: number;
+        requires_replacement?: boolean;
     }
 
     type CreditPeriod = 'unlimited' | 'daily' | 'weekly' | 'monthly' | 'lifetime';
@@ -142,6 +145,9 @@
     let creatingKey = $state(false);
     let fullAccess = $state(true);
     let selectedScopes = $state<Record<string, boolean>>(createEmptyScopeSelection());
+    let grantableProjects = $state<ProjectViewModel[]>([]);
+    let selectedProjectIds = $state<Record<string, boolean>>({});
+    let projectGrantLoadError = $state('');
     let appsMode = $state<AppsMode>('selected');
     let selectedApps = $state<Record<string, boolean>>({});
     let selectedAppSkills = $state<Record<string, boolean>>({});
@@ -150,6 +156,33 @@
     let expirationPreset = $state<ExpirationPreset>('never');
     let showRevokeConfirm = $state(false);
     let revokeConfirmChecked = $state(false);
+    let sensitiveAuthVisible = $state(false);
+    let sensitiveAuthPending = $state<{ kind: 'create' } | { kind: 'revoke'; keyId: string } | null>(null);
+    let sensitiveMethods = $state({ hasPasskey: false, hasPassword: false, has2FA: false });
+
+    async function requestSensitiveProof(pending: { kind: 'create' } | { kind: 'revoke'; keyId: string }) {
+        const response = await fetch(getApiEndpoint('/v1/auth/methods'), { credentials: 'include' });
+        if (!response.ok) throw new Error('Could not load authentication methods');
+        const methods = await response.json();
+        sensitiveMethods = {
+            hasPasskey: !!methods.has_passkey,
+            hasPassword: !!methods.has_password,
+            has2FA: !!methods.has_2fa,
+        };
+        if (!sensitiveMethods.hasPasskey && !sensitiveMethods.hasPassword && !sensitiveMethods.has2FA) {
+            throw new Error('No verification method is available for this account');
+        }
+        sensitiveAuthPending = pending;
+        sensitiveAuthVisible = true;
+    }
+
+    async function onSensitiveProofSuccess() {
+        const pending = sensitiveAuthPending;
+        sensitiveAuthPending = null;
+        sensitiveAuthVisible = false;
+        if (pending?.kind === 'create') await createApiKey();
+        if (pending?.kind === 'revoke') await deleteApiKey(pending.keyId);
+    }
 
     let isCreateView = $derived(activeSettingsView === API_KEYS_CREATE_PATH);
     let selectedApiKeyId = $derived.by(() => {
@@ -207,6 +240,7 @@
             scopes: (key.scopes as Record<string, unknown>) || {},
             credit_limit: (key.credit_limit as ApiKey['credit_limit']) || null,
             pending_device_count: Number(key.pending_device_count || 0),
+            requires_replacement: key.requires_replacement === true,
         } satisfies ApiKey;
     }
 
@@ -328,6 +362,7 @@
 
     function resetLimitedScopes() {
         selectedScopes = createEmptyScopeSelection();
+        selectedProjectIds = {};
         appsMode = 'selected';
         selectedApps = {};
         selectedAppSkills = {};
@@ -340,6 +375,19 @@
 
     function toggleScope(scope: string) {
         selectedScopes[scope] = !selectedScopes[scope];
+        if (scope === 'project:read' && selectedScopes[scope]) {
+            void loadGrantableProjects();
+        }
+    }
+
+    async function loadGrantableProjects() {
+        try {
+            projectGrantLoadError = '';
+            grantableProjects = await listProjects();
+        } catch (cause) {
+            projectGrantLoadError = cause instanceof Error ? cause.message : 'Could not load Projects';
+            grantableProjects = [];
+        }
     }
 
     function toggleApp(appId: string) {
@@ -383,9 +431,11 @@
                 throw new Error('Master key not found. Please log in again.');
             }
 
-            const apiKey = generateApiKey();
-            const apiKeyHash = await hashApiKey(apiKey);
-            const keyPrefix = apiKey.substring(0, 12) + '...';
+            const bearer = generateApiKey();
+            const decryptionSecret = generateApiKey().slice('sk-api-'.length);
+            const apiKey = `${bearer}.${decryptionSecret}`;
+            const apiKeyHash = await hashApiKey(bearer);
+            const keyPrefix = bearer.substring(0, 12) + '...';
             const encryptedName = await encryptWithMasterKeyDirect(newKeyName.trim(), masterKey);
             const encryptedKeyPrefix = await encryptWithMasterKeyDirect(keyPrefix, masterKey);
 
@@ -394,8 +444,24 @@
             }
 
             const salt = crypto.getRandomValues(new Uint8Array(16));
-            const derivedKey = await deriveKeyFromApiKey(apiKey, salt);
+            const derivedKey = await deriveKeyFromApiKey(decryptionSecret, salt);
             const { wrapped: encryptedMasterKey, iv: keyIv } = await encryptKey(masterKey, derivedKey);
+            if (!fullAccess && selectedScopes['project:read'] && projectGrantLoadError) {
+                throw new Error(projectGrantLoadError);
+            }
+            const resourceKeyGrants = !fullAccess && selectedScopes['project:read']
+                ? await Promise.all(grantableProjects.filter((project) => selectedProjectIds[project.project_id]).map(async (project) => {
+                    const projectCryptoKey = await crypto.subtle.importKey('raw', new Uint8Array(project.projectKey), 'AES-GCM', true, ['encrypt', 'decrypt']);
+                    const { wrapped, iv } = await encryptKey(projectCryptoKey, derivedKey);
+                    return {
+                        resource_type: 'project',
+                        resource_id: project.project_id,
+                        encrypted_key: wrapped,
+                        salt: uint8ArrayToBase64(salt),
+                        key_iv: iv,
+                    };
+                }))
+                : [];
 
             const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
                 method: 'POST',
@@ -408,11 +474,13 @@
                     encrypted_name: encryptedName,
                     api_key_hash: apiKeyHash,
                     encrypted_key_prefix: encryptedKeyPrefix,
-                    encrypted_master_key: encryptedMasterKey,
+                    encrypted_master_key: fullAccess ? encryptedMasterKey : null,
+                    credential_version: 2,
                     salt: uint8ArrayToBase64(salt),
                     key_iv: keyIv,
                     full_access: fullAccess,
                     scopes: buildScopes(),
+                    resource_key_grants: resourceKeyGrants,
                     credit_limit: buildCreditLimit(),
                     expires_at: buildExpiresAt(),
                 })
@@ -420,6 +488,10 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                if (response.status === 401 && String(errorData.detail).includes('Recent verification required')) {
+                    await requestSensitiveProof({ kind: 'create' });
+                    return;
+                }
                 throw new Error(errorData.detail || 'Failed to create API key');
             }
 
@@ -450,6 +522,10 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+                if (response.status === 401 && String(errorData.detail).includes('Recent verification required')) {
+                    await requestSensitiveProof({ kind: 'revoke', keyId });
+                    return;
+                }
                 throw new Error(errorData.detail || 'Failed to delete API key');
             }
 
@@ -576,6 +652,28 @@
                     <p>{$text('settings.api_keys.full_access_warning')}</p>
                 </SettingsInfoBox>
             {:else}
+                <SettingsInfoBox type="warning">
+                    <p>{$text('settings.api_keys.limited_encryption_warning')}</p>
+                </SettingsInfoBox>
+                {#if selectedScopes['project:read']}
+                    <SettingsSectionHeading title={$text('settings.api_keys.project_grants_title')} icon="project" />
+                    {#if projectGrantLoadError}
+                        <SettingsInfoBox type="error">{projectGrantLoadError}</SettingsInfoBox>
+                    {/if}
+                    <SettingsCard padding="sm" ariaLabel={$text('settings.api_keys.project_grants_title')}>
+                        {#each grantableProjects as project}
+                            <SettingsItem
+                                type="subsubmenu"
+                                title={project.name}
+                                subtitleTop={project.project_id}
+                                hasToggle={true}
+                                checked={selectedProjectIds[project.project_id] ?? false}
+                                data-testid={`api-key-grant-project-${project.project_id}`}
+                                onClick={() => selectedProjectIds[project.project_id] = !selectedProjectIds[project.project_id]}
+                            />
+                        {/each}
+                    </SettingsCard>
+                {/if}
                 {#each SCOPE_CATEGORIES as category}
                     <SettingsSectionHeading title={$text(category.labelKey)} icon={category.icon} />
                     <SettingsCard padding="sm" ariaLabel={$text(category.labelKey)}>
@@ -707,6 +805,11 @@
             />
         {:else}
             <SettingsSectionHeading title={selectedApiKey.name} icon="key" />
+            {#if selectedApiKey.requires_replacement}
+                <SettingsInfoBox type="warning" data-testid="api-key-replacement-warning">
+                    <p>{$text('settings.api_keys.legacy_replacement_warning')}</p>
+                </SettingsInfoBox>
+            {/if}
             <SettingsCard>
                 <SettingsDetailRow label={$text('settings.api_keys.prefix')} value={selectedApiKey.key_prefix} />
                 <SettingsDetailRow label={$text('settings.api_keys.created')} value={formatDate(selectedApiKey.created_at)} />
@@ -784,6 +887,9 @@
             />
         {:else}
             {#each apiKeys as key (key.id)}
+                {#if key.requires_replacement}
+                    <SettingsInfoBox type="warning"><p>{$text('settings.api_keys.legacy_replacement_warning')}</p></SettingsInfoBox>
+                {/if}
                 <SettingsItem
                     type="subsubmenu"
                     icon="subsetting_icon key"
@@ -810,4 +916,19 @@
             </SettingsInfoBox>
         {/if}
     </SettingsPageContainer>
+{/if}
+
+{#if sensitiveAuthVisible}
+    <SecurityAuth
+        hasPasskey={sensitiveMethods.hasPasskey}
+        hasPassword={sensitiveMethods.hasPassword}
+        has2FA={sensitiveMethods.has2FA}
+        sensitiveActionPurpose="api_key_manage"
+        autoStart={false}
+        title={$text('settings.security.verify_identity')}
+        description={$text('settings.security.verify_identity_description')}
+        onSuccess={() => { void onSensitiveProofSuccess(); }}
+        onFailed={(message) => { error = message; }}
+        onCancel={() => { sensitiveAuthPending = null; sensitiveAuthVisible = false; }}
+    />
 {/if}

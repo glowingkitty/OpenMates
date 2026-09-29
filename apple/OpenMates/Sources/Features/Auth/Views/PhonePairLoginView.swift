@@ -1,6 +1,6 @@
 // Phone / PC login — initiating device flow for Magic Pair Login.
 // Auto-generates the QR code, polls until the other device authorizes,
-// then decrypts the pair bundle with the 6-character PIN and logs in.
+// then completes local OPAQUE with the 6-character PIN and decrypts the bundle.
 // This is intentionally separate from the settings authorizer screen.
 //
 // ─── Web source ─────────────────────────────────────────────────────
@@ -32,12 +32,14 @@ final class PhonePairLoginState: ObservableObject {
     @Published var isSubmitting = false
 
     var pollTask: Task<Void, Never>?
+    private(set) var generation = 0
 
     deinit {
         pollTask?.cancel()
     }
 
     func reset() {
+        generation += 1
         pollTask?.cancel()
         pollTask = nil
         token = nil
@@ -79,6 +81,12 @@ struct PhonePairLoginView: View {
             }
         }
         .task { await initiatePairingIfNeeded() }
+        .onDisappear {
+            pairState.pollTask?.cancel()
+            if let token = pairState.token {
+                Task { await PairV2Runtime.cancel(token: token, serverProfile: ServerProfile.current()) }
+            }
+        }
     }
 
     @ViewBuilder
@@ -241,16 +249,25 @@ struct PhonePairLoginView: View {
         if !force, pairState.token != nil {
             return
         }
+        if let oldToken = pairState.token {
+            await PairV2Runtime.cancel(token: oldToken, serverProfile: ServerProfile.current())
+        }
         pairState.reset()
+        let generation = pairState.generation
 
         do {
             let initiation = try await PairLoginRuntime.initiate()
+            guard !Task.isCancelled, generation == pairState.generation else {
+                await PairV2Runtime.cancel(token: initiation.token, serverProfile: ServerProfile.current())
+                return
+            }
             pairState.token = initiation.token
             pairState.pairURLString = initiation.pairURLString
             pairState.qrImage = generateQRCode(from: initiation.pairURLString)
             pairState.status = .waiting
             startPolling(token: initiation.token)
         } catch {
+            guard !Task.isCancelled, generation == pairState.generation else { return }
             pairState.errorMessage = error.localizedDescription
             pairState.status = .failed
         }
@@ -267,18 +284,18 @@ struct PhonePairLoginView: View {
                     let response = try await PairLoginRuntime.poll(token: token)
 
                     await MainActor.run {
-                        if response.status == "ready" {
+                        if response.status == "approved" {
                             pairState.status = .ready
                             isPinFocused = true
                             if pairState.pin.count == 6 {
                                 submitPinIfReady()
                             }
-                        } else if response.status == "expired" {
+                        } else if ["failed", "cancelled"].contains(response.status) {
                             pairState.status = .expired
                         }
                     }
 
-                    if response.status == "ready" || response.status == "expired" {
+                    if response.status == "approved" || response.status == "failed" || response.status == "cancelled" {
                         return
                     }
                 } catch {
@@ -315,11 +332,15 @@ struct PhonePairLoginView: View {
         Task {
             do {
                 let result = try await PairLoginRuntime.complete(token: token, pin: pairState.pin, stayLoggedIn: stayLoggedIn)
-                try await authManager.completePairLogin(response: result.loginResponse, masterKey: result.masterKey)
+                try await authManager.completePairLogin(response: result.loginResponse, masterKey: result.masterKey) {
+                    try await PairLoginRuntime.acknowledge(token: token)
+                }
             } catch PairLoginRuntimeError.completeFailed(let kind) {
                 handlePairCompleteFailure(kind)
             } catch {
                 pairState.errorMessage = error.localizedDescription
+                pairState.pin = ""
+                pairState.status = .failed
                 pairState.isSubmitting = false
             }
         }

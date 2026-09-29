@@ -22,6 +22,8 @@ import logging
 import hashlib
 import base64
 import secrets
+import uuid
+from datetime import datetime, timedelta, timezone
 
 from backend.core.api.app.schemas.auth_recovery import (
     RecoveryRequestRequest,
@@ -31,7 +33,8 @@ from backend.core.api.app.schemas.auth_recovery import (
     RecoveryFullResetRequest,
     RecoveryCompleteResponse,
     Recovery2FASetupRequest,
-    Recovery2FASetupResponse
+    Recovery2FASetupResponse,
+    RecoveryCancelRequest,
 )
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import generate_2fa_secret
 import pyotp
@@ -44,11 +47,19 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service,
     get_cache_service,
     get_compliance_service,
-    get_encryption_service
+    get_encryption_service,
+    get_current_user,
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.services.session_security_state import revoke_all_user_sessions
+from backend.core.api.app.services.password_v2 import KDF_ID, decode_key, seal_auth_key
+from backend.core.api.app.routes.auth_routes.recovery_reset_state import (
+    cancel_pending_reset_if_current,
+    parse_recovery_due_at,
+    retryable_reset_failure as _retryable_reset_failure,
+)
 
 
 # Router setup
@@ -59,6 +70,19 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+RECOVERY_DELAY = timedelta(hours=24)
+RECOVERY_COLLECTION = "account_recovery_resets"
+
+
+async def _pending_reset(directus_service: DirectusService, user_id: str):
+    rows = await directus_service.get_items(
+        RECOVERY_COLLECTION,
+        params={"filter": {"user_id": {"_eq": user_id}, "state": {"_in": ["pending", "processing"]}}, "limit": 1},
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    )
+    return rows[0] if rows else None
 
 
 # ============================================================================
@@ -95,6 +119,10 @@ async def _delete_user_client_data(
         True if successful, False otherwise
     """
     try:
+        async def delete_required(collection: str, item_id: str):
+            if not await directus_service.delete_item(collection, item_id, admin_required=True):
+                raise RuntimeError(f"Could not delete {collection} item")
+
         logger.info(f"[ACCOUNT_RESET] Deleting client data for user {user_id[:8]}...")
         
         # 1. Delete all chats, messages, and embeds
@@ -106,7 +134,8 @@ async def _delete_user_client_data(
             # Get all chats for this user (using hashed_user_id)
             chats = await directus_service.get_items(
                 "chats",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}},
+                raise_on_error=True,
             )
             
             for chat in chats or []:
@@ -115,86 +144,85 @@ async def _delete_user_client_data(
                     # Delete messages for this chat
                     messages = await directus_service.get_items(
                         "messages",
-                        params={"filter": {"chat_id": {"_eq": chat_id}}}
+                        params={"filter": {"chat_id": {"_eq": chat_id}}},
+                        raise_on_error=True,
                     )
                     for message in messages or []:
                         message_id = message.get("id")
                         if message_id:
-                            await directus_service.delete_item("messages", message_id)
+                            await delete_required("messages", message_id)
                             deleted_messages += 1
                     
                     # Delete embeds for this chat (using hashed_chat_id)
                     hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
                     embeds = await directus_service.get_items(
                         "embeds",
-                        params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}}
+                        params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}},
+                        raise_on_error=True,
                     )
                     for embed in embeds or []:
                         embed_id = embed.get("id")
                         if embed_id:
-                            await directus_service.delete_item("embeds", embed_id)
+                            await delete_required("embeds", embed_id)
                             deleted_embeds += 1
                     
                     # Delete chat
-                    await directus_service.delete_item("chats", chat_id)
+                    await delete_required("chats", chat_id)
                     deleted_chats += 1
             
             # Also delete any orphaned embeds by hashed_user_id
             orphaned_embeds = await directus_service.get_items(
                 "embeds",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}},
+                raise_on_error=True,
             )
             for embed in orphaned_embeds or []:
                 embed_id = embed.get("id")
                 if embed_id:
-                    await directus_service.delete_item("embeds", embed_id)
+                    await delete_required("embeds", embed_id)
                     deleted_embeds += 1
             
             logger.info(f"[ACCOUNT_RESET] Deleted {deleted_chats} chats, {deleted_messages} messages, {deleted_embeds} embeds")
         except Exception as e:
             logger.error(f"[ACCOUNT_RESET] Error deleting chats/messages/embeds: {e}", exc_info=True)
+            return False
         
         # 2. Delete app memories
         deleted_app_data = 0
         try:
             app_settings = await directus_service.get_items(
                 "app_settings_and_memories",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}},
+                raise_on_error=True,
             )
             for setting in app_settings or []:
                 setting_id = setting.get("id")
                 if setting_id:
-                    await directus_service.delete_item("app_settings_and_memories", setting_id)
+                    await delete_required("app_settings_and_memories", setting_id)
                     deleted_app_data += 1
             
             logger.info(f"[ACCOUNT_RESET] Deleted {deleted_app_data} app settings/memories")
         except Exception as e:
             logger.error(f"[ACCOUNT_RESET] Error deleting app settings/memories: {e}", exc_info=True)
+            return False
         
-        # 3. Delete all encryption keys (password, passkey, recovery key wrapped keys)
+        # 3. Delete all passkeys. Existing key wrappers remain until replacement
+        # credentials are safely stored, so a failed write cannot orphan login.
         try:
-            encryption_keys = await directus_service.get_items(
-                "encryption_keys",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            passkeys = await directus_service.get_items(
+                "user_passkeys",
+                params={"filter": {"user_id": {"_eq": user_id}}},
+                admin_required=True,
+                raise_on_error=True,
             )
-            for key in encryption_keys or []:
-                key_id = key.get("id")
-                if key_id:
-                    await directus_service.delete_item("encryption_keys", key_id)
-            logger.info(f"[ACCOUNT_RESET] Deleted {len(encryption_keys) if encryption_keys else 0} encryption keys")
-        except Exception as e:
-            logger.error(f"[ACCOUNT_RESET] Error deleting encryption keys: {e}", exc_info=True)
-        
-        # 4. Delete all passkeys
-        try:
-            passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
             for passkey in passkeys or []:
                 passkey_id = passkey.get("id")
                 if passkey_id:
-                    await directus_service.delete_item("user_passkeys", passkey_id)
+                    await delete_required("user_passkeys", passkey_id)
             logger.info(f"[ACCOUNT_RESET] Deleted {len(passkeys) if passkeys else 0} passkeys")
         except Exception as e:
             logger.error(f"[ACCOUNT_RESET] Error deleting passkeys: {e}", exc_info=True)
+            return False
         
         # 5. Clear cache for user
         try:
@@ -203,6 +231,7 @@ async def _delete_user_client_data(
             logger.info(f"[ACCOUNT_RESET] Cleared cache and sessions for user {user_id[:8]}...")
         except Exception as e:
             logger.error(f"[ACCOUNT_RESET] Error clearing cache: {e}", exc_info=True)
+            return False
         
         logger.info(f"[ACCOUNT_RESET] Client data deletion complete for user {user_id[:8]}...")
         return True
@@ -215,6 +244,63 @@ async def _delete_user_client_data(
 # ============================================================================
 # Endpoints
 # ============================================================================
+
+
+@router.post("/cancel-reset/current", response_model=RecoveryCompleteResponse)
+@limiter.limit("10/hour")
+async def cancel_pending_reset_current_session(
+    request: Request,
+    user=Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """An existing authenticated device can cancel destruction before due time."""
+    pending = await _pending_reset(directus_service, user.id)
+    if not pending:
+        return RecoveryCompleteResponse(success=True, state="cancelled", message="No pending reset remains.")
+    due_at = parse_recovery_due_at(pending["due_at"])
+    if pending["state"] != "pending" or datetime.now(timezone.utc) >= due_at:
+        return RecoveryCompleteResponse(success=False, message="The cancellation period has ended.", error_code="CANCELLATION_CLOSED")
+    updated = await cancel_pending_reset_if_current(directus_service, pending)
+    if not updated:
+        return RecoveryCompleteResponse(success=False, message="Could not cancel reset. Please try again.", error_code="CANCEL_FAILED")
+    await cache_service.delete(f"recovery_cancel_token:{user.id}")
+    return RecoveryCompleteResponse(success=True, state="cancelled", message="Account reset cancelled.")
+
+
+@router.post("/cancel-reset", response_model=RecoveryCompleteResponse)
+@limiter.limit("5/hour")
+async def cancel_pending_reset(
+    request: Request,
+    cancel_request: RecoveryCancelRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Cancel pending destruction using a fresh email verification token."""
+    email = cancel_request.email.lower().strip()
+    token_key = f"recovery_verify_token:{email}"
+    stored_token = await cache_service.get(token_key)
+    exists, user, _ = await directus_service.get_user_by_hashed_email(_hash_email(email))
+    if not exists or not user:
+        return RecoveryCompleteResponse(success=False, message="Account not found.", error_code="ACCOUNT_NOT_FOUND")
+    cancel_hash = await cache_service.get(f"recovery_cancel_token:{user['id']}")
+    presented_hash = hashlib.sha256(cancel_request.verification_token.encode()).hexdigest()
+    valid_email_proof = bool(stored_token) and secrets.compare_digest(str(stored_token), cancel_request.verification_token)
+    valid_cancel_proof = bool(cancel_hash) and secrets.compare_digest(str(cancel_hash), presented_hash)
+    if not valid_email_proof and not valid_cancel_proof:
+        return RecoveryCompleteResponse(success=False, message="Verification expired or invalid.", error_code="INVALID_TOKEN")
+    pending = await _pending_reset(directus_service, user["id"])
+    if not pending:
+        return RecoveryCompleteResponse(success=True, state="cancelled", message="No pending reset remains.")
+    due_at = parse_recovery_due_at(pending["due_at"])
+    if pending["state"] != "pending" or datetime.now(timezone.utc) >= due_at:
+        return RecoveryCompleteResponse(success=False, message="The cancellation period has ended.", error_code="CANCELLATION_CLOSED")
+    updated = await cancel_pending_reset_if_current(directus_service, pending)
+    if not updated:
+        return RecoveryCompleteResponse(success=False, message="Could not cancel reset. Please try again.", error_code="CANCEL_FAILED")
+    await cache_service.delete(token_key)
+    await cache_service.delete(f"recovery_cancel_token:{user['id']}")
+    return RecoveryCompleteResponse(success=True, state="cancelled", message="Account reset cancelled. Your existing login methods and encrypted history remain available.")
 
 @router.post("/request-code", response_model=RecoveryRequestResponse)
 @limiter.limit("3/hour")
@@ -370,12 +456,16 @@ async def verify_recovery_code(
         # The presence of encrypted_tfa_secret is the source of truth for 2FA status
         hashed_email = _hash_email(email)
         has_2fa = False
+        pending_until = None
         try:
             exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
             if exists and user_data:
                 # User has 2FA if they have an encrypted secret stored in the database
                 # This is consistent with auth_login.py which also checks encrypted_tfa_secret
                 has_2fa = bool(user_data.get("encrypted_tfa_secret"))
+                pending = await _pending_reset(directus_service, user_data["id"])
+                if pending and pending["state"] == "pending":
+                    pending_until = pending["due_at"]
                 logger.info(f"User 2FA status: has_2fa={has_2fa} (encrypted_tfa_secret exists: {has_2fa})")
         except Exception as e:
             logger.warning(f"Could not check user 2FA status: {e}")
@@ -388,7 +478,8 @@ async def verify_recovery_code(
             success=True,
             message="Verification successful. Please set up your new login method.",
             verification_token=verification_token,
-            has_2fa=has_2fa
+            has_2fa=has_2fa,
+            pending_until=pending_until,
         )
         
     except Exception as e:
@@ -508,7 +599,7 @@ async def reset_account(
     Requires verification_token from verify-code endpoint.
     """
     logger.info("Processing /recovery/reset-account")
-    
+    claimed_pending = None
     try:
         # 1. Verify user acknowledged data loss
         if not reset_request.acknowledge_data_loss:
@@ -517,9 +608,22 @@ async def reset_account(
                 message="You must acknowledge that all chats, settings, and memories will be permanently deleted.",
                 error_code="DATA_LOSS_NOT_ACKNOWLEDGED"
             )
+        is_v2_password = reset_request.new_login_method == "password"
+        if is_v2_password:
+            try:
+                decode_key(reset_request.password_auth_key.get_secret_value())
+            except (AttributeError, ValueError):
+                return RecoveryCompleteResponse(success=False, message="Invalid password recovery credentials.", error_code="INVALID_CREDENTIALS")
+            if (reset_request.credential_version != 2 or reset_request.lookup_hash
+                    or reset_request.salt != reset_request.user_email_salt):
+                return RecoveryCompleteResponse(success=False, message="Password recovery requires v2 credentials.", error_code="CREDENTIAL_VERSION_REQUIRED")
+        elif not reset_request.lookup_hash:
+            return RecoveryCompleteResponse(success=False, message="Passkey recovery credentials are incomplete.", error_code="INVALID_CREDENTIALS")
         
         email = reset_request.email.lower().strip()
         hashed_email = _hash_email(email)
+        if not secrets.compare_digest(reset_request.hashed_email, hashed_email):
+            return RecoveryCompleteResponse(success=False, message="Email identity does not match the verified request.", error_code="EMAIL_MISMATCH")
         
         # 2. Verify the verification token from cache
         token_cache_key = f"recovery_verify_token:{email}"
@@ -541,9 +645,6 @@ async def reset_account(
                 error_code="INVALID_TOKEN"
             )
         
-        # Delete the token (one-time use)
-        await cache_service.delete(token_cache_key)
-        
         # 3. Get user data
         exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
         
@@ -558,6 +659,79 @@ async def reset_account(
         user_id = user_data.get("id")
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
         vault_key_id = user_data.get("vault_key_id")
+
+        # An email code may only open a cancellable recovery window. Existing
+        # credentials and encrypted content remain usable throughout the delay.
+        pending = await _pending_reset(directus_service, user_id)
+        now = datetime.now(timezone.utc)
+        if not pending:
+            due_at = now + RECOVERY_DELAY
+            created, _ = await directus_service.create_item(RECOVERY_COLLECTION, {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "hashed_email": hashed_email,
+                "state": "pending",
+                "version": 0,
+                "requested_at": now.isoformat(),
+                "due_at": due_at.isoformat(),
+            }, admin_required=True)
+            if not created:
+                return RecoveryCompleteResponse(success=False, message="Could not schedule recovery. Please try again.", error_code="SCHEDULE_FAILED")
+            cancellation_token = secrets.token_urlsafe(32)
+            cancellation_saved = await cache_service.set(
+                f"recovery_cancel_token:{user_id}",
+                hashlib.sha256(cancellation_token.encode()).hexdigest(),
+                ttl=int(RECOVERY_DELAY.total_seconds()),
+            )
+            if not cancellation_saved:
+                await directus_service.update_item(RECOVERY_COLLECTION, created["id"], {"state": "cancelled"}, admin_required=True)
+                return RecoveryCompleteResponse(success=False, message="Could not prepare cancellation. Please try again.", error_code="CANCEL_SETUP_FAILED")
+            try:
+                celery_app.send_task(
+                    name="app.tasks.email_tasks.recovery_email_task.send_recovery_pending_email",
+                    kwargs={"email": email, "language": "en"}, queue="email",
+                )
+            except Exception:
+                await directus_service.update_item(
+                    RECOVERY_COLLECTION, created["id"],
+                    {"state": "cancelled", "cancelled_at": datetime.now(timezone.utc).isoformat()},
+                    admin_required=True,
+                )
+                return RecoveryCompleteResponse(success=False, message="Could not send recovery notice. Please try again.", error_code="NOTICE_FAILED")
+            await cache_service.delete(token_cache_key)
+            return RecoveryCompleteResponse(
+                success=True,
+                state="pending",
+                pending_until=due_at.isoformat(),
+                cancellation_token=cancellation_token,
+                message="Account reset is scheduled for 24 hours from now. You can cancel during this period. Return with a new email code after the delay to finish reset.",
+            )
+        due_at = parse_recovery_due_at(pending["due_at"])
+        if now < due_at:
+            return RecoveryCompleteResponse(
+                success=True, state="pending", pending_until=due_at.isoformat(),
+                message="Account reset is pending. You can cancel until the 24-hour delay ends.",
+            )
+        if pending["state"] != "pending":
+            return RecoveryCompleteResponse(success=False, message="Recovery is already processing. Please try again later.", error_code="PROCESSING")
+        verified_passkey = None
+        if reset_request.new_login_method == "passkey":
+            credential = reset_request.passkey_credential or {}
+            if not credential.get("prf_enabled") or not credential.get("credential_id"):
+                return RecoveryCompleteResponse(success=False, message="Verified PRF passkey registration is required.", error_code="PASSKEY_REQUIRED")
+            from backend.core.api.app.routes.auth_routes.auth_passkey import verify_registration_attestation
+            try:
+                public_cose, public_jwk, aaguid = await verify_registration_attestation(
+                    request, cache_service,
+                    credential_id=credential["credential_id"],
+                    attestation_response=credential.get("attestation_response") or {},
+                    client_data_json=credential.get("client_data_json") or "",
+                    hashed_email=hashed_email,
+                    challenge_user_id=None,
+                )
+            except ValueError:
+                return RecoveryCompleteResponse(success=False, message="Passkey registration could not be verified.", error_code="PASSKEY_VERIFICATION_FAILED")
+            verified_passkey = (credential, public_cose, public_jwk, aaguid)
         
         # 4. Get username for response (before we delete data)
         username = None
@@ -569,8 +743,7 @@ async def reset_account(
             except Exception as e:
                 logger.warning(f"Could not decrypt username: {e}")
         
-        # 4.5. Check if 2FA setup is required
-        # Users with password login method MUST have 2FA configured
+        # 4.5. Optional 2FA enrollment during password recovery.
         # CRITICAL: Check encrypted_tfa_secret existence - this is the actual 2FA data
         # Note: There is NO tfa_enabled field in Directus schema - it only exists in cache
         # The presence of encrypted_tfa_secret is the source of truth for 2FA status
@@ -579,14 +752,15 @@ async def reset_account(
         encrypted_tfa_secret = None
         encrypted_tfa_app_name = None
         
-        if reset_request.new_login_method == "password" and not has_existing_2fa:
-            # Password users without existing 2FA must set up 2FA during recovery
+        if is_v2_password and not has_existing_2fa and (
+            reset_request.tfa_secret or reset_request.tfa_verification_code
+        ):
             if not reset_request.tfa_secret or not reset_request.tfa_verification_code:
                 logger.warning("Password recovery attempted without 2FA setup")
                 return RecoveryCompleteResponse(
                     success=False,
-                    message="2FA setup is required for password-based accounts. Please set up 2FA first.",
-                    error_code="2FA_REQUIRED"
+                    message="Complete both fields to enroll an authenticator app.",
+                    error_code="2FA_SETUP_INCOMPLETE"
                 )
             
             # Verify the 2FA code
@@ -625,6 +799,37 @@ async def reset_account(
                     message="Failed to secure 2FA data. Please try again.",
                     error_code="ENCRYPTION_FAILED"
                 )
+
+        sealed_auth_key = None
+        wrapper_method = None
+        if is_v2_password:
+            try:
+                sealed_auth_key = await seal_auth_key(
+                    encryption_service,
+                    password_auth_key=reset_request.password_auth_key.get_secret_value(),
+                    vault_key_id=vault_key_id,
+                )
+            except Exception:
+                return RecoveryCompleteResponse(success=False, message="Could not secure the new password. Please try again.", error_code="AUTH_KEY_SEAL_FAILED")
+            wrapper_method = f"password_v2_{secrets.token_hex(16)}"
+
+        # The new email proof is one-use and can finalize only after the delay
+        # and all non-destructive credential validation has passed.
+        await cache_service.delete(token_cache_key)
+        claimed = await directus_service.update_item_if_version(
+            RECOVERY_COLLECTION, pending["id"],
+            {"state": "processing", "version": int(pending["version"]) + 1},
+            int(pending["version"]), extra_filters={"state": "pending"}, admin_required=True,
+        )
+        if not claimed:
+            return RecoveryCompleteResponse(success=False, message="Could not start recovery. Please try again.", error_code="CLAIM_FAILED")
+        claimed_pending = pending
+
+        # A destructive reset invalidates every online credential before data
+        # can change; failures must stop the operation rather than leave access.
+        await revoke_all_user_sessions(directus_service, cache_service, user_id)
+        if not await directus_service.revoke_user_api_keys(user_id):
+            return await _retryable_reset_failure(directus_service, pending, "Could not revoke API keys. Please try again later.", "REVOCATION_INCOMPLETE")
         
         # 5. Delete all client-encrypted data
         logger.info(f"[ACCOUNT_RESET] Starting full reset for user {user_id[:8]}...")
@@ -638,8 +843,46 @@ async def reset_account(
         
         if not delete_success:
             logger.error(f"Failed to delete client data for user {user_id[:8]}...")
-            # Continue anyway - we want to reset the account even if some data couldn't be deleted
+            return await _retryable_reset_failure(directus_service, pending, "Account cleanup is incomplete. Please try again later.", "CLEANUP_INCOMPLETE")
         
+        # Snapshot old wrappers before creating the replacement. They are removed
+        # only after both replacement credentials and the user record are saved.
+        old_keys = await directus_service.get_items(
+            "encryption_keys", params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}},
+            no_cache=True, raise_on_error=True,
+        )
+
+        if verified_passkey:
+            credential, public_cose, public_jwk, aaguid = verified_passkey
+            registered = await directus_service.create_passkey(
+                hashed_user_id=user_id_hash,
+                user_id=user_id,
+                credential_id=credential["credential_id"],
+                public_key_cose_b64=public_cose,
+                public_key_jwk=public_jwk,
+                aaguid=str(aaguid) if aaguid else None,
+                encrypted_device_name=credential.get("encrypted_device_name"),
+            )
+            if not registered:
+                return await _retryable_reset_failure(directus_service, pending, "Could not save the verified passkey. Please try again.", "PASSKEY_STORAGE_FAILED")
+
+        # 7. Create new encryption key record
+        try:
+            key_created = await directus_service.create_encryption_key(
+                hashed_user_id=user_id_hash,
+                login_method=(wrapper_method if is_v2_password else
+                              f"passkey_{hashlib.sha256(verified_passkey[0]['credential_id'].encode()).hexdigest()}"),
+                encrypted_key=reset_request.encrypted_master_key,
+                salt=reset_request.salt,
+                key_iv=reset_request.key_iv
+            )
+            if not key_created:
+                raise RuntimeError("Encryption key creation returned unsuccessful status")
+            logger.info(f"Created new encryption key for user {user_id[:8]}...")
+        except Exception as e:
+            logger.error(f"Error creating encryption key: {e}", exc_info=True)
+            return await _retryable_reset_failure(directus_service, pending, "Failed to set up new credentials. Please try again.", "KEY_CREATION_FAILED")
+
         # 6. Update user with new credentials and clear client-encrypted fields
         update_data = {
             # New authentication data
@@ -647,7 +890,14 @@ async def reset_account(
             "encrypted_email_address": reset_request.encrypted_email,
             "encrypted_email_with_master_key": reset_request.encrypted_email_with_master_key,
             "user_email_salt": reset_request.user_email_salt,
-            "lookup_hashes": [reset_request.lookup_hash],
+            "lookup_hashes": [] if is_v2_password else [reset_request.lookup_hash],
+            "credential_lookup_hashes": {
+                ("password" if is_v2_password else
+                 f"passkey_{hashlib.sha256(verified_passkey[0]['credential_id'].encode()).hexdigest()}"):
+                ({"version": 2, "kdf": KDF_ID, "sealed_auth_key": sealed_auth_key,
+                  "wrapper_method": wrapper_method, "legacy_password_retained": False}
+                 if is_v2_password else reset_request.lookup_hash)
+            },
             
             # Clear client-encrypted fields that are now inaccessible
             "encrypted_settings": None,
@@ -669,29 +919,21 @@ async def reset_account(
         update_success = await directus_service.update_user(user_id, update_data)
         if not update_success:
             logger.error(f"Failed to update user during recovery: {user_id[:8]}...")
-            return RecoveryCompleteResponse(
-                success=False,
-                message="Failed to update account. Please try again.",
-                error_code="UPDATE_FAILED"
-            )
-        
-        # 7. Create new encryption key record
-        try:
-            await directus_service.create_encryption_key(
-                hashed_user_id=user_id_hash,
-                login_method=reset_request.new_login_method,
-                encrypted_key=reset_request.encrypted_master_key,
-                salt=reset_request.salt,
-                key_iv=reset_request.key_iv
-            )
-            logger.info(f"Created new encryption key for user {user_id[:8]}...")
-        except Exception as e:
-            logger.error(f"Error creating encryption key: {e}", exc_info=True)
-            return RecoveryCompleteResponse(
-                success=False,
-                message="Failed to set up new credentials. Please try again.",
-                error_code="KEY_CREATION_FAILED"
-            )
+            if is_v2_password and wrapper_method:
+                await directus_service.delete_encryption_key(user_id_hash, wrapper_method)
+            return await _retryable_reset_failure(directus_service, pending, "Failed to update account. Please try again.", "UPDATE_FAILED")
+
+        for old_key in old_keys or []:
+            old_key_id = old_key.get("id")
+            if old_key_id and not await directus_service.delete_item("encryption_keys", old_key_id, admin_required=True):
+                return await _retryable_reset_failure(directus_service, pending, "Old credentials could not be fully removed. Please try again.", "OLD_KEY_CLEANUP_FAILED")
+
+        completed = await directus_service.update_item(RECOVERY_COLLECTION, pending["id"], {
+            "state": "complete", "completed_at": datetime.now(timezone.utc).isoformat()
+        }, admin_required=True)
+        if not completed:
+            return await _retryable_reset_failure(directus_service, pending, "Recovery confirmation is pending. Please try again.", "COMPLETION_UNCONFIRMED")
+        claimed_pending = None
         
         # 8. Log the recovery completion
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
@@ -714,6 +956,11 @@ async def reset_account(
         
     except Exception as e:
         logger.error(f"Error in full reset recovery: {e}", exc_info=True)
+        if claimed_pending:
+            return await _retryable_reset_failure(
+                directus_service, claimed_pending,
+                "An error occurred during account reset. Please try again.", "SERVER_ERROR",
+            )
         return RecoveryCompleteResponse(
             success=False,
             message="An error occurred during account reset. Please try again.",

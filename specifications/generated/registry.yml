@@ -296,7 +296,7 @@ specifications:
     version: 1
     status: draft
     path: features/auth
-    fingerprint: 6415aeaeeba3a1c8a991888e7395258c395879cb1cf01adbc7298f1bc14a94d4
+    fingerprint: 8eb3eb886bf162ae93953f8e147cb3f2c58e30d9efffb39c8777ecd9cba815e5
     required_applies_to:
     - rest_api
     - cli
@@ -575,7 +575,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/cli
-    fingerprint: f467a84d5b55f4bfdc9ee7d9e825baf06732445e7c13cf4133fccedb7f907831
+    fingerprint: 01586c11cb0f81cf0cd7545d5294ce52e26ddb4f2e916b62e37f739d5833cfb8
     required_applies_to:
     - rest_api
     - cli
@@ -586,7 +586,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/sdk
-    fingerprint: 3ad6ddb47459eafb5d24381184d470d84216cc7e36da295f6d3a4ab89145274d
+    fingerprint: 412c011a95b631653021f4c32d82cf078444740eac29983285499759858d5ff6
     required_applies_to:
     - rest_api
     - cli
@@ -3903,7 +3903,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: security
-    fingerprint: 84c160efafc5ea35a6fa151b3fae8d05437039a4c2d25abe97cee02dbd25dc39
+    fingerprint: eedcc4ac8013a08df43478f25a0efac529c289fb88eca0234416a36c95ed8387
     required_applies_to:
     - rest_api
     - cli
@@ -3913,7 +3913,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: privacy
-    fingerprint: 43acc5e56ee097a58a0e30a9f3dd761f37ef60b07308249f1947d79fc40a86db
+    fingerprint: cb48c37973268884c37fa42914ebbd51f48e9dd9e2a032bcc0b42563b9677d05
     required_applies_to:
     - rest_api
     - cli
@@ -3933,7 +3933,87 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: behavior
-    fingerprint: 0a5e31d80479ea002e878f5ee0ccce473996a8913e1b58377c7d08ea9c4ee571
+    fingerprint: ccf1788593a3aaec913fa2041911fe80eef23362b18ce4947bc4d4c66b026896
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.login.verified-method:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 1bfcad0e929e7418e58dbc63ec1cc2b45eac08893301cdaeb76ac94b4ad4b6b1
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.keys.independent-unlock:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: behavior
+    fingerprint: b89d5fd2c17c0e0265ffdf6b1469272308272795804ca90509e2f0408b41360f
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.password.versioned-protection:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: d772ba33e11273b6acc07629a56b50aac1195a339c56d26be22961f232512be5
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.sensitive-actions.recent-verification:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 5c2ac843ebf5b5d34d8090fa963c7994b4f86bdbe04c5a2ea5970ff8da096e14
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.credentials.atomic-replacement:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 78ef2f9b07813001ceaddbcc19dfd3c1fee30f31b14308366ea100f34212cb79
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.proofs.single-use:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 114c98e51037024ddf08c6422e800ac502590a7186bb86eba125290d058e916b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.signup.transaction-bound:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 5ec062fcc8a68379f26c5fb20a6d6ed2fa23c58c305aed39a832850ec3616626
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.recovery.email-delay:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: behavior
+    fingerprint: 6af48cdcc2416878b71d7ce2a08946151223c00ad09286804b062737b74d5c66
     required_applies_to:
     - rest_api
     - cli
@@ -3943,7 +4023,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: behavior
-    fingerprint: dbb148de4081ed9b9d5c9b2cc03af7c9a1c975843d84c16e0c8aacd058cafae7
+    fingerprint: ba8a641d01b3749ff7e46d9c8d24d36eb20ab1d4e803347feefe7fd1fb6e4284
     required_applies_to:
     - rest_api
     - cli
@@ -3953,7 +4033,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: security
-    fingerprint: 35286f45c31ea95f9d2290b9c57f35db20175923330e37d24baea31c520632f9
+    fingerprint: dc62b400efd67c9757a1d68ec1a27c2b9b265e8f5a1fe33bb468c9852f50a622
     required_applies_to:
     - rest_api
     - cli
@@ -3963,7 +4043,47 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: security
-    fingerprint: 8451ab873d0921e928efbaafa64564177474bfbfca28d95de8a3574da357d65a
+    fingerprint: 47871964c2be91c3b22741aa590a321e989d137b6e11cc562eff0be5cc025c63
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.pair-login.session-grant:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: bb73d02b893aeb556db62b341aeee5172a380e592e0331d2f94586479bea33f5
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.pair-login.approval-assurance:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: e5ddc51e86ee31b58b8972ec451d723ab78085f5b542865cbb092c51c2625241
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.pair-login.lifecycle:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: behavior
+    fingerprint: e9b738fe40ab51ed17e3f425b13bfb1bef5545b80c454cf41aefba7a18234f1a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.pair-login.expiry:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 746f6dede1fde7414f8cd97bd70652ac64398a54f74726111b1a59da3cb8c7c9
     required_applies_to:
     - rest_api
     - cli
@@ -3974,6 +4094,26 @@ assertions:
     specification_id: feature.auth
     type: behavior
     fingerprint: 34f363d8f3727304f04711d63c203fc9b137e8488b973511af8398d3fa9c6784
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.session.authoritative-enforcement:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: 40280b41d4b325ec71893981d624a1cf62ba41094c49a16cd050b8a3d7169aed
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.secrets.lifecycle:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: privacy
+    fingerprint: 639fdba379552563ccf243520e820dabc2e32daf2b3066d4358aafb8096dc120
     required_applies_to:
     - rest_api
     - cli
@@ -4003,7 +4143,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: security
-    fingerprint: e23d7063a5c2ec4da95214443c701f15d579694a7c30584695f12a400bb72516
+    fingerprint: af04d3ae00173c3d007fc881ec8fab9c17bda257e1eb9127fdb4478a8726ea28
     required_applies_to:
     - rest_api
     - cli
@@ -7381,7 +7521,7 @@ assertions:
     specification: surface.cli@1
     specification_id: surface.cli
     type: parity
-    fingerprint: f8ef90f4347ee00f60242379a885bc16a7965747aa7811e3f334640b60ea135d
+    fingerprint: c18dba4712ac514b6e505d1f582618b4d4d5f2a19292d2651de0d2240aa8b94d
     required_applies_to:
     - rest_api
     - cli
@@ -7415,6 +7555,28 @@ assertions:
     specification_id: surface.cli
     type: behavior
     fingerprint: b071ede4a458a9d0f7867d2e027e7d21722e4a161243f9ed4969b76cbbb4e70f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.credentials.storage-mode:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: security
+    fingerprint: 430086b5da4b73d2357b44aa0e2a8220185c39927e10b2730b7189e20b19d75d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.pairing.expiry-upgrade:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: security
+    fingerprint: 70a201873fb998ed4ea71f07f4856fcdd57eba5bf6dafd7062e51dd6e8f9c693
     required_applies_to:
     - rest_api
     - cli
@@ -7469,7 +7631,7 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: security
-    fingerprint: d1fe6d8ac659cc5c8d4547cec7bb1e14b3fc391c844f740c1122ed0bab637b6d
+    fingerprint: 06401c5ddd86cc77bb7f3add63444f558a284f00bb82cd7ed77c19ae2c68507e
     required_applies_to:
     - rest_api
     - cli
@@ -7479,7 +7641,37 @@ assertions:
     specification: surface.sdk@1
     specification_id: surface.sdk
     type: privacy
-    fingerprint: e8486e9df2466d1bd6552df59310ef7ddb017dfda4ebf863e37befec741b0a46
+    fingerprint: ceef05fbcbd968d06fd076d15893102a7c3ede31baca500763ce682c8d86aac3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.auth.credential-separation:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: security
+    fingerprint: 961e6a99722f98c7ff03cc03d8473ca1d6c90e766963383fcc081bc0f6a930a6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.auth.limited-resource-keys:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: security
+    fingerprint: 54ee06ea572dcaa5ff370b33b2e7f219b5a7ddb91d30e6b3fa490ad0b886a2cd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+  sdk.auth.legacy-key-migration:
+    specification: surface.sdk@1
+    specification_id: surface.sdk
+    type: security
+    fingerprint: 3c7c28ddef81a1933f48d2441a96050c6398085cd6dc07ea9c84fd6a19326ad1
     required_applies_to:
     - rest_api
     - cli

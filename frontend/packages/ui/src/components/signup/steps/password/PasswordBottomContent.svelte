@@ -25,6 +25,7 @@
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import * as cryptoService from '../../../../services/cryptoService';
+    import { derivePasswordV2, toBase64Url } from '../../../../services/passwordV2';
     import { get } from 'svelte/store';
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
@@ -124,32 +125,30 @@
             
             // Only check for inviteCode if it's required
             if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
-                console.error('Missing required signup data');
+                console.error('Missing required signup data', JSON.stringify({
+                    hasEmail: Boolean(storeData.email),
+                    hasUsername: Boolean(storeData.username),
+                    inviteRequired: requireInviteCodeValue,
+                    hasInviteCode: Boolean(storeData.inviteCode)
+                }));
                 notificationStore.error('Missing required signup information. Please go back and try again.', 8000);
                 return;
             }
             
             // Generate extractable master key for wrapping (Web Crypto API)
             const masterKey = await cryptoService.generateExtractableMasterKey();
-            const salt = cryptoService.generateSalt();
+            const emailSalt = cryptoService.generateEmailSalt();
+            const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
 
-            // Derive wrapping key from password
-            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+            // Separate memory-hard authentication and master-key wrapping keys.
+            const { authKey, wrapKey } = await derivePasswordV2(password, emailSalt);
 
             // Wrap the master key for server storage
-            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
+            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrapKey);
 
             // Save master key (respect "stay logged in" choice)
             // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
             await cryptoService.saveKeyToSession(masterKey, storeData.stayLoggedIn);
-            
-            // Convert salt to base64 for storage
-            let saltBinary = '';
-            const saltLen = salt.byteLength;
-            for (let i = 0; i < saltLen; i++) {
-                saltBinary += String.fromCharCode(salt[i]);
-            }
-            const saltB64 = window.btoa(saltBinary);
             
             console.debug('[PasswordBottomContent] Starting email crypto operations...');
             
@@ -157,15 +156,8 @@
             const hashedEmail = await cryptoService.hashEmail(storeData.email);
             console.debug('[PasswordBottomContent] Email hashed successfully');
             
-            // Generate email salt and derive email encryption key
-            const emailSalt = cryptoService.generateEmailSalt();
-            const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
+            // The account email salt is also the versioned password KDF salt.
             console.debug('[PasswordBottomContent] Email salt generated');
-            
-            // Generate lookup hash from password using user_email_salt instead of a random salt
-            // This makes authentication more efficient as we don't need to query encryption_keys
-            const lookupHash = await cryptoService.hashKey(password, emailSalt);
-            console.debug('[PasswordBottomContent] Lookup hash generated');
             
             // Derive email encryption key (for server use)
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
@@ -207,14 +199,16 @@
                     },
                     body: JSON.stringify({
                         hashed_email: hashedEmail, // Hashed email for lookup
+                        signup_transaction_token: storeData.signupTransactionToken,
                         encrypted_email: encryptedEmailForServer, // Client-side encrypted email
                         user_email_salt: emailSaltB64, // Salt for email encryption
                         username: storeData.username,
                         invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
                         encrypted_master_key: encryptedMasterKey,
                         key_iv: keyIv, // IV for master key encryption (Web Crypto API)
-                        salt: saltB64,
-                        lookup_hash: lookupHash, // Hash of email + password
+                        salt: emailSaltB64,
+                        credential_version: 2,
+                        password_auth_key: toBase64Url(authKey),
                         language: storeData.language || 'en',
                         darkmode: storeData.darkmode || false,
                         pending_gift_card_code: getPendingGiftCardRedemptionCode()
@@ -267,7 +261,7 @@
                     ...store,
                     password, // Store temporarily for the signup process
                     encryptedMasterKey: encryptedMasterKey,
-                    salt: saltB64,
+                    salt: emailSaltB64,
                     userId: newUserId
                 }));
                 

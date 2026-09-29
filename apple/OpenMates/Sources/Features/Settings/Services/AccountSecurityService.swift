@@ -64,6 +64,38 @@ actor AccountSecurityService {
         try await requireSuccess(response)
     }
 
+    func requestCredentialChangeEmail(email: String, sessionId: String) async throws -> SensitiveEmailChallenge {
+        let response: SensitiveEmailChallenge = try await api.request(
+            .post, path: "/v1/auth/sensitive/email/request",
+            body: SensitiveEmailRequest(purpose: "credential_change", email: email, sessionId: sessionId)
+        )
+        guard response.success, response.expiresIn > 0,
+              !response.challengeId.isEmpty else { throw await AccountSecurityError.missingAccountData }
+        return response
+    }
+
+    func verifyCredentialChangeEmail(challengeId: String, code: String, hashedEmail: String,
+                                     sessionId: String, lookupHash: String?,
+                                     passwordChallengeId: String?, passwordProof: String?) async throws {
+        let response: SensitiveEmailVerified = try await api.request(
+            .post, path: "/v1/auth/sensitive/email/verify",
+            body: SensitiveEmailVerifyRequest(
+                purpose: "credential_change", challengeId: challengeId, code: code,
+                hashedEmail: hashedEmail, sessionId: sessionId, lookupHash: lookupHash,
+                passwordChallengeId: passwordChallengeId, passwordProof: passwordProof)
+        )
+        guard response.success, response.expiresIn > 0 else { throw await AccountSecurityError.missingAccountData }
+    }
+
+    func verifyCredentialChangeTOTP(_ code: String) async throws {
+        let response: SensitiveEmailVerified = try await api.request(
+            .post, path: "/v1/auth/sensitive/totp/verify",
+            body: SensitiveTOTPRequest(purpose: "credential_change", code: code,
+                                       sessionId: await AuthManager.nativeSessionId)
+        )
+        guard response.success, response.expiresIn > 0 else { throw await AccountSecurityError.missingAccountData }
+    }
+
     func initiateTwoFactor(emailEncryptionKey: String) async throws -> TwoFactorSetupResponse {
         let response: TwoFactorSetupResponse = try await api.request(
             .post,
@@ -244,6 +276,21 @@ struct AuthMethods: Decodable {
     let hasPassword: Bool
     let has2Fa: Bool
     let hasRecoveryKey: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case hasPasskey, hasPassword, hasRecoveryKey
+        case has2Fa = "has2fa"
+        case has2FaCamel = "has2Fa"
+    }
+
+    init(from decoder: Decoder) throws {
+        let fields = try decoder.container(keyedBy: CodingKeys.self)
+        hasPasskey = try fields.decode(Bool.self, forKey: .hasPasskey)
+        hasPassword = try fields.decode(Bool.self, forKey: .hasPassword)
+        hasRecoveryKey = try fields.decodeIfPresent(Bool.self, forKey: .hasRecoveryKey)
+        has2Fa = try fields.decodeIfPresent(Bool.self, forKey: .has2Fa)
+            ?? fields.decode(Bool.self, forKey: .has2FaCamel)
+    }
 }
 
 struct PasskeyListResponse: Decodable {
@@ -272,11 +319,49 @@ struct PasskeyDeleteRequest: Encodable {
 
 struct PasswordUpdateRequest: Encodable {
     let hashedEmail: String
-    let lookupHash: String
+    let lookupHash: String?
     let encryptedMasterKey: String
     let salt: String
     let keyIv: String
     let isNewPassword: Bool
+    var credentialVersion: Int? = nil
+    var passwordAuthKey: String? = nil
+}
+
+struct SensitiveEmailRequest: Encodable {
+    let purpose: String
+    let email: String
+    let sessionId: String
+}
+
+struct SensitiveEmailChallenge: Decodable {
+    let success: Bool
+    let challengeId: String
+    let expiresIn: Int
+    let passwordChallengeId: String?
+    let passwordNonce: String?
+}
+
+struct SensitiveEmailVerifyRequest: Encodable {
+    let purpose: String
+    let challengeId: String
+    let code: String
+    let hashedEmail: String
+    let sessionId: String
+    let lookupHash: String?
+    let passwordChallengeId: String?
+    let passwordProof: String?
+}
+
+struct SensitiveTOTPRequest: Encodable {
+    let purpose: String
+    let code: String
+    let sessionId: String
+}
+
+struct SensitiveEmailVerified: Decodable {
+    let success: Bool
+    let expiresIn: Int
 }
 
 struct PasswordReauthRequest: Encodable {

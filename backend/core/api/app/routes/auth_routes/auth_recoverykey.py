@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Request
 import logging
 import time
 import hashlib
+import json
+import secrets
 
 # Import schemas
 from backend.core.api.app.schemas.auth_recoverykey import (
@@ -25,6 +27,8 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
+from backend.core.api.app.services.credential_verification import replace_typed_lookup, acquire_credential_change_lock, release_credential_change_lock
+from backend.core.api.app.services.session_security_state import require_recent_strong_proof
 
 # Define router for recovery key endpoints
 router = APIRouter(
@@ -50,6 +54,7 @@ async def confirm_recovery_key_stored(
     """
     logger.info("Processing /recovery-key/confirm-stored request")
 
+    lock = None
     try:
         if not confirm_request.confirmed:
             return ConfirmRecoveryKeyStoredResponse(
@@ -68,74 +73,59 @@ async def confirm_recovery_key_stored(
         user_id = user_data.get("user_id")
         current_time = int(time.time())
 
-        # Get the current lookup_hashes array
-        success, user_profile, _ = await directus_service.get_user_profile(user_id)
-        if not success or not user_profile:
-            logger.error(f"Failed to get user profile for user_id: {user_id}")
-            return ConfirmRecoveryKeyStoredResponse(success=False, message="Failed to get user profile")
-        
-        # Get existing lookup_hashes or initialize as empty array
-        lookup_hashes = user_profile.get("lookup_hashes", [])
-        
-        if not isinstance(lookup_hashes, list):
-            lookup_hashes = []
-            logger.warning(f"lookup_hashes is not a list, initializing empty array for user_id: {user_id}")
-
-        # Add only the lookup hash string to the array (not a dictionary)
-        lookup_hashes.append(confirm_request.lookup_hash)
-
-        # Create encryption key record for the recovery key
-        try:
-            # Hash the user ID for security
-            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            
-            # Store the wrapped master key in the encryption_keys table
-            encryption_key_success = await directus_service.create_encryption_key(
-                hashed_user_id=hashed_user_id,
-                login_method='recovery_key',
-                encrypted_key=confirm_request.wrapped_master_key,
-                salt=confirm_request.salt,
-                key_iv=confirm_request.key_iv
-            )
-            
-            if not encryption_key_success:
-                logger.error(f"Failed to create encryption key record for recovery key for user {user_id}")
-                return ConfirmRecoveryKeyStoredResponse(
-                    success=False,
-                    message="Failed to set up recovery key encryption. Please try again."
-                )
-                
-            logger.info(f"Successfully created encryption key record for recovery key for user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to create encryption key for recovery key for user {user_id}: {e}", exc_info=True)
-            return ConfirmRecoveryKeyStoredResponse(
-                success=False,
-                message="Failed to set up recovery key encryption. Please try again."
-            )
-
-        # Update the user profile with the new lookup_hashes array
-        # Only update last_opened if user is currently in the signup flow
         is_signup = user_data.get("last_opened", "").startswith("/signup")
+        if not is_signup:
+            await require_recent_strong_proof(directus_service, cache_service, refresh_token, user_id)
+        lock = await acquire_credential_change_lock(cache_service, user_id, "recovery_key")
+        fields = await directus_service.get_user_fields_direct(
+            user_id, ["lookup_hashes", "credential_lookup_hashes"])
+        if not fields:
+            return ConfirmRecoveryKeyStoredResponse(success=False, message="Credential state unavailable")
+        hashes = fields.get("lookup_hashes") or []
+        typed = fields.get("credential_lookup_hashes") or {}
+        if isinstance(hashes, str):
+            try:
+                hashes = json.loads(hashes)
+            except ValueError:
+                hashes = None
+        if isinstance(typed, str):
+            try:
+                typed = json.loads(typed)
+            except ValueError:
+                typed = None
+        if not isinstance(hashes, list) or not isinstance(typed, dict):
+            return ConfirmRecoveryKeyStoredResponse(success=False, message="Credential state unavailable")
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        if "recovery_key" in typed or await directus_service.get_encryption_key(hashed_user_id, "recovery_key"):
+            return ConfirmRecoveryKeyStoredResponse(success=False, message="A recovery key already exists. Use regeneration instead.")
+        if confirm_request.lookup_hash in hashes:
+            return ConfirmRecoveryKeyStoredResponse(success=False, message="Recovery credential conflicts with another login method")
+        wrapper_method = f"recovery_key_v2_{secrets.token_hex(16)}"
+        created = await directus_service.create_encryption_key(
+            hashed_user_id=hashed_user_id, login_method=wrapper_method,
+            encrypted_key=confirm_request.wrapped_master_key,
+            salt=confirm_request.salt, key_iv=confirm_request.key_iv,
+        )
+        if not created:
+            return ConfirmRecoveryKeyStoredResponse(success=False, message="Failed to set up recovery key encryption. Please try again.")
+        next_hashes = [*hashes, confirm_request.lookup_hash]
+        next_typed = replace_typed_lookup(
+            typed, "recovery_key", confirm_request.lookup_hash, wrapper_method=wrapper_method)
         update_fields = {
-            "lookup_hashes": lookup_hashes,
+            "lookup_hashes": next_hashes,
+            "credential_lookup_hashes": next_typed,
             "consent_recovery_key_stored_timestamp": current_time,
         }
         if is_signup:
             update_fields["last_opened"] = "/signup/profile-picture"
-
-        success = await directus_service.update_user(user_id, update_fields)
-
-        if not success:
-            logger.error("Failed to record recovery key data")
+        if not await directus_service.update_user(user_id, update_fields):
+            await directus_service.delete_encryption_key(hashed_user_id, wrapper_method)
             return ConfirmRecoveryKeyStoredResponse(success=False, message="Failed to record your recovery key")
-
-        # Update user cache
-        if is_signup:
-            user_data["last_opened"] = "/signup/profile-picture"
-        user_data["lookup_hashes"] = lookup_hashes
-        user_data["consent_recovery_key_stored_timestamp"] = current_time
+        user_data.update(update_fields)
         await cache_service.set_user(user_data, refresh_token=refresh_token)
-        logger.info(f"Updated user cache for {user_id} (is_signup={is_signup})")
+        await cache_service.delete(f"user_profile:{user_id}")
+        await cache_service.delete(f"login_methods:{user_id}")
+        await cache_service.delete(f"user:{hashed_user_id}:login_methods")
 
         # Log the event for compliance
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
@@ -156,6 +146,8 @@ async def confirm_recovery_key_stored(
     except Exception as e:
         logger.error(f"Error in confirm_recovery_key_stored: {str(e)}", exc_info=True)
         return ConfirmRecoveryKeyStoredResponse(success=False, message="An error occurred while confirming recovery key")
+    finally:
+        await release_credential_change_lock(lock)
 
 
 @router.post("/regenerate", response_model=RegenerateRecoveryKeyResponse)
@@ -177,104 +169,66 @@ async def regenerate_recovery_key(
     """
     logger.info(f"Processing /recovery-key/regenerate for user {current_user.id}")
 
+    lock = None
     try:
         user_id = current_user.id
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         current_time = int(time.time())
 
-        # Step 1: Get current user profile to access lookup_hashes
-        success, user_profile, _ = await directus_service.get_user_profile(user_id)
-        if not success or not user_profile:
-            logger.error(f"Failed to get user profile for user_id: {user_id}")
-            return RegenerateRecoveryKeyResponse(
-                success=False, 
-                message="Failed to get user profile"
-            )
-
-        # Step 2: Delete old recovery key from encryption_keys
-        try:
-            delete_success = await directus_service.delete_encryption_key(
-                hashed_user_id=hashed_user_id,
-                login_method='recovery_key'
-            )
-            if delete_success:
-                logger.info(f"Successfully deleted old recovery key for user {user_id}")
-            else:
-                # It's possible the user doesn't have a recovery key yet, which is fine
-                logger.info(f"No existing recovery key found to delete for user {user_id}")
-        except Exception as e:
-            logger.warning(f"Error deleting old recovery key for user {user_id}: {e}")
-            # Continue anyway - we'll create the new one
-
-        # Step 3: Create new recovery key entry
-        try:
-            create_success = await directus_service.create_encryption_key(
-                hashed_user_id=hashed_user_id,
-                login_method='recovery_key',
-                encrypted_key=regen_request.new_wrapped_master_key,
-                salt=regen_request.new_salt,
-                key_iv=regen_request.new_key_iv
-            )
-            
-            if not create_success:
-                logger.error(f"Failed to create new recovery key for user {user_id}")
-                return RegenerateRecoveryKeyResponse(
-                    success=False,
-                    message="Failed to create new recovery key. Please try again."
-                )
-            
-            logger.info(f"Successfully created new recovery key for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error creating new recovery key for user {user_id}: {e}", exc_info=True)
-            return RegenerateRecoveryKeyResponse(
-                success=False,
-                message="Failed to create new recovery key. Please try again."
-            )
-
-        # Step 4: Update lookup_hashes array
-        # Get existing lookup_hashes
-        lookup_hashes = user_profile.get("lookup_hashes", [])
-        if not isinstance(lookup_hashes, list):
-            lookup_hashes = []
-            logger.warning(f"lookup_hashes is not a list, initializing empty array for user_id: {user_id}")
-
-        # Remove old lookup hash if provided
-        if regen_request.old_lookup_hash and regen_request.old_lookup_hash in lookup_hashes:
-            lookup_hashes.remove(regen_request.old_lookup_hash)
-            logger.info(f"Removed old lookup hash from user {user_id}")
-
-        # Add new lookup hash
-        if regen_request.new_lookup_hash not in lookup_hashes:
-            lookup_hashes.append(regen_request.new_lookup_hash)
-            logger.info(f"Added new lookup hash for user {user_id}")
-
-        # Update user profile with new lookup_hashes and timestamp
-        update_success = await directus_service.update_user(user_id, {
-            "lookup_hashes": lookup_hashes,
-            "consent_recovery_key_stored_timestamp": current_time
+        token = request.cookies.get("auth_refresh_token")
+        if not token:
+            return RegenerateRecoveryKeyResponse(success=False, message="Recent authentication required")
+        await require_recent_strong_proof(directus_service, cache_service, token, user_id)
+        lock = await acquire_credential_change_lock(cache_service, user_id, "recovery_key")
+        fields = await directus_service.get_user_fields_direct(
+            user_id, ["lookup_hashes", "credential_lookup_hashes"])
+        if not fields:
+            return RegenerateRecoveryKeyResponse(success=False, message="Credential state unavailable")
+        hashes = fields.get("lookup_hashes") or []
+        typed = fields.get("credential_lookup_hashes") or {}
+        if isinstance(hashes, str):
+            try:
+                hashes = json.loads(hashes)
+            except ValueError:
+                hashes = None
+        if isinstance(typed, str):
+            try:
+                typed = json.loads(typed)
+            except ValueError:
+                typed = None
+        if not isinstance(hashes, list) or not isinstance(typed, dict):
+            return RegenerateRecoveryKeyResponse(success=False, message="Credential state unavailable")
+        old_record = typed.get("recovery_key")
+        old_hash = old_record if isinstance(old_record, str) else (
+            old_record.get("lookup_hash") if isinstance(old_record, dict) else None)
+        if not old_hash or old_hash not in hashes:
+            return RegenerateRecoveryKeyResponse(success=False, message="Legacy recovery-key migration required before replacement")
+        if regen_request.new_lookup_hash in hashes and regen_request.new_lookup_hash != old_hash:
+            return RegenerateRecoveryKeyResponse(success=False, message="New credential conflicts with an existing login method")
+        wrapper_method = f"recovery_key_v2_{secrets.token_hex(16)}"
+        created = await directus_service.create_encryption_key(
+            hashed_user_id=hashed_user_id, login_method=wrapper_method,
+            encrypted_key=regen_request.new_wrapped_master_key,
+            salt=regen_request.new_salt, key_iv=regen_request.new_key_iv,
+        )
+        if not created:
+            return RegenerateRecoveryKeyResponse(success=False, message="Failed to create new recovery key. Please try again.")
+        next_hashes = [value for value in hashes if value != old_hash]
+        if regen_request.new_lookup_hash not in next_hashes:
+            next_hashes.append(regen_request.new_lookup_hash)
+        next_typed = replace_typed_lookup(
+            typed, "recovery_key", regen_request.new_lookup_hash, wrapper_method=wrapper_method)
+        committed = await directus_service.update_user(user_id, {
+            "lookup_hashes": next_hashes,
+            "credential_lookup_hashes": next_typed,
+            "consent_recovery_key_stored_timestamp": current_time,
         })
-
-        if not update_success:
-            logger.error(f"Failed to update lookup_hashes for user {user_id}")
-            return RegenerateRecoveryKeyResponse(
-                success=False,
-                message="Failed to update recovery key data. Please try again."
-            )
-
-        # Step 5: Keep the authenticated user cache in sync and invalidate derived login metadata.
-        try:
-            cache_update_success = await cache_service.update_user(user_id, {
-                "lookup_hashes": lookup_hashes,
-                "consent_recovery_key_stored_timestamp": current_time,
-            })
-            if not cache_update_success:
-                logger.warning(f"Could not update cached recovery key metadata for user {user_id}")
-                await cache_service.delete(f"user_profile:{user_id}")
-            await cache_service.delete(f"login_methods:{user_id}")
-            logger.info(f"Updated recovery key cache metadata for user {user_id}")
-        except Exception as e:
-            logger.warning(f"Error updating recovery key cache metadata for user {user_id}: {e}")
-            # Non-critical, continue
+        if not committed:
+            await directus_service.delete_encryption_key(hashed_user_id, wrapper_method)
+            return RegenerateRecoveryKeyResponse(success=False, message="Failed to update recovery key data. Please try again.")
+        await cache_service.delete(f"user_profile:{user_id}")
+        await cache_service.delete(f"login_methods:{user_id}")
+        await cache_service.delete(f"user:{hashed_user_id}:login_methods")
 
         # Step 6: Log compliance event
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
@@ -298,3 +252,5 @@ async def regenerate_recovery_key(
             success=False,
             message="An error occurred while regenerating recovery key"
         )
+    finally:
+        await release_credential_change_lock(lock)

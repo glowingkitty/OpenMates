@@ -43,12 +43,11 @@ import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   deriveChatCompletionRecoveryKeypair,
-  bytesToBase64,
-  createApiKeyCryptoMaterial,
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   hashItemKey,
   openChatCompletionRecoveryEnvelope,
+  splitApiKeyCredential,
   type ChatCompletionRecoveryEnvelope,
   unwrapApiKeyMasterKey,
 } from "./crypto.js";
@@ -535,6 +534,13 @@ export interface SdkSessionResponse {
     salt?: string;
     key_iv?: string;
   };
+  resource_key_grants?: Array<{
+    resource_type: string;
+    resource_id: string;
+    encrypted_key: string;
+    salt: string;
+    key_iv: string;
+  }>;
 }
 
 export interface ChatResponse {
@@ -675,6 +681,15 @@ export class OpenMatesApiError extends Error {
     this.name = "OpenMatesApiError";
     this.status = status;
     this.data = data;
+  }
+}
+
+export class OpenMatesUnavailableError extends Error {
+  readonly code = "unavailable_requires_first_party_verification";
+
+  constructor(action: "create" | "revoke") {
+    super(`API key ${action} requires a verified web Settings or authenticated CLI session`);
+    this.name = "OpenMatesUnavailableError";
   }
 }
 
@@ -838,6 +853,20 @@ export class OpenMates {
 
   sdkSession(): Promise<SdkSessionResponse> {
     return this.getSdkSession();
+  }
+
+  /** @internal Resource-key resolver shared by the Project namespace. */
+  async _getProjectGrantKey(projectId: string): Promise<Uint8Array | null> {
+    const session = await this.getSdkSession();
+    if (session.key_wrapper) return null;
+    const grant = session.resource_key_grants?.find((candidate) => candidate.resource_type === "project" && candidate.resource_id === projectId);
+    if (!grant) return null;
+    return unwrapApiKeyMasterKey({
+      apiKey: this.apiKey ?? "",
+      encryptedMasterKeyB64: grant.encrypted_key,
+      saltB64: grant.salt,
+      keyIvB64: grant.key_iv,
+    });
   }
 
   async resolveEmbedKeyForShare(embedKeys: EmbedKeyRecord[], embedId: string): Promise<Uint8Array | null> {
@@ -1048,7 +1077,7 @@ export class OpenMates {
   private headers(hasBody = true): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: "application/json",
-      Authorization: `Bearer ${this.apiKey}`,
+      Authorization: `Bearer ${splitApiKeyCredential(this.apiKey ?? "").bearer}`,
       Origin: sdkOrigin(this.apiUrl),
       "X-OpenMates-SDK": this.sdkName,
       "X-OpenMates-Device-Identity": this.deviceId,
@@ -1449,6 +1478,15 @@ function publicProjectAskResponse(response: Record<string, unknown>, projects: P
 
 async function resolveSdkProject(client: OpenMates, projectId: string, context: ProjectContextOptions = { personal: true }): Promise<{ record: ProjectRecord; projectKey: Uint8Array }> {
   const resolvedProjectId = await resolveSdkProjectId(client, projectId, context);
+  const session = await client.sdkSession();
+  if (!session.key_wrapper) {
+    if (!context.personal || context.teamId) throw new OpenMatesConfigError("Limited Project grants support personal Projects only");
+    const projectKey = await client._getProjectGrantKey(resolvedProjectId);
+    if (!projectKey) throw new OpenMatesConfigError(`Project ${resolvedProjectId} has no key grant`);
+    const response = await client.get<{ project?: ProjectRecord }>(`/v1/projects/${encodeURIComponent(resolvedProjectId)}`);
+    if (!response.project) throw new OpenMatesApiError(404, { detail: "Project not found" });
+    return { record: response.project, projectKey };
+  }
   const crypto = await projectWrappingKey(client, context);
   const response = await client.get<{ project?: ProjectRecord }>(withQuery(`/v1/projects/${encodeURIComponent(resolvedProjectId)}`, { team_id: crypto.teamId }));
   const record = response.project;
@@ -3249,27 +3287,13 @@ export class OpenMatesApiKeys {
   }
 
   async create(options: ApiKeyCreateOptions): Promise<ApiKeyCreateResult> {
-    const name = options.name.trim();
-    if (!name) throw new OpenMatesConfigError("API key name is required");
-    const masterKey = await this.client.masterKey();
-    const material = await createApiKeyCryptoMaterial(name, bytesToBase64(masterKey));
-    const key = await this.client.request<Record<string, unknown>>("/v1/sdk/settings/api-keys", {
-      encrypted_name: material.encryptedName,
-      api_key_hash: material.apiKeyHash,
-      encrypted_key_prefix: material.encryptedKeyPrefix,
-      encrypted_master_key: material.encryptedMasterKey,
-      salt: material.saltB64,
-      key_iv: material.keyIv,
-      full_access: options.fullAccess ?? true,
-      scopes: options.scopes ?? {},
-      credit_limit: options.creditLimit ?? null,
-      expires_at: options.expiresAt ?? null,
-    });
-    return { apiKey: material.apiKey, key: await this.decryptRecord(key, masterKey) };
+    void options;
+    throw new OpenMatesUnavailableError("create");
   }
 
   async revoke(id: string): Promise<Record<string, unknown>> {
-    return this.client.delete<Record<string, unknown>>(`/v1/sdk/settings/api-keys/${encodeURIComponent(id)}`);
+    void id;
+    throw new OpenMatesUnavailableError("revoke");
   }
 
   private async decryptRecord(record: Record<string, unknown>, masterKey: Uint8Array): Promise<ApiKeyRecord> {
@@ -3462,6 +3486,17 @@ export class OpenMatesProjects {
   }
 
   async list(options: ProjectContextOptions & { includeArchived?: boolean }): Promise<ProjectRecordPlain[]> {
+    const session = await this.client.sdkSession();
+    if (!session.key_wrapper) {
+      if (!options.personal || options.teamId) throw new OpenMatesConfigError("Limited Project grants support personal Projects only");
+      const response = await this.client.get<{ projects?: ProjectRecord[] }>(withQuery("/v1/projects", { include_archived: options.includeArchived }));
+      const grantedIds = new Set((session.resource_key_grants ?? []).filter((grant) => grant.resource_type === "project").map((grant) => grant.resource_id));
+      return Promise.all((response.projects ?? []).filter((project) => grantedIds.has(project.project_id)).map(async (project) => {
+        const key = await this.client._getProjectGrantKey(project.project_id);
+        if (!key) throw new OpenMatesConfigError(`Project ${project.project_id} has no valid key grant`);
+        return decryptSdkProjectWithKey(project, key);
+      }));
+    }
     const crypto = await projectWrappingKey(this.client, options);
     const response = await this.client.get<{ projects?: ProjectRecord[] }>(withQuery("/v1/projects", {
       include_archived: options.includeArchived,

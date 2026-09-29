@@ -342,21 +342,31 @@ struct SettingsPasswordView: View {
     @State private var isSaving = false
     @State private var result: String?
     @State private var hasPassword = true
+    @State private var hasTOTP = false
+    @State private var hasPasskey = false
+    @State private var factorCode = ""
+    @State private var emailChallenge: SensitiveEmailChallenge?
+    @State private var useEmailFallback = false
+
+    private var usesEmail: Bool { useEmailFallback || (!hasTOTP && !hasPasskey) }
 
     private var isValid: Bool {
-        !currentPassword.isEmpty && !newPassword.isEmpty && newPassword == confirmPassword && newPassword.count >= 8
+        (!usesEmail || !currentPassword.isEmpty) && !newPassword.isEmpty &&
+            newPassword == confirmPassword && newPassword.count >= 8
     }
 
     var body: some View {
         OMSettingsPage(title: AppStrings.password) {
             OMSettingsSection {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    SecureField(L("settings.password.current"), text: $currentPassword)
-                        .textContentType(.password)
-                        .font(.omP)
-                        .padding(.horizontal, .spacing6)
-                        .padding(.vertical, .spacing4)
-                        .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
+                    if usesEmail {
+                        SecureField(L("settings.password.current"), text: $currentPassword)
+                            .textContentType(.password)
+                            .font(.omP)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing4)
+                            .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
+                    }
                     SecureField(L("settings.password.new"), text: $newPassword)
                         .textContentType(.newPassword)
                         .font(.omP)
@@ -379,10 +389,52 @@ struct SettingsPasswordView: View {
                     .accessibilityLabel(L("settings.password.mismatch"))
             }
 
-            Button(L("settings.password.update")) { updatePassword() }
+            if emailChallenge != nil {
+                Text(L("settings.security.email_otp_enter_code"))
+                    .font(.omXs).foregroundStyle(Color.fontSecondary)
+                TextField(AppStrings.enterOneTimeCode, text: $factorCode)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .textContentType(.oneTimeCode)
+                    .onChange(of: factorCode) { _, value in
+                        factorCode = String(value.filter(\.isNumber).prefix(6))
+                    }
+                    .accessibilityIdentifier("settings-password-email-code")
+            } else if usesEmail {
+                Text(L("settings.security.email_otp_description"))
+                    .font(.omXs).foregroundStyle(Color.fontSecondary)
+            } else if hasTOTP && !usesEmail {
+                TextField(L("settings.two_factor_auth.enter_code"), text: $factorCode)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                    .textContentType(.oneTimeCode)
+                    .onChange(of: factorCode) { _, value in
+                        factorCode = String(value.filter(\.isNumber).prefix(6))
+                    }
+                    .accessibilityIdentifier("settings-password-totp-code")
+            }
+
+            Button(emailChallenge == nil && usesEmail
+                   ? L("settings.security.send_verification_code")
+                   : L("settings.password.update")) { updatePassword() }
                 .buttonStyle(OMPrimaryButtonStyle())
-                .disabled(!isValid || isSaving)
-                .accessibleButton(L("settings.password.update"), hint: L("settings.save_new_password_hint"))
+                .disabled(!isValid || isSaving || ((emailChallenge != nil || (hasTOTP && !usesEmail)) && factorCode.count != 6))
+                .accessibleButton(emailChallenge == nil && usesEmail
+                                  ? L("settings.security.send_verification_code")
+                                  : L("settings.password.update"),
+                                  hint: L("settings.save_new_password_hint"))
+
+            if emailChallenge == nil && (hasTOTP || hasPasskey) && !useEmailFallback {
+                Button(L("settings.security.use_password_instead")) {
+                    useEmailFallback = true
+                    factorCode = ""
+                }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .disabled(isSaving)
+                    .accessibilityIdentifier("settings-password-email-fallback")
+            }
 
             if let result {
                 Text(result)
@@ -399,39 +451,25 @@ struct SettingsPasswordView: View {
         result = nil
         Task {
             do {
-                guard let user = authManager.currentUser,
-                      let email = user.email,
-                      let emailSaltBase64 = user.userEmailSalt,
-                      let emailSalt = Data(base64Encoded: emailSaltBase64),
-                      let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id)
-                else {
-                    throw AccountSecurityError.missingAccountData
+                guard let user = authManager.currentUser else { throw AccountSecurityError.missingAccountData }
+                if let emailChallenge {
+                    try await verifyEmailCode(emailChallenge, user: user)
+                } else if usesEmail {
+                    try await beginEmailCode(user: user)
+                    isSaving = false
+                    return
+                } else if hasTOTP {
+                    try await AccountSecurityService.shared.verifyCredentialChangeTOTP(factorCode)
+                } else if hasPasskey {
+                    try await PasskeyLoginCoordinator.verifyCurrentSessionAssertion(expectedUserID: user.id)
                 }
-                let passwordSalt = try randomSalt()
-                try await AccountSecurityService.shared.verifyPasswordReauth(
-                    hashedEmail: await CryptoManager.shared.hashEmail(email),
-                    lookupHash: await CryptoManager.shared.hashKey(currentPassword, salt: emailSalt)
-                )
-                let wrappingKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
-                    password: newPassword,
-                    salt: passwordSalt
-                )
-                let wrapped = try await CryptoManager.shared.encrypt(
-                    masterKey.withUnsafeBytes { Data($0) },
-                    using: wrappingKey
-                )
-                try await AccountSecurityService.shared.updatePassword(PasswordUpdateRequest(
-                    hashedEmail: await CryptoManager.shared.hashEmail(email),
-                    lookupHash: await CryptoManager.shared.hashKey(newPassword, salt: emailSalt),
-                    encryptedMasterKey: wrapped.ciphertext.base64EncodedString(),
-                    salt: passwordSalt.base64EncodedString(),
-                    keyIv: wrapped.nonce.base64EncodedString(),
-                    isNewPassword: !hasPassword
-                ))
+                try await commitPasswordChange(user: user)
                 result = AppStrings.success
                 currentPassword = ""
                 newPassword = ""
                 confirmPassword = ""
+                factorCode = ""
+                emailChallenge = nil
                 AccessibilityAnnouncement.announce(AppStrings.success)
             } catch {
                 result = "\(AppStrings.error): \(error.localizedDescription)"
@@ -444,15 +482,73 @@ struct SettingsPasswordView: View {
 
     private func loadAuthMethods() async {
         do {
-            hasPassword = try await AccountSecurityService.shared.authMethods().hasPassword
+            let methods = try await AccountSecurityService.shared.authMethods()
+            hasPassword = methods.hasPassword
+            hasTOTP = methods.has2Fa
+            hasPasskey = methods.hasPasskey
         } catch {
             result = error.localizedDescription
             NativeDiagnostics.error("Authentication methods request failed", category: "settings.security")
         }
     }
 
-    private func randomSalt() throws -> Data {
-        try SecureRandom.data(count: 16)
+    private func beginEmailCode(user: UserProfile) async throws {
+        guard let email = user.email else { throw AccountSecurityError.missingAccountData }
+        emailChallenge = try await AccountSecurityService.shared.requestCredentialChangeEmail(
+            email: email, sessionId: AuthManager.nativeSessionId)
+        factorCode = ""
+    }
+
+    private func verifyEmailCode(_ challenge: SensitiveEmailChallenge, user: UserProfile) async throws {
+        guard factorCode.range(of: "^[0-9]{6}$", options: .regularExpression) != nil,
+              let email = user.email,
+              let saltText = user.userEmailSalt,
+              let salt = Data(base64Encoded: saltText) else { throw AccountSecurityError.missingAccountData }
+        let hashedEmail = await CryptoManager.shared.hashEmail(email)
+        let lookupHash: String?
+        let passwordProof: String?
+        if user.credentialVersion == 2 {
+            guard let nonceText = challenge.passwordNonce,
+                  let nonce = Data(base64URLEncoded: nonceText),
+                  challenge.passwordChallengeId != nil else { throw AccountSecurityError.missingAccountData }
+            lookupHash = nil
+            passwordProof = try PasswordV2Keys(password: currentPassword, emailSalt: salt)
+                .proof(purpose: "sensitive:credential_change", nonce: nonce)
+        } else {
+            lookupHash = await CryptoManager.shared.hashKey(currentPassword, salt: salt)
+            passwordProof = nil
+        }
+        try await AccountSecurityService.shared.verifyCredentialChangeEmail(
+            challengeId: challenge.challengeId, code: factorCode,
+            hashedEmail: hashedEmail, sessionId: AuthManager.nativeSessionId,
+            lookupHash: lookupHash, passwordChallengeId: user.credentialVersion == 2 ? challenge.passwordChallengeId : nil,
+            passwordProof: passwordProof)
+    }
+
+    private func commitPasswordChange(user: UserProfile) async throws {
+        guard let email = user.email,
+              let saltText = user.userEmailSalt,
+              let salt = Data(base64Encoded: saltText),
+              let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id)
+        else { throw AccountSecurityError.missingAccountData }
+        let keys = try PasswordV2Keys(password: newPassword, emailSalt: salt)
+        let wrapped = try await CryptoManager.shared.encrypt(
+            masterKey.withUnsafeBytes { Data($0) }, using: keys.wrappingKey)
+        try await CryptoManager.shared.verifyMasterKeyRoundTrip(
+            wrappedKeyBase64: wrapped.ciphertext.base64EncodedString(),
+            ivBase64: wrapped.nonce.base64EncodedString(),
+            wrappingKey: keys.wrappingKey, expected: masterKey)
+        var request = PasswordUpdateRequest(
+            hashedEmail: await CryptoManager.shared.hashEmail(email), lookupHash: nil,
+            encryptedMasterKey: wrapped.ciphertext.base64EncodedString(),
+            salt: salt.base64EncodedString(), keyIv: wrapped.nonce.base64EncodedString(),
+            isNewPassword: !hasPassword)
+        request.credentialVersion = 2
+        request.passwordAuthKey = keys.authenticationKey.base64URLEncodedString()
+        try await AccountSecurityService.shared.updatePassword(request)
+        authManager.publishPasswordWrapper(
+            for: user.id, encryptedKey: request.encryptedMasterKey,
+            keyIv: request.keyIv, salt: request.salt, version: 2)
     }
 }
 

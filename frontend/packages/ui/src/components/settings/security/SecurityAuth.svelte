@@ -11,6 +11,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import * as cryptoService from '../../../services/cryptoService';
+    import { createPasswordV2Proof, derivePasswordV2, requirePasswordCredentialVersion } from '../../../services/passwordV2';
     import { wasStayLoggedIn } from '../../../services/cryptoKeyStorage';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { getSessionId } from '../../../utils/sessionId';
@@ -39,6 +40,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         description = '',
         autoStart = true, // Auto-start passkey auth if available
         verify2FAOnSubmit = true,
+        sensitiveActionPurpose = '',
         // Callback props for Svelte 5 (replaces event dispatcher)
         onSuccess,
         onFailed,
@@ -53,6 +55,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         description?: string;
         autoStart?: boolean;
         verify2FAOnSubmit?: boolean;
+        /** Server-bound same-session proof for a sensitive settings action. */
+        sensitiveActionPurpose?: string;
         /** Called when authentication succeeds - REQUIRED */
         onSuccess: (data: AuthSuccessData) => void;
         /** Called when authentication fails - REQUIRED */
@@ -75,6 +79,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     let passwordVerifiedFor2FA = $state(false);
     let passwordHashedEmail = $state<string | undefined>(undefined);
     let passwordLookupHash = $state<string | undefined>(undefined);
+    let passwordChallengeId = $state<string | undefined>(undefined);
+    let passwordProof = $state<string | undefined>(undefined);
     
     // 2FA state
     let show2FAInput = $state(false);
@@ -87,6 +93,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     let showEmailOtpInput = $state(false);
     let emailOtpCode = $state('');
     let emailOtpSent = $state(false);
+    let sensitiveChallengeId = $state('');
     let isEmailOtpSending = $state(false);
     let isEmailOtpVerifying = $state(false);
 
@@ -95,7 +102,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     // ========================================================================
     
     // Determine which auth method to use (passkey takes priority)
-    let authMethod = $derived(hasPasskey ? 'passkey' : (hasPassword ? 'password' : (has2FA ? '2fa' : (hasEmailOtp ? 'email_otp' : null))));
+    let authMethod = $derived(hasPasskey ? 'passkey' : (sensitiveActionPurpose && has2FA ? '2fa' : (hasPassword ? 'password' : (has2FA ? '2fa' : (hasEmailOtp ? 'email_otp' : null)))));
     
     // Compute the default title if not provided
     let displayTitle = $derived(title || $text('settings.security.auth_title'));
@@ -108,7 +115,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     // ========================================================================
     
     function initializeAuthMethod() {
-        if (show2FAInput && hasPassword && !passwordVerifiedFor2FA && tfaCode.length === 0 && !isAuthenticating) {
+        if (!sensitiveActionPurpose && show2FAInput && hasPassword && !passwordVerifiedFor2FA && tfaCode.length === 0 && !isAuthenticating) {
             show2FAInput = false;
             showPasswordInput = true;
             errorMessage = null;
@@ -122,6 +129,10 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         // Auth capabilities can arrive after the modal mounts.
         if (autoStart && hasPasskey) {
             void handlePasskeyAuth();
+        } else if (hasPasskey) {
+            return;
+        } else if (sensitiveActionPurpose && has2FA) {
+            show2FAInput = true;
         } else if (hasPassword) {
             showPasswordInput = true;
         } else if (has2FA) {
@@ -343,7 +354,46 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
             // Hash email for lookup
             const hashedEmail = await cryptoService.hashEmail(email);
 
-            // Generate lookup hash from password (same as during login)
+            if (sensitiveActionPurpose) {
+                const methodsResponse = await fetch(getApiEndpoint(apiEndpoints.auth.methods), { credentials: 'include' });
+                if (!methodsResponse.ok) throw new Error('Authentication methods unavailable');
+                const methods = await methodsResponse.json();
+                if (methods.credential_version !== 1 && methods.credential_version !== 2) {
+                    throw new Error('Password credential version unavailable');
+                }
+                const credentialVersion = requirePasswordCredentialVersion(methods.credential_version);
+                const requestResponse = await fetch(getApiEndpoint('/v1/auth/sensitive/email/request'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ purpose: sensitiveActionPurpose, email, session_id: getSessionId() })
+                });
+                const requestData = await requestResponse.json();
+                if (!requestResponse.ok || !requestData.challenge_id) {
+                    throw new Error(requestData.detail || requestData.message || 'Failed to send verification code');
+                }
+                passwordHashedEmail = hashedEmail;
+                if (credentialVersion === 2) {
+                    if (!requestData.password_challenge_id || !requestData.password_nonce) throw new Error('Password challenge unavailable');
+                    const { authKey } = await derivePasswordV2(password, emailSalt);
+                    passwordProof = await createPasswordV2Proof(authKey, requestData.password_nonce, `sensitive:${sensitiveActionPurpose}`);
+                    authKey.fill(0);
+                    passwordChallengeId = requestData.password_challenge_id;
+                    passwordLookupHash = undefined;
+                } else {
+                    passwordLookupHash = await cryptoService.hashKey(password, emailSalt);
+                    passwordProof = undefined;
+                    passwordChallengeId = undefined;
+                }
+                sensitiveChallengeId = requestData.challenge_id;
+                password = '';
+                showPasswordInput = false;
+                showEmailOtpInput = true;
+                emailOtpSent = true;
+                return;
+            }
+
+            // Legacy unspecialized settings actions retain their existing login proof.
             const lookupHash = await cryptoService.hashKey(password, emailSalt);
 
             // Verify password by calling the login endpoint
@@ -412,6 +462,19 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         errorMessage = null;
 
         try {
+            if (sensitiveActionPurpose) {
+                const response = await fetch(getApiEndpoint('/v1/auth/sensitive/totp/verify'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ purpose: sensitiveActionPurpose, code: tfaCode })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.detail || result.message || 'Invalid verification code');
+                tfaCode = '';
+                onSuccess({ method: '2fa' });
+                return;
+            }
             if (passwordVerifiedFor2FA || !verify2FAOnSubmit) {
                 console.log('[SecurityAuth] Password + 2FA authentication collected');
                 onSuccess({
@@ -498,6 +561,12 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         errorMessage = null;
     }
 
+    function switchTo2FA() {
+        showPasswordInput = false;
+        show2FAInput = true;
+        errorMessage = null;
+    }
+
     /**
      * Switch to passkey auth.
      */
@@ -561,6 +630,31 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         isEmailOtpVerifying = true;
         errorMessage = null;
         try {
+            if (sensitiveActionPurpose) {
+                const response = await fetch(getApiEndpoint('/v1/auth/sensitive/email/verify'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        purpose: sensitiveActionPurpose,
+                        challenge_id: sensitiveChallengeId,
+                        code,
+                        hashed_email: passwordHashedEmail,
+                        lookup_hash: passwordLookupHash,
+                        session_id: getSessionId(),
+                        password_challenge_id: passwordChallengeId,
+                        password_proof: passwordProof
+                    })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.detail || result.message || 'Invalid verification code');
+                emailOtpCode = '';
+                passwordLookupHash = undefined;
+                passwordChallengeId = undefined;
+                passwordProof = undefined;
+                onSuccess({ method: 'email_otp' });
+                return;
+            }
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.verifyActionCode), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -665,7 +759,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         <p class="error-message">{errorMessage}</p>
                     {/if}
                 </div>
-            {:else if authMethod === 'passkey'}
+            {:else if authMethod === 'passkey' && !showEmailOtpInput}
                 <!-- Passkey Prompt (shown when autoStart is false or after error) -->
                 <div class="auth-passkey">
                     <p>{$text('settings.security.passkey_prompt')}</p>
@@ -681,9 +775,14 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                         {$text('settings.security.authenticate_with_passkey')}
                     </button>
                     
-                    {#if hasPassword}
+                    {#if hasPassword && (!sensitiveActionPurpose || !has2FA)}
                         <button class="switch-method-btn" onclick={switchToPassword}>
                             {$text('settings.security.use_password_instead')}
+                        </button>
+                    {/if}
+                    {#if sensitiveActionPurpose && has2FA}
+                        <button class="switch-method-btn" data-testid="auth-use-2fa" onclick={switchTo2FA}>
+                            {$text('settings.security.enter_2fa_code')}
                         </button>
                     {/if}
                 </div>

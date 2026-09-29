@@ -74,8 +74,10 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "@serenity-kit/opaque": "1.1.0",
     "@toon-format/toon": "2.3.1",
     "ahocorasick": "1.0.2",
+    "hash-wasm": "4.12.0",
     "ignore": "7.0.5",
     "jszip": "^3.10.1",
     "proper-lockfile": "^4.1.2",
@@ -86,6 +88,7 @@
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
+    "@repo/pairing-crypto": "workspace:*",
     "@types/node": "^24.5.0",
     "@types/proper-lockfile": "^4.1.4",
     "@types/qrcode-terminal": "^0.12.2",

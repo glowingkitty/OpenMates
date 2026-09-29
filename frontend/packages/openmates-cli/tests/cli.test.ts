@@ -11,6 +11,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync, symlinkSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -2829,6 +2830,51 @@ describe("defaultCloneBranchForVersion", () => {
 });
 
 describe("CLI server command startup feedback", () => {
+  it("rejects an unsafe or corrupt restore archive before stopping services", () => {
+    const root = mkdtempSync(join(tmpdir(), "openmates-cli-restore-preflight-"));
+    const installPath = join(root, "install");
+    const archiveDir = join(root, "archive");
+    const fakeBin = join(root, "bin");
+    const dockerLog = join(root, "docker.log");
+    try {
+      mkdirSync(installPath, { recursive: true });
+      mkdirSync(join(installPath, "backend", "core"), { recursive: true });
+      writeFileSync(join(installPath, "backend", "core", "docker-compose.yml"), "services: {}\n");
+      mkdirSync(archiveDir);
+      mkdirSync(fakeBin);
+      writeFileSync(join(installPath, ".env"), "RUNTIME_MARKER=unchanged\n");
+      const fakeDocker = join(fakeBin, "docker");
+      writeFileSync(fakeDocker, '#!/bin/sh\nprintf "%s\\n" "$*" >> "$DOCKER_CALL_LOG"\n[ "$1" = "version" ]\n');
+      chmodSync(fakeDocker, 0o755);
+
+      for (const [name, recoveryScope, validChecksum] of [
+        ["unsafe-scope", "database-and-runtime-only", true],
+        ["bad-checksum", "full-core", false],
+      ] as const) {
+        const manifest = `${JSON.stringify({ role: "core", backup_format_version: 2, recovery_scope: recoveryScope })}\n`;
+        writeFileSync(join(archiveDir, "manifest.json"), manifest);
+        const checksum = createHash("sha256").update(manifest).digest("hex");
+        writeFileSync(join(archiveDir, "checksums.sha256"), `${validChecksum ? checksum : "0".repeat(64)}  manifest.json\n`);
+        const archivePath = join(root, `${name}.tar.gz`);
+        execFileSync("tar", ["-czf", archivePath, "-C", archiveDir, "."]);
+        const result = spawnSync("node", ["dist/cli.js", "server", "restore", "--path", installPath, "--role", "core", "--file", archivePath, "--yes"], {
+          cwd: PACKAGE_ROOT,
+          encoding: "utf-8",
+          env: { ...process.env, HOME: root, USERPROFILE: root, PATH: `${fakeBin}:${process.env.PATH ?? ""}`, DOCKER_CALL_LOG: dockerLog },
+          timeout: 15_000,
+        });
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, name === "unsafe-scope" ? /refusing unsafe full core restore/ : /Backup checksum mismatch/);
+        assert.equal(readFileSync(dockerLog, "utf-8"), "version\n", `${name} must not call docker compose stop`);
+        assert.equal(readFileSync(join(installPath, ".env"), "utf-8"), "RUNTIME_MARKER=unchanged\n");
+        assert.equal(existsSync(join(installPath, "backups")), false);
+        writeFileSync(dockerLog, "");
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("prints immediate branded status for backup before Docker work", () => {
     const tempPath = join(tmpdir(), `openmates-cli-backup-feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     mkdirSync(tempPath, { recursive: true });

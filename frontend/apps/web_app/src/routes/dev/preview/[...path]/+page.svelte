@@ -44,6 +44,7 @@
 	const previewModules = import.meta.glob<{
 		default: Record<string, unknown>;
 		variants?: Record<string, Record<string, unknown>>;
+		ready?: Promise<void>;
 	}>('/../../packages/ui/src/components/**/*.preview.ts', { eager: false });
 
 	/**
@@ -431,6 +432,7 @@
 			if (prevKey && previewModules[prevKey]) {
 				try {
 					const preview = await loadWithPreloadRetry(`${componentPath}.preview`, previewModules[prevKey]);
+					if (preview.ready) await preview.ready;
 					mockProps = preview.default || {};
 					variants = preview.variants || {};
 					hasPreviewFile = true;

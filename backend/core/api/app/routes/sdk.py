@@ -1157,22 +1157,15 @@ async def _dispatch_sdk_surface(
                 cache_service,
             ))
         if path == "api-keys" and request.method == "POST":
-            return _jsonable(await _sdk_route_handler(settings_routes.create_api_key)(
-                request,
-                settings_routes.ApiKeyCreateRequest(**(body or {})),
-                user,
-                directus_service,
-                cache_service,
-            ))
+            raise HTTPException(status_code=403, detail={
+                "code": "unavailable_requires_first_party_verification",
+                "message": "Create API keys in web Settings or an authenticated CLI session after verification.",
+            })
         if path.startswith("api-keys/") and request.method == "DELETE":
-            key_id = path.split("/", 1)[1]
-            return _jsonable(await _sdk_route_handler(settings_routes.delete_api_key)(
-                request,
-                key_id,
-                user,
-                directus_service,
-                cache_service,
-            ))
+            raise HTTPException(status_code=403, detail={
+                "code": "unavailable_requires_first_party_verification",
+                "message": "Revoke API keys in web Settings or an authenticated CLI session after verification.",
+            })
         if path == "api-key-devices" and request.method == "GET":
             return _jsonable(await _sdk_route_handler(settings_routes.get_api_key_devices)(
                 request,
@@ -2488,12 +2481,29 @@ async def create_sdk_session_for_api_key(
     api_key_hash = api_key_info["api_key_hash"]
     hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
     login_method = f"api_key_{api_key_hash}"
-    key_wrapper = await directus_service.get_encryption_key(hashed_user_id, login_method)
-    if not key_wrapper:
+    full_access = bool((api_key_info.get("api_key_metadata") or {}).get("full_access", True))
+    key_wrapper = await directus_service.get_encryption_key(hashed_user_id, login_method) if full_access else None
+    if full_access and not key_wrapper:
         raise HTTPException(status_code=404, detail="API key encryption wrapper not found")
 
     success, profile, _message = await directus_service.get_user_profile(user_id)
     username = profile.get("username") if success and profile else None
+
+    resource_key_grants: list[dict[str, Any]] = []
+    if not full_access:
+        scopes = (api_key_info.get("api_key_metadata") or {}).get("scopes") or {}
+        if "project:read" in scopes.get("projects", []):
+            # A fresh API-key record is read by authentication on every request;
+            # recheck ownership before returning any selected resource wrapper.
+            record = await directus_service.get_api_key_by_hash(api_key_hash)
+            if not record or record.get("id") != api_key_info.get("api_key_id"):
+                raise HTTPException(status_code=401, detail="API key revoked")
+            for grant in record.get("resource_key_grants") or []:
+                if not isinstance(grant, dict) or grant.get("resource_type") != "project":
+                    continue
+                project_id = grant.get("resource_id")
+                if isinstance(project_id, str) and await directus_service.project.get_project(project_id, user_id):
+                    resource_key_grants.append(grant)
 
     return {
         "user": {"id": user_id, "username": username},
@@ -2506,7 +2516,9 @@ async def create_sdk_session_for_api_key(
             "encrypted_key": key_wrapper.get("encrypted_key"),
             "salt": key_wrapper.get("salt"),
             "key_iv": key_wrapper.get("key_iv"),
-        },
+        } if key_wrapper else None,
+        "grant_key_scope": "account_master" if full_access else "allowed_resource_keys",
+        "resource_key_grants": resource_key_grants,
         "device": {
             "hash": api_key_info.get("device_hash"),
             "sdk_name": sdk_name,

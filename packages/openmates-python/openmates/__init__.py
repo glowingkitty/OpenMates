@@ -6,6 +6,6 @@ Security: API keys are passed through at request time and never persisted.
 Tests: packages/openmates-python/tests/test_sdk.py.
 """
 
-from .sdk import OpenMates, OpenMatesApiError, OpenMatesConfigError
+from .sdk import OpenMates, OpenMatesApiError, OpenMatesConfigError, OpenMatesUnavailableError
 
-__all__ = ["OpenMates", "OpenMatesApiError", "OpenMatesConfigError"]
+__all__ = ["OpenMates", "OpenMatesApiError", "OpenMatesConfigError", "OpenMatesUnavailableError"]

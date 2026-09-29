@@ -29,7 +29,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getIsolatedTestAccount
+	getIsolatedTestAccount,
+	generateTotp
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -37,6 +38,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { createHash } = require('crypto');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'api-keys-flow.spec.ts'
@@ -275,26 +277,39 @@ async function completeDefaultApiKeyGuidedFlow(
 	});
 	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
 	await createConfirmButton.click();
+	await completeSensitiveApiKeyProofIfShown(page);
 	logCheckpoint('Clicked Create API Key confirm from create sub-settings page.');
+}
+
+async function completeSensitiveApiKeyProofIfShown(page: any): Promise<void> {
+	const modal = page.getByTestId('auth-modal');
+	if (!(await modal.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false))) return;
+	const useTotp = page.getByTestId('auth-use-2fa');
+	if (await useTotp.isVisible({ timeout: 1000 }).catch(() => false)) await useTotp.click();
+	const totpInput = page.getByTestId('tfa-input');
+	await expect(totpInput).toBeVisible({ timeout: 10000 });
+	await totpInput.fill(generateTotp(TEST_OTP_KEY));
+	await expect(modal).not.toBeVisible({ timeout: 15000 });
 }
 
 function waitForNextApiKeyCreatePayload(page: any): Promise<any> {
 	return new Promise((resolve, reject) => {
 		const timeoutRef: { current?: ReturnType<typeof setTimeout> } = {};
 
-		const handler = (request: any) => {
-			if (request.method() !== 'POST' || !request.url().includes('/v1/settings/api-keys')) return;
+		const handler = (response: any) => {
+			const request = response.request();
+			if (request.method() !== 'POST' || !request.url().includes('/v1/settings/api-keys') || !response.ok()) return;
 			if (timeoutRef.current) clearTimeout(timeoutRef.current);
-			page.off('request', handler);
+			page.off('response', handler);
 			resolve(JSON.parse(request.postData() || '{}'));
 		};
 
 		timeoutRef.current = setTimeout(() => {
-			page.off('request', handler);
+			page.off('response', handler);
 			reject(new Error('Timed out waiting for API key create request.'));
-		}, 15000);
+		}, 30000);
 
-		page.on('request', handler);
+		page.on('response', handler);
 	});
 }
 
@@ -327,6 +342,7 @@ async function revokeCurrentApiKeyFromDetails(page: any, log: (msg: string) => v
 	await confirmToggle.click();
 	await expect(revokeButton).toBeEnabled({ timeout: 3000 });
 	await revokeButton.click();
+	await completeSensitiveApiKeyProofIfShown(page);
 	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
 		timeout: 10000
 	});
@@ -441,10 +457,13 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	await screenshot(page, 'key-created');
 
 	const createdKeyValue = (await createdKeyEl.textContent())?.trim() ?? '';
-	log(`Created key: "${createdKeyValue}"`);
+	log('Created key displayed once.');
 
 	// Verify the key format: sk-api-{alphanumeric}
-	expect(createdKeyValue).toMatch(/^sk-api-[A-Za-z0-9]+$/);
+	expect(createdKeyValue).toMatch(/^sk-api-[A-Za-z0-9]{32}\.[A-Za-z0-9]{32}$/);
+	expect(createPayload.credential_version).toBe(2);
+	expect(createPayload.api_key_hash).toBe(createHash('sha256').update(createdKeyValue.split('.')[0]).digest('hex'));
+	expect(JSON.stringify(createPayload)).not.toContain(createdKeyValue.split('.')[1]);
 	log('Key format validated: starts with sk-api-');
 
 	// Click the Copy button
@@ -628,6 +647,7 @@ test('creates a limited API key with individual scope toggles', async ({ page }:
 		'api-key-scope-chat-create-incognito',
 		'api-key-scope-chat-create-saved',
 		'api-key-scope-task-create',
+		'api-key-scope-project-read',
 		'api-key-scope-project-create',
 		'api-key-scope-plan-create',
 		'api-key-scope-workflow-create',
@@ -639,16 +659,33 @@ test('creates a limited API key with individual scope toggles', async ({ page }:
 		await page.getByTestId(testId).click();
 		await expect(page.getByTestId(`${testId}-toggle`).locator('input')).toBeChecked();
 	}
+	await expect(page.getByText('Projects this key can decrypt')).toBeVisible();
+	const firstGrant = page.locator('[data-testid^="api-key-grant-project-"]').first();
+	const selectedGrantId = (await firstGrant.isVisible({ timeout: 3000 }).catch(() => false))
+		? (await firstGrant.getAttribute('data-testid'))?.replace('api-key-grant-project-', '')
+		: null;
+	if (selectedGrantId) await firstGrant.click();
 	await page.getByTestId('api-key-app-web-skill-search').click();
 	await screenshot(page, 'limited-scopes-selected');
 
 	const createPayloadPromise = waitForNextApiKeyCreatePayload(page);
 	await page.getByTestId('api-key-create-confirm').click();
+	await completeSensitiveApiKeyProofIfShown(page);
 	const createPayload = await createPayloadPromise;
 	expect(createPayload.full_access).toBe(false);
+	expect(createPayload.encrypted_master_key).toBeNull();
+	expect(createPayload.credential_version).toBe(2);
 	expect(createPayload.scopes.chat).toEqual(['chat:create_incognito', 'chat:create_saved']);
 	expect(createPayload.scopes.tasks).toEqual(['task:create']);
-	expect(createPayload.scopes.projects).toEqual(['project:create']);
+	expect(createPayload.scopes.projects).toEqual(['project:read', 'project:create']);
+	if (selectedGrantId) {
+		expect(createPayload.resource_key_grants).toEqual([expect.objectContaining({
+			resource_type: 'project', resource_id: selectedGrantId,
+			encrypted_key: expect.any(String), salt: expect.any(String), key_iv: expect.any(String)
+		})]);
+	} else {
+		expect(createPayload.resource_key_grants).toEqual([]);
+	}
 	expect(createPayload.scopes.plans).toEqual(['plan:create']);
 	expect(createPayload.scopes.workflows).toEqual(['workflow:create']);
 	expect(createPayload.scopes.memories).toEqual(['memory:read', 'memory:write']);

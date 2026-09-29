@@ -1744,17 +1744,15 @@
 		window.addEventListener('touchend', edgeSwipeTouchEndHandler, { passive: true });
 		window.addEventListener('touchcancel', edgeSwipeTouchEndHandler, { passive: true });
 
-		// --- Pair session rehydration ---
-		// Restores pair-session state (restricted mode, auto-logout timer) that may have been
-		// active before a page reload. Must run before any auth checks.
-		rehydratePairSession();
-
-		// Register the logout callback so the pair auto-logout timer can call it.
-		// Uses checkAuth(undefined, true) — same path as WebSocket auth error logout.
+		// Register cleanup before rehydrating an expired pair from storage.
 		registerPairLogoutCallback(async () => {
-			const { checkAuth } = await import('@repo/ui');
-			await checkAuth(undefined, true);
+			const { clearKeyFromStorage, logout } = await import('@repo/ui');
+			await clearKeyFromStorage();
+			const cleared = await logout({ skipServerLogout: true, isSessionExpiredLogout: true });
+			if (!cleared) throw new Error('Pair session local logout failed');
 		});
+		// Restore the restricted state and enforce its absolute deadline before auth checks.
+		await rehydratePairSession();
 
 		// --- Media mode (?media=1) / OG image mode (?og=1) ---
 		// When loaded inside /dev/media iframes, add body classes so CSS can hide

@@ -144,6 +144,7 @@ export * from "./src/services/deepLinkHandler"; // Export unified deep link hand
 export * from "./src/services/workspacePrefetchService"; // Export workspace prefetch helpers
 export {
   getKeyFromStorage,
+  clearKeyFromStorage,
   checkAndClearMasterKeyOnLoad,
   // Embed key management functions for wrapped key architecture
   generateEmbedKey,

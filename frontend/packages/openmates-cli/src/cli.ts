@@ -84,6 +84,7 @@ import {
   assertTrustedAccountId,
   loadTrustedAccountId,
   saveTrustedAccountId,
+  getCredentialStorageMode,
 } from "./storage.js";
 
 import {
@@ -509,6 +510,10 @@ async function main(): Promise<void> {
       }
     }
     console.log("Login successful.");
+    const storageMode = getCredentialStorageMode();
+    console.log(storageMode === "os-keyring"
+      ? "Credential storage: OS keyring."
+      : "Credential storage: owner-only local file (this host can read chat keys).");
     return;
   }
 
@@ -8409,22 +8414,11 @@ async function handleCodeRun(
     });
     try {
       finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
-    } catch (err) {
-      try {
-        if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
-        const fallbackUrl = buildCodeRunStreamUrl({
-          apiUrl: client.apiUrl,
-          executionId: result.execution_id,
-          sessionId: streamAuth.sessionId,
-          token: streamAuth.fallbackToken,
-        });
-        finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
-      } catch {
-        // Recover the existing job through the independently authenticated status route.
-        usedStream = false;
-        process.stderr.write(`Code Run live stream unavailable; polling execution ${result.execution_id}. No new run started.\n`);
-        finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
-      }
+    } catch {
+      // Recover the existing job through the independently authenticated status route.
+      usedStream = false;
+      process.stderr.write(`Code Run live stream unavailable; polling execution ${result.execution_id}. No new run started.\n`);
+      finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
     }
   } else {
     finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
@@ -10179,8 +10173,11 @@ async function handleSignup(client: OpenMatesClient, flags: Record<string, strin
 
   await client.requestSignupEmailCode({ email, inviteCode, language });
   const emailCode = process.env.OPENMATES_CLI_SIGNUP_EMAIL_CODE ?? await promptLine("Email verification code: ");
-  await client.verifySignupEmailCode({ email, username, inviteCode, code: emailCode, language });
-  const signup = await client.setupPasswordAccount({ email, username, password, inviteCode, language });
+  const verification = await client.verifySignupEmailCode({ email, username, inviteCode, code: emailCode, language });
+  const signup = await client.setupPasswordAccount({
+    email, username, password, inviteCode, language,
+    signupTransactionToken: verification.signup_transaction_token,
+  });
   const security = await runSecuritySetup(client, flags, options);
 
   let giftCardResult: unknown = null;

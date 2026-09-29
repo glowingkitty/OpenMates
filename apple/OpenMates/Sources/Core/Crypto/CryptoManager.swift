@@ -145,12 +145,6 @@ actor CryptoManager {
         return SymmetricKey(data: result.key)
     }
 
-    /// Derive the pair-login bundle key from PIN + token.
-    /// Mirrors SettingsSessionsPairInitiate.svelte: PBKDF2-SHA256(PIN, upperToken, 100k) → AES-256-GCM.
-    func derivePairLoginKey(pin: String, token: String) throws -> SymmetricKey {
-        try deriveWrappingKeyFromPassword(password: pin, salt: Data(token.uppercased().utf8))
-    }
-
     private static func pbkdf2(password: Data, salt: Data, iterations: UInt32) -> (status: Int32, key: Data) {
         var derivedKey = Data(count: 32)
         let status = derivedKey.withUnsafeMutableBytes { derivedBytes in
@@ -189,6 +183,18 @@ actor CryptoManager {
         }
         let decrypted = try decryptAESGCM(ciphertext: wrappedData, iv: ivData, key: wrappingKey)
         return SymmetricKey(data: decrypted)
+    }
+
+    /// Validate a newly created client wrapper before any server-side credential
+    /// change. The backend cannot decrypt or verify the user's master key.
+    func verifyMasterKeyRoundTrip(wrappedKeyBase64: String, ivBase64: String,
+                                  wrappingKey: SymmetricKey, expected: SymmetricKey) throws {
+        let opened = try unwrapMasterKey(
+            wrappedKeyBase64: wrappedKeyBase64, ivBase64: ivBase64,
+            wrappingKey: wrappingKey)
+        guard opened.withUnsafeBytes({ Data($0) }) == expected.withUnsafeBytes({ Data($0) }) else {
+            throw CryptoError.decryptionFailed
+        }
     }
 
     /// Derive wrapping key from PRF signature (passkey login).

@@ -1,3 +1,8 @@
+recovery_optional_authenticator:
+  context: Optional authenticator enrollment during password recovery
+  en: Set up an authenticator (optional)
+  de: Authenticator einrichten (optional)
+  verified_by_human: []
 login:
   context: Login page title
   en: Login

@@ -5,8 +5,8 @@ Allows users to:
 - Enable, disable, or change 2FA app (re-setup with new secret)
 
 Props:
-- autoStartSetup: Skip overview and auth, go directly to setup (used when embedded after password setup)
-- skipAuth: Skip the auth step (user already authenticated in parent flow)
+- autoStartSetup: Skip overview and begin setup
+- skipAuth: Skip the auth step only when a parent flow already verified this session
 - onSetupComplete: Callback when 2FA setup is successfully completed
 - embedded: Whether component is embedded in another flow (hides back buttons, modifies layout)
 -->
@@ -67,6 +67,8 @@ Props:
 
     /** Whether the auth step was opened for disabling 2FA. */
     let isDisable2FAFlow = $state(false);
+    let pendingAuthenticatedAction: { step: TfaStep; resume: () => Promise<void> } | null = null;
+    let authAttempt = $state(0);
     
     /** Loading states */
     let isLoading = $state(false);
@@ -106,6 +108,16 @@ Props:
     /** Get 2FA status from user profile */
     let tfaEnabled = $derived($userProfile.tfa_enabled);
     let tfaAppName = $derived($userProfile.tfa_app_name);
+    let sensitiveActionPurpose = $derived(isResetBackupCodesFlow ? 'backup_codes' : 'factor_change');
+
+    function requireFreshProof(response: Response, step: TfaStep, resume: () => Promise<void>): boolean {
+        if (response.status !== 401 && response.status !== 428) return false;
+        pendingAuthenticatedAction = { step, resume };
+        authAttempt++;
+        currentStep = 'auth';
+        errorMessage = $text('settings.security.verify_identity_description');
+        return true;
+    }
 
     // ========================================================================
     // LIFECYCLE
@@ -206,6 +218,7 @@ Props:
      */
     function startSetup() {
         if (!authMethodsLoaded) return;
+        pendingAuthenticatedAction = null;
         isResetBackupCodesFlow = false;
         isDisable2FAFlow = false;
         currentStep = 'auth';
@@ -219,6 +232,7 @@ Props:
      */
     function startResetBackupCodes() {
         if (!authMethodsLoaded) return;
+        pendingAuthenticatedAction = null;
         isResetBackupCodesFlow = true;
         isDisable2FAFlow = false;
         currentStep = 'auth';
@@ -231,6 +245,7 @@ Props:
      */
     function startDisable2FA() {
         if (!authMethodsLoaded) return;
+        pendingAuthenticatedAction = null;
         isResetBackupCodesFlow = false;
         isDisable2FAFlow = true;
         currentStep = 'auth';
@@ -252,6 +267,7 @@ Props:
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
+            if (requireFreshProof(response, 'overview', resetBackupCodes)) return;
             
             const data = await response.json();
             
@@ -280,6 +296,14 @@ Props:
      * - Disable flow → show explicit reduced-security confirmation
      */
     async function handleAuthSuccess() {
+        errorMessage = null;
+        const pending = pendingAuthenticatedAction;
+        pendingAuthenticatedAction = null;
+        if (pending) {
+            currentStep = pending.step;
+            await pending.resume();
+            return;
+        }
         if (isResetBackupCodesFlow) {
             await resetBackupCodes();
         } else if (isDisable2FAFlow) {
@@ -297,15 +321,15 @@ Props:
     function handleAuthFailed(message: string) {
         console.error('[SettingsTwoFactorAuth] Authentication failed:', message);
         errorMessage = message;
-        isResetBackupCodesFlow = false;
-        isDisable2FAFlow = false;
-        currentStep = 'overview';
+        // SecurityAuth displays the error and keeps the active method ready to
+        // retry; leaving this step would discard the user's chosen action.
     }
     
     /**
      * Handle authentication cancellation.
      */
     function handleAuthCancel() {
+        pendingAuthenticatedAction = null;
         isResetBackupCodesFlow = false;
         isDisable2FAFlow = false;
         currentStep = 'overview';
@@ -325,6 +349,7 @@ Props:
                 credentials: 'include',
                 body: JSON.stringify({ confirmed_less_secure: true })
             });
+            if (requireFreshProof(response, 'disable-confirm', disable2FA)) return;
 
             const data = await response.json();
 
@@ -367,6 +392,7 @@ Props:
                     email_encryption_key: emailEncryptionKey
                 })
             });
+            if (requireFreshProof(response, 'setup', initiate2FASetup)) return;
             
             const data = await response.json();
             
@@ -403,11 +429,15 @@ Props:
                 credentials: 'include',
                 body: JSON.stringify({ code: verificationCode })
             });
+            if (requireFreshProof(response, 'setup', async () => { verificationCode = ''; })) return;
             
             const data = await response.json();
             
             if (response.ok && data.success) {
                 console.log('[SettingsTwoFactorAuth] 2FA code verified');
+                // The server installs the authenticator secret at this point,
+                // before provider selection and backup-code confirmation.
+                has2FA = true;
                 // Proceed to app selection
                 currentStep = 'select-app';
             } else {
@@ -450,6 +480,7 @@ Props:
                 credentials: 'include',
                 body: JSON.stringify({ provider: selectedApp })
             });
+            if (requireFreshProof(response, 'select-app', saveSelectedApp)) return;
             
             const data = await response.json();
             
@@ -483,6 +514,7 @@ Props:
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
+            if (requireFreshProof(response, 'select-app', requestBackupCodes)) return;
             
             const data = await response.json();
             
@@ -516,6 +548,7 @@ Props:
                 credentials: 'include',
                 body: JSON.stringify({ confirmed: true })
             });
+            if (requireFreshProof(response, 'backup-codes', confirmCodesStored)) return;
             
             const data = await response.json();
             
@@ -597,6 +630,7 @@ Props:
      * Return to overview.
      */
     function returnToOverview() {
+        pendingAuthenticatedAction = null;
         currentStep = 'overview';
         errorMessage = null;
         successMessage = null;
@@ -637,10 +671,12 @@ Props:
 <div class="tfa-settings">
     {#if currentStep === 'auth'}
         <!-- Authentication Required - Always for changing 2FA app -->
+        {#key authAttempt}
         <SecurityAuth
             {hasPasskey}
             {hasPassword}
-            has2FA={tfaEnabled}
+            {has2FA}
+            {sensitiveActionPurpose}
             title={$text('settings.security.verify_identity')}
             description={$text('settings.security.tfa_auth_required')}
             autoStart={false}
@@ -648,6 +684,7 @@ Props:
             onFailed={handleAuthFailed}
             onCancel={handleAuthCancel}
         />
+        {/key}
     {:else if currentStep === 'overview'}
         <!-- Overview State -->
         <div class="tfa-overview">
@@ -679,17 +716,17 @@ Props:
             
             <div class="action-buttons">
                 {#if tfaEnabled}
-                    <button class="btn-primary" data-testid="tfa-change-app-button" onclick={startSetup} disabled={!authMethodsLoaded}>
+                    <button class="btn-primary" data-testid="tfa-change-app-button" onclick={startSetup} disabled={!authMethodsLoaded || isLoading}>
                         {$text('settings.security.tfa_change_app')}
                     </button>
-                    <button class="btn-secondary" data-testid="tfa-reset-backup-codes-button" onclick={startResetBackupCodes} disabled={!authMethodsLoaded}>
+                    <button class="btn-secondary" data-testid="tfa-reset-backup-codes-button" onclick={startResetBackupCodes} disabled={!authMethodsLoaded || isLoading}>
                         {$text('settings.security.tfa_reset_backup_codes')}
                     </button>
-                    <button class="btn-danger" data-testid="tfa-disable-button" onclick={startDisable2FA} disabled={!authMethodsLoaded}>
+                    <button class="btn-danger" data-testid="tfa-disable-button" onclick={startDisable2FA} disabled={!authMethodsLoaded || isLoading}>
                         {$text('settings.security.tfa_disable')}
                     </button>
                 {:else}
-                    <button class="btn-primary" data-testid="tfa-enable-button" onclick={startSetup} disabled={!authMethodsLoaded}>
+                    <button class="btn-primary" data-testid="tfa-enable-button" onclick={startSetup} disabled={!authMethodsLoaded || isLoading}>
                         {$text('settings.security.tfa_enable')}
                     </button>
                 {/if}

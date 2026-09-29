@@ -84,6 +84,8 @@
     "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs"
   },
   "dependencies": {
+    "hash-wasm": "4.12.0",
+    "@repo/pairing-crypto": "workspace:*",
     "@fontsource-variable/figtree": "^5.2.10",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",

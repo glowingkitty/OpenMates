@@ -16,6 +16,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_h
     invalidate_recovery_leases_for_device,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.services.session_security_state import revoke_session_state
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -53,6 +54,9 @@ async def logout(
             session_data = await cache_service.get(cache_key)
             user_id = session_data.get("user_id") if session_data else None
             device_hash = None
+
+            if user_id:
+                await revoke_session_state(directus_service, cache_service, token_hash, user_id)
 
             if user_id:
                 device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)

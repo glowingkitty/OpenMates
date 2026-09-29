@@ -3,26 +3,21 @@
  *
  * Purpose: protect the master encryption key using OS-native credential stores
  * instead of storing it as plaintext in session.json.
- * Architecture: three-tier fallback — OS keychain → encrypted file → plaintext.
+ * Architecture: working OS keyring, otherwise an owner-only credential file.
  * Architecture doc: docs/architecture/openmates-cli.md
- * Security: macOS Keychain / Linux secret-tool for tier 1, AES-256-GCM with
- *           machine-derived key for tier 2.
+ * Security: machine-ID encryption remains readable only for legacy migration;
+ * it is not a distinct secret against a copied host image.
  * Tests: frontend/packages/openmates-cli/tests/keychain.test.ts
  */
 
 import { execFileSync } from "node:child_process";
 import {
-  webcrypto,
   createHash,
   pbkdf2Sync,
-  createCipheriv,
   createDecipheriv,
 } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir, platform, userInfo } from "node:os";
-import { join } from "node:path";
-
-const cryptoApi = globalThis.crypto ?? webcrypto;
 
 const KEYCHAIN_SERVICE = "OpenMates";
 const AES_GCM_IV_LENGTH = 12;
@@ -33,7 +28,7 @@ const KEYCHAIN_TIMEOUT_MS = 5_000;
 // Types
 // ---------------------------------------------------------------------------
 
-export type MasterKeyStorageType = "keychain" | "encrypted" | "plaintext";
+export type MasterKeyStorageType = "keychain" | "file" | "encrypted" | "plaintext";
 
 export interface MasterKeyStorageResult {
   type: MasterKeyStorageType;
@@ -46,31 +41,24 @@ export interface MasterKeyStorageResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Store the master key using the best available mechanism.
- * Tries OS keychain first, then encrypted file key, then plaintext fallback.
+ * Store in a working keyring, or let the caller write an owner-only local file.
+ * An existing keyring-backed record must never silently downgrade if its
+ * keyring becomes locked or unavailable.
  */
 export function storeMasterKey(
   key: string,
   hashedEmail: string,
+  existingStorage?: MasterKeyStorageType,
 ): MasterKeyStorageResult {
-  // Tier 1: OS keychain
   try {
     keychainStore(key, hashedEmail);
     return { type: "keychain" };
-  } catch {
-    // Fall through to tier 2
+  } catch (error) {
+    if (existingStorage === "keychain") {
+      throw new Error("Existing OS keyring entry is unavailable; local credential storage was preserved.", { cause: error });
+    }
   }
-
-  // Tier 2: Machine-key encryption
-  try {
-    const encryptedData = encryptWithMachineKey(key);
-    return { type: "encrypted", encryptedData };
-  } catch {
-    // Fall through to tier 3
-  }
-
-  // Tier 3: Plaintext (current behavior)
-  return { type: "plaintext" };
+  return { type: "file" };
 }
 
 /**
@@ -98,7 +86,8 @@ export function retrieveMasterKey(
       }
 
     case "plaintext":
-      // Plaintext key is stored directly in session JSON — caller handles it
+    case "file":
+      // Owner-only file contents are handled by the session storage caller.
       return null;
 
     default:
@@ -123,8 +112,19 @@ export function deleteMasterKey(
       break;
     case "encrypted":
     case "plaintext":
+    case "file":
       // No external cleanup needed — caller removes the session file
       break;
+  }
+}
+
+/** Confirm keyring deletion when ending a session; callers must report errors. */
+export function deleteMasterKeyStrict(type: MasterKeyStorageType, hashedEmail: string): void {
+  if (type !== "keychain") return;
+  try {
+    keychainDelete(hashedEmail);
+  } catch (error) {
+    throw new Error("OS keyring cleanup failed; a stored key may remain.", { cause: error });
   }
 }
 
@@ -136,17 +136,6 @@ function keychainStore(key: string, account: string): void {
   const os = platform();
 
   if (os === "darwin") {
-    // Delete existing entry first (ignore errors if not found)
-    try {
-      execFileSync("security", [
-        "delete-generic-password",
-        "-s", KEYCHAIN_SERVICE,
-        "-a", account,
-      ], { timeout: KEYCHAIN_TIMEOUT_MS, stdio: "pipe" });
-    } catch {
-      // Entry didn't exist — that's fine
-    }
-
     execFileSync("security", [
       "add-generic-password",
       "-s", KEYCHAIN_SERVICE,
@@ -278,27 +267,6 @@ function getMachineEntropy(): string {
   return createHash("sha256")
     .update(`${homedir()}-${userInfo().username}-${os}`)
     .digest("hex");
-}
-
-/**
- * Encrypt the master key with machine-derived key using AES-256-GCM.
- * Returns base64-encoded (IV + ciphertext + authTag).
- */
-function encryptWithMachineKey(plaintext: string): string {
-  const key = deriveMachineKey();
-  const iv = Buffer.from(cryptoApi.getRandomValues(new Uint8Array(AES_GCM_IV_LENGTH)));
-
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf-8"),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag();
-
-  // Format: IV (12 bytes) + ciphertext + authTag (16 bytes)
-  const combined = Buffer.concat([iv, encrypted, authTag]);
-  return combined.toString("base64");
 }
 
 /**

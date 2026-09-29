@@ -7,12 +7,13 @@ import time
 import os
 import hashlib
 import json
+import secrets
 import glob
 from pathlib import Path
 import pyotp
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone, timedelta
-from pydantic import BaseModel, Field # Import BaseModel and Field for response models
+from pydantic import BaseModel, Field, SecretStr # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -41,6 +42,7 @@ from backend.core.api.app.utils.report_issue_ids import (
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
+from backend.core.api.app.services.session_security_state import require_recent_strong_proof
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.utils.issue_report_auth import resolve_issue_report_user_id
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
@@ -868,6 +870,11 @@ async def disable_2fa(
     
     logger.info(f"[2FA] User {user_id} requesting to disable 2FA")
 
+    refresh_token = request.cookies.get("auth_refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Current session required")
+    await require_recent_strong_proof(directus_service, cache_service, refresh_token, user_id)
+
     try:
         # Clear 2FA-related fields
         update_data = {
@@ -1104,13 +1111,15 @@ async def update_low_balance_auto_topup(
 # --- API Key Management Models ---
 class ApiKeyCreateRequest(BaseModel):
     encrypted_name: str  # Client-side encrypted name (encrypted with user's vault key)
-    api_key_hash: str  # SHA-256 hash of the full API key (64 hex chars)
+    api_key_hash: str  # SHA-256 hash of bearer component only (64 hex chars)
     encrypted_key_prefix: str  # Client-side encrypted key prefix (encrypted with user's vault key)
-    encrypted_master_key: str  # Master key encrypted with key derived from API key (for CLI/npm/pip access)
+    encrypted_master_key: Optional[str] = None  # Wrapped only with client decryption material, for full access
     salt: str  # Salt used for deriving key from API key
     key_iv: Optional[str] = None  # IV for AES-GCM encryption of master key
+    credential_version: Optional[int] = None
     full_access: bool = True
     scopes: Dict[str, Any] = Field(default_factory=dict)
+    resource_key_grants: list[Dict[str, Any]] = Field(default_factory=list)
     credit_limit: Optional[Dict[str, Any]] = None
     expires_at: Optional[str] = None  # Optional expiration timestamp (ISO format)
 
@@ -1126,9 +1135,41 @@ class ApiKeyResponse(BaseModel):
     scopes: Dict[str, Any] = Field(default_factory=dict)
     credit_limit: Optional[Dict[str, Any]] = None
     pending_device_count: int = 0
+    requires_replacement: bool = False
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
+
+
+async def validate_project_key_grants(
+    grants: list[Dict[str, Any]],
+    *,
+    full_access: bool,
+    scopes: Dict[str, Any],
+    user_id: str,
+    directus_service: DirectusService,
+) -> None:
+    """Accept only bounded ciphertext grants for currently owned personal Projects."""
+    if len(grants) > 50 or (full_access and grants):
+        raise HTTPException(status_code=400, detail="Invalid Project key grants")
+    if grants and "project:read" not in scopes.get("projects", []):
+        raise HTTPException(status_code=400, detail="Project grants require project:read scope")
+    seen_projects: set[str] = set()
+    for grant in grants:
+        project_id = grant.get("resource_id")
+        if (
+            set(grant) != {"resource_type", "resource_id", "encrypted_key", "salt", "key_iv"}
+            or grant.get("resource_type") != "project"
+            or not isinstance(project_id, str)
+            or len(project_id) != 36
+            or project_id in seen_projects
+            or any(not isinstance(grant.get(field), str) or not grant[field] or len(grant[field]) > 4096
+                   for field in ("encrypted_key", "salt", "key_iv"))
+        ):
+            raise HTTPException(status_code=400, detail="Invalid Project key grant")
+        seen_projects.add(project_id)
+        if not await directus_service.project.get_project(project_id, user_id):
+            raise HTTPException(status_code=403, detail="Project grant is not owned by this account")
 
 
 # --- API Key Management Endpoints ---
@@ -1200,7 +1241,8 @@ async def get_api_keys(
                         full_access=key.get('full_access', True),
                         scopes=key.get('scopes') or {},
                         credit_limit=key.get('credit_limit'),
-                        pending_device_count=pending_device_counts.get(key.get('id'), 0)
+                        pending_device_count=pending_device_counts.get(key.get('id'), 0),
+                        requires_replacement=key.get('credential_version') != 2,
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1228,6 +1270,10 @@ async def create_api_key(
 ):
     """Create a new API key for the current user."""
     try:
+        refresh_token = request.cookies.get("auth_refresh_token")
+        if not refresh_token:
+            raise HTTPException(status_code=401, detail="Recent verification required")
+        await require_recent_strong_proof(directus_service, cache_service, refresh_token, current_user.id)
         # Validate input
         if not request_data.encrypted_name or len(request_data.encrypted_name.strip()) == 0:
             raise HTTPException(status_code=400, detail="API key name is required")
@@ -1238,7 +1284,10 @@ async def create_api_key(
         if not request_data.encrypted_key_prefix or len(request_data.encrypted_key_prefix.strip()) == 0:
             raise HTTPException(status_code=400, detail="API key prefix is required")
 
-        if not request_data.encrypted_master_key or len(request_data.encrypted_master_key.strip()) == 0:
+        if request_data.credential_version != 2:
+            raise HTTPException(status_code=426, detail="Client update required for separated API key credentials")
+
+        if request_data.full_access and not request_data.encrypted_master_key:
             raise HTTPException(status_code=400, detail="Encrypted master key is required")
 
         if not request_data.salt or len(request_data.salt.strip()) == 0:
@@ -1253,6 +1302,13 @@ async def create_api_key(
             })
         except ValueError as metadata_error:
             raise HTTPException(status_code=400, detail=str(metadata_error))
+
+        grants = request_data.resource_key_grants
+        await validate_project_key_grants(
+            grants, full_access=request_data.full_access,
+            scopes=normalized_metadata["scopes"], user_id=current_user.id,
+            directus_service=directus_service,
+        )
 
         # Check existing API keys count (max 5 per user)
         existing_keys = await directus_service.get_user_api_keys_by_user_id(current_user.id)
@@ -1274,28 +1330,30 @@ async def create_api_key(
             key_hash=request_data.api_key_hash,
             encrypted_key_prefix=request_data.encrypted_key_prefix,
             encrypted_name=request_data.encrypted_name,
+            credential_version=2,
             full_access=normalized_metadata["full_access"],
             scopes=normalized_metadata["scopes"],
             credit_limit=normalized_metadata.get("credit_limit"),
+            resource_key_grants=grants,
             expires_at=request_data.expires_at
         )
 
         if not created_key:
             raise HTTPException(status_code=500, detail="Failed to create API key record")
 
-        # Create encryption key entry for CLI/npm/pip access (similar to passkeys)
-        login_method = f"api_key_{request_data.api_key_hash}"
-        encryption_key_success = await directus_service.create_encryption_key(
-            hashed_user_id=hashed_user_id,
-            login_method=login_method,
-            encrypted_key=request_data.encrypted_master_key,
-            salt=request_data.salt,
-            key_iv=request_data.key_iv
-        )
-
-        if not encryption_key_success:
-            logger.error(f"Failed to create encryption key for API key {request_data.api_key_hash[:16]}..., but API key was created")
-            # Don't fail the request, but log the error - the API key can still be used for REST API
+        # A limited grant must never receive an account-root wrapper.
+        if request_data.full_access:
+            login_method = f"api_key_{request_data.api_key_hash}"
+            encryption_key_success = await directus_service.create_encryption_key(
+                hashed_user_id=hashed_user_id,
+                login_method=login_method,
+                encrypted_key=request_data.encrypted_master_key,
+                salt=request_data.salt,
+                key_iv=request_data.key_iv
+            )
+            if not encryption_key_success:
+                await directus_service.delete_api_key(created_key['id'])
+                raise HTTPException(status_code=500, detail="Failed to create API key wrapper")
 
         logger.info(f"Successfully created API key for user {current_user.id} with encryption key")
 
@@ -1333,7 +1391,8 @@ async def create_api_key(
             full_access=created_key.get('full_access', True),
             scopes=created_key.get('scopes') or {},
             credit_limit=created_key.get('credit_limit'),
-            pending_device_count=0
+            pending_device_count=0,
+            requires_replacement=False,
         )
 
     except HTTPException as e:
@@ -1354,6 +1413,10 @@ async def delete_api_key(
 ):
     """Delete an API key for the current user."""
     try:
+        refresh_token = request.cookies.get("auth_refresh_token")
+        if not refresh_token:
+            raise HTTPException(status_code=401, detail="Recent verification required")
+        await require_recent_strong_proof(directus_service, cache_service, refresh_token, current_user.id)
         # Get all API keys for the user to verify ownership
         user_api_keys = await directus_service.get_user_api_keys_by_user_id(current_user.id)
         
@@ -1516,6 +1579,10 @@ async def approve_api_key_device(
     Approve an API key device, allowing it to use the API key.
     Only the owner of the API key can approve devices.
     """
+    refresh_token = request.cookies.get("auth_refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Current session required")
+    await require_recent_strong_proof(directus_service, cache_service, refresh_token, current_user.id)
     try:
         user_device = await _get_owned_api_key_device(directus_service, device_id, current_user.id, "approve")
         
@@ -1558,6 +1625,10 @@ async def revoke_api_key_device(
     Revoke access for an API key device by deleting the device record.
     Only the owner of the API key can revoke devices.
     """
+    refresh_token = request.cookies.get("auth_refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Current session required")
+    await require_recent_strong_proof(directus_service, cache_service, refresh_token, current_user.id)
     try:
         user_device = await _get_owned_api_key_device(directus_service, device_id, current_user.id, "revoke")
         
@@ -4081,6 +4152,10 @@ async def confirm_email_change(
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """Commit a verified email change without rotating the user's email salt."""
+    refresh_token = request.cookies.get("auth_refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Current session required")
+    await require_recent_strong_proof(directus_service, cache_service, refresh_token, current_user.id)
     normalized_email = await _validate_email_change_target(
         new_email=body.new_email,
         current_user_id=current_user.id,
@@ -4192,6 +4267,11 @@ async def delete_account(
     device_fingerprint = device_hash  # Use device_hash for compliance logging
     
     logger.info(f"Account deletion request for user {user_id}")
+
+    refresh_token = request.cookies.get("auth_refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Current session required")
+    await require_recent_strong_proof(directus_service, cache_service, refresh_token, user_id)
     
     try:
         # Get preview data to validate confirmations
@@ -4877,7 +4957,9 @@ async def get_export_data(
 class UpdatePasswordRequest(BaseModel):
     """Request model for adding or changing password."""
     hashed_email: str = Field(..., description="SHA256 hash of user's email for lookup")
-    lookup_hash: str = Field(..., description="Hash derived from new password for authentication")
+    lookup_hash: Optional[str] = Field(None, description="Legacy password lookup hash")
+    credential_version: int = Field(1, description="Password protocol version")
+    password_auth_key: Optional[SecretStr] = Field(None, description="Password v2 enrollment key")
     encrypted_master_key: str = Field(..., description="Master key encrypted with password-derived key")
     salt: str = Field(..., description="Salt used for password key derivation")
     key_iv: str = Field(..., description="IV used for master key encryption")
@@ -4887,13 +4969,21 @@ class UpdatePasswordResponse(BaseModel):
     """Response model for password update."""
     success: bool
     message: str
+    legacy_password_retained: bool = False
+
+
+async def _safe_update_password_request(request: Request) -> UpdatePasswordRequest:
+    try:
+        return UpdatePasswordRequest.model_validate(await request.json())
+    except Exception:
+        raise HTTPException(400, "Invalid password update request") from None
 
 
 @router.post("/update-password", response_model=UpdatePasswordResponse, include_in_schema=False)  # Exclude from schema - web app only, not for API access
 @limiter.limit("5/minute")  # Sensitive operation - prevent abuse
 async def update_password(
     request: Request,
-    password_request: UpdatePasswordRequest,
+    password_request: UpdatePasswordRequest = Depends(_safe_update_password_request),
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
@@ -4923,84 +5013,133 @@ async def update_password(
     """
     logger.info(f"[PASSWORD] Processing password update for user {current_user.id}")
     
+    lock = None
     try:
+        from backend.core.api.app.services.password_v2 import KDF_ID, decode_key, has_password_v2_record, seal_auth_key
+        is_v2 = password_request.credential_version == 2
+        if is_v2:
+            try:
+                decode_key(password_request.password_auth_key.get_secret_value())
+            except (AttributeError, ValueError):
+                return UpdatePasswordResponse(success=False, message="Invalid password update")
+            if password_request.lookup_hash:
+                return UpdatePasswordResponse(success=False, message="Invalid password update")
+        elif password_request.credential_version != 1 or not password_request.lookup_hash:
+            return UpdatePasswordResponse(success=False, message="Invalid password update")
         user_id = current_user.id
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         
-        # Check if user already has a password
+        from backend.core.api.app.services.credential_verification import replace_typed_lookup, typed_lookup_method, acquire_credential_change_lock, release_credential_change_lock
+        from backend.core.api.app.services.session_security_state import require_recent_strong_proof
+        token = request.cookies.get("auth_refresh_token")
+        if not token:
+            return UpdatePasswordResponse(success=False, message="Recent authentication required")
+        await require_recent_strong_proof(directus_service, cache_service, token, user_id)
+        lock = await acquire_credential_change_lock(cache_service, user_id, "password")
+
+        fields = await directus_service.get_user_fields_direct(
+            user_id, ["lookup_hashes", "credential_lookup_hashes", "hashed_email", "user_email_salt", "vault_key_id"])
+        if not fields:
+            return UpdatePasswordResponse(success=False, message="Credential state unavailable")
+        if not isinstance(fields.get("hashed_email"), str) or not secrets.compare_digest(
+            fields["hashed_email"], password_request.hashed_email
+        ):
+            return UpdatePasswordResponse(success=False, message="Account email does not match this password update")
+        hashes = fields.get("lookup_hashes") or []
+        if isinstance(hashes, str):
+            try:
+                hashes = json.loads(hashes)
+            except ValueError:
+                hashes = []
+        if not isinstance(hashes, list):
+            return UpdatePasswordResponse(success=False, message="Credential state unavailable")
+        typed = fields.get("credential_lookup_hashes") or {}
+        if isinstance(typed, str):
+            try:
+                typed = json.loads(typed)
+            except ValueError:
+                typed = {}
+        if not isinstance(typed, dict):
+            return UpdatePasswordResponse(success=False, message="Credential state unavailable")
+        if has_password_v2_record(typed) and not is_v2:
+            return UpdatePasswordResponse(success=False, message="Password version update required")
+        if is_v2 and password_request.salt != fields.get("user_email_salt"):
+            return UpdatePasswordResponse(success=False, message="Invalid password update")
         existing_password_key = await directus_service.get_encryption_key(hashed_user_id, "password")
-        has_existing_password = existing_password_key is not None
-        
-        # Validate the request
+        has_existing_password = existing_password_key is not None or "password" in typed
         if password_request.is_new_password and has_existing_password:
-            logger.warning(f"[PASSWORD] User {user_id} tried to add password but already has one")
-            return UpdatePasswordResponse(
-                success=False,
-                message="You already have a password. Use 'Change Password' instead."
-            )
-        
+            return UpdatePasswordResponse(success=False, message="You already have a password. Use 'Change Password' instead.")
         if not password_request.is_new_password and not has_existing_password:
-            logger.warning(f"[PASSWORD] User {user_id} tried to change password but doesn't have one")
-            return UpdatePasswordResponse(
-                success=False,
-                message="No existing password found. Use 'Add Password' instead."
-            )
-        
-        # If changing password, delete the old encryption key first
-        if has_existing_password:
-            logger.info(f"[PASSWORD] Deleting existing password key for user {user_id}")
-            delete_success = await directus_service.delete_encryption_key(hashed_user_id, "password")
-            if not delete_success:
-                logger.error(f"[PASSWORD] Failed to delete existing password key for user {user_id}")
-                return UpdatePasswordResponse(
-                    success=False,
-                    message="Failed to update password. Please try again."
-                )
-        
-        # Create the new password encryption key
-        # First, create lookup hash entry in the user_lookup_hashes table or similar
-        # The lookup_hash is used for fast authentication during login
-        logger.info(f"[PASSWORD] Creating new password key for user {user_id}")
-        
-        # Store the new encryption key with password as login_method
-        success = await directus_service.create_encryption_key(
-            hashed_user_id=hashed_user_id,
-            login_method="password",
-            encrypted_key=password_request.encrypted_master_key,
-            salt=password_request.salt,
-            key_iv=password_request.key_iv
+            return UpdatePasswordResponse(success=False, message="No existing password found. Use 'Add Password' instead.")
+        old_record = typed.get("password")
+        old_hash = old_record if isinstance(old_record, str) else (
+            old_record.get("lookup_hash") if isinstance(old_record, dict) else None)
+        legacy_untyped = (has_existing_password and not old_hash and not has_password_v2_record(typed)) or (
+            has_password_v2_record(typed) and isinstance(old_record, dict)
+            and old_record.get("legacy_password_retained") is True
         )
-        
-        if not success:
-            logger.error(f"[PASSWORD] Failed to create encryption key for user {user_id}")
-            return UpdatePasswordResponse(
-                success=False,
-                message="Failed to save password. Please try again."
-            )
-        
-        # Update lookup_hashes in the users table
-        # The lookup_hash allows the user to authenticate with password during login
-        try:
-            # Get existing lookup hashes
-            user_data = await directus_service.get_user_fields_direct(user_id, ["lookup_hashes"])
-            existing_hashes = user_data.get("lookup_hashes", []) if user_data else []
-            
-            if not isinstance(existing_hashes, list):
-                existing_hashes = []
-            
-            # Add new lookup hash if not already present
-            if password_request.lookup_hash not in existing_hashes:
-                existing_hashes.append(password_request.lookup_hash)
-                
-                # Update the user record with new lookup hashes
-                await directus_service.update_user(user_id, {"lookup_hashes": existing_hashes})
-                logger.info(f"[PASSWORD] Added lookup hash for user {user_id}")
-            
-        except Exception as e:
-            logger.error(f"[PASSWORD] Error updating lookup hashes for user {user_id}: {e}", exc_info=True)
-            # Don't fail the request - the encryption key is already stored
-            # The user might need to re-add password if lookup hash update failed
-        
+        legacy_untyped = legacy_untyped or any(
+            value != old_hash and typed_lookup_method(typed, value) is None
+            for value in hashes if isinstance(value, str)
+        )
+        if is_v2 and legacy_untyped:
+            # A mixed legacy lookup could be the account's recovery key. Do
+            # not install v2 and change its TOTP-bypass behavior until every
+            # retained credential has a verified method binding.
+            raise HTTPException(409, detail={
+                "error": "legacy_credential_binding_required",
+                "migration_status": "deferred_legacy_credentials",
+            })
+        if old_hash and old_hash not in hashes:
+            return UpdatePasswordResponse(success=False, message="Credential state unavailable")
+        if password_request.lookup_hash and password_request.lookup_hash in hashes and password_request.lookup_hash != old_hash:
+            return UpdatePasswordResponse(success=False, message="New credential conflicts with an existing login method")
+
+        sealed_auth_key = None
+        if is_v2:
+            try:
+                sealed_auth_key = await seal_auth_key(
+                    directus_service.encryption_service,
+                    password_auth_key=password_request.password_auth_key.get_secret_value(),
+                    vault_key_id=fields.get("vault_key_id"),
+                )
+            except Exception:
+                return UpdatePasswordResponse(success=False, message="Password update unavailable")
+
+        # A new immutable wrapper is written before the single users-row commit.
+        # If that commit fails, the previous verifier and wrapper remain usable.
+        wrapper_method = f"password_v2_{secrets.token_hex(16)}"
+        created = await directus_service.create_encryption_key(
+            hashed_user_id=hashed_user_id, login_method=wrapper_method,
+            encrypted_key=password_request.encrypted_master_key,
+            salt=password_request.salt, key_iv=password_request.key_iv,
+        )
+        if not created:
+            return UpdatePasswordResponse(success=False, message="Failed to save password. Please try again.")
+        new_hashes = [value for value in hashes if value != old_hash]
+        if password_request.lookup_hash and password_request.lookup_hash not in new_hashes:
+            new_hashes.append(password_request.lookup_hash)
+        if is_v2:
+            next_typed = dict(typed)
+            next_typed["password"] = {
+                "version": 2, "kdf": KDF_ID,
+                "sealed_auth_key": sealed_auth_key, "wrapper_method": wrapper_method,
+                "legacy_password_retained": legacy_untyped,
+            }
+        else:
+            next_typed = replace_typed_lookup(
+                typed, "password", password_request.lookup_hash, wrapper_method=wrapper_method)
+        committed = await directus_service.update_user(user_id, {
+            "lookup_hashes": new_hashes, "credential_lookup_hashes": next_typed,
+        })
+        if not committed:
+            await directus_service.delete_encryption_key(hashed_user_id, wrapper_method)
+            return UpdatePasswordResponse(success=False, message="Failed to update password. Please try again.")
+        await cache_service.delete(f"user_profile:{user_id}")
+        await cache_service.delete(f"user:{hashed_user_id}:login_methods")
+        # The old immutable wrapper can be garbage-collected after commit. Its
+        # lookup credential was retired by the same users-row write.
+
         # Invalidate login methods cache
         login_methods_cache_key = f"login_methods:{user_id}"
         await cache_service.delete(login_methods_cache_key)
@@ -5011,15 +5150,22 @@ async def update_password(
         
         return UpdatePasswordResponse(
             success=True,
-            message=f"Password {action} successfully"
+            legacy_password_retained=legacy_untyped,
+            message=("New password installed. Your previous legacy password remains valid until migration."
+                     if legacy_untyped else f"Password {action} successfully")
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[PASSWORD] Error updating password for user {current_user.id}: {str(e)}", exc_info=True)
         return UpdatePasswordResponse(
             success=False,
             message="An error occurred while updating password. Please try again."
         )
+    finally:
+        from backend.core.api.app.services.credential_verification import release_credential_change_lock
+        await release_credential_change_lock(lock)
 
 
 # --- Account Status and Uncompleted Account Deletion ---

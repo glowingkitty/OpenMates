@@ -204,9 +204,10 @@ class WebSocketService extends EventTarget {
   private earlyMessagesByType: Map<string, unknown[]> = new Map();
   private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
+  private preparationPromise: Promise<void> | null = null;
+  private connectionGeneration = 0;
   private resolveConnectionPromise: (() => void) | null = null;
   private rejectConnectionPromise: ((reason?: unknown) => void) | null = null;
-  private isPreparingConnection = false;
   private pingIntervalId: NodeJS.Timeout | null = null;
   private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
@@ -254,7 +255,7 @@ class WebSocketService extends EventTarget {
             if (
               !this.isConnected() &&
               !this.connectionPromise &&
-              !this.isPreparingConnection
+              !this.preparationPromise
             ) {
               console.debug(
                 "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
@@ -276,7 +277,7 @@ class WebSocketService extends EventTarget {
             }
           } else if (
             !auth.isAuthenticated &&
-            (this.isConnected() || this.connectionPromise)
+            (this.isConnected() || this.connectionPromise || this.preparationPromise)
           ) {
             // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
             console.debug(
@@ -599,16 +600,27 @@ class WebSocketService extends EventTarget {
     return this.sessionRefreshPromise;
   }
 
-  public async connect(): Promise<void> {
-    // If already connected or connecting, return existing promise
-    if (
-      this.isConnected() ||
-      this.connectionPromise ||
-      this.isPreparingConnection
-    ) {
-      return this.connectionPromise || Promise.resolve();
-    }
+  public connect(): Promise<void> {
+    if (this.isConnected()) return Promise.resolve();
+    if (this.connectionPromise) return this.connectionPromise;
+    if (this.preparationPromise) return this.preparationPromise;
 
+    const generation = this.connectionGeneration;
+    // Publish the shared promise before status/store listeners can re-enter connect().
+    const attempt = Promise.resolve().then(() => this.connectAttempt(generation));
+    this.preparationPromise = attempt;
+    void attempt.then(
+      () => {
+        if (this.preparationPromise === attempt) this.preparationPromise = null;
+      },
+      () => {
+        if (this.preparationPromise === attempt) this.preparationPromise = null;
+      },
+    );
+    return attempt;
+  }
+
+  private async connectAttempt(generation: number): Promise<void> {
     if (!get(authStore).isAuthenticated) {
       console.warn(
         "[WebSocketService] Cannot connect: User not authenticated.",
@@ -632,15 +644,23 @@ class WebSocketService extends EventTarget {
     let authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
 
     if (!authToken || isReconnecting) {
-      this.isPreparingConnection = true;
-      try {
-        await this.refreshSessionForWebSocket(
-          authToken ? "reconnect attempt" : "missing WebSocket token",
-        );
-        authToken = getWebSocketToken();
-      } finally {
-        this.isPreparingConnection = false;
-      }
+      await this.refreshSessionForWebSocket(
+        authToken ? "reconnect attempt" : "missing WebSocket token",
+      );
+      authToken = getWebSocketToken();
+    }
+
+    // A logout or forced reconnect may have superseded this attempt while its
+    // token refresh was pending. Never open a socket for the stale attempt.
+    if (generation !== this.connectionGeneration) {
+      throw new Error("Connection attempt superseded");
+    }
+    if (
+      !get(authStore).isAuthenticated ||
+      get(isLoggingOut) ||
+      get(forcedLogoutInProgress)
+    ) {
+      throw new Error("Session ended during connection attempt");
     }
 
     // Log auth token status at info level so it's visible in Loki for debugging connection issues
@@ -1182,6 +1202,8 @@ class WebSocketService extends EventTarget {
   }
 
   public disconnect(): void {
+    this.connectionGeneration++;
+    this.preparationPromise = null;
     if (this.ws) {
       console.info("[WebSocketService] Disconnecting...");
       this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnect attempts on manual disconnect
@@ -1391,6 +1413,8 @@ class WebSocketService extends EventTarget {
     }
 
     console.warn(`[WebSocketService] Force reconnect requested: ${reason}`);
+    this.connectionGeneration++;
+    this.preparationPromise = null;
     this.stopPing();
     this.stopPeriodicRetry();
     this.reconnectAttempts = 0;

@@ -58,8 +58,8 @@ crypto_boundaries:
       forbidden: [prf_output, plaintext_master_key, plaintext_email]
   - id: pair-login-bundle-storage
     durable_state:
-      contains: [pair_token, encrypted_bundle, iv, pin_attempt_counter]
-      forbidden: [lookup_hash_plaintext_from_bundle, master_key_plaintext_from_bundle]
+      contains: [pair_token, encrypted_bundle, iv, receiver_token_hash, grant_hash]
+      forbidden: [pin, static_pin_verifier, pake_server_setup, pake_registration_record, plaintext_transfer_key, lookup_hash_plaintext_from_bundle, master_key_plaintext_from_bundle]
   - id: login-json-token-boundary
     response:
       contains: [success, message, user, ws_token]
@@ -96,6 +96,9 @@ login_methods:
   - id: password-backup-code-one-time
     input: {login_method: password, code_type: backup, backup_code_valid: true}
     expect: {session_finalized: true, backup_code_removed: true, recently_used_cache_written: true}
+  - id: password-without-otp-enrollment-still-logs-in
+    input: {login_method: password, typed_password_valid: true, tfa_enabled: false}
+    expect: {session_finalized: true, extra_factor_required: false, local_master_key_unlock_available: true}
   - id: recovery-key-bypasses-otp
     input: {login_method: recovery_key, lookup_hash_valid: true, tfa_enabled: true}
     expect: {session_finalized: true, tfa_required: false}
@@ -103,8 +106,10 @@ login_methods:
     input: {login_method: recovery_key, lookup_hash_valid: false, hashed_email_exists: false}
     expect: {success: false, message_key: login.recovery_key_wrong, account_existence_revealed: false}
   - id: accepted-method-values
-    input: {login_methods: [password, passkey, security_key, recovery_key, pair]}
-    expect: {schema_accepts_all: true}
+    assertion_ids: [auth.login.method-convergence]
+    given: A client selects password, passkey, recovery key, or pairing as its sign-in flow.
+    when: It submits that flow's required proof to the appropriate endpoint.
+    then: The server verifies the proof before shared session finalization; naming a method on an ordinary login request does not establish that proof.
 
 passkey_flows:
   - id: registration-requires-prf
@@ -117,22 +122,77 @@ passkey_flows:
     input: {selected_credential_user_id: user-a, provided_hashed_email_user_id: user-b}
     expect: {success: false, message: wrong_account_passkey, session_finalized: false}
   - id: assertion-verify-then-login
-    input: {passkey_signature_valid: true, lookup_hash_valid: true}
-    expect: {encrypted_master_key_available_to_client: true, subsequent_login_method: passkey, session_finalized: true}
+    given: The user's passkey produces a valid assertion for the current account, origin, and login transaction.
+    when: The server verifies and consumes the assertion challenge.
+    then: That verified authentication result authorizes session finalization and the client unwraps its credential-specific master-key envelope; a caller-supplied passkey label is insufficient.
 
 pair_login:
-  - id: initiate-pair-token
-    input: {client: cli, device_hint: Work laptop}
-    expect: {token_length: 6, request_ttl_seconds: 300, status: waiting}
-  - id: authorize-uploads-opaque-bundle
-    input: {authorizing_device_authenticated: true, encrypted_bundle: present, pin: ABC123}
-    expect: {status: ready, server_can_decrypt_bundle: false, bundle_ttl_seconds: 120}
-  - id: invalid-pin-counts-down
-    input: {attempts_before: 0, pin_matches: false}
-    expect: {success: false, remaining_attempts: 4, bundle_returned: false}
-  - id: correct-pin-single-use-login
-    input: {pin_matches: true, bundle_decrypts_client_side: true}
-    expect: {bundle_returned_once: true, pair_keys_deleted: true, subsequent_login_method: pair, stay_logged_in: true}
+  - id: matching-pin-confirmed-channel
+    assertion_ids: [auth.pair-login.single-use-zk]
+    given: A signed-in browser approves a fresh CLI pairing and displays its locally generated six-character PIN.
+    when: The user enters that PIN in the CLI and both clients confirm the PAKE exchange for that pairing.
+    then: The browser encrypts the existing master-key bundle for the confirmed peer; the CLI decrypts it locally, while relay requests and stored state contain neither the PIN nor the transfer key or a directly testable PIN verifier.
+  - id: wrong-pin-or-context-rejected
+    assertion_ids: [auth.pair-login.single-use-zk]
+    given: The browser is waiting for the receiver to prove knowledge of its PIN.
+    when: The receiver enters a different PIN, or the relay substitutes another pairing's message or changes the selected lifetime.
+    then: Peer confirmation fails before the master-key bundle is released, no session is created, and retry requires a fresh pairing and PIN.
+
+pair_grants:
+  - id: receiver-bound-grant-consumed-once
+    assertion_ids: [auth.pair-login.session-grant]
+    given: The approved receiver has decrypted a bundle containing a fresh login grant.
+    when: Two requests try to redeem that grant concurrently, or a different receiver attempts redemption.
+    then: Only the bound receiver can obtain one session; repeated or mismatched redemption fails and no reusable account lookup credential is returned.
+  - id: legacy-pairing-cannot-bypass-login
+    assertion_ids: [auth.pair-login.session-grant]
+    given: An old CLI uses the PIN-upload pairing endpoints, or a caller labels an ordinary login request as pair.
+    when: The caller attempts to complete pairing without a valid version-two receiver-bound grant.
+    then: Legacy pairing returns an update-required error and the method label cannot create a session; the client does not retry with the old protocol.
+
+pair_approval_assurance:
+  - id: recent-strong-login-reused
+    given: A user completed password and enrolled second-factor verification on this browser session two minutes ago.
+    when: The user approves a CLI pairing.
+    then: The server accepts the same-session recent authentication without another prompt and binds approval to this pairing.
+  - id: stale-or-other-session-proof-rejected
+    given: A browser session has no strong verification within five minutes, although another device recently authenticated or this browser refreshed its cookie.
+    when: The browser attempts pairing approval, including by calling the API directly.
+    then: The server requires verification on the approving session; neither cookie refresh nor a frontend success flag grants approval, and pending risk challenges remain enforced.
+  - id: password-email-fallback-approves-pairing
+    assertion_ids: [auth.pair-login.approval-assurance]
+    given: A signed-in user has a typed password but no enrolled OTP, and their passkey is unavailable on this device.
+    when: They re-enter the password and the one-use email code for pairing approval on this session.
+    then: The server permits approval for five minutes on this session; the email code alone or a replay cannot approve pairing.
+  - id: legacy-secret-email-fallback-approves-pairing
+    assertion_ids: [auth.pair-login.approval-assurance]
+    given: A signed-in older account has no typed credential record and no enrolled OTP, but an untyped account secret still authenticates.
+    when: The user re-enters that accepted secret and the one-use email code on the same session before pairing approval.
+    then: The server permits approval for five minutes with legacy assurance only; it does not claim current-password proof, and the fallback is rejected once a typed credential record is committed.
+
+pair_lifecycle:
+  - id: successful-pairing-acknowledged
+    assertion_ids: [auth.pair-login.lifecycle]
+    given: The approving device stays open while the user enters its PIN on a new receiver.
+    when: The receiver confirms the exchange, decrypts the existing account key, completes login, and stores its session and key material.
+    then: Its explicit acknowledgement lets the approving device show success; the receiver can unlock existing history without changing any password or recovery-key wrapper.
+  - id: abandoned-pairing-is-not-success
+    assertion_ids: [auth.pair-login.lifecycle]
+    given: The approving client has displayed a PIN but has not released a confirmed bundle.
+    when: The user closes that client, cancels pairing, or lets the pairing expire.
+    then: Pairing cannot complete and neither client interprets expiration as success; the user can start again, and ordinary independent password, passkey, or recovery-key login still works.
+
+pair_expiry:
+  - id: numeric-deadline-survives-refresh
+    assertion_ids: [auth.pair-login.expiry]
+    given: A user pairs a CLI for thirty minutes while another browser session remains signed in.
+    when: The CLI refreshes its token and the API cache is cleared before the thirty-minute deadline passes.
+    then: The deadline is unchanged; after it passes the CLI's REST and WebSocket access is rejected while the sibling browser remains authenticated.
+  - id: default-pair-lifetime-preserved
+    assertion_ids: [auth.pair-login.expiry]
+    given: The approving user selects no automatic pairing logout.
+    when: The paired receiver reconnects through normal session refresh.
+    then: The ordinary session lifetime policy applies and no arbitrary thirty-minute deadline or sibling logout is introduced.
 
 session_lifecycle:
   - id: default-session-ttl
@@ -212,5 +272,133 @@ client_access:
     input: {origin: null, user_agent: OpenMates-Apple/1.0, x_openmates_client: ios}
     expect: {accepted: true}
   - id: cli-pair-login-keeps-origin-check
-    input: {origin: https://app.dev.openmates.org, user_agent: OpenMates-CLI/0.1, path: /v1/auth/login}
+    input: {origin: https://app.dev.openmates.org, user_agent: OpenMates-CLI/0.22, path: /v1/auth/pair/v2/complete}
     expect: {accepted: true, pair_login_required_for_cli_credentials: true}
+
+verified_login_method:
+  - id: password-cannot-be-relabeled-as-passkey
+    assertion_ids: [auth.login.verified-method]
+    given: An account has password login with two-factor authentication enabled.
+    when: A caller submits the password credential while labeling the request as passkey, recovery key, or pairing and omits those methods' proofs.
+    then: The server creates no session and the password's second-factor requirement remains in force.
+  - id: verified-passkey-needs-no-extra-otp
+    assertion_ids: [auth.login.verified-method]
+    given: The server has verified a fresh, account-bound passkey assertion for this login transaction.
+    when: The client completes that transaction once.
+    then: Shared session finalization succeeds without an extra OTP challenge, and replaying the consumed result cannot create another session.
+
+independent_unlock:
+  - id: password-on-fresh-device-unlocks-history
+    assertion_ids: [auth.keys.independent-unlock]
+    given: The user has an existing encrypted chat and all their other devices are offline.
+    when: They sign in on a fresh device using their normal password, with an OTP only if they previously enrolled one.
+    then: The device downloads and locally unwraps the existing master key and decrypts the chat without another device or a separate encryption password.
+  - id: email-alone-cannot-unlock-history
+    assertion_ids: [auth.keys.independent-unlock]
+    given: A caller controls the account's email inbox but has no password, usable passkey, recovery key, or unlocked device.
+    when: They complete email verification.
+    then: They cannot decrypt existing history; any destructive reset follows the separate delayed recovery contract.
+
+password_protection:
+  - id: successful-password-migration
+    assertion_ids: [auth.password.versioned-protection]
+    given: An existing account still uses a legacy password authentication record and master-key wrapper.
+    when: The user successfully signs in and the client upgrades both records with the supported versioned password design.
+    then: Existing chats still decrypt, the retired fast verifier no longer authenticates, and the user entered only their ordinary login credentials.
+  - id: interrupted-password-migration
+    assertion_ids: [auth.password.versioned-protection]
+    given: The client has unlocked the existing master key but the replacement authentication and wrapping transaction has not committed.
+    when: A storage failure interrupts the upgrade.
+    then: The last committed credential and wrapper remain usable and no partially migrated state locks out the account.
+
+sensitive_verification:
+  - id: reuse-recent-same-session-authentication
+    given: A browser completed server-verified password and enrolled OTP authentication two minutes ago.
+    when: That browser changes its recovery key through the normal settings flow.
+    then: The server can reuse that browser session's recent verification without another prompt and binds the authorized mutation to the intended replacement.
+  - id: direct-api-call-needs-recent-proof
+    given: A browser's last strong verification was ten minutes ago and another device verified one minute ago.
+    when: The browser directly calls the factor-removal API or claims in a request that reauthentication succeeded.
+    then: The server rejects the mutation until that same logical session completes strong verification; refreshing its cookie does not change the result.
+  - id: password-email-fallback-is-not-email-only-authentication
+    assertion_ids: [auth.sensitive-actions.recent-verification]
+    given: A password-capable account has no enrolled OTP and the current session has no recent sensitive-action proof.
+    when: The user requests an API key and enters an email code without a valid typed password re-entry.
+    then: The server denies the request; only a one-use code plus the verified typed password can create same-session five-minute assurance, and the UI does not call the email code 2FA.
+  - id: legacy-verification-preserves-ordinary-login
+    assertion_ids: [auth.sensitive-actions.recent-verification]
+    given: An older account has only untyped credential hashes and can already sign in with its supported password, passkey, or recovery method.
+    when: The account has not yet replaced those credentials with typed records.
+    then: Ordinary fresh-device sign-in and local chat-key unlock remain usable; a sensitive-action email fallback uses only an accepted legacy account secret, is labeled legacy assurance, and never changes another account or session.
+
+credential_replacement:
+  - id: old-password-stops-authenticating
+    assertion_ids: [auth.credentials.atomic-replacement]
+    given: An account has a password credential, a recovery key, and a passkey.
+    when: The user completes an authorized password change.
+    then: The new password authenticates and unwraps the existing master key, the old password no longer authenticates, and the recovery key and passkey remain usable.
+  - id: replacement-failure-preserves-working-wrapper
+    assertion_ids: [auth.credentials.atomic-replacement]
+    given: The user begins recovery-key replacement and the old key and wrapper are still the committed state.
+    when: Writing the replacement fails.
+    then: The operation reports failure, the old committed key and wrapper still work, and there is no partially installed replacement.
+
+single_use_proofs:
+  - id: concurrent-backup-code-consumption
+    assertion_ids: [auth.proofs.single-use]
+    given: Two requests submit the same unused backup code concurrently.
+    when: Both reach authentication verification.
+    then: At most one request succeeds and the other cannot create a session or authorize a mutation.
+  - id: challenge-cannot-change-purpose
+    assertion_ids: [auth.proofs.single-use]
+    given: A passkey assertion was produced for a particular login transaction, or an OTP step has already authorized a request.
+    when: A caller reuses that proof for another session or sensitive action.
+    then: The server rejects the replay or purpose mismatch and leaves the requested action unauthorized.
+
+signup_transactions:
+  - id: another-browser-cannot-claim-email-verification
+    assertion_ids: [auth.signup.transaction-bound, auth.signup.access-gates]
+    given: One browser verifies the email address for its pending signup transaction.
+    when: A different caller who knows the address tries to create the account without that transaction's client-held grant.
+    then: Creation is rejected even during the email-verification window.
+  - id: invalid-passkey-creates-no-account
+    assertion_ids: [auth.signup.transaction-bound, auth.signup.access-gates]
+    given: Email verification succeeded for a pending passkey signup.
+    when: WebAuthn registration fails origin, challenge, signature, or user-verification checks.
+    then: No usable account or credential is committed and the failure is reported through the existing signup flow.
+
+destructive_recovery:
+  - id: email-reset-can-be-cancelled
+    assertion_ids: [auth.recovery.email-delay]
+    given: Email-only destructive recovery is requested at noon on Monday.
+    when: The account owner follows the notification or opens an existing authenticated session and cancels before noon on Tuesday.
+    then: No irreversible reset runs and the existing credentials and encrypted history remain intact.
+  - id: delayed-reset-failure-is-not-success
+    assertion_ids: [auth.recovery.email-delay]
+    given: A notified recovery request was not cancelled and its 24-hour delay has elapsed.
+    when: Required cleanup or authoritative session revocation fails during reset.
+    then: The operation remains resumable and does not claim completion or allow a partially reset account; email verification has not decrypted the old history.
+
+authoritative_sessions:
+  - id: revoked-session-cannot-return-through-refresh
+    assertion_ids: [auth.session.authoritative-enforcement]
+    given: The user revokes a CLI session while keeping their browser session.
+    when: The CLI's cached state is evicted and it retries REST, token refresh, or WebSocket access with the old credential.
+    then: Every path rejects the revoked logical session, its live connection is closed, and the browser remains signed in.
+  - id: expired-or-challenged-session-is-restricted
+    assertion_ids: [auth.session.authoritative-enforcement]
+    given: A session reaches its enforced expiry or requires risk reauthentication.
+    when: Its client bypasses the session-status screen and calls protected REST or WebSocket operations directly, including with a claimed internal verification marker.
+    then: The server enforces expiry or permits only the explicitly allowed reauthentication and logout paths; a client marker cannot authorize access.
+
+secret_lifecycle:
+  - id: validation-error-does-not-copy-secrets
+    assertion_ids: [auth.secrets.lifecycle]
+    given: An authentication request contains a secret and an invalid field type.
+    when: Validation rejects the request and records a diagnostic.
+    then: Neither the response nor the log reproduces the secret, and successful login does not duplicate the refresh cookie in JSON or a URL.
+  - id: offline-logout-cleans-local-session
+    assertion_ids: [auth.secrets.lifecycle]
+    given: A signed-in device loses its network connection.
+    when: The user logs out.
+    then: The client clears its local session cookies and waits for required credential and key deletion; a cleanup failure is surfaced rather than reported as successful erasure.

@@ -4,9 +4,8 @@
  * Purpose: persist pair-login session data and encrypted sync cache data.
  * Architecture: filesystem state in ~/.openmates with strict permissions.
  * Architecture doc: docs/architecture/openmates-cli.md
- * Security: master key stored via OS keychain or machine-encrypted file when
- *           available; falls back to plaintext in session.json.
- *           See src/keychain.ts for the three-tier storage strategy.
+ * Security: master key stored in a working OS keyring or owner-only local file.
+ *           Legacy machine-ID records remain readable for migration.
  * Tests: frontend/packages/openmates-cli/tests/storage.test.ts
  */
 
@@ -29,7 +28,7 @@ import {
   type MasterKeyStorageType,
   storeMasterKey,
   retrieveMasterKey,
-  deleteMasterKey,
+  deleteMasterKeyStrict,
 } from "./keychain.js";
 
 // ---------------------------------------------------------------------------
@@ -49,6 +48,8 @@ export interface OpenMatesSession {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
+  /** Absolute server-selected deadline for a paired session, in Unix milliseconds. */
+  pairedSessionExpiresAt?: number | null;
   activeTeamId?: string | null;
 }
 
@@ -66,7 +67,7 @@ interface SessionOnDisk {
   sessionId: string;
   wsToken: string | null;
   cookies: Record<string, string>;
-  /** Present only when masterKeyStorage is "plaintext" or for legacy sessions */
+  /** Present for owner-only file storage or legacy plaintext sessions. */
   masterKeyExportedB64?: string;
   /** Where the master key is stored (absent in legacy sessions = plaintext) */
   masterKeyStorage?: MasterKeyStorageType;
@@ -83,6 +84,7 @@ interface SessionOnDisk {
   createdAt: number;
   authorizerDeviceName: string | null;
   autoLogoutMinutes: number | null;
+  pairedSessionExpiresAt?: number | null;
   activeTeamId?: string | null;
 }
 
@@ -99,6 +101,8 @@ interface LocalTeamKeysOnDisk {
 interface TrustedAccountOnDisk {
   accountId: string;
 }
+
+export type CredentialStorageMode = "os-keyring" | "owner-only-file" | "legacy-machine-id" | "none";
 
 // ---------------------------------------------------------------------------
 // Filesystem helpers
@@ -186,10 +190,7 @@ export function saveAnonymousId(anonymousId: string): void {
 // Session CRUD — keychain-aware
 // ---------------------------------------------------------------------------
 
-/**
- * Save session to disk. Attempts to store the master key in the OS keychain
- * or an encrypted file; only falls back to plaintext if both fail.
- */
+/** Save session through the selected keyring or owner-only file. */
 const SESSION_LOCK_STALE_MS = 30_000;
 const SESSION_LOCK_POLL_MS = 50;
 
@@ -234,15 +235,26 @@ export function saveSession(session: OpenMatesSession, options: {
         session.cookies = { ...current.cookies };
         session.wsToken = current.wsToken;
       }
+      // A refresh or context update can never extend a pair-only deadline.
+      if (typeof current.pairedSessionExpiresAt === "number") {
+        session.pairedSessionExpiresAt = Math.min(
+          current.pairedSessionExpiresAt,
+          session.pairedSessionExpiresAt ?? current.pairedSessionExpiresAt,
+        );
+      }
     }
-    writeSession(session);
+    writeSession(session, current?.hashedEmail === session.hashedEmail ? current : null);
   } finally { release(); }
 }
 
-function writeSession(session: OpenMatesSession): void {
+function writeSession(session: OpenMatesSession, previous: SessionOnDisk | null): void {
   const filePath = join(ensureStateDir(), "session.json");
 
-  const result = storeMasterKey(session.masterKeyExportedB64, resolveKeyStorageId(session.hashedEmail));
+  const result = storeMasterKey(
+    session.masterKeyExportedB64,
+    resolveKeyStorageId(session.hashedEmail),
+    previous?.masterKeyStorage,
+  );
 
   const onDisk: SessionOnDisk = {
     apiUrl: session.apiUrl,
@@ -254,13 +266,14 @@ function writeSession(session: OpenMatesSession): void {
     createdAt: session.createdAt,
     authorizerDeviceName: session.authorizerDeviceName,
     autoLogoutMinutes: session.autoLogoutMinutes,
+    pairedSessionExpiresAt: session.pairedSessionExpiresAt ?? null,
     activeTeamId: session.activeTeamId ?? null,
     masterKeyStorage: result.type,
   };
 
   if (result.type === "encrypted") {
     onDisk.masterKeyEncrypted = result.encryptedData;
-  } else if (result.type === "plaintext") {
+  } else if (result.type === "file" || result.type === "plaintext") {
     onDisk.masterKeyExportedB64 = session.masterKeyExportedB64;
   }
   // For "keychain", the key is not stored on disk at all
@@ -269,11 +282,12 @@ function writeSession(session: OpenMatesSession): void {
     const emailKeyResult = storeMasterKey(
       session.emailEncryptionKeyB64,
       resolveKeyStorageId(`${session.hashedEmail}:email`),
+      previous?.emailEncryptionKeyStorage,
     );
     onDisk.emailEncryptionKeyStorage = emailKeyResult.type;
     if (emailKeyResult.type === "encrypted") {
       onDisk.emailEncryptionKeyEncrypted = emailKeyResult.encryptedData;
-    } else if (emailKeyResult.type === "plaintext") {
+    } else if (emailKeyResult.type === "file" || emailKeyResult.type === "plaintext") {
       onDisk.emailEncryptionKeyB64 = session.emailEncryptionKeyB64;
     }
   }
@@ -295,6 +309,10 @@ export function loadSession(): OpenMatesSession | null {
   const filePath = join(ensureStateDir(), "session.json");
   const onDisk = readJsonFile<SessionOnDisk>(filePath);
   if (!onDisk) return null;
+  if (typeof onDisk.pairedSessionExpiresAt === "number" && onDisk.pairedSessionExpiresAt <= Date.now()) {
+    purgeLocalPrivateData();
+    return null;
+  }
 
   let masterKey: string | null = null;
 
@@ -308,6 +326,7 @@ export function loadSession(): OpenMatesSession | null {
   switch (onDisk.masterKeyStorage) {
     case "keychain":
       masterKey = retrieveMasterKey("keychain", resolveKeyStorageId(onDisk.hashedEmail));
+      if (!masterKey) throw new Error("Existing OS keyring entry is unavailable; local session was preserved.");
       break;
 
     case "encrypted":
@@ -319,6 +338,7 @@ export function loadSession(): OpenMatesSession | null {
       break;
 
     case "plaintext":
+    case "file":
       masterKey = onDisk.masterKeyExportedB64 ?? null;
       break;
   }
@@ -333,6 +353,15 @@ export function loadSession(): OpenMatesSession | null {
   return buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk));
 }
 
+/** Truthful user-facing protection mode for the currently stored session. */
+export function getCredentialStorageMode(): CredentialStorageMode {
+  const onDisk = readJsonFile<SessionOnDisk>(join(getStateDir(), "session.json"));
+  if (!onDisk) return "none";
+  if (onDisk.masterKeyStorage === "keychain") return "os-keyring";
+  if (onDisk.masterKeyStorage === "encrypted") return "legacy-machine-id";
+  return "owner-only-file";
+}
+
 /**
  * Clear session — removes the file and deletes the keychain entry if applicable.
  */
@@ -341,11 +370,16 @@ export function clearSession(): void {
 
   // Read current storage type before deleting, so we can clean up the keychain
   const onDisk = readJsonFile<SessionOnDisk>(filePath);
+  let cleanupError: Error | null = null;
   if (onDisk?.masterKeyStorage) {
-    deleteMasterKey(onDisk.masterKeyStorage, resolveKeyStorageId(onDisk.hashedEmail));
+    try {
+      deleteMasterKeyStrict(onDisk.masterKeyStorage, resolveKeyStorageId(onDisk.hashedEmail));
+    } catch (error) { cleanupError = error as Error; }
   }
   if (onDisk?.emailEncryptionKeyStorage) {
-    deleteMasterKey(onDisk.emailEncryptionKeyStorage, resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
+    try {
+      deleteMasterKeyStrict(onDisk.emailEncryptionKeyStorage, resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
+    } catch (error) { cleanupError ??= error as Error; }
   }
   if (onDisk?.activeTeamId) {
     deleteLocalTeamKey(onDisk.hashedEmail, onDisk.activeTeamId);
@@ -354,6 +388,7 @@ export function clearSession(): void {
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
+  if (cleanupError) throw cleanupError;
 }
 
 export function purgeLocalPrivateData(): void {
@@ -362,9 +397,11 @@ export function purgeLocalPrivateData(): void {
   const onDisk = readJsonFile<SessionOnDisk>(sessionFilePath);
   const hashedEmail = onDisk?.hashedEmail ?? null;
 
-  clearSession();
-  purgeLocalTeamKeys(hashedEmail);
-  purgeSyncCaches(stateDir);
+  let cleanupError: Error | null = null;
+  try { clearSession(); } catch (error) { cleanupError = error as Error; }
+  try { purgeLocalTeamKeys(hashedEmail); } catch (error) { cleanupError ??= error as Error; }
+  try { purgeSyncCaches(stateDir); } catch (error) { cleanupError ??= error as Error; }
+  if (cleanupError) throw cleanupError;
 }
 
 function purgeLocalTeamKeys(hashedEmail: string | null): void {
@@ -376,7 +413,7 @@ function purgeLocalTeamKeys(hashedEmail: string | null): void {
   const prefix = hashedEmail ? resolveKeyStorageId(`${hashedEmail}:team:`) : null;
   for (const [storageId, entry] of Object.entries(keys.teams)) {
     if (prefix && !storageId.startsWith(prefix)) continue;
-    deleteMasterKey(entry.storage, storageId);
+    deleteMasterKeyStrict(entry.storage, storageId);
     delete keys.teams[storageId];
     changed = true;
   }
@@ -402,7 +439,11 @@ function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
   if (!onDisk.emailEncryptionKeyStorage) return onDisk.emailEncryptionKeyB64 ?? null;
   switch (onDisk.emailEncryptionKeyStorage) {
     case "keychain":
-      return retrieveMasterKey("keychain", resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
+      {
+        const key = retrieveMasterKey("keychain", resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
+        if (!key) throw new Error("Existing email keyring entry is unavailable; local session was preserved.");
+        return key;
+      }
     case "encrypted":
       return retrieveMasterKey(
         "encrypted",
@@ -410,6 +451,7 @@ function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
         onDisk.emailEncryptionKeyEncrypted,
       );
     case "plaintext":
+    case "file":
       return onDisk.emailEncryptionKeyB64 ?? null;
   }
 }
@@ -431,6 +473,7 @@ function buildSession(
     createdAt: onDisk.createdAt,
     authorizerDeviceName: onDisk.authorizerDeviceName,
     autoLogoutMinutes: onDisk.autoLogoutMinutes,
+    pairedSessionExpiresAt: onDisk.pairedSessionExpiresAt ?? null,
     activeTeamId: onDisk.activeTeamId ?? null,
   };
 }
@@ -502,13 +545,13 @@ function teamKeyStorageId(hashedEmail: string, teamId: string): string {
 
 export function saveLocalTeamKey(hashedEmail: string, teamId: string, teamKeyB64: string): void {
   const storageId = teamKeyStorageId(hashedEmail, teamId);
-  const result = storeMasterKey(teamKeyB64, storageId);
   const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
   const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath) ?? { teams: {} };
+  const result = storeMasterKey(teamKeyB64, storageId, keys.teams[storageId]?.storage);
   keys.teams[storageId] = {
     storage: result.type,
     ...(result.type === "encrypted" ? { encryptedData: result.encryptedData } : {}),
-    ...(result.type === "plaintext" ? { plaintextKeyB64: teamKeyB64 } : {}),
+    ...(result.type === "file" || result.type === "plaintext" ? { plaintextKeyB64: teamKeyB64 } : {}),
   };
   writeJsonFile(filePath, keys);
 }
@@ -518,16 +561,18 @@ export function loadLocalTeamKey(hashedEmail: string, teamId: string): string | 
   const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
   const entry = readJsonFile<LocalTeamKeysOnDisk>(filePath)?.teams[storageId];
   if (!entry) return null;
-  if (entry.storage === "plaintext") return entry.plaintextKeyB64 ?? null;
-  return retrieveMasterKey(entry.storage, storageId, entry.encryptedData);
+  if (entry.storage === "plaintext" || entry.storage === "file") return entry.plaintextKeyB64 ?? null;
+  const key = retrieveMasterKey(entry.storage, storageId, entry.encryptedData);
+  if (entry.storage === "keychain" && !key) throw new Error("Existing team keyring entry is unavailable; local team key was preserved.");
+  return key;
 }
 
 export function deleteLocalTeamKey(hashedEmail: string, teamId: string): void {
   const storageId = teamKeyStorageId(hashedEmail, teamId);
-  deleteMasterKey("keychain", storageId);
   const filePath = join(ensureStateDir(), LOCAL_TEAM_KEYS_FILE);
   const keys = readJsonFile<LocalTeamKeysOnDisk>(filePath);
   if (keys?.teams[storageId]) {
+    deleteMasterKeyStrict(keys.teams[storageId].storage, storageId);
     delete keys.teams[storageId];
     writeJsonFile(filePath, keys);
   }
@@ -543,7 +588,7 @@ export function pruneLocalTeamArtifacts(hashedEmail: string, teamIds: string[]):
     const prefix = resolveKeyStorageId(`${hashedEmail}:team:`);
     for (const storageId of Object.keys(keys.teams)) {
       if (storageId.startsWith(prefix) && !allowedKeyIds.has(storageId)) {
-        deleteMasterKey("keychain", storageId);
+        deleteMasterKeyStrict(keys.teams[storageId].storage, storageId);
         delete keys.teams[storageId];
         changed = true;
       }

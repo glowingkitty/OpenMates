@@ -7,409 +7,193 @@ The already-logged-in device opens this page (via /#pair=TOKEN deep link) to:
   3. Allow or Deny
   4. On Allow: display a 6-character PIN to the user, who relays it to the new device
 
-Architecture: docs/architecture/device-sessions.md
-Zero-knowledge: the server stores the plaintext PIN only for /complete validation
-(never decrypts the bundle). The bundle itself is AES-256-GCM encrypted with a
-key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
+The PIN, OPAQUE registration, and server role stay on this device. The relay
+receives only PAKE messages, a one-use grant hash, and an encrypted key bundle.
 -->
 
 <script lang="ts">
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import { getApiEndpoint } from '../../../config/api';
-    import { uint8ArrayToBase64, getKeyFromStorage } from '../../../services/cryptoService';
     import { get } from 'svelte/store';
+    import { createPairContext, createPairApprover, generateGrantSecret, type PairApprover, type PairBundle } from '@repo/pairing-crypto';
+    import { uint8ArrayToBase64, getKeyFromStorage, getEmailSalt, getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
     import { pendingPairToken, newlyPairedSession } from '../../../stores/pairSessionStore';
     import { notificationStore } from '../../../stores/notificationStore';
+    import { userProfile } from '../../../stores/userProfile';
+    import { pairRequest, pairExpired, resolvePairEmailEnvelope, PAIR_POLL_MS, type PairInfo, type PairPoll, type PairLifetime, type PairAccountCheck } from '../../../services/pairV2';
+    import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+    import SecurityAuth from './SecurityAuth.svelte';
 
-    const dispatch = createEventDispatcher<{
-        denied: void;
-        done: void;
-        openSettings: { settingsPath: string; direction: string; icon: string; title: string };
-    }>();
-
-    // ========================================================================
-    // STATE
-    // ========================================================================
-
-    // Token is passed via pendingPairToken store (set by the onPair deep link handler
-    // in +page.svelte before navigating to this route). Consumed once on mount and
-    // cleared so a back-navigation doesn't re-use a stale token.
-    let token = $state<string>('');
-
-    // ========================================================================
-    // TYPES
-    // ========================================================================
-
-    interface RequestingDeviceInfo {
-        device_name: string;
-        ip_truncated: string;
-        country_code: string | null;
-        city: string | null;
-    }
-
-    interface PairCredentialsApiResponse {
-        lookup_hash: string;
-        user_email_salt: string;
-        hashed_email: string;
-    }
-
-    type PageStatus = 'loading' | 'confirm' | 'authorizing' | 'pin_display' | 'denied' | 'error' | 'invalid';
-
-    // ========================================================================
-    // COMPONENT STATE
-    // ========================================================================
-
+    const dispatch = createEventDispatcher<{ denied: void; done: void; openSettings: { settingsPath: string; direction: string; icon: string; title: string } }>();
+    interface RequestingDeviceInfo { device_name: string; ip_truncated: string; country_code: string | null; city: string | null; }
+    type PageStatus = 'loading' | 'confirm' | 'step_up' | 'authorizing' | 'pin_display' | 'denied' | 'complete' | 'error' | 'invalid';
+    let token = $state('');
     let pageStatus = $state<PageStatus>('loading');
     let deviceInfo = $state<RequestingDeviceInfo | null>(null);
+    let info: PairInfo | null = null;
+    let approved: PairInfo | null = null;
     let errorMessage = $state('');
     let generatedPin = $state<string | null>(null);
-    let autoLogoutMinutes = $state<number | null>(null);
-    const PAIR_PIN_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY3468';
-    const PAIR_AUTHORIZE_STALE_SESSION_RETRY_DELAY_MS = 250;
-    let completionPollInterval: ReturnType<typeof setInterval> | null = null;
+    let autoLogoutMinutes = $state<PairLifetime>(null);
+    let approver: PairApprover | null = null;
+    let stage: 'waiting' | 'response' | 'authorized' = 'waiting';
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let polling = false;
+    let destroyed = false;
+    let generation = 0;
+    let hasPasskey = $state(false);
+    let hasPassword = $state(false);
+    let has2FA = $state(false);
+    let pinCopied = $state(false);
+    let displayPin = $derived(generatedPin ? `${generatedPin.slice(0, 3)} ${generatedPin.slice(3)}` : '');
 
-    // ========================================================================
-    // LIFECYCLE
-    // ========================================================================
-
-    onMount(async () => {
-        // Consume the pending token from the store (set by the onPair deep link handler).
+    onMount(() => {
         const storedToken = get(pendingPairToken);
-        pendingPairToken.set(null); // Clear immediately so stale token isn't re-used on back-nav
-        if (!storedToken) {
-            pageStatus = 'invalid';
-            return;
-        }
-        token = storedToken;
-        await loadDeviceInfo();
+        pendingPairToken.set(null);
+        if (!storedToken || !/^[A-Z0-9]{6}$/i.test(storedToken)) { pageStatus = 'invalid'; return; }
+        token = storedToken.toUpperCase();
+        void loadDeviceInfo();
     });
-
-    // ========================================================================
-    // DATA FETCHING
-    // ========================================================================
-
+    onDestroy(() => {
+        destroyed = true; generation++; stopPolling(); approver?.abort();
+        if (approved && pageStatus !== 'complete' && token) void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
+    });
+    function stopPolling() { if (pollInterval) clearInterval(pollInterval); pollInterval = null; }
+    function fail(message: string) {
+        stopPolling(); approver?.abort(); approver = null; generatedPin = null;
+        errorMessage = message; pageStatus = 'error';
+        if (approved && token) void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
+    }
     async function loadDeviceInfo() {
-        pageStatus = 'loading';
-        errorMessage = '';
+        pageStatus = 'loading'; errorMessage = '';
         try {
-            const response = await fetch(getApiEndpoint(`/v1/auth/pair/info/${token}`), {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
+            const data = await pairRequest<PairInfo>(`/info/${token}`);
+            if (destroyed) return;
+            if (data.protocol_version !== 2 || !data.session_id || !data.receiver_token_hash || pairExpired(data.expires_at)) { pageStatus = 'invalid'; return; }
+            info = data;
+            deviceInfo = { device_name: data.device_name || 'Unknown device', ip_truncated: data.ip_truncated || '', country_code: data.country_code || null, city: data.city || null };
+            const methods = await fetch(getApiEndpoint(apiEndpoints.auth.methods), { credentials: 'include' });
+            if (!methods.ok) throw new Error('Could not load authentication methods');
+            const auth = await methods.json();
+            hasPasskey = !!auth.has_passkey; hasPassword = !!auth.has_password; has2FA = !!auth.has_2fa;
+            pageStatus = 'confirm';
+        } catch (err) {
+            if (!destroyed) { errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error'); pageStatus = 'error'; }
+        }
+    }
+    async function allow() {
+        if (!info || pageStatus !== 'confirm') return;
+        const run = generation;
+        pageStatus = 'authorizing'; errorMessage = '';
+        try {
+            const data = await pairRequest<PairInfo & { success: boolean }>(`/approve/${token}`, {
+                method: 'POST', body: JSON.stringify({ authorizer_device_name: getAuthorizerDeviceName(), auto_logout_minutes: autoLogoutMinutes }),
             });
-
-            const data = await response.json().catch(() => ({}));
-
-            if (!response.ok || data.valid === false) {
-                pageStatus = 'invalid';
+            if (destroyed || run !== generation) {
+                if (data.success) void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
                 return;
             }
-
-            deviceInfo = {
-                device_name: data.device_name || 'Unknown device',
-                ip_truncated: data.ip_truncated || '',
-                country_code: data.country_code || null,
-                city: data.city || null,
-            };
-            pageStatus = 'confirm';
-        } catch (err: unknown) {
-            console.error('[ConfirmPair] Failed to load device info:', err);
-            errorMessage = err instanceof Error ? err.message : 'Failed to load request';
-            pageStatus = 'error';
-        }
-    }
-
-    // ========================================================================
-    // ACTIONS
-    // ========================================================================
-
-    async function allow() {
-        if (!deviceInfo) return;
-        pageStatus = 'authorizing';
-        errorMessage = '';
-
-        try {
-            // 1. Generate a random 6-character PIN
-            const pin = generatePin();
-            generatedPin = pin;
-
-            // 2. Derive AES-256 key from PIN + token-as-salt (PBKDF2, 100k iterations / SHA-256)
-            //    Must match the same derivation the initiating device will use to decrypt.
-            const upperToken = token.toUpperCase();
-            const aesKey = await derivePairKey(pin, upperToken);
-
-            // 3. Build the plaintext bundle from the current user's stored auth material
-            const bundle = await buildBundle();
-
-            // 4. Encrypt the bundle with AES-256-GCM
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const plainBytes = new TextEncoder().encode(JSON.stringify(bundle));
-            const cipherBytes = await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv },
-                aesKey,
-                plainBytes,
-            );
-
-            const encryptedBundleB64 = uint8ArrayToBase64(new Uint8Array(cipherBytes));
-            const ivB64 = uint8ArrayToBase64(iv);
-
-            // 5. POST to authorize endpoint
-            //    - encrypted_bundle: ciphertext (base64)
-            //    - iv: 12-byte IV (base64, stored separately)
-            //    - pin: plaintext — server stores for /complete brute-force guard
-            //    - authorizer_device_name: shown on initiating device
-            const authorizerName = getAuthorizerDeviceName();
-
-            const authorizePayload = JSON.stringify({
-                encrypted_bundle: encryptedBundleB64,
-                iv: ivB64,
-                pin,
-                authorizer_device_name: authorizerName,
-                auto_logout_minutes: autoLogoutMinutes,
-            });
-
-            let response = await fetch(getApiEndpoint(`/v1/auth/pair/authorize/${token}`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: authorizePayload,
-            });
-
-            if (response.status === 401) {
-                // A concurrent session refresh can rotate the cookie just as pairing is approved.
-                await new Promise(resolve => setTimeout(resolve, PAIR_AUTHORIZE_STALE_SESSION_RETRY_DELAY_MS));
-                response = await fetch(getApiEndpoint(`/v1/auth/pair/authorize/${token}`), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: authorizePayload,
-                });
-            }
-
-            if (!response.ok) {
-                const data = await response.json().catch(() => ({}));
-                throw new Error(data.detail || 'Authorization failed');
-            }
-
+            if (!data.success || data.protocol_version !== 2 || data.session_id !== info.session_id || data.receiver_token_hash !== info.receiver_token_hash || data.auto_logout_minutes !== autoLogoutMinutes || !data.authorizer_user_id || pairExpired(data.expires_at)) throw new Error('Pairing approval mismatch');
+            if (data.authorizer_user_id !== get(userProfile).user_id) throw new Error('Pairing account mismatch');
+            approved = data;
+            const context = createPairContext({ token, session_id: info.session_id, receiver_token_hash: info.receiver_token_hash,
+                authorizer_user_id: data.authorizer_user_id, auto_logout_minutes: autoLogoutMinutes });
+            const nextApprover = await createPairApprover(context);
+            if (destroyed || run !== generation) { nextApprover.abort(); return; }
+            approver = nextApprover;
+            generatedPin = nextApprover.pin;
             pageStatus = 'pin_display';
-            startCompletionPolling();
-        } catch (err: unknown) {
-            console.error('[ConfirmPair] Authorization failed:', err);
-            errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error');
-            pageStatus = 'error';
+            pollInterval = setInterval(() => { void pollStatus(); }, PAIR_POLL_MS);
+        } catch (err) {
+            if (destroyed || run !== generation) return;
+            if ([401, 403, 428].includes((err as { status?: number }).status ?? 0)) {
+                pageStatus = 'step_up';
+            } else fail(err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error'));
         }
     }
-
+    async function handleStepUpSuccess() {
+        if (pageStatus !== 'step_up') return;
+        const run = generation;
+        if (destroyed || run !== generation) return;
+        // SecurityAuth verifies passkey, TOTP, or password plus one-use email
+        // code against the current server session before invoking onSuccess.
+        pageStatus = 'confirm';
+        await allow();
+    }
     async function deny() {
-        pageStatus = 'denied';
-        dispatch('denied');
+        if (approved) await pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
+        pageStatus = 'denied'; dispatch('denied');
     }
-
-    /**
-     * After displaying the PIN, poll /pair/poll/{token} every 3 seconds to detect
-     * when the initiating device completes pairing (token gets deleted → status 'expired').
-     * On completion, auto-redirect to the sessions list with a success notification.
-     */
-    function startCompletionPolling() {
-        if (completionPollInterval) return;
-        completionPollInterval = setInterval(async () => {
-            try {
-                const response = await fetch(getApiEndpoint(`/v1/auth/pair/poll/${token}`), {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json().catch(() => ({}));
-                if (data.status === 'expired') {
-                    stopCompletionPolling();
-                    newlyPairedSession.set(true);
-                    notificationStore.success(get(text)('settings.sessions.pair_complete_success'));
-                    dispatch('openSettings', {
-                        settingsPath: 'account/security/sessions',
-                        direction: 'backward',
-                        icon: 'devices',
-                        title: get(text)('settings.sessions.title'),
-                    });
-                }
-            } catch {
-                // Network error — keep polling
-            }
-        }, 3000);
-    }
-
-    function stopCompletionPolling() {
-        if (completionPollInterval) {
-            clearInterval(completionPollInterval);
-            completionPollInterval = null;
-        }
-    }
-
-    onDestroy(() => {
-        stopCompletionPolling();
-    });
-
-    // ========================================================================
-    // CRYPTO HELPERS
-    // ========================================================================
-
-    /** Generate a cryptographically random 6-character alphanumeric PIN. */
-    function generatePin(): string {
-        const values = new Uint8Array(6);
-        crypto.getRandomValues(values);
-        return Array.from(values)
-            .map((value) => PAIR_PIN_ALPHABET[value % PAIR_PIN_ALPHABET.length])
-            .join('');
-    }
-
-    /**
-     * Derive AES-256-GCM key from PIN + token as salt.
-     * PBKDF2-SHA256, 100_000 iterations.
-     * The initiating device uses the same derivation to decrypt the bundle.
-     */
-    async function derivePairKey(pin: string, upperToken: string): Promise<CryptoKey> {
-        const enc = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            'raw',
-            enc.encode(pin),
-            'PBKDF2',
-            false,
-            ['deriveKey'],
-        );
-        return crypto.subtle.deriveKey(
-            {
-                name: 'PBKDF2',
-                salt: enc.encode(upperToken),
-                iterations: 100_000,
-                hash: 'SHA-256',
-            },
-            keyMaterial,
-            { name: 'AES-GCM', length: 256 },
-            false,
-            ['encrypt', 'decrypt'],
-        );
-    }
-
-    /**
-     * Build the plaintext bundle that the initiating device needs to log in.
-     *
-     * The bundle holds everything the new device needs to establish a full session:
-     *   lookup_hash       — hashed credential passed to POST /auth/login
-     *   hashed_email      — SHA256(email) identifier used by /auth/login for user lookup
-     *   user_email_salt   — salt for client-side key derivation (NOT the hashed_email)
-     *   master_key_exported — raw AES-256 master key bytes (base64), exported from the
-     *                         in-memory CryptoKey. The new device imports this directly,
-     *                         bypassing the need for the user's password. This works
-     *                         because the authorizing device has already proven identity.
-     *
-     * Primary source: authenticated GET /v1/auth/pair/credentials for the current session.
-     * Master key: always exported fresh from in-memory CryptoKey (avoids needing password).
-     * Bundle is never sent to the server in plaintext — only as AES-GCM ciphertext.
-     *
-     * Security note: the raw master key is only included in the AES-GCM encrypted bundle
-     * that requires knowing the PIN + the pair token to decrypt. It is never stored on disk
-     * or sent to the server in plaintext.
-     */
-    async function buildBundle(): Promise<{
-        lookup_hash: string;
-        hashed_email: string;
-        user_email_salt: string;
-        master_key_exported: string;
-    }> {
-        // Step 1: export the in-memory master key as raw bytes
-        const masterKey = await getKeyFromStorage();
-        if (!masterKey) {
-            throw new Error(
-                'Master key not found in session. Please log out and log back in, then try again.'
-            );
-        }
-        const rawKeyBytes = await crypto.subtle.exportKey('raw', masterKey);
-        const master_key_exported = uint8ArrayToBase64(new Uint8Array(rawKeyBytes));
-
-        // Step 2: get lookup_hash, hashed_email, and user_email_salt
-        // hashed_email = SHA256(email) — needed by /auth/login to find the user
-        // user_email_salt = salt for client-side key derivation (NOT the same as hashed_email)
-        const response = await fetch(getApiEndpoint('/v1/auth/pair/credentials'), {
-            method: 'GET',
-            credentials: 'include',
-        });
-
-        if (!response.ok) {
-            throw new Error(
-                'Pair login credentials not available. Please log out and log back in, then try again.'
-            );
-        }
-
-        const data: PairCredentialsApiResponse = await response.json();
-        const lookup_hash = data.lookup_hash || null;
-        const user_email_salt = data.user_email_salt || null;
-        const hashed_email = data.hashed_email || null;
-
-        if (lookup_hash) sessionStorage.setItem('openmates_pair_lookup_hash', lookup_hash);
-        if (user_email_salt) sessionStorage.setItem('openmates_email_salt', user_email_salt);
-
-        if (!lookup_hash || !user_email_salt || !hashed_email) {
-            throw new Error(
-                'Pair login credentials not available. Please log out and log back in, then try again.'
-            );
-        }
-
-        return { lookup_hash, hashed_email, user_email_salt, master_key_exported };
-    }
-
-    /** Get a human-readable name for this device (the authorizer) */
-    function getAuthorizerDeviceName(): string {
+    async function pollStatus() {
+        if (polling || !approved || !approver || pageStatus !== 'pin_display') return;
+        if (pairExpired(approved.expires_at)) { fail($text('settings.sessions.pair_expired')); return; }
+        const run = generation;
+        polling = true;
         try {
-            const ua = navigator.userAgent;
-            // Very simple device name extraction
-            if (/iPhone/.test(ua)) return 'iPhone';
-            if (/iPad/.test(ua)) return 'iPad';
-            if (/Android/.test(ua)) return 'Android device';
-            if (/Mac/.test(ua)) return 'Mac';
-            if (/Windows/.test(ua)) return 'Windows PC';
-            if (/Linux/.test(ua)) return 'Linux PC';
-            return 'Desktop';
-        } catch {
-            return 'Desktop';
-        }
+            const data = await pairRequest<PairPoll>(`/authorizer/${token}`);
+            if (destroyed || run !== generation) return;
+            if (data.status === 'failed' || data.status === 'cancelled') { fail($text('settings.sessions.pair_restart_required')); return; }
+            if (data.status === 'request' && data.receiver_request && stage === 'waiting') {
+                stage = 'response';
+                const response = await approver.receiveRequest(data.receiver_request);
+                if (destroyed || run !== generation) return;
+                await pairRequest(`/authorizer/${token}/message`, { method: 'POST', body: JSON.stringify({ stage: 'response', message: response }) });
+            }
+            if (data.status === 'finish' && data.receiver_finish && stage === 'response') {
+                stage = 'authorized';
+                await approver.verifyFinish(data.receiver_finish);
+                if (destroyed || run !== generation) return;
+                // The master key is exported only after a valid local PAKE final proof.
+                const grant = await generateGrantSecret();
+                if (destroyed || run !== generation) return;
+                const bundle = await buildBundle(grant.secret);
+                if (destroyed || run !== generation) return;
+                const encrypted = await approver.encryptBundle(bundle);
+                if (destroyed || run !== generation) return;
+                await pairRequest(`/authorize/${token}`, { method: 'POST', body: JSON.stringify({ ...encrypted, grant_hash: grant.hash }) });
+            }
+            if (data.status === 'acknowledged' && stage === 'authorized') {
+                stopPolling(); approver.abort(); approver = null; generatedPin = null;
+                pageStatus = 'complete'; newlyPairedSession.set(true);
+                notificationStore.success(get(text)('settings.sessions.pair_complete_success'));
+                dispatch('openSettings', { settingsPath: 'account/security/sessions', direction: 'backward', icon: 'devices', title: get(text)('settings.sessions.title') });
+            }
+        } catch (err) {
+            if (!destroyed && run === generation) fail(err instanceof Error ? err.message : $text('settings.sessions.pair_restart_required'));
+        } finally { polling = false; }
     }
-
-    // ========================================================================
-    // UI HELPERS
-    // ========================================================================
-
-    /** Format a country code + city into a location string */
+    async function buildBundle(grantSecret: string): Promise<PairBundle> {
+        if (!approved) throw new Error('Pairing approval missing');
+        const masterKey = await getKeyFromStorage();
+        if (!masterKey) throw new Error('Master key not found');
+        const salt = getEmailSalt();
+        if (!salt) throw new Error('Account metadata unavailable');
+        const account = await pairRequest<PairAccountCheck>('/account-check');
+        if (account.user_id !== approved.authorizer_user_id || account.user_id !== get(userProfile).user_id ||
+            account.user_email_salt !== uint8ArrayToBase64(salt)) throw new Error('Pairing account mismatch');
+        const localEmail = account.encrypted_email_with_master_key ? null : await getEmailDecryptedWithMasterKey();
+        const encryptedEmail = await resolvePairEmailEnvelope(account, masterKey, localEmail);
+        const master_key_exported = uint8ArrayToBase64(new Uint8Array(await crypto.subtle.exportKey('raw', masterKey)));
+        return { protocol_version: 2, master_key_exported, grant_secret: grantSecret, user_email_salt: uint8ArrayToBase64(salt),
+            hashed_email: account.hashed_email, user_id: approved.authorizer_user_id!,
+            account_context: { encrypted_email_with_master_key: encryptedEmail } };
+    }
+    function getAuthorizerDeviceName(): string {
+        const ua = navigator.userAgent;
+        if (/iPhone/.test(ua)) return 'iPhone'; if (/iPad/.test(ua)) return 'iPad';
+        if (/Android/.test(ua)) return 'Android device'; if (/Mac/.test(ua)) return 'Mac';
+        if (/Windows/.test(ua)) return 'Windows PC'; if (/Linux/.test(ua)) return 'Linux PC'; return 'Desktop';
+    }
     function formatLocation(info: RequestingDeviceInfo): string {
         const parts: string[] = [];
         if (info.city) parts.push(info.city);
-        if (info.country_code) {
-            try {
-                const names = new Intl.DisplayNames(['en'], { type: 'region' });
-                const name = names.of(info.country_code.toUpperCase());
-                if (name) parts.push(name);
-            } catch {
-                parts.push(info.country_code);
-            }
-        }
+        if (info.country_code) { try { parts.push(new Intl.DisplayNames(['en'], { type: 'region' }).of(info.country_code.toUpperCase()) || info.country_code); } catch { parts.push(info.country_code); } }
         if (info.ip_truncated) parts.push(info.ip_truncated);
         return parts.join(' · ') || 'Unknown location';
     }
-
-    /** Format 6-character PIN as "ABC 123" for readability */
-    let displayPin = $derived(
-        generatedPin ? `${generatedPin.slice(0, 3)} ${generatedPin.slice(3)}` : ''
-    );
-
-    let pinCopied = $state(false);
-
     async function copyPin() {
         if (!generatedPin) return;
-        try {
-            await navigator.clipboard.writeText(generatedPin);
-            pinCopied = true;
-            setTimeout(() => { pinCopied = false; }, 2000);
-        } catch {
-            // Clipboard API unavailable — user can still select + copy manually
-        }
+        try { await navigator.clipboard.writeText(generatedPin); pinCopied = true; setTimeout(() => { pinCopied = false; }, 2000); } catch { /* unavailable */ }
     }
 </script>
 
@@ -474,8 +258,23 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
     {:else if pageStatus === 'authorizing'}
         <p class="status-text">{$text('settings.sessions.pair_confirm_allowing')}</p>
 
+    {:else if pageStatus === 'step_up'}
+        <SecurityAuth
+            {hasPasskey}
+            {hasPassword}
+            {has2FA}
+            autoStart={false}
+            sensitiveActionPurpose="pair_approval"
+            title={$text('settings.sessions.pair_step_up_title')}
+            description={$text('settings.sessions.pair_step_up_description')}
+            onSuccess={() => { void handleStepUpSuccess(); }}
+            onFailed={(message) => { errorMessage = message; }}
+            onCancel={() => { pageStatus = 'confirm'; }}
+        />
+
     {:else if pageStatus === 'pin_display' && generatedPin}
         <p class="page-description">{$text('settings.sessions.pair_confirm_pin_hint')}</p>
+        <p class="status-text">{$text('settings.sessions.pair_keep_open')}</p>
 
         <div class="pin-display-row">
             <span class="pin-display" data-testid="pair-pin-display">{displayPin}</span>
@@ -499,14 +298,10 @@ key derived from PIN + token-as-salt (PBKDF2 / 100k iterations).
         </div>
 
         <button class="btn btn-secondary" onclick={() => {
-            stopCompletionPolling();
-            // Invalidate the token on the backend (fire-and-forget)
+            stopPolling();
+            approver?.abort(); approver = null;
             if (token) {
-                fetch(getApiEndpoint(`/v1/auth/pair/${token}`), {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                }).catch(() => {});
+                void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
             }
             dispatch('done');
         }}>

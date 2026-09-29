@@ -20,6 +20,7 @@ class UserResponse(BaseModel):
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
     key_iv: Optional[str] = None # IV used for master key encryption (Web Crypto API)
     salt: Optional[str] = None # Salt used for password-based key derivation
+    credential_version: Optional[int] = None # Password wrapper derivation version
     user_email_salt: Optional[str] = None # Salt used for client-side email encryption
     # Low balance auto top-up fields
     auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low

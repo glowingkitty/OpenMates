@@ -1,0 +1,34 @@
+account_recovery_resets:
+  type: collection
+  note: "Cancellable delay and audit state for email-only destructive recovery"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    user_id:
+      type: uuid
+      required: true
+    hashed_email:
+      type: string
+      length: 64
+      required: true
+    state:
+      type: string
+      length: 24
+      required: true
+    version:
+      type: integer
+      required: true
+      default: 0
+    requested_at:
+      type: datetime
+      required: true
+    due_at:
+      type: datetime
+      required: true
+    cancelled_at:
+      type: datetime
+      nullable: true
+    completed_at:
+      type: datetime
+      nullable: true

@@ -31,6 +31,17 @@
           <mj-text padding-bottom="0">
             {{ t.email.enter_this_code.text }}
           </mj-text>
+          {% if sensitive_action_fallback %}
+          <mj-text font-size="14px" padding-top="18px">
+            {{ t.email.password_security_reminder.actions_title.text }}
+          </mj-text>
+          <mj-button href="{{ passkeys_settings_url }}" background-color="#0f766e" border-radius="8px">
+            {{ t.email.password_security_reminder.open_passkey_settings.text }}
+          </mj-button>
+          <mj-button href="{{ twofa_settings_url }}" background-color="#4f46e5" border-radius="8px">
+            {{ t.email.password_security_reminder.open_2fa_settings.text }}
+          </mj-button>
+          {% endif %}
         </mj-column>
       </mj-section>
       

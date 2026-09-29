@@ -134,6 +134,11 @@ async def test_session_auth_state_uses_server_associated_connection_hash(monkeyp
 @pytest.mark.asyncio
 async def test_get_current_user_repairs_stale_cached_admin_status(monkeypatch):
     _stub_auth_dependency_imports(monkeypatch)
+    import importlib
+    module = importlib.import_module("backend.core.api.app.routes.auth_routes.auth_dependencies")
+    monkeypatch.setattr(module, "enforce_pair_deadline", AsyncMock())
+    monkeypatch.setattr(module, "get_session_state_cached", AsyncMock(return_value=None))
+    monkeypatch.setattr(module, "ensure_legacy_session_state", AsyncMock())
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
     cached_user = {

@@ -11,7 +11,7 @@
 import { execFile } from "node:child_process";
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import { createHash, webcrypto } from "node:crypto";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
@@ -81,7 +81,7 @@ const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   createApiKeyCryptoMaterial,
-  derivePairKey,
+  hashEmail,
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   sealChatCompletionRecoveryPayload,
@@ -93,6 +93,7 @@ const {
   saveSyncCache,
 } = await import("../src/storage.ts");
 const { OpenMatesWsClient } = await import("../src/ws.ts");
+const { createPairApprover, createPairContext, generateGrantSecret } = await import("@repo/pairing-crypto");
 
 after(() => {
   if (originalHome === undefined) {
@@ -179,73 +180,170 @@ describe("OpenMatesClient session API URL", () => {
     assert.doesNotMatch(methodSource, /\/v1\/payments\//);
   });
 
-  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  it("keeps a completed pair-login session active for immediate verification", async () => {
+  // contract-test: supporting surface=cli assertions=auth.pair-login.single-use-zk,auth.pair-login.session-grant,auth.pair-login.lifecycle
+  it("keeps a completed v2 pair-login session active and never sends the PIN or login bypass", async () => {
     const token = "PAIR12";
-    const pin = "PIN123";
-    const bundle = {
-      master_key_exported: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-      hashed_email: "test-hashed-email",
-      lookup_hash: "test-lookup-hash",
-      user_email_salt: "test-email-salt",
-    };
-    const pairKey = await derivePairKey(pin, token);
-    const iv = new Uint8Array(12);
-    const plaintext = new TextEncoder().encode(JSON.stringify(bundle));
-    const encryptedBundle = await webcrypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      pairKey,
-      plaintext,
-    );
+    const userId = "personal-account-id";
+    const email = "paired@example.com";
+    const masterKey = Buffer.alloc(32).toString("base64");
+    const emailSalt = Buffer.alloc(16).toString("base64");
+    const hashedEmail = await hashEmail(email);
+    const encryptedEmail = await encryptWithAesGcmCombined(email, new Uint8Array(32));
+    const grant = await generateGrantSecret();
+    const requests: Array<{ url: string; body: Record<string, unknown>; capability: string }> = [];
     const sessionCookies: string[] = [];
+    let approver: Awaited<ReturnType<typeof createPairApprover>> | null = null;
+    let pin = "";
+    let contextFields: { session_id: string; receiver_token_hash: string } | null = null;
+    let responseMessage = "";
+    let encrypted: { encrypted_bundle: string; iv: string } | null = null;
+    let acknowledged = false;
+    let acknowledgementReads = 0;
+    const expiresAt = Math.floor(Date.now() / 1000) + 120;
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
-      response.setHeader("content-type", "application/json");
-      if (request.url === "/v1/auth/pair/initiate") {
-        response.end(JSON.stringify({ token }));
-      } else if (request.url === `/v1/auth/pair/complete/${token}`) {
-        response.end(JSON.stringify({
-          success: true,
-          encrypted_bundle: Buffer.from(encryptedBundle).toString("base64"),
-          iv: Buffer.from(iv).toString("base64"),
-        }));
-      } else if (request.url === "/v1/auth/login") {
-        response.setHeader("set-cookie", "auth_refresh_token=test-refresh-token; Path=/; HttpOnly");
-        response.end(JSON.stringify({ success: true, ws_token: "test-ws-token" }));
-      } else if (request.url === "/v1/auth/session") {
-        sessionCookies.push(String(request.headers.cookie ?? ""));
-        response.end(JSON.stringify({ success: true, user: { id: "personal-account-id" } }));
-      } else {
-        response.end(JSON.stringify({ success: false }));
-      }
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", chunk => { raw += chunk; });
+      request.on("end", async () => {
+        try {
+          const body = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+          requests.push({ url: request.url ?? "", body, capability: String(request.headers["x-openmates-pair-receiver"] ?? "") });
+          response.setHeader("content-type", "application/json");
+          if (request.url === "/v1/auth/pair/v2/initiate") {
+            contextFields = { session_id: String(body.session_id), receiver_token_hash: String(body.receiver_token_hash) };
+            approver = await createPairApprover(createPairContext({
+              token, ...contextFields, authorizer_user_id: userId, auto_logout_minutes: 30,
+            }));
+            pin = approver.pin;
+            response.end(JSON.stringify({ protocol_version: 2, token, expires_at: expiresAt }));
+          } else if (request.url === `/v1/auth/pair/v2/receiver/${token}`) {
+            const status = acknowledged ? "acknowledged" : encrypted ? "ready" : responseMessage ? "response" : "approved";
+            if (acknowledged) acknowledgementReads++;
+            response.end(JSON.stringify({ status, expires_at: expiresAt,
+              ...contextFields, authorizer_user_id: userId, authorizer_device_name: "Test Browser",
+              auto_logout_minutes: 30, message: status === "response" ? responseMessage : undefined,
+              ...encrypted,
+            }));
+          } else if (request.url === `/v1/auth/pair/v2/receiver/${token}/message`) {
+            assert.ok(approver);
+            if (body.stage === "request") responseMessage = await approver.receiveRequest(String(body.message));
+            else if (body.stage === "finish") {
+              await approver.verifyFinish(String(body.message));
+              encrypted = await approver.encryptBundle({ protocol_version: 2,
+                master_key_exported: masterKey,
+                hashed_email: hashedEmail, user_email_salt: emailSalt,
+                user_id: userId, grant_secret: grant.secret,
+                account_context: { encrypted_email_with_master_key: encryptedEmail },
+              });
+            }
+            response.end(JSON.stringify({ success: true }));
+          } else if (request.url === `/v1/auth/pair/v2/complete/${token}`) {
+            assert.equal(body.grant_secret, grant.secret);
+            response.setHeader("set-cookie", "auth_refresh_token=test-refresh-token; Path=/; HttpOnly");
+            response.end(JSON.stringify({ success: true, user: { id: userId }, ws_token: "test-ws-token", pair_expires_at: Math.floor(Date.now() / 1000) + 1800 }));
+          } else if (request.url === `/v1/auth/pair/v2/acknowledge/${token}`) {
+            assert.ok(loadStoredSession(), "receiver must persist session before acknowledgement");
+            assert.ok(loadStoredSession()?.emailEncryptionKeyB64, "receiver must store its verified email key before acknowledgement");
+            acknowledged = true;
+            // Simulate an ACK committed by the server whose HTTP response is lost.
+            response.destroy();
+          } else if (request.url === "/v1/auth/session") {
+            assert.equal(acknowledged, true, "session auth must wait for durable receiver acknowledgement");
+            sessionCookies.push(String(request.headers.cookie ?? ""));
+            response.end(JSON.stringify({ success: true, user: { id: userId } }));
+          } else {
+            response.statusCode = 404;
+            response.end(JSON.stringify({ success: false }));
+          }
+        } catch (error) {
+          response.statusCode = 500;
+          response.end(JSON.stringify({ message: String(error) }));
+        }
+      });
     });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
     assert.ok(address && typeof address === "object");
     rmSync(sessionPath, { force: true });
 
     try {
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      const interactiveClient = client as unknown as {
-        waitForPairAuthorization: () => Promise<{ authorizerDeviceName: string }>;
-        prompt: () => Promise<string>;
-        renderPairQrCode: () => void;
-      };
-      interactiveClient.waitForPairAuthorization = async () => ({ authorizerDeviceName: "Test Browser" });
+      const interactiveClient = client as unknown as { prompt: () => Promise<string>; renderPairQrCode: () => void };
       interactiveClient.prompt = async () => pin;
       interactiveClient.renderPairQrCode = () => undefined;
-
       await client.loginWithPairAuth();
-      const user = await client.whoAmI();
-      assert.equal(user.id, "personal-account-id");
-
-      const reloadedClient = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      const reloadedUser = await reloadedClient.whoAmI();
-      assert.equal(reloadedUser.id, "personal-account-id");
+      assert.equal(acknowledged, true);
+      assert.equal(acknowledgementReads, 1, "receiver must confirm durable ACK through readback");
+      assert.ok(requests.every(request => request.url !== "/v1/auth/login"));
+      assert.ok(requests.every(request => !Object.keys(request.body).some(key => /pin|lookup_hash|hashed_email/.test(key))));
+      assert.ok(requests.every(request => !JSON.stringify(request.body).includes(pin)));
+      assert.ok(requests.every(request => !JSON.stringify(request.body).includes(request.capability) || !request.capability));
+      assert.ok(requests.filter(request => request.body.grant_secret !== undefined)
+        .every(request => request.url === `/v1/auth/pair/v2/complete/${token}`));
+      assert.ok(requests.every(request => !/^\/v1\/auth\/pair\/(?!v2\/)/.test(request.url)));
+      assert.ok(requests.filter(request => request.url.includes(`/receiver/${token}`) || request.url.includes(`/complete/${token}`))
+        .every(request => request.capability.length === 43));
+      assert.equal((await client.whoAmI()).id, userId);
+      assert.equal((await OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` }).whoAmI()).id, userId);
       assert.match(sessionCookies.at(-1) ?? "", /auth_refresh_token=test-refresh-token/);
+      assert.ok((loadStoredSession()?.pairedSessionExpiresAt ?? 0) > Date.now());
     } finally {
       clearSession();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await new Promise<void>(resolve => server.close(() => resolve()));
     }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.pair-login.lifecycle,auth.pair-login.session-grant
+  it("reports terminal pairing states without dropping context checks for live states", async () => {
+    const expiresAt = Math.floor(Date.now() / 1000) + 120;
+    const approved = {
+      status: "approved", expires_at: expiresAt,
+      session_id: "receiver-session", receiver_token_hash: "a".repeat(64),
+      authorizer_user_id: "approver-user", auto_logout_minutes: null,
+    };
+    let pollState: Record<string, unknown> = { status: "cancelled", expires_at: expiresAt };
+    const server = createServer((_request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify(pollState));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const internal = client as unknown as {
+        waitForPairState: (
+          token: string, headers: Record<string, string>, expiresAt: number,
+          wanted: ReadonlySet<string>, approved: typeof approved,
+        ) => Promise<unknown>;
+      };
+      await assert.rejects(
+        internal.waitForPairState("ABCDEF", {}, expiresAt, new Set(["ready"]), approved),
+        /Pairing cancelled\. Start a new pairing\./,
+      );
+
+      pollState = { ...approved, status: "response", session_id: "different-session" };
+      await assert.rejects(
+        internal.waitForPairState("ABCDEF", {}, expiresAt, new Set(["ready"]), approved),
+        /Pairing context changed during the exchange\./,
+      );
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.pairing.expiry-upgrade,auth.pair-login.expiry
+  it("stops using an in-memory paired session after its absolute deadline", () => {
+    const saved = JSON.parse(readFileSync(sessionPath, "utf8"));
+    saved.pairedSessionExpiresAt = Date.now() + 60_000;
+    writeFileSync(sessionPath, JSON.stringify(saved), { mode: 0o600 });
+    const client = OpenMatesClient.load();
+    assert.equal(client.hasSession(), true);
+    const active = client as unknown as { session: { pairedSessionExpiresAt: number } | null };
+    assert.ok(active.session);
+    active.session.pairedSessionExpiresAt = Date.now() - 1;
+    assert.equal(client.hasSession(), false);
+    assert.equal(loadStoredSession(), null);
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
