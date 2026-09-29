@@ -75,3 +75,20 @@ export function moveWorkflowNodeTo(graph: WorkflowGraph, sourceId: string, targe
   }
   return null;
 }
+
+/** Insert at the connector after a node. A drop in the current slot is a no-op. */
+export function moveWorkflowNodeAfter(graph: WorkflowGraph, sourceId: string, afterId: string): WorkflowGraph | null {
+  if (sourceId === afterId) return null;
+  const next = graph.edges.find(edge => edge.from === afterId && !edge.branch)?.to;
+  if (next === sourceId) return null;
+  let cursor = sourceId;
+  const visited = new Set<string>();
+  while (!visited.has(cursor)) {
+    if (cursor === afterId) return moveWorkflowNodeTo(graph, sourceId, afterId);
+    visited.add(cursor);
+    const edge = graph.edges.find(item => item.from === cursor && !item.branch);
+    if (!edge) break;
+    cursor = edge.to;
+  }
+  return next ? moveWorkflowNodeTo(graph, sourceId, next) : null;
+}

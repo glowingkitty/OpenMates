@@ -51,6 +51,20 @@ type PublicProjectionResponse = {
   projection_schema_version: number;
 };
 
+type OwnerProjectionResponse = PublicProjectionResponse & {
+  workflow_id: string;
+  source_version: number;
+  owner_wrapped_key: string;
+  revoked_at: number | null;
+  updated_at: number;
+};
+
+class WorkflowTemplateRequestError extends Error {
+  constructor(readonly status: number, detail?: string) {
+    super(detail || `Workflow template request failed with HTTP ${status}.`);
+  }
+}
+
 type ShortShareResult = {
   shortUrl: string;
   longUrl: string;
@@ -256,7 +270,10 @@ async function workflowRequest<T>(path: string, init: RequestInit = {}): Promise
     credentials: "include",
     headers,
   });
-  if (!response.ok) throw new Error(`Workflow template request failed with HTTP ${response.status}.`);
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as { detail?: unknown } | null;
+    throw new WorkflowTemplateRequestError(response.status, typeof body?.detail === "string" ? body.detail : undefined);
+  }
   return await response.json() as T;
 }
 
@@ -267,7 +284,25 @@ async function localTemplateKey(record: WorkflowTemplateProjectionLocalRecord): 
 }
 
 export async function upsertWorkflowTemplateProjection(workflow: WorkflowDetail): Promise<WorkflowTemplateProjectionLocalRecord> {
-  const existing = workflowTemplateProjectionStore.get(workflow.id);
+  const local = workflowTemplateProjectionStore.get(workflow.id);
+  let owner: OwnerProjectionResponse | null = null;
+  try {
+    owner = await workflowRequest<OwnerProjectionResponse>(`/v1/workflows/${encodeURIComponent(workflow.id)}/template-projection`);
+  } catch (error) {
+    if (!(error instanceof WorkflowTemplateRequestError) || error.status !== 404) throw error;
+  }
+  const existing: WorkflowTemplateProjectionLocalRecord | null = owner ? {
+    workflowId: workflow.id,
+    templateId: owner.template_id,
+    sourceVersion: owner.source_version,
+    ciphertext: owner.ciphertext,
+    ciphertextChecksum: owner.ciphertext_checksum,
+    ownerWrappedKey: owner.owner_wrapped_key,
+    projectionSchemaVersion: owner.projection_schema_version,
+    shortToken: local?.templateId === owner.template_id ? local.shortToken : undefined,
+    revokedAt: owner.revoked_at,
+    updatedAt: owner.updated_at,
+  } : null;
   const templateId = existing?.templateId ?? generateTemplateId();
   const keyBytes = existing ? decodeBase64Url(await localTemplateKey(existing)) : generateTemplateKey();
   const ownerWrappedKey = existing?.ownerWrappedKey ?? await encryptChatKeyWithMasterKey(keyBytes);

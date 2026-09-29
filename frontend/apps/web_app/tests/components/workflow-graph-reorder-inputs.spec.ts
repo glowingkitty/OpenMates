@@ -57,3 +57,29 @@ test('workflow card movement and typed skill inputs render in bare preview', asy
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+test('workflow app cards and input placeholders align left in dark theme', async ({ page }: { page: Page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('theme_mode', 'dark');
+    localStorage.setItem('theme', 'dark');
+  });
+  await page.goto(preview.replace('theme=light', 'theme=dark').replace('%23dbeafe', '%23171717'), { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const fitness = page.locator('[data-node-id="fitness"]');
+  await fitness.getByTestId('workflow-node-summary').click();
+  const query = fitness.getByRole('textbox', { name: 'Query' });
+  await expect(query).toHaveCSS('text-align', 'start');
+  const city = fitness.getByTestId('workflow-schema-field-city').getByTestId('workflow-node-location-picker');
+  await expect(city).toBeVisible();
+  await expect(city).toHaveCSS('justify-content', 'flex-start');
+  await expect(fitness.getByTestId('workflow-schema-field-date-range')).toBeVisible();
+  await fitness.locator('.editor-header .close-button').click();
+  await page.getByTestId('workflow-add-step').click();
+  await page.getByTestId('workflow-step-app-skill-action').click();
+  const card = page.getByTestId('workflow-step-menu').getByTestId('app-store-card').first();
+  await expect(card.locator('.app-card-name')).toHaveCSS('text-align', 'start');
+  await expect(card.locator('.app-card-description')).toHaveCSS('text-align', 'start');
+  await test.info().attach('workflow-picker-dark', { body: await page.screenshot(), contentType: 'image/png' });
+});

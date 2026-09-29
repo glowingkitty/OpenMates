@@ -187,6 +187,15 @@ class WorkflowTemplateProjectionService:
             projection_schema_version=projection.projection_schema_version,
         )
 
+    def get_owner_projection(self, workflow_id: str, user_id: str) -> WorkflowTemplateProjectionRecord:
+        """Recover the stable template identity and wrapped key on another device."""
+        self.workflow_service.ensure_enabled()
+        self.workflow_service.get_workflow(workflow_id, user_id)
+        record = self.repository.get_template_projection_for_workflow(workflow_id, user_id)
+        if record is None:
+            raise WorkflowTemplateProjectionNotFoundError(workflow_id)
+        return WorkflowTemplateProjectionRecord.model_validate(record)
+
     def revoke_projection(self, workflow_id: str, user_id: str) -> WorkflowTemplateProjectionRecord:
         """Persist revocation through the runtime workflow owner boundary."""
         return self._set_projection_revocation(workflow_id, user_id, revoked=True)

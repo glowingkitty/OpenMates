@@ -22,7 +22,7 @@
   import type { Chat } from '../../types/chat';
   import type { AppMetadata } from '../../types/apps';
   import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema } from './workflowBuilder';
-  import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeTo } from './workflowReordering';
+  import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeTo, moveWorkflowNodeAfter } from './workflowReordering';
 
   let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, onSave = null }: {
     graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
@@ -40,6 +40,7 @@
   let busy = $state(false);
   let draggingNodeId = $state<string | null>(null);
   let dropTargetId = $state<string | null>(null);
+  let dropSlotId = $state<string | null>(null);
   let nodeError = $state('');
   let testStatus = $state<'idle' | 'processing' | 'completed' | 'cancelled' | 'failed'>('idle');
   let testingRunId = $state<string | null>(null);
@@ -336,6 +337,7 @@
   function startNodeDrag(event: DragEvent, nodeId: string): void {
     if (readOnly || busy || testStatus === 'processing' || !onSave) { event.preventDefault(); return; }
     draggingNodeId = nodeId;
+    dropSlotId = null;
     event.dataTransfer?.setData('text/plain', nodeId);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   }
@@ -344,6 +346,24 @@
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
     dropTargetId = targetId;
+    dropSlotId = null;
+  }
+  function overSlot(event: DragEvent, afterId: string): void {
+    if (!draggingNodeId || !moveWorkflowNodeAfter(graph, draggingNodeId, afterId)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dropSlotId = afterId;
+    dropTargetId = null;
+  }
+  function dropAtSlot(event: DragEvent, afterId: string): void {
+    const sourceId = draggingNodeId;
+    draggingNodeId = null;
+    dropSlotId = null;
+    if (!sourceId) return;
+    const next = moveWorkflowNodeAfter(graph, sourceId, afterId);
+    if (!next) return;
+    event.preventDefault();
+    void persistReorder(next);
   }
   function dropNode(event: DragEvent, targetId: string): void {
     const sourceId = draggingNodeId;
@@ -569,7 +589,7 @@
     {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
     <article class="flow-node" class:drop-target={dropTargetId === node.id} data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`} ondragover={event => overNode(event, node.id)} ondragleave={() => { if (dropTargetId === node.id) dropTargetId = null; }} ondrop={event => dropNode(event, node.id)}>
       {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
-        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} draggable={!readOnly && !isTrigger(node)} ondragstart={event => startNodeDrag(event, node.id)} ondragend={() => { draggingNodeId = null; dropTargetId = null; }} onclick={() => edit(node)}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
+        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} draggable={!readOnly && !isTrigger(node)} ondragstart={event => startNodeDrag(event, node.id)} ondragend={() => { draggingNodeId = null; dropTargetId = null; dropSlotId = null; }} onclick={() => edit(node)}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
         {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{tr('output_step_failed')}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
       {/if}
     </article>
@@ -580,8 +600,8 @@
       </div>
     {/if}
     {@const next = nextId(node.id)}
-    {#if next && next !== stopAt && graph.nodes.find(item => item.id === next)?.type !== 'end'}<div class="connector">{tr('then')}</div>{@render chain(next, [...visited, node.id], stopAt)}
-    {:else if !readOnly}<div class="connector">{tr('then')}</div>{@render slotControls({ after: node.id })}{/if}
+    {#if next && next !== stopAt && graph.nodes.find(item => item.id === next)?.type !== 'end'}<div class="connector" role="group" class:drop-slot={dropSlotId === node.id} data-testid="workflow-node-drop-zone" data-after-node-id={node.id} ondragover={event => overSlot(event, node.id)} ondragleave={() => { if (dropSlotId === node.id) dropSlotId = null; }} ondrop={event => dropAtSlot(event, node.id)}>{tr('then')}</div>{@render chain(next, [...visited, node.id], stopAt)}
+    {:else if !readOnly}<div class="connector" role="group" class:drop-slot={dropSlotId === node.id} data-testid="workflow-node-drop-zone" data-after-node-id={node.id} ondragover={event => overSlot(event, node.id)} ondragleave={() => { if (dropSlotId === node.id) dropSlotId = null; }} ondrop={event => dropAtSlot(event, node.id)}>{tr('then')}</div>{@render slotControls({ after: node.id })}{/if}
   {/if}
 {/snippet}
 
@@ -600,11 +620,15 @@
   .node-summary{box-sizing:border-box;width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem;gap:.55rem}
   .node-summary.expanded{width:min(42rem,100%);border-radius:1rem 1rem 0 0}.node-summary.expanded+.editor{border-radius:0 0 1rem 1rem}.check-source{font-size:14px;color:var(--color-font-secondary)}
   .node-summary[draggable="true"]{cursor:grab}.node-summary[draggable="true"]:active{cursor:grabbing}.flow-node.drop-target>.node-summary{outline:3px solid var(--color-primary);outline-offset:3px}
+  .connector[data-testid="workflow-node-drop-zone"]{box-sizing:border-box;min-width:min(21rem,100%);min-height:3.5rem;display:grid;place-items:center;border:2px dashed transparent;border-radius:.7rem;transition:background .15s ease,border-color .15s ease}
+  .connector.drop-slot{border-color:var(--color-primary);background:var(--color-grey-20);color:var(--color-primary)}
   .node-summary.branded .check-source{color:var(--color-font-button);opacity:.9}
   .branch-label{display:flex;align-items:center;justify-content:center;gap:.4rem}
   .type{background:#315aef;color:white}.type[data-value-type="number"]{background:#b3213c}.type[data-value-type="date"]{background:#eb9d00}.type[data-value-type="boolean"]{background:#7651b5}
   .editor :global(.settings-dropdown-wrapper){padding:0}
   .editor :global(.settings-dropdown){min-height:3.375rem;background:var(--workflow-input-surface,var(--color-grey-10))}
+  .editor :global(.app-store-card), .editor :global(.app-card-name), .editor :global(.app-card-description){text-align:start}
+  .editor :global(.settings-input), .editor input, .editor input::placeholder, .editor :global(.workflow-message-editor .tiptap), .editor :global(.workflow-message-editor .tiptap p){text-align:start}
 
   /* Shared app/skill/chat pickers keep workflow typography without changing other screens. */
   .graph-panel {

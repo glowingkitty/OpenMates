@@ -1225,6 +1225,21 @@ async def undo_workflow_input(
         _handle_workflow_input_error(exc)
 
 
+@router.get("/{workflow_id}/template-projection")
+@limiter.limit("60/minute")
+async def get_owner_workflow_template_projection(
+    workflow_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
+) -> dict[str, Any]:
+    try:
+        projection = await run_in_threadpool(service.get_owner_projection, workflow_id, current_user.id)
+        return projection.model_dump(mode="json", exclude={"owner_hash"})
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
 @router.put("/{workflow_id}/template-projection")
 @limiter.limit("30/minute")
 async def upsert_workflow_template_projection(

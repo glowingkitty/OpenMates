@@ -61,13 +61,22 @@ test('reorders persisted nodes and renders real fitness and travel date and loca
     let saved = await (await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`)).json();
     expect(saved.workflow.graph.edges.some((edge: { from: string; to: string }) => edge.from === 'stays' && edge.to === 'fitness')).toBe(true);
 
-    await fitness.locator('.editor-header .close-button').click();
+    const ownerProjection = await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}/template-projection`);
+    expect(ownerProjection.ok()).toBe(true);
+    const stableTemplateId = (await ownerProjection.json()).template_id;
+    await page.evaluate(() => localStorage.removeItem('openmates.workflow-template-projections.v1'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(fitness.getByTestId('workflow-node-summary')).toBeVisible();
+
     const movedByDrag = page.waitForResponse(response => response.url().endsWith(`/v1/workflows/${workflow.id}`) && response.request().method() === 'PATCH');
-    await fitness.getByTestId('workflow-node-summary').dragTo(stays.getByTestId('workflow-node-summary'));
+    await fitness.getByTestId('workflow-node-summary').dragTo(page.locator('[data-testid="workflow-node-drop-zone"][data-after-node-id="trigger"]'));
     expect((await movedByDrag).ok()).toBe(true);
     await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute('aria-busy', 'false');
     saved = await (await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}`)).json();
     expect(saved.workflow.graph.edges.some((edge: { from: string; to: string }) => edge.from === 'fitness' && edge.to === 'stays')).toBe(true);
+    const recoveredProjection = await page.request.get(`${apiUrl()}/v1/workflows/${workflow.id}/template-projection`);
+    expect((await recoveredProjection.json()).template_id).toBe(stableTemplateId);
+    await expect(page.getByText('Workflow saved, but its shareable template was not updated:', { exact: false })).toHaveCount(0);
 
     await stays.getByTestId('workflow-node-summary').click();
     await expect(stays.getByTestId('workflow-schema-field-date-range')).toBeVisible();

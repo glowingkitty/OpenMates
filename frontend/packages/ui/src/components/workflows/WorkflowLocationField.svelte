@@ -90,7 +90,7 @@
 <style>
   .location-field { grid-column:1/-1; display:grid; gap:var(--spacing-4); min-width:0; text-align:start; }
   .label { font-size:max(16px, 1rem); font-weight:650; }
-  .location-button { box-sizing:border-box; width:100%; min-height:3.375rem; display:flex; align-items:center; gap:var(--spacing-6); padding:.8rem 1.1rem; border:0; border-radius:var(--radius-8); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-primary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); text-align:start; cursor:pointer; }
+  .location-button { box-sizing:border-box; width:100%; min-height:3.375rem; display:flex; align-items:center; justify-content:flex-start; gap:var(--spacing-6); padding:.8rem 1.1rem; border:0; border-radius:var(--radius-8); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-primary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); text-align:start; cursor:pointer; }
   .location-button span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   input { box-sizing:border-box; width:100%; min-height:3rem; padding:.7rem 1rem; border:1px solid var(--color-grey-25); border-radius:var(--radius-8); background:var(--workflow-input-surface,var(--color-grey-10)); color:var(--color-font-primary); font:inherit; font-size:max(16px,1rem); }
   .help { color:var(--color-font-secondary); font-size:max(14px, .875rem); }

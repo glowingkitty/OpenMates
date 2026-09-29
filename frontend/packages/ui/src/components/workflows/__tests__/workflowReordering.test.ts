@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 import type { WorkflowGraph, WorkflowNode } from '../../../stores/workflowWorkspaceStore';
-import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeTo } from '../workflowReordering';
+import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeTo, moveWorkflowNodeAfter } from '../workflowReordering';
 
 const node = (id: string, type: WorkflowNode['type'] = 'app_skill_action', config: WorkflowNode['config'] = {}): WorkflowNode => ({ id, type, config });
 const graph: WorkflowGraph = {
@@ -33,6 +33,15 @@ test('dragging across multiple steps keeps their continuation connected', () => 
   expect(moved!.nodes.map(item => item.id)).toEqual(['trigger', 'c', 'a', 'b', 'send']);
   expect(links(moved!)).toEqual(['a->b', 'b->send', 'c->a', 'trigger->c']);
   expect(moveWorkflowNodeTo(graph, 'c', 'c')).toBeNull();
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
+test('dropping on connectors inserts at the visible slot', () => {
+  const beforeA = moveWorkflowNodeAfter(graph, 'c', 'trigger');
+  expect(links(beforeA!)).toEqual(['a->b', 'b->send', 'c->a', 'trigger->c']);
+  const afterC = moveWorkflowNodeAfter(graph, 'a', 'c');
+  expect(links(afterC!)).toEqual(['a->send', 'b->c', 'c->a', 'trigger->b']);
+  expect(moveWorkflowNodeAfter(graph, 'b', 'a')).toBeNull();
 });
 
 // contract-test: supporting surface=gui.web assertions=workflows.control.typed-data,workflows-ui.mvp.authoring
