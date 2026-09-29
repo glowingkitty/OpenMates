@@ -29,6 +29,7 @@ from backend.apps.ai.processing.preprocessor import (
     IMAGE_CHAT_SAFE_MODEL_NAME,
     PreprocessingResult,
 )
+from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
     normalize_string_query_request_items,
@@ -2949,6 +2950,21 @@ async def handle_main_processing(
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
+    ai_model_topics = getattr(preprocessing_results, "ai_model_topics", None) or []
+    if ai_model_topics:
+        model_catalogue_context = build_ai_model_catalogue_context(
+            config_manager.get_provider_configs(),
+            ai_model_topics,
+            today=now_utc.date(),
+        )
+        if model_catalogue_context:
+            prompt_parts.append(model_catalogue_context)
+        if "web-search" in (preprocessing_results.relevant_app_skills or []):
+            prompt_parts.append(
+                "For claims about current AI model releases, subscription allowances, plan prices, "
+                "or changes to usage limits, call web-search and check official provider sources "
+                "before giving exact figures. Distinguish published limits from user reports."
+            )
     prompt_parts.append(base_instructions.get("base_ethics_instruction", ""))
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}

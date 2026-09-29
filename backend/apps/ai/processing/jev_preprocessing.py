@@ -145,6 +145,10 @@ async def decide_preprocessing_with_jev(
         "user_unhappy": {"type": "noul", "instructions": "Does the latest user turn explicitly express dissatisfaction, correction, or frustration with the prior answer?"},
         "china_sensitive": {"type": "noul", "instructions": "Is this specifically about China-related politics, censorship, human rights, or value comparison involving an authoritarian or one-party system? Ordinary culture, travel, food, language, business, and neutral facts are no."},
         "enable_subchats": {"type": "noul", "instructions": "Would parallel subchats materially help because the user explicitly asked for agents/parallel work or the task is a genuinely complex batch, comparison, research, coding, or test effort?"},
+        "model_llm": {"type": "noul", "instructions": "Is the latest request discussing or comparing language models, AI coding assistants, their versions, capabilities, or subscription usage? Merely using a coding assistant to do a task is no."},
+        "model_image": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI image generation/editing models? Merely asking to generate an image is no."},
+        "model_video": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI video generation models? Merely asking to create a video is no."},
+        "model_audio": {"type": "noul", "instructions": "Is the latest request discussing or comparing AI audio, speech, music, or transcription models? Merely asking to create or transcribe audio is no."},
         "topic_area": {
             "type": "choice",
             "instructions": "Choose the most specific topic for the latest request; use general_misc only as a fallback.",
@@ -237,6 +241,10 @@ async def decide_preprocessing_with_jev(
         "user_unhappy": noul_value(response, "user_unhappy") >= 0.5,
         "china_model_sensitive": noul_value(response, "china_sensitive") >= 0.5,
         "enable_subchats": noul_value(response, "enable_subchats") >= 0.65,
+        "ai_model_topics": [
+            family for family in ("llm", "image", "video", "audio")
+            if noul_value(response, f"model_{family}") >= 0.65
+        ],
         "load_app_settings_and_memories": [key for question, key in memory_map.items() if noul_value(response, question) >= 0.75],
         "relevant_app_skills": [key for question, key in skill_map.items() if noul_value(response, question) >= 0.70],
         "relevant_focus_modes": [key for question, key in focus_map.items() if noul_value(response, question) >= 0.75],

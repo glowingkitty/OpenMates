@@ -1231,6 +1231,7 @@ class PreprocessingResult(BaseModel):
     can_proceed: bool = False # Renamed from is_safe_to_proceed
     rejection_reason: Optional[str] = None # This will serve as error_type
     enable_subchats: bool = False # Whether sub-chats are enabled for this request.
+    ai_model_topics: List[str] = Field(default_factory=list, description="AI model families whose current catalogue context is relevant to this request.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
@@ -2278,6 +2279,11 @@ async def handle_preprocessing(
         )
 
     llm_analysis_args = llm_call_result.arguments
+    raw_ai_model_topics = llm_analysis_args.get("ai_model_topics")
+    ai_model_topics = (
+        list(dict.fromkeys(topic for topic in raw_ai_model_topics if isinstance(topic, str) and topic in {"llm", "image", "video", "audio"}))
+        if isinstance(raw_ai_model_topics, list) else []
+    )
     combined_raw_response_summary = llm_call_result.raw_provider_response_summary
     
     # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
@@ -3566,6 +3572,16 @@ async def handle_preprocessing(
                 f"{log_prefix} [DISCLAIMER] Category '{final_category}' is sensitive but "
                 f"disclaimer was shown recently, skipping"
             )
+
+    # Current model availability and subscription allowances can change faster than
+    # our provider catalogue. Make live lookup available for model conversations.
+    if (
+        ai_model_topics
+        and not user_requested_skills_only
+        and "web-search" in available_skill_ids
+        and "web-search" not in validated_relevant_skills
+    ):
+        validated_relevant_skills.append("web-search")
     
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
@@ -3575,6 +3591,7 @@ async def handle_preprocessing(
         harmful_or_illegal_score=harmful_or_illegal_val,
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
         enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
+        ai_model_topics=ai_model_topics,
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
