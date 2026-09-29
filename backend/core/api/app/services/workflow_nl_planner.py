@@ -61,6 +61,10 @@ IDENTITY_ICONS = sorted(WORKFLOW_ALLOWED_ICONS & {
     "newspaper", "sun", "clock", "message-circle", "brain", "umbrella",
 })
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+UNSUPPORTED_DELIVERY = re.compile(
+    r"\b(?:e-?mail|sms|slack|discord|telegram|whatsapp|signal|teams|webhook|push notification|phone notification)\b",
+    re.IGNORECASE,
+)
 
 
 class WorkflowNLPlanningError(ValueError):
@@ -108,6 +112,10 @@ class WorkflowNLPlanner:
         started = time.perf_counter()
         metrics: dict[str, Any] = {"jev_calls": 0, "gemini_calls": 0, "input_tokens": {}, "output_tokens": {}, "estimated_cost_usd": 0.0}
         try:
+            # A mistaken channel selection would silently change the requested
+            # effect. Check explicit unsupported destinations before any model call.
+            if UNSUPPORTED_DELIVERY.search(text):
+                raise WorkflowNLPlanningError("The requested delivery channel is not available in the current workflow recipes. Please clarify it in chat.")
             decisions = await self._decide(text, context, metrics)
             route = decisions["route"]
             if route == "multiple":

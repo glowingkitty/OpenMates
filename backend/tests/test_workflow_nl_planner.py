@@ -115,6 +115,15 @@ def test_unsupported_delivery_creates_nothing_and_requests_clarification():
     assert not workflows.list_workflows("alice")
 
 
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_explicit_external_channel_cannot_be_silently_replaced_by_chat():
+    service, workflows = _input_service(StubJev({"recipe": "news_ai_digest", "delivery": "chat"}))
+    result = service.start(user_id="alice", text="Every day at 8 UTC, post an AI news digest to Slack")
+    assert result.status == "needs_clarification"
+    assert result.authoring_metrics["jev_calls"] == 0
+    assert not workflows.list_workflows("alice")
+
+
 # contract-test: direct surface=cli assertions=workflows.schedule.edge-cases
 def test_tomorrow_runtime_date_rolls_in_schedule_timezone():
     now = datetime.fromisoformat("2026-03-28T23:30:00+00:00")
