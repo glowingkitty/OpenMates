@@ -139,6 +139,7 @@ def compose_profile(
             "vault",
             "storage_key",
             "storage_secret",
+            "signup_cleanup",
         )
     }
     credentials.update(credential_overrides or {})
@@ -173,7 +174,10 @@ def compose_profile(
         "CELERY_AUTOSCALE_MAX": "1",
     }
     if mail_capture:
-        common.update(CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1")
+        common.update(
+            CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1",
+            OPENMATES_TEST_ACCOUNT_API_KEY=credentials["signup_cleanup"],
+        )
     if object_storage:
         common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
     source_mounts = [

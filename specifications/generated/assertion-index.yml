@@ -21038,7 +21038,7 @@ assertions:
       surface: gui.web
     - &id2424
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 124
+      line: 125
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
@@ -21054,7 +21054,7 @@ assertions:
       surface: gui.web
     - &id2427
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 116
+      line: 117
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web
@@ -21219,7 +21219,7 @@ assertions:
       surface: gui.web
     - &id2451
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 124
+      line: 125
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
@@ -21235,7 +21235,7 @@ assertions:
       surface: gui.web
     - &id2454
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 116
+      line: 117
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web
@@ -21412,7 +21412,7 @@ assertions:
       surface: rest_api
     - &id2469
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 75
+      line: 76
       name: lookup response does not reveal whether an account exists
       surface: gui.web
     supporting_tests:
@@ -21561,7 +21561,7 @@ assertions:
       surface: gui.web
     - &id2516
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 116
+      line: 117
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web
@@ -22703,7 +22703,7 @@ assertions:
       surface: gui.web
     - &id2625
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 124
+      line: 125
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
@@ -23436,13 +23436,13 @@ assertions:
       surface: gui.web
     - &id2742
       path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-      line: 124
+      line: 125
       name: 'completes passkey signup and account deletion with stay logged in ${stayLoggedIn
         ? '
       surface: gui.web
     - &id2743
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 116
+      line: 117
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web

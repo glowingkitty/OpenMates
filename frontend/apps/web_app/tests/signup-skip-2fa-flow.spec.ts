@@ -46,6 +46,7 @@ const {
 	buildSignupEmail,
 	createSignupEmailClient,
 	checkSignupEmailQuota,
+	configureCloudSignupUiForCi,
 	assertNoMissingTranslations,
 	getTestAccount,
 	getE2EDebugUrl
@@ -175,6 +176,7 @@ test('completes password signup, login with password, and delete account via ema
 	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234Secure';
 
+	await configureCloudSignupUiForCi(page);
 	await page.goto(getE2EDebugUrl('/'));
 
 	// Dismiss "new version available" notification if present (service worker update)

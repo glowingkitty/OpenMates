@@ -42,6 +42,7 @@ const {
 	buildSignupEmail,
 	createSignupEmailClient,
 	checkSignupEmailQuota,
+	configureCloudSignupUiForCi,
 	assertNoMissingTranslations,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
@@ -177,6 +178,7 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	// Base URL comes from PLAYWRIGHT_TEST_BASE_URL or the default in config.
+	await configureCloudSignupUiForCi(page);
 	await page.goto(getE2EDebugUrl('/'));
 	await takeStepScreenshot(page, 'home');
 

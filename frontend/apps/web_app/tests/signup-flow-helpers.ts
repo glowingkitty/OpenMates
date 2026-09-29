@@ -987,6 +987,23 @@ async function checkSignupEmailQuota(): Promise<{ available: boolean; current: n
 	return checkEmailQuota();
 }
 
+/** Exercise the cloud email-confirmation UI on the isolated localhost stack. */
+async function configureCloudSignupUiForCi(page: any): Promise<void> {
+	if (!process.env.OPENMATES_CI_MAILPIT_URL) return;
+	if (process.env.CI !== 'true' || process.env.OPENMATES_CI_MAILPIT_URL !== 'http://127.0.0.1:8025') {
+		throw new Error('Cloud signup UI simulation requires the isolated CI inbox.');
+	}
+	await page.route('**/v1/settings/server-status', async (route: any) => {
+		const response = await route.fetch();
+		if (!response.ok()) throw new Error(`Server status failed (${response.status()}).`);
+		const status = await response.json();
+		await route.fulfill({
+			response,
+			json: { ...status, is_self_hosted: false, is_development: true, server_edition: 'development' }
+		});
+	});
+}
+
 /**
  * Decode a base32-encoded secret (RFC 4648) into a raw byte buffer.
  * This is required for TOTP generation without external libraries.
@@ -1371,6 +1388,7 @@ module.exports = {
 	checkEmailQuota,
 	createSignupEmailClient,
 	checkSignupEmailQuota,
+	configureCloudSignupUiForCi,
 	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
