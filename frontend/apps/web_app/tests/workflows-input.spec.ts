@@ -51,7 +51,7 @@ test.use({
 });
 
 test.describe('Workflows input home', () => {
-	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft,workflows-ui.mvp.authoring
 	test('preserves home content and marks a committed AI workflow New', async ({ page }: { page: Page }) => {
 		test.setTimeout(240000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -323,46 +323,95 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await expect(page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: `${shortRequest} manually saved` })).toBeVisible();
 
-			let correctionFails = false;
-			await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
-				socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-2602', sample_rate: 16000 }));
-				socket.onMessage(rawMessage => {
-					const message = JSON.parse(String(rawMessage));
-					if (message.type !== 'input_audio.end') return;
-					socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'Weather tomorrow', language: 'en', model: 'voxtral-mini-transcribe-realtime-2602' }));
-					socket.send(JSON.stringify({ type: 'correction.started', model: 'gemini-3.5-flash' }));
-					socket.send(JSON.stringify(correctionFails
-						? { type: 'correction.failed' }
-						: { type: 'correction.done', transcript: 'Weather tomorrow at 08:00', correction_model: 'gemini-3.5-flash' }));
-				});
+			const landingEdited = {
+				...draft,
+				title: `${shortRequest} retimed`,
+				graph: { ...draft.graph, nodes: [{ ...draft.graph.nodes[0], title: 'Manual start retimed' }] }
+			};
+			await page.route(`**/v1/workflows/${draft.id}`, async (route: Route) => {
+				if (route.request().method() !== 'GET') return route.continue();
+				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ workflow: landingEdited }) });
 			});
-			const voiceSubmittedTexts: string[] = [];
 			await page.unroute('**/v1/workflows/input');
 			await page.route('**/v1/workflows/input', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
-				voiceSubmittedTexts.push(route.request().postDataJSON().text);
+				expect(route.request().postDataJSON().selected_workflow_id).toBeFalsy();
 				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
-					session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.'
+					session_id: 'workflow-landing-edit-spec', status: 'executed', workflow: landingEdited,
+					changes: [{ workflow_id: draft.id, added_node_ids: [], edited_node_ids: ['manual'], removed_nodes: [] }],
+					mutations: [{ type: 'update_workflow', target_id: draft.id, before: { graph: draft.graph }, after: { graph: landingEdited.graph } }]
 				} }) });
 			});
-			await page.getByTestId('workflow-input-mic').click();
-			await expect(page.getByTestId('workflow-voice-input')).toBeVisible();
-			await expect(page.getByTestId('workflow-voice-input').getByRole('status')).toContainText('Listening');
-			await page.getByTestId('workflow-voice-finish').click();
-			await expect.poll(() => voiceSubmittedTexts.length).toBe(1);
-			expect(voiceSubmittedTexts[0]).toBe('Weather tomorrow at 08:00');
-			await expect(page.getByTestId('workflow-voice-input')).toHaveCount(0);
-			correctionFails = true;
-			await page.getByTestId('workflow-input-mic').click();
-			await expect(page.getByTestId('workflow-voice-input').getByRole('status')).toContainText('Listening');
-			await page.getByTestId('workflow-voice-finish').click();
-			await expect(page.getByTestId('workflow-voice-input')).toHaveCount(0);
-			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Weather tomorrow');
-			expect(voiceSubmittedTexts).toHaveLength(1);
+			await page.getByTestId('workflow-input-textarea').fill(`Move ${shortRequest} to 8:30`);
+			await page.getByTestId('workflow-input-submit').click();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(landingEdited.title);
+			await expect(page.locator('[data-testid="workflow-node-card"][data-node-id="manual"]')).toHaveAttribute('data-ai-change', 'edited');
+			await page.getByTestId('workflow-detail-back').click();
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+
 		} finally {
 			for (const workflowId of createdWorkflowIds) {
 				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
 			}
 		}
+	});
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
+	test('streams a workflow recording and submits only corrected text', async ({ page }: { page: Page }) => {
+		test.setTimeout(120000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		let correctionFails = false;
+		let socketConnections = 0;
+		await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
+			socketConnections += 1;
+			let sentPreview = false;
+			socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-2602', sample_rate: 16000 }));
+			socket.onMessage(rawMessage => {
+				const message = JSON.parse(String(rawMessage));
+				if (message.type === 'input_audio.append' && !sentPreview) {
+					sentPreview = true;
+					socket.send(JSON.stringify({ type: 'transcription.text.delta', text: 'Weather tomorrow' }));
+				}
+				if (message.type !== 'input_audio.end') return;
+				socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'Weather tomorrow', language: 'en', model: 'voxtral-mini-transcribe-realtime-2602' }));
+				socket.send(JSON.stringify({ type: 'correction.started', model: 'gemini-3.5-flash' }));
+				socket.send(JSON.stringify(correctionFails
+					? { type: 'correction.failed' }
+					: { type: 'correction.done', transcript: 'Weather tomorrow at 08:00', correction_model: 'gemini-3.5-flash' }));
+			});
+		});
+		const log = (message: string, metadata: Record<string, unknown> = {}) => {
+			console.log(`[WORKFLOWS_VOICE_E2E] ${message} ${JSON.stringify(metadata)}`);
+		};
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, log, async () => {});
+		const submittedTexts: string[] = [];
+		await page.route('**/v1/workflows/input', async (route: Route) => {
+			if (route.request().method() !== 'POST') return route.continue();
+			submittedTexts.push(route.request().postDataJSON().text);
+			await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+				session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.'
+			} }) });
+		});
+		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
+		await page.getByTestId('workflow-input-mic').click();
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toBeVisible();
+		await expect.poll(() => socketConnections, { timeout: 15000 }).toBeGreaterThan(0);
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('recording-live-transcript')).toContainText('Weather tomorrow', { timeout: 15000 });
+		await page.getByTestId('workflow-input-composer').getByTestId('record-finish-button').click();
+		await expect.poll(() => submittedTexts.length).toBe(1);
+		expect(submittedTexts[0]).toBe('Weather tomorrow at 08:00');
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toHaveCount(0);
+		correctionFails = true;
+		await page.getByTestId('workflow-input-textarea').fill('');
+		const priorSocketConnections = socketConnections;
+		await page.getByTestId('workflow-input-mic').click();
+		await expect.poll(() => socketConnections, { timeout: 15000 }).toBeGreaterThan(priorSocketConnections);
+		await page.getByTestId('workflow-input-composer').getByTestId('record-finish-button').click();
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toHaveCount(0);
+		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Weather tomorrow');
+		expect(submittedTexts).toHaveLength(1);
 	});
 });

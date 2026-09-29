@@ -50,6 +50,23 @@ class StubJev:
         })
 
 
+class TargetJev(StubJev):
+    def __init__(self) -> None:
+        super().__init__({"route": "update"})
+
+    async def evaluate(self, *, state, questions):
+        if "target" not in questions:
+            return await super().evaluate(state=state, questions=questions)
+        self.calls += 1
+        target = next(key for key, description in questions["target"]["criteria"].items()
+                      if "Berlin umbrella alert" in description)
+        return DecisionResponse.model_validate({
+            "model": "typesafe/jev-1.13", "usage": {"input_tokens": 300, "output_tokens": 0},
+            "answers": {"target": {"type": "choice", "choice": target,
+                                   "probabilities": {target: 0.9}, "confidence": 0.9}},
+        })
+
+
 class StubGemini:
     def __init__(self) -> None:
         self.models: list[str] = []
@@ -492,6 +509,60 @@ def test_selected_workflow_schedule_edit_keeps_enabled_state(monkeypatch):
     assert updated.workflow.enabled is False
     trigger = next(node for node in updated.workflow.graph.nodes if node.id == "trigger")
     assert trigger.config["schedule"]["time"] == "08:30"
+
+
+# contract-test: direct surface=cli assertions=workflows.surface.semantic-parity
+def test_landing_edit_selects_only_the_named_owner_workflow():
+    creator, workflows = _input_service()
+    created = creator.start(user_id="alice", text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if rain is expected")
+    assert created.workflow is not None
+    rain = workflows.update_workflow(created.workflow.id, "alice", title="Berlin umbrella alert")
+    other = workflows.create_workflow("alice", "Berlin news digest", rain.graph, description="Summarize AI news", enabled=False)
+    workflows.create_workflow("bob", "Berlin umbrella alert", rain.graph, enabled=False)
+    selector = TargetJev()
+    editor, _ = _input_service(selector)
+    editor.workflow_service = workflows
+    editor.planner.workflow_service = workflows
+
+    edited = editor.start(user_id="alice", text="Move my Berlin umbrella alert to 8:30 Berlin time")
+
+    assert edited.status == "executed", edited.error
+    assert edited.workflow is not None and edited.workflow.id == rain.id
+    assert selector.calls == 2
+    assert edited.workflow.enabled is False
+    assert next(node for node in edited.workflow.graph.nodes if node.id == "trigger").config["schedule"]["time"] == "08:30"
+    assert next(node for node in workflows.get_workflow(other.id, "alice").graph.nodes if node.id == "trigger").config["schedule"]["time"] == "07:00"
+
+
+# contract-test: direct surface=cli assertions=workflows.surface.semantic-parity
+def test_landing_edit_without_matching_workflow_clarifies_without_mutation():
+    creator, workflows = _input_service()
+    created = creator.start(user_id="alice", text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if rain is expected")
+    assert created.workflow is not None
+    editor, _ = _input_service(StubJev({"route": "update"}))
+    editor.workflow_service = workflows
+    editor.planner.workflow_service = workflows
+
+    result = editor.start(user_id="alice", text="Move my purple rocket workflow to 8:30")
+
+    assert result.status == "needs_clarification"
+    assert workflows.get_workflow(created.workflow.id, "alice").version == created.workflow.version
+
+
+# contract-test: direct surface=cli assertions=workflows.surface.semantic-parity
+def test_landing_edit_does_not_select_a_workflow_from_timezone_city_alone():
+    workflows = workflow_service()
+    news = workflows.create_workflow("alice", "Berlin news digest", rain_graph(), enabled=False)
+    city = workflows.create_workflow("alice", "San Francisco", rain_graph(), enabled=False)
+    editor, _ = _input_service(StubJev({"route": "update"}))
+    editor.workflow_service = workflows
+    editor.planner.workflow_service = workflows
+
+    result = editor.start(user_id="alice", text="Move my rain alert to 8:30 San Francisco time")
+
+    assert result.status == "needs_clarification"
+    assert workflows.get_workflow(news.id, "alice").version == news.version
+    assert workflows.get_workflow(city.id, "alice").version == city.version
 
 
 # contract-test: direct surface=cli assertions=workflows.surface.semantic-parity

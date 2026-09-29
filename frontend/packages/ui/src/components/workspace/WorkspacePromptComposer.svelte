@@ -8,11 +8,15 @@
 
 <script lang="ts">
   import { tick } from 'svelte';
+  import RecordAudio from '../enter_message/RecordAudio.svelte';
+  import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
+  import type { AudioWaveformData } from '../../utils/audioWaveform';
 
   type WorkspaceSurface = 'projects' | 'workflows' | 'tasks' | 'plans';
 
   type SubmitCallback = (value: string) => void | Promise<void>;
   type MicCallback = () => void | Promise<void>;
+  type RecordedAudio = { blob: Blob; duration: number; mimeType: string; waveform?: AudioWaveformData; realtime?: AudioRealtimeTranscriptionHandle; liveTranscript?: string };
 
   let {
     surface,
@@ -28,6 +32,9 @@
     micTestId = `${surface}-input-mic`,
     onSubmit,
     onMicClick,
+    recording = false,
+    onAudioRecorded,
+    onRecordingClose,
   }: {
     surface: WorkspaceSurface;
     value?: string;
@@ -42,6 +49,9 @@
     micTestId?: string;
     onSubmit: SubmitCallback;
     onMicClick: MicCallback;
+    recording?: boolean;
+    onAudioRecorded?: (event: CustomEvent<RecordedAudio>) => void | Promise<void>;
+    onRecordingClose?: () => void;
   } = $props();
 
   let textareaElement = $state<HTMLTextAreaElement | null>(null);
@@ -119,6 +129,12 @@
       disabled={disabled}
       onclick={() => void onMicClick()}
     ></button>
+  {/if}
+  {#if recording}
+    <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
+      on:audiorecorded={(event) => void onAudioRecorded?.(event)}
+      on:close={() => onRecordingClose?.()}
+      on:cancel={() => onRecordingClose?.()} />
   {/if}
 </form>
 

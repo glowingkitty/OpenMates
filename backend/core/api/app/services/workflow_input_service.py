@@ -1115,13 +1115,23 @@ class WorkflowInputService:
                 selected_workflow = detail.model_dump(mode="json")
             except WorkflowNotFoundError:
                 selected_workflow = None
-        return {
+        context: dict[str, Any] = {
             "workflows": workflows,
             "selected_workflow": selected_workflow,
             "projects": [],
             "selected_project_id": session.get("selected_project_id"),
             "timezone": session.get("timezone"),
         }
+        if getattr(self.planner, "requires_workflow_lookup", False):
+            # Keep owner credentials and library contents out of model input.
+            # The NL planner invokes these only after it has classified an edit.
+            context["_load_workflows"] = lambda: self.workflow_service.list_workflows(session["user_id"], vault_key_id)
+            def load_workflow(workflow_id: str) -> WorkflowDetail:
+                detail = self.workflow_service.get_workflow(workflow_id, session["user_id"], vault_key_id)
+                session["_selected_workflow_detail"] = detail
+                return detail
+            context["_load_workflow"] = load_workflow
+        return context
 
     def _create_session(
         self,

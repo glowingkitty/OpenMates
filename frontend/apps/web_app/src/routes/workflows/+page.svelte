@@ -44,7 +44,6 @@
 		workflowGraphReady
 	} from '@repo/ui/components/workflows/workflowBuilder.ts';
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
-	import WorkflowVoiceInput from '@repo/ui/components/workflows/WorkflowVoiceInput.svelte';
 	import WorkflowPendingPreview from '@repo/ui/components/workflows/WorkflowPendingPreview.svelte';
 	import { committedWorkflows, getWorkflowInstruction, submitWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowInputChange, type WorkflowInputSession } from '@repo/ui/services/workflowInputService';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
@@ -71,6 +70,13 @@
 		workflowId: string | null;
 		tab: WorkflowTab;
 		runId: string | null;
+	};
+	type WorkflowAudioRecording = {
+		liveTranscript?: string;
+		realtime?: {
+			transcription: Promise<{ transcript: string }>;
+			correction: Promise<{ useCorrected: boolean; transcriptCorrected?: string }>;
+		};
 	};
 
 	const WORKFLOWS_ROUTE = '/';
@@ -584,6 +590,31 @@
 		requestNavigation(() => authorWorkflow(text.trim(), selectedWorkflow.id));
 	}
 
+	async function handleWorkflowAudioRecorded(event: CustomEvent<WorkflowAudioRecording>, target: 'home' | 'editor'): Promise<void> {
+		const { realtime, liveTranscript } = event.detail;
+		let raw = liveTranscript?.trim() ?? '';
+		const review = () => {
+			if (target === 'home') workflowInputText = raw;
+			else editorInstruction = raw;
+		};
+		if (!realtime) {
+			review();
+			return;
+		}
+		try {
+			raw = (await realtime.transcription).transcript.trim() || raw;
+			const corrected = await realtime.correction;
+			if (!corrected.useCorrected || !corrected.transcriptCorrected?.trim()) {
+				review();
+				return;
+			}
+			if (target === 'home') await submitWorkflowInput(corrected.transcriptCorrected);
+			else submitEditorInstruction(corrected.transcriptCorrected);
+		} catch {
+			review();
+		}
+	}
+
 	function handoffWorkflowClarification(instruction: string): void {
 		// This same-origin deep link creates a new chat and sends the exact request with the focus mention.
 		sessionStorage.setItem('docs_auto_send', 'true');
@@ -658,19 +689,24 @@
 				showAllWorkflows = false;
 				openWorkflowHome();
 			}
-			if (workflowId) {
-				const updated = committed.find(item => item.id === workflowId);
+			const editedWorkflowId = workflowId ?? session.mutations?.find(item => item.type === 'update_workflow')?.target_id;
+			if (editedWorkflowId) {
+				const updated = committed.find(item => item.id === editedWorkflowId);
 				if (updated) {
-					const mutation = session.mutations?.find(item => item.target_id === workflowId);
+					const mutation = session.mutations?.find(item => item.target_id === editedWorkflowId);
 					workflowWorkspaceStore.upsertWorkflow(updated);
+					if (!workflowId) {
+						await selectWorkflow(editedWorkflowId);
+						openWorkflowDetails(editedWorkflowId);
+					}
 					resetEditor(updated);
 					identityResetSignal += 1;
-					aiChange = session.changes?.find(change => change.workflow_id === workflowId) ?? {
-						workflow_id: workflowId,
+					aiChange = session.changes?.find(change => change.workflow_id === editedWorkflowId) ?? {
+						workflow_id: editedWorkflowId,
 						...workflowNodeChanges(before?.graph.nodes ?? mutation?.before?.graph?.nodes ?? [], updated.graph.nodes)
 					};
 					aiSession = session;
-					localStorage.setItem(`workflow-ai-session:${workflowId}`, session.session_id);
+					localStorage.setItem(`workflow-ai-session:${editedWorkflowId}`, session.session_id);
 				}
 			}
 			workflowInputText = '';
@@ -1078,10 +1114,10 @@
 								micTestId="workflow-input-mic"
 								onSubmit={submitWorkflowInput}
 								onMicClick={() => { voiceTarget = 'home'; }}
+								recording={voiceTarget === 'home'}
+								onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'home')}
+								onRecordingClose={() => { voiceTarget = null; }}
 							/>
-							{#if voiceTarget === 'home'}
-								<WorkflowVoiceInput onSubmit={submitWorkflowInput} onReview={(raw) => { workflowInputText = raw; }} onClose={() => { voiceTarget = null; }}/>
-							{/if}
 							{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 							{#if pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === null}
 								<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing"/>
@@ -1183,8 +1219,9 @@
 															placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
 															disabled={saving || !!pendingSaveSessionId} submitting={saving} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
 															submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
-															onMicClick={() => { voiceTarget = 'editor'; }}/>
-														{#if voiceTarget === 'editor'}<WorkflowVoiceInput onSubmit={submitEditorInstruction} onReview={(raw) => { editorInstruction = raw; }} onClose={() => { voiceTarget = null; }}/>{/if}
+															onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
+															onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
+															onRecordingClose={() => { voiceTarget = null; }}/>
 														{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 													</div>
 													{#if aiChange && !pendingPreviewWorkflow && aiChange.workflow_id === selectedWorkflow.id}

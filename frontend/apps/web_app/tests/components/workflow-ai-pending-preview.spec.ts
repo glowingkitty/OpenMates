@@ -7,7 +7,7 @@ import type { Page } from '@playwright/test';
 const { expect, test } = require('../helpers/cookie-audit');
 
 const preview = (component: string, width: number, variant?: string) =>
-	`/dev/preview/workflows/${component}?${new URLSearchParams({
+	`/dev/preview/${component.includes('/') ? component : `workflows/${component}`}?${new URLSearchParams({
 		theme: 'light',
 		background: '#dbeafe',
 		width: String(width),
@@ -46,16 +46,16 @@ test.describe('Workflow AI preview components', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows-ui.responsive-accessible-reachable
-	test('shows streamed voice text and keeps finish disabled without a recording', async ({ page }: { page: Page }) => {
+	test('uses the chat recording UI for streamed workflow voice text', async ({ page }: { page: Page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-		await page.goto(preview('WorkflowVoiceInput', 390), { waitUntil: 'networkidle' });
-		const dialog = page.getByTestId('workflow-voice-input');
-		await expect(dialog).toBeVisible();
-		await expect(page.getByTestId('workflow-voice-preview')).toContainText('tomorrow’s weather');
-		await expect(page.getByTestId('workflow-voice-finish')).toBeDisabled();
-		await page.getByTestId('workflow-voice-cancel').focus();
-		await expect(page.getByTestId('workflow-voice-cancel')).toBeFocused();
-		const box = await dialog.boundingBox();
+		await page.goto(preview('enter_message/RecordAudio', 390), { waitUntil: 'networkidle' });
+		const recorder = page.getByTestId('record-overlay');
+		await expect(recorder).toBeVisible();
+		await expect(page.getByTestId('recording-live-transcript')).toContainText('project review');
+		await expect(page.getByTestId('record-finish-button')).toBeVisible();
+		await page.getByTestId('record-cancel-button').focus();
+		await expect(page.getByTestId('record-cancel-button')).toBeFocused();
+		const box = await recorder.boundingBox();
 		expect(box).not.toBeNull();
 		expect(box!.x).toBeGreaterThanOrEqual(0);
 		expect(box!.x + box!.width).toBeLessThanOrEqual(391);
