@@ -71,10 +71,7 @@ def test_batch_skill_and_realtime_model_metadata_keep_separate_prices() -> None:
     )
     models = {model["id"]: model for model in provider_config["models"]}
     assert models["voxtral-mini-2602"]["pricing"]["per_minute"] == 3
-    assert (
-        models["voxtral-mini-transcribe-realtime-2602"]["pricing"]["per_minute"]
-        == 8
-    )
+    assert models["voxtral-mini-transcribe-realtime-2602"]["pricing"]["per_minute"] == 8
 
 
 # contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
@@ -280,10 +277,14 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
             browser_messages.append(message)
 
     async def fake_correction(
-        websocket: BrowserSocket, raw: str, language: str | None
+        websocket: BrowserSocket,
+        raw: str,
+        language: str | None,
+        context: str | None = None,
     ) -> None:
         assert raw == "Hello world."
         assert language == "en"
+        assert context is None
         await websocket.send_json(
             {"type": "correction.done", "transcript": "Hello world."}
         )
@@ -468,4 +469,109 @@ async def test_realtime_correction_failure_keeps_raw_transcript(
     assert [message["type"] for message in sent] == [
         "correction.started",
         "correction.failed",
+    ]
+
+
+# contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
+@pytest.mark.asyncio
+async def test_workflow_voice_correction_routes_by_language_and_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sent: list[dict[str, object]] = []
+    requested_secrets: list[str] = []
+
+    class Socket(_FakeWebSocket):
+        async def send_json(self, message: dict[str, object]) -> None:
+            sent.append(message)
+
+    async def get_secret(path: str, _key: str) -> str:
+        requested_secrets.append(path)
+        return "test-key"
+
+    async def groq_correct(raw: str, _key: str, language: str | None) -> dict[str, str]:
+        assert language == "en"
+        assert "actually no" in raw
+        return {"corrected_transcript": "Move this workflow to 8:30 Berlin time."}
+
+    async def gemini_correct(
+        raw: str, _key: str, language: str | None
+    ) -> dict[str, str]:
+        assert language == "de"
+        return {
+            "title": "Move workflow",
+            "corrected_transcript": "Move this workflow to 8:30 Berlin time.",
+        }
+
+    async def cerebras_correct(
+        raw: str, _key: str, language: str | None
+    ) -> dict[str, str]:
+        assert "actually no" in raw
+        return {"corrected_transcript": "Move this workflow to 8:30 Berlin time."}
+
+    socket = Socket()
+    socket.app.state.secrets_manager = SimpleNamespace(get_secret=get_secret)
+    monkeypatch.setattr(
+        audio_realtime, "correct_workflow_transcript_with_groq", groq_correct
+    )
+    monkeypatch.setattr(
+        audio_realtime, "correct_workflow_transcript_with_cerebras", cerebras_correct
+    )
+    monkeypatch.setattr(
+        audio_realtime, "correct_transcript_with_gemini", gemini_correct
+    )
+    await audio_realtime._correct_and_send(
+        socket, "Move this to 8, actually no, 8:30 Berlin time.", "en", "workflow"
+    )
+    assert sent[-1]["correction_model"] == audio_realtime.GROQ_WORKFLOW_CORRECTION_MODEL
+    assert sent[-1]["transcript"] == "Move this workflow to 8:30 Berlin time."
+    assert requested_secrets == ["kv/data/providers/groq"]
+
+    sent.clear()
+    requested_secrets.clear()
+    await audio_realtime._correct_and_send(
+        socket, "Move this to 8, actually no, 8:30 Berlin time.", "de", "workflow"
+    )
+    assert (
+        sent[-1]["correction_model"]
+        == audio_realtime.CEREBRAS_WORKFLOW_CORRECTION_MODEL
+    )
+    assert requested_secrets == ["kv/data/providers/cerebras"]
+
+    async def unavailable_groq(*_args: object) -> dict[str, str]:
+        raise RuntimeError("Provider unavailable")
+
+    sent.clear()
+    requested_secrets.clear()
+    monkeypatch.setattr(
+        audio_realtime, "correct_workflow_transcript_with_groq", unavailable_groq
+    )
+    await audio_realtime._correct_and_send(
+        socket, "Move this to 8, actually no, 8:30 Berlin time.", "en", "workflow"
+    )
+    assert (
+        sent[-1]["correction_model"]
+        == audio_realtime.CEREBRAS_WORKFLOW_CORRECTION_MODEL
+    )
+    assert requested_secrets == [
+        "kv/data/providers/groq",
+        "kv/data/providers/cerebras",
+    ]
+
+    async def unavailable_cerebras(*_args: object) -> dict[str, str]:
+        raise RuntimeError("Provider unavailable")
+
+    sent.clear()
+    requested_secrets.clear()
+    monkeypatch.setattr(
+        audio_realtime,
+        "correct_workflow_transcript_with_cerebras",
+        unavailable_cerebras,
+    )
+    await audio_realtime._correct_and_send(
+        socket, "Move this to 8, actually no, 8:30 Berlin time.", "de", "workflow"
+    )
+    assert sent[-1]["correction_model"] == audio_realtime.GEMINI_CORRECTION_MODEL
+    assert requested_secrets == [
+        "kv/data/providers/cerebras",
+        "kv/data/providers/google_ai_studio",
     ]

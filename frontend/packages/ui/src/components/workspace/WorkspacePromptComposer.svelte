@@ -133,6 +133,7 @@
   {/if}
   {#if recording}
     <RecordAudio initialPosition={{ x: 0, y: 0 }} enableRealtime={true}
+      correctionContext={surface === 'workflows' ? 'workflow' : undefined}
       on:audiorecorded={(event) => void onAudioRecorded?.(event)}
       on:close={() => onRecordingClose?.()}
       on:cancel={() => onRecordingClose?.()} />

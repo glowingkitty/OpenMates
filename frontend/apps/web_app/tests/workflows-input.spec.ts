@@ -390,6 +390,7 @@ test.describe('Workflows input home', () => {
 		let socketConnections = 0;
 		await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
 			socketConnections += 1;
+			expect(new URL(socket.url()).searchParams.get('correction_context')).toBe('workflow');
 			let sentPreview = false;
 			socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-2602', sample_rate: 16000 }));
 			socket.onMessage(rawMessage => {
@@ -400,10 +401,10 @@ test.describe('Workflows input home', () => {
 				}
 				if (message.type !== 'input_audio.end') return;
 				socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'Weather tomorrow', language: 'en', model: 'voxtral-mini-transcribe-realtime-2602' }));
-				socket.send(JSON.stringify({ type: 'correction.started', model: 'gemini-3.5-flash' }));
+				socket.send(JSON.stringify({ type: 'correction.started', model: 'openai/gpt-oss-20b' }));
 				socket.send(JSON.stringify(correctionFails
 					? { type: 'correction.failed' }
-					: { type: 'correction.done', transcript: correctedTranscript, correction_model: 'gemini-3.5-flash' }));
+					: { type: 'correction.done', transcript: correctedTranscript, correction_model: 'openai/gpt-oss-20b' }));
 			});
 		});
 		const log = (message: string, metadata: Record<string, unknown> = {}) => {

@@ -32,14 +32,16 @@ export interface AudioRealtimeTranscriptionHandle {
 interface StartOptions {
   onTranscript?: (transcript: string) => void;
   onStatus?: (status: 'connecting' | 'listening' | 'correcting' | 'failed') => void;
+  correctionContext?: 'workflow';
 }
 
-function websocketUrl(token: string | null): string {
+function websocketUrl(token: string | null, correctionContext?: 'workflow'): string {
   const url = new URL(
     getApiUrl().replace(/^http/, 'ws') + '/v1/apps/audio/realtime-transcription',
   );
   url.searchParams.set('sessionId', getSessionId());
   if (token) url.searchParams.set('token', token);
+  if (correctionContext) url.searchParams.set('correction_context', correctionContext);
   return url.toString();
 }
 
@@ -273,7 +275,7 @@ export function startAudioRealtimeTranscription(
 
   const openSocket = (token: string) => {
     if (cancelled) return;
-    const activeSocket = new WebSocket(websocketUrl(token));
+    const activeSocket = new WebSocket(websocketUrl(token, options.correctionContext));
     socket = activeSocket;
     attachSocketHandlers(activeSocket);
   };

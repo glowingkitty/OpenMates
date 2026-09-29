@@ -139,6 +139,19 @@ describe('audio realtime transcription', () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
+  it('requests workflow-specific correction only when the workflow composer opts in', () => {
+    const workflow = startAudioRealtimeTranscription({} as MediaStream, {
+      correctionContext: 'workflow',
+    });
+    expect(new URL(FakeWebSocket.last.url).searchParams.get('correction_context')).toBe('workflow');
+    workflow.cancel();
+
+    const chat = startAudioRealtimeTranscription({} as MediaStream);
+    expect(new URL(FakeWebSocket.last.url).searchParams.has('correction_context')).toBe(false);
+    chat.cancel();
+  });
+
   // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
   it('flushes queued audio and the finish signal when readiness arrives late', () => {
     const handle = startAudioRealtimeTranscription({} as MediaStream);

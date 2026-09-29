@@ -57,12 +57,14 @@
         externalStream?: MediaStream | null;
         enableRealtime?: boolean;
         previewTranscript?: string | null;
+        correctionContext?: 'workflow';
     }
     let {
         initialPosition,
         externalStream = null,
         enableRealtime = false,
         previewTranscript = null,
+        correctionContext,
     }: Props = $props();
 
     // --- Internal State ---
@@ -215,6 +217,7 @@
                 realtimeHandle = startAudioRealtimeTranscription(streamToUse, {
                     onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
+                    correctionContext,
                 });
             }
 

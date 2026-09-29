@@ -34,6 +34,12 @@ from backend.shared.providers.gemini_transcript_correction import (
     clean_transcript_title,
     correct_transcript_with_gemini,
 )
+from backend.shared.providers.workflow_transcript_correction import (
+    CEREBRAS_WORKFLOW_CORRECTION_MODEL,
+    GROQ_WORKFLOW_CORRECTION_MODEL,
+    correct_workflow_transcript_with_cerebras,
+    correct_workflow_transcript_with_groq,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/apps/audio")
@@ -154,9 +160,7 @@ async def _bill_realtime_usage(
         ),
         "credits_per_started_minute": REALTIME_CREDITS_PER_MINUTE,
         "usage_type": (
-            INTERRUPTED_REALTIME_USAGE_TYPE
-            if interrupted
-            else REALTIME_USAGE_TYPE
+            INTERRUPTED_REALTIME_USAGE_TYPE if interrupted else REALTIME_USAGE_TYPE
         ),
     }
     if chat_id:
@@ -177,25 +181,79 @@ async def _correct_and_send(
     websocket: WebSocket,
     raw_transcript: str,
     language: Optional[str],
+    context: Optional[str] = None,
 ) -> None:
+    workflow_context = context == "workflow"
+    first_workflow_model = (
+        GROQ_WORKFLOW_CORRECTION_MODEL
+        if (language or "").lower().startswith("en")
+        else CEREBRAS_WORKFLOW_CORRECTION_MODEL
+    )
     await websocket.send_json(
-        {"type": "correction.started", "model": GEMINI_CORRECTION_MODEL}
+        {
+            "type": "correction.started",
+            "model": (
+                first_workflow_model if workflow_context else GEMINI_CORRECTION_MODEL
+            ),
+        }
     )
     try:
-        google_key = await websocket.app.state.secrets_manager.get_secret(
-            "kv/data/providers/google_ai_studio", "api_key"
-        )
-        if not google_key:
-            raise RuntimeError("Transcript correction is unavailable")
-        result = await correct_transcript_with_gemini(
-            raw_transcript, google_key, language
-        )
+        result: dict[str, str] | None = None
+        correction_model = GEMINI_CORRECTION_MODEL
+        if workflow_context:
+            workflow_providers = (
+                (
+                    (
+                        GROQ_WORKFLOW_CORRECTION_MODEL,
+                        "kv/data/providers/groq",
+                        correct_workflow_transcript_with_groq,
+                    ),
+                    (
+                        CEREBRAS_WORKFLOW_CORRECTION_MODEL,
+                        "kv/data/providers/cerebras",
+                        correct_workflow_transcript_with_cerebras,
+                    ),
+                )
+                if first_workflow_model == GROQ_WORKFLOW_CORRECTION_MODEL
+                else (
+                    (
+                        CEREBRAS_WORKFLOW_CORRECTION_MODEL,
+                        "kv/data/providers/cerebras",
+                        correct_workflow_transcript_with_cerebras,
+                    ),
+                )
+            )
+            for model, secret_path, correct in workflow_providers:
+                try:
+                    key = await websocket.app.state.secrets_manager.get_secret(
+                        secret_path, "api_key"
+                    )
+                    if not key:
+                        continue
+                    result = await correct(raw_transcript, key, language)
+                    correction_model = model
+                    break
+                except Exception as exc:
+                    logger.warning(
+                        "Workflow transcript %s correction failed: %s",
+                        model,
+                        type(exc).__name__,
+                    )
+        if result is None:
+            google_key = await websocket.app.state.secrets_manager.get_secret(
+                "kv/data/providers/google_ai_studio", "api_key"
+            )
+            if not google_key:
+                raise RuntimeError("Transcript correction is unavailable")
+            result = await correct_transcript_with_gemini(
+                raw_transcript, google_key, language
+            )
         corrected = sanitize_text_simple(
-            result["corrected_transcript"], log_prefix="[AudioRealtime][Gemini] "
+            result["corrected_transcript"], log_prefix="[AudioRealtime][Correction] "
         )
         title = clean_transcript_title(
             sanitize_text_simple(
-                result["title"], log_prefix="[AudioRealtime][Gemini title] "
+                result.get("title", ""), log_prefix="[AudioRealtime][Correction title] "
             )
         )
         await websocket.send_json(
@@ -203,7 +261,7 @@ async def _correct_and_send(
                 "type": "correction.done",
                 "title": title,
                 "transcript": corrected,
-                "correction_model": GEMINI_CORRECTION_MODEL,
+                "correction_model": correction_model,
             }
         )
     except Exception as exc:
@@ -257,6 +315,11 @@ async def realtime_transcription(
     provider_done = False
     billing_task: Optional[asyncio.Task[None]] = None
     chat_id = websocket.query_params.get("chat_id") or None
+    correction_context = (
+        "workflow"
+        if websocket.query_params.get("correction_context") == "workflow"
+        else None
+    )
     try:
         mistral_key = await websocket.app.state.secrets_manager.get_secret(
             "kv/data/providers/mistral_ai", "api_key"
@@ -402,7 +465,10 @@ async def realtime_transcription(
                                 )
                                 if raw_transcript:
                                     await _correct_and_send(
-                                        websocket, raw_transcript, language
+                                        websocket,
+                                        raw_transcript,
+                                        language,
+                                        correction_context,
                                     )
                                 else:
                                     await websocket.send_json(
