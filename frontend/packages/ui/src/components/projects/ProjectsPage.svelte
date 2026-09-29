@@ -7,7 +7,7 @@
 -->
 
 <script lang="ts">
-  import { onMount, setContext } from 'svelte';
+  import { onMount, setContext, tick } from 'svelte';
   import { pushState, replaceState } from '$app/navigation';
   import { text } from '@repo/ui';
   import { SettingsTabs } from '../settings/elements';
@@ -52,7 +52,6 @@
     type ProjectViewModel,
     type ProjectRemoteDirectoryEntry,
     type ProjectRemoteDirectoryResult,
-    type ProjectRemoteSearchMatch,
     type ProjectRemoteSearchResult,
     type ProjectRemoteTextResult,
   } from '../../services/projectService';
@@ -76,6 +75,8 @@
   import { cleanupStaleConnectedProjectDownloads, downloadConnectedProjectFile } from '../../services/projectRemoteDownload';
 
   type ProjectTab = 'overview' | 'folders' | 'tasks';
+  // Keep expensive embed previews bounded even when a folder contains thousands of files.
+  const FILES_PAGE_SIZE = 48;
 
   export interface ProjectCreationTarget {
     projectId: string;
@@ -100,6 +101,7 @@
     }>;
     folderCardContents?: Record<string, Array<{ name: string; kind: 'folder' | 'file'; detail?: string }>>;
     remoteEntries?: ProjectRemoteDirectoryEntry[];
+    legacyRemoteEntries?: ProjectRemoteDirectoryEntry[];
   }
 
   interface Props {
@@ -117,6 +119,12 @@
     canImport: boolean;
     sourceLabel: string;
   }
+
+  type ProjectFileSearchEntry =
+    | { kind: 'remote'; sourceId: string; path: string; entryKind: 'file' | 'directory' }
+    | { kind: 'item'; item: ProjectItemViewModel }
+    | { kind: 'folder'; folder: ProjectFolderViewModel }
+    | { kind: 'virtual-folder'; folder: ProjectVirtualFolder };
 
   interface ProjectContinueItem {
     id: string;
@@ -169,6 +177,10 @@
   let remotePath = $state('.');
   let remotePathParts = $derived(remotePath.split('/').filter((part) => part && part !== '.'));
   let remoteEntries = $state<ProjectRemoteDirectoryEntry[]>([]);
+  let remotePageIndex = $state(0);
+  let remotePageCursors = $state<(string | null)[]>([null]);
+  let remoteNextCursor = $state<string | null>(null);
+  let remoteLegacyEntries = $state<{ sourceId: string; path: string; entries: ProjectRemoteDirectoryEntry[]; omitted: number } | null>(null);
   let remoteRootEntries = $state<Record<string, ProjectRemoteDirectoryEntry[]>>({});
   let remoteRootOmitted = $state<Record<string, number>>({});
   let remoteRootPreviewStatus = $state<Record<string, 'loading' | 'unavailable'>>({});
@@ -178,7 +190,15 @@
   let rootPrefetchCount = 0;
   let rootPrefetchEpoch = 0;
   const rootPrefetchKeys = new Set<string>();
-  let remoteSearchMatches = $state<ProjectRemoteSearchMatch[]>([]);
+  let projectSearchResults = $state<ProjectFileSearchEntry[]>([]);
+  let projectSearchActive = $state(false);
+  let projectSearchLoading = $state(false);
+  let projectSearchError = $state('');
+  let projectSearchOmitted = $state(0);
+  let searchPageIndex = $state(0);
+  let projectSearchController: AbortController | null = null;
+  let projectSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  let projectSearchGeneration = 0;
   let remoteOmittedCount = $state(0);
   let remotePreviewEntries = $state<RemotePreviewEntry[]>([]);
   let remoteError = $state('');
@@ -203,6 +223,7 @@
       ?? (connected.length === 1 ? connected[0] : null);
   }
   let folderSearchQuery = $state('');
+  let storedPageIndex = $state(0);
   let sortNewestFirst = $state(true);
   let showCreateMenu = $state(false);
   let workspaceWidth = $state(0);
@@ -213,7 +234,7 @@
   // Open the connected repository directly; its directory is the Files view.
   $effect(() => {
     if (activeTab !== 'folders' || !selectedProject || activeRemoteSourceId || currentFolder || currentVirtualPath) return;
-    if (!previewState?.remoteEntries && !$userProfile.user_id) return;
+    if (!previewState?.remoteEntries && !previewState?.legacyRemoteEntries && !$userProfile.user_id) return;
     if (autoBrowsedProjectId === selectedProject.project_id) return;
     const source = defaultConnectedSource(sources);
     if (source) {
@@ -226,7 +247,7 @@
     void rootPrefetchVersion;
     const project = selectedProject;
     const ownerId = $userProfile.user_id;
-    if (activeTab !== 'folders' || !project || (!previewState?.remoteEntries && !ownerId) || rootPrefetchInFlight) return;
+    if (activeTab !== 'folders' || !project || (!previewState?.remoteEntries && !previewState?.legacyRemoteEntries && !ownerId) || rootPrefetchInFlight) return;
     const autoSource = defaultConnectedSource(sources);
     const remaining = Math.max(0, 12 - rootPrefetchCount);
     const candidates = sources.filter((source) => source.status === 'connected'
@@ -304,7 +325,25 @@
     (source) => source.encrypted.updated_at || source.encrypted.created_at,
     (source) => source.displayName || source.source_id,
   ));
+  let currentSearchResults = $derived(projectSearchResults.filter(isCurrentFolderSearchResult));
+  let acrossSearchResults = $derived(projectSearchResults.filter((entry) => !isCurrentFolderSearchResult(entry)));
+  let orderedSearchResults = $derived([...currentSearchResults, ...acrossSearchResults]);
+  let searchPageResults = $derived(orderedSearchResults.slice(searchPageIndex * FILES_PAGE_SIZE, (searchPageIndex + 1) * FILES_PAGE_SIZE));
+  let searchPageCurrent = $derived(searchPageResults.filter(isCurrentFolderSearchResult));
+  let searchPageAcross = $derived(searchPageResults.filter((entry) => !isCurrentFolderSearchResult(entry)));
+  let storedEntryCount = $derived(visibleBrowserFolders.length + visibleVirtualFolders.length + visibleBrowserItems.length + visibleBrowserSources.length);
+  $effect(() => {
+    if (storedPageIndex > 0 && storedPageIndex * FILES_PAGE_SIZE >= storedEntryCount) {
+      storedPageIndex = Math.max(0, Math.ceil(storedEntryCount / FILES_PAGE_SIZE) - 1);
+    }
+  });
+  let storedPageStart = $derived(storedPageIndex * FILES_PAGE_SIZE);
+  let pageBrowserFolders = $derived(pageEntries(visibleBrowserFolders, storedPageStart, 0));
+  let pageVirtualFolders = $derived(pageEntries(visibleVirtualFolders, storedPageStart, visibleBrowserFolders.length));
+  let pageBrowserItems = $derived(pageEntries(visibleBrowserItems, storedPageStart, visibleBrowserFolders.length + visibleVirtualFolders.length));
+  let pageBrowserSources = $derived(pageEntries(visibleBrowserSources, storedPageStart, visibleBrowserFolders.length + visibleVirtualFolders.length + visibleBrowserItems.length));
   let activeRemoteSource = $derived(sources.find((source) => source.source_id === activeRemoteSourceId) ?? null);
+  let remoteEntryCount = $derived(remotePageIndex * FILES_PAGE_SIZE + remoteEntries.length + remoteOmittedCount);
   let activeRemoteImportEntry = $derived(remotePreviewEntries.find((entry) =>
     entry.preview.embed.embed_id === activeRemoteFullscreen?.embedId && entry.canImport
     && entry.readResult && !entry.preview.embed.content.safety_flags.includes('truncated')
@@ -314,11 +353,168 @@
     if (!activeRemoteImportEntry || isSaving) return;
     await handleUploadRemotePreview(activeRemoteImportEntry);
   }
-  let visibleRemoteEntries = $derived(sortEntries(
-    remoteEntries.filter((entry) => !normalizedFolderSearch || entry.path.split('/').at(-1)?.toLocaleLowerCase().includes(normalizedFolderSearch)),
-    () => 0,
-    (entry) => entry.path.split('/').at(-1) || entry.path,
-  ));
+  let visibleRemoteEntries = $derived(remoteEntries.filter((entry) => !normalizedFolderSearch || entry.path.split('/').at(-1)?.toLocaleLowerCase().includes(normalizedFolderSearch)));
+
+  function pageEntries<T>(entries: T[], start: number, preceding: number): T[] {
+    return entries.slice(Math.max(0, start - preceding), Math.max(0, start + FILES_PAGE_SIZE - preceding));
+  }
+
+  function directParentPath(path: string): string {
+    const parts = path.split('/').filter(Boolean);
+    return parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+  }
+
+  function isCurrentFolderSearchResult(entry: ProjectFileSearchEntry): boolean {
+    if (entry.kind === 'remote') {
+      return entry.sourceId === activeRemoteSourceId && directParentPath(entry.path) === remotePath;
+    }
+    if (activeRemoteSourceId) return false;
+    if (entry.kind === 'folder') return currentVirtualPath === null && (entry.folder.parentHash ?? null) === currentFolderHash;
+    if (entry.kind === 'virtual-folder') return currentFolderHash === null && directParentPath(entry.folder.path) === (currentVirtualPath ?? '.');
+    if (currentFolderHash !== null) return (entry.item.encrypted.hashed_folder_id ?? null) === currentFolderHash;
+    if (entry.item.encrypted.hashed_folder_id) return false;
+    const path = entry.item.metadata.source === 'hosted_project_file' && typeof entry.item.metadata.path === 'string'
+      ? entry.item.metadata.path : null;
+    return path ? directParentPath(path) === (currentVirtualPath ?? '.') : currentVirtualPath === null;
+  }
+
+  function searchResultName(entry: ProjectFileSearchEntry): string {
+    if (entry.kind === 'remote') return entry.path.split('/').at(-1) || entry.path;
+    if (entry.kind === 'folder') return entry.folder.name || 'Untitled folder';
+    if (entry.kind === 'virtual-folder') return entry.folder.name;
+    return projectBrowserItemName(entry.item);
+  }
+
+  function searchResultKey(entry: ProjectFileSearchEntry): string {
+    if (entry.kind === 'remote') return `remote:${entry.sourceId}:${entry.path}`;
+    if (entry.kind === 'folder') return `folder:${entry.folder.folder_id}`;
+    if (entry.kind === 'virtual-folder') return `virtual:${entry.folder.path}`;
+    return `item:${entry.item.project_item_id}`;
+  }
+
+  function cancelProjectSearch(clear = true): void {
+    if (projectSearchTimer !== null) clearTimeout(projectSearchTimer);
+    projectSearchTimer = null;
+    projectSearchController?.abort();
+    projectSearchController = null;
+    projectSearchGeneration += 1;
+    projectSearchLoading = false;
+    if (!clear) return;
+    projectSearchActive = false;
+    projectSearchResults = [];
+    projectSearchError = '';
+    projectSearchOmitted = 0;
+    searchPageIndex = 0;
+  }
+
+  function handleFolderSearchInput(): void {
+    cancelProjectSearch();
+    storedPageIndex = 0;
+    if (!folderSearchQuery.trim()) return;
+    // One search after typing pauses avoids a remote request for every keystroke.
+    projectSearchTimer = setTimeout(() => void searchProjectFiles(), 600);
+  }
+
+  function localProjectSearchResults(query: string): ProjectFileSearchEntry[] {
+    const found: ProjectFileSearchEntry[] = [];
+    for (const folder of folders) {
+      if ((folder.name || 'Untitled folder').toLocaleLowerCase().includes(query)) found.push({ kind: 'folder', folder });
+    }
+    const virtualFolders = new Map<string, ProjectVirtualFolder>();
+    for (const item of items) {
+      if (projectBrowserItemName(item).toLocaleLowerCase().includes(query)) found.push({ kind: 'item', item });
+      if (item.metadata.source !== 'hosted_project_file' || typeof item.metadata.path !== 'string') continue;
+      const parts = item.metadata.path.split('/');
+      if (parts.some((part) => !part || part === '.' || part === '..') || parts.length > 64) continue;
+      for (let index = 0; index < parts.length - 1; index += 1) {
+        const name = parts[index];
+        if (!name?.toLocaleLowerCase().includes(query)) continue;
+        const path = parts.slice(0, index + 1).join('/');
+        virtualFolders.set(path, { name, path });
+      }
+    }
+    for (const folder of virtualFolders.values()) found.push({ kind: 'virtual-folder', folder });
+    return found;
+  }
+
+  async function searchProjectFiles(): Promise<void> {
+    const project = selectedProject;
+    const query = folderSearchQuery.trim();
+    if (!project || !query) { cancelProjectSearch(); return; }
+    cancelProjectSearch();
+    const generation = projectSearchGeneration;
+    const controller = new AbortController();
+    projectSearchController = controller;
+    projectSearchActive = true;
+    projectSearchLoading = true;
+    remoteNeedsSignIn = false;
+    projectSearchResults = localProjectSearchResults(query.toLocaleLowerCase());
+    storedPageIndex = 0;
+    const remoteSources = sources.filter((source) => source.status === 'connected');
+    try {
+      for (let offset = 0; offset < remoteSources.length; offset += 2) {
+        if (controller.signal.aborted) return;
+        const batch = await Promise.allSettled(remoteSources.slice(offset, offset + 2).map(async (source) => {
+          if (previewState?.remoteEntries || previewState?.legacyRemoteEntries) {
+            const matches = (previewState.remoteEntries ?? previewState.legacyRemoteEntries ?? [])
+              .filter((entry) => entry.path.split('/').at(-1)?.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+              .sort((left, right) => {
+                const leftCurrent = source.source_id === activeRemoteSourceId && directParentPath(left.path) === remotePath;
+                const rightCurrent = source.source_id === activeRemoteSourceId && directParentPath(right.path) === remotePath;
+                return Number(rightCurrent) - Number(leftCurrent) || left.path.localeCompare(right.path);
+              });
+            return { source, result: { matches: matches.slice(0, 100).map((entry) => ({ path: entry.path, kind: entry.kind })), omitted: Math.max(0, matches.length - 100), excluded: 0 } as ProjectRemoteSearchResult };
+          }
+          return { source, result: await requestProjectRemoteAccess<ProjectRemoteSearchResult>(
+            project, source,
+            { ownerId: $userProfile.user_id || '', teamId: getActiveTeamContextSnapshot().teamId },
+            'search', { query, target: 'files', mode: 'literal', path: '.', max_results: 100,
+              ...(source.source_id === activeRemoteSourceId ? { priority_path: remotePath } : {}) }, controller.signal,
+          ) };
+        }));
+        if (controller.signal.aborted || generation !== projectSearchGeneration || selectedProject?.project_id !== project.project_id) return;
+        const found = new Map(projectSearchResults.map((entry) => [searchResultKey(entry), entry]));
+        for (const settled of batch) {
+          if (settled.status === 'rejected') {
+            if (!(settled.reason instanceof DOMException && settled.reason.name === 'AbortError')) {
+              projectSearchError = 'Some connected sources could not be searched.';
+              if (settled.reason instanceof ProjectRemoteAccessError && settled.reason.code === 'requester_device_identity_unavailable') remoteNeedsSignIn = true;
+            }
+            continue;
+          }
+          projectSearchOmitted += settled.value.result.omitted;
+          for (const match of settled.value.result.matches) {
+            const entry: ProjectFileSearchEntry = { kind: 'remote', sourceId: settled.value.source.source_id,
+              path: match.path, entryKind: match.kind ?? 'file' };
+            found.set(searchResultKey(entry), entry);
+          }
+        }
+        projectSearchResults = [...found.values()].sort((left, right) => searchResultName(left).localeCompare(searchResultName(right)));
+      }
+    } finally {
+      if (generation === projectSearchGeneration) {
+        projectSearchLoading = false;
+        projectSearchController = null;
+      }
+    }
+  }
+
+  async function scrollToFilesStart(): Promise<void> {
+    await tick();
+    projectMainElement?.querySelector<HTMLElement>('[data-testid="project-browser-list"]')?.scrollIntoView({ block: 'start' });
+  }
+
+  function showStoredPage(index: number): void {
+    if (index < 0 || index * FILES_PAGE_SIZE >= storedEntryCount) return;
+    storedPageIndex = index;
+    void scrollToFilesStart();
+  }
+
+  async function showRemotePage(index: number): Promise<void> {
+    if (!activeRemoteSource || index < 0 || (index > remotePageIndex && !remoteNextCursor)) return;
+    await browseRemoteSource(activeRemoteSource, remotePath, index);
+    await scrollToFilesStart();
+  }
 
   function virtualFolderTimestamp(folder: ProjectVirtualFolder): number {
     const prefix = `${folder.path}/`;
@@ -905,6 +1101,8 @@
   }
 
   function resetRemoteBrowser(): void {
+    cancelProjectSearch();
+    folderSearchQuery = '';
     cancelRemoteDownload();
     autoBrowsedProjectId = null;
     resetRootPrefetch();
@@ -920,9 +1118,13 @@
     activeRemoteSourceId = null;
     remotePath = '.';
     remoteEntries = [];
+    remotePageIndex = 0;
+    remotePageCursors = [null];
+    remoteNextCursor = null;
+    remoteLegacyEntries = null;
+    storedPageIndex = 0;
     remoteRootEntries = {};
     remoteRootOmitted = {};
-    remoteSearchMatches = [];
     remoteOmittedCount = 0;
     remotePreviewEntries = [];
     remoteError = '';
@@ -931,6 +1133,8 @@
   }
 
   function clearRemoteNavigation(): void {
+    cancelProjectSearch();
+    folderSearchQuery = '';
     autoBrowsedProjectId = null;
     resetRootPrefetch();
     remoteRequestController?.abort();
@@ -941,9 +1145,13 @@
     activeRemoteSourceId = null;
     remotePath = '.';
     remoteEntries = [];
+    remotePageIndex = 0;
+    remotePageCursors = [null];
+    remoteNextCursor = null;
+    remoteLegacyEntries = null;
+    storedPageIndex = 0;
     remoteRootEntries = {};
     remoteRootOmitted = {};
-    remoteSearchMatches = [];
     remoteOmittedCount = 0;
     remotePreviewEntries = [];
     remoteError = '';
@@ -1040,7 +1248,6 @@
         remoteEntries = [];
         remoteRootEntries = {};
         remoteRootOmitted = {};
-        remoteSearchMatches = [];
         remotePreviewEntries = [];
         remoteOmittedCount = 0;
         isRemoteLoading = false;
@@ -1058,7 +1265,7 @@
     ownerId: string | null | undefined,
     candidates: ProjectSourceViewModel[],
   ): Promise<void> {
-    if (!previewState?.remoteEntries && !ownerId) return;
+    if (!previewState?.remoteEntries && !previewState?.legacyRemoteEntries && !ownerId) return;
     rootPrefetchInFlight = true;
     const epoch = rootPrefetchEpoch;
     const controller = new AbortController();
@@ -1070,11 +1277,12 @@
         if (controller.signal.aborted) return;
         await Promise.all(candidates.slice(offset, offset + 2).map(async (source) => {
           try {
-            const result = previewState?.remoteEntries
-              ? { entries: previewState.remoteEntries, omitted: 0 }
+            const previewEntries = previewState?.remoteEntries ?? previewState?.legacyRemoteEntries;
+            const result = previewEntries
+              ? { entries: previewEntries.slice(0, 12), omitted: Math.max(0, previewEntries.length - 12) }
               : await requestProjectRemoteAccess<ProjectRemoteDirectoryResult>(
                 project, source, { ownerId: ownerId ?? '', teamId: getActiveTeamContextSnapshot().teamId },
-                'list', { path: '.' }, controller.signal,
+                'list', { path: '.', maxEntries: 12 }, controller.signal,
               );
             if (controller.signal.aborted || epoch !== rootPrefetchEpoch || selectedProject?.project_id !== project.project_id
               || !sources.some((candidate) => candidate.source_id === source.source_id && candidate.status === 'connected')) return;
@@ -1099,8 +1307,12 @@
     }
   }
 
-  async function browseRemoteSource(source: ProjectSourceViewModel, path = '.'): Promise<void> {
+  async function browseRemoteSource(source: ProjectSourceViewModel, path = '.', pageIndex = 0): Promise<void> {
     if (!selectedProject) return;
+    cancelProjectSearch();
+    folderSearchQuery = '';
+    const cursor = path === remotePath && source.source_id === activeRemoteSourceId
+      ? remotePageCursors[pageIndex] ?? null : null;
     currentFolder = null;
     currentFolderTrail = [];
     currentFolderHash = null;
@@ -1109,15 +1321,45 @@
     activeRemoteFullscreen = null;
     activeRemoteGenericFile = null;
     remotePreviewEntries = [];
-    if (previewState?.remoteEntries) {
+    const legacy = remoteLegacyEntries;
+    if (legacy?.sourceId === source.source_id && legacy.path === path) {
+      const start = pageIndex * FILES_PAGE_SIZE;
       remotePath = path;
-      remoteEntries = previewState.remoteEntries;
-      if (path === '.') {
-        remoteRootEntries = { ...remoteRootEntries, [source.source_id]: previewState.remoteEntries };
-        remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: 0 };
+      remoteEntries = legacy.entries.slice(start, start + FILES_PAGE_SIZE);
+      remotePageIndex = pageIndex;
+      remoteNextCursor = start + FILES_PAGE_SIZE < legacy.entries.length
+        ? remoteEntries.at(-1)?.path.split('/').at(-1) ?? null : null;
+      remoteOmittedCount = legacy.omitted + Math.max(0, legacy.entries.length - start - remoteEntries.length);
+      remoteError = '';
+      return;
+    }
+    remoteLegacyEntries = null;
+    if (previewState?.remoteEntries) {
+      const sorted = previewState.remoteEntries.filter((entry) => directParentPath(entry.path) === path)
+        .sort((left, right) => left.path.localeCompare(right.path));
+      const start = pageIndex * FILES_PAGE_SIZE;
+      remotePath = path;
+      remoteEntries = sorted.slice(start, start + FILES_PAGE_SIZE);
+      remotePageIndex = pageIndex;
+      remoteNextCursor = sorted[start + FILES_PAGE_SIZE - 1]?.path.split('/').at(-1) ?? null;
+      if (start + FILES_PAGE_SIZE >= sorted.length) remoteNextCursor = null;
+      remotePageCursors = [...remotePageCursors.slice(0, pageIndex + 1), remoteNextCursor];
+      if (path === '.' && pageIndex === 0) {
+        remoteRootEntries = { ...remoteRootEntries, [source.source_id]: remoteEntries };
+        remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: sorted.length - remoteEntries.length };
       }
-      remoteSearchMatches = [];
-      remoteOmittedCount = 0;
+      remoteOmittedCount = Math.max(0, sorted.length - start - remoteEntries.length);
+      remoteError = '';
+      return;
+    }
+    if (previewState?.legacyRemoteEntries) {
+      const result = { entries: previewState.legacyRemoteEntries, omitted: 0 };
+      remoteLegacyEntries = { sourceId: source.source_id, path, ...result };
+      remotePath = path;
+      remoteEntries = result.entries.slice(0, FILES_PAGE_SIZE);
+      remotePageIndex = 0;
+      remoteNextCursor = remoteEntries.at(-1)?.path.split('/').at(-1) ?? null;
+      remoteOmittedCount = result.entries.length - remoteEntries.length;
       remoteError = '';
       return;
     }
@@ -1131,18 +1373,26 @@
         source,
         { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId },
         'list',
-        { path },
+        { path, maxEntries: FILES_PAGE_SIZE, ...(cursor ? { cursor } : {}) },
         request.controller.signal,
       );
       if (!isCurrentRemoteRequest(request, source.source_id)) return;
       remotePath = path;
-      remoteEntries = result.entries;
-      if (path === '.') {
-        remoteRootEntries = { ...remoteRootEntries, [source.source_id]: result.entries };
-        remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: result.omitted };
+      if (result.entries.length > FILES_PAGE_SIZE && !result.nextCursor) {
+        // Older connected CLIs ignore cursor/maxEntries. Page their returned
+        // entries in memory so a legacy response never mounts hundreds of cards.
+        remoteLegacyEntries = { sourceId: source.source_id, path, entries: result.entries, omitted: result.omitted };
       }
-      remoteSearchMatches = [];
-      remoteOmittedCount = result.omitted;
+      remoteEntries = result.entries.slice(0, FILES_PAGE_SIZE);
+      remotePageIndex = pageIndex;
+      remoteNextCursor = remoteLegacyEntries
+        ? remoteEntries.at(-1)?.path.split('/').at(-1) ?? null : result.nextCursor ?? null;
+      remotePageCursors = [...(pageIndex === 0 ? [null] : remotePageCursors.slice(0, pageIndex + 1)), remoteNextCursor];
+      if (path === '.' && pageIndex === 0) {
+        remoteRootEntries = { ...remoteRootEntries, [source.source_id]: remoteEntries };
+        remoteRootOmitted = { ...remoteRootOmitted, [source.source_id]: result.omitted + result.entries.length - remoteEntries.length };
+      }
+      remoteOmittedCount = result.omitted + result.entries.length - remoteEntries.length;
     } catch (error) {
       const message = remoteRequestError(error, 'Could not browse this source');
       if (!message || !isCurrentRemoteRequest(request, source.source_id)) return;
@@ -1159,35 +1409,6 @@
       return;
     }
     await openRemoteFile(source, entry.path);
-  }
-
-  async function searchRemoteSource(source: ProjectSourceViewModel): Promise<void> {
-    const query = folderSearchQuery.trim();
-    if (!selectedProject || !$userProfile.user_id || !query) return;
-    activeRemoteSourceId = source.source_id;
-    const request = beginRemoteRequest();
-    isRemoteLoading = true;
-    remoteError = '';
-    try {
-      const result = await requestProjectRemoteAccess<ProjectRemoteSearchResult>(
-        selectedProject,
-        source,
-        { ownerId: $userProfile.user_id, teamId: getActiveTeamContextSnapshot().teamId },
-        'search',
-        { query },
-        request.controller.signal,
-      );
-      if (!isCurrentRemoteRequest(request, source.source_id)) return;
-      remoteSearchMatches = result.matches;
-      remoteOmittedCount = result.omitted;
-    } catch (error) {
-      const message = remoteRequestError(error, 'Could not search this source');
-      if (!message || !isCurrentRemoteRequest(request, source.source_id)) return;
-      remoteError = message;
-      console.error('[ProjectsPage] Failed to search remote source:', error);
-    } finally {
-      finishRemoteRequest(request);
-    }
   }
 
   async function openRemoteFile(source: ProjectSourceViewModel, path: string): Promise<void> {
@@ -1308,6 +1529,7 @@
 
   async function openFolder(folder: ProjectFolderViewModel): Promise<void> {
     clearRemoteNavigation();
+    storedPageIndex = 0;
     currentVirtualPath = null;
     currentFolder = folder;
     currentFolderHash = folderHashes.get(folder.folder_id) ?? await computeSHA256(folder.folder_id);
@@ -1327,6 +1549,7 @@
 
   function openVirtualFolder(folder: ProjectVirtualFolder): void {
     clearRemoteNavigation();
+    storedPageIndex = 0;
     currentFolder = null;
     currentFolderTrail = [];
     currentFolderHash = null;
@@ -1335,6 +1558,7 @@
 
   function openRoot(): void {
     clearRemoteNavigation();
+    storedPageIndex = 0;
     // A deliberate breadcrumb return must stay at the project root instead of
     // immediately triggering the connected-source auto-open effect again.
     autoBrowsedProjectId = selectedProject?.project_id ?? null;
@@ -1439,7 +1663,7 @@
       replaceReadmeState(previewState.readme ?? { status: 'empty' });
       activeTab = initialTab;
       isLoading = false;
-      return () => { pageDisposed = true; replaceReadmeState({ status: 'empty' }); };
+      return () => { pageDisposed = true; cancelProjectSearch(); replaceReadmeState({ status: 'empty' }); };
     }
     syncProjectHashFromLocation();
     void refreshProjects();
@@ -1468,6 +1692,7 @@
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
     return () => {
       pageDisposed = true;
+      cancelProjectSearch();
       replaceReadmeState({ status: 'empty' });
       cancelRemoteDownload();
       remoteRequestController?.abort();
@@ -1491,6 +1716,68 @@
     void selectProjectById(projectHashId, false);
   });
 </script>
+
+{#snippet projectSearchCard(entry: ProjectFileSearchEntry)}
+  {#if entry.kind === 'remote'}
+    {@const source = sources.find((candidate) => candidate.source_id === entry.sourceId)}
+    {@const listedFolder = remoteEntries.find((candidate) => candidate.path === entry.path && candidate.kind === 'directory')}
+    {#if source}
+      {#if viewMode === 'list'}
+        <button class="remote-list-entry" data-testid="project-search-result" type="button" onclick={() => void openRemoteEntry(source, { path: entry.path, kind: entry.entryKind })}>
+          <span class="remote-list-icon" class:folder-list-icon={entry.entryKind === 'directory'} class:file-icon={entry.entryKind === 'file'} aria-hidden="true"></span>
+          <strong>{searchResultName(entry)}</strong>
+          <small>{source.displayName || source.source_id} / {entry.path}</small>
+        </button>
+      {:else if entry.entryKind === 'directory'}
+        <div class="folder-preview remote-preview-badged search-result-card" data-testid="project-search-result">
+          <span class="remote-cloud-badge" role="img" aria-label="Stored remotely"></span>
+          <UnifiedEmbedPreview id={`${entry.sourceId}:${entry.path}`} presentationOnly appId="files" skillId="file"
+            skillIconName="files" appIconName="files" status="finished" showSkillIcon={false}
+            skillName={searchResultName(entry)} customStatusText={listedFolder ? remoteFolderStatus(listedFolder) : 'Folder'}
+            onFullscreen={() => void browseRemoteSource(source, entry.path)}>
+            {#snippet details()}
+              <span class="folder-card-contents">
+                {#each listedFolder?.children?.slice(0, 3) ?? [] as child (child.path)}
+                  <span class="folder-child-row"><span class:child-folder={child.kind === 'directory'} class="folder-child-icon" aria-hidden="true"></span><span>{child.path.split('/').at(-1) || child.path}</span></span>
+                {:else}
+                  <span class="folder-empty-row">Open to view contents</span>
+                {/each}
+              </span>
+            {/snippet}
+          </UnifiedEmbedPreview>
+          <small class="search-result-location">{source.displayName || source.source_id} / {entry.path}</small>
+        </div>
+      {:else}
+        {@const preview = normalizeRemoteFilePreview({ sourceId: entry.sourceId, path: entry.path,
+          displayName: searchResultName(entry), language: classifyRemotePreviewPath(entry.path).language,
+          snippet: '', previewPolicy: 'metadata_only', safetyFlags: [] })}
+        <div class="search-result-card" data-testid="project-search-result">
+          <ProjectRemotePreviewCard {preview} sourceLabel={source.displayName || source.source_id}
+            onOpenFullscreen={() => void openRemoteFile(source, entry.path)}
+            onOpenFile={() => void openRemoteFileDetails(source, entry.path)} />
+          <small class="search-result-location">{source.displayName || source.source_id} / {entry.path}</small>
+        </div>
+      {/if}
+    {/if}
+  {:else if entry.kind === 'item'}
+    <div class="search-result-card" data-testid="project-search-result">
+      <ProjectBrowserItem item={entry.item} {viewMode} displayName={projectBrowserItemName(entry.item)}
+        loadProjectEmbed={loadProjectEmbed} onOpenFullscreen={openStoredFullscreen} />
+    </div>
+  {:else}
+    <div class="folder-preview search-result-card" data-testid="project-search-result">
+      <UnifiedEmbedPreview id={entry.kind === 'folder' ? entry.folder.folder_id : entry.folder.path}
+        presentationOnly appId="files" skillId="file" skillIconName="files" appIconName="files"
+        status="finished" showSkillIcon={false} skillName={searchResultName(entry)}
+        customStatusText="Folder"
+        onFullscreen={entry.kind === 'folder' ? () => void openFolder(entry.folder) : () => openVirtualFolder(entry.folder)}>
+        {#snippet details()}
+          <span class="folder-card-contents"><span class="folder-empty-row">Open to view contents</span></span>
+        {/snippet}
+      </UnifiedEmbedPreview>
+    </div>
+  {/if}
+{/snippet}
 
 {#snippet createProjectForm(compact = false)}
   <form class="create-row" class:compact onsubmit={(event) => { event.preventDefault(); requestProjectCreation(); }}>
@@ -1607,14 +1894,14 @@
       {:else if activeTab === 'folders'}
       <section class="project-panel folders-panel" class:viewer-split-open={viewerSplitOpen} role="tabpanel" id="tabpanel-folders" data-testid="project-folders-panel">
         <div class="folder-summary-row">
-          <strong>{browserFolders.length + browserVirtualFolders.length + (activeRemoteSource ? remoteEntries.filter((entry) => entry.kind === 'directory').length : 0)} folders, {browserItems.length + (activeRemoteSource ? remoteEntries.filter((entry) => entry.kind === 'file').length : 0)} files and embeds</strong>
+          <strong>{projectSearchActive ? `${orderedSearchResults.length} search results` : activeRemoteSource ? `${remoteEntryCount} files and folders` : `${browserFolders.length + browserVirtualFolders.length} folders, ${browserItems.length} files and embeds`}</strong>
           <label class="folder-search">
             <span class="search-icon" aria-hidden="true"></span>
             <span class="sr-only">Search project files</span>
-            <input bind:value={folderSearchQuery} type="search" placeholder="Search" data-testid="project-folder-search" oninput={() => { if (!folderSearchQuery.trim()) remoteSearchMatches = []; }} onkeydown={(event) => { if (event.key === 'Enter' && activeRemoteSource && folderSearchQuery.trim()) { event.preventDefault(); void searchRemoteSource(activeRemoteSource); } }} />
+            <input bind:value={folderSearchQuery} type="search" placeholder="Search" data-testid="project-folder-search" oninput={handleFolderSearchInput} onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchProjectFiles(); } }} />
           </label>
-          <button class="sort-button" type="button" data-testid="project-folder-sort" aria-label={sortNewestFirst ? 'Show oldest first' : 'Show most recent first'} onclick={() => (sortNewestFirst = !sortNewestFirst)}>
-            <span>{sortNewestFirst ? 'Most recent first' : 'Oldest first'}</span>
+          <button class="sort-button" type="button" data-testid="project-folder-sort" disabled={!!activeRemoteSource || projectSearchActive} aria-label={activeRemoteSource ? 'Files sorted by name' : sortNewestFirst ? 'Show oldest first' : 'Show most recent first'} onclick={() => (sortNewestFirst = !sortNewestFirst)}>
+            <span>{activeRemoteSource || projectSearchActive ? 'Name A–Z' : sortNewestFirst ? 'Most recent first' : 'Oldest first'}</span>
             <span class="sort-icon" aria-hidden="true"></span>
           </button>
         </div>
@@ -1661,7 +1948,7 @@
           {/if}
 
           <div class="browser-toolbar">
-            <span class="muted">{activeRemoteSource ? remoteEntries.length : browserFolders.length + browserVirtualFolders.length + browserItems.length + browserSources.length} entries</span>
+            <span class="muted">{projectSearchActive ? `${orderedSearchResults.length} matches` : activeRemoteSource ? `${remotePageIndex * FILES_PAGE_SIZE + (remoteEntries.length ? 1 : 0)}–${remotePageIndex * FILES_PAGE_SIZE + remoteEntries.length} of ${remoteEntryCount} entries` : `${storedEntryCount} entries`}</span>
             <div class="view-toggle" aria-label="Project view mode">
               <button type="button" class:active={viewMode === 'tile'} onclick={() => (viewMode = 'tile')}>Tile</button>
               <button type="button" class:active={viewMode === 'list'} onclick={() => (viewMode = 'list')}>List</button>
@@ -1690,13 +1977,54 @@
               </div>
             {/if}
             </div>
+            {#if projectSearchActive}
+              <div class="project-search-results" data-testid="project-remote-search-results">
+                {#if projectSearchLoading}
+                  <p class="search-section-heading" data-testid="project-search-loading">Searching Project files and folders...</p>
+                {/if}
+                {#if projectSearchError}
+                  <p class="remote-error search-section-heading">{projectSearchError}</p>
+                  {#if remoteNeedsSignIn}
+                    <button class="search-section-heading" type="button" data-testid="project-source-relogin" onclick={() => void signOutToReconnectSource()}>{$text('projects.source_session_relogin')}</button>
+                  {/if}
+                {/if}
+                {#if searchPageIndex === 0 || searchPageCurrent.length > 0}
+                  <h3 class="search-section-heading" data-testid="project-search-current-heading">{$text('projects.search_current_folder')}</h3>
+                  {#each searchPageCurrent as result (searchResultKey(result))}
+                    {@render projectSearchCard(result)}
+                  {/each}
+                  {#if searchPageIndex === 0 && searchPageCurrent.length === 0 && !projectSearchLoading}
+                    <p class="search-section-heading muted">No matches in this folder.</p>
+                  {/if}
+                {/if}
+                {#if searchPageAcross.length > 0 || searchPageIndex === 0}
+                  <h3 class="search-section-heading" data-testid="project-search-across-heading">{$text('projects.search_across_project', { values: { project: selectedProject.name || 'Project' } })}</h3>
+                  {#each searchPageAcross as result (searchResultKey(result))}
+                    {@render projectSearchCard(result)}
+                  {/each}
+                  {#if searchPageIndex === 0 && searchPageAcross.length === 0 && !projectSearchLoading}
+                    <p class="search-section-heading muted">No other matches in this Project.</p>
+                  {/if}
+                {/if}
+                {#if projectSearchOmitted > 0}
+                  <p class="remote-limit-notice search-section-heading" data-testid="project-remote-results-truncated">{$text('projects.remote_results_limited')}</p>
+                {/if}
+                {#if orderedSearchResults.length > FILES_PAGE_SIZE}
+                  <nav class="files-page-controls" data-testid="project-search-page-controls" aria-label="Project search result pages">
+                    <button type="button" disabled={searchPageIndex === 0} onclick={() => { searchPageIndex -= 1; void scrollToFilesStart(); }}>Previous</button>
+                    <span>Page {searchPageIndex + 1} of {Math.ceil(orderedSearchResults.length / FILES_PAGE_SIZE)}</span>
+                    <button type="button" disabled={(searchPageIndex + 1) * FILES_PAGE_SIZE >= orderedSearchResults.length} onclick={() => { searchPageIndex += 1; void scrollToFilesStart(); }}>Next</button>
+                  </nav>
+                {/if}
+              </div>
+            {:else}
             {#if visibleBrowserFolders.length === 0 && visibleVirtualFolders.length === 0 && visibleBrowserItems.length === 0 && visibleBrowserSources.length === 0 && !activeRemoteSource}
               <div class="empty-state" data-testid="project-empty-items">
                 <h3>{normalizedFolderSearch ? 'No matching project items' : 'No project items yet'}</h3>
                 <p>{normalizedFolderSearch ? 'Try a different search.' : 'Upload a file or use “Add to project” from chats and embed fullscreen views.'}</p>
               </div>
             {/if}
-            {#each visibleBrowserFolders as folder (folder.folder_id)}
+            {#each pageBrowserFolders as folder (folder.folder_id)}
               {@const cardEntries = folderCardEntries(folder)}
               {#if viewMode === 'tile'}
                 <div class="folder-preview" data-testid="project-folder-card">
@@ -1735,7 +2063,7 @@
                 </button>
               {/if}
             {/each}
-            {#each visibleVirtualFolders as folder (folder.path)}
+            {#each pageVirtualFolders as folder (folder.path)}
               {#if viewMode === 'tile'}
                 <div class="folder-preview remote-preview-badged" data-testid="project-virtual-folder-card">
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
@@ -1768,7 +2096,7 @@
                 </button>
               {/if}
             {/each}
-            {#each visibleBrowserItems as item (item.project_item_id)}
+            {#each pageBrowserItems as item (item.project_item_id)}
               <ProjectBrowserItem
                 {item}
                 {viewMode}
@@ -1777,7 +2105,7 @@
                 onOpenFullscreen={openStoredFullscreen}
               />
             {/each}
-            {#each visibleBrowserSources as source (source.source_id)}
+            {#each pageBrowserSources as source (source.source_id)}
               {#if viewMode === 'tile'}
                 <div class="folder-preview remote-preview-badged" data-testid="project-connected-source-root" data-status={source.status}>
                   <span class="remote-cloud-badge" data-testid="project-remote-cloud-badge" role="img" aria-label="Stored remotely" title="Stored remotely"></span>
@@ -1826,6 +2154,13 @@
                 </button>
               {/if}
             {/each}
+            {#if !activeRemoteSource && storedEntryCount > FILES_PAGE_SIZE}
+              <nav class="files-page-controls" data-testid="project-files-page-controls" aria-label="Project file pages">
+                <button type="button" disabled={storedPageIndex === 0} onclick={() => showStoredPage(storedPageIndex - 1)}>Previous</button>
+                <span>Page {storedPageIndex + 1} of {Math.ceil(storedEntryCount / FILES_PAGE_SIZE)}</span>
+                <button type="button" disabled={(storedPageIndex + 1) * FILES_PAGE_SIZE >= storedEntryCount} onclick={() => showStoredPage(storedPageIndex + 1)}>Next</button>
+              </nav>
+            {/if}
         {#if activeRemoteSource}
           <div class="remote-browser" data-testid="project-remote-browser">
             {#if remoteError}
@@ -1836,26 +2171,11 @@
                 </button>
               {/if}
             {/if}
-            {#if remoteOmittedCount > 0}
+            {#if remoteOmittedCount > 0 && !remoteNextCursor}
               <p class="remote-limit-notice" data-testid="project-remote-results-truncated">{$text('projects.remote_results_limited')}</p>
             {/if}
             {#if isRemoteLoading}
               <p class="muted" data-testid="project-remote-loading">Loading from your device...</p>
-            {:else if remoteSearchMatches.length > 0}
-              <div class="remote-results" data-testid="project-remote-search-results">
-                {#each remoteSearchMatches as match (`${match.path}:${match.line}`)}
-                  {@const resultPreview = normalizeRemoteFilePreview({ sourceId: activeRemoteSource.source_id, path: match.path, displayName: match.path.split('/').at(-1) || match.path, language: classifyRemotePreviewPath(match.path).language, snippet: match.snippet, previewPolicy: 'bounded_truncated_text', safetyFlags: [] })}
-                  {#if viewMode === 'list'}
-                    <button class="remote-list-entry" type="button" onclick={() => void openRemoteFile(activeRemoteSource, match.path)}>
-                      <span class="remote-list-icon file-icon" aria-hidden="true"></span>
-                      <strong>{match.path.split('/').at(-1) || match.path}</strong>
-                      <small>{match.path}</small>
-                    </button>
-                  {:else}
-                    <ProjectRemotePreviewCard preview={resultPreview} sourceLabel={activeRemoteSource.displayName || activeRemoteSource.source_id} imageSrc={remoteImageUrls[`${activeRemoteSource.source_id}:${match.path}`]} onOpenFullscreen={() => void openRemoteFile(activeRemoteSource, match.path)} onOpenFile={() => void openRemoteFileDetails(activeRemoteSource, match.path)} />
-                  {/if}
-                {/each}
-              </div>
             {:else}
               <div class="remote-results" data-testid="project-remote-directory-results">
                 {#each visibleRemoteEntries as entry (entry.path)}
@@ -1926,6 +2246,13 @@
                 {/if}
               </div>
             {/if}
+            {#if !isRemoteLoading && (remotePageIndex > 0 || remoteNextCursor)}
+              <nav class="files-page-controls" data-testid="project-remote-page-controls" aria-label="Connected folder pages">
+                <button type="button" disabled={remotePageIndex === 0} onclick={() => void showRemotePage(remotePageIndex - 1)}>Previous</button>
+                <span>Page {remotePageIndex + 1}</span>
+                <button type="button" disabled={!remoteNextCursor} onclick={() => void showRemotePage(remotePageIndex + 1)}>Next</button>
+              </nav>
+            {/if}
             <div class="source-previews">
               {#each remotePreviewEntries.filter((entry) => entry.preview.embed.content.source_id === activeRemoteSource.source_id
                 && !remoteEntries.some((remoteEntry) => remoteEntry.path === entry.preview.embed.content.path)) as previewEntry (previewEntry.preview.embed.embed_id)}
@@ -1948,6 +2275,7 @@
               {/each}
             </div>
           </div>
+        {/if}
         {/if}
         </div>
       </section>
@@ -2782,6 +3110,40 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+  }
+
+  .files-page-controls {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) 0;
+    color: var(--color-font-secondary);
+  }
+
+  .files-page-controls button {
+    min-height: 2.75rem;
+    padding: 0 var(--spacing-5);
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+  }
+
+  .files-page-controls button:disabled { opacity: 0.45; cursor: default; }
+  .files-page-controls button:focus-visible { outline: 2px solid var(--color-focus, var(--color-font-primary)); }
+
+  .project-search-results { display: contents; }
+  .search-section-heading { grid-column: 1 / -1; margin: var(--spacing-5) 0 0; }
+  .search-result-card { width: min(18.75rem, 100%); min-width: 0; justify-self: center; }
+  .search-result-location {
+    display: block;
+    overflow: hidden;
+    padding: var(--spacing-2) var(--spacing-3);
+    color: var(--color-font-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .remote-list-entry {

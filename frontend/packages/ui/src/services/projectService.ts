@@ -189,12 +189,14 @@ export interface ProjectRemoteDirectoryResult {
   entries: ProjectRemoteDirectoryEntry[];
   omitted: number;
   excluded: number;
+  nextCursor?: string;
 }
 
 export interface ProjectRemoteSearchMatch {
   path: string;
-  line: number;
-  snippet: string;
+  kind?: "file" | "directory";
+  line?: number;
+  snippet?: string;
 }
 
 export interface ProjectRemoteSearchResult {

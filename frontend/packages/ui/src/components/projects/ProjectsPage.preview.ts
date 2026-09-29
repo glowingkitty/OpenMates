@@ -46,6 +46,41 @@ const items: ProjectItemViewModel[] = [
     encrypted: { project_item_id: 'project-file', item_type: 'embed', target_id_hash: 'preview-file-hash', target_id_encrypted: 'preview', created_at: now - 40, updated_at: now - 40, position: 2 },
   },
 ];
+const largeStoredItems: ProjectItemViewModel[] = Array.from({ length: 105 }, (_, index) => {
+  const name = index === 0 ? 'needle-stored-root.md' : `stored-file-${String(index).padStart(3, '0')}.md`;
+  return {
+    project_item_id: `large-stored-${index}`,
+    item_type: 'embed',
+    target_id: `large-stored-target-${index}`,
+    displayName: name,
+    metadata: { embed_type: 'code-code' },
+    encrypted: {
+      project_item_id: `large-stored-${index}`, item_type: 'embed',
+      target_id_hash: `large-stored-hash-${index}`, target_id_encrypted: 'preview',
+      created_at: now - 100 - index, updated_at: now - 100 - index, position: index + 3,
+    },
+  };
+});
+const nestedStoredItem: ProjectItemViewModel = {
+  project_item_id: 'large-stored-nested', item_type: 'embed', target_id: 'large-stored-nested-target',
+  displayName: 'needle-stored-nested.md',
+  metadata: { embed_type: 'code-code', source: 'hosted_project_file', path: 'guides/needle-stored-nested.md' },
+  encrypted: {
+    project_item_id: 'large-stored-nested', item_type: 'embed', target_id_hash: 'large-stored-nested-hash',
+    target_id_encrypted: 'preview', created_at: now - 210, updated_at: now - 210, position: 109,
+  },
+};
+const largeRemoteEntries = [
+  ...Array.from({ length: 125 }, (_, index) => ({
+    path: index === 0 ? 'needle-current.ts' : `remote-file-${String(index).padStart(3, '0')}.ts`,
+    kind: 'file' as const, sizeBytes: 1024 + index,
+  })),
+  { path: 'nested', kind: 'directory' as const, children: [{ path: 'nested/needle-child.ts', kind: 'file' as const }] },
+  { path: 'nested/needle-child.ts', kind: 'file' as const, sizeBytes: 2048 },
+];
+const legacyRemoteEntries = Array.from({ length: 500 }, (_, index) => ({
+  path: `legacy-file-${String(index).padStart(3, '0')}.ts`, kind: 'file' as const, sizeBytes: 1024 + index,
+}));
 const embeds = {
   'preview-code': {
     embedData: { embed_id: 'preview-code', type: 'code-code', status: 'finished' },
@@ -161,6 +196,27 @@ export const variants = {
         { path: 'docs', kind: 'directory' as const },
         { path: 'README.md', kind: 'file' as const, sizeBytes: 1024 },
       ],
+    },
+  },
+  largeConnectedSource: {
+    ...overviewProps,
+    initialTab: 'folders' as const,
+    previewState: {
+      ...overviewProps.previewState,
+      items: [...items, ...largeStoredItems, nestedStoredItem],
+      sources: [connectedSource],
+      remoteEntries: largeRemoteEntries,
+    },
+  },
+  legacyConnectedSource: {
+    ...overviewProps,
+    initialTab: 'folders' as const,
+    previewState: {
+      ...overviewProps.previewState,
+      sources: [connectedSource],
+      // Emulates an older requester returning its entire 500-entry list for one
+      // maxEntries=48 request, leaving ProjectsPage to bound the mounted page.
+      legacyRemoteEntries,
     },
   },
   sidebar: { ...overviewProps, variant: 'sidebar' as const },

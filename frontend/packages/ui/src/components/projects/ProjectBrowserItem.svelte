@@ -50,7 +50,10 @@
       isLoading = true;
       void loadPreview();
     }
-    return unsubscribe;
+    return () => {
+      loadGeneration += 1;
+      unsubscribe();
+    };
   });
 
   async function loadPreview(): Promise<void> {
@@ -58,6 +61,7 @@
     isLoading = true;
     try {
       const projectEmbed = await loadProjectEmbed?.(item);
+      if (generation !== loadGeneration) return;
       const embedData = projectEmbed?.embedData ?? await resolveEmbed(item.target_id);
       if (generation !== loadGeneration) return;
       if (!embedData || typeof embedData !== 'object') {
@@ -80,7 +84,7 @@
       resolvedEmbedData = embedData;
       resolvedContent = decoded;
       const appId = String(decoded.app_id || item.metadata.app_id || item.item_type);
-      previewComponent = await embedPreviewRegistry.resolve({
+      const resolvedPreview = await embedPreviewRegistry.resolve({
         embedId: item.target_id,
         embedData: {
           ...embedData,
@@ -94,6 +98,8 @@
           openEmbedFullscreen(embedData, decoded);
         },
       });
+      if (generation !== loadGeneration) return;
+      previewComponent = resolvedPreview;
     } catch (error) {
       if (generation !== loadGeneration) return;
       console.error('[ProjectBrowserItem] Failed to render project embed preview:', error);

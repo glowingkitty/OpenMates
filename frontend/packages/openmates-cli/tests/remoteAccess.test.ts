@@ -11,7 +11,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, linkSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -464,6 +464,178 @@ const timer = setInterval(() => {
       );
     } finally {
       rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("pages more than 500 readable entries without returning private or hidden paths", () => {
+    const root = join(tmpdir(), `openmates-remote-pages-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const linkedTarget = `${root}-linked-target`;
+    mkdirSync(root, { recursive: true });
+    try {
+      writeFileSync(join(root, ".gitignore"), "file-0200.txt\n");
+      writeFileSync(join(root, ".env"), "SECRET=value\n");
+      writeFileSync(join(root, ".hidden"), "hidden\n");
+      for (let index = 0; index < 610; index += 1) {
+        writeFileSync(join(root, `file-${String(index).padStart(4, "0")}.txt`), "x");
+      }
+      writeFileSync(linkedTarget, "outside fixture");
+      linkSync(linkedTarget, join(root, "linked.txt"));
+
+      const pages = [];
+      let cursor: string | undefined;
+      do {
+        const page = listRemoteAccessDirectory({ sourceRoot: root, relativePath: ".", maxEntries: 200, cursor });
+        pages.push(page);
+        cursor = page.nextCursor;
+      } while (cursor !== undefined);
+
+      assert.deepEqual(pages.map((page) => page.entries.length), [200, 200, 200, 9]);
+      assert.deepEqual(pages.map((page) => page.omitted), [409, 209, 9, 0]);
+      assert.deepEqual(pages.map((page) => page.truncated), [true, true, true, false]);
+      assert.deepEqual(pages.slice(0, -1).map((page) => page.nextCursor),
+        ["file-0199.txt", "file-0400.txt", "file-0600.txt"]);
+      assert.equal(pages.at(-1)?.nextCursor, undefined);
+      const paths = pages.flatMap((page) => page.entries.map((entry) => entry.path));
+      assert.equal(paths.length, 609);
+      assert.equal(new Set(paths).size, paths.length);
+      assert.equal(paths[0], "file-0000.txt");
+      assert.equal(paths.at(-1), "file-0609.txt");
+      assert.ok(!paths.includes("file-0200.txt"));
+      assert.ok(!paths.some((path) => path.startsWith(".") || path === "linked.txt"));
+      assert.equal(pages[0]?.excluded, 5);
+      assert.equal(pages[1]?.excluded, 2, "only later ignored and hard-linked entries count after the cursor");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(linkedTarget, { force: true });
+    }
+  });
+
+  it("rejects invalid directory cursors and page sizes", () => {
+    const root = join(tmpdir(), `openmates-remote-cursor-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(root, { recursive: true });
+    try {
+      for (const cursor of ["", ".", "..", "../other", "nested/file", "nested\\file", "a\0b", "x".repeat(256), 7]) {
+        assert.throws(
+          () => listRemoteAccessDirectory({ sourceRoot: root, relativePath: ".", cursor: cursor as string }),
+          /cursor must be a valid entry basename/,
+        );
+      }
+      for (const maxEntries of [0, 501, 1.5, NaN, "20"]) {
+        assert.throws(
+          () => listRemoteAccessDirectory({ sourceRoot: root, relativePath: ".", maxEntries: maxEntries as number }),
+          /entry limit must be between 1 and 500/,
+        );
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("finds safe folders and files of every extension by case-insensitive name search", async () => {
+    const root = join(tmpdir(), `openmates-file-search-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(root, "DesignAssets"), { recursive: true });
+    mkdirSync(join(root, ".HiddenDesign"));
+    writeFileSync(join(root, "DesignAssets", "logo.PNG"), Buffer.from([0, 1, 2]));
+    writeFileSync(join(root, "Design.pdf"), Buffer.from([0, 1, 2]));
+    writeFileSync(join(root, "design.bin"), Buffer.from([0, 1, 2]));
+    writeFileSync(join(root, ".HiddenDesign", "secret.pdf"), "hidden");
+    writeFileSync(join(root, ".gitignore"), "ignored-design.pdf\n");
+    writeFileSync(join(root, "ignored-design.pdf"), "ignored");
+    writeFileSync(join(root, ".env"), "secret");
+    const linkedTarget = `${root}-hardlink-target`;
+    writeFileSync(linkedTarget, "linked");
+    linkSync(linkedTarget, join(root, "linked-design.pdf"));
+    try {
+      const expected = [
+        { path: "design.bin", kind: "file" },
+        { path: "Design.pdf", kind: "file" },
+        { path: "DesignAssets", kind: "directory" },
+        { path: "DesignAssets/logo.PNG", kind: "file" },
+      ];
+      const unavailable = Object.assign(new Error("rg unavailable"), { code: "ENOENT" });
+      for (const runRg of [runRgCommand, async () => { throw unavailable; }]) {
+        const result = await searchRemoteSource({ sourceRoot: root, target: "files", query: "DESIGN", path: ".", runRg });
+        assert.deepEqual(result.matches, expected);
+        assert.equal(result.omitted, 0);
+        const bounded = await searchRemoteSource({ sourceRoot: root, target: "files", query: "DESIGN", path: ".", maxResults: 2, runRg });
+        assert.deepEqual(bounded.matches, expected.slice(0, 2));
+        assert.equal(bounded.omitted, 2);
+        assert.equal(bounded.truncated, true);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(linkedTarget, { force: true });
+    }
+  });
+
+  it("prioritizes the current folder before the 100-result filename cap", async () => {
+    const root = join(tmpdir(), `openmates-priority-search-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(root, "a-elsewhere"), { recursive: true });
+    mkdirSync(join(root, "z-current"));
+    try {
+      for (let index = 0; index < 105; index += 1) {
+        writeFileSync(join(root, "a-elsewhere", `match-${String(index).padStart(3, "0")}.txt`), "x");
+      }
+      writeFileSync(join(root, "z-current", "match-local.pdf"), "pdf");
+      const unavailable = Object.assign(new Error("rg unavailable"), { code: "ENOENT" });
+      for (const runRg of [runRgCommand, async () => { throw unavailable; }]) {
+        const result = await searchRemoteSource({
+          sourceRoot: root, target: "files", query: "match", path: ".", priorityPath: "z-current",
+          maxResults: 100, runRg,
+        });
+        assert.deepEqual(result.matches[0], { path: "z-current/match-local.pdf", kind: "file" });
+        assert.equal(result.matches.length, 100);
+        assert.equal(result.omitted, 6);
+      }
+      await assert.rejects(
+        () => searchRemoteSource({ sourceRoot: root, target: "files", query: "match", path: ".", priorityPath: "../outside", runRg: runRgCommand }),
+        /invalid_search_path/,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("ranks direct children before more than 100 matching descendants", async () => {
+    const root = join(tmpdir(), `openmates-direct-child-search-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(root, "current", "a-nested"), { recursive: true });
+    try {
+      for (let index = 0; index < 105; index += 1) {
+        writeFileSync(join(root, "current", "a-nested", `match-${String(index).padStart(3, "0")}.txt`), "x");
+      }
+      writeFileSync(join(root, "current", "match-direct.pdf"), "pdf");
+      const unavailable = Object.assign(new Error("rg unavailable"), { code: "ENOENT" });
+      for (const runRg of [runRgCommand, async () => { throw unavailable; }]) {
+        const result = await searchRemoteSource({
+          sourceRoot: root, target: "files", query: "match", path: ".", priorityPath: "current",
+          maxResults: 100, runRg,
+        });
+        assert.deepEqual(result.matches[0], { path: "current/match-direct.pdf", kind: "file" });
+        assert.equal(result.matches.length, 100);
+        assert.equal(result.omitted, 6);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns bounded safe filename matches when the source exceeds the alias scan limit", async () => {
+    const root = join(tmpdir(), `openmates-large-file-search-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(root, "z-current"), { recursive: true });
+    try {
+      writeFileSync(join(root, "z-current", "match-local.pdf"), "pdf");
+      for (let index = 0; index < 10_001; index += 1) {
+        writeFileSync(join(root, `filler-${String(index).padStart(5, "0")}.txt`), "x");
+      }
+      const result = await searchRemoteSource({
+        sourceRoot: root, target: "files", query: "match", path: ".", priorityPath: "z-current",
+        runRg: async () => { throw new Error("rg must not run after truncated alias scan"); },
+      });
+      assert.deepEqual(result.matches[0], { path: "z-current/match-local.pdf", kind: "file" });
+      assert.equal(result.truncated, true);
+      assert.ok(result.omitted >= 1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

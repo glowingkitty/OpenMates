@@ -73,6 +73,7 @@ import { verifyProjectIgnoredReadGrant } from "../../ui/src/utils/projectIgnored
 
 export interface RemoteAccessSearchMatch {
   path: string;
+  kind?: "file" | "directory";
   line?: number;
   snippet?: string;
 }
@@ -105,6 +106,7 @@ export interface RemoteAccessSearchOptions {
   target?: ProjectSearchTarget;
   mode?: ProjectSearchMode;
   path?: string;
+  priorityPath?: string;
   glob?: string;
   userProtectedPatterns?: string[];
   runRg: RgRunner;
@@ -127,6 +129,7 @@ export interface StoredRemoteAccessSearchOptions {
   target?: ProjectSearchTarget;
   mode?: ProjectSearchMode;
   path?: string;
+  priorityPath?: string;
   glob?: string;
   homeDirectory?: string;
   userProtectedPatterns?: string[];
@@ -262,9 +265,10 @@ export function listRemoteAccessDirectory(options: {
   sourceRoot: string;
   relativePath: string;
   maxEntries?: number;
+  cursor?: string;
   userProtectedPatterns?: string[];
   stateDirectory?: string;
-}): { entries: RemoteAccessDirectoryEntry[]; omitted: number; excluded: number; truncated: boolean } {
+}): { entries: RemoteAccessDirectoryEntry[]; omitted: number; excluded: number; truncated: boolean; nextCursor?: string } {
   const root = canonicalProjectSourceRoot(options.sourceRoot, { stateDirectory: options.stateDirectory });
   const policy = loadProjectPathPolicy(root, {
     trustedPrivatePaths: options.userProtectedPatterns,
@@ -281,7 +285,13 @@ export function listRemoteAccessDirectory(options: {
   if (!Number.isInteger(maxEntries) || maxEntries <= 0 || maxEntries > DEFAULT_MAX_DIRECTORY_ENTRIES) {
     throw new Error(`Remote directory entry limit must be between 1 and ${DEFAULT_MAX_DIRECTORY_ENTRIES}`);
   }
+  const cursor = options.cursor;
+  if (cursor !== undefined && (typeof cursor !== "string" || cursor === "" || cursor === "." || cursor === ".."
+    || Buffer.byteLength(cursor, "utf8") > 255 || /[/\\\0]/.test(cursor))) {
+    throw new Error("Remote directory cursor must be a valid entry basename");
+  }
   const entries: RemoteAccessDirectoryEntry[] = [];
+  let lastReturnedName: string | undefined;
   let omitted = 0;
   let excluded = 0;
   const MAX_CHILD_SUMMARY_ENTRIES = 200;
@@ -335,14 +345,17 @@ export function listRemoteAccessDirectory(options: {
     summary.sort((a, b) => (a.kind === b.kind ? a.path.localeCompare(b.path) : a.kind === "directory" ? -1 : 1));
     return { children: summary.slice(0, 3), childFileCount, childFolderCount, childFileSizeBytes, childSummaryTruncated };
   };
-  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+  const compareNames = (a: string, b: string): number => a.localeCompare(b) || (a < b ? -1 : a > b ? 1 : 0);
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => compareNames(a.name, b.name))) {
+    // A cursor represents the last returned basename. Skip earlier entries before
+    // any policy checks or file stats; only later readable entries count as omitted.
+    if (cursor !== undefined && compareNames(entry.name, cursor) <= 0) continue;
     const entryPath = relative(root, join(directory, entry.name)).replace(/\\/g, "/");
     if (
       entry.name.startsWith(".")
       || entry.isSymbolicLink()
       || policy.isIgnored(entryPath, entry.isDirectory())
       || policy.isPrivate(entryPath, entry.isDirectory())
-      || (entry.isFile() && lstatSync(join(directory, entry.name)).nlink > 1)
     ) {
       excluded += 1;
       continue;
@@ -351,11 +364,16 @@ export function listRemoteAccessDirectory(options: {
       excluded += 1;
       continue;
     }
+    const fileStat = entry.isFile() ? lstatSync(join(directory, entry.name)) : undefined;
+    if (fileStat && fileStat.nlink > 1) {
+      excluded += 1;
+      continue;
+    }
     if (entries.length >= maxEntries) {
       omitted += 1;
       continue;
     }
-    const fileSize = entry.isFile() ? lstatSync(join(directory, entry.name)).size : undefined;
+    const fileSize = fileStat?.size;
     entries.push({
       path: entryPath,
       kind: entry.isDirectory() ? "directory" : "file",
@@ -363,8 +381,12 @@ export function listRemoteAccessDirectory(options: {
       ...(fileSize !== undefined && Number.isSafeInteger(fileSize) && fileSize >= 0 ? { sizeBytes: fileSize } : {}),
       ...(entry.isDirectory() ? summarizeChildren(entryPath) : {}),
     });
+    lastReturnedName = entry.name;
   }
-  return { entries, omitted, excluded, truncated: omitted > 0 };
+  return {
+    entries, omitted, excluded, truncated: omitted > 0,
+    ...(omitted > 0 ? { nextCursor: lastReturnedName } : {}),
+  };
 }
 
 export function readRemoteAccessTextFile(options: {
@@ -974,7 +996,11 @@ async function executeRemoteAccessOperation(
 ): Promise<unknown> {
   const relativePath = typeof args.path === "string" ? args.path : ".";
   if (operation === "list") {
-    return listRemoteAccessDirectory({ sourceRoot, relativePath });
+    return listRemoteAccessDirectory({
+      sourceRoot, relativePath,
+      maxEntries: args.maxEntries as number | undefined,
+      cursor: args.cursor as string | undefined,
+    });
   }
   if (operation === "read_text") {
     const limits = remoteAccessReadLimits(args);
@@ -1002,6 +1028,7 @@ async function executeRemoteAccessOperation(
     target: args.target as ProjectSearchTarget | undefined,
     mode: args.mode as ProjectSearchMode | undefined,
     path: typeof args.path === "string" ? args.path : undefined,
+    priorityPath: args.priority_path as string | undefined,
     glob: typeof args.glob === "string" ? args.glob : undefined,
     maxResults: typeof args.max_results === "number" ? args.max_results : undefined,
     runRg: runRgCommand,
@@ -1111,6 +1138,7 @@ export async function searchStoredRemoteAccessSource(options: StoredRemoteAccess
     target: options.target,
     mode: options.mode,
     path: options.path,
+    priorityPath: options.priorityPath,
     glob: options.glob,
     userProtectedPatterns: options.userProtectedPatterns,
     runRg: options.runRg,
@@ -1138,11 +1166,30 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
     || policy.isIgnored(searchPath, statSync(targetPath).isDirectory()))) {
     throw new Error("Remote source search path is protected");
   }
-  const hardlinkExclusions = collectSearchHardlinkExclusions(sourceRoot, targetPath, policy);
+  const priorityPath = options.priorityPath === undefined ? undefined : normalizeProjectSearchRequest({
+    query: request.query, target: "files", mode: request.mode, path: options.priorityPath,
+  }).path;
+  let priorityAbsolute: string | undefined;
+  if (priorityPath !== undefined) {
+    if (request.target !== "files" || !isWithinSearchPath(priorityPath, request.path)) {
+      throw new ProjectSearchProtocolError("invalid_search_path");
+    }
+    priorityAbsolute = resolveApprovedPath(sourceRoot, priorityPath);
+    if (!statSync(priorityAbsolute).isDirectory() || policy.isPrivate(priorityPath, true)
+      || policy.isIgnored(priorityPath, true) || isHiddenSearchPath(priorityPath)) {
+      throw new ProjectSearchProtocolError("invalid_search_path");
+    }
+  }
+  const { hardlinkExclusions, directories, truncated: metadataTruncated } = collectSearchPathMetadata(
+    sourceRoot, targetPath, policy, request.target === "files",
+  );
 
   try {
     if (request.target === "files") {
-      return await searchRemoteFileNamesWithRg(options.runRg, sourceRoot, searchPath, request, policy, hardlinkExclusions);
+      if (metadataTruncated) {
+        return searchRemoteFileNamesWithoutRg(request, sourceRoot, targetPath, policy, priorityPath, priorityAbsolute);
+      }
+      return await searchRemoteFileNamesWithRg(options.runRg, sourceRoot, searchPath, request, policy, hardlinkExclusions, directories, priorityPath);
     }
     const output = await options.runRg(
       buildRgContentSearchArgs(request, searchPath, policy, hardlinkExclusions),
@@ -1153,6 +1200,9 @@ export async function searchRemoteSource(options: RemoteAccessSearchOptions): Pr
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     if (request.mode === "regex") throw new ProjectSearchProtocolError("regex_search_unavailable");
+    if (request.target === "files") {
+      return searchRemoteFileNamesWithoutRg(request, sourceRoot, targetPath, policy, priorityPath, priorityAbsolute);
+    }
     return searchRemoteSourceWithoutRg(request, sourceRoot, targetPath, policy);
   }
 }
@@ -1255,15 +1305,6 @@ function searchRemoteSourceWithoutRg(
         omitted += 1;
         return { matches, omitted, excluded, truncated: true };
       }
-      if (request.target === "files") {
-        if (!matchesProjectSearchQuery(relativePath, request)) continue;
-        if (matches.length >= request.maxResults) {
-          omitted += 1;
-          return { matches, omitted, excluded, truncated: true };
-        }
-        matches.push({ path: relativePath });
-        continue;
-      }
       let content: string;
       try {
         const read = readRemoteAccessTextFile({
@@ -1301,6 +1342,8 @@ async function searchRemoteFileNamesWithRg(
   request: ReturnType<typeof normalizeProjectSearchRequest>,
   policy: LoadedProjectPathPolicy,
   hardlinkExclusions: readonly string[],
+  directories: readonly string[],
+  priorityPath?: string,
 ): Promise<RemoteAccessSearchResult> {
   const output = await runRg(
     buildRgFileListArgs(request, searchPath, policy, hardlinkExclusions),
@@ -1309,43 +1352,144 @@ async function searchRemoteFileNamesWithRg(
   );
   const outputPaths = output.split("\n").filter(Boolean);
   const enumerationTruncated = outputPaths.length > MAX_FALLBACK_SEARCH_FILES;
-  const candidates: string[] = [];
+  const candidates = new Map<string, "file" | "directory">();
   let excluded = 0;
+  for (const path of directories) {
+    if (isWithinSearchPath(path, request.path) && matchesProjectSearchGlob(path, request.glob)) {
+      candidates.set(path, "directory");
+    }
+  }
   for (const rawPath of outputPaths.slice(0, MAX_FALLBACK_SEARCH_FILES)) {
     const path = normalizeRgPath(rawPath);
     if (
       path === null
-      || shouldExcludeReadPath(sourceRoot, path, policy)
+      || isHiddenSearchPath(path)
+      || shouldExcludeSearchFilename(sourceRoot, path, policy)
       || !isWithinSearchPath(path, request.path)
       || !matchesProjectSearchGlob(path, request.glob)
     ) {
       excluded += 1;
       continue;
     }
-    candidates.push(path);
+    candidates.set(path, "file");
   }
+  const candidatePaths = [...candidates.keys()].sort((a, b) => compareSearchPaths(a, b, priorityPath));
 
   let matchedPaths: string[];
   let regexTruncated = false;
   if (request.mode === "literal") {
-    matchedPaths = candidates.filter((path) => matchesProjectSearchQuery(path, request));
+    const lowerQuery = request.query.toLowerCase();
+    matchedPaths = candidatePaths.filter((path) => path.toLowerCase().includes(lowerQuery));
   } else {
     const regexOutput = await runRg(
       buildRgFilenameRegexArgs(request.query),
       sourceRoot,
       request.maxResults + 1,
-      candidates.length ? `${candidates.join("\n")}\n` : "",
+      candidatePaths.length ? `${candidatePaths.join("\n")}\n` : "",
     );
     matchedPaths = regexOutput.split("\n").map(parseRgStdinMatch).filter((path): path is string => path !== null);
     regexTruncated = matchedPaths.length > request.maxResults;
   }
   const omitted = Math.max(0, matchedPaths.length - request.maxResults) + (enumerationTruncated ? 1 : 0);
   return {
-    matches: matchedPaths.slice(0, request.maxResults).map((path) => ({ path })),
+    matches: matchedPaths.slice(0, request.maxResults).map((path) => ({ path, kind: candidates.get(path) ?? "file" })),
     omitted,
     excluded,
     truncated: omitted > 0 || regexTruncated,
   };
+}
+
+function searchRemoteFileNamesWithoutRg(
+  request: ReturnType<typeof normalizeProjectSearchRequest>,
+  sourceRoot: string,
+  targetPath: string,
+  policy: LoadedProjectPathPolicy,
+  priorityPath?: string,
+  priorityAbsolute?: string,
+): RemoteAccessSearchResult {
+  const candidates: RemoteAccessSearchMatch[] = [];
+  let inspected = 0;
+  let excluded = 0;
+  let enumerationTruncated = false;
+  const deadline = Date.now() + SEARCH_TIMEOUT_MS;
+  const scan = (scanRoot: string, skipPriority: boolean): void => {
+  const pending = [scanRoot];
+  while (pending.length > 0 && !enumerationTruncated) {
+    if (Date.now() >= deadline) throw new Error("Remote source search timed out");
+    const absolute = pending.pop() as string;
+    const stat = lstatSync(absolute);
+    if (stat.isDirectory()) {
+      let entries;
+      try {
+        entries = readdirSync(absolute, { withFileTypes: true });
+      } catch {
+        excluded += 1;
+        continue;
+      }
+      for (const entry of entries) {
+        if (++inspected > MAX_FALLBACK_SEARCH_FILES) {
+          enumerationTruncated = true;
+          break;
+        }
+        const path = relative(sourceRoot, join(absolute, entry.name)).replace(/\\/g, "/");
+        const isDirectory = entry.isDirectory();
+        if (skipPriority && priorityAbsolute === join(absolute, entry.name)) continue;
+        if (entry.name.startsWith(".") || entry.isSymbolicLink()
+          || (!entry.isFile() && !isDirectory)
+          || policy.isIgnored(path, isDirectory) || policy.isPrivate(path, isDirectory)) {
+          excluded += 1;
+          continue;
+        }
+        if (isDirectory) pending.push(join(absolute, entry.name));
+        else if (lstatSync(join(absolute, entry.name)).nlink > 1) {
+          excluded += 1;
+          continue;
+        }
+        if (matchesProjectSearchGlob(path, request.glob)) {
+          candidates.push({ path, kind: isDirectory ? "directory" : "file" });
+        }
+      }
+    } else if (stat.isFile() && stat.nlink === 1) {
+      const path = relative(sourceRoot, absolute).replace(/\\/g, "/");
+      if (!isHiddenSearchPath(path) && !policy.isIgnored(path) && !policy.isPrivate(path)
+        && matchesProjectSearchGlob(path, request.glob)) candidates.push({ path, kind: "file" });
+    }
+  }
+  };
+  if (priorityAbsolute !== undefined && priorityAbsolute !== targetPath) {
+    if (priorityPath !== undefined && matchesProjectSearchGlob(priorityPath, request.glob)) {
+      candidates.push({ path: priorityPath, kind: "directory" });
+    }
+    scan(priorityAbsolute, false);
+  }
+  if (!enumerationTruncated) scan(targetPath, priorityAbsolute !== undefined && priorityAbsolute !== targetPath);
+  const lowerQuery = request.query.toLowerCase();
+  const matches = candidates.filter(({ path }) => path.toLowerCase().includes(lowerQuery))
+    .sort((a, b) => compareSearchPaths(a.path, b.path, priorityPath));
+  const omitted = Math.max(0, matches.length - request.maxResults) + (enumerationTruncated ? 1 : 0);
+  return { matches: matches.slice(0, request.maxResults), omitted, excluded, truncated: omitted > 0 };
+}
+
+function isHiddenSearchPath(path: string): boolean {
+  return path.split("/").some((part) => part !== "." && part.startsWith("."));
+}
+
+function compareSearchPaths(a: string, b: string, priorityPath?: string): number {
+  if (priorityPath !== undefined) {
+    const rank = (path: string): number => {
+      const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ".";
+      if (parent === priorityPath) return 0;
+      return isWithinSearchPath(path, priorityPath) ? 1 : 2;
+    };
+    const rankDifference = rank(a) - rank(b);
+    if (rankDifference !== 0) return rankDifference;
+  }
+  return a.localeCompare(b) || (a < b ? -1 : a > b ? 1 : 0);
+}
+
+function shouldExcludeSearchFilename(sourceRoot: string, path: string, policy: LoadedProjectPathPolicy): boolean {
+  return normalizeRgPath(path) === null || !isPathInsideRoot(sourceRoot, path)
+    || policy.isIgnored(path) || policy.isPrivate(path);
 }
 
 function assertSafeSourceId(sourceId: string): void {
@@ -1374,7 +1518,7 @@ function buildRgFileListArgs(
   policy: LoadedProjectPathPolicy,
   hardlinkExclusions: readonly string[],
 ): string[] {
-  const args = baseRgArgs(policy, hardlinkExclusions);
+  const args = baseRgArgs(policy, hardlinkExclusions, false);
   args.push("--files");
   if (request.glob) args.push("--glob", request.glob);
   args.push("--", searchPath);
@@ -1385,14 +1529,14 @@ function buildRgFilenameRegexArgs(query: string): string[] {
   return ["--no-config", "--color", "never", "--json", "--line-number", "--regexp", query, "--", "-"];
 }
 
-function baseRgArgs(policy: LoadedProjectPathPolicy, hardlinkExclusions: readonly string[]): string[] {
+function baseRgArgs(policy: LoadedProjectPathPolicy, hardlinkExclusions: readonly string[], excludeBinary = true): string[] {
   // --no-require-git keeps .gitignore semantics in attached plain folders too.
   const args = ["--no-config", "--hidden", "--color", "never", "--no-require-git"];
   for (const pattern of [
     ".git",
     ".git/**",
     "**/.git/**",
-    ...binaryRgGlobs(),
+    ...(excludeBinary ? binaryRgGlobs() : []),
     ...policy.rgExclusionGlobs(),
     ...hardlinkExclusions,
   ]) args.push("--iglob", `!${pattern.replace(/\\/g, "/")}`);
@@ -1518,38 +1662,45 @@ function shouldExcludeReadPath(sourceRoot: string, relativePath: string, policy:
 }
 
 /** Enumerate metadata only so rg never opens a multiply-linked file before policy can inspect it. */
-function collectSearchHardlinkExclusions(
+function collectSearchPathMetadata(
   sourceRoot: string,
   targetPath: string,
   policy: LoadedProjectPathPolicy,
-): string[] {
+  collectDirectories: boolean,
+): { hardlinkExclusions: string[]; directories: string[]; truncated: boolean } {
   const target = lstatSync(targetPath);
   if (target.isFile()) {
     const path = relative(sourceRoot, targetPath).replace(/\\/g, "/");
-    return target.nlink > 1 ? [path] : [];
+    return { hardlinkExclusions: target.nlink > 1 ? [path] : [], directories: [], truncated: false };
   }
-  if (!target.isDirectory()) return [];
+  if (!target.isDirectory()) return { hardlinkExclusions: [], directories: [], truncated: false };
   const directories = [targetPath];
+  const readableDirectories: string[] = [];
   const hardlinks: string[] = [];
   let inspected = 0;
   while (directories.length > 0) {
     const directory = directories.pop() as string;
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       if (++inspected > MAX_FALLBACK_SEARCH_FILES) {
+        if (collectDirectories) return { hardlinkExclusions: hardlinks, directories: readableDirectories, truncated: true };
         throw new Error("Remote source search alias scan exceeded its bounded file limit");
       }
       if (entry.name === ".git" || entry.isSymbolicLink()) continue;
       const absolute = join(directory, entry.name);
       const path = relative(sourceRoot, absolute).replace(/\\/g, "/");
       if (entry.isDirectory()) {
-        if (!policy.isIgnored(path, true) && !policy.isPrivate(path, true)) directories.push(absolute);
+        if (!policy.isIgnored(path, true) && !policy.isPrivate(path, true)
+          && (!collectDirectories || !entry.name.startsWith("."))) {
+          directories.push(absolute);
+          if (collectDirectories) readableDirectories.push(path);
+        }
         continue;
       }
       if (!entry.isFile() || policy.isIgnored(path) || policy.isPrivate(path)) continue;
       if (lstatSync(absolute).nlink > 1) hardlinks.push(path);
     }
   }
-  return hardlinks;
+  return { hardlinkExclusions: hardlinks, directories: readableDirectories, truncated: false };
 }
 
 function isWithinSearchPath(path: string, searchPath: string): boolean {

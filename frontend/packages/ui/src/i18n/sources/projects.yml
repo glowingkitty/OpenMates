@@ -2,6 +2,14 @@ project_root:
   context: Root breadcrumb label in the Project file browser
   en: Project root
   verified_by_human: []
+search_current_folder:
+  context: Heading for Project file search matches directly inside the open folder
+  en: 'Current folder:'
+  verified_by_human: []
+search_across_project:
+  context: Heading for Project file search matches outside the open folder. {project} is the decrypted Project name.
+  en: 'Across {project}:'
+  verified_by_human: []
 focus_active:
   context: Active Project focus pill in the chat composer. {project} is the decrypted Project name.
   en: Work on {project}

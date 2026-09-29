@@ -427,9 +427,11 @@ test.describe('Projects remote sources', () => {
       // Search from the source root after exercising multiple nested directories.
       await sourceRoot.click();
 
-      await page.getByTestId('project-folder-search').fill('remoteDemo');
+      await page.getByTestId('project-folder-search').fill('remote-demo');
       await page.getByTestId('project-folder-search').press('Enter');
-      const searchResults = sourceBrowser.getByTestId('project-remote-search-results');
+      const searchResults = page.getByTestId('project-remote-search-results');
+      await expect(searchResults.getByTestId('project-search-current-heading')).toHaveText('Current folder:');
+      await expect(searchResults.getByTestId('project-search-across-heading')).toHaveText(`Across ${fixture.project_name}:`);
       await expect(searchResults).toContainText('remote-demo.ts', { timeout: 30000 });
       await expect(searchResults).not.toContainText('PRIVATE_DUMMY_CANARY');
       await expect(searchResults).not.toContainText('debug.log');

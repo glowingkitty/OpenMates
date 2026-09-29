@@ -417,6 +417,102 @@ test('opens the only connected local folder directly in Files', async ({ page })
   await expect(page.getByTestId('project-folders-panel').locator('.section-title')).toHaveCount(0);
 });
 
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+test('bounds large connected and stored folders while searching the whole Project', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'largeConnectedSource'));
+  await waitForProjectsPreview(page);
+
+  const remoteEntries = page.getByTestId('project-remote-entry');
+  const remotePages = page.getByTestId('project-remote-page-controls');
+  await expect(remoteEntries).toHaveCount(48);
+  await expect(remotePages).toContainText('Page 1');
+  const firstRemotePageNames = await remoteEntries.allTextContents();
+  await remotePages.getByRole('button', { name: 'Next' }).click();
+  await expect(remoteEntries).toHaveCount(48);
+  await expect(remotePages).toContainText('Page 2');
+  expect(await remoteEntries.allTextContents()).not.toEqual(firstRemotePageNames);
+  await remotePages.getByRole('button', { name: 'Previous' }).click();
+  await expect(remoteEntries).toHaveText(firstRemotePageNames);
+
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(remoteEntries).toHaveCount(48);
+  await remotePages.getByRole('button', { name: 'Next' }).click();
+  await expect(remoteEntries).toHaveCount(48);
+  await expect(remotePages).toContainText('Page 2');
+  await remotePages.getByRole('button', { name: 'Previous' }).click();
+  await expect(remoteEntries).toHaveText(firstRemotePageNames);
+
+  const search = page.getByTestId('project-folder-search');
+  await search.fill('needle');
+  await search.press('Enter');
+  const results = page.getByTestId('project-remote-search-results');
+  await expect(results.getByTestId('project-search-loading')).toHaveCount(0);
+  await expect(results.getByTestId('project-search-current-heading')).toHaveText('Current folder:');
+  await expect(results.getByTestId('project-search-across-heading')).toHaveText('Across OpenMates:');
+  await expect(results.getByTestId('project-search-result')).toHaveCount(4);
+  await expect(results.getByTestId('project-search-result').first()).toContainText('needle-current.ts');
+  await expect(results.getByTestId('project-search-result').filter({ hasText: 'needle-child.ts' })).toHaveCount(1);
+  await expect(results.getByTestId('project-search-result').filter({ hasText: 'needle-stored-root.md' })).toHaveCount(1);
+  await expect(results.getByTestId('project-search-result').filter({ hasText: 'needle-stored-nested.md' })).toHaveCount(1);
+  const headingOrder = await results.evaluate((element) => {
+    const current = element.querySelector('[data-testid="project-search-current-heading"]');
+    const across = element.querySelector('[data-testid="project-search-across-heading"]');
+    return Boolean(current && across && current.compareDocumentPosition(across) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(headingOrder).toBe(true);
+
+  await search.fill('');
+  await remoteEntries.filter({ hasText: 'nested' }).first().click();
+  await page.getByRole('button', { name: 'Project root' }).click();
+  const storedPages = page.getByTestId('project-files-page-controls');
+  const mountedStoredCards = page.getByTestId('project-browser-list').locator('[data-testid="project-folder-card"], [data-testid="project-virtual-folder-card"], [data-testid="project-item-card"], [data-testid="project-connected-source-root"]');
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).toContainText('Backend');
+  await storedPages.getByRole('button', { name: 'Next' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).not.toContainText('Backend');
+  await storedPages.getByRole('button', { name: 'Previous' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).toContainText('Backend');
+  await page.getByRole('button', { name: 'Tile', exact: true }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await storedPages.getByRole('button', { name: 'Next' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).not.toContainText('Backend');
+  await storedPages.getByRole('button', { name: 'Previous' }).click();
+  await expect(mountedStoredCards).toHaveCount(48);
+  await expect(mountedStoredCards.first()).toContainText('Backend');
+
+  await search.fill('needle');
+  await search.press('Enter');
+  await expect(results.getByTestId('project-search-result').first()).toContainText('needle-stored-root.md');
+  await expect(results.getByTestId('project-search-result')).toHaveCount(4);
+});
+
+// contract-test: supporting surface=gui.web assertions=projects.files.connected-embed-previews,projects.surface.semantic-parity
+test('pages a legacy connected source response containing 500 entries', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 921 });
+  await page.goto(preview(1512, 'legacyConnectedSource'));
+  await waitForProjectsPreview(page);
+
+  const entries = page.getByTestId('project-remote-entry');
+  const controls = page.getByTestId('project-remote-page-controls');
+  await expect(entries).toHaveCount(48);
+  await expect(entries.first()).toContainText('legacy-file-000.ts');
+  await expect(controls).toContainText('Page 1');
+  for (let pageNumber = 2; pageNumber <= 11; pageNumber += 1) {
+    await controls.getByRole('button', { name: 'Next' }).click();
+    await expect(controls).toContainText(`Page ${pageNumber}`);
+    await expect(entries).toHaveCount(pageNumber === 11 ? 20 : 48);
+  }
+  await expect(entries.last()).toContainText('legacy-file-499.ts');
+  await expect(controls.getByRole('button', { name: 'Next' })).toBeDisabled();
+  await controls.getByRole('button', { name: 'Previous' }).click();
+  await expect(controls).toContainText('Page 10');
+  await expect(entries).toHaveCount(48);
+});
+
 // contract-test: supporting surface=gui.web assertions=projects.surface.semantic-parity
 test('loads one-level children for both connected source folder cards', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 921 });
