@@ -67,6 +67,7 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         assert service["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
         assert service["environment"]["OPENMATES_CI_ISOLATED"] == "1"
         assert len(service["environment"]["OPENMATES_TEST_ACCOUNT_API_KEY"]) == 48
+        assert service["environment"]["SELF_HOST_SIGNUP_MODE"] == "invite_and_domain"
         assert service["depends_on"]["mailpit"]["condition"] == "service_started"
         assert "BREVO_API_KEY" not in service["environment"]
 

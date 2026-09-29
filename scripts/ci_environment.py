@@ -177,6 +177,7 @@ def compose_profile(
         common.update(
             CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_MAIL_CAPTURE="1",
             OPENMATES_TEST_ACCOUNT_API_KEY=credentials["signup_cleanup"],
+            SELF_HOST_SIGNUP_MODE="invite_and_domain",
         )
     if object_storage:
         common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
