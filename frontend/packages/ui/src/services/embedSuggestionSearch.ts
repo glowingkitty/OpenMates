@@ -1,6 +1,7 @@
 // Composer-only matching over already-decrypted saved memories. No plaintext is persisted.
 export interface SavedEmbedSuggestion {
   embedId: string;
+  settingsPath?: string;
   title: string;
   subtitle: string;
   appId: string;
@@ -8,6 +9,7 @@ export interface SavedEmbedSuggestion {
 }
 
 interface SavedMemoryEntryLike {
+  id?: string;
   item_value: Record<string, unknown>;
   updated_at?: number;
 }
@@ -42,7 +44,10 @@ function buildIndex(entriesByApp: SavedMemoriesLike['entriesByApp']): IndexedSav
           .map(([, field]) => stringValue(field).slice(0, 120))
           .filter(Boolean).join(' ').slice(0, 500);
         const searchText = [title, metadata].join(' ').toLowerCase();
-        const candidate = { embedId, title, subtitle, appId, updatedAt: entry.updated_at ?? 0, searchText };
+        const settingsPath = entry.id
+          ? `apps/${appId}/settings_memories/${groupName}/entry/${entry.id}`
+          : undefined;
+        const candidate = { embedId, settingsPath, title, subtitle, appId, updatedAt: entry.updated_at ?? 0, searchText };
         if (!byId.has(embedId) || byId.get(embedId)!.updatedAt < candidate.updatedAt) byId.set(embedId, candidate);
       }
     }

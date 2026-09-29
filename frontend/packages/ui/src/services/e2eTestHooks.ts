@@ -64,6 +64,10 @@ export async function installE2ETestHooks() {
       chat: Record<string, unknown>;
       messages: Record<string, unknown>[];
     }) => Promise<{ chatId: string; messageCount: number }>;
+    __openmatesE2ESeedSavedEmbedMemory?: (input: {
+      embedId: string;
+      title: string;
+    }) => Promise<{ entryId: string }>;
     __openmatesE2ESetDraftPreview?: (chatId: string, preview: string, markdown?: string) => Promise<void>;
     __openmatesE2EChatConnectionState?: () => Promise<{
       online: boolean;
@@ -94,6 +98,31 @@ export async function installE2ETestHooks() {
     }
     window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chatId } }));
     return { chatId, messageCount: messages.length };
+  };
+
+  testWindow.__openmatesE2ESeedSavedEmbedMemory = async ({ embedId, title }) => {
+    if (!embedId.startsWith('e2e-')) throw new Error('E2E embed IDs must start with e2e-');
+    const { encryptWithMasterKey } = await import('./cryptoService');
+    const { appSettingsMemoriesStore } = await import('../stores/appSettingsMemoriesStore');
+    const encrypted = await encryptWithMasterKey(JSON.stringify({
+      embed_id: embedId, title, settings_group: 'saved_events', _original_item_key: title,
+    }));
+    if (!encrypted) throw new Error('Could not encrypt E2E saved memory fixture');
+    const entryId = crypto.randomUUID();
+    const now = Math.floor(Date.now() / 1000);
+    await chatDB.storeAppSettingsMemoriesEntries([{
+      id: entryId,
+      app_id: 'events',
+      item_key: `e2e-${entryId}`,
+      item_type: 'saved_events',
+      encrypted_item_json: encrypted,
+      encrypted_app_key: '',
+      created_at: now,
+      updated_at: now,
+      item_version: 1,
+    }]);
+    await appSettingsMemoriesStore.loadEntries();
+    return { entryId };
   };
 
   testWindow.__openmatesE2ESetDraftPreview = async (chatId, preview, markdown) => {

@@ -46,7 +46,7 @@
     messageInputContent?: string;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
-    onEmbedSelect: (embedId: string) => void;
+    onEmbedSelect: (embedId: string, settingsPath?: string) => void;
     currentChatId?: string | undefined;
   } = $props();
 
@@ -234,7 +234,7 @@
     <div class="chat-search-scroll">
       {#each savedEmbedResults as embed (embed.embedId)}
         <div class="chat-result-wrapper">
-          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId)}>
+          <button class="suggestion-card embed-result-card" data-testid="saved-embed-search-result" data-app-id={embed.appId} style:background={getAppGradientBackground(embed.appId)} onclick={() => onEmbedSelect(embed.embedId, embed.settingsPath)}>
             <span class="card-icon"><Icon name={embed.appId} type="app" size="24px" noAnimation noMargin /></span>
             <span class="card-text">{embed.title}</span>
           </button>

@@ -34,19 +34,22 @@ describe('composer embed suggestions', () => {
 
   // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
   it('searches every saved embed memory regardless of date and deduplicates IDs', () => {
-    const entriesByApp = new Map<string, Record<string, Array<{ item_value: Record<string, unknown>; updated_at: number }>>>([['events', {
+    const entriesByApp = new Map<string, Record<string, Array<{ id: string; item_value: Record<string, unknown>; updated_at: number }>>>([['events', {
       saved_events: [
-        { item_value: { embed_id: 'old-event', title: 'Berlin design meetup', location: 'Berlin' }, updated_at: 1 },
-        { item_value: { embed_id: 'old-event', title: 'Berlin design meetup', location: 'Berlin' }, updated_at: 2 },
-        { item_value: { embed_id: 'other-event', title: 'Munich meetup' }, updated_at: 3 },
+        { id: 'old-memory', item_value: { embed_id: 'old-event', title: 'Berlin design meetup', location: 'Berlin' }, updated_at: 1 },
+        { id: 'new-memory', item_value: { embed_id: 'old-event', title: 'Berlin design meetup', location: 'Berlin' }, updated_at: 2 },
+        { id: 'other-memory', item_value: { embed_id: 'other-event', title: 'Munich meetup' }, updated_at: 3 },
       ],
     }], ['health', {
       appointments: [
-        { item_value: { embed_id: 'appointment', title: 'October 7', where: 'Dr. Ada · cardiology' }, updated_at: 4 },
+        { id: 'appointment-memory', item_value: { embed_id: 'appointment', title: 'October 7', where: 'Dr. Ada · cardiology' }, updated_at: 4 },
       ],
     }]]);
     const state = { entriesByApp };
-    expect(searchSavedEmbedMemories(state, 'berlin')).toEqual([expect.objectContaining({ embedId: 'old-event', title: 'Berlin design meetup' })]);
+    expect(searchSavedEmbedMemories(state, 'berlin')).toEqual([expect.objectContaining({
+      embedId: 'old-event', title: 'Berlin design meetup',
+      settingsPath: 'apps/events/settings_memories/saved_events/entry/new-memory',
+    })]);
     expect(searchSavedEmbedMemories(state, 'meetup')).toHaveLength(2);
     expect(searchSavedEmbedMemories(state, 'meetup', 1)).toHaveLength(1);
     expect(searchSavedEmbedMemories(state, 'cardiology')[0]?.embedId).toBe('appointment');

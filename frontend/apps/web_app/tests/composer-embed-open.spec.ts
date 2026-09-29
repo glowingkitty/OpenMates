@@ -32,6 +32,36 @@ test('opens a public event from the new-chat composer while keeping the draft', 
 });
 
 // contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
+test('opens saved memory details when its embed is unavailable', async ({ page }) => {
+  test.setTimeout(180_000);
+  skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);
+  await loginToTestAccount(page, createSignupLogger('COMPOSER_SAVED_EMBED_FALLBACK'));
+  await expect.poll(() => page.evaluate(async () => {
+    const state = await (window as Window & {
+      __openmatesE2EChatConnectionState?: () => Promise<{ cachePrimed: boolean }>;
+    }).__openmatesE2EChatConnectionState?.();
+    return state?.cachePrimed === true;
+  }), { timeout: 30_000 }).toBe(true);
+  const { entryId } = await page.evaluate(async () => {
+    const seed = (window as Window & {
+      __openmatesE2ESeedSavedEmbedMemory?: (input: { embedId: string; title: string }) => Promise<{ entryId: string }>;
+    }).__openmatesE2ESeedSavedEmbedMemory;
+    if (!seed) throw new Error('E2E saved memory seed helper is unavailable');
+    return seed({ embedId: 'e2e-missing-composer-saved-embed', title: 'E2E saved memory fallback' });
+  });
+
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+  await expect(editor).toBeVisible({ timeout: 20_000 });
+  await editor.fill('E2E saved memory fallback');
+  const saved = page.getByTestId('saved-embed-search-result').filter({ hasText: 'E2E saved memory fallback' }).first();
+  await expect(saved).toBeVisible({ timeout: 30_000 });
+  await saved.click();
+  await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(new RegExp(`settings=apps/events/settings_memories/saved_events/entry/${entryId}`));
+  await expect(editor).toHaveText('E2E saved memory fallback');
+});
+
+// contract-test: supporting surface=gui.web assertions=message-input.suggestions.contextual
 test('opens an event from another example chat while keeping the message draft', async ({ page }) => {
   test.setTimeout(180_000);
   skipWithoutCredentials(test, credentials.email, credentials.password, credentials.otpKey);

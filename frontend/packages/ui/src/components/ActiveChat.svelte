@@ -2541,12 +2541,38 @@
         messageInputFieldRef?.focus();
     }
 
-    async function handleEmbedSuggestionClick(embedId: string): Promise<void> {
+    async function openUnavailableEmbedMemory(settingsPath?: string): Promise<void> {
+        if (settingsPath?.startsWith('apps/')) {
+            settingsMenuVisible.set(true);
+            panelState.openSettings();
+            await tick();
+            settingsDeepLink.set(settingsPath);
+            return;
+        }
+        notificationStore.error(get(text)('chat.suggestions.embed_unavailable'));
+    }
+
+    async function handleEmbedSuggestionClick(embedId: string, settingsPath?: string): Promise<void> {
+        // Old saved memories can retain valid structured metadata while their
+        // referenced ciphertext can no longer decrypt. Show that saved entry.
+        if (settingsPath) {
+            try {
+                const { embedStore } = await import('../services/embedStore');
+                const cached = await embedStore.get(`embed:${embedId}`);
+                if (cached && typeof cached === 'object' && '_decryptionFailed' in cached && cached._decryptionFailed) {
+                    await openUnavailableEmbedMemory(settingsPath);
+                    return;
+                }
+            } catch {
+                await openUnavailableEmbedMemory(settingsPath);
+                return;
+            }
+        }
         const { loadEmbedsWithRetry } = await import('../services/embedResolver');
         const { resolveEmbedFullscreenTarget } = await import('../services/embedFullscreenController');
         const [embed] = await loadEmbedsWithRetry([embedId]);
         if (!embed) {
-            notificationStore.error(get(text)('chat.suggestions.embed_unavailable'));
+            await openUnavailableEmbedMemory(settingsPath);
             return;
         }
         const target = await resolveEmbedFullscreenTarget(embedId, {
@@ -2561,7 +2587,7 @@
         if (target.targetEmbedId !== embedId) {
             const [parent] = await loadEmbedsWithRetry([target.targetEmbedId]);
             if (!parent) {
-                notificationStore.error(get(text)('chat.suggestions.embed_unavailable'));
+                await openUnavailableEmbedMemory(settingsPath);
                 return;
             }
         }
