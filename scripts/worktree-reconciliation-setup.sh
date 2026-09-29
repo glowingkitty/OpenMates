@@ -13,7 +13,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GIT_COMMON_DIR="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir)"
 PROJECT_ROOT="$(cd "$GIT_COMMON_DIR/.." && pwd)"
-RUNTIME_ROOT="${OPENMATES_RECONCILIATION_RUNTIME_ROOT:-$(cd "$PROJECT_ROOT/.." && pwd)/.openmates-runtime/product-stack}"
+# Use the control-plane checkout by default so the installed timer receives
+# deployed cleanup fixes without waiting for the product runtime checkout.
+RUNTIME_ROOT="${OPENMATES_RECONCILIATION_RUNTIME_ROOT:-$PROJECT_ROOT}"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
 
 if [ -f "$RUNTIME_ROOT/scripts/sessions.py" ] \

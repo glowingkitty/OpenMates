@@ -112,7 +112,8 @@ Read the real current runtime definitions before changing any retained schedule.
 
 ## Retained worktree maintenance
 
-The independent `worktree-reconciliation-setup.sh` service retains its existing
+The independent `worktree-reconciliation-setup.sh` service runs from the
+control-plane checkout by default. It uses
 `sessions.py worktree expire --max-age-hours 168` and
 `sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`
 operations. It preserves source-free manifests for 30 days. This shared
