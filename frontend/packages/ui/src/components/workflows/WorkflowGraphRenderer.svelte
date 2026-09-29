@@ -22,6 +22,7 @@
   import type { Chat } from '../../types/chat';
   import type { AppMetadata } from '../../types/apps';
   import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema } from './workflowBuilder';
+  import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeTo } from './workflowReordering';
 
   let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, onSave = null }: {
     graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
@@ -37,6 +38,8 @@
   let deleteArmed = $state(false);
   let expandedReadOnly = $state<string | null>(null);
   let busy = $state(false);
+  let draggingNodeId = $state<string | null>(null);
+  let dropTargetId = $state<string | null>(null);
   let nodeError = $state('');
   let testStatus = $state<'idle' | 'processing' | 'completed' | 'cancelled' | 'failed'>('idle');
   let testingRunId = $state<string | null>(null);
@@ -316,6 +319,42 @@
     finally { busy = false; }
   }
   async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
+  async function persistReorder(next: WorkflowGraph | null, focusNodeId?: string): Promise<void> {
+    if (!next || !onSave || busy || readOnly || testStatus === 'processing') return;
+    busy = true;
+    nodeError = '';
+    try {
+      await onSave(next);
+      if (focusNodeId && draft?.id === focusNodeId) void scrollEditorIntoView(focusNodeId);
+    } catch (error) { failForUser(error, 'save_failed'); }
+    finally { busy = false; }
+  }
+  function moveDraft(direction: 'up' | 'down'): void {
+    if (!draft) return;
+    void persistReorder(moveWorkflowNode(graph, draft.id, direction), draft.id);
+  }
+  function startNodeDrag(event: DragEvent, nodeId: string): void {
+    if (readOnly || busy || testStatus === 'processing' || !onSave) { event.preventDefault(); return; }
+    draggingNodeId = nodeId;
+    event.dataTransfer?.setData('text/plain', nodeId);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+  function overNode(event: DragEvent, targetId: string): void {
+    if (!draggingNodeId || !moveWorkflowNodeTo(graph, draggingNodeId, targetId)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dropTargetId = targetId;
+  }
+  function dropNode(event: DragEvent, targetId: string): void {
+    const sourceId = draggingNodeId;
+    draggingNodeId = null;
+    dropTargetId = null;
+    if (!sourceId) return;
+    const next = moveWorkflowNodeTo(graph, sourceId, targetId);
+    if (!next) return;
+    event.preventDefault();
+    void persistReorder(next);
+  }
   function requestDelete(): void { if (!deleteArmed) { deleteArmed = true; return; } void deleteNode(); }
   async function testNode(): Promise<void> {
     if (!draft || !workflowId || testStatus === 'processing') return;
@@ -400,12 +439,18 @@
       iconStyle={assetIconStyle(picker === 'trigger' ? 'workflow' : picker === 'skill' ? selectedApp : 'app', 16, 'var(--color-font-secondary)')}
       backLabel={picker === 'app' || picker === 'skill' ? tr('back') : ''}
       showDelete={persistedDraft}
+      canMoveUp={false}
+      canMoveDown={false}
       {deleteArmed}
       closeLabel={tr('close')}
       deleteLabel={tr('delete_node')}
       confirmDeleteLabel={tr('confirm_delete_node')}
+      moveUpLabel={tr('move_up')}
+      moveDownLabel={tr('move_down')}
       onBack={() => { picker = picker === 'skill' ? 'app' : 'action'; deleteArmed = false; }}
       onDelete={requestDelete}
+      onMoveUp={() => moveDraft('up')}
+      onMoveDown={() => moveDraft('down')}
       onClose={() => closeEditor()}
     />
     <h3>{tr(picker === 'trigger' ? 'trigger_question' : picker === 'app' ? 'app_question' : picker === 'skill' ? 'skill_question' : 'action_question')}</h3>
@@ -432,13 +477,19 @@
         iconStyle={isMessage(draft) && chooseChat ? assetIconStyle('chat', 19, 'var(--color-font-button)') : primaryNodeIconStyle(draft)}
         colored={draft.type === 'app_skill_action' || isTrigger(draft) || isMessage(draft) || isCheck(draft)}
         showDelete={persistedDraft}
+        canMoveUp={persistedDraft && canMoveWorkflowNode(graph, draft.id, 'up')}
+        canMoveDown={persistedDraft && canMoveWorkflowNode(graph, draft.id, 'down')}
         {deleteArmed}
         disabled={busy || testStatus === 'processing'}
         closeLabel={tr('close')}
         deleteLabel={tr('delete_node')}
         confirmDeleteLabel={tr('confirm_delete_node')}
+        moveUpLabel={tr('move_up')}
+        moveDownLabel={tr('move_down')}
         onBack={backFromEditor}
         onDelete={requestDelete}
+        onMoveUp={() => moveDraft('up')}
+        onMoveDown={() => moveDraft('down')}
         onClose={() => closeEditor()}
       />
       {#if isTrigger(draft)}
@@ -516,9 +567,9 @@
     {@const run = nodeRuns.find(item => item.node_id === node.id)}
     {@const rawRunStatus = String(isMessage(node) && run?.output_summary?.status ? run.output_summary.status : run?.status ?? '')}
     {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
-    <article class="flow-node" data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`}>
+    <article class="flow-node" class:drop-target={dropTargetId === node.id} data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`} ondragover={event => overNode(event, node.id)} ondragleave={() => { if (dropTargetId === node.id) dropTargetId = null; }} ondrop={event => dropNode(event, node.id)}>
       {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
-        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} onclick={() => edit(node)}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
+        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} style={style(node)} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} draggable={!readOnly && !isTrigger(node)} ondragstart={event => startNodeDrag(event, node.id)} ondragend={() => { draggingNodeId = null; dropTargetId = null; }} onclick={() => edit(node)}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
         {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{tr('output_step_failed')}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
       {/if}
     </article>
@@ -534,7 +585,7 @@
   {/if}
 {/snippet}
 
-<section class="graph-panel" bind:this={graphPanel} data-testid={testId} data-read-only={readOnly ? 'true' : 'false'}>
+<section class="graph-panel" bind:this={graphPanel} data-testid={testId} data-read-only={readOnly ? 'true' : 'false'} aria-busy={busy}>
   <div class="graph-canvas" class:blank={!graph.nodes.some(node => node.type !== 'end')}><div class="node-stack" data-testid="workflow-node-stack">
     {#each rootNodes as root}{@render chain(root.id)}{/each}
     {#if !graph.nodes.some(node => node.type !== 'end')}{@render slotControls({ after: null })}{/if}
@@ -548,6 +599,7 @@
   .node-app-icon{display:grid;place-items:center}.graph-panel{margin-block:1.75rem}.node-summary.branded .node-app-icon{color:var(--color-font-button)}
   .node-summary{box-sizing:border-box;width:min(21rem,100%);min-height:9.25rem;padding:.9rem 1.25rem;gap:.55rem}
   .node-summary.expanded{width:min(42rem,100%);border-radius:1rem 1rem 0 0}.node-summary.expanded+.editor{border-radius:0 0 1rem 1rem}.check-source{font-size:14px;color:var(--color-font-secondary)}
+  .node-summary[draggable="true"]{cursor:grab}.node-summary[draggable="true"]:active{cursor:grabbing}.flow-node.drop-target>.node-summary{outline:3px solid var(--color-primary);outline-offset:3px}
   .node-summary.branded .check-source{color:var(--color-font-button);opacity:.9}
   .branch-label{display:flex;align-items:center;justify-content:center;gap:.4rem}
   .type{background:#315aef;color:white}.type[data-value-type="number"]{background:#b3213c}.type[data-value-type="date"]{background:#eb9d00}.type[data-value-type="boolean"]{background:#7651b5}

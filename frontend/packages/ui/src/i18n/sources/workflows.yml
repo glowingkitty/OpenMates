@@ -943,6 +943,16 @@ builder.close:
   en: "Close"
   verified_by_human: []
 
+builder.move_up:
+  context: Move a Workflow node one available position earlier
+  en: "Move step up"
+  verified_by_human: []
+
+builder.move_down:
+  context: Move a Workflow node one available position later
+  en: "Move step down"
+  verified_by_human: []
+
 builder.trigger_question:
   context: Workflow progressive builder control
   en: "What trigger should run your workflow?"
@@ -1386,6 +1396,21 @@ builder.output_type_number:
 builder.output_type_date:
   context: Readable workflow values and feedback for everyday users
   en: "Date"
+  verified_by_human: []
+
+builder.output_type_location:
+  context: Type indicator for a workflow location input
+  en: "Location"
+  verified_by_human: []
+
+builder.output_type_time:
+  context: Type indicator for a workflow time input
+  en: "Time"
+  verified_by_human: []
+
+builder.output_type_url:
+  context: Type indicator for a workflow URL input
+  en: "URL"
   verified_by_human: []
 
 builder.output_type_list:

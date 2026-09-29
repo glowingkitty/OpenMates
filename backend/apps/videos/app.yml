@@ -301,6 +301,7 @@ skills:
                 x-ui:
                   basic: true
                 type: string
+                format: uri
                 description: YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)
               languages:
                 x-ui:

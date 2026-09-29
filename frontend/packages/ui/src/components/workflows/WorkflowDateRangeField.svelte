@@ -7,14 +7,18 @@
     start,
     end,
     timezone,
+    minOffsetDays = 0,
     maxOffsetDays = 13,
+    maxSpanDays,
     dateTimeBounds = false,
     onChange
   }: {
     start: unknown;
     end: unknown;
     timezone: string;
+    minOffsetDays?: number;
     maxOffsetDays?: number;
+    maxSpanDays?: number;
     dateTimeBounds?: boolean;
     onChange: (start: unknown, end: unknown) => void;
   } = $props();
@@ -32,7 +36,9 @@
     }
   }
   let todayOrdinal = $derived(todayInTimezone(timezone));
+  let minOrdinal = $derived(todayOrdinal + minOffsetDays);
   let maxOrdinal = $derived(todayOrdinal + maxOffsetDays);
+  let showRelativePresets = $derived(minOffsetDays === 0 && maxOffsetDays >= 13);
   type RangeMode = 'none' | 'today' | 'next-week' | 'specific';
 
   function runtimeDateOrdinal(value: unknown): number | null {
@@ -61,6 +67,12 @@
     return String(record(value).$date ?? '');
   }
 
+  function boundedRange(startDay: number, endDay: number): [number, number] {
+    const lower = Math.max(minOrdinal, Math.min(maxOrdinal, startDay));
+    const upper = Math.max(lower, Math.min(maxOrdinal, endDay, lower + (maxSpanDays ?? Infinity)));
+    return [lower, upper];
+  }
+
   let mode = $state<RangeMode>('none');
   let selectedStart = $state(0);
   let selectedEnd = $state(0);
@@ -72,8 +84,7 @@
     if (relativeDate(start) === 'today' && ['today', 'today_end'].includes(relativeDate(end))) mode = 'today';
     else if (relativeDate(start) === 'next_week_start' && relativeDate(end) === 'next_week_end') mode = 'next-week';
     else mode = start || end ? 'specific' : 'none';
-    selectedStart = Math.max(todayOrdinal, Math.min(maxOrdinal, runtimeDateOrdinal(start) ?? todayOrdinal));
-    selectedEnd = Math.max(selectedStart, Math.min(maxOrdinal, runtimeDateOrdinal(end) ?? selectedStart));
+    [selectedStart, selectedEnd] = boundedRange(runtimeDateOrdinal(start) ?? todayOrdinal, runtimeDateOrdinal(end) ?? todayOrdinal);
     initializedValues = valuesKey;
   });
 
@@ -104,8 +115,8 @@
   }
 
   function changeRange(side: 'min' | 'max', day: number): void {
-    if (side === 'min') selectedStart = day;
-    else selectedEnd = day;
+    if (side === 'min') [selectedStart, selectedEnd] = boundedRange(day, Math.max(selectedEnd, day));
+    else [selectedStart, selectedEnd] = boundedRange(Math.min(selectedStart, day), day);
     onChange(dateValue(selectedStart, false), dateValue(selectedEnd, true));
   }
 </script>
@@ -113,13 +124,13 @@
 <div class="date-range" data-testid="workflow-date-range-field">
   <span class="label">{tr('date_range')}</span>
   <div class="range-modes" role="group" aria-label={tr('date_range')}>
-    <button type="button" class:active={mode === 'today'} data-testid="workflow-date-range-today" onclick={useToday}>{tr('today')}</button>
-    <button type="button" class:active={mode === 'next-week'} data-testid="workflow-date-range-next-week" onclick={useNextWeek}>{tr('next_week')}</button>
+    {#if showRelativePresets}<button type="button" class:active={mode === 'today'} data-testid="workflow-date-range-today" onclick={useToday}>{tr('today')}</button>
+    <button type="button" class:active={mode === 'next-week'} data-testid="workflow-date-range-next-week" onclick={useNextWeek}>{tr('next_week')}</button>{/if}
     <button type="button" class:active={mode === 'specific'} data-testid="workflow-date-range-specific" onclick={useSpecific}>{tr('specific_dates')}</button>
   </div>
   {#if mode === 'specific'}
     <ResultsDateRangeFilter
-      min={todayOrdinal}
+      min={minOrdinal}
       max={maxOrdinal}
       lower={selectedStart}
       upper={selectedEnd}
@@ -135,6 +146,6 @@
   .label { font-size:max(16px, 1rem); font-weight:650; }
   .range-modes { display:flex; flex-wrap:wrap; gap:var(--spacing-4); }
   .range-modes button { min-height:2.5rem; margin:0; padding:.45rem .9rem; border:0; border-radius:var(--radius-full); background:var(--workflow-input-surface, var(--color-grey-10)); color:var(--color-font-secondary); box-shadow:var(--shadow-sm); font:inherit; font-size:max(16px, 1rem); cursor:pointer; }
-  .range-modes button.active { background:var(--gradient-primary); color:var(--color-font-button); }
+  .range-modes button.active { background:var(--gradient-primary); color:var(--color-font-button, #fff); }
   button:focus-visible { outline:2px solid var(--color-button-primary); outline-offset:2px; }
 </style>

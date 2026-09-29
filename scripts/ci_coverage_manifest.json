@@ -81,6 +81,7 @@
         "workflows-ai-authoring.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
+        "workflows-reorder-inputs.spec.ts",
         "workspace-hash-routing.spec.ts",
         "workspace-sidebar.spec.ts"
       ]
@@ -222,6 +223,7 @@
         "components/workflow-run-provenance.spec.ts",
         "components/workflow-detail-tabs.spec.ts",
         "components/workflow-graph-skill-variants.spec.ts",
+        "components/workflow-graph-reorder-inputs.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/password-and-tfa-otp.spec.ts",

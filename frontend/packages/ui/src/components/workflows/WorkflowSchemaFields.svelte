@@ -12,8 +12,8 @@
   import { workflowVariableGradient } from './workflowVariableGradient';
   import { presentedItems } from './workflowValuePresentation';
 
-  type UiMetadata = { control?: string; start_field?: string; end_field?: string; max_offset_days?: number; hidden?: boolean; basic?: boolean };
-  type LocationConfig = { mode: 'weather' | 'events' | 'home'; text: string; latitude?: string; longitude?: string };
+  type UiMetadata = { control?: string; start_field?: string; end_field?: string; min_offset_days?: number; max_offset_days?: number; max_span_days?: number; location_mode?: string; latitude_field?: string; longitude_field?: string; city_field?: string; clear_fields?: string[]; hidden?: boolean; basic?: boolean };
+  type LocationConfig = { mode: 'weather' | 'events' | 'home' | 'city' | 'place'; text: string; latitude?: string; longitude?: string; cityField?: string; clearFields?: string[] };
   let { schema, value, onChange, outputs = [], path = 'input', appId = '', timezone }: {
     schema: Schema; value: unknown; onChange: (value: unknown) => void; outputs?: Output[]; path?: string; appId?: string; timezone: string;
   } = $props();
@@ -32,7 +32,10 @@
     return Number.isFinite(number) ? number : raw;
   }
   function displayType(field: Schema): string {
+    if (ui(field).control === 'location') return 'location';
     if (field.format === 'date') return 'date';
+    if (field.format === 'time') return 'time';
+    if (field.format === 'uri' || field.format === 'url') return 'url';
     if (field.type === 'integer') return 'number';
     if (field.type === 'array') return 'list';
     return field.type === 'string' || !field.type ? 'text' : field.type;
@@ -91,14 +94,27 @@
     await tick();
     const replacement = document.getElementById(id) as HTMLInputElement | null;
     replacement?.focus();
-    replacement?.setSelectionRange(template.length, template.length);
+    if (replacement && ['text', 'search', 'url', 'tel', 'password'].includes(replacement.type)) replacement.setSelectionRange(template.length, template.length);
   }
 
-  function locationConfig(properties: Record<string, Schema>, id: string): LocationConfig | null {
-    if (appId === 'weather' && properties.location && properties.latitude && properties.longitude) return { mode: 'weather', text: 'location', latitude: 'latitude', longitude: 'longitude' };
-    if (appId === 'events' && properties.location && properties.lat && properties.lon) return { mode: 'events', text: 'location', latitude: 'lat', longitude: 'lon' };
-    if (appId === 'home' && properties.query && id.includes('request')) return { mode: 'home', text: 'query' };
-    return null;
+  function locationConfigs(properties: Record<string, Schema>, id: string): LocationConfig[] {
+    const explicit = Object.entries(properties).flatMap(([name, field]) => {
+      const metadata = ui(field);
+      if (metadata.control !== 'location') return [];
+      return [{
+        mode: metadata.location_mode === 'city' ? 'city' as const : 'place' as const,
+        text: name,
+        latitude: metadata.latitude_field,
+        longitude: metadata.longitude_field,
+        cityField: metadata.city_field,
+        clearFields: metadata.clear_fields,
+      }];
+    });
+    if (explicit.length) return explicit;
+    if (appId === 'weather' && properties.location && properties.latitude && properties.longitude) return [{ mode: 'weather', text: 'location', latitude: 'latitude', longitude: 'longitude' }];
+    if (appId === 'events' && properties.location && properties.lat && properties.lon) return [{ mode: 'events', text: 'location', latitude: 'lat', longitude: 'lon' }];
+    if (appId === 'home' && properties.query && id.includes('request')) return [{ mode: 'home', text: 'query' }];
+    return [];
   }
 
   function coordinateValue(current: unknown, key?: string): number | undefined {
@@ -109,14 +125,14 @@
     return Number.isFinite(coordinate) ? coordinate : undefined;
   }
 
-  function dateRangeConfig(container: Schema): { start: string; end: string; maxOffsetDays: number } | null {
+  function dateRangeConfig(container: Schema): { start: string; end: string; minOffsetDays: number; maxOffsetDays: number; maxSpanDays?: number } | null {
     const metadata = ui(container);
     const properties = container.properties ?? {};
     const start = metadata.start_field ?? 'start_date';
     const end = metadata.end_field ?? 'end_date';
     if (metadata.control !== 'date-range' && !(appId === 'weather' && properties[start] && properties[end])) return null;
     if (!properties[start] || !properties[end]) return null;
-    return { start, end, maxOffsetDays: metadata.max_offset_days ?? 13 };
+    return { start, end, minOffsetDays: metadata.min_offset_days ?? 0, maxOffsetDays: metadata.max_offset_days ?? 13, maxSpanDays: metadata.max_span_days };
   }
 
   function isBasic(name: string, field: Schema, required: string[], index: number, id: string): boolean {
@@ -139,22 +155,23 @@
 {#snippet objectFields(container: Schema, current: unknown, change: (value: unknown) => void, id: string, expandedId = id, showAdvancedToggle = true)}
   {@const properties = container.properties ?? {}}
   {@const entries = visibleEntries(properties)}
-  {@const location = locationConfig(properties, id)}
-  {@const locationAdvanced = Boolean(location && ui(properties[location.text]).basic === false)}
+  {@const locations = locationConfigs(properties, id)}
+  {@const locationAdvanced = locations.some(location => ui(properties[location.text]).basic === false)}
   {@const dateRange = dateRangeConfig(container)}
   {@const dateRangeAdvanced = Boolean(dateRange && (ui(container).basic === false || (ui(properties[dateRange.start]).basic === false && ui(properties[dateRange.end]).basic === false)))}
-  {@const handled = new Set([location?.text, location?.latitude, location?.longitude, dateRange?.start, dateRange?.end].filter(Boolean))}
+  {@const handled = new Set([...locations.flatMap(location => [location.text, location.latitude, location.longitude]), dateRange?.start, dateRange?.end].filter(Boolean))}
   {@const remaining = entries.filter(([name]) => !handled.has(name))}
   {@const basics = remaining.filter(([name, field], index) => isBasic(name, field, container.required ?? [], index, id))}
   {@const advanced = remaining.filter(entry => !basics.includes(entry))}
-  {#if location && (!locationAdvanced || expanded[expandedId])}
+  {#each locations.filter(location => ui(properties[location.text]).basic !== false || expanded[expandedId]) as location}
     {@const locationRequired = container.required?.includes(location.text) ?? false}
-    <div class="schema-field schema-field--specialized" data-testid="workflow-schema-field-location" role="group" aria-labelledby={`${id}-location-label`}>
-      <div class="field-label" id={`${id}-location-label`}>
-        {@render fieldLabel(location.text, tr('location'), properties[location.text], locationRequired)}
+    <div class="schema-field schema-field--specialized" data-testid={`workflow-schema-field-${location.text}`} role="group" aria-labelledby={`${id}-${location.text}-label`}>
+      <div class="field-label" id={`${id}-${location.text}-label`}>
+        {@render fieldLabel(location.text, properties[location.text].title || label(location.text), properties[location.text], locationRequired)}
       </div>
       <WorkflowLocationField
         mode={location.mode}
+        label={properties[location.text].title || label(location.text)}
         value={String(record(current)[location.text] ?? '')}
         latitude={coordinateValue(current, location.latitude)}
         longitude={coordinateValue(current, location.longitude)}
@@ -162,12 +179,14 @@
         onChange={selection => change({
           ...record(current),
           [location.text]: selection.text,
+          ...(location.cityField ? { [location.cityField]: selection.city } : {}),
           ...(location.latitude ? { [location.latitude]: selection.latitude } : {}),
-          ...(location.longitude ? { [location.longitude]: selection.longitude } : {})
+          ...(location.longitude ? { [location.longitude]: selection.longitude } : {}),
+          ...Object.fromEntries((location.clearFields ?? []).map(field => [field, undefined])),
         })}
       />
     </div>
-  {/if}
+  {/each}
   {#if dateRange && !dateRangeAdvanced}
     <div class="schema-field schema-field--specialized" data-testid="workflow-schema-field-date-range" role="group" aria-labelledby={`${id}-date-range-label`}>
       <div class="field-label" id={`${id}-date-range-label`}>
@@ -178,6 +197,8 @@
         end={record(current)[dateRange.end]}
         {timezone}
         maxOffsetDays={dateRange.maxOffsetDays}
+        minOffsetDays={dateRange.minOffsetDays}
+        maxSpanDays={dateRange.maxSpanDays}
         dateTimeBounds={appId === 'events'}
         onChange={(start, end) => change({ ...record(current), [dateRange.start]: start, [dateRange.end]: end })}
       />
@@ -197,6 +218,8 @@
           end={record(current)[dateRange.end]}
           {timezone}
           maxOffsetDays={dateRange.maxOffsetDays}
+          minOffsetDays={dateRange.minOffsetDays}
+          maxSpanDays={dateRange.maxSpanDays}
           dateTimeBounds={appId === 'events'}
           onChange={(start, end) => change({ ...record(current), [dateRange.start]: start, [dateRange.end]: end })}
         />
@@ -234,7 +257,7 @@
     {@const variableGroups = presentedItems(compatible)}
     {@const visibleVariables = expandedVariables[id] ? [...variableGroups.basic, ...variableGroups.advanced] : variableGroups.basic}
     {@const templateValue = isTemplateValue(current)}
-    {@const stringVariableInput = (spec.type === 'string' || !spec.type) && !spec.enum && !spec.format?.includes('date') && compatible.length > 0}
+    {@const stringVariableInput = (spec.type === 'string' || !spec.type) && !spec.enum && !['date', 'date-time', 'time', 'uri', 'url', 'email'].includes(spec.format ?? '') && compatible.length > 0}
     <div class="schema-field field">
       <label class="field-label" for={id}>{@render fieldLabel(name, spec.title || label(name), spec, required)}</label>
       {#if stringVariableInput}
@@ -267,7 +290,7 @@
       {:else}
         <SettingsInput
           {id}
-          type={['number', 'integer'].includes(spec.type ?? '') ? 'number' : spec.format === 'date' ? 'date' : 'text'}
+          type={['number', 'integer'].includes(spec.type ?? '') ? 'number' : spec.format === 'date' ? 'date' : spec.format === 'time' ? 'time' : ['uri', 'url'].includes(spec.format ?? '') ? 'url' : spec.format === 'email' ? 'email' : 'text'}
           value={String(current ?? '')}
           min={spec.minimum === undefined ? undefined : String(spec.minimum)}
           max={spec.maximum === undefined ? undefined : String(spec.maximum)}

@@ -70,10 +70,20 @@ skills:
               city:
                 x-ui:
                   basic: true
+                  control: location
+                  location_mode: city
+                  latitude_field: lat
+                  longitude_field: lon
+                  clear_fields: [address]
                 type: string
               address:
                 x-ui:
                   basic: false
+                  control: location
+                  location_mode: place
+                  city_field: city
+                  latitude_field: lat
+                  longitude_field: lon
                 type: string
               lat:
                 x-ui:
@@ -91,6 +101,7 @@ skills:
                 x-ui:
                   basic: false
                 type: string
+                enum: [essential, classic, premium, max]
               category:
                 x-ui:
                   basic: true
@@ -148,6 +159,12 @@ skills:
           type: array
           items:
             type: object
+            x-ui:
+              control: date-range
+              start_field: start_date
+              end_field: end_date
+              max_offset_days: 365
+              max_span_days: 13
             properties:
               query:
                 x-ui:
@@ -156,10 +173,20 @@ skills:
               city:
                 x-ui:
                   basic: true
+                  control: location
+                  location_mode: city
+                  latitude_field: lat
+                  longitude_field: lon
+                  clear_fields: [address]
                 type: string
               address:
                 x-ui:
                   basic: false
+                  control: location
+                  location_mode: place
+                  city_field: city
+                  latitude_field: lat
+                  longitude_field: lon
                 type: string
               lat:
                 x-ui:
@@ -177,26 +204,33 @@ skills:
                 x-ui:
                   basic: true
                 type: string
+                format: date
               end_date:
                 x-ui:
                   basic: true
                 type: string
+                format: date
               days:
                 x-ui:
                   basic: false
-                type: number
+                type: integer
+                minimum: 1
+                maximum: 14
               plan:
                 x-ui:
                   basic: false
                 type: string
+                enum: [essential, classic, premium, max]
               attendance_mode:
                 x-ui:
                   basic: false
                 type: string
+                enum: [onsite, online, all]
               min_spots:
                 x-ui:
                   basic: false
-                type: number
+                type: integer
+                minimum: 0
               category:
                 x-ui:
                   basic: false
