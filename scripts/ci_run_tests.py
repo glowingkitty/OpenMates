@@ -9,6 +9,8 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import json
+import base64
+import hmac
 import re
 import ast
 import hashlib
@@ -16,6 +18,7 @@ import os
 from pathlib import Path
 import secrets
 import socket
+import struct
 import subprocess
 import sys
 import time
@@ -123,12 +126,17 @@ def reserved_account_slot(name: str) -> int:
 def provision_api_key(account: dict) -> str:
     """Issue an expiring key through the real SDK using the new CLI session."""
     require_runner()
+    # Signup just enrolled this authenticator. Wait for a fresh time step so
+    # the account-wide one-use TOTP guard cannot mistake setup for a replay.
+    time.sleep(30 - (time.time() % 30) + 1)
+    totp_code = generate_ci_totp(account["OPENMATES_TEST_ACCOUNT_OTP_KEY"])
     sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
     program = """
 const { OpenMatesClient, OpenMates } = await import(process.argv[1]);
 const { platform, arch } = await import("node:os");
 const client = new OpenMatesClient({apiUrl: process.argv[2]});
 if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
+await client.verifyTotpForCurrentSession(process.env.OPENMATES_CI_SENSITIVE_TOTP_CODE);
 const FIXTURE_CREDIT_LIMIT = 1000;
 const FIXTURE_KEY_LIFETIME_MS = 60 * 60 * 1000;
 const result = await client.createApiKey({
@@ -153,7 +161,8 @@ process.stdout.write(JSON.stringify({api_key: result.api_key}));
 """
     result = subprocess.run(
         ["node", "--input-type=module", "-e", program, sdk, API],
-        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
+        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
+             "OPENMATES_CI_SENSITIVE_TOTP_CODE": totp_code},
         capture_output=True, text=True, timeout=60,
     )
     if result.returncode:
@@ -162,6 +171,17 @@ process.stdout.write(JSON.stringify({api_key: result.api_key}));
     if not isinstance(key, str) or not key.startswith("sk-api-"):
         raise RuntimeError("Fresh-account SDK returned no API key")
     return key
+
+
+def generate_ci_totp(secret: str, *, timestamp: float | None = None) -> str:
+    """RFC 6238 SHA-1 code for the disposable account's enrolled authenticator."""
+    normalized = secret.strip().upper().replace(" ", "")
+    key = base64.b32decode(normalized + "=" * ((-len(normalized)) % 8), casefold=True)
+    counter = int(time.time() if timestamp is None else timestamp) // 30
+    digest = hmac.new(key, struct.pack(">Q", counter), hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    value = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return f"{value % 1_000_000:06d}"
 
 
 def accept_fixture_credits(account: dict) -> int:
@@ -504,10 +524,11 @@ def run_e2e(
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
-                profile = json.loads(COMPOSE_PATH.read_text())
-                if "mailpit" in profile["services"]:
-                    env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
-                    env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
+                if not (component or artifact):
+                    profile = json.loads(COMPOSE_PATH.read_text())
+                    if "mailpit" in profile["services"]:
+                        env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
+                        env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                 account_free = component or artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
