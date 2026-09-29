@@ -1,0 +1,177 @@
+schema_version: 2
+id: workflow-ai-authoring
+title: AI workflow creation and editing from the web workspace
+status: clarifying
+goal: >-
+  Let users describe one or multiple workflows in the Workflows workspace, by
+  typing or recording speech, and have AI create valid workflows or edit existing
+  ones reliably. Clarify requests in chat when a valid result cannot be built.
+  Make AI edits visible and easy to undo.
+
+scope:
+  in:
+    - Create one or multiple workflows from the workspace composer, or update an existing workflow from the workspace or its open editor.
+    - Reuse live audio transcription and correction, then automatically submit corrected instructions.
+    - Validate generated graphs against the executable workflow capabilities before committing an atomic request.
+    - Show new workflows on the landing page and show changed or removed nodes for edits.
+    - Route requests needing clarification into a new chat with the workflows.clarify_workflows focus mode.
+    - Evaluate bounded Jev decisions against a generative LLM baseline before setting the default planner route.
+  out:
+    - Executing or enabling a newly generated workflow without a separate user action.
+    - Arbitrary code nodes or capabilities unavailable to the current user.
+    - Production deployment as part of this planning pass.
+
+current_state:
+  frontend: >-
+    The workspace composer currently turns text into the title of an empty,
+    disabled draft. Its microphone is unavailable. The open workflow editor has
+    no natural-language composer and no AI change highlighting.
+  backend: >-
+    The workflow-input routes and durable session records exist, but the default
+    service has no planner or transcriber. A second strict planner contract is
+    unwired; workspace-ask uses a separate single-graph path. The assistant
+    create-or-modify skill accepts one workflow and a generic graph object.
+  capability_contract: >-
+    The workflow capability registry contains skill input schemas and execution
+    metadata, while the current AI tool schema and planner context omit the
+    complete graph grammar and executable capability options. One canonical,
+    versioned authoring context and final readiness validation are needed.
+  reuse:
+    - Chat audio already provides streamed transcription and correction.
+    - Workflow definition versions and workflow-input mutations provide a starting point for persistent AI undo.
+    - Focus mentions already support explicit @focus:app:id activation.
+
+confirmed_decisions:
+  - A multi-workflow request is atomic: create none if any requested workflow needs clarification.
+  - Save newly generated workflows disabled; save edits immediately while preserving their enabled state.
+  - Prompt to save or discard unsaved manual edits before sending an AI edit.
+  - Auto-submit a corrected recording; show raw transcription for review if correction fails.
+  - After a successful batch, remain on the workspace landing page and mark each created workflow New in Continue.
+  - Clarification opens a new chat and auto-sends the exact request prefixed with an @ mention for workflows.clarify_workflows.
+  - List removed nodes above the graph; highlight added and edited nodes in place.
+  - Provide a simple Undo AI changes button that restores the prior workflow state.
+  - Generate a title, description, and icon with an LLM for every new workflow; evaluate Gemini Flash-Lite as the default.
+  - Load workflow authoring knowledge for clear workflow-creation requests in chat, with selective capability context rather than an unbounded static prompt.
+
+architecture_draft:
+  - Consolidate the workflow-input and workspace-ask planner contracts around one canonical V2 graph and per-user capability snapshot.
+  - Parse intent and bounded choices with Jev only where candidate sets are finite; use an LLM for graph topology, free text, metadata, and semantic repair. Benchmark this hybrid against an LLM-only baseline for accuracy, latency, and cost before deciding the default.
+  - Produce a structured batch plan with create, update, or clarify operations; validate all targets, ownership, capability bindings, graph readiness, and idempotency before a single commit phase.
+  - Store before/after snapshots and stable node IDs for a durable, guarded undo; compute added, edited, and removed node sets for the UI.
+  - Use the existing audio stream and correction flow, then pass the corrected text through the same text planner.
+  - Add workflows.clarify_workflows guidance and scoped capability retrieval to chat preprocessing and the main processor; align chat workflow creation with the disabled-by-default rule.
+
+scenarios:
+  - id: S-1
+    title: One or several valid workflows
+    given: [The user is on the Workflows landing page.]
+    when: [The user describes one or several workflows.]
+    then: [Every valid workflow is created disabled with an LLM title, description, and icon; the landing page marks them New.]
+  - id: S-2
+    title: Ambiguous or unsupported request
+    given: [At least one requested workflow cannot be built reliably.]
+    when: [The workspace planner checks the whole request.]
+    then: [No workflow is committed and a new clarification chat receives the exact request with the Workflows focus mention.]
+  - id: S-3
+    title: AI edit and undo
+    given: [An existing workflow is selected or open.]
+    when: [The user describes a change and later selects Undo AI changes.]
+    then: [The edit is saved with the enabled state preserved, changes are identified in the graph, and undo restores the prior version.]
+  - id: S-4
+    title: Recorded instruction
+    given: [The user records an instruction in the workflow composer.]
+    when: [Transcription and correction complete or correction fails.]
+    then: [Corrected text is submitted automatically or raw text is shown for review.]
+
+acceptance_criteria:
+  - {id: AC-1, scenario: S-1, text: 'A validated one or multi-workflow request commits atomically; every new workflow is disabled and has LLM-generated title, description, and icon.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
+  - {id: AC-2, scenario: S-1, text: 'Successful creation leaves the workspace on its landing page and displays each created workflow with a New pill in Continue.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB]}
+  - {id: AC-3, scenario: S-2, text: 'Any invalid batch member causes zero commits and hands the exact instruction to a new chat with the Workflows clarification focus mention.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-WEB]}
+  - {id: AC-4, scenario: S-3, text: 'An AI edit requires resolution of manual dirty state, preserves enabled state, marks added and edited nodes, lists removals, and can be undone after reload.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-EDIT]}
+  - {id: AC-5, scenario: S-4, text: 'Voice input streams a preview and submits corrected text automatically, while failed correction leaves raw text for review.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VOICE]}
+
+tests:
+  - id: T-BATCH
+    type: pytest
+    file: backend/tests/test_workflow_input_sessions.py
+    command: pytest backend/tests/test_workflow_input_sessions.py
+    covers: [AC-1, AC-3]
+    assertions: [Valid batches commit once, invalid batches commit nothing, and committed graphs pass canonical readiness validation.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/workflows-input.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-2, AC-3]
+    assertions: [Landing state shows New pills and clarification handoff preserves the exact request.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-EDIT
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/workflows-input.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-4]
+    assertions: [Dirty-state choice, change summary, node highlighting, enabled state, and persistent undo work.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-VOICE
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: isolated GitHub CI
+    target: frontend/apps/web_app/tests/workflows-input.spec.ts
+    execution_environment: isolated_github_ci
+    covers: [AC-5]
+    assertions: [Recording preview, correction auto-submit, and raw transcript review on correction failure work.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+tasks:
+  - id: TASK-7413
+    title: Plan AI workflow creation and editing
+    status: in_progress
+    phase: drafting
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]}
+    expected_files: [docs/plans/workflow-ai-authoring/plan.yml]
+    verification_ids: [T-BATCH, T-WEB, T-EDIT, T-VOICE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [docs/plans/workflow-ai-authoring/plan.yml]
+      shared_files: []
+
+implementation_state:
+  subject_commit: 0e018935a
+approvals:
+  specification: {status: pending}
+  plan: {status: pending}
+decisions:
+  - id: D-1
+    status: active
+    decision: Record the confirmed workspace behavior in a provisional plan while the remaining clarification rounds continue.
+    reason: The user requested a saved plan now and an update after the next questions.
+    decided_at: '2026-09-29'
+attempts:
+  - id: A-1
+    task_id: TASK-7413
+    outcome: planned
+    approach: Complete the remaining clarification rounds and update this draft before implementation.
+    recorded_at: '2026-09-29'
+handoff:
+  current_task_id: TASK-7413
+  next_action: Ask the next Jev architecture question after the disk cleanup work is settled.
+  command: Continue the sequential clarification rounds in this chat.
+  expected_outcome: An updated plan reflecting all fifteen answers.
+  last_verified_commit: 0e018935a
+
+open_questions:
+  - Final Jev versus LLM partition and benchmark acceptance thresholds.
+  - Which workflow authoring facts chat loads automatically, and how the selected app capability schemas are retrieved.
+  - Clarification-mode completion behavior and the point at which chat may create workflows.
+  - The allowed assumptions for missing required details and the threshold for clarification.
+  - Batch size, mixed create/update requests, undo scope, and highlight lifetime.
