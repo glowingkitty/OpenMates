@@ -197,6 +197,9 @@ def accept_fixture_credits(account: dict) -> int:
 const { OpenMatesClient } = await import(process.argv[1]);
 const client = new OpenMatesClient({apiUrl: process.argv[2]});
 if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
+// The first authenticated request may refresh and retire the signup cookie.
+// Use the SDK's session endpoint so any replacement is saved before raw fetch.
+await client.whoAmI();
 const cookie = Object.entries(client.getSession().cookies).map(([k,v]) => k + '=' + v).join('; ');
 const response = await fetch(process.argv[2] + '/v1/auth/accept-gift', {
   method: 'POST', headers: {Cookie: cookie, Origin: 'http://localhost:5173'}
