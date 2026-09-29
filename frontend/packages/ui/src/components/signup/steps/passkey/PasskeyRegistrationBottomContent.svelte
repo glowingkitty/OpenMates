@@ -276,6 +276,7 @@
                     hashed_email: hashedEmail,
                     username: storeData.username,
                     invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
+                    signup_transaction_token: storeData.signupTransactionToken,
                     encrypted_email: encryptedEmailForServer,
                     encrypted_email_with_master_key: encryptedEmailWithMasterKey, // For passwordless login
                     encrypted_device_name: encryptedDeviceName || null, // Encrypted device name (client-side encrypted)
@@ -317,6 +318,7 @@
             signupStore.update(store => ({
                 ...store,
                 inviteCode: '',
+                signupTransactionToken: '',
                 email: '' // Remove plaintext email from store
             }));
             

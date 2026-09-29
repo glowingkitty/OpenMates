@@ -285,11 +285,19 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 				response.url().includes('/auth/passkey/registration/initiate') &&
 				response.request().method() === 'POST'
 		);
+		const passkeyCompleteResponsePromise = page.waitForResponse(
+			(response: any) =>
+				response.url().includes('/auth/passkey/registration/complete') &&
+				response.request().method() === 'POST'
+		);
 		await passkeyOption.click();
 		const passkeyInitiateResponse = await passkeyInitiateResponsePromise;
 		const passkeyInitiateOptions = await passkeyInitiateResponse.json();
 		expect(passkeyInitiateOptions.authenticatorSelection?.authenticatorAttachment).toBeFalsy();
 		expect(passkeyInitiateOptions.authenticatorSelection?.userVerification).toBe('required');
+		const passkeyCompleteResponse = await passkeyCompleteResponsePromise;
+		const passkeyCompleteResult = await passkeyCompleteResponse.json();
+		expect(passkeyCompleteResult.success, passkeyCompleteResult.message).toBe(true);
 		logSignupCheckpoint('Selected passkey signup path.');
 
 		// Signup now finishes immediately after account creation; security and billing setup live in Settings.
