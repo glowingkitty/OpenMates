@@ -2959,12 +2959,6 @@ async def handle_main_processing(
         )
         if model_catalogue_context:
             prompt_parts.append(model_catalogue_context)
-        if "web-search" in (preprocessing_results.relevant_app_skills or []):
-            prompt_parts.append(
-                "For claims about current AI model releases, subscription allowances, plan prices, "
-                "or changes to usage limits, call web-search and check official provider sources "
-                "before giving exact figures. Distinguish published limits from user reports."
-            )
     prompt_parts.append(base_instructions.get("base_ethics_instruction", ""))
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
@@ -3384,6 +3378,17 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
     
     prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
+    if ai_model_topics:
+        prompt_parts.append(
+            "AI model accuracy: The dated catalogue snapshot above is the anchor for recent "
+            "OpenMates-supported models and their core capabilities. Do not center older models "
+            "in a current comparison unless the user explicitly asks about them. "
+            "For current subscription prices, included usage, quotas, or claimed changes, "
+            "search the official provider help, pricing, or announcement pages and cite those "
+            "primary sources. Search those provider domains directly; third-party summaries "
+            "and user assertions are not confirmation. If official evidence is unavailable, "
+            "say what is unverified and avoid exact usage figures or change claims."
+        )
 
     # === EMBED INSTRUCTION GATING ===
     # Scan message history once to determine which embed types exist in the conversation.

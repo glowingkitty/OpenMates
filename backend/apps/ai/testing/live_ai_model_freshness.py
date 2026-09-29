@@ -39,13 +39,17 @@ def main() -> None:
     answer = str(payload.get("assistant") or "")
     if not answer:
         raise AssertionError("Live chat returned no assistant answer")
-    required = (r"\bcodex\b", r"\bclaude code\b", r"\bmax\s*20x\b")
+    required = (r"\bcodex\b", r"\bclaude code\b", r"\bmax\s*20[x×](?:\s|[.,;)]|$)")
     for pattern in required:
         if not re.search(pattern, answer, re.IGNORECASE):
             raise AssertionError(f"Missing current comparison concept: {pattern}")
     for obsolete in (r"\bGPT-4o\b", r"\bo1 Pro\b", r"\bClaude 3\.7\b"):
         if re.search(obsolete, answer, re.IGNORECASE):
             raise AssertionError(f"Answer centers an obsolete model: {obsolete}")
+    if not re.search(r"(?:help\.openai\.com|openai\.com|chatgpt\.com)", answer, re.IGNORECASE):
+        raise AssertionError("Current OpenAI usage claims lack an official source")
+    if not re.search(r"(?:support\.claude\.com|anthropic\.com|claude\.com)", answer, re.IGNORECASE):
+        raise AssertionError("Current Anthropic usage claims lack an official source")
     print(answer)
 
 
