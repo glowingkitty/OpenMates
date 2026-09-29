@@ -56,6 +56,30 @@ vi.mock("../../../../stores/appSkillsStore", () => ({
 
 import { parseMarkdownToTiptap, preprocessMarkdown } from "../markdownParser";
 
+describe("inline ratio math", () => {
+  it("keeps adjacent ratios and prose in separate valid math nodes", () => {
+    const doc = parseMarkdownToTiptap(
+      "Verhältnis $1:1{,}618$. Je nach Kontext $1:1{,}414$ (DIN $\\sqrt{2}$) oder $1:1{,}5$.",
+    );
+
+    expect(doc.content[0].content.filter((node: { type: string }) => node.type === "inlineMath"))
+      .toEqual([
+        { type: "inlineMath", attrs: { latex: "1:1{,}618" } },
+        { type: "inlineMath", attrs: { latex: "1:1{,}414" } },
+        { type: "inlineMath", attrs: { latex: "\\sqrt{2}" } },
+        { type: "inlineMath", attrs: { latex: "1:1{,}5" } },
+      ]);
+    expect(JSON.stringify(doc)).toContain("Je nach Kontext");
+  });
+
+  it("still treats a dollar amount followed by a colon as plain text", () => {
+    const doc = parseMarkdownToTiptap("Price $1: per item; ratio $1:1{,}618$.");
+
+    expect(JSON.stringify(doc)).toContain("Price $1: per item");
+    expect(JSON.stringify(doc)).toContain('"latex":"1:1{,}618"');
+  });
+});
+
 describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
   it("does not inject EMPTY_PARAGRAPH inside a JSON fence containing blank lines", () => {
     const input = [
