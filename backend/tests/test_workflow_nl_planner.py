@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from threading import Event
 
 import pytest
 
@@ -16,7 +18,7 @@ from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner,
 from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
 from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry, _FilesystemWorkflowMetadataRegistry
 from backend.shared.providers.typesafe.models import DecisionResponse
-from backend.tests.test_workflows_models import FakeDirectusClient
+from backend.tests.test_workflows_models import FakeDirectusClient, rain_graph
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -95,6 +97,44 @@ def test_authoring_events_persist_in_encrypted_batches_and_restore_after_reconne
     assert [event.event_id for event in events] == list(range(1, result.event_cursor + 1))
     assert events[-1].type == "committed"
     assert events[-1].payload == {"mutation_type": "create_workflow", "workflow_id": result.workflow.id}
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+def test_stop_during_planning_persists_and_prevents_workflow_creation():
+    ready = Event()
+    release = Event()
+
+    class BlockingPlanner:
+        requires_workflow_overview = False
+
+        def plan(self, *, text, context):
+            del text, context
+            ready.set()
+            assert release.wait(5)
+            return {"action": "create_workflow", "title": "Late rain alert", "graph": rain_graph()}
+
+    workflows = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=workflows.payload_cipher, token="test-token")
+    fake_client = FakeDirectusClient()
+    repository._client = fake_client
+    service = WorkflowInputService(workflow_service=workflows, planner=BlockingPlanner(), repository=repository)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(service.start, user_id="alice", text="Create a rain alert")
+        try:
+            assert ready.wait(5)
+            session_id = next(iter(service._sessions))
+            stopped = service.stop(user_id="alice", session_id=session_id)
+            assert stopped.status == "stopped"
+            assert fake_client.collections["workflow_input_sessions"][session_id]["status"] == "stopped"
+        finally:
+            release.set()
+        result = future.result(timeout=5)
+
+    assert result.status == "stopped"
+    assert not workflows.list_workflows("alice")
+    service._sessions.clear()
+    assert service.events(session_id, user_id="alice")[-1].type == "stopped"
 
 
 # contract-test: supporting surface=cli assertions=workflows.content.encrypted-retained

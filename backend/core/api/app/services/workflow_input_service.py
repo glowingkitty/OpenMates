@@ -9,6 +9,7 @@ Automation Vault blobs.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from copy import deepcopy
@@ -541,11 +542,13 @@ class WorkflowInputService:
             "initial_session_seconds": time.perf_counter() - key_resolved_at,
         }
         session["_batch_events"] = True
+        session["_batch_owner_thread"] = threading.get_ident()
         try:
             result = self._process_input(session, text=text, input_type=input_type, audio_ref=audio_ref, vault_key_id=resolved_vault_key_id)
         finally:
             self._flush_persistence(session, resolved_vault_key_id)
             session.pop("_batch_events", None)
+            session.pop("_batch_owner_thread", None)
         result.authoring_metrics = {
             **(result.authoring_metrics or {}),
             "service_seconds": round(time.perf_counter() - started, 3),
@@ -572,12 +575,14 @@ class WorkflowInputService:
             )
         session["status"] = "running"
         session["_batch_events"] = True
+        session["_batch_owner_thread"] = threading.get_ident()
         try:
             self._append_event(session, "followup_received", {"text_length": len(text)}, vault_key_id=resolved_vault_key_id)
             return self._process_input(session, text=text, input_type="text", audio_ref=None, vault_key_id=resolved_vault_key_id)
         finally:
             self._flush_persistence(session, resolved_vault_key_id)
             session.pop("_batch_events", None)
+            session.pop("_batch_owner_thread", None)
 
     def stop(
         self,
@@ -750,6 +755,8 @@ class WorkflowInputService:
             plan = self.planner.plan(text=sanitized_text, context=context)
             if isinstance(plan, dict) and isinstance(plan.get("_authoring_metrics"), dict):
                 session["authoring_metrics"] = plan.pop("_authoring_metrics")
+            if session["status"] == "stopped":
+                return self._result(session)
             validated_plan = WORKFLOW_INPUT_PLAN_ADAPTER.validate_python(plan)
             self._append_event(session, "validation_passed", {}, vault_key_id=vault_key_id)
             return self._apply_plan(session, validated_plan, vault_key_id)
@@ -769,6 +776,8 @@ class WorkflowInputService:
         plan: WorkflowInputPlan,
         vault_key_id: str | None,
     ) -> WorkflowInputSessionResult:
+        if session["status"] == "stopped":
+            return self._result(session)
         if isinstance(plan, _ClarificationPlan):
             session["status"] = "needs_clarification"
             session["message"] = plan.message
@@ -804,6 +813,8 @@ class WorkflowInputService:
         validate_workflow_readiness(plan.graph, require_schedule=True)
         validate_workflow_composition_refs(plan.graph)
         self._stream_draft_nodes(session, graph, vault_key_id)
+        if session["status"] == "stopped":
+            return self._result(session)
         workflow_started = time.perf_counter()
         workflow = self.workflow_service.create_workflow(
             session["user_id"],
@@ -852,6 +863,8 @@ class WorkflowInputService:
         validate_workflow_readiness(graph, require_schedule=before.enabled)
         validate_workflow_composition_refs(graph, before.graph)
         self._stream_draft_nodes(session, graph.model_dump(mode="json", by_alias=True), vault_key_id)
+        if session["status"] == "stopped":
+            return self._result(session)
         workflow_started = time.perf_counter()
         workflow = self.workflow_service.update_workflow(
             workflow_id,
@@ -1025,7 +1038,7 @@ class WorkflowInputService:
         )
         session["events"].append(event)
         session["updated_at"] = event.created_at
-        if session.get("_batch_events"):
+        if self._is_batch_owner(session):
             session.setdefault("_pending_events", []).append(event)
             return
         if self.repository is not None:
@@ -1041,7 +1054,7 @@ class WorkflowInputService:
             started = time.perf_counter()
             self.repository.save_mutation(mutation, session["id"], session["user_id"], vault_key_id)
             self._record_timing(session, "mutation_persistence_seconds", started)
-        if not session.get("_batch_events"):
+        if not self._is_batch_owner(session):
             self._persist_session(session, vault_key_id)
 
     def _last_undoable_mutation(self, session: dict[str, Any]) -> WorkflowInputMutation | None:
@@ -1093,7 +1106,7 @@ class WorkflowInputService:
             self.repository.save_session(session, vault_key_id)
 
     def _flush_persistence(self, session: dict[str, Any], vault_key_id: str | None) -> None:
-        if not session.get("_batch_events") or self.repository is None:
+        if not self._is_batch_owner(session) or self.repository is None:
             return
         pending = session.get("_pending_events") or []
         if not pending:
@@ -1116,6 +1129,10 @@ class WorkflowInputService:
         timings = session.get("_timings")
         if isinstance(timings, dict):
             timings[name] = timings.get(name, 0.0) + time.perf_counter() - started
+
+    @staticmethod
+    def _is_batch_owner(session: dict[str, Any]) -> bool:
+        return bool(session.get("_batch_events")) and session.get("_batch_owner_thread") == threading.get_ident()
 
     def _resolve_vault_key_id(self, user_id: str, vault_key_id: str | None) -> str | None:
         return self.workflow_service.resolve_user_vault_key_id(user_id, vault_key_id)
