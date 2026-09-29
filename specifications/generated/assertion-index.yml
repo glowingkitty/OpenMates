@@ -484,32 +484,32 @@ assertions:
       surface: rest_api
     - &id044
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 417
+      line: 435
       name: test_final_no_tools_turn_recovers_from_provider_tool_call_without_executing_it
       surface: gui.web
     - &id045
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 442
+      line: 460
       name: test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_call
       surface: gui.web
     - &id046
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 457
+      line: 475
       name: test_main_processor_continues_safe_text_after_fabricated_protocol
       surface: gui.web
     - &id047
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 490
+      line: 508
       name: test_main_processor_recovers_when_protocol_was_the_first_output
       surface: gui.web
     - &id048
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 512
+      line: 530
       name: test_main_processor_bounds_repeated_protocol_and_marks_failure
       surface: gui.web
     - &id049
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 530
+      line: 548
       name: test_main_processor_rejects_orphaned_protocol_recovery_instruction
       surface: gui.web
     - &id050
@@ -11259,7 +11259,7 @@ assertions:
       surface: rest_api
     - &id1329
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 754
+      line: 772
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id1330
@@ -11698,7 +11698,7 @@ assertions:
       surface: rest_api
     - &id1367
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 754
+      line: 772
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id1368
@@ -24716,7 +24716,7 @@ assertions:
       surface: rest_api
     - &id2890
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 754
+      line: 772
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     supporting_tests:
@@ -30223,7 +30223,7 @@ assertions:
       surface: rest_api
     - &id3587
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 685
+      line: 703
       name: test_pending_app_settings_memories_context_preserves_model_preferences
       surface: rest_api
     - &id3588

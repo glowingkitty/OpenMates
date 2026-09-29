@@ -254,6 +254,7 @@ async def _run_mocked_protocol_guard_main_processor(
     *,
     truncate_history=None,
     generated_tools=None,
+    ai_model_topics=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -389,6 +390,7 @@ async def _run_mocked_protocol_guard_main_processor(
         relevant_embedded_previews=[],
         relevant_focus_modes=[],
         enable_subchats=False,
+        ai_model_topics=ai_model_topics or [],
         llm_response_temp=0.1,
         user_requested_skills_only=False,
         user_requested_focus_only=False,
@@ -410,6 +412,22 @@ async def _run_mocked_protocol_guard_main_processor(
         )
     ]
     return output, calls
+
+
+async def test_model_topic_adds_catalogue_context_to_main_prompt(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor.config_manager, "get_provider_configs", lambda: {}, raising=False)
+    monkeypatch.setattr(
+        main_processor,
+        "build_ai_model_catalogue_context",
+        lambda _providers, topics, **_kwargs: "RECENT_MODEL_FACTS" if topics == ["llm"] else "",
+    )
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [["Recent models are available."]],
+        ai_model_topics=["llm"],
+    )
+    assert "RECENT_MODEL_FACTS" in calls[0]["system_prompt"]
+    assert "Do not center older models" in calls[0]["system_prompt"]
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated

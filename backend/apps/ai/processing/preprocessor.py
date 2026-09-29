@@ -48,6 +48,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev
+from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
 from backend.apps.ai.processing.model_routing import (
     MOST_DEMANDING_TIER,
     APPROVED_REQUEST_TIERS,
@@ -2279,10 +2280,11 @@ async def handle_preprocessing(
         )
 
     llm_analysis_args = llm_call_result.arguments
-    raw_ai_model_topics = llm_analysis_args.get("ai_model_topics")
-    ai_model_topics = (
-        list(dict.fromkeys(topic for topic in raw_ai_model_topics if isinstance(topic, str) and topic in {"llm", "image", "video", "audio"}))
-        if isinstance(raw_ai_model_topics, list) else []
+    ai_model_topics = complete_ai_model_topics(
+        llm_analysis_args.get("ai_model_topics"),
+        request_data.current_user_content or (
+            latest_projected_user.get("content") if latest_projected_user else None
+        ),
     )
     combined_raw_response_summary = llm_call_result.raw_provider_response_summary
     
