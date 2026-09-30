@@ -44,6 +44,9 @@ def ref(step: str, field: str):
 
 def test_flat_accumulator_accepts_check_before_children_and_rejects_bad_node_without_mutation():
     author = FlatAuthoringAccumulator(selection("weather.forecast", mode="exact"), "UTC")
+    with pytest.raises(ValueError, match="title and description"):
+        author.accept_header({"operation": "create", "title": "Rain", "schedule": {"type": "daily"}})
+    assert author.flat_snapshot() is None
     header = {"operation": "create", "title": "Rain", "description": "Report rain", "icon": "cloud-rain",
               "schedule": {"type": "daily"}}
     assert len(author.accept_header(header)["graph"]["nodes"]) == 1

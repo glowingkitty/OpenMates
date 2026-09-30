@@ -625,6 +625,13 @@ class FlatAuthoringAccumulator:
             self.header = None
             raise
         self.preview = preview
+        if header.get("operation") in {"create", "update"}:
+            try:
+                self.compile_partial()
+            except ValueError:
+                self.header = None
+                self.preview = None
+                raise
         return preview
 
     def _compact(self, records: list[dict[str, Any]]) -> dict[str, Any]:

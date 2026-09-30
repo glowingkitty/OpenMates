@@ -8,6 +8,7 @@ Provider payloads and private instructions must not be written to logs.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import time
@@ -216,6 +217,31 @@ def complete_flat_components(source: str) -> list[dict[str, Any]]:
     return components
 
 
+async def _stoppable_lines(response: httpx.Response, check_stop: Callable[..., Any]):
+    """Poll a stop flag while one SSE read stays pending; cancel only on exit."""
+    iterator = response.aiter_lines().__aiter__()
+    pending: asyncio.Task[str] | None = None
+    try:
+        while True:
+            await check_stop()
+            pending = asyncio.create_task(iterator.__anext__())
+            while True:
+                done, _ = await asyncio.wait({pending}, timeout=0.25)
+                if done:
+                    try:
+                        line = pending.result()
+                    except StopAsyncIteration:
+                        return
+                    pending = None
+                    yield line
+                    break
+                await check_stop()
+    finally:
+        if pending is not None:
+            pending.cancel()
+            await asyncio.gather(pending, return_exceptions=True)
+
+
 def provider_response_schema(selection: Any) -> dict[str, Any]:
     """Return a constant-size flat transport schema independent of registry size.
 
@@ -248,10 +274,10 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
                                                  "blocks_json")},
     }, "required": ["kind", "id"]}
     workflow = {"type": "object", "additionalProperties": False, "properties": {
-        "header": header, "nodes": {"type": "array", "items": node, "maxItems": 40},
+        "header": header, "nodes": {"type": "array", "items": node},
     }, "required": ["header", "nodes"]}
     return {"type": "object", "additionalProperties": False, "properties": {
-        "workflows": {"type": "array", "items": workflow, "minItems": 1, "maxItems": 8},
+        "workflows": {"type": "array", "items": workflow},
     }, "required": ["workflows"]}
 
 
@@ -483,7 +509,8 @@ class WorkflowGeminiAuthor:
                                      params={"alt": "sse"}, headers={"x-goog-api-key": str(key)}, json=body) as response:
                 if response.status_code != 200:
                     raise WorkflowAuthoringProviderError(f"Workflow provider HTTP {response.status_code}", metrics, snapshots())
-                async for line in response.aiter_lines():
+                lines = response.aiter_lines() if should_stop is None else _stoppable_lines(response, check_stop)
+                async for line in lines:
                     await check_stop()
                     if not line.startswith("data:"):
                         continue
@@ -524,12 +551,15 @@ class WorkflowGeminiAuthor:
                 raise WorkflowAuthoringProviderError("Workflow provider returned invalid envelope", metrics, snapshots())
             if next(Draft202012Validator(provider_response_schema(selection)).iter_errors(raw), None) is not None:
                 raise WorkflowAuthoringProviderError("Workflow provider returned invalid flat schema", metrics, snapshots())
+            workflows = raw["workflows"]
+            if not 1 <= len(workflows) <= 8 or any(len(workflow["nodes"]) > 40 for workflow in workflows):
+                raise WorkflowAuthoringProviderError("Workflow provider exceeded its plan limits", metrics, snapshots())
             for component in complete_flat_components(source):
                 identity = (component["workflow_index"], component.get("index", -1))
                 if identity not in seen_components:
                     seen_components.add(identity)
                     await accept(component)
-            if len(raw["workflows"]) != len(accumulators) or any(item is None for item in accumulators):
+            if len(workflows) != len(accumulators) or any(item is None for item in accumulators):
                 raise WorkflowAuthoringProviderError("Workflow provider omitted a workflow header", metrics, snapshots())
             plans = [item.snapshot() for item in accumulators]
             return (plans[0] if len(plans) == 1 else {"operations": plans}), metrics

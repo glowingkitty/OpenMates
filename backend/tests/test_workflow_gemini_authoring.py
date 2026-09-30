@@ -1,7 +1,9 @@
 """Focused transport tests; paid inference and product behavior are separate."""
 # contract-test-file: infrastructure
 
+import asyncio
 import json
+import time
 from types import SimpleNamespace
 
 import httpx
@@ -52,6 +54,7 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     schema = provider_response_schema(selection("weather.forecast", "ai.ask"))
     assert schema == provider_response_schema(selection("web.search"))
     assert len(json.dumps(schema)) < 2500
+    assert "minItems" not in json.dumps(schema) and "maxItems" not in json.dumps(schema)
     validator = Draft202012Validator(schema)
     flat = {"workflows": [{"header": {"operation": "create", "schedule": {"type": "daily"}},
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
@@ -166,6 +169,44 @@ async def test_provider_rejection_does_not_expose_body():
 
 
 @pytest.mark.asyncio
+async def test_provider_rejects_empty_batch_even_without_transport_array_bounds():
+    event = {"candidates": [{"content": {"parts": [{"text": '{"workflows":[]}'}]},
+                               "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="plan limits"):
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="forecast", selection=selection("weather.forecast"), timezone="UTC")
+
+
+@pytest.mark.asyncio
+async def test_provider_rejects_41_nodes_after_stream_parser_keeps_first_40():
+    header = {"operation": "create", "title": "Notices", "description": "Send notices",
+              "icon": "help-circle", "schedule": {"type": "daily"}}
+    nodes = [{"kind": "send", "id": f"notice_{index}", "title": "Notice",
+              "message_json": '[{"text":"Hello"}]'} for index in range(41)]
+    source = json.dumps({"workflows": [{"header": header, "nodes": nodes}]})
+    assert len(complete_flat_components(source)) == 41  # Header plus only the first 40 nodes.
+    event = {"candidates": [{"content": {"parts": [{"text": source}]}, "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="plan limits") as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="notices", selection=selection(), timezone="UTC")
+    assert len(error.value.accepted_prefixes[0]["nodes"]) == 40
+
+
+@pytest.mark.asyncio
 async def test_retry_keeps_frozen_prefix_and_emits_only_new_valid_node():
     header = {"operation": "create", "title": "Forecast", "description": "Send forecast",
               "icon": "cloud-rain", "schedule": {"type": "daily"}}
@@ -224,4 +265,50 @@ async def test_stop_carries_only_valid_accepted_prefix():
             await WorkflowGeminiAuthor(Secrets(), client).generate(
                 text="forecast", selection=selection("weather.forecast"), timezone="UTC",
                 on_plan_component=checkpoint, should_stop=lambda: stopped)
+    assert error.value.accepted_prefixes == [{"header": header, "nodes": [app]}]
+
+
+@pytest.mark.asyncio
+async def test_stop_interrupts_stalled_sse_read_and_closes_response():
+    header = {"operation": "create", "title": "Forecast", "description": "Send forecast",
+              "icon": "cloud-rain", "schedule": {"type": "daily"}}
+    app = {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+           "input_json": '{"location":"Berlin","days":1}'}
+    fragments = ['{"workflows":[{"header":' + json.dumps(header) + ',"nodes":[', json.dumps(app) + ',']
+    stop = asyncio.Event()
+
+    class StalledStream(httpx.AsyncByteStream):
+        closed = False
+
+        async def __aiter__(self):
+            for fragment in fragments:
+                event = {"candidates": [{"content": {"parts": [{"text": fragment}]}}]}
+                yield ('data: ' + json.dumps(event) + '\n\n').encode()
+            await asyncio.Event().wait()
+
+        async def aclose(self):
+            self.closed = True
+
+    stream = StalledStream()
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    def checkpoint(event):
+        if event["type"] == "node":
+            async def stop_after_read_stalls():
+                await asyncio.sleep(0.05)
+                stop.set()
+            asyncio.create_task(stop_after_read_stalls())
+
+    started = time.monotonic()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, stream=stream))) as client:
+        with pytest.raises(WorkflowAuthoringStopped) as error:
+            await asyncio.wait_for(WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="forecast", selection=selection("weather.forecast"), timezone="UTC",
+                on_plan_component=checkpoint, should_stop=stop.is_set), timeout=1.0)
+    assert time.monotonic() - started < 1.0
+    assert stream.closed
     assert error.value.accepted_prefixes == [{"header": header, "nodes": [app]}]
