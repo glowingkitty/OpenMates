@@ -95,7 +95,7 @@ models:
 
   - id: "eleven_v3"
     name: "Eleven v3"
-    description: "Highest-quality expressive multilingual text-to-speech model used as the default by audio.speak."
+    description: "Expressive multilingual text-to-speech model used as the default by audio.speak."
     country_origin: "US"
     for_app_skill: "audio.speak"
     input_types:
@@ -120,7 +120,7 @@ models:
 
   - id: "eleven_v3_conversational"
     name: "Eleven v3 Conversational"
-    description: "Lower-latency Eleven v3 variant used only for progressive assistant-response speech."
+    description: "Previous-generation low-latency Eleven v3 variant for assistant-response speech."
     country_origin: "US"
     for_app_skill: "assistant_response_speech.segment"
     input_types:
@@ -142,3 +142,51 @@ models:
         source: "ElevenLabs API pricing lists Eleven v3 Conversational at $0.05 per 1,000 characters; this duration value is approximate metadata only."
     features:
       max_input_characters: 2000
+
+  - id: "eleven_v4"
+    name: "Eleven v4"
+    description: "Highest-quality expressive speech model available when explicitly selected by audio.speak."
+    country_origin: "US"
+    for_app_skill: "audio.speak"
+    input_types: [text]
+    output_types: [audio]
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_v4"
+        region: "US"
+    pricing:
+      per_second: 4
+    costs:
+      output_per_second:
+        price: 0.001333
+        currency: USD
+        source: "https://elevenlabs.io/pricing/api — regular v4 price $0.08/1,000 characters, estimated at 1,000 characters/minute; excludes temporary launch discounts. Verified 2026-09-30."
+    features:
+      max_input_characters: 2000
+      supports_speed: false
+
+  - id: "eleven_v4_turbo"
+    name: "Eleven v4 Turbo"
+    description: "Expressive low-latency speech model selectable by audio.speak and the default for assistant-response speech."
+    country_origin: "US"
+    for_app_skill: "audio.speak"
+    input_types: [text]
+    output_types: [audio]
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_v4_turbo"
+        region: "US"
+    pricing:
+      per_second: 2
+    costs:
+      output_per_second:
+        price: 0.000667
+        currency: USD
+        source: "https://elevenlabs.io/pricing/api — regular v4 Turbo price $0.04/1,000 characters, estimated at 1,000 characters/minute; excludes temporary launch discounts. Verified 2026-09-30."
+    features:
+      max_input_characters: 2000
+      supports_speed: false

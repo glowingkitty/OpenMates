@@ -204,7 +204,8 @@ export const APP_SKILL_METADATA = [
                 "type": "number",
                 "minimum": 0.7,
                 "maximum": 1.2,
-                "default": 1.0
+                "default": 1.0,
+                "description": "Speech speed. Eleven v4 and v4 Turbo require 1.0; custom speed is supported by the older models only."
               },
               "output_format": {
                 "type": "string",
@@ -224,10 +225,12 @@ export const APP_SKILL_METADATA = [
                 "enum": [
                   "eleven_v3",
                   "eleven_multilingual_v2",
-                  "eleven_flash_v2_5"
+                  "eleven_flash_v2_5",
+                  "eleven_v4",
+                  "eleven_v4_turbo"
                 ],
                 "default": "eleven_v3",
-                "description": "ElevenLabs TTS model. Eleven v3 is the highest-quality default; Multilingual v2 provides stable long-form speech and Flash v2.5 is the lower-cost option."
+                "description": "ElevenLabs TTS model. Eleven v3 is the default; v4 offers the highest quality, v4 Turbo offers expressive low-latency speech, Multilingual v2 provides stable speech, and Flash v2.5 is the lower-cost option. v4 models do not support custom speed."
               }
             },
             "required": [

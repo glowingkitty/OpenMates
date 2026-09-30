@@ -69,7 +69,7 @@ describe("generated npm SDK app skills", () => {
     );
     assert.deepEqual(
       audioSpeak.schema.properties.requests.items.properties.model.enum,
-      ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],
+      ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5", "eleven_v4", "eleven_v4_turbo"],
     );
     assert.equal(audioSpeak.schema.properties.requests.items.properties.model.default, "eleven_v3");
 

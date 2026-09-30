@@ -88,6 +88,10 @@ def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
     field_kwargs: Dict[str, Any] = {
         "description": schema.get("description", ""),
     }
+    # Dynamic request models use primitive Python types. Preserve their
+    # app.yml choices in OpenAPI; skill request models still validate inputs.
+    if "enum" in schema:
+        field_kwargs["json_schema_extra"] = {"enum": schema["enum"]}
     schema_type = schema.get("type")
 
     if schema_type == "string":

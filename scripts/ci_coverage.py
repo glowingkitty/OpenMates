@@ -30,6 +30,7 @@ CORE_SPECS = frozenset({
     "paste-classification.spec.ts",
     # Schema/CLI metadata only; no provider credentials or AI inference.
     "skill-search-relevance-parity.spec.ts",
+    "skill-audio-speech-models.spec.ts",
 
     "interface-font-settings.spec.ts",
     "language-settings-flow.spec.ts",

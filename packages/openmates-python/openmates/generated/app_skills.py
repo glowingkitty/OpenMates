@@ -128,23 +128,40 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'Eleven '
                                                                                            'v3 is '
                                                                                            'the '
-                                                                                           'highest-quality '
                                                                                            'default; '
+                                                                                           'v4 '
+                                                                                           'offers '
+                                                                                           'the '
+                                                                                           'highest '
+                                                                                           'quality, '
+                                                                                           'v4 '
+                                                                                           'Turbo '
+                                                                                           'offers '
+                                                                                           'expressive '
+                                                                                           'low-latency '
+                                                                                           'speech, '
                                                                                            'Multilingual '
                                                                                            'v2 '
                                                                                            'provides '
                                                                                            'stable '
-                                                                                           'long-form '
-                                                                                           'speech '
+                                                                                           'speech, '
                                                                                            'and '
                                                                                            'Flash '
                                                                                            'v2.5 '
                                                                                            'is the '
                                                                                            'lower-cost '
-                                                                                           'option.',
+                                                                                           'option. '
+                                                                                           'v4 '
+                                                                                           'models '
+                                                                                           'do not '
+                                                                                           'support '
+                                                                                           'custom '
+                                                                                           'speed.',
                                                                             'enum': ['eleven_v3',
                                                                                      'eleven_multilingual_v2',
-                                                                                     'eleven_flash_v2_5'],
+                                                                                     'eleven_flash_v2_5',
+                                                                                     'eleven_v4',
+                                                                                     'eleven_v4_turbo'],
                                                                             'type': 'string'},
                                                                   'output_format': {'default': 'mp3_44100_128',
                                                                                     'enum': ['mp3_22050_32',
@@ -171,6 +188,22 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                'enum': ['elevenlabs'],
                                                                                'type': 'string'},
                                                                   'speed': {'default': 1.0,
+                                                                            'description': 'Speech '
+                                                                                           'speed. '
+                                                                                           'Eleven '
+                                                                                           'v4 and '
+                                                                                           'v4 '
+                                                                                           'Turbo '
+                                                                                           'require '
+                                                                                           '1.0; '
+                                                                                           'custom '
+                                                                                           'speed '
+                                                                                           'is '
+                                                                                           'supported '
+                                                                                           'by the '
+                                                                                           'older '
+                                                                                           'models '
+                                                                                           'only.',
                                                                             'maximum': 1.2,
                                                                             'minimum': 0.7,
                                                                             'type': 'number'},

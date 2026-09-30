@@ -131,7 +131,7 @@ def test_assistant_response_speech_uses_one_message_level_character_rounding_ste
     assert calculate_assistant_response_speech_credits(submitted_characters=15) == 2
     assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 72
     assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 2
-    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v3_conversational"
+    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v4_turbo"
     assert DEFAULT_SPEECH_MODEL == "eleven_v3"
 
 
@@ -344,7 +344,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3_conversational"
+        model = "eleven_v4_turbo"
         provider = "provider"
 
         def elevenlabs_request(self):
@@ -884,7 +884,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3_conversational"
+        model = "eleven_v4_turbo"
         provider = "provider"
 
         def elevenlabs_request(self):
