@@ -798,7 +798,11 @@ class FlatAuthoringAccumulator:
             title, description = plan.get("title"), plan.get("description")
             if not isinstance(title, str) or not title.strip() or not isinstance(description, str) or not description.strip():
                 raise ValueError("Partial create needs a title and description")
-            icon = preview.get("icon") or normalize_workflow_identity("general_knowledge", None).icon
+            # A frozen header must already satisfy final create metadata. Only
+            # unsupported string icons receive the existing cosmetic fallback.
+            if not isinstance(plan.get("icon"), str):
+                raise ValueError("Partial create needs an icon string")
+            icon = preview.get("icon") or normalize_workflow_identity("general_knowledge", plan["icon"]).icon
             identity = normalize_workflow_identity("general_knowledge", icon)
             return {"action": "create_workflow", "title": title.strip()[:200],
                     "description": description.strip()[:2000], "category": identity.category,

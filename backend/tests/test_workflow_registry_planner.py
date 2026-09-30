@@ -30,10 +30,10 @@ def forecast_plan(title="Daily forecast"):
             ]}
 
 
-def configure(monkeypatch, *, operation="create", count=1, unavailable=False, clarity="clear"):
+def configure(monkeypatch, *, operation="create", count=1, unavailable=False, clarity="clear", check_mode="none"):
     registry = WorkflowCapabilityRegistry()
     selection = WorkflowPreselection([registry.get_capability("weather.forecast"), registry.get_capability("ai.ask")],
-                                     operation, "none", True, {},
+                                     operation, check_mode, True, {},
                                      {"jev_calls": 1, "seconds": 0.01, "estimated_cost_usd": 0.0001}, count, clarity)
 
     class Selector:
@@ -339,6 +339,19 @@ async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(
                and attempt["validation_code"] == "schedule_fields"
                for attempt in metrics["generation_attempts"])
     assert "Private" not in json.dumps(metrics)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
+@pytest.mark.asyncio
+async def test_missing_requested_check_reports_specific_finalization_code(monkeypatch):
+    configure(monkeypatch, check_mode="ai")
+    author = Author(forecast_plan())
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Send forecast only if it is useful", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "partial" and author.calls == 2
+    assert result["_authoring_metrics"]["last_failure_reason_code"] == "check_mode_omitted"
+    assert all(attempt["failure_reason_code"] == "check_mode_omitted"
+               for attempt in result["_authoring_metrics"]["generation_attempts"])
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.provisional-validation

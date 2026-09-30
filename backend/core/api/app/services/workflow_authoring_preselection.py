@@ -139,7 +139,12 @@ class WorkflowAuthoringPreselector:
             "update": "Change an existing named or open workflow",
             "mixed": "Both create and update workflows", "clarify": "No clear workflow instruction",
         })
-        questions["check_mode"] = _choice("What conditional checks does this workflow require? Branching on the answer of an AI check is part of that AI check, not an additional exact check. A boolean/numeric flag supplied directly by an app uses an exact check.", {
+        questions["check_mode"] = _choice(
+            "Select checks only for requested conditional yes/no or comparison branching. "
+            "Asking AI to summarize, generate, or format results is an action, not a conditional AI check; "
+            "choose none when there is no conditional branch. Correcting a spoken time or place is not a check. "
+            "Branching on an AI check answer is part of that check, not an additional exact check. "
+            "A boolean/numeric flag supplied by an app uses an exact check.", {
             "none": "No conditional check",
             "exact": "Compare numeric, boolean, existence or exact text values deterministically",
             "ai": "Subjective assessment requiring a yes/no AI question",
@@ -286,7 +291,8 @@ class WorkflowAuthoringPreselector:
             workflow_count=int(count.choice) if count.choice != "unclear" else None,
             request_clarity=clarity,
             metrics={"mode": self.mode, "fallback": "direct" if fallback else None,
-                     "operation": decisions["operation"], "request_clarity": clarity,
+                     "operation": decisions["operation"], "check_mode": decisions["check_mode"],
+                     "chat_delivery": delivery.noul >= 0.5, "request_clarity": clarity,
                      "workflow_count": int(count.choice) if count.choice != "unclear" else None,
                      "selected_capability_ids": [cap.id for cap in selected],
                      "seconds": round(time.perf_counter() - started, 3),

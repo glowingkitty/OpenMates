@@ -133,6 +133,8 @@ async def test_staged_selection_routes_apps_then_selects_skills_with_controls():
     assert result.metrics["input_tokens"] == 200
     assert result.metrics["app_scores"] == {"weather": 0.9}
     assert result.metrics["selected_capability_ids"] == ["weather.forecast"]
+    assert result.metrics["check_mode"] == "none"
+    assert result.metrics["chat_delivery"] is True
     assert result.workflow_count == 1
 
 
@@ -195,11 +197,15 @@ async def test_self_correction_routing_prompt_and_safe_metrics():
     assert "existing named workflow or an open workflow" in operation
     assert "corrected details" in questions["operation"]["criteria"]["create"]
     assert "Replacing an earlier time, place" in questions["request_clarity"]["instructions"]
+    assert "summarize, generate, or format results is an action" in questions["check_mode"]["instructions"]
+    assert "Correcting a spoken time or place is not a check" in questions["check_mode"]["instructions"]
     assert "title ending in 'spoken'" in questions["weather.forecast"]["instructions"]["rules"]
     assert "short title alone" in questions["weather.forecast"]["instructions"]["rules"]
     assert state["open_workflow"] is False
     assert result.metrics["operation"] == "create"
     assert result.metrics["request_clarity"] == "clear"
+    assert result.metrics["check_mode"] == "none"
+    assert result.metrics["chat_delivery"] is True
     assert result.metrics["workflow_count"] == 1
     assert result.metrics["selected_capability_ids"] == ["weather.forecast"]
     assert spoken not in str(result.metrics)

@@ -70,6 +70,20 @@ def test_flat_accumulator_accepts_check_before_children_and_rejects_bad_node_wit
     assert author.compile_final()["action"] == "create_workflow"
 
 
+def test_create_header_requires_icon_before_acceptance_but_normalizes_unknown_string():
+    author = FlatAuthoringAccumulator(selection(), "UTC")
+    header = {"operation": "create", "title": "Notices", "description": "Send notices",
+              "schedule": {"type": "daily"}}
+    with pytest.raises(ValueError, match="icon string"):
+        author.accept_header(header)
+    assert author.flat_snapshot() is None
+    with pytest.raises(ValueError, match="icon string"):
+        author.accept_header({**header, "icon": None})
+    assert author.flat_snapshot() is None
+    author.accept_header({**header, "icon": "unsupported-but-string"})
+    assert author.compile_partial()["icon"] == "help-circle"
+
+
 def test_schedule_rejects_fields_from_other_kinds_before_streaming_header():
     for schedule in ({"type": "weekly", "weekdays": ["monday"], "at": "07:30"},
                      {"type": "hourly", "time": "07:30"},

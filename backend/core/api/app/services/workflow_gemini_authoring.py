@@ -301,7 +301,12 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
         "description": {"type": "string"}, "icon": {"type": "string"},
         "schedule": schedule, "remove_step_ids": {"type": "array", "items": {"type": "string"}},
         "message": {"type": "string"},
-    }, "required": ["operation"]}
+    }, "required": ["operation"], "anyOf": [
+        {"type": "object", "properties": {"operation": {"type": "string", "enum": ["create"]}},
+         "required": ["title", "description", "icon"]},
+        {"type": "object", "properties": {"operation": {"type": "string", "enum": ["update"]}},
+         "required": ["workflow_id"]},
+    ]}
     node = {"type": "object", "additionalProperties": False, "properties": {
         "kind": {"type": "string", "enum": ["app", "ask_ai", "check", "send", "end"]},
         "id": {"type": "string"}, "parent_check_id": {"type": "string"},
@@ -383,8 +388,10 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "For weather today, input_json must encode start_date and end_date as JSON OBJECTS "
         "{\"$date\":\"today\",\"format\":\"date\"}; tomorrow uses tomorrow in both. "
         "Never freeze relative dates or put marker-looking strings inside input_json. "
-        f"Browser timezone is {timezone}; use it unless user names a schedule timezone. Search locations do not "
-        "change schedule timezone. Missing schedule defaults Monday 09:00; omit unknown time/day so compiler "
+        f"Browser timezone is {timezone}; use it unless user names a schedule timezone. A city attached to the "
+        "schedule clock time or day, such as '9 in Lisbon' or 'Lisbon time', names the schedule timezone "
+        "(Europe/Lisbon in that example). A city used only as a search location does not change the schedule "
+        "timezone. Missing schedule defaults Monday 09:00; omit unknown time/day so compiler "
         "records deterministic assumptions. Honor final self-corrections. Daily and weekly clock times "
         "MUST use time in HH:MM; at is ONLY for a once schedule with an ISO timestamp, never a clock "
         "time. Hourly uses minute 0-59; weekly uses lowercase weekdays. Omit fields belonging to a "

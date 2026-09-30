@@ -38,6 +38,18 @@ CLARIFICATION = "I could not build a valid workflow for every part of this reque
 PARTIAL_FAILURE = "The AI could not finish this workflow after a correction attempt. Your validated changes were saved and the workflow is disabled. Ask for a specific update or edit it manually."
 PARTIAL_STOPPED = "Generation stopped. Your validated changes were saved and the workflow is disabled."
 _PROVIDER_CACHE_KEYS = (f"{GOOGLE_SECRET_PATH}/api_key", f"{OPENROUTER_SECRET_PATH}/{OPENROUTER_SECRET_KEY}")
+_PLAN_FAILURE_CODES = {
+    "Not every requested workflow was authored": "workflow_count_mismatch",
+    "An actionable request cannot become an empty or clarification plan": "empty_actionable_plan",
+    "Unknown or repeated workflow update target": "invalid_update_target",
+    "Requested conditional control was omitted": "check_mode_omitted",
+    "Mixed request omitted an operation": "mixed_operation_omitted",
+    "A selected workflow edit was omitted": "update_target_omitted",
+    "Create requires a title and description": "header_metadata",
+    "Create requires a supported icon": "header_icon",
+    "Correction must preserve the accepted workflow header": "retry_header_changed",
+    "Correction must preserve accepted workflow nodes": "retry_node_changed",
+}
 
 
 class _UnclearWorkflowRequest(ValueError):
@@ -450,7 +462,8 @@ class WorkflowRegistryPlanner:
                     # Keep diagnostics useful without persisting the private
                     # correction text or a provider response. Provider codes
                     # are constants; ValueError messages may contain user data.
-                    reason_code = getattr(exc, "code", None) or "plan_validation"
+                    reason_code = (getattr(exc, "code", None)
+                                   or _PLAN_FAILURE_CODES.get(str(exc), "plan_validation"))
                     usage["failure_reason_code"] = reason_code
                     metrics["last_failure_reason_code"] = reason_code
                     validation_code = getattr(exc, "validation_code", None)

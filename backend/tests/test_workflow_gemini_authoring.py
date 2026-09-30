@@ -49,6 +49,8 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert "Daily and weekly clock times MUST use time" in prompt
     assert "do not add Ask AI merely" in prompt
     assert "Do not output clarify or draft" in prompt
+    assert "9 in Lisbon" in prompt and "Europe/Lisbon" in prompt
+    assert "A city used only as a search location" in prompt
     assert "op:'" not in prompt
 
 
@@ -60,7 +62,10 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert "minItems" not in json.dumps(schema) and "maxItems" not in json.dumps(schema)
     schedule = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["schedule"]
     operation = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["operation"]
+    header = schema["properties"]["workflows"]["items"]["properties"]["header"]
     assert operation["enum"] == ["create", "update"]
+    assert header["anyOf"][0]["required"] == ["title", "description", "icon"]
+    assert header["anyOf"][1]["required"] == ["workflow_id"]
     assert [variant["properties"]["type"]["enum"][0] for variant in schedule["anyOf"]] == [
         "daily", "weekly", "hourly", "once", "manual"]
     assert "HH:MM" in schedule["anyOf"][0]["properties"]["time"]["description"]
@@ -69,13 +74,23 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert schedule["anyOf"][1]["properties"]["weekdays"]["items"]["enum"] == [
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
     validator = Draft202012Validator(schema)
-    flat = {"workflows": [{"header": {"operation": "create", "schedule": {"type": "daily"}},
+    flat = {"workflows": [{"header": {"operation": "create", "title": "Weather", "description": "Forecast",
+                                      "icon": "cloud-rain", "schedule": {"type": "daily"}},
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
                                       "input_json": '{"location":"Berlin","days":1}'}]}]}
     validator.validate(flat)
     flat["workflows"][0]["header"]["operation"] = "draft"
     assert list(validator.iter_errors(flat))
     flat["workflows"][0]["header"]["operation"] = "create"
+    flat["workflows"][0]["header"].pop("icon")
+    assert list(validator.iter_errors(flat))
+    flat["workflows"][0]["header"]["icon"] = "cloud-rain"
+    flat["workflows"][0]["header"]["operation"] = "update"
+    assert list(validator.iter_errors(flat))
+    flat["workflows"][0]["header"]["workflow_id"] = "existing"
+    validator.validate(flat)
+    flat["workflows"][0]["header"]["operation"] = "create"
+    flat["workflows"][0]["header"].pop("workflow_id")
     assert list(validator.iter_errors({"operation": "create"}))
     for valid_schedule in ({"type": "weekly", "weekdays": ["thursday"], "time": "09:00"},
                            {"type": "hourly", "minute": 30}, {"type": "once", "at": "2026-10-01T09:00:00Z"},
@@ -216,6 +231,43 @@ async def test_header_failure_has_fixed_code_without_accepting_partial_header():
     assert error.value.code == "header_metadata"
     assert error.value.accepted_prefixes == []
     assert "private" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_missing_create_icon_rejects_before_checkpoint_and_empty_retry_can_correct():
+    header = {"operation": "create", "title": "Notices", "description": "Send notices",
+              "schedule": {"type": "daily"}}
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message_json": '[{"text":"Hello"}]'}
+    calls = 0
+
+    def respond(_):
+        nonlocal calls
+        calls += 1
+        completed_header = {**header, "icon": "help-circle"} if calls == 2 else header
+        event = {"candidates": [{"content": {"parts": [{"text": json.dumps({
+            "workflows": [{"header": completed_header, "nodes": [send]}],
+        })}]}, "finishReason": "STOP"}]}
+        return httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n')
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    checkpoints = []
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        author = WorkflowGeminiAuthor(Secrets(), client)
+        with pytest.raises(WorkflowAuthoringProviderError, match="header failed validation") as error:
+            await author.generate(text="Notices", selection=selection(), timezone="UTC",
+                                  on_plan_component=checkpoints.append)
+        assert error.value.code == "header_icon"
+        assert error.value.accepted_prefixes == []
+        assert checkpoints == []
+        raw, _ = await author.generate(text="Notices", selection=selection(), timezone="UTC",
+                                       accepted_prefixes=error.value.accepted_prefixes,
+                                       correction=error.value.validation_error,
+                                       on_plan_component=checkpoints.append)
+    assert raw["icon"] == "help-circle"
+    assert [item["type"] for item in checkpoints] == ["header", "node"]
 
 
 @pytest.mark.asyncio
