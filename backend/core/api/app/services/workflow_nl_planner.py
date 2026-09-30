@@ -46,6 +46,7 @@ GEMINI_PRICES = {
 CITY_CHOICES = {
     "berlin": ("Berlin", "Europe/Berlin"),
     "london": ("London", "Europe/London"),
+    "lisbon": ("Lisbon", "Europe/Lisbon"),
     "paris": ("Paris", "Europe/Paris"),
     "new_york": ("New York", "America/New_York"),
     "san_francisco": ("San Francisco", "America/Los_Angeles"),
@@ -63,6 +64,22 @@ IDENTITY_ICONS = sorted(WORKFLOW_ALLOWED_ICONS & {
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 UNSUPPORTED_DELIVERY = re.compile(
     r"\b(?:e-?mail|sms|slack|discord|telegram|whatsapp|signal|teams|webhook|push notification|phone notification)\b",
+    re.IGNORECASE,
+)
+UNSUPPORTED_WEB_SEARCH = re.compile(
+    r"\b(?:search(?:ing)? (?:the )?web|web[. ]search|browse (?:the )?web)\b",
+    re.IGNORECASE,
+)
+UNSUPPORTED_EDIT_ACTION = re.compile(
+    r"\b(?:to|then|and|instead(?: of)?|with)\s+(?:search|find|look for|fetch|check|send|post|generate|summari[sz]e|calculate|shop|buy)\b|"
+    r"\b(?:add|remove|replace)\s+(?:(?:a|the|my)\s+)?(?:node|step|action|search|message|reminder)\b|"
+    r"\b(?:add|include)\b.{0,50}\b(?:events?|meetups?|searches?)\b|"
+    r"\b(?:message|text|content|prompt|title|description|location|city|query|topic)\s+(?:to|from|with)\b",
+    re.IGNORECASE,
+)
+UNSUPPORTED_COMPLEX_SCHEDULE = re.compile(
+    r"\b(?:every other|first|second|third|last)\s+(?:day|week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|"
+    r"\b(?:monthly|yearly|annually|hourly|twice a|every\s+\d+\s+(?:minutes?|hours?|days?|weeks?))\b",
     re.IGNORECASE,
 )
 EXPLICIT_MULTIPLE_WORKFLOWS = re.compile(
@@ -183,6 +200,10 @@ class WorkflowNLPlanner:
             # effect. Check explicit unsupported destinations before any model call.
             if UNSUPPORTED_DELIVERY.search(text):
                 raise WorkflowNLPlanningError("The requested delivery channel is not available in the current workflow recipes. Please clarify it in chat.")
+            if UNSUPPORTED_WEB_SEARCH.search(text):
+                raise WorkflowNLPlanningError("Web search is not available in the current workflow recipes. Please clarify this request in chat.")
+            if UNSUPPORTED_COMPLEX_SCHEDULE.search(text):
+                raise WorkflowNLPlanningError("This schedule needs more detail than the current workflow recipes can represent. Please clarify it in chat.")
             if EXPLICIT_MULTIPLE_WORKFLOWS.search(text) or EXPLICIT_MIXED_OPERATIONS.search(text):
                 raise WorkflowNLPlanningError("This request describes multiple workflow changes. Please clarify them in chat before saving them together.")
             event_append = bool(
@@ -431,7 +452,7 @@ class WorkflowNLPlanner:
     async def _create(self, text: str, context: dict[str, Any], decisions: dict[str, str], metrics: dict[str, Any],
                       metadata_task: asyncio.Task[tuple[dict[str, Any], dict[str, int]]] | None = None) -> dict[str, Any]:
         recipe = decisions["recipe"]
-        if recipe == "unsupported" or decisions["delivery"] != "chat":
+        if recipe == "unsupported" or decisions["delivery"] != "chat" or not _recipe_matches_request(recipe, text):
             raise WorkflowNLPlanningError("This request needs a workflow action that the current recipes cannot represent. Please clarify it in chat.")
         if decisions["cadence"] not in {"daily", "weekdays", "weekly"}:
             raise WorkflowNLPlanningError("Which days should this workflow run?")
@@ -444,7 +465,7 @@ class WorkflowNLPlanner:
         if decisions["cadence"] == "weekly" and not weekdays:
             weekdays = ["monday"]
             assumptions.append("No weekly day was specified, so this workflow is scheduled for Monday.")
-        timezone = _schedule_timezone(decisions["timezone"], context.get("timezone"))
+        timezone = _requested_schedule_timezone(text) or _schedule_timezone("browser", context.get("timezone"))
         city: str | None = None
         if recipe in {"rain_alert", "weather_update", "events_digest"}:
             city_key = decisions["city"]
@@ -508,6 +529,7 @@ class WorkflowNLPlanner:
         identity = normalize_workflow_identity(metadata["category"], metadata["icon"])
         metadata["_cadence"] = decisions["cadence"]
         metadata["_weekdays"] = weekdays
+        metadata["_result_count"] = _requested_result_count(text, recipe)
         graph = _compile_recipe(recipe, local_time, timezone, city, decisions["horizon"], metadata)
         validated = WorkflowGraph.model_validate(graph)
         validate_workflow_readiness(validated, require_schedule=True)
@@ -560,6 +582,8 @@ class WorkflowNLPlanner:
         if not isinstance(graph, dict):
             raise WorkflowNLPlanningError("I could not read the selected workflow graph.")
         if event_queries_task is not None:
+            if re.search(r"\b(?:and|also)\s+(?:move|reschedule|change|update)\b|\b(?:move|reschedule)\b.{0,60}\b(?:workflow|schedule|run|time)\b", text, re.IGNORECASE):
+                raise WorkflowNLPlanningError("Please clarify the event-search and schedule changes together before saving.")
             extracted = await event_queries_task
             node = _selected_event_search_node({"graph": graph})
             if node is None:
@@ -616,15 +640,25 @@ class WorkflowNLPlanner:
         local_time = _extract_time(text)
         if local_time is None:
             raise WorkflowNLPlanningError("Which change should I make to the selected workflow?")
+        if UNSUPPORTED_EDIT_ACTION.search(text):
+            raise WorkflowNLPlanningError("This edit changes workflow actions beyond the current recipes. Please clarify it in chat.")
         trigger = next((node for node in graph.get("nodes", []) if node.get("id") == graph.get("trigger_node_id") and node.get("type") == "schedule_trigger"), None)
         if trigger is None:
             raise WorkflowNLPlanningError("The selected workflow has no time schedule to change.")
         trigger["config"]["schedule"]["time"] = local_time
-        if decisions["timezone"] != "browser":
-            trigger["config"]["schedule"]["timezone"] = _schedule_timezone(decisions["timezone"], context.get("timezone"))
+        explicit_timezone = _requested_schedule_timezone(text)
+        if explicit_timezone:
+            trigger["config"]["schedule"]["timezone"] = explicit_timezone
+        requested_cadence = _requested_schedule_cadence(text)
+        if requested_cadence:
+            trigger["config"]["schedule"].update(requested_cadence)
+            if requested_cadence["type"] == "daily":
+                trigger["config"]["schedule"].pop("weekdays", None)
         validated = WorkflowGraph.model_validate(graph)
         validate_workflow_readiness(validated, require_schedule=bool(selected.get("enabled")))
         validate_workflow_composition_refs(validated, WorkflowGraph.model_validate(selected["graph"]))
+        if validated.model_dump(mode="json", by_alias=True) == WorkflowGraph.model_validate(selected["graph"]).model_dump(mode="json", by_alias=True):
+            raise WorkflowNLPlanningError("This instruction did not change the workflow. What should I update?")
         return {"action": "update_workflow", "workflow_id": selected["id"],
                 "graph": validated.model_dump(mode="json", by_alias=True)}
 
@@ -724,6 +758,100 @@ def _extract_weekdays(text: str) -> list[str]:
     return [day for day in days if re.search(rf"\b{day}s?\b", text, re.IGNORECASE)]
 
 
+def _recipe_matches_request(recipe: str, text: str) -> bool:
+    """Do not let a nearby recipe silently replace a requested capability."""
+    patterns = {
+        "rain_alert": r"\b(?:rain|umbrella|precipitation|showers?)\b",
+        "weather_update": r"\b(?:weather|forecast|temperature)\b",
+        "events_digest": r"\b(?:events?|meetups?|concerts?|conferences?|gigs?)\b",
+        "news_digest": r"\b(?:news|headlines?|articles?|press coverage)\b",
+        "news_ai_digest": r"\b(?:news|headlines?|articles?|press coverage)\b",
+        "reminder": r"\b(?:remind|reminder|tell me to|message me|send me a (?:chat )?message)\b",
+    }
+    pattern = patterns.get(recipe)
+    if not pattern or not re.search(pattern, text, re.IGNORECASE):
+        return False
+    if recipe == "weather_update" and re.search(r"\bif\b.{0,60}\b(?:rain|precipitation|showers?)\b", text, re.IGNORECASE):
+        return False
+    if recipe != "news_ai_digest" and re.search(r"\b(?:ask\s+AI|AI\s+to\s+summari[sz]e|summari[sz]e\b.{0,80}\b(?:with|using)\s+AI)\b", text, re.IGNORECASE):
+        return False
+    if recipe == "news_digest" and re.search(r"\b(?:summari[sz]e|summary)\b", text, re.IGNORECASE):
+        return False
+    if recipe == "reminder" and re.search(r"\b(?:search|find|fetch|check|look up|browse)\b", text, re.IGNORECASE):
+        return False
+    return True
+
+
+def _requested_result_count(text: str, recipe: str) -> int:
+    if recipe not in {"events_digest", "news_digest", "news_ai_digest"}:
+        return 10
+    numbers = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+               "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+    match = re.search(
+        r"\b(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred)\s+"
+        r"(?:\w+\s+){0,2}?(?:results?|links?|headlines?|articles?|stories|events?|meetups?)\b",
+        text, re.IGNORECASE,
+    )
+    if not match:
+        return 10
+    raw = match.group(1).lower()
+    if not raw.isdigit() and raw not in numbers:
+        raise WorkflowNLPlanningError("Please choose a supported number of results for this workflow.")
+    count = numbers.get(raw, int(raw) if raw.isdigit() else 10)
+    maximum = 50 if recipe == "events_digest" else 20
+    if not 1 <= count <= maximum:
+        raise WorkflowNLPlanningError(f"This recipe can return at most {maximum} results. Please clarify the request in chat.")
+    return count
+
+
+def _requested_schedule_timezone(text: str) -> str | None:
+    """Use only a timezone explicitly attached to the schedule, never a search city."""
+    def schedule_context(start: int, end: int) -> bool:
+        before, after = text[max(0, start - 60):start], text[end:end + 25]
+        return bool(
+            re.search(r"\b(?:at|@)\s*\d{1,2}(?::\d{2})?\s*$", before, re.IGNORECASE)
+            or re.search(r"\b(?:schedule|run|time|timezone|time zone)\s+(?:in|for|of)?\s*$", before, re.IGNORECASE)
+            or re.match(r"\s*(?:local\s+)?(?:time|timezone|time zone)\b", after, re.IGNORECASE)
+        )
+
+    for iana in re.finditer(r"\b([A-Za-z_]+(?:/[A-Za-z_]+){1,3})\b", text):
+        if not schedule_context(iana.start(), iana.end()):
+            continue
+        zone = iana.group(1)
+        try:
+            ZoneInfo(zone)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise WorkflowNLPlanningError("Choose a valid scheduling timezone.") from None
+        return zone
+    for utc in re.finditer(r"\b(?:UTC|GMT|Zulu)\b", text, re.IGNORECASE):
+        if schedule_context(utc.start(), utc.end()):
+            return "UTC"
+    for city, zone in CITY_CHOICES.values():
+        escaped = re.escape(city)
+        if re.search(rf"\b{escaped}(?:'s)?\s+(?:local\s+)?(?:time|timezone|time zone)\b|\b(?:time|timezone|time zone)\s+in\s+{escaped}\b", text, re.IGNORECASE):
+            return zone
+    return None
+
+
+def _requested_schedule_cadence(text: str) -> dict[str, Any] | None:
+    if re.search(r"\b(?:every\s+day|daily)\b", text, re.IGNORECASE):
+        return {"type": "daily"}
+    if re.search(r"\b(?:every\s+weekday|weekdays)\b", text, re.IGNORECASE):
+        return {"type": "weekly", "weekdays": WEEKDAYS}
+    if re.search(r"\b(?:every\s+weekend|weekends)\b", text, re.IGNORECASE):
+        return {"type": "weekly", "weekdays": ["saturday", "sunday"]}
+    moved_day = re.search(
+        r"\bfrom\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+to\s+"
+        r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", text, re.IGNORECASE,
+    )
+    if moved_day:
+        return {"type": "weekly", "weekdays": [moved_day.group(1).lower()]}
+    days = _extract_weekdays(text)
+    if days and re.search(r"\b(?:every|each|on)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", text, re.IGNORECASE):
+        return {"type": "weekly", "weekdays": days}
+    return None
+
+
 def _schedule_timezone(choice: str, browser_timezone: Any) -> str:
     if choice == "utc":
         zone = "UTC"
@@ -780,7 +908,7 @@ def _compile_recipe(recipe: str, local_time: str, timezone: str, city: str | Non
             raise WorkflowNLPlanningError("What event topic and city should this workflow search?")
         add({"id": "events", "type": "app_skill_action", "config": {
             "app_id": "events", "skill_id": "search", "input": {"requests": [{
-                "query": query, "location": city, "count": 10,
+                "query": query, "location": city, "count": metadata.get("_result_count", 10),
                 "start_date": {"$date": "next_seven_days_start", "format": "datetime"},
                 "end_date": {"$date": "next_seven_days_end", "format": "datetime"},
             }]},
@@ -795,7 +923,7 @@ def _compile_recipe(recipe: str, local_time: str, timezone: str, city: str | Non
         if not query:
             raise WorkflowNLPlanningError("What news topic should this workflow search?")
         add({"id": "news", "type": "app_skill_action", "config": {
-            "app_id": "news", "skill_id": "search", "input": {"requests": [{"query": query, "count": 10}]},
+            "app_id": "news", "skill_id": "search", "input": {"requests": [{"query": query, "count": metadata.get("_result_count", 10)}]},
         }}, "trigger")
         if recipe == "news_ai_digest":
             add({"id": "ask", "type": "app_skill_action", "config": {

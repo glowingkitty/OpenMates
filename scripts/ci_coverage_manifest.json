@@ -29,6 +29,7 @@
         "cli-created-account-login.spec.ts",
         "cli-memories.spec.ts",
         "cli-pair-login.spec.ts",
+        "cli-workflows-natural-language-guards.spec.ts",
         "code-notebook-flow.spec.ts",
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",

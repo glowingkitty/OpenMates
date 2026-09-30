@@ -327,6 +327,40 @@ def test_cli_input_creates_disabled_ready_tomorrow_rain_recipe_with_identity_and
     assert len(workflows.list_workflows("alice")) == 1
 
 
+# contract-test: direct surface=cli assertions=workflows.schedule.edge-cases
+def test_explicit_iana_timezone_overrides_jev_browser_choice():
+    service, _ = _input_service(StubJev({"recipe": "weather_update", "cadence": "weekly",
+                                        "horizon": "tomorrow", "city": "lisbon", "timezone": "browser"}))
+    result = service.start(user_id="alice", timezone="UTC", text=(
+        "Each Monday at 06:45 Europe/Lisbon time, send tomorrow's weather forecast for Lisbon to chat."))
+    assert result.status == "executed", result.error
+    nodes = {node.id: node for node in result.workflow.graph.nodes}
+    assert nodes["trigger"].config["schedule"]["timezone"] == "Europe/Lisbon"
+    assert nodes["weather"].config["input"]["timezone"] == "Europe/Lisbon"
+
+
+# contract-test: direct surface=cli assertions=workflows.schedule.edge-cases
+def test_search_location_alone_does_not_override_browser_timezone():
+    service, _ = _input_service(StubJev({"recipe": "events_digest", "cadence": "weekly",
+                                        "city": "london", "timezone": "london"}))
+    result = service.start(user_id="alice", timezone="UTC", text=(
+        "Every Friday at 16:00, find live jazz events in London for the coming week and share the results in chat."))
+    assert result.status == "executed", result.error
+    nodes = {node.id: node for node in result.workflow.graph.nodes}
+    assert nodes["trigger"].config["schedule"]["timezone"] == "UTC"
+    assert nodes["events"].config["input"]["requests"][0]["location"] == "London"
+
+
+# contract-test: direct surface=cli assertions=workflows.schedule.edge-cases
+def test_timezone_topic_does_not_override_browser_schedule_timezone():
+    service, _ = _input_service(StubJev({"recipe": "news_digest", "cadence": "weekly", "timezone": "utc"}))
+    result = service.start(user_id="alice", timezone="America/New_York", text=(
+        "Every Tuesday at 10, search news for UTC policy updates and send the results to chat."))
+    assert result.status == "executed", result.error
+    trigger = next(node for node in result.workflow.graph.nodes if node.id == "trigger")
+    assert trigger.config["schedule"]["timezone"] == "America/New_York"
+
+
 # contract-test: supporting surface=cli assertions=workflows.activation.reachable-side-effect
 def test_short_incomplete_request_saves_blank_titled_draft():
     # Even if Jev guesses a known city and recipe, no city may enter the graph
@@ -420,6 +454,21 @@ def test_selected_events_edit_does_not_discard_a_second_creation_request():
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_selected_events_edit_with_a_schedule_change_requires_clarification():
+    service, workflows = _input_service(StubJev({"recipe": "events_digest", "cadence": "weekly"}))
+    created = service.start(user_id="alice", text="Weekly startup event search for Berlin")
+    assert created.status == "executed", created.error
+    editor = WorkflowInputService(workflow_service=workflows,
+                                  planner=WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                                            jev_client=StubJev({"route": "update"}),
+                                                            structured_call=StubGemini()))
+    result = editor.start(user_id="alice", selected_workflow_id=created.workflow.id,
+                          text="Also add jazz events and move this workflow to 10 UTC")
+    assert result.status == "needs_clarification"
+    assert workflows.get_workflow(created.workflow.id, "alice").version == created.workflow.version
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
 def test_jev_outage_uses_flash_lite_for_same_recipe_contract():
     gemini = StubGemini()
     service, _ = _input_service(StubJev(unavailable=True), gemini)
@@ -501,6 +550,91 @@ def test_unsupported_delivery_creates_nothing_and_requests_clarification():
     result = service.start(user_id="alice", text="Every weekday at 7 email tomorrow's Berlin rain forecast")
     assert result.status == "needs_clarification"
     assert not workflows.list_workflows("alice")
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_web_search_cannot_be_silently_replaced_with_news_search():
+    jev = StubJev({"recipe": "news_digest", "cadence": "weekly"})
+    gemini = StubGemini()
+    service, workflows = _input_service(jev, gemini)
+    result = service.start(user_id="alice", text=(
+        "Every Tuesday at 10 UTC, search the web for new W3C accessibility guidance "
+        "and send the three source links to my chat."))
+    assert result.status == "needs_clarification"
+    assert workflows.list_workflows("alice") == []
+    assert jev.calls == 0
+    assert gemini.models == []
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_news_recipe_requires_news_intent_and_honors_requested_count():
+    service, workflows = _input_service(StubJev({"recipe": "news_digest", "cadence": "weekly"}))
+    unsupported = service.start(user_id="alice", text=(
+        "Every Tuesday at 10 UTC, find the latest W3C accessibility guidance and send the links to chat."))
+    assert unsupported.status == "needs_clarification"
+    assert workflows.list_workflows("alice") == []
+    created = service.start(user_id="alice", text=(
+        "Every Tuesday at 10 UTC, search news for W3C accessibility updates and send three headline links to chat."))
+    assert created.status == "executed", created.error
+    news = next(node for node in created.workflow.graph.nodes if node.id == "news")
+    assert news.config["input"]["requests"][0]["count"] == 3
+    ai_summary = service.start(user_id="alice", text=(
+        "Every Tuesday at 10 UTC, search news for W3C accessibility updates, summarize news with AI, and send it to chat."))
+    assert ai_summary.status == "needs_clarification"
+    excessive = service.start(user_id="alice", text=(
+        "Every Tuesday at 10 UTC, search news for W3C accessibility updates and send 100 headline links to chat."))
+    assert excessive.status == "needs_clarification"
+
+
+# contract-test: direct surface=cli assertions=workflows.actions.skill-contract
+def test_unsupported_action_edit_does_not_commit_a_partial_or_noop_update():
+    service, workflows = _input_service(StubJev({"recipe": "reminder"}))
+    created = service.start(user_id="alice", text="Remind me every weekday at 9 UTC to stretch in chat")
+    assert created.status == "executed", created.error
+    before = created.workflow
+    editor = WorkflowInputService(workflow_service=workflows,
+                                  planner=WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                                            jev_client=StubJev({"route": "update"}),
+                                                            structured_call=StubGemini()))
+    result = editor.start(user_id="alice", selected_workflow_id=before.id, text=(
+        "Change this workflow to search for USB-C laptop chargers under 30 euros "
+        "every Saturday at 10 UTC, then send me the three cheapest options in chat."))
+    assert result.status == "needs_clarification"
+    after = workflows.get_workflow(before.id, "alice")
+    assert after.version == before.version
+    assert after.graph == before.graph
+    message_edit = editor.start(user_id="alice", selected_workflow_id=before.id,
+                                text="Change this reminder's message to drink water at 10 UTC")
+    assert message_edit.status == "needs_clarification"
+    assert workflows.get_workflow(before.id, "alice").version == before.version
+
+
+# contract-test: direct surface=cli assertions=workflows.schedule.recurrence
+def test_schedule_only_edit_changes_weekday_and_rejects_an_unchanged_graph():
+    service, workflows = _input_service(StubJev({"recipe": "reminder"}))
+    created = service.start(user_id="alice", text="Remind me every weekday at 9 UTC to stretch in chat")
+    assert created.status == "executed", created.error
+    before = created.workflow
+    editor = WorkflowInputService(workflow_service=workflows,
+                                  planner=WorkflowNLPlanner(secrets_manager=None, workflow_service=workflows,
+                                                            jev_client=StubJev({"route": "update"}),
+                                                            structured_call=StubGemini()))
+    updated = editor.start(user_id="alice", selected_workflow_id=before.id,
+                           text="Move this workflow to every Saturday at 10 UTC")
+    assert updated.status == "executed", updated.error
+    trigger = next(node for node in updated.workflow.graph.nodes if node.id == "trigger")
+    assert trigger.config["schedule"] == {"type": "weekly", "time": "10:00", "timezone": "UTC",
+                                          "weekdays": ["saturday"]}
+    unchanged = editor.start(user_id="alice", selected_workflow_id=before.id,
+                             text="Move this workflow to every Saturday at 10 UTC")
+    assert unchanged.status == "needs_clarification"
+    assert workflows.get_workflow(before.id, "alice").version == updated.workflow.version
+    moved = editor.start(user_id="alice", selected_workflow_id=before.id,
+                         text="Move this workflow from Saturday to Friday at 11 UTC")
+    assert moved.status == "executed", moved.error
+    trigger = next(node for node in moved.workflow.graph.nodes if node.id == "trigger")
+    assert trigger.config["schedule"]["weekdays"] == ["friday"]
+    assert trigger.config["schedule"]["time"] == "11:00"
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
