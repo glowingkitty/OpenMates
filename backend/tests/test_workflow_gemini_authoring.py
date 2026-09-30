@@ -41,6 +41,32 @@ def test_provider_envelope_accepts_single_and_batch_but_keeps_strict_compiler_se
     assert list(validator.iter_errors({"operation": "create", "steps": [{"type": "app", "id": "wrong"}]}))
 
 
+def test_provider_step_grammar_is_recursive_typed_and_scoped_to_selected_inputs():
+    from jsonschema import Draft202012Validator
+
+    selection = SimpleNamespace(capabilities=[SimpleNamespace(id="weather.forecast", metadata={
+        "input_schema": {"type": "object", "properties": {
+            "location": {"type": "string"}, "days": {"type": "integer"}}, "required": ["location"]}})])
+    schema = provider_response_schema(selection)
+    Draft202012Validator.check_schema(schema)
+    step = schema["$defs"]["step"]
+    assert step["required"] == ["kind", "id"]
+    assert step["properties"]["yes"]["items"] == {"$ref": "#/$defs/step"}
+    assert step["properties"]["capability"]["enum"] == ["weather.forecast"]
+    assert "secret" not in step["properties"]["input"]["properties"]
+    validator = Draft202012Validator(schema)
+    nested = {"operation": "create", "steps": [
+        {"kind": "app", "id": "weather", "capability": "weather.forecast", "input": {"location": "Berlin"}},
+        {"kind": "check", "id": "rain", "mode": "exact",
+         "predicate": {"op": "exists", "left": {"ref": {"step": "weather", "field": "rain_expected"}}},
+         "yes": [{"kind": "send", "id": "notice", "title": "Rain",
+                  "message": [{"text": "Take an umbrella"}]}], "no": []},
+    ]}
+    validator.validate(nested)
+    nested["steps"][0]["input"]["secret"] = "unknown"
+    assert list(validator.iter_errors(nested))
+
+
 def test_components_never_emit_incomplete_nested_steps_or_quoted_key():
     prefix = '{"title":"\\\"steps\\\":[fake]","steps":['
     first = {"kind": "app", "id": "weather", "input": {"location": "Lisbon"}}

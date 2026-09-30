@@ -187,21 +187,55 @@ def complete_plan_components(source: str) -> list[dict[str, Any]]:
 
 
 def provider_response_schema(selection: Any) -> dict[str, Any]:
-    """Use Gemini's legacy REST JSON Schema field with the scoped step grammar.
+    """Give Gemini one compact typed step grammar with selected app inputs.
 
-    Leaving step objects unconstrained allows the decoder to invent their field
-    names despite prompt examples. Share the compiler grammar, while accepting
-    either a single operation or its batch envelope at the transport boundary.
-    The compiler remains authoritative for ownership and semantic validation.
+    The compiler's generated schema is authoritative and stricter. Provider
+    structured output uses one optional recursive branch definition instead of
+    expanding every step kind at every branch depth; the compiler validates the
+    emitted kind-specific fields, references and app capability/input pairing.
     """
     from backend.core.api.app.services.workflow_authoring_compiler import build_authoring_schema
 
-    schema = build_authoring_schema(selection)
-    plan = {key: value for key, value in schema.items() if key != "$defs"}
-    return {**schema, "required": [], "properties": {
-        **schema.get("properties", {}),
-        "operations": {"type": "array", "items": plan},
-    }}
+    compiler_schema = build_authoring_schema(selection)
+    definitions = compiler_schema.get("$defs") or {}
+    if not definitions:
+        # Keeps injected transport stubs small; production always has the
+        # compiler definitions generated from selected registry contracts.
+        return {"type": "object", "properties": {"operations": {"type": "array"}}}
+
+    app_definitions = [value for name, value in definitions.items() if name.startswith("app_")]
+    app_ids = [value["properties"]["capability"]["enum"][0] for value in app_definitions]
+    step_fields: dict[str, Any] = {
+        "kind": {"type": "string", "enum": ["check", "send", "end"]},
+        "id": {"type": "string"},
+        "mode": definitions["check_1"]["properties"]["mode"],
+        "predicate": definitions["check_1"]["properties"]["predicate"],
+        "question": definitions["check_1"]["properties"]["question"],
+        "selected_inputs": definitions["check_1"]["properties"]["selected_inputs"],
+        "title": definitions["send"]["properties"]["title"],
+        "message": definitions["send"]["properties"]["message"],
+        "blocks": definitions["send"]["properties"]["blocks"],
+    }
+    if app_definitions:
+        step_fields["kind"]["enum"].append("app")
+        step_fields["capability"] = {"type": "string", "enum": app_ids}
+        app_inputs = [value["properties"]["input"] for value in app_definitions]
+        step_fields["input"] = app_inputs[0] if len(app_inputs) == 1 else {"anyOf": app_inputs}
+    if "ask_ai" in definitions:
+        step_fields["kind"]["enum"].append("ask_ai")
+        step_fields["prompt"] = definitions["ask_ai"]["properties"]["prompt"]
+    for branch in ("yes", "no", "unsure"):
+        step_fields[branch] = {"type": "array", "items": {"$ref": "#/$defs/step"}}
+
+    plan_fields = dict(compiler_schema["properties"])
+    plan_fields["steps"] = {"type": "array", "items": {"$ref": "#/$defs/step"}}
+    plan = {"type": "object", "additionalProperties": False,
+            "properties": plan_fields, "required": ["operation"]}
+    return {"type": "object", "additionalProperties": False,
+            "properties": {**plan_fields, "operations": {"type": "array", "items": {"$ref": "#/$defs/plan"}}},
+            "$defs": {"step": {"type": "object", "additionalProperties": False,
+                               "properties": step_fields, "required": ["kind", "id"]},
+                      "plan": plan}}
 
 
 def authoring_prompt(selection: Any, timezone: str) -> str:
