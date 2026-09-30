@@ -441,6 +441,42 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  // contract-test: supporting surface=cli assertions=workflows.authoring.atomic-update,workflows.authoring.provisional-validation
+  it("preserves plural authoring results and stable retry identity", async () => {
+    await withServer(
+      (request, body) => {
+        assert.equal(request.url, "/v1/workflows/input");
+        assert.equal(request.method, "POST");
+        if (body.text === "Create two reports") {
+          assert.equal(body.idempotency_key, "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d");
+          return { session: {
+          session_id: "batch-1", status: "executed", event_cursor: 3, undo_available: true,
+          workflows: [{ id: "wf-a" }, { id: "wf-b" }],
+          preview_workflows: [{ id: "preview-a" }, { id: "preview-b" }],
+          changes: [
+            { workflow_id: "wf-a", operation: "create", added_node_ids: ["a"], changed_node_ids: [], removed_node_ids: [] },
+            { workflow_id: "wf-b", operation: "create", added_node_ids: ["b"], changed_node_ids: [], removed_node_ids: [] },
+          ],
+          } };
+        }
+        assert.equal(body.idempotency_key, "e62ed884-2612-4b4e-bb4b-48c029cf346b");
+        return { session: { session_id: "batch-2", status: "needs_clarification", event_cursor: 1, undo_available: false, workflows: [] } };
+      },
+      async (apiUrl) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        const options = { idempotencyKey: "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d" };
+        const created = await client.startWorkflowInput({ text: "Create two reports", ...options });
+        assert.deepEqual(created.workflows?.map(workflow => workflow.id), ["wf-a", "wf-b"]);
+        assert.equal(created.changes?.length, 2);
+        const replay = await client.startWorkflowInput({ text: "Create two reports", ...options });
+        assert.equal(replay.session_id, created.session_id);
+        const clarification = await client.startWorkflowInput({ text: "Ambiguous request", idempotencyKey: "e62ed884-2612-4b4e-bb4b-48c029cf346b" });
+        assert.equal(clarification.status, "needs_clarification");
+        assert.deepEqual(clarification.workflows, []);
+      },
+    );
+  });
+
   // contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("requires a CLI session before workflow calls", async () => {
     const originalHome = process.env.HOME;

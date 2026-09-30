@@ -439,8 +439,11 @@ describe("OpenMates SDK workflows", () => {
           return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
         }
         if (request.url === "/v1/workflows/input" && request.method === "POST") {
-          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_workflow_id: "wf-1" });
-          return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
+          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_workflow_id: "wf-1", idempotency_key: "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d" });
+          return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true,
+            workflows: [{ id: "wf-1" }, { id: "wf-2" }],
+            changes: [{ workflow_id: "wf-1", operation: "update", added_node_ids: [], changed_node_ids: ["message"], removed_node_ids: [] }],
+          } };
         }
         if (request.url === "/v1/workflows/input/session-1" && request.method === "GET") {
           return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true, events: [] } };
@@ -462,7 +465,10 @@ describe("OpenMates SDK workflows", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
-        assert.equal((await client.workflows.startInput({ text: "alert me if it rains", selectedWorkflowId: "wf-1" })).session_id, "session-1");
+        const authored = await client.workflows.startInput({ text: "alert me if it rains", selectedWorkflowId: "wf-1", idempotencyKey: "7e6a620a-f09f-4aa9-b87a-79ad9b03d32d" });
+        assert.equal(authored.session_id, "session-1");
+        assert.deepEqual(authored.workflows?.map(workflow => workflow.id), ["wf-1", "wf-2"]);
+        assert.deepEqual(authored.changes?.[0]?.changed_node_ids, ["message"]);
         assert.equal((await client.workflows.inputSession("session-1")).status, "executed");
         assert.equal((await client.workflows.inputEvents("session-1", 2))[0]?.type, "validation_passed");
         assert.equal((await client.workflows.followUpInput("session-1", "weekdays only")).event_cursor, 7);

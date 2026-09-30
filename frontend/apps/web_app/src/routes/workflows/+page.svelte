@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
 		Header,
@@ -47,7 +47,7 @@
 	import WorkflowPendingPreview from '@repo/ui/components/workflows/WorkflowPendingPreview.svelte';
 	import WorkflowBindingReview from '@repo/ui/components/workflows/WorkflowBindingReview.svelte';
 	import { downloadWorkflowFile, readWorkflowFile } from '@repo/ui/services/workflowFileService';
-	import { committedWorkflows, getWorkflowInstruction, submitWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowInputChange, type WorkflowInputSession } from '@repo/ui/services/workflowInputService';
+	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, streamWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession, type WorkflowInputStreamEvent } from '@repo/ui/services/workflowInputService';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
@@ -126,8 +126,18 @@
 	let pendingSaveSessionId = $state<string | null>(null);
 	let pendingSaveMessage = $state<string | null>(null);
 	let pendingPreviewWorkflow = $state<WorkflowDetail | null>(null);
+	let streamPreviewWorkflows = $state<WorkflowDetail[]>([]);
+	let authoringPhase = $state<'planning' | 'validating' | 'retrying_node' | 'saving' | null>(null);
+	let acceptedNodeCounts = $state<Record<string, number>>({});
+	let stopRequested = $state(false);
+	let partialNotice = $state<string | null>(null);
+	let partialWorkflowIds = $state<string[]>([]);
+	let streamController: AbortController | null = null;
+	let interruptedSubmission: { instruction: string; workflowId?: string; key: string } | null = null;
 	let pendingPreviewTargetId = $state<string | null>(null);
 	let pendingResumeStarted = false;
+	let activeEditorPreview = $derived(streamPreviewWorkflows.find(item => item.id === pendingPreviewTargetId) ?? pendingPreviewWorkflow);
+	let landingPreviewWorkflows = $derived(pendingPreviewTargetId === null ? streamPreviewWorkflows : []);
 	let routeAlive = true;
 	let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
 	let workflowHashState = $state<WorkflowHashState>({
@@ -267,6 +277,14 @@
 			saving = false;
 		}
 	}
+	$effect(() => {
+		const previewCount = landingPreviewWorkflows.length;
+		if (!previewCount) return;
+		void tick().then(() => {
+			const previews = document.querySelectorAll('[data-testid="workflow-ai-pending-preview"]');
+			previews[previewCount - 1]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+		});
+	});
 	let hasTimeTrigger = $derived(
 		editorGraph?.nodes.some((node) => node.type === 'schedule_trigger') ?? false
 	);
@@ -289,25 +307,13 @@
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		window.addEventListener('popstate', syncWorkflowHashFromLocation);
-		const refreshVisibleWorkflow = () => {
-			if (!routeAlive || !canLoadWorkflows || editorDirty || saving || workflowGraphRef?.hasPendingDraft()) return;
-			void workflowWorkspaceStore.loadWorkflows().catch(() => undefined);
-			const selectedId = $workflowWorkspaceStore.selectedWorkflowId;
-			if (selectedId) void workflowWorkspaceStore.selectWorkflow(selectedId).catch(() => undefined);
-		};
-		const onVisibilityChange = () => { if (!document.hidden) refreshVisibleWorkflow(); };
-		window.addEventListener('focus', refreshVisibleWorkflow);
-		window.addEventListener('online', refreshVisibleWorkflow);
-		document.addEventListener('visibilitychange', onVisibilityChange);
 		void initializeWorkflowsRoute();
 
 		return () => {
 			routeAlive = false;
+			streamController?.abort();
 			window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
 			window.removeEventListener('popstate', syncWorkflowHashFromLocation);
-			window.removeEventListener('focus', refreshVisibleWorkflow);
-			window.removeEventListener('online', refreshVisibleWorkflow);
-			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	});
 
@@ -513,7 +519,11 @@
 		const sessionId = localStorage.getItem(`workflow-ai-session:${workflowId}`);
 		if (sessionId) {
 			void getWorkflowInstruction(sessionId).then(session => {
-				if (workflowHashState.workflowId !== workflowId || session.status !== 'executed') return;
+				if (workflowHashState.workflowId !== workflowId || (session.status !== 'executed' && !(session.status === 'draft' && session.partial_reason))) return;
+				if (session.partial_reason) {
+					partialNotice = session.partial_warning || session.message || 'This workflow is saved with completed steps and is paused.';
+					partialWorkflowIds = committedWorkflows(session).map(item => item.id);
+				}
 				const mutation = session.mutations?.find(item => item.target_id === workflowId);
 				if (!mutation) return;
 				aiSession = session;
@@ -527,9 +537,7 @@
 
 	$effect(() => {
 		if (!canLoadWorkflows) return;
-		const generation = $workflowWorkspaceStore.generation;
 		void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
-			if (!workflowWorkspaceStore.isCurrentGeneration(generation)) return;
 			console.error('[WorkflowsRoute] Failed to warm workflow cache:', loadError);
 		});
 	});
@@ -542,9 +550,13 @@
 		try {
 			const saved = JSON.parse(raw) as { sessionId: string; workflowIds: string[] };
 			void getWorkflowInstruction(saved.sessionId).then(session => {
-				if (session.status !== 'executed' || !session.undo_available) {
+				if (session.status !== 'executed' && !(session.status === 'draft' && session.partial_reason)) {
 					sessionStorage.removeItem('workflow-ai-last-batch');
 					return;
+				}
+				if (session.partial_reason) {
+					partialNotice = session.partial_warning || session.message || 'This workflow is saved with completed steps and is paused.';
+					partialWorkflowIds = committedWorkflows(session).map(item => item.id);
 				}
 				createdAiSession = session;
 				newWorkflowIds = saved.workflowIds;
@@ -563,10 +575,10 @@
 		const raw = sessionStorage.getItem('workflow-ai-pending');
 		if (!raw) return;
 		try {
-			const pending = JSON.parse(raw) as { sessionId: string; instruction: string; workflowId?: string };
+			const pending = JSON.parse(raw) as { sessionId: string; workflowId?: string };
 			pendingSaveSessionId = pending.sessionId;
 			pendingSaveMessage = $text('workflows.builder.ai_saving');
-			void authorWorkflow(pending.instruction, pending.workflowId, pending.sessionId);
+			void authorWorkflow('', pending.workflowId, pending.sessionId);
 		} catch {
 			sessionStorage.removeItem('workflow-ai-pending');
 		}
@@ -596,11 +608,13 @@
 	});
 
 	$effect(() => {
-		const generation = $workflowWorkspaceStore.generation;
+		const generation = workflowWorkspaceStore.getGeneration();
+		const storeSelectedWorkflowId = $workflowWorkspaceStore.selectedWorkflowId;
 		if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
 			observedWorkflowGeneration = generation;
 			routeError = null;
 		}
+		void storeSelectedWorkflowId;
 	});
 
 	async function createRainWorkflow() {
@@ -654,6 +668,22 @@
 		await authorWorkflow(instruction);
 	}
 
+	async function stopAuthoring(): Promise<void> {
+		if (!saving || !pendingSaveSessionId || stopRequested) return;
+		stopRequested = true;
+		pendingSaveMessage = 'Stopping after the current step...';
+		try {
+			// Acknowledge Stop on the server before closing the event stream. GET then
+			// recovers its durable partial result, including across worker processes.
+			await stopWorkflowInstruction(pendingSaveSessionId);
+			streamController?.abort();
+		} catch (cause) {
+			stopRequested = false;
+			pendingSaveMessage = null;
+			routeError = cause instanceof Error ? cause.message : 'Could not stop workflow creation.';
+		}
+	}
+
 	function submitEditorInstruction(text: string): void {
 		if (!selectedWorkflow || !text.trim() || pendingSaveSessionId) return;
 		editorInstruction = text.trim();
@@ -703,21 +733,86 @@
 		authoringAssumptionsWorkflowId = null;
 		undoConflict = false;
 		pendingPreviewWorkflow = null;
+		streamPreviewWorkflows = [];
+		authoringPhase = null;
+		acceptedNodeCounts = {};
+		stopRequested = false;
+		partialNotice = null;
+		partialWorkflowIds = [];
+		pendingSaveMessage = null;
 		pendingPreviewTargetId = workflowId ?? null;
 		saving = true;
 		routeError = null;
+		const showAcceptedPreview = (event: WorkflowAcceptedPreview) => {
+			if (event.graph.version !== 2) return;
+			const preview: WorkflowDetail = {
+				id: event.metadata.workflow_id ?? (event.operation === 'update' || event.metadata.action === 'update' ? workflowId : undefined) ?? `provisional-${event.workflow_index}`,
+				title: event.metadata.title,
+				description: event.metadata.description ?? null,
+				category: event.metadata.category,
+				icon: event.metadata.icon,
+				status: 'provisional', enabled: workflows.find(item => item.id === event.metadata.workflow_id)?.enabled ?? false, current_version_id: '',
+				graph: event.graph
+			};
+			acceptedNodeCounts = { ...acceptedNodeCounts, [preview.id]: event.accepted_node_count ?? event.graph.nodes.length };
+			streamPreviewWorkflows = [...streamPreviewWorkflows.filter(item => item.id !== preview.id), preview];
+			if (workflowId && preview.id === workflowId) pendingPreviewWorkflow = preview;
+		};
 		try {
-			let session = existingSessionId
-				? await getWorkflowInstruction(existingSessionId)
-				: await submitWorkflowInstruction(instruction, workflowId);
+			let session: WorkflowInputSession;
+			if (existingSessionId) {
+				session = await getWorkflowInstruction(existingSessionId);
+			} else {
+				const key = interruptedSubmission?.instruction === instruction && interruptedSubmission.workflowId === workflowId
+					? interruptedSubmission.key : crypto.randomUUID();
+				interruptedSubmission = { instruction, workflowId, key };
+				const controller = new AbortController();
+				streamController = controller;
+				authoringPhase = 'planning';
+				let startedSessionId: string | null = null;
+				const onEvent = (event: WorkflowInputStreamEvent) => {
+					if (!routeAlive) return;
+					if (event.type === 'started') {
+						startedSessionId = event.session_id;
+						pendingSaveSessionId = event.session_id;
+						sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: event.session_id, workflowId }));
+					} else if (event.type === 'progress') {
+						authoringPhase = event.phase;
+					} else if (event.type === 'preview' && event.provisional && event.validated && event.graph.version === 2) {
+						showAcceptedPreview(event);
+					}
+				};
+				try {
+					session = await streamWorkflowInstruction(instruction, workflowId, onEvent, controller.signal, key);
+				} catch (streamError) {
+					if (!routeAlive || (controller.signal.aborted && !stopRequested)) throw streamError;
+					if (controller.signal.aborted && stopRequested && startedSessionId) {
+						session = await getWorkflowInstruction(startedSessionId);
+					} else if (!startedSessionId) {
+						// Reuse the same key: the server may have accepted the first request.
+						try {
+							session = await streamWorkflowInstruction(instruction, workflowId, onEvent, controller.signal, key);
+						} catch (retryError) {
+							if (!startedSessionId) throw retryError;
+							session = await getWorkflowInstruction(startedSessionId);
+						}
+					} else {
+						session = await getWorkflowInstruction(startedSessionId);
+					}
+				}
+				streamController = null;
+			}
 			let pendingChecks = 0;
-			while (session.status === 'queued' || session.status === 'saving') {
+			while (session.status === 'running' || session.status === 'queued' || session.status === 'saving') {
 				pendingSaveSessionId = session.session_id;
-				pendingSaveMessage = session.message || $text('workflows.builder.ai_saving');
+				pendingSaveMessage = stopRequested ? 'Stopping after the current step...' : session.message || $text('workflows.builder.ai_saving');
 				pendingPreviewWorkflow = session.preview_workflow ?? pendingPreviewWorkflow;
+				if (session.preview_workflows?.length) streamPreviewWorkflows = session.preview_workflows;
+				for (const preview of session.partial_previews ?? []) showAcceptedPreview(preview);
+				if (!stopRequested) authoringPhase = 'saving';
 				pendingPreviewTargetId = workflowId ?? null;
 				authoringAssumptions = session.assumptions ?? authoringAssumptions;
-				sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: session.session_id, instruction, workflowId }));
+				sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: session.session_id, workflowId }));
 				await new Promise(resolve => setTimeout(resolve, pendingChecks++ < 2 ? 500 : 1500));
 				if (!routeAlive) return;
 				session = await getWorkflowInstruction(session.session_id);
@@ -725,13 +820,19 @@
 			pendingSaveSessionId = null;
 			pendingSaveMessage = null;
 			pendingPreviewWorkflow = null;
+			streamPreviewWorkflows = [];
+			authoringPhase = null;
 			pendingPreviewTargetId = null;
 			sessionStorage.removeItem('workflow-ai-pending');
+			interruptedSubmission = null;
+			stopRequested = false;
 			if (session.status === 'needs_clarification') {
-				handoffWorkflowClarification(instruction, workflowId);
+				if (instruction) handoffWorkflowClarification(instruction, workflowId);
+				else routeError = session.message || 'Please clarify the workflow request in chat.';
 				return;
 			}
-			if (session.status === 'draft') {
+			const isPartial = session.status === 'draft' && !!session.partial_reason;
+			if (session.status === 'draft' && !isPartial) {
 				if (!session.workflow) {
 					routeError = session.message || $text('workflows.builder.ai_draft_unsaved');
 					return;
@@ -742,7 +843,7 @@
 				workflowInputText = '';
 				return;
 			}
-			if (session.status !== 'executed') {
+			if (session.status !== 'executed' && !isPartial) {
 				routeError = session.error || session.message || $text('workflows.builder.ai_failed');
 				return;
 			}
@@ -750,6 +851,10 @@
 			if (!committed.length) {
 				routeError = $text('workflows.builder.ai_missing_result');
 				return;
+			}
+			if (isPartial) {
+				partialNotice = session.partial_warning || session.message || 'This workflow is saved with the completed steps and is paused. Add the missing steps manually or ask for a specific update.';
+				partialWorkflowIds = committed.map(item => item.id);
 			}
 			authoringAssumptions = session.assumptions ?? [];
 			const previouslyKnownIds = new Set(workflows.map(item => item.id));
@@ -770,32 +875,40 @@
 					openWorkflowHome();
 				}
 			}
-			const editedWorkflowId = workflowId ?? session.mutations?.find(item => item.type === 'update_workflow')?.target_id;
-			if (editedWorkflowId) {
-				const updated = committed.find(item => item.id === editedWorkflowId);
-				if (updated) {
-					const mutation = session.mutations?.find(item => item.target_id === editedWorkflowId);
-					workflowWorkspaceStore.upsertWorkflow(updated);
-					if (!workflowId) {
-						await selectWorkflow(editedWorkflowId);
-						openWorkflowDetails(editedWorkflowId);
-					}
-					resetEditor(updated);
-					identityResetSignal += 1;
-					aiChange = session.changes?.find(change => change.workflow_id === editedWorkflowId) ?? {
-						workflow_id: editedWorkflowId,
-						...workflowNodeChanges(before?.graph.nodes ?? mutation?.before?.graph?.nodes ?? [], updated.graph.nodes)
-					};
-					aiSession = session;
-					authoringAssumptionsWorkflowId = editedWorkflowId;
-					localStorage.setItem(`workflow-ai-session:${editedWorkflowId}`, session.session_id);
+			const updatedIds = new Set(session.mutations?.filter(item => item.type === 'update_workflow').map(item => item.target_id) ?? []);
+			if (workflowId) updatedIds.add(workflowId);
+			const updatedWorkflows = committed.filter(item => updatedIds.has(item.id));
+			for (const updated of updatedWorkflows) {
+				workflowWorkspaceStore.upsertWorkflow(updated);
+				localStorage.setItem(`workflow-ai-session:${updated.id}`, session.session_id);
+			}
+			if (updatedWorkflows.length === 1 && created.length === 0) {
+				const updated = updatedWorkflows[0];
+				if (!workflowId) {
+					await selectWorkflow(updated.id);
+					openWorkflowDetails(updated.id);
 				}
+				const mutation = session.mutations?.find(item => item.target_id === updated.id);
+				resetEditor(updated);
+				identityResetSignal += 1;
+				aiChange = session.changes?.find(change => change.workflow_id === updated.id) ?? {
+					workflow_id: updated.id,
+					...workflowNodeChanges(before?.graph.nodes ?? mutation?.before?.graph?.nodes ?? [], updated.graph.nodes)
+				};
+				aiSession = session;
+				authoringAssumptionsWorkflowId = updated.id;
+			} else if (updatedWorkflows.length > 1) {
+				openWorkflowHome();
 			}
 			workflowInputText = '';
 			editorInstruction = '';
 		} catch (cause) {
-			routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_failed');
+			if (!(cause instanceof DOMException && cause.name === 'AbortError')) routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_failed');
 		} finally {
+			streamController = null;
+			streamPreviewWorkflows = [];
+			pendingPreviewWorkflow = null;
+			authoringPhase = null;
 			saving = false;
 		}
 	}
@@ -859,8 +972,8 @@
 		const raw = sessionStorage.getItem('workflow-ai-pending');
 		if (!raw) return;
 		try {
-			const pending = JSON.parse(raw) as { sessionId: string; instruction: string; workflowId?: string };
-			void authorWorkflow(pending.instruction, pending.workflowId, pending.sessionId);
+			const pending = JSON.parse(raw) as { sessionId: string; workflowId?: string };
+			void authorWorkflow('', pending.workflowId, pending.sessionId);
 		} catch {
 			sessionStorage.removeItem('workflow-ai-pending');
 			pendingSaveSessionId = null;
@@ -1167,6 +1280,7 @@
 						itemTestId="workflow-landing-card"
 						showReportIssue
 						showAllMode={showAllWorkflows}
+						contentSlotVisible={streamPreviewWorkflows.length > 0 || (partialNotice !== null && partialWorkflowIds.length > 1) || (!!pendingSaveSessionId && !!pendingPreviewWorkflow && pendingPreviewTargetId === null)}
 						showAllLabel={workflows.length > 0 ? 'Show all' : ''}
 						showAllTestId="workflows-show-all"
 						allItems={allWorkflowContinueItems}
@@ -1184,6 +1298,15 @@
 						onAllItem={continueWorkflowFromCard}
 						onStartInspiration={startWorkflowFromInspiration}
 					>
+						{#if partialNotice && partialWorkflowIds.length > 1}
+							<p class="workflow-ai-partial-warning" data-testid="workflow-ai-partial-warning" role="status">{partialNotice}</p>
+						{/if}
+						{#each landingPreviewWorkflows as preview (preview.id)}
+							<WorkflowPendingPreview workflow={preview} mode="landing" phase={authoringPhase ?? 'saving'} acceptedNodeCount={acceptedNodeCounts[preview.id] ?? 0} isNew={!workflows.some(item => item.id === preview.id)} changes={$workflowWorkspaceStore.detailsById[preview.id] ? workflowNodeChanges($workflowWorkspaceStore.detailsById[preview.id].graph.nodes, preview.graph.nodes) : null}/>
+						{/each}
+						{#if !streamPreviewWorkflows.length && pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === null}
+							<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing" isNew={!workflows.some(item => item.id === pendingPreviewWorkflow?.id)}/>
+						{/if}
 						<svelte:fragment slot="composer">
 							<input bind:this={workflowImportInput} type="file" accept=".yml,.yaml,text/yaml,application/yaml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
 							<div class="workflow-import-dropzone" class:dragging={draggingWorkflowFile} role="group" aria-label={$text('workflows.builder.file_import_group')} data-testid="workflow-import-dropzone" ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); draggingWorkflowFile = true; } }} ondragleave={() => { draggingWorkflowFile = false; }} ondrop={handleWorkflowFileDrop}>
@@ -1208,10 +1331,7 @@
 							<button type="button" class="workflow-import-button" data-testid="workflow-import-button" disabled={saving || !canLoadWorkflows} onclick={() => workflowImportInput?.click()}>{$text('workflows.builder.file_import_button')}</button>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}
 							</div>
-							{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
-							{#if pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === null}
-								<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing"/>
-							{/if}
+							{#if pendingSaveSessionId || authoringPhase}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || (authoringPhase === 'planning' ? 'Planning workflow...' : authoringPhase === 'retrying_node' ? 'Correcting this step...' : authoringPhase === 'validating' ? 'Validating workflow...' : $text('workflows.builder.ai_saving'))}</span>{#if pendingSaveSessionId && saving}<button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? 'Stopping...' : 'Stop'}</button>{/if}{#if pendingSaveSessionId && !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 							{#if createdAiWorkflowIds.length > 1 && authoringAssumptions.length}<p class="workflow-ai-assumptions" data-testid="workflow-ai-assumptions" role="status">{authoringAssumptions.join(' ')}</p>{/if}
 						</svelte:fragment>
 					</WorkspaceHomeShell>
@@ -1301,6 +1421,7 @@
 											>
 												{#if editorGraph}
 													<div data-testid="workflow-editor">
+													{#if partialNotice && partialWorkflowIds.includes(selectedWorkflow.id)}<p class="workflow-ai-partial-warning" data-testid="workflow-ai-partial-warning" role="status">{partialNotice}</p>{/if}
 													{#if authoringReminder || (authoringAssumptionsWorkflowId === selectedWorkflow.id && authoringAssumptions.length) || createdAiWorkflowIds.includes(selectedWorkflow.id)}
 														<div class="workflow-authoring-info" data-testid="workflow-authoring-info" role="status">
 															{#if createdAiWorkflowIds.includes(selectedWorkflow.id)}<p>{$text('workflows.builder.ai_created_disabled')}</p>{/if}
@@ -1309,7 +1430,7 @@
 															{#if createdAiWorkflowIds.includes(selectedWorkflow.id) && createdAiSession?.undo_available}<button type="button" data-testid="workflow-ai-created-undo" disabled={saving} onclick={() => void undoCreatedAiChanges()}>{$text('workflows.builder.ai_undo')}</button>{/if}
 														</div>
 													{/if}
-													{#if aiChange && !pendingPreviewWorkflow && aiChange.workflow_id === selectedWorkflow.id}
+											{#if aiChange && !activeEditorPreview && aiChange.workflow_id === selectedWorkflow.id}
 														<div class="workflow-ai-changes" data-testid="workflow-ai-changes" role="status">
 															<strong>{$text('workflows.builder.ai_changes_saved')}</strong>
 															{#if aiChange.removed_nodes.length}<p>{$text('workflows.builder.ai_removed')} {aiChange.removed_nodes.map(node => node.title).join(', ')}</p>{/if}
@@ -1319,8 +1440,8 @@
 															{#if undoConflict}<button type="button" data-testid="workflow-ai-open-history" onclick={() => document.querySelector<HTMLButtonElement>('[data-testid="workflow-version-selector"]')?.click()}>{$text('workflows.version_history.title')}</button>{/if}
 														</div>
 													{/if}
-													{#if pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === selectedWorkflow.id}
-														<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="editor"/>
+											{#if activeEditorPreview && pendingPreviewTargetId === selectedWorkflow.id}
+												<WorkflowPendingPreview workflow={activeEditorPreview} mode="editor" phase={authoringPhase ?? 'saving'} acceptedNodeCount={acceptedNodeCounts[activeEditorPreview.id] ?? 0} changes={workflowNodeChanges(selectedWorkflow.graph.nodes, activeEditorPreview.graph.nodes)}/>
 													{:else}
 													<WorkflowGraphRenderer
 														bind:this={workflowGraphRef}
@@ -1332,7 +1453,7 @@
 															onSave={saveNodeGraph}
 																/>
 													{/if}
-													{#if hasTimeTrigger && !pendingPreviewWorkflow}
+											{#if hasTimeTrigger && !activeEditorPreview}
 															<div class="workflow-test-now-row">
 																<button
 																	type="button"
@@ -1368,7 +1489,7 @@
 									onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
 									onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
 									onRecordingClose={() => { voiceTarget = null; }}/>
-								{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
+								{#if pendingSaveSessionId || authoringPhase}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || (authoringPhase === 'planning' ? 'Planning workflow...' : authoringPhase === 'retrying_node' ? 'Correcting this step...' : authoringPhase === 'validating' ? 'Validating workflow...' : $text('workflows.builder.ai_saving'))}</span>{#if pendingSaveSessionId && saving}<button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? 'Stopping...' : 'Stop'}</button>{/if}{#if pendingSaveSessionId && !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 							</div>
 						{/if}
 					</section>
@@ -1474,6 +1595,7 @@
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:0;padding:12px 1rem max(12px,env(safe-area-inset-bottom));background:var(--color-grey-10);box-shadow:0 -8px 24px color-mix(in srgb,var(--color-grey-100) 9%,transparent)}
 	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-button{border:0;border-radius:var(--radius-8);padding:.35rem .75rem;background:transparent;color:var(--color-primary);font:inherit;font-size:var(--font-size-small);cursor:pointer}.workflow-import-button:hover{text-decoration:underline}.workflow-import-button:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-import-button:disabled{opacity:.5;cursor:default}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
+	.workflow-ai-partial-warning{max-width:56rem;margin:.75rem auto;padding:.75rem 1rem;border:1px solid var(--color-warning, var(--color-button-primary));border-radius:.75rem;background:var(--color-grey-10);color:var(--color-font-primary)}
 	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}
 	.workflow-ai-pending button{border:1px solid var(--color-button-primary);border-radius:.7rem;padding:.35rem .7rem;background:transparent;color:var(--color-primary);font:inherit;cursor:pointer}
 	.workflow-ai-changes{box-sizing:border-box;width:min(42rem,calc(100% - 2rem));margin:1rem auto;padding:1rem 1.25rem;border:1px solid var(--color-button-primary);border-radius:1rem;background:var(--color-grey-10);color:var(--color-font-primary)}
@@ -1794,6 +1916,26 @@
 			height: calc(100dvh - 66px);
 			padding: 8px 10px;
 			box-sizing: border-box;
+		}
+
+		/* Let the all-workflows scroll area use the space above the composer. */
+		.workflows-start :global(.workspace-home-shell[data-surface='workflows'].all-items-mode) {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.workflows-start :global(.workspace-home-shell[data-surface='workflows'].all-items-mode .workspace-scroll-layer) {
+			flex: 1 1 auto;
+			height: auto;
+			min-height: 0;
+		}
+
+		.workflows-start :global(.workspace-home-shell[data-surface='workflows'].all-items-mode .workspace-composer-slot) {
+			position: relative;
+			left: auto;
+			bottom: auto;
+			transform: none;
+			flex: 0 0 auto;
 		}
 
 		.workflow-sidebar-shell {

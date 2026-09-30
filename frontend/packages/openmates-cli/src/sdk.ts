@@ -4754,6 +4754,7 @@ export class OpenMatesWorkflows {
       ...(params.audioRef !== undefined ? { audio_ref: params.audioRef } : {}),
       ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: selectedWorkflowId } : {}),
       ...(params.selectedProjectId !== undefined ? { selected_project_id: selectedProjectId } : {}),
+      ...(params.idempotencyKey !== undefined ? { idempotency_key: params.idempotencyKey } : {}),
     });
     if (!response.session) throw new OpenMatesApiError(500, { detail: "Workflow input response missing session" });
     return response.session;

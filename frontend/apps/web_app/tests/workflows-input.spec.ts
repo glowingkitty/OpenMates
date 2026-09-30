@@ -27,6 +27,10 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
+function sseSession(session: Record<string, unknown>): string {
+	return `data: ${JSON.stringify({ type: 'session', session })}\n\n`;
+}
+
 function blankWorkflowGraph(index: number) {
 	return {
 		version: 1,
@@ -156,15 +160,15 @@ test.describe('Workflows input home', () => {
 					: { session_id: 'workflow-input-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: preview }
 				}) });
 			});
-			await page.route('**/v1/workflows/input', async (route: Route) => {
+			await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
 				const payload = route.request().postDataJSON();
 				expect(payload.text).toBe('Daily school weather');
 				expect(payload.timezone).toBeTruthy();
 				expect(payload.optimistic_save).toBe(true);
-				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 					session_id: 'workflow-input-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: preview
-				} }) });
+				}) });
 			});
 			await page.getByTestId('workflow-input-textarea').focus();
 			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
@@ -221,13 +225,13 @@ test.describe('Workflows input home', () => {
 			expect(draftResponse.ok()).toBe(true);
 			const draft = (await draftResponse.json()).workflow;
 			createdWorkflowIds.add(draft.id);
-			await page.unroute('**/v1/workflows/input');
-			await page.route('**/v1/workflows/input', async (route: Route) => {
+			await page.unroute('**/v1/workflows/input/stream');
+			await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
 				expect(route.request().postDataJSON().text).toBe(shortRequest);
-				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 					session_id: 'workflow-draft-spec', status: 'draft', workflow: draft
-				} }) });
+				}) });
 			});
 			await page.getByTestId('workflow-input-textarea').fill(shortRequest);
 			await page.getByTestId('workflow-input-submit').click();
@@ -242,15 +246,15 @@ test.describe('Workflows input home', () => {
 					: { session_id: 'workflow-editor-preview-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: editedPreview }
 				}) });
 			});
-			await page.unroute('**/v1/workflows/input');
-			await page.route('**/v1/workflows/input', async (route: Route) => {
+			await page.unroute('**/v1/workflows/input/stream');
+			await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
 				const payload = route.request().postDataJSON();
 				expect(payload.selected_workflow_id).toBe(draft.id);
 				expect(payload.optimistic_save).toBe(true);
-				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 					session_id: 'workflow-editor-preview-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: editedPreview
-				} }) });
+				}) });
 			});
 			await page.getByTestId('workflow-ai-edit-textarea').fill('Revise this workflow');
 			await page.getByTestId('workflow-ai-edit-submit').click();
@@ -296,15 +300,15 @@ test.describe('Workflows input home', () => {
 					: { session_id: 'workflow-editor-success-spec', status: 'undone' }
 				}) });
 			});
-			await page.unroute('**/v1/workflows/input');
-			await page.route('**/v1/workflows/input', async (route: Route) => {
+			await page.unroute('**/v1/workflows/input/stream');
+			await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
 				const payload = route.request().postDataJSON();
 				expect(payload.selected_workflow_id).toBe(draft.id);
 				expect(payload.optimistic_save).toBe(true);
-				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 					session_id: 'workflow-editor-success-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: updatedWorkflow
-				} }) });
+				}) });
 			});
 			await page.getByTestId('workflow-ai-edit-textarea').fill('Update the steps');
 			await page.getByTestId('workflow-ai-edit-submit').click();
@@ -330,6 +334,11 @@ test.describe('Workflows input home', () => {
 			await page.getByTestId('workspace-detail-title').click();
 			const identityInput = page.locator('.workflow-detail-header form input').first();
 			await identityInput.fill(`${shortRequest} manual draft`);
+			await page.getByTestId('workflow-ai-edit-textarea').fill('Change the schedule');
+			await page.getByTestId('workflow-ai-edit-submit').click();
+			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
+			await page.getByTestId('workflow-guard-stay').click();
+			await expect(identityInput).toHaveValue(`${shortRequest} manual draft`);
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 			await page.getByTestId('workflow-guard-stay').click();
@@ -356,15 +365,15 @@ test.describe('Workflows input home', () => {
 				if (route.request().method() !== 'GET') return route.continue();
 				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ workflow: landingEdited }) });
 			});
-			await page.unroute('**/v1/workflows/input');
-			await page.route('**/v1/workflows/input', async (route: Route) => {
+			await page.unroute('**/v1/workflows/input/stream');
+			await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
 				expect(route.request().postDataJSON().selected_workflow_id).toBeFalsy();
-				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 					session_id: 'workflow-landing-edit-spec', status: 'executed', workflow: landingEdited,
 					changes: [{ workflow_id: draft.id, added_node_ids: [], edited_node_ids: ['manual'], removed_nodes: [] }],
 					mutations: [{ type: 'update_workflow', target_id: draft.id, before: { graph: draft.graph }, after: { graph: landingEdited.graph } }]
-				} }) });
+				}) });
 			});
 			await page.getByTestId('workflow-input-textarea').fill(`Move ${shortRequest} to 8:30`);
 			await page.getByTestId('workflow-input-submit').click();
@@ -414,13 +423,13 @@ test.describe('Workflows input home', () => {
 		await loginToTestAccount(page, log, async () => {});
 		const submittedTexts: string[] = [];
 		const selectedWorkflowIds: Array<string | undefined> = [];
-		await page.route('**/v1/workflows/input', async (route: Route) => {
+		await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 			if (route.request().method() !== 'POST') return route.continue();
 			submittedTexts.push(route.request().postDataJSON().text);
 			selectedWorkflowIds.push(route.request().postDataJSON().selected_workflow_id);
-			await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: {
+			await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 				session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.'
-			} }) });
+			}) });
 		});
 		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflow-input-mic')).toBeVisible();

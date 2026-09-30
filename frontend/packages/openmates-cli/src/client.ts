@@ -1241,6 +1241,7 @@ export interface WorkflowInputStartParams {
   selectedProjectId?: string | null;
   timezone?: string | null;
   optimisticSave?: boolean;
+  idempotencyKey?: string;
 }
 
 export interface WorkflowInputEvent {
@@ -1262,6 +1263,10 @@ export interface WorkflowInputSessionResult {
   error?: string | null;
   workflow?: WorkflowDetail | null;
   preview_workflow?: WorkflowDetail | null;
+  workflows?: WorkflowDetail[];
+  preview_workflows?: WorkflowDetail[];
+  changes?: Array<{ workflow_id: string; operation: "create" | "update"; added_node_ids: string[]; changed_node_ids: string[]; removed_node_ids: string[] }>;
+  mutations?: Array<Record<string, unknown>>;
   assumptions?: string[];
   project_item?: Record<string, unknown> | null;
   undo_available: boolean;
@@ -9643,6 +9648,7 @@ export class OpenMatesClient {
         ...(params.selectedProjectId !== undefined ? { selected_project_id: selectedProjectId } : {}),
         ...(params.timezone !== undefined ? { timezone: params.timezone } : {}),
         ...(params.optimisticSave !== undefined ? { optimistic_save: params.optimisticSave } : {}),
+        ...(params.idempotencyKey !== undefined ? { idempotency_key: params.idempotencyKey } : {}),
       },
       this.getCliRequestHeaders(),
     );
