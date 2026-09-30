@@ -2,6 +2,9 @@ schema_version: 1
 specification: feature.apple-notifications@1
 
 registration_lifecycle:
+  - id: paired-phone-watch-targets-remain-independent
+    given: {phone_device_id: phone-installation, watch_device_id: watch-installation, environment: sandbox, server_ack_received: true}
+    expect: {phone_registration_active: true, watch_registration_active: true, watch_topic: org.openmates.app.watch}
   - id: acknowledged-sandbox-registration
     given: {device_id: apple-device-1, environment: sandbox, permission_state: granted, server_ack_received: true}
     expect: {registration_active: true, client_reports_registered: true}
@@ -16,6 +19,9 @@ registration_lifecycle:
     expect: {registration_active: false, delivery_state: failed, fabricated_success: false}
 
 payload_privacy:
+  - id: watch-without-service-extension-keeps-generic-alert
+    given: {platform: watchos, chat_title: Private chat, message_preview: Private response, service_extension_available: false}
+    expect: {alert_contains_chat_title: false, alert_contains_message_preview: false, encrypted_preview_in_payload: false, generic_localized_text: true}
   - id: generic-fallback-excludes-private-content
     given: {chat_title: Private medical plan, message_preview: Private response, encrypted_preview: null}
     expect: {alert_contains_chat_title: false, alert_contains_message_preview: false, generic_localized_text: true}

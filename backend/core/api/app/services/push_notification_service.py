@@ -38,6 +38,18 @@ APNS_ENCRYPTION_VERSION = "x25519-aesgcm-v1"
 APNS_ENCRYPTION_INFO = b"openmates-apns-notification-v1"
 
 
+def apns_topic_for_platform(platform: str) -> str:
+    """Select the APNs topic on the server; client topic hints are never trusted."""
+    if platform == "watchos":
+        return "org.openmates.app.watch"
+    if platform not in {"apns", "ios", "macos"}:
+        raise ValueError("Unsupported native push platform")
+    topic = os.getenv("APNS_BUNDLE_ID", "org.openmates.app")
+    if topic != "org.openmates.app":
+        raise ValueError("Unsupported APNs application topic")
+    return topic
+
+
 class PushNotificationService:
     """
     Manages VAPID key lifecycle and dispatches Web Push notifications.
@@ -322,7 +334,12 @@ class PushNotificationService:
 
         team_id = os.getenv("APNS_TEAM_ID")
         key_id = os.getenv("APNS_KEY_ID")
-        bundle_id = os.getenv("APNS_BUNDLE_ID", "org.openmates.app")
+        platform = str(subscription_info.get("platform") or "apns").strip().lower()
+        try:
+            bundle_id = apns_topic_for_platform(platform)
+        except ValueError:
+            logger.error("[PushNotificationService] Unsupported APNs target topic")
+            return False
         private_key = os.getenv("APNS_PRIVATE_KEY")
         private_key_path = os.getenv("APNS_PRIVATE_KEY_PATH")
 
@@ -358,7 +375,8 @@ class PushNotificationService:
             "chat_id": chat_id,
             "category": category,
         }
-        encrypted_payload = self._build_encrypted_apns_payload(subscription_info, body)
+        # Watch has no notification service extension; always retain generic text.
+        encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
         if category == APNS_CHAT_CATEGORY and encrypted_payload:
             payload["aps"]["mutable-content"] = 1
             payload["encrypted_notification"] = encrypted_payload

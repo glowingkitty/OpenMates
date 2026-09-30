@@ -34,6 +34,7 @@ from backend.core.api.app.services.push_subscription_lock import (
     push_subscription_write_lock,
     require_push_subscription_lock,
 )
+from backend.core.api.app.services.push_notification_service import apns_topic_for_platform
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class PushSubscribeResponse(BaseModel):
 
 
 class NativeDeviceRegisterRequest(BaseModel):
-    """Native Apple push token registration from the iOS/macOS app."""
+    """Native Apple push token registration from the iOS/macOS/watchOS app."""
     token: str
     platform: str = "apns"
     environment: Optional[str] = None
@@ -271,17 +272,26 @@ async def register_native_device(
         raise HTTPException(status_code=400, detail="Missing device token")
 
     platform = body.platform.strip().lower() or "apns"
-    if platform not in {"apns", "ios", "macos"}:
+    if platform not in {"apns", "ios", "macos", "watchos"}:
         raise HTTPException(status_code=400, detail="Unsupported native push platform")
+    try:
+        topic = apns_topic_for_platform(platform)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail="Native push topic unavailable") from exc
+    if platform == "watchos" and not (body.device_id or "").strip():
+        raise HTTPException(status_code=400, detail="Missing Watch installation identity")
+    if platform == "watchos" and body.environment not in {"sandbox", "production"}:
+        raise HTTPException(status_code=400, detail="Unsupported Watch push environment")
 
     target = {
         "type": "apns",
         "token": token,
         "platform": platform,
+        "topic": topic,
         "environment": body.environment,
         "notification_public_key": body.notification_public_key,
         "encryption_version": body.encryption_version,
-        "device_id": body.device_id,
+        "device_id": (body.device_id or "").strip() or None,
     }
 
     try:
