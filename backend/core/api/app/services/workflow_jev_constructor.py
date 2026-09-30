@@ -182,8 +182,18 @@ class WorkflowJevConstructor:
                               ("send", "distinct chat messages, including separate true/false responses")):
             if kind in {"exact", "ai"} and selection.check_mode not in {kind, "both"}:
                 continue
+            options = count_options
+            instructions = (
+                f"How many nodes are needed for {meaning} in request? An if/else statement needs ONE check node with two branches, not two check nodes. AND/OR operands belong to the same check. Select 0 if none of this kind is required."
+            )
+            if kind == "send":
+                # Delivery was already selected; zero would contradict that
+                # required effect. Each explicitly different branch response
+                # needs its own message rather than its own condition.
+                options = {key: value for key, value in count_options.items() if key != "0"}
+                instructions = "How many distinct chat messages does the request require? Use 1 for delivering action results, including a default chat delivery. Use 2 when the true and false branches explicitly request different messages. Three separately requested messages need 3."
             questions[f"count:{kind}"] = _choice(
-                f"How many nodes are needed for {meaning} in request? An if/else statement needs ONE check node with two branches, not two check nodes. AND/OR operands belong to the same check. Select 0 if none of this kind is required.", count_options,
+                instructions, options,
             )
         questions["trigger"] = _choice("What starts the workflow? Default to a weekly schedule when no trigger is specified.", {
             "schedule": "Recurring time/date schedule or unspecified trigger", "manual": "Explicit manual run only",
@@ -272,12 +282,12 @@ class WorkflowJevConstructor:
                 branches = ("yes", "no", "unsure") if node.get("mode") == "ai" else ("yes", "no") if node["type"] == "check" else ("next",)
                 for branch in branches:
                     questions[f"{node_id}:{branch}"] = _choice(
-                        f"Which node follows {node_id} ({node['description']}, instance {node.get('instance', 1)}) on its {branch} branch? For an unspecified false/unsure branch select end. Distinguish separate true/false messages by their instance number, true first.", candidates,
+                        f"Which node follows {node_id} ({node['description']}, instance {node.get('instance', 1)}) on its {branch} branch? Every allocated action and requested message must be reachable; do not skip required actions. Actions precede their checks and messages. On a false/unsure branch choose end ONLY when no response is requested for that branch. Otherwise select its message. Distinguish separate true/false messages by their instance number, true first. Messages finish at end.", candidates,
                     )
             if node["type"] == "schedule_trigger":
                 add(f"{node_id}:time", "Select the final requested local schedule time, ignoring superseded times; default 09:00 if none.", _times(text))
                 add(f"{node_id}:timezone", f"Select an explicitly requested schedule timezone; otherwise {timezone}. A weather/search city alone does not change schedule timezone.", _zones(text, timezone))
-                add(f"{node_id}:cadence", "Select the recurring cadence; default weekly when unspecified. Unsupported schedules need generation/clarification.", ["daily", "weekly"])
+                add(f"{node_id}:cadence", "Select daily for every day, weekly for weekdays or named days (Monday etc.). Default weekly when unspecified. Unsupported schedules need generation/clarification.", ["daily", "weekly"])
                 days = [[day] for day in _DAYS]
                 mentioned = [day for day in _DAYS if re.search(rf"\b{day}\b", text, re.IGNORECASE)]
                 days += [list(_DAYS[:5]), list(_DAYS[5:])]
@@ -367,6 +377,11 @@ class WorkflowJevConstructor:
                     config["selected_inputs"] = list(dict.fromkeys(value for index in (1, 2) if (value := get(f"{node_id}:source{index}")) is not _OMIT))
                     config["question"] += "".join(f"\n{{{{ {ref} }}}}" for ref in config["selected_inputs"])
             elif node_type == "send_chat_message":
+                # Chat titles are delivery metadata, separate from choosing
+                # actions and control flow. Use a neutral backend default in
+                # the graph-only experiment; product identity generation is
+                # deliberately measured separately.
+                config["title"] = "Workflow update"
                 message = get(f"{node_id}:message")
                 if message is not _OMIT:
                     config["message"] = message

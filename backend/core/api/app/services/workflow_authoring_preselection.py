@@ -103,6 +103,9 @@ class WorkflowAuthoringPreselector:
                         "Scheduling, exact comparisons, subjective AI checks and sending chat messages "
                         "are built-in nodes. Do not select ai.ask for an AI check alone; select it for "
                         "generating an answer or summary. Ignore statements the user corrected. "
+                        "Use a dedicated domain skill when it fulfils the request: do not additionally "
+                        "select web search/read or news just to discover how to perform another skill. "
+                        "An explicit web search is not a news search unless news is requested. "
                         "For an edit, select skills needed by the requested change."
                     ),
                 },
@@ -111,7 +114,7 @@ class WorkflowAuthoringPreselector:
             "create": "Create a new workflow", "update": "Change an existing workflow",
             "mixed": "Both create and update workflows", "clarify": "No clear workflow instruction",
         })
-        questions["check_mode"] = _choice("What conditional checks does this workflow require?", {
+        questions["check_mode"] = _choice("What conditional checks does this workflow require? Branching on the answer of an AI check is part of that AI check, not an additional exact check. A boolean/numeric flag supplied directly by an app uses an exact check.", {
             "none": "No conditional check",
             "exact": "Compare numeric, boolean, existence or exact text values deterministically",
             "ai": "Subjective assessment requiring a yes/no AI question",

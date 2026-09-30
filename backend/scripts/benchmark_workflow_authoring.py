@@ -79,8 +79,11 @@ CASES = (
 
 def _object(properties: dict[str, Any]) -> dict[str, Any]:
     """All properties are required by provider strict mode; nullable means omitted."""
-    return {"type": "object", "additionalProperties": False,
-            "required": list(properties), "properties": properties}
+    result = {"type": "object", "additionalProperties": False,
+              "properties": properties}
+    if properties:
+        result["required"] = list(properties)
+    return result
 
 
 def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
@@ -150,7 +153,7 @@ def _transport_schema(selection: Any) -> dict[str, Any]:
                         "conditions": {"type": "array", "items": comparison}})
     block = _object({"id": {"type": "string"}, "source": {"type": "string"},
                      "only_new_results": _nullable({"type": "boolean"}),
-                     "include_if": {"type": ["string", "boolean", "null"]}})
+                     "include_if": _nullable({"type": "boolean"})})
     variants = [
         _node("schedule_trigger", _object({"schedule": {"anyOf": [day, week]}})),
         _node("manual_trigger", _object({})),
@@ -165,16 +168,17 @@ def _transport_schema(selection: Any) -> dict[str, Any]:
             "blocks": {"type": "array", "items": block}})),
         _node("end", _object({})),
     ]
+    app_configs = []
     for cap in selection.capabilities:
-        app_id, skill_id = cap.id.split(".", 1)
         schema = cap.metadata["input_schema"]
         if cap.id == "ai.ask":
             schema = {"type": "object", "properties": {"prompt": schema["properties"]["prompt"]},
                       "required": ["prompt"]}
-        variants.append(_node("app_skill_action", _object({
-            "app_id": {"type": "string", "const": app_id},
-            "skill_id": {"type": "string", "const": skill_id},
-            "input": _input_schema(schema, root=True)})))
+        app_configs.append(_object({
+            "capability_id": {"type": "string", "const": cap.id},
+            "input": _input_schema(schema, root=True)}))
+    if app_configs:
+        variants.append(_node("app_skill_action", {"anyOf": app_configs}))
     edge = _object({"from": {"type": "string"}, "to": {"type": "string"},
                     "branch": {"type": ["string", "null"],
                                "enum": [None, "yes", "no", "unsure", "default"]}})
@@ -196,9 +200,12 @@ def decode_transport(raw: dict[str, Any], selection: Any | None = None) -> dict[
         if not isinstance(config, dict):
             raise ValueError("Node config must be an object")
         if node["type"] == "app_skill_action":
-            capability_id = f"{config['app_id']}.{config['skill_id']}"
-            if capability_id in schemas:
-                config = {**config, "input": _strip_optional_nulls(config["input"], schemas[capability_id])}
+            capability_id = config["capability_id"]
+            if not isinstance(capability_id, str) or capability_id not in schemas:
+                raise ValueError("Action capability ID was not selected")
+            app_id, skill_id = capability_id.split(".", 1)
+            config = {"app_id": app_id, "skill_id": skill_id,
+                      "input": _strip_optional_nulls(config["input"], schemas[capability_id])}
         elif node["type"] == "send_chat_message":
             message_schema = {"type": "object", "properties": {
                 "title": {"type": "string"}, "message": {"type": "string"},
@@ -243,6 +250,20 @@ def oracle(graph: WorkflowGraph, case: Case) -> list[str]:
     issues: list[str] = []
     actions = [n for n in graph.nodes if n.type == WorkflowNodeType.APP_SKILL_ACTION]
     capabilities = [f"{n.config.get('app_id')}.{n.config.get('skill_id')}" for n in actions]
+    if case.id in {"rain_if", "weather_cities", "speech_self_correction"}:
+        weather_actions = [n for n in actions if n.config.get("app_id") == "weather"
+                           and n.config.get("skill_id") == "forecast"]
+        target_day = "tomorrow" if case.id == "speech_self_correction" else "today"
+        for action in weather_actions:
+            weather_input = action.config.get("input") or {}
+            start = weather_input.get("start_date")
+            end = weather_input.get("end_date")
+            exact_runtime_day = (isinstance(start, dict) and start.get("$date") == target_day
+                                 and isinstance(end, dict) and end.get("$date") == target_day)
+            exact_today_days = (target_day == "today" and type(weather_input.get("days")) is int
+                                and weather_input["days"] == 1)
+            if not (exact_runtime_day or exact_today_days):
+                issues.append(f"weather action {action.id} lacks exact {target_day} range")
     for required in case.required_capabilities:
         if required not in capabilities:
             issues.append(f"missing capability {required}")
@@ -356,53 +377,78 @@ def oracle(graph: WorkflowGraph, case: Case) -> list[str]:
     return issues
 
 
-def _prompt(case: Case, selection: Any) -> str:
+def _prompt(selection: Any) -> str:
     context = selection.context()
+    # The input schema is already in the complete transport schema below. Keep
+    # public output contracts visible so the model can choose real references.
+    visible_context = {**context, "capabilities": [
+        {key: value for key, value in cap.items() if key not in {"input_schema", "workflow"}}
+        for cap in context["capabilities"]]}
+    schema = _transport_schema(selection)
     return (
-        "Construct one executable Workflow V2 graph for the user request. "
+        "Construct one executable Workflow V2 graph for the next user message. "
+        f"Browser timezone: {TIMEZONE}. Use it for schedule timezone unless the "
+        "user explicitly gives a different schedule timezone. A search or weather "
+        "location alone does not change the schedule timezone. "
         "Use only the relevant members of the selected candidate app skill contracts; "
         "never invent a capability or field, and do not add irrelevant selected skills. "
-        "Return only a JSON object matching the supplied typed graph schema. "
-        "Allowed node types: schedule_trigger, manual_trigger, app_skill_action, check, "
-        "send_chat_message, end. Use a schedule_trigger with config.schedule type daily or weekly, "
-        "time HH:MM, timezone IANA and lowercase weekdays for weekly. Place the schedule "
-        "inside config.schedule. app_skill_action config.app_id is the app name only, "
-        "config.skill_id is the skill name only, and config.input matches its selected schema. "
+        "Return only JSON with this exact root envelope: "
+        "{version:2,trigger_node_id:'an ID from nodes',nodes:[node,...],edges:[edge,...]}. "
+        "Every node is {id:'unique ID',type:'one allowed type',title:'text or null',config:object}. "
+        "Every edge is {from:'existing node ID',to:'existing node ID',branch:null|'yes'|'no'|'unsure'|'default'}. "
+        "No root or node fields beyond the schema. Each node config depends on that node's type. "
+        "A schedule_trigger node has config:{schedule:{type:'daily'|'weekly',time:'HH:MM',"
+        "timezone:'IANA timezone',weekdays:[lowercase weekday,...] only for weekly}}. "
+        "An app_skill_action node has config:{capability_id:'one selected full app.skill ID',"
+        "input:{fields from that capability input schema}}. Do not put app_id or skill_id "
+        "in the transport config. Do not put schedule fields in an app action config. "
         "Check config uses mode exact with predicate {left,op,right}; valid ops are "
         "eq, neq, gt, gte, lt, lte, contains, starts_with, exists. For combined exact "
         "checks use {op:'and' or 'or',conditions:[simple predicates]}. AI check config "
         "uses mode ai, question and selected_inputs. "
         "Check edges use branch yes/no/unsure; preserve both branches when requested. "
-        "An AI check question and an ai.ask prompt must include an inline {{steps.ID.FIELD}} "
-        "variable from the earlier data being evaluated or summarized, even when selected_inputs are set. "
+        "An AI check question and an ai.ask prompt must include an inline "
+        "{{steps.ID.FIELD}} variable from an earlier action, even when selected_inputs are set. "
         "Relative dates use {\"$date\":\"today\" or \"tomorrow\" or \"next_seven_days_start\" or \"next_seven_days_end\","
         "\"format\":\"date\" or \"datetime\"} as runtime input values, never a frozen literal date. "
         "Message blocks use {id: stable_id, source: '$nodes.ID.output.FIELD', "
-        "only_new_results: true/false/null, include_if: reference/bool/null} with an object/array output. "
+        "only_new_results: true/false/null, include_if: true/false/null}. "
+        "A block source must be a declared object or array output; use a message "
+        "with an inline variable for scalar text outputs. "
+        "For conditional delivery use Check yes/no edges with separate message nodes; "
+        "leave include_if null. Set only_new_results true only for an array of objects. "
         "Use $nodes.<id>.output.<declared_field> or {{steps.<id>.<declared_field>}} "
         "for dataflow. Output fields must exist in the selected public output_schema; "
-        "never invent a summary field. Send-chat config requires title, message "
-        "(null when using blocks) and blocks (empty array when using message); "
-        "set optional input fields to null when omitted. "
-        "refer to prior action output in authored messages. Build a connected acyclic graph. "
+        "never invent a field. Send-chat config always has title, message and blocks. "
+        "Message must contain an inline prior-action output variable even when blocks "
+        "are present and even if the requested text is otherwise fixed. Use blocks:[] "
+        "when no structured result list is needed. Set optional input fields to null "
+        "when omitted. "
+        "Build a connected acyclic graph. Write every node before writing edges. "
+        "Every edge.from and edge.to MUST be an ID in nodes, letter-for-letter. "
+        "A terminal message node may have no outgoing edge; do not point to a "
+        "made-up end node. Add an end node only when an explicit branch needs to "
+        "stop without sending a message. Each Check yes/no destination must exist. "
         "Do not insert account IDs, credentials, runtime grants, or guessed values. "
-        f"Selected context: {json.dumps(context, ensure_ascii=False, separators=(',', ':'))}\n"
-        f"User request: {case.text}"
+        f"Selected candidate context and public outputs: {json.dumps(visible_context, ensure_ascii=False, separators=(',', ':'))}\n"
+        f"Complete transport JSON Schema: {json.dumps(schema, ensure_ascii=False, separators=(',', ':'))}"
     )
 
 
 async def _model_construct(client: httpx.AsyncClient, provider: str, key: str,
                            case: Case, selection: Any) -> tuple[dict[str, Any], dict[str, Any]]:
     url, model = PROVIDERS[provider]
+    schema = _transport_schema(selection)
     body = {"model": model, "temperature": 0, "max_completion_tokens": 4096,
-            "messages": [{"role": "user", "content": _prompt(case, selection)}],
+            "messages": [{"role": "system", "content": _prompt(selection)},
+                         {"role": "user", "content": case.text}],
             "response_format": {"type": "json_schema", "json_schema": {
-                "name": "workflow_graph", "strict": True, "schema": _transport_schema(selection)}}}
+                "name": "workflow_graph", "strict": True, "schema": schema}}}
     body["reasoning_effort"] = "low"
     response = await client.post(url, headers={"Authorization": f"Bearer {key}"}, json=body)
     # Never include provider response bodies or exception strings: they may echo secrets.
     if response.status_code != 200:
-        raise ProviderHTTPFailure(provider, response.status_code)
+        raise ProviderHTTPFailure(provider, response.status_code, _safe_http_code(response))
     payload = response.json()
     choice = payload["choices"][0]
     metrics = {"usage": payload.get("usage", {}),
@@ -428,9 +474,36 @@ class TransportFailure(ValueError):
 class ProviderHTTPFailure(RuntimeError):
     """Safe HTTP failure classification without response body or auth content."""
 
-    def __init__(self, provider: str, status: int) -> None:
+    def __init__(self, provider: str, status: int, code: str | None = None) -> None:
         super().__init__(f"{provider} HTTP {status}")
         self.status = status
+        self.code = code
+
+
+def _safe_http_code(response: httpx.Response) -> str | None:
+    """Classify known errors while discarding raw provider bodies and generations."""
+    try:
+        payload = response.json()
+    except (TypeError, ValueError):
+        return None
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error, dict):
+        return None
+    known = {"json_validate_failed", "invalid_json_schema", "invalid_request_error",
+             "rate_limit_exceeded", "authentication_error"}
+    code = error.get("code")
+    if isinstance(code, str) and code in known:
+        return code
+    # Some compatible providers expose only a prose message. Recognize only
+    # stable markers; never store or display the message or failed_generation.
+    message = error.get("message")
+    if isinstance(message, str):
+        lowered = message.casefold()
+        if "json_validate_failed" in lowered:
+            return "json_validate_failed"
+        if "response_format" in lowered and "schema" in lowered:
+            return "schema_request"
+    return None
 
 
 def _provider_cost(provider: str, usage: dict[str, Any]) -> float | None:
@@ -491,6 +564,10 @@ async def _run_case(case: Case, providers: list[str],
         row: dict[str, Any] = {"case": case.id, "provider": provider,
                                "preselection_ms": preselection_ms,
                                "preselection_metrics": selection_metrics,
+                               "preselection_scores": {str(key): float(value) for key, value in selection.scores.items()},
+                               "operation": selection.operation,
+                               "check_mode": selection.check_mode,
+                               "chat_delivery": selection.chat_delivery,
                                "selected_capabilities": sorted(selected_ids),
                                "transport_valid": None, "graph_valid": False,
                                "intent_match": False}
@@ -530,6 +607,7 @@ async def _run_case(case: Case, providers: list[str],
                 row["construction_metrics"]["estimated_cost_usd"] = _provider_cost(provider, exc.metrics.get("usage", {}))
             if isinstance(exc, ProviderHTTPFailure):
                 row["http_status"] = exc.status
+                row["http_code"] = exc.code
             if constructor is not None:
                 row["construction_metrics"] = _safe_metrics(getattr(constructor, "last_metrics", {}))
                 candidate = getattr(constructor, "candidate_graph", None)
