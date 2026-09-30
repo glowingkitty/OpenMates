@@ -38,7 +38,8 @@ async def test_stream_filters_thoughts_emits_complete_steps_and_counts_reasoning
     def handle(request):
         body = json.loads(request.content)
         assert body["generationConfig"]["thinkingConfig"]["includeThoughts"] is False
-        assert body["generationConfig"]["responseFormat"]["text"]["mimeType"] == "APPLICATION_JSON"
+        assert body["generationConfig"]["responseMimeType"] == "application/json"
+        assert "responseFormat" not in body["generationConfig"]
         assert request.headers["x-goog-api-key"] == "synthetic-key"
         return httpx.Response(200, text=''.join('data: ' + json.dumps(event) + '\n\n' for event in events))
 

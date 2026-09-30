@@ -13,6 +13,8 @@ import re
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from jsonschema import Draft202012Validator
+
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
 from backend.core.api.app.services.workflow_identity_service import (
     WORKFLOW_ALLOWED_ICONS, normalize_workflow_identity,
@@ -225,6 +227,15 @@ def compile_authoring_plan(
     """
     if not isinstance(raw, dict):
         raise ValueError("Authoring plan must be an object")
+    # JSON mode does not enforce responseFormat's union schema. Validate the
+    # selected capability contract here before interpreting any model field.
+    # Never include raw values or validator messages in errors: they can contain
+    # user content or provider output.
+    errors = Draft202012Validator(build_authoring_schema(selection)).iter_errors(raw)
+    first_error = next(errors, None)
+    if first_error is not None:
+        path = first_error.json_path
+        raise ValueError(f"Authoring plan violates the selected capability schema at {path}")
     operation = raw.get("operation")
     if operation == "clarify":
         message = raw.get("message")

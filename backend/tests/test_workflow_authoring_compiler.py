@@ -6,6 +6,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from backend.core.api.app.services.workflow_authoring_compiler import (
     build_authoring_schema, compile_authoring_plan,
@@ -34,6 +35,7 @@ def ref(step: str, field: str):
 
 def test_schema_is_selected_capability_scoped_and_supports_structured_steps():
     schema = build_authoring_schema(selection("weather.forecast", mode="exact"))
+    Draft202012Validator.check_schema(schema)
     assert schema["properties"]["operation"]["enum"] == ["create", "update", "clarify"]
     serialized = str(schema)
     assert "weather.forecast" in serialized
@@ -168,6 +170,18 @@ def test_rejects_unselected_app_and_model_authored_variable():
     raw["steps"][0] = {"kind": "app", "id": "search", "capability": "weather.forecast", "input": {"location": "{{ $nodes.foo.output.location }}"}}
     with pytest.raises(ValueError, match="typed reference"):
         compile_authoring_plan(raw, selection("weather.forecast"), "UTC")
+
+
+def test_rejects_unknown_app_input_field_without_echoing_raw_content():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Paris", "credential": "private-marker"}},
+        {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("forecast", "summary")]},
+    ])
+    with pytest.raises(ValueError, match="selected capability schema") as error:
+        compile_authoring_plan(raw, selection("weather.forecast"), "UTC")
+    assert "private-marker" not in str(error.value)
+    assert "credential" not in str(error.value)
 
 
 def test_clarification_is_an_explicit_outcome():
