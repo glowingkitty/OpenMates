@@ -204,6 +204,9 @@ async def test_self_correction_routing_prompt_and_safe_metrics():
     assert "Replacing an earlier time, place" in questions["request_clarity"]["instructions"]
     assert "summarize, generate, or format results is an action" in questions["check_mode"]["instructions"]
     assert "Correcting a spoken time or place is not a check" in questions["check_mode"]["instructions"]
+    assert "price ceiling such as 'products under 150 euros'" in questions["check_mode"]["instructions"]
+    assert "'Find matching products and send them' also has no branch" in questions["check_mode"]["instructions"]
+    assert "explicitly requests a branch based on a declared boolean or numeric app output" in questions["check_mode"]["instructions"]
     assert "title ending in 'spoken'" in questions["weather.forecast"]["instructions"]["rules"]
     assert "short title alone" in questions["weather.forecast"]["instructions"]["rules"]
     assert state["open_workflow"] is False
@@ -352,7 +355,7 @@ async def test_typed_rain_flag_is_exposed_as_exact_conditional_evidence():
         "Check today's weather in Berlin. If rain is expected, send me a chat message")
     instructions = jev.requests[0][1]["check_mode"]["instructions"]
     assert "weather.forecast.rain_expected:boolean" in instructions
-    assert "Compare a declared boolean or numeric app output with an exact check" in instructions
+    assert "explicitly requests a branch based on a declared boolean or numeric app output" in instructions
     assert "already-typed flag is true" in instructions
     assert "weather.forecast.rain_summary" not in instructions
 

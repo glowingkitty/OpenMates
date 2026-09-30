@@ -42,7 +42,7 @@ export type WorkflowInputSession = {
 
 export type WorkflowInputStreamEvent =
   | { type: 'started'; session_id: string; status: 'running' }
-  | { type: 'progress'; phase: 'planning' | 'validating' | 'retrying_node' | 'saving'; message?: string; workflow_index?: number; node_index?: number }
+  | { type: 'progress'; phase: 'planning' | 'validating' | 'retrying_node' | 'saving'; message?: string; workflow_index?: number; node_index?: number; operation?: 'create' | 'update' | 'mixed'; workflow_count?: number }
   | ({ type: 'preview'; provisional: true; validated: true } & WorkflowAcceptedPreview)
   | { type: 'session'; session: WorkflowInputSession };
 

@@ -130,6 +130,9 @@
 	let pendingSaveMessage = $state<string | null>(null);
 	let pendingPreviewWorkflow = $state<WorkflowDetail | null>(null);
 	let streamPreviewWorkflows = $state<WorkflowDetail[]>([]);
+	let provisionalFullscreen = $state<WorkflowDetail | null>(null);
+	let provisionalDismissed = false;
+	let authoringScope: { operation: 'create' | 'update' | 'mixed'; workflowCount: number } | null = null;
 	let authoringPhase = $state<'planning' | 'validating' | 'retrying_node' | 'saving' | null>(null);
 	let acceptedNodeCounts = $state<Record<string, number>>({});
 	let stopRequested = $state(false);
@@ -140,7 +143,7 @@
 	let pendingPreviewTargetId = $state<string | null>(null);
 	let pendingResumeStarted = false;
 	let activeEditorPreview = $derived(streamPreviewWorkflows.find(item => item.id === pendingPreviewTargetId) ?? pendingPreviewWorkflow);
-	let landingPreviewWorkflows = $derived(pendingPreviewTargetId === null ? streamPreviewWorkflows : []);
+	let landingPreviewWorkflows = $derived(pendingPreviewTargetId === null && !provisionalFullscreen ? streamPreviewWorkflows : []);
 	let routeAlive = true;
 	let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
 	let workflowHashState = $state<WorkflowHashState>({
@@ -219,7 +222,7 @@
 	);
 	let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && workflowsEnabled);
 	let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
-	let showManageView = $derived(canRenderWorkflowData && isManageView);
+	let showManageView = $derived(canRenderWorkflowData && (isManageView || !!provisionalFullscreen));
 	let visibleWorkflowGreetingName = $derived(
 		canRenderWorkflowData ? workflowGreetingName : 'there'
 	);
@@ -716,13 +719,17 @@
 	}
 
 	async function stopAuthoring(): Promise<void> {
-		if (!saving || !pendingSaveSessionId || stopRequested) return;
+		if (!saving || stopRequested) return;
 		stopRequested = true;
-		pendingSaveMessage = 'Stopping after the current step...';
+		pendingSaveMessage = $text('workflows.builder.ai_stopping');
+		if (pendingSaveSessionId) await acknowledgeStop(pendingSaveSessionId);
+	}
+
+	async function acknowledgeStop(sessionId: string): Promise<void> {
 		try {
 			// Acknowledge Stop on the server before closing the event stream. GET then
 			// recovers its durable partial result, including across worker processes.
-			await stopWorkflowInstruction(pendingSaveSessionId);
+			await stopWorkflowInstruction(sessionId);
 			streamController?.abort();
 		} catch (cause) {
 			stopRequested = false;
@@ -781,6 +788,9 @@
 		undoConflict = false;
 		pendingPreviewWorkflow = null;
 		streamPreviewWorkflows = [];
+		provisionalFullscreen = workflowId ? null : initialAuthoringPreview();
+		provisionalDismissed = false;
+		authoringScope = null;
 		authoringPhase = null;
 		acceptedNodeCounts = {};
 		stopRequested = false;
@@ -804,6 +814,20 @@
 			acceptedNodeCounts = { ...acceptedNodeCounts, [preview.id]: event.accepted_node_count ?? event.graph.nodes.length };
 			streamPreviewWorkflows = [...streamPreviewWorkflows.filter(item => item.id !== preview.id), preview];
 			if (workflowId && preview.id === workflowId) pendingPreviewWorkflow = preview;
+			if (!workflowId && !provisionalDismissed && event.workflow_index === 0 && (event.operation ?? event.metadata.action) === 'create' && ((authoringScope?.operation === 'create' && authoringScope.workflowCount === 1) || (authoringScope === null && streamPreviewWorkflows.every(item => item.id === preview.id)))) {
+				provisionalFullscreen = preview;
+			} else if (!workflowId) {
+				provisionalFullscreen = null;
+				if ((event.operation ?? event.metadata.action) === 'update' && event.metadata.workflow_id && workflows.some(item => item.id === event.metadata.workflow_id)) {
+					const targetId = event.metadata.workflow_id;
+					if (pendingPreviewTargetId !== targetId) {
+						pendingPreviewTargetId = targetId;
+						void selectWorkflow(targetId).then(() => openWorkflowDetails(targetId)).catch(cause => {
+							routeError = cause instanceof Error ? cause.message : 'Could not open the workflow being updated.';
+						});
+					}
+				}
+			}
 		};
 		try {
 			let session: WorkflowInputSession;
@@ -823,8 +847,17 @@
 						startedSessionId = event.session_id;
 						pendingSaveSessionId = event.session_id;
 						sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: event.session_id, workflowId }));
+						if (stopRequested) void acknowledgeStop(event.session_id);
 					} else if (event.type === 'progress') {
 						authoringPhase = event.phase;
+						if (event.operation && Number.isInteger(event.workflow_count) && (event.workflow_count ?? 0) > 0) {
+							authoringScope = { operation: event.operation, workflowCount: event.workflow_count! };
+							if (!workflowId && (event.operation !== 'create' || event.workflow_count !== 1)) {
+								provisionalFullscreen = null;
+							} else if (event.operation === 'create' && event.workflow_count === 1 && !workflowId && !provisionalDismissed) {
+								provisionalFullscreen = streamPreviewWorkflows.find(item => item.id === 'provisional-0') ?? provisionalFullscreen;
+							}
+						}
 					} else if (event.type === 'preview' && event.provisional && event.validated && event.graph.version === 2) {
 						showAcceptedPreview(event);
 					}
@@ -954,6 +987,8 @@
 		} finally {
 			streamController = null;
 			streamPreviewWorkflows = [];
+			provisionalFullscreen = null;
+			authoringScope = null;
 			pendingPreviewWorkflow = null;
 			authoringPhase = null;
 			saving = false;
@@ -1202,6 +1237,14 @@
 		};
 	}
 
+	function initialAuthoringPreview(): WorkflowDetail {
+		return {
+			id: 'provisional-0', title: $text('workflows.builder.processing'), description: null,
+			category: 'general_knowledge', status: 'provisional', enabled: false,
+			current_version_id: '', graph: blankWorkflowGraph()
+		};
+	}
+
 	function newsBriefGraph(): WorkflowGraph {
 		return weeklyEventsGraph();
 	}
@@ -1389,7 +1432,7 @@
 						class="workflow-management"
 						class:opening={workflowOpening}
 						class:closing={workflowClosing}
-						class:composer-docked={!!selectedWorkflow && !isRunsView && !!editorGraph}
+						class:composer-docked={!!provisionalFullscreen || (!!selectedWorkflow && !isRunsView && !!editorGraph)}
 						data-testid="workflow-management"
 						transition:fullscreenWorkflowMotion
 						onintrostart={() => {
@@ -1404,7 +1447,34 @@
 					>
 						<div class="management-grid">
 							<section class="workflow-detail" data-testid="workflow-detail">
-								{#if selectedWorkflow}
+								{#if provisionalFullscreen}
+									<WorkflowDetailPage
+										title={provisionalFullscreen.title}
+										description={provisionalFullscreen.description ?? ''}
+										category={provisionalFullscreen.category ?? 'general_knowledge'}
+										icon={workflowIcon(provisionalFullscreen.title, provisionalFullscreen.icon, provisionalFullscreen.graph)}
+										enabled={false} canEnable={false} canRun={false} saving={true} provisional
+										activeTab="template"
+										onTabChange={() => undefined} onToggleEnabled={() => undefined}
+										onRunWorkflow={() => undefined} onDeleteWorkflow={() => undefined}
+										onOpenHome={() => { provisionalDismissed = true; provisionalFullscreen = null; }}
+										onOpenShare={() => undefined} onExport={() => undefined}
+										onOpenRuns={() => undefined} runsHref=""
+										onUpdateIdentity={async () => undefined} onDraftIdentity={() => undefined}
+									/>
+									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
+										<div data-testid="workflow-editor">
+											<div class="workflow-ai-pending" data-testid="workflow-ai-processing" role="status">{pendingSaveMessage || (authoringPhase === 'saving' ? $text('workflows.builder.ai_preview_saving') : $text('workflows.builder.processing'))}</div>
+											<div class="workflow-authoring-info" data-testid="workflow-authoring-info" role="status">
+												{#if (acceptedNodeCounts[provisionalFullscreen.id] ?? 0) > 0}<p data-testid="workflow-ai-accepted-nodes">{$text(acceptedNodeCounts[provisionalFullscreen.id] === 1 ? 'workflows.builder.ai_validated_step' : 'workflows.builder.ai_validated_steps', { values: { count: acceptedNodeCounts[provisionalFullscreen.id] } })}</p>{/if}
+												<p>{$text('workflows.builder.ai_preview_pending')}</p>
+											</div>
+											<div data-testid="workflow-ai-pending-preview" data-disabled="true" data-save-status={authoringPhase ?? 'saving'}>
+												<WorkflowGraphRenderer graph={provisionalFullscreen.graph} readOnly onChange={() => undefined} onSave={null}/>
+											</div>
+										</div>
+									</div>
+								{:else if selectedWorkflow}
 									{#key `${selectedWorkflow.id}:${identityResetSignal}`}
 									<WorkflowDetailPage
 										title={editorTitle || selectedWorkflow.title}
@@ -1496,9 +1566,9 @@
 														aiAddedNodeIds={aiChange?.workflow_id === selectedWorkflow.id ? aiChange.added_node_ids : []}
 														aiEditedNodeIds={aiChange?.workflow_id === selectedWorkflow.id ? aiChange.edited_node_ids : []}
 															workflowId={selectedWorkflow.id}
-															onChange={updateEditorGraph}
-															onSave={saveNodeGraph}
-															onDraftStateChange={(hasDraft) => { editorHasPendingDraft = hasDraft; }}
+																onChange={updateEditorGraph}
+																onSave={saveNodeGraph}
+																onDraftStateChange={(hasDraft) => { editorHasPendingDraft = hasDraft; }}
 																/>
 													{/if}
 											{#if hasTimeTrigger && !activeEditorPreview}
@@ -1528,7 +1598,17 @@
 								{/if}
 							</section>
 						</div>
-						{#if selectedWorkflow && !isRunsView && editorGraph}
+						{#if provisionalFullscreen}
+							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
+								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
+									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
+									disabled={true} submitting={true} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
+									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={() => undefined}
+									onMicClick={() => undefined} recording={false}
+									onAudioRecorded={() => undefined} onRecordingClose={() => undefined}/>
+									{#if saving}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.processing')}</span><button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? $text('workflows.builder.ai_stopping') : $text('workflows.builder.stop')}</button></div>{/if}
+							</div>
+						{:else if selectedWorkflow && !isRunsView && editorGraph}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
 									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}

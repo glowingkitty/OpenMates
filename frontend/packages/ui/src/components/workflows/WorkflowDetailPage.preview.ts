@@ -27,4 +27,10 @@ export default defaultProps;
 export const variants = {
   runs: { ...defaultProps, activeTab: 'runs' as const },
   blank: { ...defaultProps, canRun: false, enabled: false },
+  provisional: {
+    ...defaultProps,
+    title: 'Processing…', description: '', enabled: false, canEnable: false, canRun: false,
+    saving: true, provisional: true,
+    onOpenHome: () => window.dispatchEvent(new CustomEvent('workflow-preview-close')),
+  },
 };

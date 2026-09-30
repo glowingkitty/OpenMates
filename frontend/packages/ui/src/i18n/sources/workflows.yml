@@ -795,6 +795,24 @@ builder.ai_preview_steps:
   de: Vorgeschlagene Schritte
   verified_by_human: []
 
+builder.ai_validated_step:
+  context: Count label above a live workflow graph with one server-validated step
+  en: "{count} step validated"
+  de: "{count} Schritt validiert"
+  verified_by_human: []
+
+builder.ai_validated_steps:
+  context: Count label above a live workflow graph with multiple server-validated steps
+  en: "{count} steps validated"
+  de: "{count} Schritte validiert"
+  verified_by_human: []
+
+builder.ai_stopping:
+  context: Status after stopping a streamed workflow authoring request
+  en: Stopping…
+  de: Wird gestoppt…
+  verified_by_human: []
+
 builder.ai_check_status:
   context: Retry checking a pending AI workflow save after a connection error
   en: Check save status

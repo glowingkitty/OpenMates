@@ -301,6 +301,12 @@ class WorkflowRegistryPlanner:
                 if (selection.request_clarity == "confusing" or selection.operation == "clarify"
                         or selection.workflow_count is None):
                     raise _UnclearWorkflowRequest("Jev determined that the workflow request needs clarification")
+                # Let the client choose its single-workflow editor before the
+                # first validated header arrives. A known multi-workflow batch
+                # stays on the workspace while each preview streams.
+                await self._emit(context, {"type": "progress", "phase": "planning",
+                                           "operation": selection.operation,
+                                           "workflow_count": selection.workflow_count})
                 targets = await self._targets(text, context, selection, jev, metrics)
             except (DecisionProviderError, TimeoutError):
                 capabilities = [cap for cap in self.registry.list_capabilities() if cap.enabled]

@@ -112,20 +112,27 @@ async def test_request_local_secrets_keep_provider_cache_expiry_without_sharing_
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.provisional-validation
 @pytest.mark.asyncio
-async def test_create_streams_inert_preview_then_returns_validated_disabled_plan(monkeypatch):
-    configure(monkeypatch)
+@pytest.mark.parametrize("count", [1, 2])
+async def test_create_streams_inert_preview_then_returns_validated_disabled_plan(monkeypatch, count):
+    configure(monkeypatch, count=count)
     events = []
-    author = Author(forecast_plan())
+    raw = forecast_plan() if count == 1 else {"operations": [forecast_plan(), forecast_plan("Second forecast")]}
+    author = Author(raw)
     planner = module.WorkflowRegistryPlanner(secrets_manager=None, author=author, jev_client=object())
     result = await planner._plan("Daily forecast", {"timezone": "Europe/Berlin", "_on_component": events.append},
                                  object(), author)
-    assert result["action"] == "create_workflow" and result["enabled"] is False
+    plans = [result] if count == 1 else result["operations"]
+    assert result["action"] == ("create_workflow" if count == 1 else "batch")
+    assert len(plans) == count and all(plan["enabled"] is False for plan in plans)
+    scope = next(event for event in events if event.get("workflow_count") is not None)
+    assert scope == {"type": "progress", "phase": "planning", "operation": "create", "workflow_count": count}
+    assert events.index(scope) < next(index for index, event in enumerate(events) if event["type"] == "preview")
     previews = [event for event in events if event["type"] == "preview"]
-    assert [len(event["graph"]["nodes"]) for event in previews] == [1, 2, 3]
+    assert [len(event["graph"]["nodes"]) for event in previews] == ([1, 2, 1, 2, 3, 3] if count == 2 else [1, 2, 3])
     preview = previews[1]
     assert preview["provisional"] is True and "action" not in preview
     assert {node["id"] for node in preview["graph"]["nodes"]} == {"trigger", "weather"}
-    assert len(result["graph"]["nodes"]) == 3
+    assert all(len(plan["graph"]["nodes"]) == 3 for plan in plans)
     assert author.calls == 1
 
 

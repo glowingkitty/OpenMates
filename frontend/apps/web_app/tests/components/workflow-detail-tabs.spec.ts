@@ -16,6 +16,24 @@ const preview = (variant?: string) =>
 	})}`;
 
 test.describe('Workflow detail tabs', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.composer-and-preview
+	test('shows a provisional identity without saved-workflow actions', async ({ page }: { page: Page }) => {
+		await page.goto(preview('provisional'), { waitUntil: 'networkidle' });
+		await expect(page.getByTestId('workspace-detail-title')).toHaveText('Processing…');
+		await expect(page.getByTestId('workspace-detail-description')).toHaveCount(0);
+		await expect(page.getByText('Click to add description')).toHaveCount(0);
+		await expect(page.getByTestId('workflow-detail-metadata')).toHaveCount(0);
+		await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+		await expect(page.getByTestId('workflow-view-tabs')).toHaveCount(0);
+		for (const id of ['workflow-export', 'delete-workflow', 'run-workflow', 'workflow-share']) {
+			await expect(page.getByTestId(id)).toHaveCount(0);
+		}
+		await page.getByTestId('workspace-detail-title').click();
+		await expect(page.getByRole('textbox', { name: 'Workflow name' })).toHaveCount(0);
+		const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('workflow-preview-close', () => resolve(), { once: true })));
+		await page.getByTestId('workflow-detail-back').click();
+		await closed;
+	});
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.files.more-export
 	test('shows export in More for a saved and a blank workflow', async ({ page }: { page: Page }) => {
 		await page.goto(preview(), { waitUntil: 'networkidle' });

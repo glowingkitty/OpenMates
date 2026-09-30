@@ -49,7 +49,10 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert json.loads(check["predicate_json"])["op"] == "eq"
     assert yes["parent_check_id"] == no["parent_check_id"] == "rain"
     assert "NOT forecast data" in prompt
-    assert "Daily and weekly clock times MUST use time" in prompt
+    assert "Use the final explicit schedule clock from the request" in prompt
+    assert "do not replace it with 09:00" in prompt
+    assert "If no clock is specified, use 09:00" in prompt
+    assert "Daily and weekly schedules MUST provide time in HH:MM" in prompt
     assert "do not add Ask AI merely" in prompt
     assert "Do not output clarify or draft" in prompt
     assert "9 in Lisbon" in prompt and "Europe/Lisbon" in prompt
@@ -100,6 +103,8 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert header["anyOf"][1]["required"] == ["workflow_id"]
     assert [variant["properties"]["type"]["enum"][0] for variant in schedule["anyOf"]] == [
         "daily", "weekly", "hourly", "once", "manual"]
+    assert [variant["required"] for variant in schedule["anyOf"]] == [
+        ["type", "time"], ["type", "time"], ["type", "minute"], ["type", "at"], ["type"]]
     assert "HH:MM" in schedule["anyOf"][0]["properties"]["time"]["description"]
     assert "IANA" in schedule["anyOf"][1]["properties"]["timezone"]["description"]
     assert "once schedule only" in schedule["anyOf"][3]["properties"]["at"]["description"]
@@ -107,7 +112,7 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
     validator = Draft202012Validator(schema)
     flat = {"workflows": [{"header": {"operation": "create", "title": "Weather", "description": "Forecast",
-                                      "icon": "cloud-rain", "schedule": {"type": "daily"}},
+                                      "icon": "cloud-rain", "schedule": {"type": "daily", "time": "09:00"}},
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
                                       "input_json": '{"location":"Berlin","days":1}'}]}]}
     validator.validate(flat)
@@ -134,6 +139,8 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
         flat["workflows"][0]["header"]["schedule"] = valid_schedule
         validator.validate(flat)
     for invalid_schedule in ({"type": "weekly", "at": "09:00"},
+                             {"type": "daily"}, {"type": "weekly", "weekdays": ["friday"]},
+                             {"type": "hourly"}, {"type": "once"},
                              {"type": "daily", "weekdays": ["monday"]},
                              {"type": "weekly", "weekdays": ["Thursday"]},
                              {"type": "hourly", "minute": 60},
@@ -204,7 +211,7 @@ def test_duplicate_properties_do_not_create_provisional_steps():
 @pytest.mark.asyncio
 async def test_stream_filters_thoughts_and_validates_header_and_each_complete_node():
     header = {"operation": "create", "title": "Forecast", "description": "Send a forecast",
-              "icon": "cloud-rain", "schedule": {"type": "daily"}}
+              "icon": "cloud-rain", "schedule": {"type": "daily", "time": "09:00"}}
     app = {"kind": "app", "id": "weather", "capability": "weather.forecast",
            "input_json": '{"location":"Berlin","days":1}'}
     send = {"kind": "send", "id": "reply", "title": "Forecast",
@@ -311,7 +318,7 @@ async def test_header_failure_has_fixed_code_without_accepting_partial_header():
 @pytest.mark.asyncio
 async def test_missing_create_icon_rejects_before_checkpoint_and_empty_retry_can_correct():
     header = {"operation": "create", "title": "Notices", "description": "Send notices",
-              "schedule": {"type": "daily"}}
+              "schedule": {"type": "daily", "time": "09:00"}}
     send = {"kind": "send", "id": "reply", "title": "Notice", "message_json": '[{"text":"Hello"}]'}
     calls = 0
 
@@ -439,7 +446,7 @@ async def test_provider_rejects_empty_batch_even_without_transport_array_bounds(
 @pytest.mark.asyncio
 async def test_provider_rejects_41_nodes_after_stream_parser_keeps_first_40():
     header = {"operation": "create", "title": "Notices", "description": "Send notices",
-              "icon": "help-circle", "schedule": {"type": "daily"}}
+              "icon": "help-circle", "schedule": {"type": "daily", "time": "09:00"}}
     nodes = [{"kind": "send", "id": f"notice_{index}", "title": "Notice",
               "message_json": '[{"text":"Hello"}]'} for index in range(41)]
     source = json.dumps({"workflows": [{"header": header, "nodes": nodes}]})
@@ -461,7 +468,7 @@ async def test_provider_rejects_41_nodes_after_stream_parser_keeps_first_40():
 @pytest.mark.asyncio
 async def test_retry_keeps_frozen_prefix_and_emits_only_new_valid_node():
     header = {"operation": "create", "title": "Forecast", "description": "Send forecast",
-              "icon": "cloud-rain", "schedule": {"type": "daily"}}
+              "icon": "cloud-rain", "schedule": {"type": "daily", "time": "09:00"}}
     app = {"kind": "app", "id": "forecast", "capability": "weather.forecast",
            "input_json": '{"location":"Berlin","days":1}'}
     send = {"kind": "send", "id": "reply", "title": "Forecast",
