@@ -186,6 +186,34 @@ def complete_plan_components(source: str) -> list[dict[str, Any]]:
     return components
 
 
+def provider_response_schema() -> dict[str, Any]:
+    """Constrain JSON syntax without sending the full capability union grammar.
+
+    The provider supports a limited JSON Schema dialect. Keep its envelope
+    shallow; the compiler independently validates every capability and step.
+    """
+    properties = {
+        "operation": {"type": "string", "enum": ["create", "update", "draft", "clarify"]},
+        "workflow_id": {"type": "string"},
+        "title": {"type": "string"}, "description": {"type": "string"}, "icon": {"type": "string"},
+        "schedule": {"type": "object", "properties": {
+            "type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
+            "time": {"type": "string"}, "timezone": {"type": "string"},
+            "weekdays": {"type": "array", "items": {"type": "string"}},
+            "minute": {"type": "integer"}, "at": {"type": "string"},
+        }, "required": ["type"], "additionalProperties": False},
+        "steps": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+        "remove_step_ids": {"type": "array", "items": {"type": "string"}},
+        "message": {"type": "string"},
+    }
+    return {"type": "object", "properties": {
+        **properties, "operations": {"type": "array", "items": {
+            "type": "object", "properties": properties, "required": ["operation"],
+            "additionalProperties": False,
+        }},
+    }, "additionalProperties": False}
+
+
 def authoring_prompt(selection: Any, timezone: str) -> str:
     from backend.core.api.app.services.workflow_identity_service import WORKFLOW_ALLOWED_ICONS
 
@@ -288,7 +316,10 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "are the shared continuation after its chosen branch. Static messages driven by a Check "
         "may contain literal text only. Ask AI must include references to the values it processes. "
         "For result lists insert a typed reference segment directly into message text; avoid "
-        "duplicating the same results in a separate block. "
+        "duplicating the same results in a separate block. Do not add Ask AI just to reformat "
+        "search or shopping results: direct Send references already render useful results. "
+        "Use Ask AI only when the user requests reasoning, a summary, transformation or "
+        "a combined conditional/missing-result explanation that needs it. "
         "Valid JSON shape examples (use the selected skill contracts and the user's values, "
         "not example placeholders): " + json.dumps(examples, ensure_ascii=False, separators=(",", ":")) + ". "
         "Allowed icons: " + json.dumps(sorted(WORKFLOW_ALLOWED_ICONS)) + ". "
@@ -319,6 +350,7 @@ class WorkflowGeminiAuthor:
             }, ensure_ascii=False)}]}],
             "generationConfig": {
                 "responseMimeType": "application/json",
+                "responseJsonSchema": provider_response_schema(),
                 "temperature": 1.0, "maxOutputTokens": 8192,
                 "thinkingConfig": {"thinkingLevel": "low", "includeThoughts": False},
             },
