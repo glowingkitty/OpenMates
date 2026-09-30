@@ -130,14 +130,14 @@ class WorkflowGeminiAuthor:
                 "request": text, "existing_workflow": selected_workflow,
             }, ensure_ascii=False)}]}],
             "generationConfig": {
-                "responseFormat": {"text": {"mimeType": "application/json", "schema": build_authoring_schema(selection)}},
+                "responseFormat": {"text": {"mimeType": "APPLICATION_JSON", "schema": build_authoring_schema(selection)}},
                 "temperature": 1.0, "maxOutputTokens": 8192,
                 "thinkingConfig": {"thinkingLevel": "low", "includeThoughts": False},
             },
         }
         metrics: dict[str, Any] = {"first_component_ms": None, "component_count": 0,
                                    "input_tokens": 0, "output_tokens": 0, "thinking_tokens": 0,
-                                   "estimated_cost_usd": 0.0}
+                                   "estimated_cost_usd": None}
         started = time.perf_counter()
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=5.0))
