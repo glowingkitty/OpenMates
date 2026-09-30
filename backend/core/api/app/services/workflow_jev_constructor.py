@@ -138,18 +138,25 @@ class WorkflowJevConstructor:
         self.jev_client = jev_client
         self.last_metrics: dict[str, Any] = {}
         self.candidate_graph: dict[str, Any] | None = None
+        self.decision_trace: list[dict[str, str]] = []
+        self.failure_reason: str | None = None
 
     async def construct(
         self, *, text: str, selection: WorkflowPreselection, timezone: str = "UTC",
         selected_workflow: dict[str, Any] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         start = time.perf_counter()
-        self.last_metrics = {"jev_calls": 0, "input_tokens": 0, "estimated_cost_usd": 0.0}
+        self.last_metrics = {"jev_calls": 0, "input_tokens": 0, "estimated_cost_usd": 0.0, "wave_seconds": {}}
         self.candidate_graph = None
+        self.decision_trace = []
+        self.failure_reason = None
         try:
             graph = await self._construct(text=text, selection=selection, timezone=timezone,
                                           selected_workflow=selected_workflow)
             return graph, self.last_metrics
+        except ValueError as exc:
+            self.failure_reason = str(exc)[:500]
+            raise
         finally:
             self.last_metrics["seconds"] = round(time.perf_counter() - start, 3)
             self.last_metrics["estimated_cost_usd"] = round(self.last_metrics["estimated_cost_usd"], 8)
@@ -165,20 +172,26 @@ class WorkflowJevConstructor:
         metrics = self.last_metrics
         state = {"request": text, "browser_timezone": timezone, **selection.context()}
         count_options = {str(count): f"Exactly {count} separate nodes" for count in range(4)}
-        count_options["unsupported"] = "More nodes than offered or cannot be determined"
+        count_options["unsupported"] = "More than three nodes of this kind are explicitly required"
         questions = {
             f"count:{cap.id}": _choice(
-                f"How many separate {cap.id} action nodes are needed? Use its input schema: one array input can hold related requests, but a single location input needs one node per location. Exclude superseded requests.", count_options,
+                f"How many separate {cap.id} action nodes are needed? Select 0 if this candidate skill is not required; candidates are deliberately broad. Use its input schema: one array input can hold related requests, but a single location input needs one node per location. Exclude superseded requests.", count_options,
             ) for cap in selection.capabilities
         }
         for kind, meaning in (("exact", "deterministic conditions"), ("ai", "subjective yes/no assessments"),
                               ("send", "distinct chat messages, including separate true/false responses")):
-            questions[f"count:{kind}"] = _choice(f"How many nodes are needed for {meaning}?", count_options)
+            if kind in {"exact", "ai"} and selection.check_mode not in {kind, "both"}:
+                continue
+            questions[f"count:{kind}"] = _choice(
+                f"How many nodes are needed for {meaning} in request? An if/else statement needs ONE check node with two branches, not two check nodes. AND/OR operands belong to the same check. Select 0 if none of this kind is required.", count_options,
+            )
         questions["trigger"] = _choice("What starts the workflow? Default to a weekly schedule when no trigger is specified.", {
             "schedule": "Recurring time/date schedule or unspecified trigger", "manual": "Explicit manual run only",
             "unsupported": "An event/webhook/other trigger not supported by this graph grammar",
         })
         answers = await self._evaluate(state, questions, metrics)
+        for kind in ("exact", "ai"):
+            answers.setdefault(f"count:{kind}", "0")
         if any(value == "unsupported" for value in answers.values()):
             raise ValueError("Jev could not determine bounded node instances")
         nodes = [{"id": "trigger", "type": f"{answers['trigger']}_trigger", "description": "Start the workflow"}]
@@ -211,8 +224,6 @@ class WorkflowJevConstructor:
         if len(questions) > MAX_QUESTIONS:
             raise ValueError("Workflow requires more field decisions than the experimental budget")
         answers = await self._evaluate(state, questions, metrics)
-        if "needs_generation" in answers.values():
-            raise ValueError("A required field needs generation or has no faithful candidate")
         graph = self._compile(nodes, answers, values)
         self.candidate_graph = graph
         validated = WorkflowGraph.model_validate(graph)
@@ -221,7 +232,10 @@ class WorkflowJevConstructor:
         return validated.model_dump(mode="json", by_alias=True)
 
     async def _evaluate(self, state: dict[str, Any], questions: dict[str, Any], metrics: dict[str, Any]) -> dict[str, str]:
+        started = time.perf_counter()
         response = await self.jev_client.evaluate(state=state, questions=questions)
+        stage = "instances" if any(key.startswith("count:") for key in questions) else "bindings"
+        metrics["wave_seconds"][stage] = round(time.perf_counter() - started, 3)
         metrics["jev_calls"] += 1
         metrics["input_tokens"] += response.usage.input_tokens
         metrics["estimated_cost_usd"] += response.usage.input_tokens * JEV_INPUT_PRICE
@@ -231,6 +245,7 @@ class WorkflowJevConstructor:
             if not isinstance(answer, ChoiceAnswer) or answer.choice not in question["criteria"]:
                 raise ValueError(f"Jev omitted a valid field decision: {key}")
             answers[key] = answer.choice
+        self.decision_trace.append(answers)
         return answers
 
     def _field_questions(self, text: str, timezone: str, nodes: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -286,7 +301,8 @@ class WorkflowJevConstructor:
                     if "default" in schema:
                         options.append(schema["default"])
                     key = f"{node_id}:input:{'.'.join(map(str, path))}"
-                    add(key, f"Choose {node['capability']} instance {node['instance']} input {'.'.join(map(str, path))}. Field contract: {schema}. Preserve the final request. If no literal is suitable select an earlier typed output or needs_generation.", options[:100], not required)
+                    optional_rule = "Optional field: select omit unless the user explicitly requires a value or binding. " if not required else "Required field. "
+                    add(key, f"Choose {node['capability']} instance {node['instance']} input {'.'.join(map(str, path))}. {optional_rule}Field contract: {schema}. Preserve the final request. If a required value has no suitable candidate select needs_generation.", options[:100], not required)
                     if node["capability"] == "ai.ask" and path == ("prompt",):
                         add(f"{node_id}:prompt_source", f"Which earlier data should be supplied to the copied ai.ask instruction in {node_id}? Omit only when no prior data is required.",
                             [ref for ref, _ in outputs if not ref.startswith(f"$nodes.{node_id}.")], True)
@@ -309,6 +325,8 @@ class WorkflowJevConstructor:
 
     def _compile(self, nodes: list[dict[str, Any]], answers: dict[str, str], values: dict[str, Any]) -> dict[str, Any]:
         def get(key: str) -> Any:
+            if answers[key] == "needs_generation":
+                raise ValueError(f"A consumed field needs generation: {key}")
             return values[key][answers[key]]
 
         compiled, edges = [], []

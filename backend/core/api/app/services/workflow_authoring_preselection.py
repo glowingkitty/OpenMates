@@ -62,6 +62,8 @@ class WorkflowPreselection:
             "capabilities": [
                 {
                     "id": cap.id,
+                    "app_id": cap.id.split(".", 1)[0],
+                    "skill_id": cap.id.split(".", 1)[1],
                     "description": cap.metadata.get("description", ""),
                     "input_schema": compact_schema(cap.metadata["input_schema"]),
                     "output_schema": compact_schema(cap.metadata["output_schema"]),
@@ -79,13 +81,14 @@ class WorkflowAuthoringPreselector:
     def __init__(self, *, jev_client: Any, registry: WorkflowCapabilityRegistry | None = None) -> None:
         self.jev_client = jev_client
         self.registry = registry or WorkflowCapabilityRegistry()
+        self._capabilities = [cap for cap in self.registry.list_capabilities() if cap.enabled]
 
     async def select(
         self, text: str, *, timezone: str = "UTC", selected_workflow: dict[str, Any] | None = None,
     ) -> WorkflowPreselection:
         if not text.strip() or len(text) > 16_000:
             raise ValueError("Workflow instruction must contain 1 to 16000 characters")
-        capabilities = [cap for cap in self.registry.list_capabilities() if cap.enabled]
+        capabilities = self._capabilities
         if not capabilities:
             raise ValueError("No workflow skill contracts are available")
         questions: dict[str, Any] = {}
