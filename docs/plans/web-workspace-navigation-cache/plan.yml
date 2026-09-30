@@ -1,7 +1,6 @@
-# Goal-first Plan per AGENTS.md. OpenMates Tasks is the work-status authority.
 id: web-workspace-navigation-cache
 title: Immediate recent workspace navigation with current content
-status: implementing
+status: verified
 goal: so a user could quickly switch between chats, then to tasks, then to projects - with minimal to none delay
   before seeing the rendered chats, tasks, workflows, projects.
 request_scope: The user approved implementation on 2026-09-30 after live observation and the final recommendation.
@@ -39,6 +38,7 @@ evidence:
   - Two sampled encrypted chats each contained two source messages with embeds; long histories need implementation
     coverage.
   - No account content, credentials, full network traces or screenshots are committed.
+  post_implementation_observations: docs/plans/web-workspace-navigation-cache/post-implementation-observations.json
 observed_findings:
 - Desktop task-board revisits reached the next content frame in 1544, 1652 and 1932 ms. Each repeated two task GETs
   (board plus owner assignment eligibility), a plan GET, a project GET and roughly 750 decrypt operations across
@@ -275,7 +275,7 @@ acceptance_criteria:
   text: Single-Task detail uses one selected-record read, no full-list read/decryption, and safe owner assignment
     provenance.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -285,7 +285,7 @@ acceptance_criteria:
   text: Warm desktop/mobile Project and Plan returns retain useful content while a stale refresh is held for five
     seconds; fresh queries do not repeat.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -295,17 +295,17 @@ acceptance_criteria:
   text: Warm saved-chat selection publishes cached persisted content before held local reads; canonical writes invalidate
     old windows.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
   - T-CHAT
 - id: AC-4
   scenario: S-4
-  text: Workflow detail appears before held runs, dirty metadata is retained during refresh, and old list responses
-    cannot clear reset deep links.
+  text: Workflow detail appears before held runs, clean editors reconcile refreshed graphs after a pending draft
+    closes, dirty metadata is retained, and cached empty lists or old responses cannot discard new deep links.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -315,7 +315,7 @@ acceptance_criteria:
   text: Cache/account/team/key generations, mutation versions and deletion fences reject old completions; payloads
     and tokens are bounded.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: related_frontend
   verification_ids:
@@ -339,7 +339,17 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
+      status: passed
+      source_commit: 69eb10698b206466f3df7ff1d235e43a9adedd3e
+      run_url: https://github.com/glowingkitty/OpenMates/actions/runs/36770391328
+      stats:
+        startTime: '2026-09-30T20:11:10.218Z'
+        duration: 82584.691
+        expected: 3
+        skipped: 0
+        unexpected: 0
+        flaky: 0
+      cleanup_verified: true
   execution_environment: isolated_github_ci
 - id: T-BOARDS
   type: playwright
@@ -360,7 +370,17 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
+      status: passed
+      source_commit: b57160a3e42f073535bf5030912aedef64c63757
+      run_url: https://github.com/glowingkitty/OpenMates/actions/runs/36758657891
+      stats:
+        startTime: '2026-09-30T18:57:14.562Z'
+        duration: 31457.397
+        expected: 1
+        skipped: 0
+        unexpected: 0
+        flaky: 0
+      cleanup_verified: true
   execution_environment: isolated_github_ci
 - id: T-CHAT
   type: playwright
@@ -381,7 +401,17 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
+      status: passed
+      source_commit: 8183f5af83fb0b637d5901dcd9c1ef5d82b66497
+      run_url: https://github.com/glowingkitty/OpenMates/actions/runs/36763314700
+      stats:
+        startTime: '2026-09-30T19:10:40.963Z'
+        duration: 59239.118
+        expected: 4
+        skipped: 0
+        unexpected: 0
+        flaky: 0
+      cleanup_verified: true
   execution_environment: isolated_github_ci
 - id: T-WORKFLOWS
   type: playwright
@@ -389,8 +419,8 @@ tests:
   command: python3 scripts/ci_coordinator.py submit --session 254d --source <candidate> --spec workflows-ui-contract.spec.ts
   target: isolated_github_ci
   assertions:
-  - Workflow detail appears before held runs, dirty metadata is retained during refresh, and old list responses
-    cannot clear reset deep links.
+  - Workflow detail appears before held runs, clean editors reconcile refreshed graphs after a pending draft closes,
+    dirty metadata is retained, and cached empty lists or old responses cannot discard new deep links.
   covers:
   - AC-4
   red_phase:
@@ -402,13 +432,24 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
+      status: passed
+      source_commit: c587e944ccbcf4ff8dba1b14f207638488cc8c92
+      run_url: https://github.com/glowingkitty/OpenMates/actions/runs/36773717978
+      stats:
+        startTime: '2026-09-30T20:40:12.148Z'
+        duration: 52144.273
+        expected: 3
+        skipped: 0
+        unexpected: 0
+        flaky: 0
+      cleanup_verified: true
   execution_environment: isolated_github_ci
 - id: T-UNIT
   type: unit
   file: frontend/packages/ui/src/services/__tests__/workspaceQueryCache.test.ts
-  command: pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/workspaceQueryCache.test.ts
-  target: isolated_github_ci
+  command: Focused Vitest checks in frontend/packages/ui for workspaceQueryCache, recentChatWindowCache, recentChatMessageMutation,
+    userTaskService, userPlanService, projectServiceCache, workspacePrefetchService, teamService and workflowWorkspaceStore.
+  target: local
   assertions:
   - Cache/account/team/key generations, mutation versions and deletion fences reject old completions; payloads and
     tokens are bounded.
@@ -423,11 +464,30 @@ tests:
     required: true
     expected: Focused source-bound regression checks pass.
     evidence:
-      status: pending
+      status: passed
+      tests: 54
+      files: 9
+      note: 52 checks in the combined run plus the ordinary-message-revision retry and stale Workflow run-error
+        checks; changed recent-chat and Task files passed 28 checks, and the final Workflow store passed all five
+        checks.
+      receipts:
+      - /tmp/openmates-navigation-254d-followup-unit.log
+      - /tmp/openmates-navigation-254d-followup-revised-unit.log
+      durable_summary: docs/plans/web-workspace-navigation-cache/post-implementation-observations.json
+  execution_environment: local
 implementation_state:
-  subject_commit: 00cf8a40098b667648c753748516c12cc48aaff2
-  note: Implementation is the scoped uncommitted session diff; exact CI candidate and deployment receipts will be
-    recorded separately.
+  source_workspace_base: 00cf8a40098b667648c753748516c12cc48aaff2
+  final_product_candidate: 69eb10698b206466f3df7ff1d235e43a9adedd3e
+  final_fixture_candidate: c587e944ccbcf4ff8dba1b14f207638488cc8c92
+  publication_commits:
+  - 44481b19cfbb1be601dd24946880d6115f54b7f2
+  - cb431abddae62ddc44cc991febd91ac1bf8aaea6
+  - 0983839a794be59f70e42796ab2a8b1f4a7b3cd7
+  - e291d6f1520156fcae5762ca648d7746cf254c16
+  - 983fa46a49359fca88f96fe74949a69493ce2a02
+  - c16742ae0f8c93fef9d5b116eb738e6ad4440a11
+  note: Reviewed publication preserves the scoped source worktree. Product and fixture bytes match the respective
+    CI candidates; generated Specification indexes are rebuilt in the integration checkout.
 approvals:
   specification:
     status: not_required
@@ -443,9 +503,24 @@ decisions:
     conditional.
   reason: Live delay evidence concerns repeated in-session loading; reload used another bundle.
   decided_at: '2026-09-30'
+- id: D-CHAT-INVALIDATION
+  status: active
+  decision: Retain conservative canonical mutation and key/account/team revocation fences. Document observed sync-related
+    chat tail latency and source no-op invalidation paths for a separate follow-up.
+  reason: Cached views pass held-read and revision tests, but a mobile viewport return reached 2.25 seconds during
+    sync activity. Source review found unnecessary invalidations; no individual live event was traced to the outlier.
+  decided_at: '2026-09-30'
+- id: D-WORKFLOW-INTEGRATION
+  status: active
+  decision: Restore the approved cache lifecycle on the current Workflow editor and streaming implementation; verify
+    clean editor refresh and new deep links after a cached empty list alongside dirty draft preservation.
+  reason: A concurrent Workflow change replaced the previously published cache store. The final held-runs test detected
+    the regression, and source comparison confirmed that the other navigation cache product files were retained.
+  decided_at: '2026-09-30'
 document_checks:
   yaml_and_sanitized_evidence: passed
   independent_source_and_scope_review: completed; fixes and focused regressions added
   executable_plan_validator: Goal-first profile preserves approved scope and checks; Task status/dependencies stay
     exclusively in OpenMates Tasks per AGENTS.md.
+  completion_verifier: passed; all required acceptance criteria satisfied with retained source-bound evidence
 profile: lightweight
