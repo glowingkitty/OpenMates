@@ -34,6 +34,7 @@ export const ICON_NAME_MAP: Record<string, string> = {
     'settings_memories': 'heart',
     'shared': 'share',
     'storage': 'files',
+    'teams': 'team',
     'support': 'volunteering',
     'tfa': '2fa',
     'users': 'team',

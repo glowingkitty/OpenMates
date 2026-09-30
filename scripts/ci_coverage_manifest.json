@@ -299,7 +299,8 @@
         "task-workflow-example-chats.spec.ts",
         "unauthenticated-app-load.spec.ts",
         "unauthenticated-chat-navigation.spec.ts",
-        "workflow-template-sharing.spec.ts"
+        "workflow-template-sharing.spec.ts",
+        "components/settings-teams-icons.spec.ts"
       ]
     },
     "synthetic_artifact": {
