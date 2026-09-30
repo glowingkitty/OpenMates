@@ -26,9 +26,33 @@ class WorkflowAuthoringProviderError(ValueError):
     """Safe provider failure with known metering, never provider response text."""
 
     def __init__(self, reason: str, metrics: dict[str, Any] | None = None,
-                 accepted_prefixes: list[dict[str, Any]] | None = None) -> None:
+                 accepted_prefixes: list[dict[str, Any]] | None = None,
+                 *, code: str | None = None) -> None:
         self.metrics = metrics or {}
         self.accepted_prefixes = accepted_prefixes or []
+        known = {
+            "Workflow authoring provider unavailable": "provider_unavailable",
+            "Workflow batch exceeds its limit": "plan_limit",
+            "Workflow retry changed an accepted header": "retry_header_changed",
+            "Workflow header failed validation": "header_validation",
+            "Workflow node arrived before its header": "node_before_header",
+            "Workflow retry changed an accepted node": "retry_node_changed",
+            "Workflow provider repeated a node": "node_duplicate",
+            "Workflow node failed validation": "node_validation",
+            "Invalid provider stream": "invalid_stream",
+            "Workflow provider stream failed": "stream_error",
+            "Workflow provider response too large": "response_limit",
+            "Workflow provider did not complete the plan": "incomplete_plan",
+            "Workflow provider returned invalid JSON": "invalid_json",
+            "Workflow provider returned invalid envelope": "invalid_envelope",
+            "Workflow provider returned invalid flat schema": "flat_schema",
+            "Workflow provider exceeded its plan limits": "plan_limit",
+            "Workflow provider omitted a workflow header": "missing_header",
+            "Workflow provider transport failed": "transport_error",
+            "Workflow authoring was stopped": "stopped",
+        }
+        self.code = code or ("http_status" if reason.startswith("Workflow provider HTTP ") else
+                             known.get(reason, "provider_error"))
         super().__init__(reason)
 
 
@@ -259,7 +283,7 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
         "at": {"type": "string", "description": "Full ISO datetime for once schedule only; never daily or weekly."},
     }, "required": ["type"]}
     header = {"type": "object", "additionalProperties": False, "properties": {
-        "operation": {"type": "string", "enum": ["create", "update", "draft"]},
+        "operation": {"type": "string", "enum": ["create", "update"]},
         "workflow_id": {"type": "string"}, "title": {"type": "string"},
         "description": {"type": "string"}, "icon": {"type": "string"},
         "schedule": schedule, "remove_step_ids": {"type": "array", "items": {"type": "string"}},
@@ -306,10 +330,9 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
     }]}
     return (
         "Build all requested workflows as one JSON object with a workflows array (one to eight items). "
-        "Each item has header FIRST, then nodes. Header contains operation create, update or draft, "
+        "Each item has header FIRST, then nodes. Header operation is create or update, "
         "workflow_id only for update, and optional title, description, icon, schedule and remove_step_ids. "
-        "Do not output clarify: routing has already established an actionable request. "
-        "For a short incomplete create only, use draft with exact request text as title and empty nodes. "
+        "Do not output clarify or draft: Jev has already handled unclear and title-only requests. "
         "A complete create needs title, description, supported icon, schedule and nodes. "
         "For edits preserve metadata unless asked to change it; preserve existing node IDs and unrelated steps. "
         "For schedule-only updates use empty nodes, preserving the existing graph. "
@@ -384,7 +407,9 @@ class WorkflowGeminiAuthor:
         fails without emitting it. The caller owns correction and persistence.
         """
         from jsonschema import Draft202012Validator
-        from backend.core.api.app.services.workflow_authoring_compiler import FlatAuthoringAccumulator
+        from backend.core.api.app.services.workflow_authoring_compiler import (
+            FlatAuthoringAccumulator, authoring_validation_code,
+        )
 
         prior = accepted_prefixes or []
         if isinstance(prior, dict):
@@ -471,7 +496,9 @@ class WorkflowGeminiAuthor:
                 try:
                     accumulator.accept_header(header)
                 except ValueError as exc:
-                    error = WorkflowAuthoringProviderError("Workflow header failed validation", metrics, snapshots())
+                    error = WorkflowAuthoringProviderError(
+                        "Workflow header failed validation", metrics, snapshots(),
+                        code=authoring_validation_code(exc, "header"))
                     error.validation_error = str(exc)[:300]
                     raise error from exc
                 accumulators[workflow_index] = accumulator
@@ -493,7 +520,9 @@ class WorkflowGeminiAuthor:
                 try:
                     accumulator.accept_node(node)
                 except ValueError as exc:
-                    error = WorkflowAuthoringProviderError("Workflow node failed validation", metrics, snapshots())
+                    error = WorkflowAuthoringProviderError(
+                        "Workflow node failed validation", metrics, snapshots(),
+                        code=authoring_validation_code(exc, "node"))
                     error.validation_error = str(exc)[:300]
                     raise error from exc
                 seen_new_ids[workflow_index].add(node_id)

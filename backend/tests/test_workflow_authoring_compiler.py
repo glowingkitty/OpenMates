@@ -10,7 +10,8 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from backend.core.api.app.services.workflow_authoring_compiler import (
-    FlatAuthoringAccumulator, build_authoring_schema, compile_authoring_plan, compile_authoring_preview,
+    FlatAuthoringAccumulator, authoring_validation_code, build_authoring_schema,
+    compile_authoring_plan, compile_authoring_preview,
 )
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
 from backend.core.api.app.services.workflow_capability_registry import (
@@ -88,6 +89,17 @@ def test_schedule_rejects_fields_from_other_kinds_before_streaming_header():
                                      "icon": "help-circle", "schedule": {"type": "weekly", "time": "07:30",
                                                                           "weekdays": ["monday"]}})
     assert accepted["graph"]["nodes"][0]["config"]["schedule"]["time"] == "07:30"
+
+
+def test_authoring_failure_codes_are_fixed_and_hide_model_values():
+    assert authoring_validation_code(ValueError(
+        "weekly schedule supports time, timezone, weekdays; unsupported fields: at"), "header") == "header_schedule"
+    assert authoring_validation_code(ValueError("Partial create needs a title and description"), "header") == "header_metadata"
+    assert authoring_validation_code(ValueError("Authoring plan violates the selected capability schema at $.icon"),
+                                     "header") == "header_icon"
+    assert authoring_validation_code(ValueError("Authoring plan violates the selected capability schema at $.steps[0]"),
+                                     "node") == "node_selected_schema"
+    assert authoring_validation_code(ValueError("private arbitrary model string"), "header") == "header_validation"
 
 
 def test_flat_update_header_preserves_original_and_new_node_splices_without_dropping_reply():

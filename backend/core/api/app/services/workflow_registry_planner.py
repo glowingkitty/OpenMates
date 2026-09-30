@@ -438,7 +438,7 @@ class WorkflowRegistryPlanner:
                     metrics["cost_estimate_complete"] = False
                     return finish(self._partial(accumulators, "stopped"))
                 except (ValueError, WorkflowAuthoringProviderError) as exc:
-                    usage = usage or getattr(exc, "metrics", None) or {}
+                    usage = dict(usage or getattr(exc, "metrics", None) or {})
                     if isinstance(exc, WorkflowAuthoringProviderError):
                         # Early stream termination may report only usage seen
                         # before the rejected node, rather than final billing.
@@ -447,6 +447,16 @@ class WorkflowRegistryPlanner:
                         return finish(self._partial(accumulators, "stopped"))
                     correction = (getattr(exc, "validation_error", None) or str(exc))[:600]
                     metrics["last_failure_stage"] = "authoring_validation"
+                    # Keep diagnostics useful without persisting the private
+                    # correction text or a provider response. Provider codes
+                    # are constants; ValueError messages may contain user data.
+                    reason_code = getattr(exc, "code", None) or "plan_validation"
+                    usage["failure_reason_code"] = reason_code
+                    metrics["last_failure_reason_code"] = reason_code
+                    validation_code = getattr(exc, "validation_code", None)
+                    if validation_code:
+                        usage["validation_code"] = validation_code
+                        metrics["last_validation_code"] = validation_code
                     if attempt == 0:
                         await self._emit(context, {"type": "progress", "phase": "retrying_node", "attempt": 2})
                         continue

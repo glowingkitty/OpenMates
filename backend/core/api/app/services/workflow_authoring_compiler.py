@@ -89,9 +89,9 @@ def _input_schema(schema: dict[str, Any], *, depth: int = 0, allow_ref: bool = T
 def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
     """Return a compact JSON Schema scoped to Jev's selected capabilities.
 
-    The provider may emit ``operation=clarify`` with a reason when a faithful
-    workflow cannot be represented. Objects are intentionally shallow and step
-    nesting is bounded to three Check levels; compilation also enforces limits.
+    The schema retains deterministic draft/clarify actions used by upstream
+    routing; Gemini's flat transport emits only actionable create/update plans.
+    Steps are bounded to three Check levels here and again during compilation.
     """
     ref = _reference_schema()
     segment = {"anyOf": [_object({"text": {"type": "string"}}), ref]}
@@ -572,6 +572,35 @@ _FLAT_NODE_FIELDS = {"kind", "id", "parent_check_id", "branch", "capability", "m
                      *_FLAT_JSON_FIELDS}
 
 
+def authoring_validation_code(error: ValueError, phase: str) -> str:
+    """Classify an authored prefix with fixed privacy-safe failure codes."""
+    message = str(error).lower()
+    if phase == "header":
+        if ("schedule" in message or "timezone" in message or
+                "selected capability schema at $.schedule" in message):
+            return "header_schedule"
+        if "icon" in message or "selected capability schema at $.icon" in message:
+            return "header_icon"
+        if ("title" in message or "description" in message or
+                "selected capability schema at $.title" in message or
+                "selected capability schema at $.description" in message):
+            return "header_metadata"
+        if "selected workflow" in message or "target" in message:
+            return "header_target"
+        if "selected capability schema" in message:
+            return "header_selected_schema"
+        return "header_validation"
+    if "json field" in message or "duplicate property" in message:
+        return "node_json"
+    if "reference" in message or "upstream" in message or "branch-local" in message:
+        return "node_reference"
+    if "selected capability schema" in message or "selected capability" in message:
+        return "node_selected_schema"
+    if "node id" in message or "step ids" in message:
+        return "node_id"
+    return "node_validation"
+
+
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
@@ -610,7 +639,7 @@ class FlatAuthoringAccumulator:
         self.preview: dict[str, Any] | None = None
 
     def _context(self, operation: str) -> tuple[WorkflowPreselection, dict[str, Any] | None]:
-        if operation not in {"create", "update", "draft"}:
+        if operation not in {"create", "update"}:
             raise ValueError("Flat authoring operation is invalid")
         selection = (replace(self.selection, operation=operation) if is_dataclass(self.selection)
                      else SimpleNamespace(**{**vars(self.selection), "operation": operation}))
@@ -627,12 +656,7 @@ class FlatAuthoringAccumulator:
         self.header = dict(header)
         try:
             selection, target = self._context(str(header.get("operation")))
-            if header.get("operation") in {"create", "update"}:
-                preview = compile_authoring_preview(candidate, selection, self.timezone, target)
-            else:
-                compile_authoring_plan({key: value for key, value in candidate.items() if key != "steps"},
-                                       selection, self.timezone, target)
-                preview = None
+            preview = compile_authoring_preview(candidate, selection, self.timezone, target)
         except (ValueError, TypeError):
             self.header = None
             raise

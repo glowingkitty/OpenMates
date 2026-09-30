@@ -48,6 +48,7 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert "NOT forecast data" in prompt
     assert "Daily and weekly clock times MUST use time" in prompt
     assert "do not add Ask AI merely" in prompt
+    assert "Do not output clarify or draft" in prompt
     assert "op:'" not in prompt
 
 
@@ -58,6 +59,8 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert len(json.dumps(schema)) < 2500
     assert "minItems" not in json.dumps(schema) and "maxItems" not in json.dumps(schema)
     schedule = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["schedule"]
+    operation = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["operation"]
+    assert operation["enum"] == ["create", "update"]
     assert "daily or weekly" in schedule["properties"]["time"]["description"]
     assert "once schedule only" in schedule["properties"]["at"]["description"]
     validator = Draft202012Validator(schema)
@@ -65,6 +68,9 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
                                       "input_json": '{"location":"Berlin","days":1}'}]}]}
     validator.validate(flat)
+    flat["workflows"][0]["header"]["operation"] = "draft"
+    assert list(validator.iter_errors(flat))
+    flat["workflows"][0]["header"]["operation"] = "create"
     assert list(validator.iter_errors({"operation": "create"}))
     flat["workflows"][0]["nodes"][0]["input_json"] = {"location": "Berlin"}
     assert list(validator.iter_errors(flat))
@@ -170,6 +176,28 @@ async def test_provider_rejection_does_not_expose_body():
         with pytest.raises(WorkflowAuthoringProviderError, match="HTTP 429") as error:
             await WorkflowGeminiAuthor(Secrets(), client).generate(
                 text="private input", selection=SimpleNamespace(context=lambda: {}), timezone="UTC")
+    assert "private" not in str(error.value)
+    assert error.value.code == "http_status"
+
+
+@pytest.mark.asyncio
+async def test_header_failure_has_fixed_code_without_accepting_partial_header():
+    header = {"operation": "create", "title": "A private title", "schedule": {"type": "daily"}}
+    event = {"candidates": [{"content": {"parts": [{"text": json.dumps({
+        "workflows": [{"header": header, "nodes": []}],
+    })}]}, "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="header failed validation") as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="A private request", selection=selection(), timezone="UTC")
+    assert error.value.code == "header_metadata"
+    assert error.value.accepted_prefixes == []
     assert "private" not in str(error.value)
 
 

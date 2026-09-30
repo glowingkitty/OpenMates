@@ -312,6 +312,33 @@ async def test_gemini_clarification_output_is_retried_then_fails_without_opening
     assert len(author.requests) == 2
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
+@pytest.mark.asyncio
+async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(monkeypatch):
+    configure(monkeypatch)
+
+    class FailingAuthor:
+        async def generate(self, **kwargs):
+            error = module.WorkflowAuthoringProviderError("Workflow header failed validation",
+                                                         {"output_tokens": 34})
+            error.code = "header_validation"
+            error.validation_code = "schedule_fields"
+            error.validation_error = "Private generated value must stay in correction only"
+            raise error
+
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Private user request", {"timezone": "Europe/Berlin"}, object(), FailingAuthor())
+    assert result["action"] == "partial" and result["operations"] == []
+    metrics = result["_authoring_metrics"]
+    assert metrics["last_failure_reason_code"] == "header_validation"
+    assert metrics["last_validation_code"] == "schedule_fields"
+    assert len(metrics["generation_attempts"]) == 2
+    assert all(attempt["failure_reason_code"] == "header_validation"
+               and attempt["validation_code"] == "schedule_fields"
+               for attempt in metrics["generation_attempts"])
+    assert "Private" not in json.dumps(metrics)
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.provisional-validation
 @pytest.mark.asyncio
 async def test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks(monkeypatch):
