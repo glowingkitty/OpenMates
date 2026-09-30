@@ -9,7 +9,11 @@ import asyncio
 from typing import Any
 
 from backend.apps.audio.assistant_speech.persistence import complete_segment_billing, prepare_next_segment_billing
-from backend.apps.audio.pricing import ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL, calculate_assistant_response_speech_credits
+from backend.apps.audio.pricing import (
+    ASSISTANT_RESPONSE_SPEECH_MODEL,
+    ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL,
+    calculate_assistant_response_speech_credits,
+)
 from backend.apps.audio.tasks.common import charge_audio_generation_credits
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
@@ -27,7 +31,8 @@ def assistant_speech_billing_task(self: BaseServiceTask, arguments: dict[str, An
                 if billing is None:
                     return {"status": "settled" if settled else "pending", "segments": settled, "credits": charged}
                 model = str(billing["model"])
-                if model != ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL:
+                # Legacy manifests can still have an unsettled v3 segment.
+                if model not in {ASSISTANT_RESPONSE_SPEECH_MODEL, ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL}:
                     raise RuntimeError("Assistant speech manifest has an unsupported billing model")
                 before = calculate_assistant_response_speech_credits(submitted_characters=int(billing["settled_characters"]))
                 after = calculate_assistant_response_speech_credits(
