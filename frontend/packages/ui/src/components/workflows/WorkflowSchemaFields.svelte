@@ -79,6 +79,7 @@
   }
   function compatibleOutputs(name: string, field: Schema): Output[] {
     return outputs.filter(output => {
+      if (output.listProjection) return false;
       const typeCompatible = output.schema.type === field.type || (['integer', 'number'].includes(field.type ?? '') && ['integer', 'number'].includes(output.schema.type ?? ''));
       return typeCompatible && semanticallyCompatible(name, field, output);
     });

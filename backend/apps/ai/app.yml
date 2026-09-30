@@ -53,6 +53,11 @@ skills:
             basic: true
           type: string
           description: The question or task for the Workflow AI step.
+        model:
+          x-ui:
+            basic: true
+          type: string
+          description: Auto or an exact provider/model ID from the chat model catalogue.
         conversation:
           x-ui:
             basic: false

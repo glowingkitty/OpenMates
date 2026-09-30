@@ -78,20 +78,31 @@ models:
       type: progressive_disclosure
       required: true
       constraints: {default: exact_rule, choices: [exact_rule, use_ai_judgment], separate_top_level_ai_check_step: false}
+    identity:
+      type: shared_if_step_header
+      required: true
+      constraints: {blue_header: true, large_title: If, backlink: translated_next_step, narrow_backlink_label: hidden, delete_action: farther_left, source: supplied_figma_if_frames}
     exact_rule:
       type: typed_comparison_builder
       required: true
-      constraints: {plain_language_preview: true, model_call: forbidden}
+      constraints: {plain_language_preview: true, model_call: forbidden, order: [app_node, scalar_variable, compatible_operator, typed_literal_or_other_node_variable], array_entry_projection: forbidden}
+    source_controls:
+      type: shared_rich_settings_dropdown
+      required: true
+      constraints: {sources: [earlier_app_nodes, ai_confirms], gradient_app_identity: true, operator_icons: true, incompatible_variables_hidden: true, exact_rule_inferred_from_app_source: true}
     ai_judgment:
       type: bounded_boolean_question_builder
       required: true
       constraints:
-        visible_fields: [decision_question_with_inserted_earlier_values]
+        visible_fields: [authored_true_false_question_with_inserted_earlier_values]
         selected_value_preview: required
         advanced_provider_or_prompt_controls: forbidden
         outcomes: [if_true, if_false, unsure]
         unsure_branch: user_configurable_with_supported_steps_or_empty
         test_before_save: optional
+        source_picker: shared_step_and_field_picker
+        partial_mention: blue_query_filter_replaced_by_colored_token
+        invalid_question: error_on_save_and_test
     guidance:
       type: contextual_authoring_help
       required: true
@@ -102,24 +113,44 @@ models:
       type: multiline_text_with_insertable_earlier_value_references
       required: true
       constraints: {single_text_answer: true, app_skill_execution_controls: forbidden, whole_run_context: forbidden}
+    source_picker:
+      type: step_first_upstream_reference_picker
+      required: true
+      constraints: {source_chips_above_instruction: true, source_and_field_chips: left_aligned, sources: actual_earlier_nodes, app_node_row: one_horizontal_scroller, app_node_pills: single_line_content_width, fixed_add_action: outside_scroller, scroll_edge_fades: [left, right], stacked_source_chips: forbidden, multiline_source_labels: forbidden, fields_scoped_to_selected_source: true, show_all_scoped_to_selected_source: true}
+    model_selection:
+      type: chat_model_selector_below_instruction
+      required: true
+      constraints: {position: below_input_bottom_left, choices: [auto, eligible_exact_model], persisted_per_step: true, applied_to_unsaved_test_and_saved_run: true}
+    test_response:
+      type: progressive_assistant_response
+      required: true
+      constraints: {processing_below_test_action: true, cumulative_content: true, sender: OpenMates, renderer: shared_chat_markdown_and_embeds, chat_creation: forbidden}
     suggested_references:
-      type: non_interrupting_ranked_chips
+      type: free_local_reference_hints
       required: true
-      constraints: {position: above_instruction, auto_insert: false, reorder_full_reference_list: false, stale_results_ignored: true, idle_delay_ms: 1000}
+      constraints: {position: above_instruction, auto_insert: false, reorder_full_reference_list: false, provider_call_during_typing_or_selection: forbidden}
     app_skill_request_warning:
-      type: inline_validation
+      type: save_validation_feedback
       required: true
-      constraints: {position: below_instruction, reliable_illicit_request_blocks_save: true, uncertain_or_unavailable_verdict_allows_save_with_neutral_reminder: true}
+      constraints: {position: below_instruction, authoritative_on_save: true, reliable_illicit_request_blocks_save: true, provider_call_during_typing_or_selection: forbidden}
 
   WorkflowVariableComposer:
     insertion:
       type: shared_inline_editor_behavior
       required: true
-      constraints: {click_adds_visible_token_at_cursor: true, source_app_gradient_on_picker_and_token: true, applies_to: [send_message, ask_ai, ai_judgment, variable_enabled_app_text_inputs]}
+      constraints: {click_adds_visible_token_at_cursor: true, source_and_field_chips_left_aligned: true, inline_reference_pills_left_aligned: true, canonical_path_text: true, source_app_icon_on_token: true, source_app_gradient_on_picker_and_token: true, applies_to: [send_message, ask_ai, ai_judgment, variable_enabled_app_text_inputs]}
     result_lists:
       type: inline_typed_reference
       required: true
       constraints: {separate_result_section: forbidden, only_new_toggle: forbidden, message_preview_uses_result_cards: true}
+    reference_fields:
+      type: source_scoped_schema_fields
+      required: true
+      constraints: {source: actual_upstream_nodes, nested_objects: expanded, arrays: selectable_whole_without_descending, existing_array_references: preserved}
+    mention_search:
+      type: partial_inline_reference_query
+      required: true
+      constraints: {trigger: '@', partial_query_highlight: blue, choices_filtered_by_partial_query: true, selection_replaces_full_query_with_colored_token: true}
 
   WorkflowValuePresentation:
     readable_values:
@@ -525,8 +556,13 @@ assertions:
   - id: workflows-ui.mvp.ask-ai
     type: behavior
     must: >
-      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, insertable chips for accessible earlier outputs including app-result lists, a preview of bounded selected values, an optional unsaved Test, and one answer containing its complete validated text and visual references for later steps. After one second without an instruction change, web authoring automatically requests Jev-powered suggestion and app-skill-intent hints; these authoring hints do not select runtime presentation instructions for a known earlier app action. Suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. A reliable request to invoke an app skill shows the warning "You can't ask for using app skills here. Instead add an 'Use app' action to trigger an app skill" below the field and blocks Save; processing an existing app output remains allowed. An unavailable or uncertain hint shows a neutral reminder and allows Save, while server-side save validation still uses Jev and Gemini 3.8 Flash fallback. Stale hint responses cannot change the current instruction's warning or suggestions. Provider controls stay out of the basic editor, and CLI/SDK authoring does not run this typing-time hint flow.
-    depends_on: [models.WorkflowAskAiAuthoring, examples.ask_ai_authoring]
+      Ask AI is a top-level step distinct from Use app, Check and Send message; AI Ask does not appear in the Use app picker. Its expanded card offers a multiline instruction editor like Send message, one left-aligned horizontally scrolling row of actual earlier app-node pills above the field, and a left-aligned source-scoped row of fields with Show all limited to that source. Source pills are single-line and sized to their text, with a fixed Add action outside the scroller and transparent fades at both scroll edges; they never stack or wrap labels. The card also offers a preview of bounded selected values, an optional unsaved Test, and one answer containing its complete validated text and visual references for later steps. The same chat Auto/exact-model selector sits below the instruction at bottom left, persists per Ask AI step, and governs both Test and saved runs. Test shows animated Processing below its action and progressively renders cumulative Markdown and embeds as an OpenMates assistant message. Typing and selecting source fields use free local hints only; no provider call occurs until Save or Test. Suggested variable chips appear above the field without moving the cursor, inserting text or reordering the full reference picker. Authoritative Save validation reports an app-skill invocation request below the field and blocks Save with guidance to add Use app; processing an existing app output remains allowed. A provider error is shown as a validation failure rather than as a successful verdict. CLI/SDK authoring uses the same server-side Save validation.
+    depends_on: [models.WorkflowAskAiAuthoring]
+  - id: workflows-ui.if-editor.authored-conditions
+    type: behavior
+    must: >
+      The expanded If editor uses the supplied blue header, a large If title and a translated Next step backlink whose text hides in a narrow container; the delete action sits farther left. Its controls reuse the rich SettingsDropdown with source app gradients and operator icons. The first source choice is an earlier app node or the AI confirms option: choosing an app opens Exact rule directly, without a separate Exact rule choice, then a compatible scalar field, compatible operator, and typed Number, Text or Boolean literal or compatible field from another earlier app node; list entry projections are not offered. AI confirms opens the authored AI judgment with the shared left-aligned source and field picker plus the same blue @partial highlighting, filtering and full colored-token replacement as Ask AI. The author writes a true/false question; invalid questions show actionable errors on Save and Test. If true, If false and Unsure remain visible outcomes, and no provider call occurs while typing or choosing values.
+    depends_on: [models.WorkflowCheckAuthoring]
   - id: workflows-ui.schedule.preview
     type: behavior
     must: Date/time controls offer once, hourly, daily and weekly with time, timezone and readable schedule summary. Automatic activation requires a valid schedule; a complete graph offers Run now while disabled or unscheduled. Advanced recurrence and new budget UI are deferred.
@@ -539,8 +575,8 @@ assertions:
     - examples.message_budget
   - id: workflows-ui.editor.inline-action-variables
     type: behavior
-    must: Every variable-enabled Workflow text editor, including Send message, Ask AI, AI judgment and app action text inputs, inserts a visible variable token at the cursor when its chip is clicked or selected with a keyboard. Each picker chip and inserted token uses the source action app's existing gradient, remains readable in light and dark themes, and can be removed and reinserted without changing nearby text. Save explains the missing earlier-action reference in the affected message field; no variable is required when no earlier action exists.
-    depends_on: [models.WorkflowVariableComposer, examples.inline_action_variables]
+    must: Every variable-enabled Workflow text editor, including Send message, Ask AI, AI judgment and app action text inputs, inserts a visible variable token at the cursor when its chip is clicked or selected with a keyboard. Source chips, field chips and inline reference pills align left. Inserted pills show the directly addressable canonical reference path, for example @events.search.results or @travel.search-connections.results, with the source app icon. The picker uses actual earlier nodes, expands nested object fields, and stops at arrays so whole-list references remain selectable and saved references remain valid. Typing @ plus a partial variable name highlights the query blue and filters choices; selection replaces the entire query with the colored token. Each picker chip and inserted token uses the source action app's existing gradient, remains readable in light and dark themes, and can be removed and reinserted without changing nearby text. Save explains the missing earlier-action reference in the affected message field; no variable is required when no earlier action exists.
+    depends_on: [models.WorkflowVariableComposer]
   - id: workflows-ui.run-deletion-forgetting
     type: behavior
     must: Run detail exposes its remembered delivered-result count and destination without leaking private data

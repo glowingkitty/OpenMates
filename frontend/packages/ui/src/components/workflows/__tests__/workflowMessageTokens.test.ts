@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { documentToTemplate, templateToDocument, outputToken, WORKFLOW_OUTPUT_NODE } from '../workflowMessageTokens.ts';
+import { documentToTemplate, templateToDocument, outputCanonicalName, outputToken, WORKFLOW_OUTPUT_NODE } from '../workflowMessageTokens.ts';
 
 const rain = { reference: '$nodes.weather.output.rain_summary', label: 'Weather · Rain summary' };
 const count = { reference: '$nodes.news.output.result_count', label: 'News · Number of results' };
@@ -33,4 +33,30 @@ test('existing references stay readable even before output metadata is available
   assert.ok(tokens.every(node => !String(node.attrs!.displayName).includes('{{') && !String(node.attrs!.displayName).includes('$nodes.')));
   assert.equal(documentToTemplate(doc), 'At {{clock.now}}: {{$nodes.weather.output.rain_summary}}');
   assert.equal(documentToTemplate(templateToDocument('{{$nodes.weather.output.rain_summary}}', [rain])), '{{steps.weather.rain_summary}}');
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows-ui.editor.inline-action-variables
+test('declared skill outputs display canonical addresses while retaining node-specific storage references', () => {
+  const events = { reference: '$nodes.event_search_1.output.results', label: 'My events · Results', appId: 'events', skillId: 'search' };
+  const travel = { reference: '$nodes.connections_2.output.results', label: 'Trip search · Results', appId: 'travel', skillId: 'search_connections' };
+  assert.equal(outputCanonicalName(events), 'events.search.results');
+  assert.equal(outputCanonicalName(travel), 'travel.search-connections.results');
+  const eventToken = outputToken(events);
+  const travelToken = outputToken(travel);
+  assert.equal(eventToken.attrs?.displayName, 'events.search.results');
+  assert.equal(eventToken.attrs?.appId, 'events');
+  assert.equal(eventToken.attrs?.sourceLabel, events.label);
+  assert.equal(eventToken.attrs?.mentionId, events.reference);
+  assert.equal(travelToken.attrs?.displayName, 'travel.search-connections.results');
+  assert.equal(travelToken.attrs?.mentionSyntax, '{{steps.connections_2.results}}');
+  assert.equal(documentToTemplate(templateToDocument('{{steps.event_search_1.results}}', [events])), '{{steps.event_search_1.results}}');
+});
+
+// contract-test: supporting surface=gui.web assertions=workflows-ui.editor.inline-action-variables
+test('same-skill nodes share the readable address but retain distinct node identities', () => {
+  const first = { reference: '$nodes.event_search_1.output.results', label: 'Morning events · Results', appId: 'events', skillId: 'search' };
+  const second = { reference: '$nodes.event_search_2.output.results', label: 'Evening events · Results', appId: 'events', skillId: 'search' };
+  assert.equal(outputToken(first).attrs?.displayName, outputToken(second).attrs?.displayName);
+  assert.notEqual(outputToken(first).attrs?.mentionId, outputToken(second).attrs?.mentionId);
+  assert.equal(outputCanonicalName(rain), null);
 });

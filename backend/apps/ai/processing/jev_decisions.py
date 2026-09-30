@@ -15,8 +15,9 @@ async def evaluate_jev_decisions(
     questions: Mapping[str, Mapping[str, Any]],
     secrets_manager: Optional[SecretsManager],
     model_id: str,
+    max_retries: int = 1,
 ) -> DecisionResponse:
-    client = JevDecisionClient(secrets_manager=secrets_manager, model=model_id)
+    client = JevDecisionClient(secrets_manager=secrets_manager, model=model_id, max_retries=max_retries)
     return await client.evaluate(state=state, questions=questions)
 
 

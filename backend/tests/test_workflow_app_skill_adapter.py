@@ -11,8 +11,10 @@ from __future__ import annotations
 import sys
 from types import SimpleNamespace
 from typing import Any
+import json
 
 import pytest
+from fastapi.responses import StreamingResponse
 
 from backend.core.api.app import routes as routes_package
 from backend.core.api.app.services import workflow_app_skill_adapter
@@ -286,6 +288,112 @@ async def test_ai_ask_reports_already_settled_usage_without_double_charging() ->
 
     assert result["answer"] == "A concise workflow answer"
     assert result["_workflow_credit_cost"] == 5
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
+async def test_ai_ask_stream_emits_snapshots_and_uses_final_authoritative_answer(monkeypatch) -> None:
+    frames = [
+        {"choices": [{"delta": {"content": "Draft"}, "finish_reason": None}]},
+        {"choices": [{"delta": {"content": " answer"}, "finish_reason": None}]},
+        {"model": "openai/example", "choices": [{"delta": {}, "finish_reason": "stop"}],
+         "full_content": "Final answer", "usage": {"total_credits": 3}},
+    ]
+
+    async def body():
+        for frame in frames:
+            yield f"data: {json.dumps(frame)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    registry = FakeRegistry(response=StreamingResponse(body()))
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+
+    async def available(_model):
+        return None
+
+    monkeypatch.setattr(adapter, "_validate_ask_model", available)
+    snapshots: list[str] = []
+
+    async def on_snapshot(value: str):
+        snapshots.append(value)
+
+    result = await adapter.stream_ask(
+        {"prompt": "Say hello", "model": "openai/example"}, user_id="alice",
+        billing_context={"workflow_id": "wf", "run_id": "run", "node_id": "ask", "source": "workflow_test"},
+        on_snapshot=on_snapshot,
+    )
+    assert snapshots == ["Draft", "Draft answer", "Final answer"]
+    assert result["answer"] == "Final answer"
+    assert result["_workflow_credit_cost"] == 3
+    assert registry.calls[0][2]["model"] == "openai/example"
+    assert registry.calls[0][2]["stream"] is True
+    assert registry.calls[0][2]["apps_enabled"] is False
+    assert registry.calls[0][2]["_user_id"] == "alice"
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution
+async def test_ai_ask_stream_provider_error_fails_without_raw_error_text() -> None:
+    async def body():
+        yield 'data: {"choices":[{"delta":{"content":"Error: secret diagnostic"},"finish_reason":"error"}],"usage":{"total_credits":7}}\n\n'
+        yield "data: [DONE]\n\n"
+
+    adapter = WorkflowAppSkillAdapter(registry=FakeRegistry(response=StreamingResponse(body())))
+    snapshots: list[str] = []
+
+    async def on_snapshot(value: str):
+        snapshots.append(value)
+
+    with pytest.raises(WorkflowSkillBillingError, match="could not complete") as exc:
+        await adapter.stream_ask(
+            {"prompt": "hello"}, user_id="alice",
+            billing_context={"workflow_id": "wf", "run_id": "run", "node_id": "ask", "source": "workflow_test"},
+            on_snapshot=on_snapshot,
+        )
+    assert exc.value.code == "WORKFLOW_AI_STREAM_FAILED"
+    assert exc.value.credit_cost == 7
+    assert snapshots == []
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution,workflows.billing.skill-usage
+async def test_ai_ask_stream_empty_final_answer_retains_settled_credit_cost() -> None:
+    async def body():
+        yield 'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"full_content":"   ","usage":{"total_credits":5}}\n\n'
+        yield "data: [DONE]\n\n"
+
+    adapter = WorkflowAppSkillAdapter(registry=FakeRegistry(response=StreamingResponse(body())))
+
+    async def on_snapshot(_value: str) -> None:
+        pass
+
+    with pytest.raises(WorkflowSkillBillingError, match="returned no answer") as exc:
+        await adapter.stream_ask(
+            {"prompt": "hello"}, user_id="alice",
+            billing_context={"workflow_id": "wf", "run_id": "run", "node_id": "ask", "source": "workflow_test"},
+            on_snapshot=on_snapshot,
+        )
+    assert exc.value.code == "WORKFLOW_AI_STREAM_FAILED"
+    assert exc.value.credit_cost == 5
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution
+async def test_ai_ask_exact_model_is_checked_against_available_chat_catalog(monkeypatch) -> None:
+    from backend.core.api.app.utils.config_manager import ConfigManager
+
+    checked = []
+
+    def get_model_pricing(self, provider, model):
+        checked.append((provider, model))
+        return None
+
+    monkeypatch.setattr(ConfigManager, "get_model_pricing", get_model_pricing)
+    adapter = WorkflowAppSkillAdapter(registry=FakeRegistry())
+    with pytest.raises(WorkflowSkillBillingError) as exc:
+        await adapter.execute("ai", "ask", {"prompt": "Hello", "model": "openai/removed"}, user_id="alice")
+    assert exc.value.code == "WORKFLOW_AI_MODEL_UNAVAILABLE"
+    assert checked == [("openai", "removed")]
 
 
 @pytest.mark.anyio

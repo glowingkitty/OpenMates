@@ -201,6 +201,13 @@ function assertCurrentGeneration(requestGeneration: number): void {
   }
 }
 
+export class WorkflowApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+    this.name = 'WorkflowApiError';
+  }
+}
+
 export async function workflowApiRequest<T>(
   path: string,
   init: WorkflowRequestInit = {},
@@ -234,7 +241,7 @@ export async function workflowApiFetch(
     const data = await response.json().catch(() => null);
     const detail = data?.detail;
     const message = typeof detail === "string" ? detail : detail?.message ?? data?.message;
-    throw new Error(message || (response.status === 429 ? "Too many requests. Please wait a moment and try again." : `Workflow request failed with HTTP ${response.status}`));
+    throw new WorkflowApiError(message || (response.status === 429 ? "Too many requests. Please wait a moment and try again." : `Workflow request failed with HTTP ${response.status}`), response.status, detail?.code);
   }
 
   return response;

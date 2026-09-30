@@ -12,7 +12,7 @@ import hashlib
 import re
 import time
 import uuid
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from starlette.concurrency import run_in_threadpool
 
@@ -240,6 +240,7 @@ class WorkflowRunner:
         input_override: dict[str, Any] | None = None,
         vault_key_id: str | None = None,
         upstream_outputs: dict[str, dict[str, Any]] | None = None,
+        on_progress: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> WorkflowRunDetail:
         """Execute one selected action/control as a real inspectable step-test run."""
         node = next((item for item in workflow.graph.nodes if item.id == node_id), None)
@@ -252,6 +253,8 @@ class WorkflowRunner:
             else:
                 node.config.update(input_override)
         run_id = str(uuid.uuid4())
+        if on_progress is not None:
+            await on_progress("processing", run_id)
         started_at = int(time.time())
         if node.type.value in {"send_chat_message", "start_new_chat", "create_chat_report"}:
             raise ValueError("Send message supports preview; use a full run for actual delivery")
@@ -265,7 +268,10 @@ class WorkflowRunner:
             "workflow": {"workflow_id": workflow.id, "run_id": run_id, "node_id": node.id,
                          "started_at": started_at, "step_test": True,
                          "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC"}}
+        if on_progress is not None:
+            context["workflow"]["_progress_callback"] = on_progress
         node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
+        context["workflow"].pop("_progress_callback", None)
         context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value, "app_id": node.config.get("app_id"), "skill_id": node.config.get("skill_id")}
         status = WorkflowRunStatus.FAILED if node_run.status == WorkflowNodeRunStatus.FAILED else WorkflowRunStatus.COMPLETED
         if node_run.output_summary.get("wait_for_user_input"):
@@ -411,6 +417,7 @@ class WorkflowRunner:
                 error_code=exc.code,
                 error_summary=str(exc),
                 input_summary=node.input_mapping,
+                credit_cost=exc.credit_cost,
             )
         except Exception as exc:
             return WorkflowNodeRun(
@@ -443,16 +450,27 @@ class WorkflowRunner:
                     }
                     for reference in node.config["selected_inputs"]
                 ]
-                result = await self.ai_service.evaluate_check(
-                    question=node.config["question"],
-                    selected_inputs=selected_inputs,
-                )
+                if not await self.ai_service.preflight_check_evaluation(node.config["question"], selected_inputs):
+                    raise WorkflowSkillBillingError(
+                        "WORKFLOW_AI_CHECK_UNAVAILABLE", "AI Check could not start",
+                    )
                 credit_cost = await _charge_workflow_ai_check(
-                    user_id=user_id,
-                    context=context,
-                    node_id=node.id,
-                    decision_path=result.decision_path,
+                    user_id=user_id, context=context, node_id=node.id,
                 )
+                try:
+                    result = await self.ai_service.evaluate_check(
+                        question=node.config["question"], selected_inputs=selected_inputs,
+                    )
+                except Exception as exc:
+                    raise WorkflowSkillBillingError(
+                        "WORKFLOW_AI_CHECK_UNAVAILABLE", "AI Check could not complete",
+                        credit_cost=credit_cost,
+                    ) from exc
+                if not result.question_valid:
+                    raise WorkflowSkillBillingError(
+                        "WORKFLOW_AI_CHECK_NOT_BOOLEAN", "WORKFLOW_AI_CHECK_NOT_BOOLEAN",
+                        credit_cost=credit_cost,
+                    )
                 matched = True if result.outcome == "true" else False if result.outcome == "false" else None
                 return {
                     "matched": matched,
@@ -495,6 +513,8 @@ class WorkflowRunner:
             await revalidate_binding(binding_ref, user_id, app_id, skill_id)
         authored_input = node.config.get("input") or {}
         if app_id == "ai" and skill_id == "ask":
+            if node.input_mapping:
+                raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_INVALID", "Ask AI inputs must be inserted into its instruction")
             prompt = authored_input.get("prompt") if isinstance(authored_input, dict) else None
             if not isinstance(prompt, str):
                 raise WorkflowActionExecutionError("WORKFLOW_AI_ASK_INVALID", "Ask AI requires an instruction")
@@ -519,6 +539,7 @@ class WorkflowRunner:
                         result = await self.app_skill_adapter.execute(
                             app_id, skill_id,
                             {"prompt": render_bounded_ask_ai_prompt(prompt, projected),
+                             "model": authored_input.get("model", "auto"),
                              "workflow_presentation_sources": presentation_sources},
                             user_id=user_id,
                             billing_context={"workflow_id": context["workflow"].get("workflow_id"),
@@ -544,6 +565,7 @@ class WorkflowRunner:
                         "answers_by_destination": answers, "prepared": prepared,
                         "skipped": not answers, "_workflow_credit_cost": total_credit_cost}
             request = {"prompt": render_bounded_ask_ai_prompt(prompt, context),
+                       "model": authored_input.get("model", "auto"),
                        "workflow_presentation_sources": presentation_sources}
         else:
             request = _resolve_template(authored_input, context)
@@ -551,18 +573,33 @@ class WorkflowRunner:
         from backend.core.api.app.services.workflow_runtime_values import resolve_workflow_runtime_values
         execution = context.get("workflow") or {}
         request = resolve_workflow_runtime_values(request, now=execution.get("started_at"), timezone=execution.get("timezone") or "UTC")
-        output = await self.app_skill_adapter.execute(
-            app_id,
-            skill_id,
-            request,
-            user_id=user_id,
-            billing_context={
-                "workflow_id": execution.get("workflow_id"),
-                "run_id": execution.get("run_id"),
-                "node_id": node.id,
-                "source": "workflow_test" if execution.get("step_test") else "workflow",
-            },
-        )
+        stream_ask = getattr(self.app_skill_adapter, "stream_ask", None)
+        if execution.get("step_test") and execution.get("_progress_callback") and app_id == "ai" and skill_id == "ask" and callable(stream_ask):
+            callback = execution["_progress_callback"]
+            output = await stream_ask(
+                request,
+                user_id=user_id,
+                billing_context={
+                    "workflow_id": execution.get("workflow_id"),
+                    "run_id": execution.get("run_id"),
+                    "node_id": node.id,
+                    "source": "workflow_test",
+                },
+                on_snapshot=lambda answer: callback("chunk", answer),
+            )
+        else:
+            output = await self.app_skill_adapter.execute(
+                app_id,
+                skill_id,
+                request,
+                user_id=user_id,
+                billing_context={
+                    "workflow_id": execution.get("workflow_id"),
+                    "run_id": execution.get("run_id"),
+                    "node_id": node.id,
+                    "source": "workflow_test" if execution.get("step_test") else "workflow",
+                },
+            )
         if output.get("error"):
             raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "The selected app skill could not complete this step")
         return output
@@ -627,30 +664,26 @@ async def _charge_workflow_ai_check(
     user_id: str,
     context: dict[str, Any],
     node_id: str,
-    decision_path: str,
+    operation_id: str | None = None,
+    source_override: str | None = None,
+    skill_id: str = "workflow-check",
+    billing_purpose: str = "single_jev_request",
 ) -> int:
-    """Settle one normal AI credit once a provider returned a usable decision."""
-    if decision_path not in {"bounded_decision_primary", "structured_generative_fallback"}:
-        return 0
+    """Settle one normal AI credit before a single Jev decision request."""
     execution = context.get("workflow") or {}
     workflow_id = execution.get("workflow_id")
     run_id = execution.get("run_id")
-    source = "workflow_test" if execution.get("step_test") else "workflow"
+    source = source_override or ("workflow_test" if execution.get("step_test") else "workflow")
     if not all(isinstance(value, str) and value for value in (workflow_id, run_id, node_id)):
         raise WorkflowSkillBillingError(
             "WORKFLOW_BILLING_INVALID_CONTEXT",
             "Workflow AI Check billing context is invalid",
         )
-    operation_id = str(
+    operation_id = operation_id or str(
         uuid.uuid5(
             uuid.NAMESPACE_URL,
             f"openmates:workflow-billing:{workflow_id}:{run_id}:{node_id}:ai:workflow-check:0",
         )
-    )
-    model_used = (
-        "typesafe/jev-1.13"
-        if decision_path == "bounded_decision_primary"
-        else "google/gemini-3.8-flash"
     )
     try:
         from backend.core.api.app.routes import apps_api
@@ -660,14 +693,14 @@ async def _charge_workflow_ai_check(
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
             credits=1,
             app_id="ai",
-            skill_id="workflow-check",
+            skill_id=skill_id,
             usage_details={
                 "source": source,
                 "units_processed": 1,
-                "model_used": model_used,
-                "server_provider": "OpenRouter" if decision_path == "bounded_decision_primary" else "Google",
-                "server_region": "global" if decision_path == "bounded_decision_primary" else "US",
-                "decision_path": decision_path,
+                "model_used": "typesafe/jev-1.13",
+                "server_provider": "OpenRouter",
+                "server_region": "global",
+                "decision_path": billing_purpose,
                 "operation_id": operation_id,
             },
             idempotency_key=operation_id,

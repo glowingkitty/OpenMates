@@ -12,6 +12,7 @@ import {
   schemaDefault,
   type Capability,
 } from "../workflowBuilder";
+import { presentedItems } from '../workflowValuePresentation';
 import {
   dailyWeatherNewsGraph,
   weeklyEventsGraph,
@@ -162,6 +163,14 @@ test("declared result fields are available as list-preserving variables", () => 
     type: "array",
     items: { type: "string", title: "Name" },
   });
+  // Existing templates keep their declared projections, while every new picker
+  // stops at the result list itself, including its Show all view.
+  const shown = presentedItems(outputs);
+  assert.deepEqual([...shown.basic, ...shown.advanced].map(item => item.reference), [
+    '$nodes.news.output.events',
+  ]);
+  assert.equal(outputs[0].listProjection, undefined);
+  assert.ok(outputs.slice(1).every(item => item.listProjection));
 });
 // contract-test: supporting surface=gui.web assertions=workflows.control.check,workflows-ui.mvp.authoring
 test("inserting a true-branch action preserves the else and continuation paths", () => {

@@ -1,5 +1,5 @@
 import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowExamples";
-import type { WorkflowGraph } from "../../stores/workflowWorkspaceStore";
+import { workflowApiRequest, type WorkflowGraph } from "../../stores/workflowWorkspaceStore";
 import type { Chat } from "../../types/chat";
 import type { Capability } from "./workflowBuilder";
 
@@ -355,7 +355,7 @@ const eventsSearchCapability: Capability = {
 };
 
 function skillVariant(graph: WorkflowGraph, capability: Capability) {
-  return { ...defaultProps, graph, capabilityFixtures: [capability] };
+  return { ...defaultProps, graph, capabilityFixtures: [capability, defaultCapability("ai.ask")] };
 }
 
 function defaultCapability(id: string): Capability {
@@ -424,15 +424,58 @@ const typedControlsCapabilities: Capability[] = [
   },
 ];
 
+async function saveTestGraph(graph: WorkflowGraph): Promise<void> {
+  await workflowApiRequest('/v1/workflows/preview-workflow', { method:'PATCH', body:JSON.stringify({ graph }) });
+}
+
+function comparisonCheckGraph(): WorkflowGraph {
+  const graph = structuredClone(dailyWeatherNewsGraph());
+  const weather = graph.nodes.find(node => node.id === 'weather')!;
+  graph.nodes.splice(2, 0, { ...structuredClone(weather), id:'second_forecast', config:{ ...weather.config, input:{ location:'Paris' } } });
+  graph.edges = graph.edges.filter(edge => !(edge.from === 'weather' && edge.to === 'rain'));
+  graph.edges.push({ from:'weather', to:'second_forecast' }, { from:'second_forecast', to:'rain' });
+  return graph;
+}
+
 export default defaultProps;
 export const variants = {
+  askAiTestable: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave:saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'manual_trigger', config: {} },
+        { id: 'weather', type: 'app_skill_action', title: 'Forecast', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin' } } },
+        { id: 'events', type: 'app_skill_action', title: 'Search', config: { app_id: 'events', skill_id: 'search', input: { requests: [{ query: 'Community events', location: 'Berlin' }] } } },
+        { id: 'ask', type: 'app_skill_action', title: 'Ask AI', config: { app_id: 'ai', skill_id: 'ask', input: { prompt: 'Summarize {{steps.events.results}}', model: 'auto' } } },
+      ],
+      edges: [{ from: 'trigger', to: 'weather' }, { from: 'weather', to: 'events' }, { from: 'events', to: 'ask' }],
+    } as WorkflowGraph,
+    capabilityFixtures: [...defaultProps.capabilityFixtures, {
+      ...eventsSearchCapability,
+      metadata: {
+        ...eventsSearchCapability.metadata,
+        output_schema: { type: 'object', properties: {
+          results: { type: 'array', title: 'Results', 'x-ui': { basic: true }, example: [{ title: 'Community meetup', url: 'https://example.com/event', date_start: '2026-10-01', location: 'Berlin' }], items: { type: 'object', properties: {
+            title: { type: 'string', title: 'Title', 'x-ui': { basic: true } },
+            url: { type: 'string', title: 'URL' }, location: { type: 'string', title: 'Location' },
+          } } },
+          result_count: { type: 'integer', title: 'Result count', example: 1 },
+          provider: { type: 'string', title: 'Provider', example: 'Example provider' },
+        } },
+      },
+    }],
+  },
   empty: {
     ...defaultProps,
     graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] },
   },
   aiCheck: { ...defaultProps, graph: aiCheckGraph() },
   exactCheckTestable: { ...defaultProps, workflowId: "preview-workflow" },
-  aiCheckTestable: { ...defaultProps, workflowId: "preview-workflow", graph: aiCheckGraph() },
+  aiCheckTestable: { ...defaultProps, workflowId: "preview-workflow", graph: aiCheckGraph(), onSave:saveTestGraph },
+  comparisonCheck: { ...defaultProps, workflowId:"preview-workflow", graph:comparisonCheckGraph(), onSave:saveTestGraph },
   weatherForecast: skillVariant(
     singleSkillGraph("weather"),
     defaultCapability("weather.forecast"),

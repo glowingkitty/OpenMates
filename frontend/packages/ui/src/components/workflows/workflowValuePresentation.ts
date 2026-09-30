@@ -32,12 +32,12 @@ export function presentedFields(properties: Record<string, Schema>, maxBasic = 4
   return { basic, advanced: eligible.filter(([key]) => !basicKeys.has(key)) };
 }
 
-export function presentedItems<T extends { reference: string; schema: Schema }>(items: T[]): { basic: T[]; advanced: T[] } {
+export function presentedItems<T extends { reference: string; schema: Schema; listProjection?: boolean }>(items: T[]): { basic: T[]; advanced: T[] } {
   const pathFor = (item: T): string[] => (item.reference.split('.output.')[1] ?? item.reference).split('.').filter(Boolean);
   const last = (parts: string[]): string | undefined => parts[parts.length - 1];
   const eligible = items.filter(item => {
     const key = last(pathFor(item)) ?? item.reference;
-    return !hiddenWorkflowField(key, item.schema);
+    return !item.listProjection && !hiddenWorkflowField(key, item.schema);
   });
   const byNode = new Map<string, T[]>();
   for (const item of eligible) {

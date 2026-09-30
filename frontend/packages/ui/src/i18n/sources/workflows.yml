@@ -1113,7 +1113,37 @@ builder.ask_ai_question:
 
 builder.ask_ai_placeholder:
   context: Workflow Ask AI instruction editor placeholder
-  en: "For example: Summarize the events and explain what makes each one useful. Type @ to add a variable from an earlier step."
+  en: "What should AI do with the information from earlier steps? Type @ to add a variable. To use an app skill, add an App action step."
+  verified_by_human: []
+
+builder.variable_add:
+  context: Label before earlier action chips in the Workflow variable picker
+  en: "Add:"
+  verified_by_human: []
+
+builder.select_variable_source:
+  context: Accessible label for earlier Workflow actions that expose variables
+  en: "Choose an earlier step"
+  verified_by_human: []
+
+builder.variable_show_all:
+  context: Reveal all selectable variables from the selected Workflow step
+  en: "Show all"
+  verified_by_human: []
+
+builder.variable_show_less:
+  context: Return to suggested variables from the selected Workflow step
+  en: "Show less"
+  verified_by_human: []
+
+builder.no_matching_variables:
+  context: Empty filtered Workflow variable picker
+  en: "No matching variables"
+  verified_by_human: []
+
+builder.next_step:
+  context: Back label from Workflow Ask AI editor to the action choices
+  en: "Next step"
   verified_by_human: []
 
 builder.suggested_values:
@@ -1323,7 +1353,52 @@ builder.ai_check_values:
 
 builder.ai_check_guidance:
   context: Workflow AI Check guidance
-  en: "Use an exact rule for fixed thresholds. Use Ask AI when context or several factors matter. If AI cannot decide reliably, the Unsure branch runs."
+  en: "Ask a True or False question about earlier results. If AI lacks enough evidence, the Unsure branch runs."
+  verified_by_human: []
+
+builder.ai_confirms:
+  context: AI condition source in the Workflow If editor
+  en: "AI confirms"
+  verified_by_human: []
+
+builder.select_check_source:
+  context: First Workflow If dropdown choosing an earlier app action or AI confirms
+  en: "Select action or AI confirms"
+  verified_by_human: []
+
+builder.compare_source:
+  context: Workflow If right-hand side literal type or earlier app action selector
+  en: "Compare with"
+  verified_by_human: []
+
+builder.compare_variable:
+  context: Workflow If right-hand side app output variable selector
+  en: "Comparison variable"
+  verified_by_human: []
+
+builder.ai_check_not_boolean:
+  context: Error when paid Jev validation rejects a Workflow AI confirms question
+  en: "Enter a question that can be answered True or False."
+  verified_by_human: []
+
+builder.ai_validation_unavailable:
+  context: Error when paid Workflow AI validation cannot complete
+  en: "AI validation could not finish. Please try again."
+  verified_by_human: []
+
+builder.insufficient_credits:
+  context: Workflow AI validation or test has insufficient user credits
+  en: "You do not have enough credits for this request."
+  verified_by_human: []
+
+builder.save_validation_cost:
+  context: Cost reminder for changed Ask AI or AI confirms question Save validation
+  en: "Save validation · 1 credit"
+  verified_by_human: []
+
+builder.unsure:
+  context: Workflow AI condition test result when evidence is insufficient
+  en: "Unsure"
   verified_by_human: []
 
 builder.ai_check_required:

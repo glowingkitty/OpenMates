@@ -495,16 +495,35 @@ authoring_edit_control_undo:
   when: He accepts the invalid pair and later requests Undo of the partial Weather edit.
   then: Neither invalid completed edit saves. The partial edit keeps Weather's original ID and untouched later nodes but disables it; no duplicate card appears. Undo reports Bob's newer manual revision and does not replace it. Without that later revision, Undo would restore the complete prior state including enabled state.
 ask_ai_authoring:
+- id: ask-ai-chooses-source-then-fields
+  assertion_ids: [workflows-ui.mvp.ask-ai]
+  given: Alice has many earlier app steps, including Weather and Events; Events offers a title and a results list.
+  when: She scrolls the app-node row, chooses Events above the Ask AI instruction and opens Show all.
+  then: The app pills stay in one left-aligned horizontal row with single-line labels sized to their text, fixed Add outside the scroller and fades at both edges. Only fields from Events appear in the left-aligned field row, including the whole results list; choosing Weather switches the row and its Show all without mixing sources. Typing and choosing fields use free local hints without a provider call.
+- id: ask-ai-model-and-progressive-test
+  assertion_ids: [workflows-ui.mvp.ask-ai]
+  given: Alice has written an Ask AI instruction and chosen an eligible exact model with the selector below the input at bottom left.
+  when: She Tests the unsaved step and later saves and runs it.
+  then: Test shows animated Processing below its action, then progressively renders the cumulative Markdown response with OpenMates as sender and the same links and embeds as chat; the chosen model is used for Test and the saved run and is restored when Alice reopens this step.
 - id: ask-ai-editor-suggests-existing-results
   given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special" in Ask AI.
-  when: She stops editing the instruction for one second.
-  then: Jev suggests an Events results chip above the multiline field without inserting it, moving the cursor or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather than this hint.
-- id: ask-ai-warning-and-neutral-reminder
+  when: She pauses and chooses a suggested Events results chip.
+  then: A free local hint appears above the multiline field without inserting it, moving the cursor, calling a provider or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather than this hint.
+- id: ask-ai-save-validation-feedback
   given: Bob types "Search for new events for me" into Ask AI.
-  when: Jev reliably identifies a request to run an app skill, or Jev cannot give a reliable verdict.
-  then: A reliable request shows a warning below the field to add Use app and blocks Save; an uncertain or unavailable
-    verdict shows only a neutral reminder and allows Save for server-side Jev/Gemini fallback validation. A late
-    response to a previous instruction cannot change the current warning or suggestions.
+  when: Bob tries to Save the step.
+  then: Server validation rejects the new app-skill request with guidance below the field to add Use app; a provider error is shown as a validation failure, and typing or selecting values has not called Jev.
+if_authoring:
+- id: exact-if-uses-compatible-scalar-choices
+  assertion_ids: [workflows-ui.if-editor.authored-conditions]
+  given: Alice has a Weather step with a numeric rain probability, a text summary and a list of periods.
+  when: She opens If, returns with Next step, chooses Weather as the first source and compares rain probability with 60, then narrows the editor.
+  then: The blue header shows a large If title and translated Next step backlink, whose text hides when space is narrow; Delete sits farther left. Choosing Weather enters Exact rule without a second mode choice. The shared dropdown shows Weather's gradient, compatible operator icons and numeric input, while list entries are absent. She may compare a compatible field from another earlier app node instead of a literal, or choose the separate AI confirms source option to author a question.
+- id: ai-if-authors-question-with-shared-picker
+  assertion_ids: [workflows-ui.if-editor.authored-conditions]
+  given: Bob has an Events step and wants to decide whether its results suit a family outing.
+  when: He chooses AI confirms, types @ven, inserts a Venue field and Tests a valid true/false question, then tries to Save an invalid question.
+  then: The partial query highlights blue, filters fields and is wholly replaced by an Events-colored token; Test returns If true, If false or Unsure from one decision call, while invalid Save and Test show actionable errors. No provider call occurs while he types or chooses values.
 schedule_preview:
 - id: schedule_preview-example
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
@@ -516,10 +535,15 @@ message_budget:
   when: Alice configures Send message.
   then: She clicks the Apartments results chip and sees it inserted into the message field. No separate results section or Only results not previously sent toggle appears. Previously sent apartments are omitted automatically, and Preview shows the authored text and result cards at that position without sending or saving. Known skill cost is shown; raw JSON and deferred budget caps are absent.
 inline_action_variables:
+- id: partial-variable-query-replaces-all-typed-text
+  assertion_ids: [workflows-ui.editor.inline-action-variables]
+  given: Alice has an Events step whose output includes a venue object and a results list.
+  when: She types @ven in the Ask AI instruction and chooses Venue name from the filtered list.
+  then: The partial query is highlighted blue while she types, and the whole @ven becomes one left-aligned Events-colored token at the cursor with the Events icon and its directly addressable canonical path; Venue's object fields are selectable while Results remains a selectable whole list, and an existing @events.search.results reference still works.
 - id: inline-action-variable-shared-editor
   given: Alice has an Events search before Ask AI, AI judgment and Send message, and an app action has a variable-enabled text input.
   when: She clicks or keyboard-selects Events results in each field.
-  then: Each field inserts a readable token at the cursor, and each token and picker chip uses the Events app gradient in light and dark themes. The surrounding text stays in place, and deleting or reinserting a token works the same way everywhere.
+  then: Each field inserts a left-aligned readable token at the cursor, and each token and left-aligned picker chip uses the Events app gradient in light and dark themes. The token shows the app icon and directly addressable canonical path, such as @events.search.results or @travel.search-connections.results, while nearby text stays in place and deletion or reinsertion works the same way everywhere.
 - id: send-message-no-hidden-results-section
   given: Alice has written "Here are the upcoming events:" after an Events search but has not inserted its results.
   when: She attempts Save, then clicks the Events results chip.

@@ -972,13 +972,26 @@ def _validate_node_config(node: WorkflowNode) -> None:
         if not app_id or not skill_id:
             raise WorkflowValidationError("App skill action nodes require app_id and skill_id")
         if (app_id, skill_id) == ("ai", "ask"):
+            if node.input_mapping:
+                raise WorkflowValidationError("Ask AI inputs must be inserted into its instruction")
             authored = node.config.get("input")
             prompt = authored.get("prompt") if isinstance(authored, dict) else None
             if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4_000:
                 raise WorkflowValidationError("Ask AI requires one bounded text instruction")
-            unsupported = set(authored) - {"prompt"}
+            model = authored.get("model", "auto")
+            if not isinstance(model, str) or not model.strip() or len(model) > 200:
+                raise WorkflowValidationError("Ask AI model must be Auto or an available chat model")
+            if model != "auto":
+                if "/" not in model:
+                    raise WorkflowValidationError("Ask AI model must be provider-qualified")
+                from backend.core.api.app.utils.config_manager import ConfigManager
+                provider_id, model_id = model.split("/", 1)
+                model_config = ConfigManager().get_model_pricing(provider_id, model_id)
+                if not model_config or model_config.get("id") != model_id or model_config.get("for_app_skill") != "ai.ask" or "text" not in (model_config.get("output_types") or []):
+                    raise WorkflowValidationError("Ask AI model is unavailable")
+            unsupported = set(authored) - {"prompt", "model"}
             if unsupported:
-                raise WorkflowValidationError("Ask AI accepts only its instruction; tools, conversation and provider controls are unavailable")
+                raise WorkflowValidationError("Ask AI accepts only its instruction and model; tools and conversation are unavailable")
     elif node.type in {WorkflowNodeType.DECISION, WorkflowNodeType.CHECK}:
         mode = node.config.get("mode", "exact") if node.type == WorkflowNodeType.CHECK else "exact"
         if mode not in {"exact", "ai"}:

@@ -77,33 +77,13 @@ async function expectLargeChoiceTile(choice: Locator): Promise<void> {
 
 test.describe('WorkflowGraphRenderer AI authoring preview', () => {
 	// contract-test: direct surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.mvp.ask-ai
-	test('keeps Ask AI hints above the editor and blocking guidance below it', async ({
+	test('keeps local Ask AI source choices above the editor and explains paid Save validation', async ({
 		page
 	}: {
 		page: Page;
 	}) => {
-		let releaseStaleRequest!: () => void;
-		const staleRequestGate = new Promise<void>((resolve) => {
-			releaseStaleRequest = resolve;
-		});
-		await page.route('**/v1/workflows/ai-authoring/hints', async (route: Route) => {
-			const instruction = String(route.request().postDataJSON()?.instruction ?? '');
-			if (instruction.includes('Slow app request')) await staleRequestGate;
-			await route.fulfill({
-				json:
-					instruction.includes('Search the web') || instruction.includes('Slow app request')
-						? {
-								verdict: 'asks_to_invoke_app_skill',
-								validation_path: 'jev',
-								suggested_references: []
-							}
-						: {
-								verdict: 'allowed',
-								validation_path: 'jev',
-								suggested_references: ['$nodes.news.output.results']
-							}
-			});
-		});
+		let hintRequests = 0;
+		page.on('request', request => { if (request.url().includes('/ai-authoring/hints')) hintRequests += 1; });
 		await page.goto(preview(), { waitUntil: 'networkidle' });
 		await openLastActionMenu(page);
 		await expect(page.getByTestId('workflow-step-menu').locator('.choice')).toHaveText([
@@ -116,38 +96,24 @@ test.describe('WorkflowGraphRenderer AI authoring preview', () => {
 		const editor = page.getByTestId('workflow-message-template');
 		await expect(editor).toHaveAttribute('aria-label', /Type @ to add a variable/);
 		await editor.fill('Summarize the news results');
+		const sourceRow = page.getByTestId('workflow-variable-sources');
+		await expect(sourceRow.locator('[data-source-node-id="news"]')).toBeVisible();
+		await sourceRow.locator('[data-source-node-id="news"]').click();
 		await expect(page.getByTestId('workflow-ai-suggestions')).toContainText('Results', {
 			timeout: 10_000
 		});
 		const suggestionBox = await page.getByTestId('workflow-ai-suggestions').boundingBox();
 		const editorBox = await editor.boundingBox();
-		expect(suggestionBox && editorBox && suggestionBox.y > editorBox.y).toBe(true);
+		expect(suggestionBox && editorBox && suggestionBox.y + suggestionBox.height <= editorBox.y).toBe(true);
 
-		const staleResponse = page.waitForResponse(
-			(response) =>
-				response.url().includes('/v1/workflows/ai-authoring/hints') &&
-				String(response.request().postDataJSON()?.instruction ?? '').includes('Slow app request')
-		);
-		await editor.fill('Slow app request that must become stale');
-		await page.waitForRequest(
-			(request) =>
-				request.url().includes('/v1/workflows/ai-authoring/hints') &&
-				String(request.postDataJSON()?.instruction ?? '').includes('Slow app request')
-		);
-		await editor.fill('Summarize the current news results');
-		await expect(page.getByTestId('workflow-ai-suggestions')).toContainText('Results', {
-			timeout: 10_000
-		});
-		releaseStaleRequest();
-		await staleResponse;
-		await expect(page.getByTestId('workflow-ai-app-warning')).toHaveCount(0);
-
-		await editor.fill('Search the web for more news');
-		await expect(page.getByTestId('workflow-ai-app-warning')).toBeVisible({ timeout: 10_000 });
-		const warningBox = await page.getByTestId('workflow-ai-app-warning').boundingBox();
-		const currentEditorBox = await editor.boundingBox();
-		expect(warningBox && currentEditorBox && warningBox.y > currentEditorBox.y).toBe(true);
-		await expect(page.getByTestId('workflow-node-save')).toBeDisabled();
+		await editor.fill('Summarize the current news results @News');
+		await expect(editor.locator('.workflow-mention-query')).toHaveText('@News');
+		await expect(page.getByTestId('workflow-ai-suggestions')).toContainText('Results');
+		await page.getByTestId('workflow-ai-suggestions').getByRole('button', { name:/Results/ }).click();
+		await expect(editor.locator('.generic-mention')).toHaveCount(1);
+		await expect(page.getByTestId('workflow-node-save')).toBeEnabled();
+		await expect(page.getByTestId('workflow-save-validation-cost')).toHaveText('Save validation · 1 credit');
+		expect(hintRequests).toBe(0);
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring,workflows.control.ai-check,workflows-ui.responsive-accessible-reachable
@@ -167,22 +133,23 @@ test.describe('WorkflowGraphRenderer AI authoring preview', () => {
 		await checkSummary.click();
 		await expect(check.getByTestId('workflow-node-expanded')).toBeFocused();
 		await expect(check.locator('.editor-header')).toHaveClass(/colored/);
-		const mode = check.getByLabel('How should this be checked?');
-		await expect(mode).toHaveValue('ai');
-		await expect(mode.locator('option:checked')).toHaveText('Ask AI');
-		await expect(check.getByText('The following Yes or No question:', { exact: true })).toBeVisible();
+		await expect(check.getByTestId('workflow-check-source')).toContainText('AI confirms');
+		await expect(check.getByRole('heading', { name:'If', exact:true })).toBeVisible();
 		await expect(check.getByText('Information AI may use', { exact: true })).toHaveCount(0);
 		const question = check.getByTestId('workflow-message-template');
 		await expect(question).toHaveAttribute('aria-label', /Type @ to add a variable/);
 		await expect(question).toContainText('Is this weather unsuitable for an outdoor lunch?');
 		await expect(question.locator('.generic-mention')).toHaveCount(2);
-		const variableRow = check.getByTestId('workflow-ai-check-variable-chips');
+		const variableRow = check.getByTestId('workflow-variable-sources');
 		await expect(variableRow).toBeVisible();
 		await expect.poll(async () => {
 			const [questionBox, variableRowBox] = await Promise.all([question.boundingBox(), variableRow.boundingBox()]);
-			return Boolean(questionBox && variableRowBox && variableRowBox.y > questionBox.y);
+			return Boolean(questionBox && variableRowBox && variableRowBox.y < questionBox.y);
 		}).toBe(true);
 		expect(await variableRow.evaluate((element) => getComputedStyle(element).flexWrap)).toBe('nowrap');
+		const sourceScroll = variableRow.locator('.source-scroll');
+		expect(await sourceScroll.evaluate((element) => getComputedStyle(element).overflowX)).toBe('auto');
+		expect(await sourceScroll.evaluate((element) => getComputedStyle(element).maskImage)).toContain('gradient');
 		await expect(check.getByTestId('workflow-node-save')).toBeEnabled();
 		await expect(check.getByTestId('workflow-test-action')).toBeVisible();
 
@@ -191,7 +158,8 @@ test.describe('WorkflowGraphRenderer AI authoring preview', () => {
 			'Add a variable to evaluate, before saving the check.'
 		);
 		await expect(check.getByTestId('workflow-node-save')).toBeDisabled();
-		await variableRow.getByRole('button', { name: /Rain Probability/ }).click();
+		await variableRow.locator('[data-source-node-id="weather"]').click();
+		await check.getByTestId('workflow-ai-suggestions').getByRole('button', { name:/Rain Probability/ }).click();
 		await expect(question.locator('.generic-mention')).toHaveCount(1);
 		await expect(check.getByTestId('workflow-ai-check-save-hint')).toHaveCount(0);
 		await expect(check.getByTestId('workflow-node-save')).toBeEnabled();
@@ -848,7 +816,8 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		expect(await resultChip.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 		await resultChip.click();
 		await expect(body.locator('.generic-mention')).toHaveCount(1);
-		await expect(body).toContainText('Results');
+		await expect(body.locator('.generic-mention')).toHaveText('@news.search.results');
+		await expect(body.locator('.workflow-mention-icon')).toBeVisible();
 		await expect(editor.getByTestId('workflow-node-save')).toBeEnabled();
 	});
 });

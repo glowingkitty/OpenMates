@@ -93,7 +93,7 @@ surface_parity:
   given: Alice creates an Events search followed by Ask AI in the Python SDK, then opens it on the web.
   when: The Workflow runs and she inspects it using the CLI and npm SDK.
   then: All surfaces use the same saved instruction, selected Events output, one text Answer, and server-side
-    app-skill-request validation; only web authoring runs typing-time hints.
+    app-skill-request validation; only web authoring offers free local typing hints, with no provider request while typing.
 mvp_steps:
 - id: mvp_steps-1
   given: Alice opens a new Workflow.
@@ -168,11 +168,22 @@ ai_check:
 - id: ai_check-1
   given: A weather step exposes rain probability, wind, temperature and a short forecast summary, and Alice selects those four values for a Check.
   when: She chooses Use AI judgment, inserts the four visible Weather variables into her question about an outdoor lunch, previews those values, and tests the Check.
-  then: One bounded decision returns If true or If false from only those selected values. Text inside the forecast is treated as untrusted data, and the run shows the outcome, confidence band and whether the primary or fallback decided without exposing a raw provider response.
+  then: One bounded Jev call validates and evaluates the question from only those selected values, returning If true, If false or Unsure. Text inside the forecast is treated as untrusted data, and the run shows the outcome without exposing a raw provider response.
 - id: ai_check-2
   given: Bob's AI Check asks whether a newly found apartment is a strong fit for his stated preferences, and he has put Send message in its Unsure branch.
-  when: Jev is unavailable and the independent fallback also fails to return a reliable true or false, or the Workflow retries the accepted node execution.
-  then: The Unsure branch sends Bob's configured message without running either true or false branch. The run identifies evaluator failure as the reason, and a completed prior outcome is reused without another inference or charge.
+  when: Jev returns an uncertain decision or cannot deliver a reliable result, or the Workflow retries the accepted node execution.
+  then: The Unsure branch sends Bob's configured message without running either true or false branch or calling a fallback. The run identifies uncertainty or evaluator failure, and a completed prior outcome is reused without another inference or charge.
+ai_check_billing:
+- id: ai-check-save-validation-charge
+  assertion_ids: [workflows.ai-check.single-call-billing]
+  given: Alice authors a new true/false AI judgment question, then changes it to an invalid question after an initial Save.
+  when: She saves each new wording, retries the rejected Save and finally saves again without changing the question.
+  then: Each distinct dispatched Jev validation costs one credit, including the rejection or provider failure after dispatch; the owner-scoped retry and unchanged Save add no charge, and the invalid question is not persisted. Missing credentials or structural errors before dispatch add no charge, and transient unavailability is not treated as a 24-hour accepted verdict.
+- id: ai-check-test-one-decision-charge
+  assertion_ids: [workflows.ai-check.single-call-billing]
+  given: Bob has a valid AI judgment question and enough credits for its Test and later run.
+  when: He Tests, then runs the saved Workflow and retries an accepted decision; Jev returns Unsure on one execution.
+  then: Each new dispatched Test or run Jev call both validates and decides for one credit, including Unsure or provider failure after dispatch; no fallback or typing-time call occurs, and a distributed lock prevents the owner-scoped retry from being charged twice. With insufficient credits, provider work never starts or charges.
 ask_ai_execution:
 - id: ask-ai-summarizes-existing-events
   given: Alice has added an Events search whose typed output contains event results.
@@ -189,11 +200,21 @@ ask_ai_validation:
   when: She saves from the web or creates or updates the Workflow through REST, CLI, npm SDK or Python SDK.
   then: Server validation treats the reference as existing data, not a request to invoke an app skill, and accepts
     the instruction; CLI and SDK need no typing-time requests.
-- id: ask-ai-rejects-new-app-call-or-reminds-when-unverified
+- id: ask-ai-rejects-new-app-call-or-errors-when-unverified
   given: Bob enters "Find new events for me using the Events app" in Ask AI without a preceding Events step.
-  when: Jev or the Gemini 3.8 Flash fallback reliably recognizes a request to invoke an app skill during create or update.
-  then: Every authoring surface rejects the save with guidance to add Use app instead. If both evaluators are
-    unavailable or uncertain, saving is allowed with a neutral reminder, and Ask AI still has no runtime tools.
+  when: Jev recognizes the request during create or update, or Jev cannot return a valid verdict.
+  then: Every authoring surface rejects the app-skill request with guidance to add Use app instead. A provider error is a validation failure without persistence or Gemini fallback, and Ask AI still has no runtime tools.
+ask_ai_billing:
+- id: ask-ai-save-validation-credit-including-rejection
+  assertion_ids: [workflows.ai-ask.validation-billing]
+  given: Alice edits an Ask AI instruction from "Summarize these events" to "Find events using the Events app".
+  when: She saves the new wording, retries the rejected request and then saves again without an edit.
+  then: Dispatched Jev validation costs one credit even though Save rejects the instruction or Jev fails after dispatch; the owner-scoped retry and unchanged instruction add no charge. Typing and field selection make no provider call; missing credentials or preparation failure before dispatch add no charge, and transient provider unavailability is not cached as a 24-hour accepted verdict.
+- id: ask-ai-test-uses-normal-skill-charge
+  assertion_ids: [workflows.ai-ask.validation-billing]
+  given: Bob has a valid Ask AI instruction and enough credits.
+  when: He Tests it and later runs the saved Workflow, then retries an accepted request.
+  then: Test uses normal AI Ask Skill billing and the run uses normal inference billing without an extra Save-validation charge; accepted retries are not debited twice. With insufficient credits, provider work does not start, and Billing and Usage omits his private instruction text.
 typed_data:
 - id: typed_data-1
   given: Alice has added an Events search but never run it.
