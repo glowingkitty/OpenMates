@@ -590,6 +590,36 @@ def test_cross_worker_stop_retains_accepted_prefix_as_disabled_draft() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.access.boundaries
+def test_new_session_skips_redundant_stop_read_and_still_observes_durable_stop(monkeypatch) -> None:
+    now = [100.0]
+    monkeypatch.setattr(time, "monotonic", lambda: now[0])
+    repository = FakeWorkflowInputRepository()
+
+    class HealthyCache:
+        def stop_requested(self, user_id: str, session_id: str) -> bool:
+            return False
+
+        def clear(self, user_id: str, session_id: str) -> None:
+            pass
+
+    class Planner:
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            assert context["_should_stop"]() is False
+            session = next(iter(service._sessions.values()))
+            assert not session["_poll_counts"].get("stop_durable_reads")
+            repository.sessions[session["id"]]["stop_requested"] = True
+            now[0] += 1.01
+            assert context["_should_stop"]() is True
+            return {"action": "needs_clarification", "message": "Stopped"}
+
+    service = WorkflowInputService(workflow_service=workflow_service(), planner=Planner(),
+                                   repository=repository, checkpoint_store=HealthyCache())
+    result = service.start(user_id="alice", text="Create a workflow")
+    assert result.stop_requested is True
+    assert result.authoring_metrics["service_poll_counts"]["stop_durable_reads"] == 1
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.access.boundaries
 def test_stop_poll_throttles_cache_but_keeps_fast_signal_and_durable_fallback() -> None:
     class CountingCache:
         def __init__(self) -> None:

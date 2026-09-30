@@ -690,6 +690,10 @@ class WorkflowInputService:
             "key_resolution_seconds": key_resolved_at - started,
             "initial_session_seconds": time.perf_counter() - key_resolved_at,
         }
+        # This is a newly initialized session, so its durable Stop state is
+        # already known. Cache signals remain immediate; the regular one-second
+        # database fallback still catches a failed or lost cache Stop write.
+        session["_last_durable_stop_check"] = time.monotonic()
         session["_batch_events"] = True
         session["_batch_owner_thread"] = threading.get_ident()
         try:
