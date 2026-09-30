@@ -346,6 +346,51 @@ async def test_named_edit_can_preserve_unloaded_target_timezone():
 
 
 @pytest.mark.asyncio
+async def test_typed_rain_flag_is_exposed_as_exact_conditional_evidence():
+    jev = Decisions()
+    await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+        "Check today's weather in Berlin. If rain is expected, send me a chat message")
+    instructions = jev.requests[0][1]["check_mode"]["instructions"]
+    assert "weather.forecast.rain_expected:boolean" in instructions
+    assert "Compare a declared boolean or numeric app output with an exact check" in instructions
+    assert "already-typed flag is true" in instructions
+    assert "weather.forecast.rain_summary" not in instructions
+
+
+@pytest.mark.asyncio
+async def test_subjective_condition_can_still_choose_ai_with_typed_output_hints():
+    class SubjectiveDecisions(Decisions):
+        async def evaluate(self, *, state, questions):
+            response = await super().evaluate(state=state, questions=questions)
+            answers = response.model_dump()["answers"]
+            answers["check_mode"] = {"type": "choice", "choice": "ai",
+                                     "probabilities": {"ai": 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({**response.model_dump(), "answers": answers})
+
+    jev = SubjectiveDecisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+        "If the weather outlook is important to a small startup, send me an update")
+    instructions = jev.requests[0][1]["check_mode"]["instructions"]
+    assert "whether news is important to a startup" in instructions
+    assert result.check_mode == "ai"
+    assert result.metrics["check_mode"] == "ai"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["direct", "staged"])
+async def test_separate_schedules_and_channels_are_not_conditional_checks(mode):
+    jev = Decisions()
+    await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry(), mode=mode).select(
+        "Create two workflows: one sends a Monday chat reminder, and another posts a Friday digest to Slack")
+    initial_questions = jev.requests[0][1]
+    instruction = initial_questions["check_mode"]["instructions"]
+    assert "Two separate workflows with different days or delivery channels do not imply a check" in instruction
+    assert "Monday chat reminder' plus 'Friday Slack digest' has check_mode none" in instruction
+    assert "A schedule day, time, or channel is a setting, not a condition" in instruction
+    assert "2" in initial_questions["workflow_count"]["criteria"]
+
+
+@pytest.mark.asyncio
 async def test_generic_constructor_copies_novel_city_and_validates(monkeypatch):
     # Availability/preflight is mocked only to isolate the generic compiler;
     # the live benchmark uses the full registry and readiness checks.

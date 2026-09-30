@@ -224,6 +224,26 @@ class DirectusWorkflowInputRepository(DirectusWorkflowRepository):
         }
         return session
 
+    def get_stop_requested(self, session_id: str, user_id: str, vault_key_id: str | None) -> bool | None:
+        """Read an owner's durable Stop flag without hydrating events or mutations."""
+        item = self._find_one(
+            self.SESSIONS,
+            {"_and": [{"id": {"_eq": session_id}}, {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}}]},
+            fields="encrypted_state_ref",
+        )
+        if not item:
+            return None
+        state_ref = item.get("encrypted_state_ref")
+        if not isinstance(state_ref, str) or not state_ref:
+            raise RuntimeError("Workflow input session is missing its encrypted state")
+        state = self._load_private_blob(user_id, state_ref, vault_key_id)
+        if not isinstance(state, dict):
+            raise RuntimeError("Workflow input session state is invalid")
+        requested = state.get("stop_requested", False)
+        if not isinstance(requested, bool):
+            raise RuntimeError("Workflow input session Stop state is invalid")
+        return requested
+
     def queued_session_ids(self, limit: int = 100) -> list[str]:
         rows = self._get_items(
             self.SESSIONS, {"status": {"_eq": "queued"}},
@@ -1585,8 +1605,13 @@ class WorkflowInputService:
             counts["stop_durable_reads"] = counts.get("stop_durable_reads", 0) + 1
             started = time.perf_counter()
             try:
-                current = self.repository.get_session(session["id"], session["user_id"], vault_key_id)
-                if current and current.get("stop_requested"):
+                read_stop = getattr(self.repository, "get_stop_requested", None)
+                if callable(read_stop):
+                    requested = read_stop(session["id"], session["user_id"], vault_key_id)
+                else:
+                    current = self.repository.get_session(session["id"], session["user_id"], vault_key_id)
+                    requested = bool(current and current.get("stop_requested"))
+                if requested:
                     session["stop_requested"] = True
                     return True
             except Exception:

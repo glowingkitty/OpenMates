@@ -132,7 +132,7 @@ test.describe('CLI natural-language workflow guards', () => {
 				!afterReading.some((prior: any) => prior.id === workflow.id)).map((workflow: any) => workflow.id));
 			expect(spokenNewIds).toEqual(new Set([spokenWorkflows[0].id]));
 			const batch = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'input',
-				'Create two workflows: send a Berlin weather update to my chat each morning, and post an accessibility news digest to Slack each Friday.'
+				'Create two workflows: the first sends a Monday chat reminder, and the second posts a Friday digest to Slack.'
 			], 'atomic mixed-capability workflow batch');
 			const batchWorkflows = authoredWorkflows(batch);
 			for (const workflow of batchWorkflows) if (!baselineIds.has(workflow.id)) createdIds.add(workflow.id);
@@ -146,16 +146,21 @@ test.describe('CLI natural-language workflow guards', () => {
 				expect(batch.partial_reason).toBe('provider_error');
 				expect(batch.partial_warning).toEqual(expect.any(String));
 				expect(batch.partial_warning.length).toBeGreaterThan(0);
-				expect(batchWorkflows.length).toBeGreaterThan(0);
+				expect(batchWorkflows).toHaveLength(1);
+				expect(batchNewIds.size).toBe(1);
 				expect(batchNewIds).toEqual(new Set(batchWorkflows.map((workflow: any) => workflow.id)));
-				for (const workflow of batchWorkflows) {
-					expect(workflow.enabled).toBe(false);
-					const saved = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'show', workflow.id], 'inspect partial batch workflow');
-					expect(saved.id).toBe(workflow.id);
-					expect(saved.enabled).toBe(false);
-					expectNoUnsupportedDelivery(saved.graph);
-					for (const skill of skillIds(saved.graph)) expect(['weather.rain_radar', 'news.search', 'web.read', 'ai.ask']).toContain(skill);
-				}
+				const workflow = batchWorkflows[0];
+				expect(workflow.enabled).toBe(false);
+				const saved = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'show', workflow.id], 'inspect partial batch workflow');
+				expect(saved.id).toBe(workflow.id);
+				expect(saved.enabled).toBe(false);
+				expectNoUnsupportedDelivery(saved.graph);
+				expect(scheduleConfig(saved.graph)).toMatchObject({ type: 'weekly', weekdays: ['monday'] });
+				expect((saved.graph.nodes ?? []).map((node: any) => node.type).sort()).toEqual([
+					'schedule_trigger', 'send_chat_message'
+				]);
+				const message = (saved.graph.nodes ?? []).find((node: any) => node.type === 'send_chat_message');
+				expect(String(message.config?.message ?? '').toLowerCase()).not.toContain('friday');
 			} else {
 				expect(batch.error_code).toMatch(/^WORKFLOW_INPUT_/);
 				expect(batchWorkflows).toHaveLength(0);

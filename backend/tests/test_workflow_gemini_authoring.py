@@ -58,6 +58,8 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert "An unchanged existing app or Ask AI node can be replayed" in prompt
     assert "An unchanged existing Send node can be replayed" in prompt
     assert "source:{step,field} (NO ref wrapper)" in prompt
+    assert '{"unavailable":true}' in prompt
+    assert "Never replace an unavailable action or delivery channel with Send chat" in prompt
     assert "op:'" not in prompt
 
 
@@ -87,9 +89,12 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert schema == provider_response_schema(selection("web.search"))
     assert len(json.dumps(schema)) < 4500
     assert "minItems" not in json.dumps(schema) and "maxItems" not in json.dumps(schema)
-    schedule = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["schedule"]
-    operation = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["operation"]
-    header = schema["properties"]["workflows"]["items"]["properties"]["header"]
+    authored = schema["properties"]["workflows"]["items"]["anyOf"][0]
+    unavailable = schema["properties"]["workflows"]["items"]["anyOf"][1]
+    assert unavailable["properties"]["unavailable"]["enum"] == [True]
+    schedule = authored["properties"]["header"]["properties"]["schedule"]
+    operation = authored["properties"]["header"]["properties"]["operation"]
+    header = authored["properties"]["header"]
     assert operation["enum"] == ["create", "update"]
     assert header["anyOf"][0]["required"] == ["title", "description", "icon"]
     assert header["anyOf"][1]["required"] == ["workflow_id"]
@@ -106,6 +111,10 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
                                       "input_json": '{"location":"Berlin","days":1}'}]}]}
     validator.validate(flat)
+    validator.validate({"workflows": [{"unavailable": True}]})
+    for invalid_marker in ({"unavailable": False}, {"unavailable": True, "header": flat["workflows"][0]["header"]},
+                           {"unavailable": "unsupported"}):
+        assert list(validator.iter_errors({"workflows": [invalid_marker]}))
     flat["workflows"][0]["header"]["operation"] = "draft"
     assert list(validator.iter_errors(flat))
     flat["workflows"][0]["header"]["operation"] = "create"
@@ -139,7 +148,7 @@ def test_provider_node_grammar_keeps_kind_branch_and_encoded_fields_typed():
     from jsonschema import Draft202012Validator
     schema = provider_response_schema(selection("weather.forecast"))
     Draft202012Validator.check_schema(schema)
-    node = schema["properties"]["workflows"]["items"]["properties"]["nodes"]["items"]
+    node = schema["properties"]["workflows"]["items"]["anyOf"][0]["properties"]["nodes"]["items"]
     assert node["required"] == ["kind", "id"]
     assert node["properties"]["branch"]["enum"] == ["default", "yes", "no", "unsure"]
     assert node["properties"]["predicate_json"] == {"type": "string"}
@@ -154,6 +163,18 @@ def test_flat_components_emit_header_then_only_complete_nodes():
     source += json.dumps(first) + ',{"kind":"send","id":"incomplete","message_json":'
     assert complete_flat_components(source)[-1] == {"type": "node", "workflow_index": 0,
                                                      "index": 0, "node": first}
+
+
+def test_unavailable_workflow_emits_only_after_its_marker_is_complete():
+    prefix = '{"workflows":[{"header":{"operation":"create"},"nodes":[]},{"unavailable":'
+    assert complete_flat_components(prefix) == [{"type": "header", "workflow_index": 0,
+                                                 "header": {"operation": "create"}}]
+    assert complete_flat_components(prefix + 'true') == [{"type": "header", "workflow_index": 0,
+                                                           "header": {"operation": "create"}}]
+    assert complete_flat_components(prefix + 'true}]}') == [
+        {"type": "header", "workflow_index": 0, "header": {"operation": "create"}},
+        {"type": "unavailable", "workflow_index": 1},
+    ]
 
 
 def test_components_never_emit_incomplete_nested_steps_or_quoted_key():
@@ -223,6 +244,33 @@ async def test_stream_filters_thoughts_and_validates_header_and_each_complete_no
     assert metrics["component_count"] == 2
     assert metrics["output_tokens"] == 30
     assert metrics["estimated_cost_usd"] == pytest.approx(0.0001875)
+
+
+@pytest.mark.asyncio
+async def test_unavailable_workflow_rejects_before_second_header_and_preserves_valid_prefix():
+    header = {"operation": "create", "title": "Reminder", "description": "Send a reminder",
+              "icon": "help-circle", "schedule": {"type": "weekly", "weekdays": ["monday"], "time": "09:00"}}
+    send = {"kind": "send", "id": "reminder", "title": "Reminder",
+            "message_json": '[{"text":"Remember the appointment."}]'}
+    source = json.dumps({"workflows": [{"header": header, "nodes": [send]}, {"unavailable": True}]})
+    event = {"candidates": [{"content": {"parts": [{"text": source}]}, "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    callbacks = []
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="unavailable operation") as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="Two workflows with distinct delivery actions", selection=selection(), timezone="UTC",
+                on_plan_component=callbacks.append)
+    assert error.value.code == "unsupported_operation"
+    assert [item["type"] for item in callbacks] == ["header", "node"]
+    assert [item["workflow_index"] for item in callbacks] == [0, 0]
+    assert error.value.accepted_prefixes == [{"header": header, "nodes": [send]}]
+    assert "Two workflows" not in str(error.value)
 
 
 @pytest.mark.asyncio
@@ -344,6 +392,31 @@ async def test_rejected_app_input_exposes_only_schema_field_path_for_retry():
     assert error.value.validation_keyword == "enum"
     assert "private-bad-provider" not in error.value.validation_error
     assert len(error.value.accepted_prefixes) == 1
+    assert error.value.accepted_prefixes[0]["nodes"] == []
+
+
+@pytest.mark.asyncio
+async def test_missing_app_input_reports_selected_kind_field_in_retry_correction():
+    header = {"operation": "create", "title": "Weather", "description": "Forecast", "icon": "cloud-rain",
+              "schedule": {"type": "daily"}}
+    node = {"kind": "app", "id": "weather", "capability": "weather.forecast"}
+    event = {"candidates": [{"content": {"parts": [{"text": json.dumps({
+        "workflows": [{"header": header, "nodes": [node]}],
+    })}]}, "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="node failed validation") as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="Weather", selection=selection("weather.forecast"), timezone="UTC")
+    assert error.value.code == "node_selected_schema"
+    assert error.value.validation_path == "$.steps[0].input"
+    assert error.value.validation_keyword == "required"
+    assert "required at $.steps[0].input" in error.value.validation_error
     assert error.value.accepted_prefixes[0]["nodes"] == []
 
 

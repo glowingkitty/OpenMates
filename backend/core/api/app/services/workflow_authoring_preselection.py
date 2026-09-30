@@ -42,6 +42,7 @@ TIMEZONE_ALIASES = {
     "gmt": "Etc/GMT",
 }
 MAX_TIMEZONE_CANDIDATES = 5
+_OUTPUT_HINT_STOPWORDS = {"date", "time", "count", "value", "result", "number", "total", "status"}
 
 
 @lru_cache(maxsize=1)
@@ -134,6 +135,31 @@ def compact_schema(value: Any) -> Any:
 
 def _choice(instructions: str, criteria: dict[str, str]) -> dict[str, Any]:
     return {"type": "choice", "instructions": instructions, "criteria": criteria}
+
+
+def _conditional_output_hints(text: str, capabilities: list[WorkflowCapability]) -> list[str]:
+    """Show only request-linked scalar contracts, without guessing the check."""
+    words = set(re.findall(r"[a-z]{3,}", text.casefold()))
+    hints: list[tuple[int, str]] = []
+    for cap in capabilities:
+        schema = cap.metadata.get("output_schema") or {}
+        properties = schema.get("properties") if isinstance(schema, dict) else None
+        if not isinstance(properties, dict):
+            continue
+        for field, contract in properties.items():
+            if not isinstance(field, str) or not isinstance(contract, dict):
+                continue
+            kinds = contract.get("type")
+            kinds = ({kinds} if isinstance(kinds, str) else
+                     {kind for kind in kinds if isinstance(kind, str)} if isinstance(kinds, list) else set())
+            primitive = next((kind for kind in ("boolean", "integer", "number") if kind in kinds), None)
+            if primitive is None:
+                continue
+            field_words = set(re.findall(r"[a-z]{3,}", field.casefold())) - _OUTPUT_HINT_STOPWORDS
+            overlap = len(field_words & words)
+            if overlap:
+                hints.append((overlap, f"{cap.id}.{field}:{primitive}"))
+    return [hint for _, hint in sorted(hints, key=lambda item: (-item[0], item[1]))[:12]]
 
 
 @dataclass(frozen=True)
@@ -229,10 +255,17 @@ class WorkflowAuthoringPreselector:
         })
         questions["check_mode"] = _choice(
             "Select checks only for requested conditional yes/no or comparison branching. "
+            "Two separate workflows with different days or delivery channels do not imply a check: "
+            "'Monday chat reminder' plus 'Friday Slack digest' has check_mode none unless a branch is requested. "
+            "A schedule day, time, or channel is a setting, not a condition. "
             "Asking AI to summarize, generate, or format results is an action, not a conditional AI check; "
             "choose none when there is no conditional branch. Correcting a spoken time or place is not a check. "
             "Branching on an AI check answer is part of that check, not an additional exact check. "
-            "A boolean/numeric flag supplied by an app uses an exact check.", {
+            "Compare a declared boolean or numeric app output with an exact check; asking AI whether "
+            "an already-typed flag is true adds no subjective judgment. Use ai only when the condition "
+            "itself needs judgment (for example, whether news is important to a startup). "
+            "Matching declared scalar outputs, when any: "
+            + (", ".join(_conditional_output_hints(text, capabilities)) or "none") + ".", {
             "none": "No conditional check",
             "exact": "Compare numeric, boolean, existence or exact text values deterministically",
             "ai": "Subjective assessment requiring a yes/no AI question",

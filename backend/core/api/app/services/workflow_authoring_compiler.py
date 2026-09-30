@@ -18,6 +18,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import best_match
 
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
 from backend.core.api.app.services.workflow_identity_service import (
@@ -291,6 +292,55 @@ def _selected_app_schema_diagnostic(
     return (path, keyword) if len(path) <= 160 else None
 
 
+def _selected_node_schema_diagnostic(
+    raw: dict[str, Any], selection: WorkflowPreselection, error: Any, schema: dict[str, Any],
+) -> tuple[str, str] | None:
+    """Choose the authored node's schema branch and return only a fixed field path."""
+    parts = list(error.absolute_path)
+    if len(parts) < 2 or parts[0] != "steps" or not isinstance(parts[1], int) or not 0 <= parts[1] < _MAX_STEPS:
+        return None
+    try:
+        step = raw["steps"][parts[1]]
+        for part in parts[2:]:
+            step = step[part]
+    except (KeyError, IndexError, TypeError):
+        return None
+    if not isinstance(step, dict):
+        return None
+    kind = step.get("kind")
+    definitions = schema["$defs"]
+    if kind == "app":
+        capability = step.get("capability")
+        matched = next((index for index, cap in enumerate(selection.capabilities) if cap.id == capability), None)
+        if matched is None:
+            keyword = "required" if capability is None else "enum"
+            return f"$.steps[{parts[1]}].capability", keyword
+        variant = definitions.get(f"app_{matched}")
+    elif kind == "ask_ai":
+        variant = definitions.get("ask_ai")
+    elif kind == "send":
+        variant = definitions["send_full"]
+    elif kind == "end":
+        variant = definitions["end"]
+    else:
+        return None
+    if variant is None:
+        return None
+    chosen = best_match(Draft202012Validator(variant).iter_errors(step))
+    if chosen is None or chosen.validator not in {"required", "type", "enum", "anyOf", "additionalProperties"}:
+        return None
+    base = f"$.steps[{parts[1]}]"
+    if chosen.validator == "required":
+        required = chosen.validator_value
+        missing = [field for field in required if field not in step] if isinstance(required, list) else []
+        return (f"{base}.{missing[0]}", "required") if missing else None
+    if chosen.absolute_path:
+        first = next(iter(chosen.absolute_path))
+        allowed = {"kind", "id", "capability", "input", "prompt", "title", "message", "blocks"}
+        return (f"{base}.{first}", chosen.validator) if first in allowed else None
+    return base, chosen.validator
+
+
 def _compile_authoring(
     raw: dict[str, Any], selection: WorkflowPreselection, timezone: str,
     selected_workflow: dict[str, Any] | None = None,
@@ -322,12 +372,14 @@ def _compile_authoring(
     # selected capability contract here before interpreting any model field.
     # Never include raw values or validator messages in errors: they can contain
     # user content or provider output.
-    errors = Draft202012Validator(build_authoring_schema(selection)).iter_errors(raw)
+    schema = build_authoring_schema(selection)
+    errors = Draft202012Validator(schema).iter_errors(raw)
     first_error = next(errors, None)
     if first_error is not None:
         path = first_error.json_path
         failure = ValueError(f"Authoring plan violates the selected capability schema at {path}")
-        detail = _selected_app_schema_diagnostic(raw, selection, first_error)
+        detail = (_selected_app_schema_diagnostic(raw, selection, first_error)
+                  or _selected_node_schema_diagnostic(raw, selection, first_error, schema))
         if detail is not None:
             failure.validation_path, failure.validation_keyword = detail
         raise failure

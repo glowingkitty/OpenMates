@@ -324,6 +324,44 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 raise AssertionError("Authored workflow was not durably saved disabled")
         return workflows
 
+    def run_unsupported_batch() -> None:
+        before_invalid = workflow_list(call)
+        before_invalid_ids = {item["id"] for item in before_invalid}
+        invalid, wall, queue = completed_input(call, ["workflows", "input",
+            f"Create two workflows: {prefix} valid sends a Monday chat reminder, and {prefix} invalid posts a Friday digest to Slack."], "mixed invalid batch")
+        record("mixed_invalid_partial_or_failed", invalid, wall, queue)
+        after_invalid = workflow_list(call)
+        for item in after_invalid:
+            if item["id"] not in before_invalid_ids:
+                created_ids.add(item["id"])
+        assert_existing_workflows_unchanged(before_invalid, after_invalid)
+        new_invalid_ids = {item["id"] for item in after_invalid} - before_invalid_ids
+        partial_workflows = authored_workflows(invalid)
+        if invalid.get("status") == "draft":
+            if (invalid.get("partial_reason") != "provider_error" or not invalid.get("partial_warning")
+                    or len(partial_workflows) != 1 or len(new_invalid_ids) != 1
+                    or new_invalid_ids != {item["id"] for item in partial_workflows}):
+                raise AssertionError("Invalid batch did not save exactly its one valid prefix")
+            workflow = partial_workflows[0]
+            saved, _ = call(["workflows", "show", workflow["id"]], "inspect valid partial workflow")
+            if saved.get("id") != workflow["id"] or saved.get("enabled") is not False:
+                raise AssertionError("Invalid batch saved an enabled or mismatched partial workflow")
+            graph = saved["graph"]
+            valid_schedule = schedule(graph)
+            if (valid_schedule.get("type") != "weekly"
+                    or valid_schedule.get("weekdays") != ["monday"]
+                    or sorted(node.get("type") for node in graph.get("nodes", []))
+                    != ["schedule_trigger", "send_chat_message"]):
+                raise AssertionError("Invalid batch substituted the unsupported Friday request")
+            message = next(node for node in graph["nodes"] if node["type"] == "send_chat_message")
+            if "friday" in str(message.get("config", {}).get("message", "")).lower():
+                raise AssertionError("Invalid batch retained a Friday alternative in the valid prefix")
+        elif invalid.get("status") != "failed" or new_invalid_ids or partial_workflows:
+            raise AssertionError("Invalid batch had an unexpected terminal state or changed workflows")
+        if any(node.get("config", {}).get("app_id") == "slack" for workflow in partial_workflows
+               for node in workflow["graph"].get("nodes", [])):
+            raise AssertionError("Invalid Slack delivery was retained")
+
     try:
         if args.case in {"all", "short_default"}:
             short, wall, stream_timing = streamed_input(
@@ -511,29 +549,7 @@ steps:
                     or any(item.get("enabled") is not False for item in batch_workflows)):
                 raise AssertionError("Two-create batch did not save exactly two disabled workflows")
 
-            before_invalid = workflow_list(call)
-            before_invalid_ids = {item["id"] for item in before_invalid}
-            invalid, wall, queue = completed_input(call, ["workflows", "input",
-                f"Create two workflows: {prefix} valid sends a Monday chat reminder, and {prefix} invalid posts a Friday digest to Slack."], "mixed invalid batch")
-            record("mixed_invalid_partial_or_failed", invalid, wall, queue)
-            after_invalid = workflow_list(call)
-            for item in after_invalid:
-                if item["id"] not in before_invalid_ids:
-                    created_ids.add(item["id"])
-            assert_existing_workflows_unchanged(before_invalid, after_invalid)
-            new_invalid_ids = {item["id"] for item in after_invalid} - before_invalid_ids
-            if invalid.get("status") == "draft":
-                partial_workflows = authored_workflows(invalid)
-                if (invalid.get("partial_reason") != "provider_error" or not invalid.get("partial_warning")
-                        or not partial_workflows or new_invalid_ids != {item["id"] for item in partial_workflows}):
-                    raise AssertionError("Invalid batch did not report its saved valid prefix")
-                if any(item.get("enabled") is not False for item in partial_workflows):
-                    raise AssertionError("Invalid batch saved an enabled partial workflow")
-            elif invalid.get("status") != "failed" or new_invalid_ids:
-                raise AssertionError("Invalid batch had an unexpected terminal state")
-            if any(node.get("config", {}).get("app_id") == "slack" for workflow in authored_workflows(invalid)
-                   for node in workflow["graph"].get("nodes", [])):
-                raise AssertionError("Invalid Slack delivery was retained")
+            run_unsupported_batch()
 
             baseline_yaml.write_text(baseline_yaml.read_text(encoding="utf-8").replace(
                 "query: AI", "query: Later manual synthetic topic"), encoding="utf-8")
@@ -549,6 +565,8 @@ steps:
                 raise AssertionError("Undo did not reject a newer manual edit")
             if after_undo.get("current_version_id") != later["workflow"].get("current_version_id"):
                 raise AssertionError("Undo changed the newer workflow version")
+        if args.case == "unsupported_batch":
+            run_unsupported_batch()
         report["run_state"] = "complete"
         persist()
         return {**report, "report_path": str(report_path)}
@@ -593,7 +611,8 @@ def main() -> None:
         Path(__file__).resolve().parents[1] / "frontend/packages/openmates-cli/dist/cli.js"))
     parser.add_argument("--confirm-live-inference", action="store_true")
     parser.add_argument("--case", choices=("all", "short_default", "remaining",
-                                           "spoken_correction", "structural", "conditional_weather"), default="all",
+                                           "spoken_correction", "structural", "conditional_weather",
+                                           "unsupported_batch"), default="all",
                         help="Run a bounded case; remaining combines spoken correction and structural checks")
     args = parser.parse_args()
     print(json.dumps(run(args), indent=2, sort_keys=True))

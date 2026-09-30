@@ -38,6 +38,7 @@ class WorkflowAuthoringProviderError(ValueError):
             "Workflow node arrived before its header": "node_before_header",
             "Workflow retry changed an accepted node": "retry_node_changed",
             "Workflow provider repeated a node": "node_duplicate",
+            "Workflow requests an unavailable operation": "unsupported_operation",
             "Workflow node failed validation": "node_validation",
             "Invalid provider stream": "invalid_stream",
             "Workflow provider stream failed": "stream_error",
@@ -165,8 +166,8 @@ def _partial_plan(source: str, start: int = 0) -> tuple[dict[str, Any], int, boo
                     value, end = decoder.raw_decode(source, position)
                 except ValueError:
                     if key in {"operations", "workflows"}:
-                        value, _, _ = _partial_plan(source, position)
-                        if value:
+                        value, _, complete = _partial_plan(source, position)
+                        if value and ("unavailable" not in value or complete):
                             values.append(value)
                     return result, position, False
                 values.append(value)
@@ -226,6 +227,9 @@ def complete_flat_components(source: str) -> list[dict[str, Any]]:
     components: list[dict[str, Any]] = []
     for workflow_index, workflow in enumerate(workflows):
         if not isinstance(workflow, dict):
+            continue
+        if "unavailable" in workflow:
+            components.append({"type": "unavailable", "workflow_index": workflow_index})
             continue
         header = workflow.get("header")
         if not isinstance(header, dict):
@@ -317,11 +321,14 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
                                                  "selected_inputs_json", "prompt_json", "message_json",
                                                  "blocks_json")},
     }, "required": ["kind", "id"]}
-    workflow = {"type": "object", "additionalProperties": False, "properties": {
+    authored_workflow = {"type": "object", "additionalProperties": False, "properties": {
         "header": header, "nodes": {"type": "array", "items": node},
     }, "required": ["header", "nodes"]}
+    unavailable_workflow = {"type": "object", "additionalProperties": False, "properties": {
+        "unavailable": {"type": "boolean", "enum": [True]},
+    }, "required": ["unavailable"]}
     return {"type": "object", "additionalProperties": False, "properties": {
-        "workflows": {"type": "array", "items": workflow},
+        "workflows": {"type": "array", "items": {"anyOf": [authored_workflow, unavailable_workflow]}},
     }, "required": ["workflows"]}
 
 
@@ -379,7 +386,12 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
     }]}
     return (
         "Build all requested workflows as one JSON object with a workflows array (one to eight items). "
-        "Each item has header FIRST, then nodes. Header operation is create or update, "
+        "Each buildable item has header FIRST, then nodes. If an essential requested operation or delivery "
+        "channel has no selected registered capability, emit exactly {\"unavailable\":true} for that workflow "
+        "instead of a header and nodes. Never replace an unavailable action or delivery channel with Send chat, "
+        "Ask AI, End, or a different capability. This marker is rejected by the backend and earlier valid "
+        "workflows remain available as disabled partial drafts. "
+        "Header operation is create or update, "
         "workflow_id only for update, and optional title, description, icon, schedule and remove_step_ids. "
         "Do not output clarify or draft: Jev has already handled unclear and title-only requests. "
         "A complete create needs title, description, supported icon, schedule and nodes. "
@@ -541,6 +553,9 @@ class WorkflowGeminiAuthor:
             workflow_index = component["workflow_index"]
             if workflow_index >= 8:
                 raise WorkflowAuthoringProviderError("Workflow batch exceeds its limit", metrics, snapshots())
+            if component["type"] == "unavailable":
+                raise WorkflowAuthoringProviderError("Workflow requests an unavailable operation",
+                                                     metrics, snapshots())
             while len(accumulators) <= workflow_index:
                 accumulators.append(None)
                 frozen.append(None)

@@ -233,6 +233,73 @@ def test_directus_workflow_input_persists_sensitive_state_only_in_vault_blobs() 
     assert restored.workflow.title == "Private rain plan"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries,workflows.content.encrypted-retained,workflows.authoring.provisional-validation
+def test_directus_stop_poll_reads_only_owner_encrypted_state_after_cache_signal_loss(monkeypatch) -> None:
+    service = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
+    repository._client = FakeDirectusClient()
+
+    class LostStopCache:
+        def load(self, user_id: str, session_id: str, vault_key_id: str | None) -> None:
+            return None
+
+        def stop_requested(self, user_id: str, session_id: str) -> bool:
+            return False
+
+        def request_stop(self, user_id: str, session_id: str) -> None:
+            pass
+
+    cache = LostStopCache()
+    producer = WorkflowInputService(workflow_service=service, repository=repository, checkpoint_store=cache)
+    stopper = WorkflowInputService(workflow_service=service, repository=repository, checkpoint_store=cache)
+    session = producer._create_session("alice", None, None, None)
+    session_id = session["id"]
+    assert repository.get_stop_requested(session_id, "alice", None) is False
+    assert repository.get_stop_requested(session_id, "bob", None) is None
+    assert stopper.stop(user_id="alice", session_id=session_id).stop_requested is True
+
+    def no_event_or_mutation_reads(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("Stop polling must not hydrate events or mutations")
+
+    monkeypatch.setattr(repository, "list_events", no_event_or_mutation_reads)
+    monkeypatch.setattr(repository, "list_mutations", no_event_or_mutation_reads)
+    assert repository.get_stop_requested(session_id, "alice", None) is True
+    session["_last_durable_stop_check"] = 0.0
+    assert producer._should_stop(session, None) is True
+    assert session["stop_requested"] is True
+    assert session["_poll_counts"]["stop_durable_reads"] == 1
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries,workflows.content.encrypted-retained
+def test_directus_stop_poll_rejects_missing_or_malformed_encrypted_state(monkeypatch) -> None:
+    service = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
+    client = FakeDirectusClient()
+    repository._client = client
+    input_service = WorkflowInputService(workflow_service=service, repository=repository)
+    session = input_service._create_session("alice", None, None, None)
+    session_id = session["id"]
+    row = client.collections["workflow_input_sessions"][session_id]
+    row["encrypted_state_ref"] = None
+    with pytest.raises(RuntimeError, match="missing its encrypted state"):
+        repository.get_stop_requested(session_id, "alice", None)
+    session["_last_durable_stop_check"] = 0.0
+    assert input_service._should_stop(session, None) is False
+
+    row["encrypted_state_ref"] = "vault://workflows/workflow_input_session/test"
+    monkeypatch.setattr(repository, "_load_private_blob", lambda *args: ["malformed"])
+    with pytest.raises(RuntimeError, match="state is invalid"):
+        repository.get_stop_requested(session_id, "alice", None)
+    session["_last_durable_stop_check"] = 0.0
+    assert input_service._should_stop(session, None) is False
+
+    monkeypatch.setattr(repository, "_load_private_blob", lambda *args: {"stop_requested": "yes"})
+    with pytest.raises(RuntimeError, match="Stop state is invalid"):
+        repository.get_stop_requested(session_id, "alice", None)
+    session["_last_durable_stop_check"] = 0.0
+    assert input_service._should_stop(session, None) is False
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
 def test_workflow_input_sanitizes_ascii_smuggling_before_planner_use() -> None:
     service = workflow_service()

@@ -324,6 +324,37 @@ def test_selected_app_schema_failure_reports_only_registry_path_and_keyword():
     assert "private-unknown-key" not in caught.value.validation_path
 
 
+def test_node_schema_diagnostic_selects_the_authored_kind_without_exposing_values():
+    chosen = selection("weather.forecast", "ai.ask")
+    cases = [
+        ({"kind": "app", "id": "weather", "capability": "weather.forecast"},
+         "$.steps[0].input", "required"),
+        ({"kind": "app", "id": "weather", "capability": "private-capability", "input": {}},
+         "$.steps[0].capability", "enum"),
+        ({"kind": "app", "id": "weather", "capability": "weather.forecast",
+          "input": {"location": "Berlin", "days": "private-value"}},
+         "$.steps[0].input.days", "type"),
+        ({"kind": "send", "id": "reply", "message": [{"text": "private text"}]},
+         "$.steps[0].title", "required"),
+        ({"kind": "ask_ai", "id": "analysis", "prompt": "private prompt"},
+         "$.steps[0].prompt", "type"),
+    ]
+    for step, path, keyword in cases:
+        with pytest.raises(ValueError, match="selected capability schema") as caught:
+            compile_authoring_preview(plan([step]), chosen, "UTC")
+        assert caught.value.validation_path == path
+        assert caught.value.validation_keyword == keyword
+        assert "private" not in str(caught.value)
+        assert "private" not in caught.value.validation_path
+
+    # The Check branch schema has no single safe leaf under this compact
+    # diagnostic; omit a path instead of reporting an unrelated variant.
+    with pytest.raises(ValueError) as caught:
+        compile_authoring_preview(plan([{"kind": "check", "id": "check", "mode": "exact",
+                                         "predicate": "private", "yes": [], "no": []}]), chosen, "UTC")
+    assert not hasattr(caught.value, "validation_path")
+
+
 def test_imported_event_workflow_full_replay_preserves_every_unedited_field():
     source = """title: Synthetic undo guard
 start_when:
