@@ -600,7 +600,7 @@ version_history.restore_failed:
 
 builder.new_workflow_placeholder:
   context: Workflow progressive builder control
-  en: "Enter a name for a new workflow"
+  en: "Describe new workflow."
   verified_by_human: []
 
 builder.ai_new:

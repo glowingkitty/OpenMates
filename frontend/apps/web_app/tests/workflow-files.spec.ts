@@ -71,6 +71,48 @@ test.describe('Portable Workflow files', () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows.portability.disabled-validated-import
+  test('composer file button opens the picker, rejects other extensions and imports a Workflow YAML', async ({ page }: { page: Page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+    const composer = page.getByTestId('workflow-input-composer');
+    const input = page.getByTestId('workflow-input-textarea');
+    const button = composer.getByTestId('workflow-import-button');
+    await expect(input).toHaveAttribute('placeholder', 'Describe new workflow.');
+    await expect(page.getByTestId('workflow-import-button')).toHaveCount(1);
+    await expect(button).toHaveAccessibleName('Import .workflow.yml');
+    await expect(page.getByTestId('workflow-import-input')).toHaveAttribute('accept', '.workflow.yml');
+    await input.fill('Keep this unsent workflow description');
+    const chooserPromise = page.waitForEvent('filechooser');
+    await button.click();
+    const chooser = await chooserPromise;
+    expect(chooser.isMultiple()).toBe(false);
+    const title = `Picked portable ${Date.now()}`;
+    const content = Buffer.from(stringify(portableWorkflow(title)));
+    let importRequests = 0;
+    page.on('request', (request) => {
+      if (request.url().endsWith('/v1/workflows/file-import') && request.method() === 'POST') importRequests += 1;
+    });
+    await chooser.setFiles({ name: 'portable.yaml', mimeType: 'application/yaml', buffer: content });
+    await expect(page.getByTestId('workflows-error')).toContainText('Choose an OpenMates .workflow.yml file.');
+    await expect(input).toHaveValue('Keep this unsent workflow description');
+    expect(importRequests).toBe(0);
+    const imported = page.waitForResponse((response: Response) => response.url().endsWith('/v1/workflows/file-import') && response.request().method() === 'POST');
+    const nextChooserPromise = page.waitForEvent('filechooser');
+    await button.click();
+    await (await nextChooserPromise).setFiles({ name: 'portable.workflow.yml', mimeType: 'application/yaml', buffer: content });
+    const response = await imported;
+    expect(response.ok()).toBe(true);
+    const { workflow } = await response.json();
+    try {
+      await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
+      await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'false');
+      await expect(page.getByTestId('workflow-binding-item')).toHaveCount(2);
+    } finally {
+      await page.request.delete(`${apiUrl()}/v1/workflows/${workflow.id}`);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows.portability.disabled-validated-import
   test('dropping a Workflow YAML opens disabled Template with persisted binding review and preserves typed text on failed import', async ({ page }: { page: Page }) => {
     await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
     await page.getByTestId('workflow-input-textarea').fill('Keep this unsent title');

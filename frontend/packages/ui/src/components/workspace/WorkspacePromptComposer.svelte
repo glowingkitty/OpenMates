@@ -32,6 +32,7 @@
     micTestId = `${surface}-input-mic`,
     onSubmit,
     onMicClick,
+    fileImport,
     recording = false,
     onAudioRecorded,
     onRecordingClose,
@@ -49,6 +50,7 @@
     micTestId?: string;
     onSubmit: SubmitCallback;
     onMicClick: MicCallback;
+    fileImport?: { label: string; testId: string; onClick: () => void };
     recording?: boolean;
     onAudioRecorded?: (event: CustomEvent<RecordedAudio>) => void | Promise<void>;
     onRecordingClose?: () => void;
@@ -96,7 +98,19 @@
     void submitComposer();
   }}
 >
-  <span class="workspace-prompt-ai-icon" aria-hidden="true"></span>
+  {#if fileImport}
+    <button
+      class="workspace-prompt-file"
+      type="button"
+      data-testid={fileImport.testId}
+      aria-label={fileImport.label}
+      title={fileImport.label}
+      disabled={disabled || submitting}
+      onclick={fileImport.onClick}
+    ><span class="clickable-icon icon_files" aria-hidden="true"></span></button>
+  {:else}
+    <span class="workspace-prompt-ai-icon" aria-hidden="true"></span>
+  {/if}
   <textarea
     bind:this={textareaElement}
     bind:value
@@ -233,6 +247,42 @@
     cursor: pointer;
   }
 
+  .workspace-prompt-file {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    transform: translateY(-50%);
+    cursor: pointer;
+  }
+
+  .workspace-prompt-file span {
+    width: 25px;
+    height: 25px;
+    background: var(--color-primary);
+  }
+
+  .workspace-prompt-file:hover {
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .workspace-prompt-file:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+  }
+
+  .workspace-prompt-file:disabled,
   .workspace-prompt-submit:disabled,
   .workspace-prompt-mic:disabled {
     opacity: 0.55;

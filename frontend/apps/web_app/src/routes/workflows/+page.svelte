@@ -46,7 +46,7 @@
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
 	import WorkflowPendingPreview from '@repo/ui/components/workflows/WorkflowPendingPreview.svelte';
 	import WorkflowBindingReview from '@repo/ui/components/workflows/WorkflowBindingReview.svelte';
-	import { downloadWorkflowFile, readWorkflowFile } from '@repo/ui/services/workflowFileService';
+	import { downloadWorkflowFile, isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
 	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, streamWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession, type WorkflowInputStreamEvent } from '@repo/ui/services/workflowInputService';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
@@ -237,7 +237,11 @@
 	);
 
 	async function importWorkflowFile(file: File): Promise<void> {
-		if (!canLoadWorkflows || saving) return;
+		if (!canLoadWorkflows || saving || pendingSaveSessionId) return;
+		if (!isWorkflowFileName(file.name)) {
+			routeError = $text('workflows.builder.file_import_choose');
+			return;
+		}
 		saving = true;
 		routeError = null;
 		try {
@@ -1398,7 +1402,7 @@
 							<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing" isNew={!workflows.some(item => item.id === pendingPreviewWorkflow?.id)}/>
 						{/if}
 						<svelte:fragment slot="composer">
-							<input bind:this={workflowImportInput} type="file" accept=".yml,.yaml,text/yaml,application/yaml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
+							<input bind:this={workflowImportInput} type="file" accept=".workflow.yml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
 							<div class="workflow-import-dropzone" class:dragging={draggingWorkflowFile} role="group" aria-label={$text('workflows.builder.file_import_group')} data-testid="workflow-import-dropzone" ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); draggingWorkflowFile = true; } }} ondragleave={() => { draggingWorkflowFile = false; }} ondrop={handleWorkflowFileDrop}>
 							<WorkspacePromptComposer
 								surface="workflows"
@@ -1414,11 +1418,11 @@
 								micTestId="workflow-input-mic"
 								onSubmit={submitWorkflowInput}
 								onMicClick={() => { voiceTarget = 'home'; }}
+								fileImport={{ label: $text('workflows.builder.file_import_button'), testId: 'workflow-import-button', onClick: () => workflowImportInput?.click() }}
 								recording={voiceTarget === 'home'}
 								onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'home')}
 								onRecordingClose={() => { voiceTarget = null; }}
 							/>
-							<button type="button" class="workflow-import-button" data-testid="workflow-import-button" disabled={saving || !canLoadWorkflows} onclick={() => workflowImportInput?.click()}>{$text('workflows.builder.file_import_button')}</button>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}
 							</div>
 							{#if pendingSaveSessionId || authoringPhase}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || (authoringPhase === 'planning' ? 'Planning workflow...' : authoringPhase === 'retrying_node' ? 'Correcting this step...' : authoringPhase === 'validating' ? 'Validating workflow...' : $text('workflows.builder.ai_saving'))}</span>{#if pendingSaveSessionId && saving}<button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? 'Stopping...' : 'Stop'}</button>{/if}{#if pendingSaveSessionId && !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
@@ -1721,7 +1725,7 @@
 
 <style>
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:0;padding:12px 1rem max(12px,env(safe-area-inset-bottom));background:var(--color-grey-10);box-shadow:0 -8px 24px color-mix(in srgb,var(--color-grey-100) 9%,transparent)}
-	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-button{border:0;border-radius:var(--radius-8);padding:.35rem .75rem;background:transparent;color:var(--color-primary);font:inherit;font-size:var(--font-size-small);cursor:pointer}.workflow-import-button:hover{text-decoration:underline}.workflow-import-button:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-import-button:disabled{opacity:.5;cursor:default}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
+	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
 	.workflow-ai-partial-warning{max-width:56rem;margin:.75rem auto;padding:.75rem 1rem;border:1px solid var(--color-warning, var(--color-button-primary));border-radius:.75rem;background:var(--color-grey-10);color:var(--color-font-primary)}
 	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}

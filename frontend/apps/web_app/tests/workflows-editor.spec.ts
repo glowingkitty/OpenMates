@@ -96,7 +96,7 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('create-blank-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveAttribute(
 				'placeholder',
-				'Enter a name for a new workflow'
+				'Describe new workflow.'
 			);
 			await page
 				.getByTestId('workflow-landing-card')

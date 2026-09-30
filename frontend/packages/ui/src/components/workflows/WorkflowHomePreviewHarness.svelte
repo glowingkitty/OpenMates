@@ -38,6 +38,7 @@
       testId="workflow-input-composer" inputTestId="workflow-input-textarea"
       submitTestId="workflow-input-submit" micTestId="workflow-input-mic"
       onSubmit={() => {}} onMicClick={() => {}}
+      fileImport={{ label: $text('workflows.builder.file_import_button'), testId: 'workflow-import-button', onClick: () => {} }}
     />
   </svelte:fragment>
 </WorkspaceHomeShell>
