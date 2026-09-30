@@ -9,62 +9,78 @@ import pytest
 
 from backend.core.api.app.services.workflow_gemini_authoring import (
     WorkflowAuthoringProviderError,
+    WorkflowAuthoringStopped,
     WorkflowGeminiAuthor,
     authoring_prompt,
+    complete_flat_components,
     complete_plan_components,
     complete_step_components,
     provider_response_schema,
 )
+from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
+from backend.core.api.app.services.workflow_capability_registry import (
+    WorkflowCapabilityRegistry, _FilesystemWorkflowMetadataRegistry,
+)
+
+
+@pytest.fixture(autouse=True)
+def filesystem_capabilities(monkeypatch):
+    monkeypatch.setattr(WorkflowCapabilityRegistry, "_registry", lambda self: _FilesystemWorkflowMetadataRegistry())
+
+
+def selection(*capabilities: str, operation: str = "create") -> WorkflowPreselection:
+    registry = WorkflowCapabilityRegistry()
+    return WorkflowPreselection([registry.get_capability(identifier) for identifier in capabilities],
+                                operation, "none", True, {}, {})
 
 
 def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_operators():
     prompt = authoring_prompt(SimpleNamespace(context=lambda: {"capabilities": []}), "UTC")
-    example_text = prompt.split("not example placeholders): ", 1)[1]
+    example_text = prompt.split("replace example values with user request and selected skill contracts): ", 1)[1]
     examples, _ = json.JSONDecoder().raw_decode(example_text)
-    weather, check = examples["create"]["steps"]
+    weather, check, yes, no = examples["workflows"][0]["nodes"]
     assert weather["capability"] == "weather.forecast"
-    assert check["predicate"]["op"] == "eq"
-    assert examples["ask_ai"]["prompt"][1]["ref"]["field"] == "results"
+    assert json.loads(weather["input_json"])["start_date"] == {"$date": "today", "format": "date"}
+    assert json.loads(check["predicate_json"])["op"] == "eq"
+    assert yes["parent_check_id"] == no["parent_check_id"] == "rain"
     assert "NOT forecast data" in prompt
     assert "op:'" not in prompt
 
 
-def test_provider_envelope_accepts_single_and_batch_but_keeps_strict_compiler_separate():
+def test_provider_envelope_is_flat_and_constant_across_selections():
     from jsonschema import Draft202012Validator
-    validator = Draft202012Validator(provider_response_schema(SimpleNamespace(capabilities=[])))
-    plan = {"operation": "create", "title": "Forecast", "schedule": {"type": "daily"},
-            "steps": [{"kind": "end", "id": "done"}]}
-    validator.validate(plan)
-    validator.validate({"operations": [plan, {"operation": "clarify", "message": "Missing detail"}]})
-    assert list(validator.iter_errors({"operation": "execute"}))
-    assert list(validator.iter_errors({"operation": "create", "schedule": {"type": "invalid"}}))
-    assert list(validator.iter_errors({"operation": "create", "steps": [{"type": "app", "id": "wrong"}]}))
-
-
-def test_provider_step_grammar_is_recursive_typed_and_scoped_to_selected_inputs():
-    from jsonschema import Draft202012Validator
-
-    selection = SimpleNamespace(capabilities=[SimpleNamespace(id="weather.forecast", metadata={
-        "input_schema": {"type": "object", "properties": {
-            "location": {"type": "string"}, "days": {"type": "integer"}}, "required": ["location"]}})])
-    schema = provider_response_schema(selection)
-    Draft202012Validator.check_schema(schema)
-    step = schema["$defs"]["step"]
-    assert step["required"] == ["kind", "id"]
-    assert step["properties"]["yes"]["items"] == {"$ref": "#/$defs/step"}
-    assert step["properties"]["capability"]["enum"] == ["weather.forecast"]
-    assert "secret" not in step["properties"]["input"]["properties"]
+    schema = provider_response_schema(selection("weather.forecast", "ai.ask"))
+    assert schema == provider_response_schema(selection("web.search"))
+    assert len(json.dumps(schema)) < 2500
     validator = Draft202012Validator(schema)
-    nested = {"operation": "create", "steps": [
-        {"kind": "app", "id": "weather", "capability": "weather.forecast", "input": {"location": "Berlin"}},
-        {"kind": "check", "id": "rain", "mode": "exact",
-         "predicate": {"op": "exists", "left": {"ref": {"step": "weather", "field": "rain_expected"}}},
-         "yes": [{"kind": "send", "id": "notice", "title": "Rain",
-                  "message": [{"text": "Take an umbrella"}]}], "no": []},
-    ]}
-    validator.validate(nested)
-    nested["steps"][0]["input"]["secret"] = "unknown"
-    assert list(validator.iter_errors(nested))
+    flat = {"workflows": [{"header": {"operation": "create", "schedule": {"type": "daily"}},
+                           "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
+                                      "input_json": '{"location":"Berlin","days":1}'}]}]}
+    validator.validate(flat)
+    assert list(validator.iter_errors({"operation": "create"}))
+    flat["workflows"][0]["nodes"][0]["input_json"] = {"location": "Berlin"}
+    assert list(validator.iter_errors(flat))
+
+
+def test_provider_node_grammar_keeps_kind_branch_and_encoded_fields_typed():
+    from jsonschema import Draft202012Validator
+    schema = provider_response_schema(selection("weather.forecast"))
+    Draft202012Validator.check_schema(schema)
+    node = schema["properties"]["workflows"]["items"]["properties"]["nodes"]["items"]
+    assert node["required"] == ["kind", "id"]
+    assert node["properties"]["branch"]["enum"] == ["default", "yes", "no", "unsure"]
+    assert node["properties"]["predicate_json"] == {"type": "string"}
+    assert "yes" not in node["properties"]
+
+
+def test_flat_components_emit_header_then_only_complete_nodes():
+    source = '{"workflows":[{"header":{"operation":"create","title":"A"},"nodes":['
+    assert complete_flat_components(source) == [{"type": "header", "workflow_index": 0,
+                                                  "header": {"operation": "create", "title": "A"}}]
+    first = {"kind": "check", "id": "c", "mode": "exact", "predicate_json": '{"op":"exists","left":true}'}
+    source += json.dumps(first) + ',{"kind":"send","id":"incomplete","message_json":'
+    assert complete_flat_components(source)[-1] == {"type": "node", "workflow_index": 0,
+                                                     "index": 0, "node": first}
 
 
 def test_components_never_emit_incomplete_nested_steps_or_quoted_key():
@@ -92,11 +108,15 @@ def test_duplicate_properties_do_not_create_provisional_steps():
 
 
 @pytest.mark.asyncio
-async def test_stream_filters_thoughts_emits_complete_steps_and_counts_reasoning(monkeypatch):
-    from backend.core.api.app.services import workflow_authoring_compiler
-
-    monkeypatch.setattr(workflow_authoring_compiler, "build_authoring_schema", lambda _: {"type": "object"})
-    fragments = ['{"steps":[', '{"id":"a","kind":"end"}', ']}']
+async def test_stream_filters_thoughts_and_validates_header_and_each_complete_node():
+    header = {"operation": "create", "title": "Forecast", "description": "Send a forecast",
+              "icon": "cloud-rain", "schedule": {"type": "daily"}}
+    app = {"kind": "app", "id": "weather", "capability": "weather.forecast",
+           "input_json": '{"location":"Berlin","days":1}'}
+    send = {"kind": "send", "id": "reply", "title": "Forecast",
+            "message_json": '[{"ref":{"step":"weather","field":"summary"}}]'}
+    fragments = ['{"workflows":[{"header":' + json.dumps(header) + ',"nodes":[',
+                 json.dumps(app) + ',', json.dumps(send) + ']}]}']
     events = [{"candidates": [{"content": {"parts": [{"text": "private thought", "thought": True}]}}]}]
     events.extend({"candidates": [{"content": {"parts": [{"text": fragment}]}}]} for fragment in fragments)
     events.append({"candidates": [{"finishReason": "STOP"}], "usageMetadata": {
@@ -116,24 +136,24 @@ async def test_stream_filters_thoughts_emits_complete_steps_and_counts_reasoning
         async def get_secret(self, **kwargs):
             return "synthetic-key"
 
-    selection = SimpleNamespace(context=lambda: {"capabilities": []})
-    components = []
+    components, checkpoints = [], []
     async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
         raw, metrics = await WorkflowGeminiAuthor(Secrets(), client).generate(
-            text="end", selection=selection, timezone="UTC", on_component=components.append)
-    assert raw == {"steps": [{"id": "a", "kind": "end"}]}
-    assert components == [{"index": 0, "step": raw["steps"][0]}]
-    assert metrics["component_count"] == 1
+            text="forecast", selection=selection("weather.forecast"), timezone="UTC",
+            on_component=components.append, on_plan_component=checkpoints.append)
+    assert raw["steps"] == [{"kind": "app", "id": "weather", "capability": "weather.forecast",
+                              "input": {"location": "Berlin", "days": 1}},
+                             {"kind": "send", "id": "reply", "title": "Forecast",
+                              "message": [{"ref": {"step": "weather", "field": "summary"}}]}]
+    assert components == [{"index": 0, "step": app}, {"index": 1, "step": send}]
+    assert [item["type"] for item in checkpoints] == ["header", "node", "node"]
+    assert metrics["component_count"] == 2
     assert metrics["output_tokens"] == 30
     assert metrics["estimated_cost_usd"] == pytest.approx(0.0001875)
 
 
 @pytest.mark.asyncio
-async def test_provider_rejection_does_not_expose_body(monkeypatch):
-    from backend.core.api.app.services import workflow_authoring_compiler
-
-    monkeypatch.setattr(workflow_authoring_compiler, "build_authoring_schema", lambda _: {"type": "object"})
-
+async def test_provider_rejection_does_not_expose_body():
     class Secrets:
         async def get_secret(self, **kwargs):
             return "synthetic-key"
@@ -143,3 +163,65 @@ async def test_provider_rejection_does_not_expose_body(monkeypatch):
             await WorkflowGeminiAuthor(Secrets(), client).generate(
                 text="private input", selection=SimpleNamespace(context=lambda: {}), timezone="UTC")
     assert "private" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_retry_keeps_frozen_prefix_and_emits_only_new_valid_node():
+    header = {"operation": "create", "title": "Forecast", "description": "Send forecast",
+              "icon": "cloud-rain", "schedule": {"type": "daily"}}
+    app = {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+           "input_json": '{"location":"Berlin","days":1}'}
+    send = {"kind": "send", "id": "reply", "title": "Forecast",
+            "message_json": '[{"ref":{"step":"forecast","field":"summary"}}]'}
+    frozen = [{"header": header, "nodes": [app]}]
+    output = {"workflows": [{"header": header, "nodes": [app, send]}]}
+
+    def handle(_):
+        event = {"candidates": [{"content": {"parts": [{"text": json.dumps(output)}]},
+                                   "finishReason": "STOP"}]}
+        return httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n')
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    checkpoints = []
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        compact, _ = await WorkflowGeminiAuthor(Secrets(), client).generate(
+            text="forecast", selection=selection("weather.forecast"), timezone="UTC",
+            accepted_prefixes=frozen, correction="Add the send node", on_plan_component=checkpoints.append)
+    assert [event["type"] for event in checkpoints] == ["node"]
+    assert checkpoints[0]["node"] == send
+    assert [step["id"] for step in compact["steps"]] == ["forecast", "reply"]
+
+
+@pytest.mark.asyncio
+async def test_stop_carries_only_valid_accepted_prefix():
+    header = {"operation": "create", "title": "Forecast", "description": "Send forecast",
+              "icon": "cloud-rain", "schedule": {"type": "daily"}}
+    app = {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+           "input_json": '{"location":"Berlin","days":1}'}
+    chunks = ['{"workflows":[{"header":' + json.dumps(header) + ',"nodes":[', json.dumps(app) + ',']
+    events = [{"candidates": [{"content": {"parts": [{"text": chunk}]}}]} for chunk in chunks]
+    events.append({"candidates": [{"content": {"parts": [{"text": '{}'}]}}]})
+
+    def handle(_):
+        return httpx.Response(200, text=''.join('data: ' + json.dumps(event) + '\n\n' for event in events))
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    stopped = False
+
+    def checkpoint(event):
+        nonlocal stopped
+        if event["type"] == "node":
+            stopped = True
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        with pytest.raises(WorkflowAuthoringStopped) as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="forecast", selection=selection("weather.forecast"), timezone="UTC",
+                on_plan_component=checkpoint, should_stop=lambda: stopped)
+    assert error.value.accepted_prefixes == [{"header": header, "nodes": [app]}]

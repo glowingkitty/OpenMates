@@ -47,7 +47,7 @@ class Decisions:
             if question["type"] == "noul":
                 answers[name] = {"type": "noul", "noul": 0.9 if name in {"weather.forecast", "chat_delivery"} else 0.02}
                 continue
-            selection = {"operation": "create", "check_mode": "none", "workflow_count": "1", "count:weather.forecast": "1",
+            selection = {"operation": "create", "check_mode": "none", "workflow_count": "1", "request_clarity": "clear", "count:weather.forecast": "1",
                          "count:exact": "0", "count:ai": "0", "count:send": "1", "trigger": "schedule",
                          "trigger:next": "action1", "action1:next": "send1", "send1:next": "end"}.get(name)
             if self.cycle and name == "send1:next":
@@ -76,7 +76,7 @@ async def test_selects_registered_skills_directly_and_retains_full_contract():
     assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
     assert len(jev.requests) == 1
     state, questions = jev.requests[0]
-    assert set(questions) == {"weather.forecast", "weather.rain_radar", "operation", "check_mode", "chat_delivery", "workflow_count"}
+    assert set(questions) == {"weather.forecast", "weather.rain_radar", "operation", "check_mode", "chat_delivery", "workflow_count", "request_clarity"}
     assert result.workflow_count == 1
     assert state["existing_graph"] is None
     assert "example" not in result.context()["capabilities"][0]["input_schema"]["properties"]["example"]
@@ -101,6 +101,82 @@ async def test_implicit_result_formatting_can_use_available_ask_ai_builtin():
 async def test_missing_relevance_answer_does_not_silently_drop_skill():
     with pytest.raises(ValueError, match="omitted skill relevance"):
         await WorkflowAuthoringPreselector(jev_client=Decisions(malformed=True), registry=Registry()).select("Forecast Graz")
+
+
+@pytest.mark.asyncio
+async def test_staged_selection_routes_apps_then_selects_skills_with_controls():
+    class StagedDecisions(Decisions):
+        async def evaluate(self, *, state, questions):
+            self.requests.append((state, questions))
+            answers = {}
+            for name, question in questions.items():
+                if question["type"] == "noul":
+                    value = 0.9 if name in {"app:weather", "weather.forecast", "chat_delivery"} else 0.02
+                    answers[name] = {"type": "noul", "noul": value}
+                else:
+                    choice = {"operation": "create", "check_mode": "none", "workflow_count": "1", "request_clarity": "clear"}[name]
+                    answers[name] = {"type": "choice", "choice": choice,
+                                     "probabilities": {choice: 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({"model": "test", "answers": answers,
+                                                    "usage": {"input_tokens": 100, "output_tokens": 10}})
+
+    jev = StagedDecisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry(), mode="staged").select("Forecast Graz")
+    assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
+    assert len(jev.requests) == 2
+    assert "app:weather" in jev.requests[0][1]
+    assert set(jev.requests[1][1]) == {"weather.forecast", "weather.rain_radar"}
+    assert result.metrics["jev_calls"] == 2
+    assert result.metrics["input_tokens"] == 200
+    assert result.metrics["app_scores"] == {"weather": 0.9}
+    assert result.workflow_count == 1
+
+
+@pytest.mark.asyncio
+async def test_staged_skill_outage_falls_back_to_direct_selection():
+    class FailingStage(Decisions):
+        async def evaluate(self, *, state, questions):
+            if "app:weather" in questions:
+                self.requests.append((state, questions))
+                answers = {"app:weather": {"type": "noul", "noul": 0.9},
+                           "operation": {"type": "choice", "choice": "create", "probabilities": {"create": 1.0}, "confidence": 1.0},
+                           "check_mode": {"type": "choice", "choice": "none", "probabilities": {"none": 1.0}, "confidence": 1.0},
+                           "workflow_count": {"type": "choice", "choice": "1", "probabilities": {"1": 1.0}, "confidence": 1.0},
+                           "request_clarity": {"type": "choice", "choice": "clear", "probabilities": {"clear": 1.0}, "confidence": 1.0},
+                           "chat_delivery": {"type": "noul", "noul": 0.9}}
+                return DecisionResponse.model_validate({"model": "test", "answers": answers,
+                                                        "usage": {"input_tokens": 100, "output_tokens": 10}})
+            if set(questions) == {"weather.forecast", "weather.rain_radar"}:
+                raise TimeoutError("stage unavailable")
+            return await super().evaluate(state=state, questions=questions)
+
+    result = await WorkflowAuthoringPreselector(jev_client=FailingStage(), registry=Registry(), mode="staged").select("Forecast Graz")
+    assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
+    assert result.metrics["fallback"] == "direct"
+    assert result.metrics["jev_calls"] == 2
+
+
+@pytest.mark.asyncio
+async def test_jev_unclear_count_is_confusing_unless_title_only():
+    class ClarityDecisions(Decisions):
+        def __init__(self, clarity):
+            super().__init__()
+            self.clarity = clarity
+
+        async def evaluate(self, *, state, questions):
+            result = await super().evaluate(state=state, questions=questions)
+            answers = result.model_dump()["answers"]
+            answers["workflow_count"] = {"type": "choice", "choice": "unclear",
+                                         "probabilities": {"unclear": 1.0}, "confidence": 1.0}
+            answers["request_clarity"] = {"type": "choice", "choice": self.clarity,
+                                          "probabilities": {self.clarity: 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({**result.model_dump(), "answers": answers})
+
+    confusing = await WorkflowAuthoringPreselector(jev_client=ClarityDecisions("clear"), registry=Registry()).select("Maybe two workflows")
+    draft = await WorkflowAuthoringPreselector(jev_client=ClarityDecisions("title_only"), registry=Registry()).select("My research")
+    assert confusing.request_clarity == "confusing"
+    assert draft.request_clarity == "title_only"
+    assert draft.context()["request_clarity"] == "title_only"
 
 
 @pytest.mark.asyncio

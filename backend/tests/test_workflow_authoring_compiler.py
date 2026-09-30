@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
 
 import pytest
 from jsonschema import Draft202012Validator
 
 from backend.core.api.app.services.workflow_authoring_compiler import (
-    build_authoring_schema, compile_authoring_plan, compile_authoring_preview,
+    FlatAuthoringAccumulator, build_authoring_schema, compile_authoring_plan, compile_authoring_preview,
 )
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
 from backend.core.api.app.services.workflow_capability_registry import (
@@ -39,6 +40,54 @@ def plan(steps, *, schedule=None):
 
 def ref(step: str, field: str):
     return {"ref": {"step": step, "field": field}}
+
+
+def test_flat_accumulator_accepts_check_before_children_and_rejects_bad_node_without_mutation():
+    author = FlatAuthoringAccumulator(selection("weather.forecast", mode="exact"), "UTC")
+    header = {"operation": "create", "title": "Rain", "description": "Report rain", "icon": "cloud-rain",
+              "schedule": {"type": "daily"}}
+    assert len(author.accept_header(header)["graph"]["nodes"]) == 1
+    weather = {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+               "input_json": json.dumps({"location": "Berlin", "days": 1})}
+    author.accept_node(weather)
+    check = {"kind": "check", "id": "rain", "mode": "exact", "predicate_json": json.dumps({
+        "op": "eq", "left": ref("forecast", "rain_expected"), "right": True})}
+    assert any(node["id"] == "rain" for node in author.accept_node(check)["graph"]["nodes"])
+    frozen = author.flat_snapshot()
+    with pytest.raises(ValueError, match="malformed"):
+        author.accept_node({"kind": "send", "id": "bad", "parent_check_id": "rain", "branch": "yes",
+                            "title": "Rain", "message_json": '{"text":"a","text":"b"}'})
+    assert author.flat_snapshot() == frozen
+    author.accept_node({"kind": "send", "id": "umbrella", "parent_check_id": "rain", "branch": "yes",
+                        "title": "Rain", "message_json": '[{"text":"Take an umbrella"}]'})
+    author.accept_node({"kind": "send", "id": "dry", "parent_check_id": "rain", "branch": "no",
+                        "title": "Rain", "message_json": '[{"text":"Dry today"}]'})
+    assert author.snapshot()["steps"][1]["yes"][0]["id"] == "umbrella"
+    assert author.compile_final()["action"] == "create_workflow"
+
+
+def test_flat_update_header_preserves_original_and_new_node_splices_without_dropping_reply():
+    original = compile_authoring_plan(plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Paris", "days": 1}},
+        {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("forecast", "summary")]},
+    ]), selection("weather.forecast"), "UTC")
+    target = {"id": "workflow-1", "version": 3, "graph": original["graph"]}
+    author = FlatAuthoringAccumulator(selection("weather.forecast", "ai.ask", operation="update"), "UTC", target)
+    author.accept_header({"operation": "update", "workflow_id": "workflow-1",
+                          "schedule": {"type": "daily", "time": "10:00"}})
+    assert "steps" not in author.snapshot()
+    assert author.compile_final()["graph"]["nodes"][0]["config"]["schedule"]["time"] == "10:00"
+    author.accept_node({"kind": "app", "id": "forecast", "capability": "weather.forecast",
+                        "input_json": '{"location":"Paris","days":1}'})
+    preview = author.accept_node({"kind": "ask_ai", "id": "analysis", "prompt_json": json.dumps([
+        {"text": "Explain "}, ref("forecast", "results")])})
+    graph = author.compile_partial()["graph"]
+    assert graph == preview["graph"]
+    assert {node["id"] for node in graph["nodes"]} == {"trigger", "forecast", "analysis", "reply"}
+    assert {(edge["from"], edge["to"]) for edge in graph["edges"]} == {
+        ("trigger", "forecast"), ("forecast", "analysis"), ("analysis", "reply")}
+    assert author.compile_partial()["expected_record_version"] == 3
 
 
 def test_schema_is_selected_capability_scoped_and_supports_structured_steps():

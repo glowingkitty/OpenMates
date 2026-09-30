@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import is_dataclass, replace
+from types import SimpleNamespace
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -547,3 +549,233 @@ def compile_authoring_preview(
     completed nodes and references, but need not contain a final delivery.
     """
     return _compile_authoring(raw_prefix, selection, timezone, selected_workflow, preview=True)
+
+
+_FLAT_JSON_FIELDS = {
+    "input_json": "input", "predicate_json": "predicate", "question_json": "question",
+    "selected_inputs_json": "selected_inputs", "prompt_json": "prompt",
+    "message_json": "message", "blocks_json": "blocks",
+}
+_FLAT_NODE_FIELDS = {"kind", "id", "parent_check_id", "branch", "capability", "mode", "title",
+                     *_FLAT_JSON_FIELDS}
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate property in authored node JSON")
+        result[key] = value
+    return result
+
+
+def _selected_target(selected_workflow: dict[str, Any] | None, workflow_id: Any) -> dict[str, Any] | None:
+    if not isinstance(selected_workflow, dict):
+        return None
+    if selected_workflow.get("id") == workflow_id:
+        return selected_workflow
+    candidates = selected_workflow.get("workflows") or selected_workflow.get("selected_workflows") or []
+    if isinstance(candidates, list):
+        return next((item for item in candidates if isinstance(item, dict) and item.get("id") == workflow_id), None)
+    return None
+
+
+class FlatAuthoringAccumulator:
+    """Accept complete flat records only after the current prefix compiles safely.
+
+    Check children are separate records with ``parent_check_id`` and ``branch``.
+    Every accepted prefix has a read-only V2 preview; rejected records leave the
+    accepted state intact. The final compact tree retains existing compiler APIs.
+    """
+
+    def __init__(self, selection: WorkflowPreselection, timezone: str,
+                 selected_workflow: dict[str, Any] | None = None) -> None:
+        self.selection = selection
+        self.timezone = timezone
+        self.selected_workflow = selected_workflow
+        self.header: dict[str, Any] | None = None
+        self.records: list[dict[str, Any]] = []
+        self.preview: dict[str, Any] | None = None
+
+    def _context(self, operation: str) -> tuple[WorkflowPreselection, dict[str, Any] | None]:
+        if operation not in {"create", "update", "draft"}:
+            raise ValueError("Flat authoring operation is invalid")
+        selection = (replace(self.selection, operation=operation) if is_dataclass(self.selection)
+                     else SimpleNamespace(**{**vars(self.selection), "operation": operation}))
+        target = _selected_target(self.selected_workflow, self.header.get("workflow_id") if self.header else None)
+        return selection, target
+
+    def accept_header(self, header: dict[str, Any]) -> dict[str, Any] | None:
+        if self.header is not None or not isinstance(header, dict) or "steps" in header or "nodes" in header:
+            raise ValueError("Flat authoring header is invalid")
+        if any(key not in {"operation", "workflow_id", "title", "description", "icon", "schedule",
+                               "remove_step_ids", "message"} for key in header):
+            raise ValueError("Flat authoring header has an unknown property")
+        candidate = dict(header) if header.get("operation") == "update" else {**header, "steps": []}
+        self.header = dict(header)
+        try:
+            selection, target = self._context(str(header.get("operation")))
+            if header.get("operation") in {"create", "update"}:
+                preview = compile_authoring_preview(candidate, selection, self.timezone, target)
+            else:
+                compile_authoring_plan({key: value for key, value in candidate.items() if key != "steps"},
+                                       selection, self.timezone, target)
+                preview = None
+        except (ValueError, TypeError):
+            self.header = None
+            raise
+        self.preview = preview
+        return preview
+
+    def _compact(self, records: list[dict[str, Any]]) -> dict[str, Any]:
+        if self.header is None:
+            raise ValueError("Flat authoring header is missing")
+        steps: list[dict[str, Any]] = []
+        checks: dict[str, dict[str, Any]] = {}
+        seen: set[str] = set()
+        for record in records:
+            if not isinstance(record, dict) or not {"kind", "id"} <= set(record) or set(record) - _FLAT_NODE_FIELDS:
+                raise ValueError("Flat authoring node shape is invalid")
+            node_id = record["id"]
+            if not isinstance(node_id, str) or not _ID.fullmatch(node_id) or node_id in seen:
+                raise ValueError("Flat authoring node ID is invalid or repeated")
+            seen.add(node_id)
+            parent = record.get("parent_check_id")
+            branch = record.get("branch")
+            if parent is None:
+                if branch not in (None, "default"):
+                    raise ValueError("Root authoring node cannot use a Check branch")
+                destination = steps
+            else:
+                if not isinstance(parent, str) or parent not in checks or branch not in {"yes", "no", "unsure"}:
+                    raise ValueError("Branch node must name an earlier Check and branch")
+                destination = checks[parent][branch]
+            item = {key: value for key, value in record.items()
+                    if key in {"kind", "id", "capability", "mode", "title"}}
+            for transport_key, compact_key in _FLAT_JSON_FIELDS.items():
+                if transport_key in record:
+                    encoded = record[transport_key]
+                    if not isinstance(encoded, str) or len(encoded.encode("utf-8")) > _MAX_PLAN_BYTES:
+                        raise ValueError("Flat authoring JSON field is invalid")
+                    try:
+                        item[compact_key] = json.loads(encoded, object_pairs_hook=_unique_json_object)
+                    except (ValueError, RecursionError) as exc:
+                        raise ValueError("Flat authoring JSON field is malformed") from exc
+            if item["kind"] == "check":
+                item.update({"yes": [], "no": [], "unsure": []})
+                checks[node_id] = item
+            destination.append(item)
+        return {**self.header, **({"steps": steps} if records or self.header.get("operation") != "update" else {})}
+
+    def accept_node(self, record: dict[str, Any]) -> dict[str, Any]:
+        if self.header is None or self.header.get("operation") not in {"create", "update"}:
+            raise ValueError("Flat authoring nodes require a workflow header")
+        if len(self.records) >= _MAX_STEPS:
+            raise ValueError("Flat authoring plan exceeds its node limit")
+        candidate = self._compact([*self.records, record])
+        selection, target = self._context(self.header["operation"])
+        preview = compile_authoring_preview(candidate, selection, self.timezone, target)
+        old_records, old_preview = self.records, self.preview
+        self.records = [*self.records, record]
+        self.preview = preview
+        if self.header["operation"] == "update":
+            try:
+                merged = self.compile_partial()
+            except ValueError:
+                self.records = old_records
+                self.preview = old_preview
+                raise
+            return {**preview, "graph": merged["graph"]}
+        return preview
+
+    def snapshot(self) -> dict[str, Any] | None:
+        return self._compact(self.records) if self.header is not None else None
+
+    def flat_snapshot(self) -> dict[str, Any] | None:
+        """Return accepted transport records for a single bounded continuation."""
+        return {"header": dict(self.header), "nodes": [dict(node) for node in self.records]} if self.header else None
+
+    def compile_partial(self) -> dict[str, Any]:
+        """Return a disabled action only when every accepted edit can be retained.
+
+        New update nodes splice into the original edge slot named by their
+        accepted predecessor and branch. The displaced old target follows the
+        inserted node through its default edge, preserving unrelated old steps.
+        A splice that cannot preserve the old target is rejected before emit.
+        """
+        plan = self.snapshot()
+        if plan is None or plan["operation"] not in {"create", "update"}:
+            raise ValueError("No workflow header is available for a partial draft")
+        selection, target = self._context(plan["operation"])
+        preview = self.preview
+        if preview is None:
+            raise ValueError("Partial draft has no validated preview")
+        if plan["operation"] == "create":
+            title, description = plan.get("title"), plan.get("description")
+            if not isinstance(title, str) or not title.strip() or not isinstance(description, str) or not description.strip():
+                raise ValueError("Partial create needs a title and description")
+            icon = preview.get("icon") or normalize_workflow_identity("general_knowledge", None).icon
+            identity = normalize_workflow_identity("general_knowledge", icon)
+            return {"action": "create_workflow", "title": title.strip()[:200],
+                    "description": description.strip()[:2000], "category": identity.category,
+                    "icon": identity.icon, "graph": preview["graph"], "enabled": False,
+                    "assumptions": preview["assumptions"], "partial": True}
+        if target is None:
+            raise ValueError("Partial update target is missing")
+        prior = WorkflowGraph.model_validate(target["graph"])
+        if not self.records:
+            preserve = compile_authoring_preview({key: value for key, value in plan.items() if key != "steps"},
+                                                  selection, self.timezone, target)
+            graph_data = preserve["graph"]
+        else:
+            authored = WorkflowGraph.model_validate(preview["graph"])
+            old_ids = {node.id for node in prior.nodes}
+            new_ids = {record["id"] for record in self.records} - old_ids
+            replacements = {node.id: node for node in authored.nodes}
+            merged = prior.model_copy(deep=True)
+            merged.nodes = [replacements.get(node.id, node) for node in merged.nodes]
+            authored_edges = {edge.to_node: edge for edge in authored.edges}
+            for record in self.records:
+                node_id = record["id"]
+                if node_id not in new_ids:
+                    continue
+                node = replacements.get(node_id)
+                incoming = authored_edges.get(node_id)
+                if node is None or incoming is None:
+                    raise ValueError("Partial update node has no validated insertion point")
+                if incoming.from_node not in {item.id for item in merged.nodes}:
+                    raise ValueError("Partial update predecessor is unavailable")
+                slot = next((index for index, edge in enumerate(merged.edges)
+                             if edge.from_node == incoming.from_node and edge.branch == incoming.branch), None)
+                displaced = merged.edges[slot].to_node if slot is not None else None
+                if displaced is not None and node.type == WorkflowNodeType.END:
+                    raise ValueError("Partial update End cannot hide an existing continuation")
+                merged.nodes.append(node)
+                inserted = incoming.model_copy(deep=True)
+                if slot is None:
+                    merged.edges.append(inserted)
+                else:
+                    merged.edges[slot] = inserted
+                    continuation_branch = "default" if node.type == WorkflowNodeType.CHECK else None
+                    merged.edges.append(WorkflowEdge(**{"from": node_id, "to": displaced,
+                                                        "branch": continuation_branch}))
+            merged = WorkflowGraph.model_validate(merged.model_dump(mode="json", by_alias=True))
+            _validate_builder_execution_inputs(merged)
+            validate_workflow_composition_refs(merged, prior, allow_data_dependencies=True)
+            graph_data = merged.model_dump(mode="json", by_alias=True)
+        result = {"action": "update_workflow", "workflow_id": target["id"], "graph": graph_data,
+                  "enabled": False, "assumptions": preview["assumptions"], "partial": True}
+        version = target.get("version")
+        if isinstance(version, int) and not isinstance(version, bool) and version >= 1:
+            result["expected_record_version"] = version
+        for key in ("title", "description", "icon"):
+            if plan.get(key) is not None:
+                result[key] = plan[key]
+        return result
+
+    def compile_final(self) -> dict[str, Any]:
+        plan = self.snapshot()
+        if plan is None:
+            raise ValueError("Flat authoring header is missing")
+        selection, target = self._context(plan["operation"])
+        return compile_authoring_plan(plan, selection, self.timezone, target)
