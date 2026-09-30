@@ -333,6 +333,49 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             )):
                 raise AssertionError("Short default did not schedule a Monday 09:00 events search")
 
+        if args.case == "conditional_weather":
+            weather, wall, queue = completed_input(call, ["workflows", "input",
+                "Every day at 08:00 in Berlin, check today's weather in Berlin. If rain is expected, "
+                "send me a chat message to take an umbrella; otherwise send me a chat message that it should "
+                f"be dry. Name it {prefix} rain."],
+                "conditional weather")
+            record("conditional_weather", weather, wall, queue)
+            weather_workflows = capture(weather)
+            if weather.get("status") != "executed" or len(weather_workflows) != 1:
+                raise AssertionError("Conditional weather did not save one complete disabled workflow")
+            graph = weather_workflows[0]["graph"]
+            weather_schedule = schedule(graph)
+            if (weather_schedule.get("type") != "daily" or weather_schedule.get("time") != "08:00"
+                    or weather_schedule.get("timezone") != "Europe/Berlin"):
+                raise AssertionError("Conditional weather schedule is not daily 08:00 Berlin")
+            actions = [node for node in graph.get("nodes", []) if node.get("type") == "app_skill_action"]
+            forecast = [node for node in actions if node.get("config", {}).get("app_id") == "weather"
+                        and node.get("config", {}).get("skill_id") == "forecast"]
+            if len(forecast) != 1 or len(actions) != 1:
+                raise AssertionError("Conditional weather did not use only weather.forecast")
+            forecast_input = forecast[0].get("config", {}).get("input", {})
+            today = {"$date": "today", "format": "date"}
+            if ("berlin" not in str(forecast_input.get("location") or "").lower()
+                    or forecast_input.get("start_date") != today or forecast_input.get("end_date") != today):
+                raise AssertionError("Conditional weather did not use today's Berlin forecast markers")
+            checks = [node for node in graph.get("nodes", []) if node.get("type") == "check"]
+            if len(checks) != 1 or checks[0].get("config", {}).get("mode") != "exact":
+                raise AssertionError("Conditional weather did not use one exact Check")
+            predicate = checks[0].get("config", {}).get("predicate", {})
+            expected_ref = f"$nodes.{forecast[0]['id']}.output.rain_expected"
+            if (predicate.get("left") != expected_ref or predicate.get("op") != "eq"
+                    or predicate.get("right") is not True):
+                raise AssertionError("Conditional weather Check did not test the typed rain boolean")
+            sends = {node["id"]: node for node in graph.get("nodes", []) if node.get("type") == "send_chat_message"}
+            branches = {edge.get("branch"): edge.get("to") for edge in graph.get("edges", [])
+                        if edge.get("from") == checks[0]["id"]}
+            if set(branches) != {"yes", "no"} or any(branches[branch] not in sends for branch in branches):
+                raise AssertionError("Conditional weather Check did not reach both chat messages")
+            yes_message = sends[branches["yes"]].get("config", {}).get("message", "")
+            no_message = sends[branches["no"]].get("config", {}).get("message", "")
+            if "umbrella" not in str(yes_message).lower() or "dry" not in str(no_message).lower():
+                raise AssertionError("Conditional weather branch messages were reversed or missing")
+
         if args.case in {"all", "remaining", "spoken_correction"}:
             spoken, wall, queue = completed_input(call, ["workflows", "input",
                 f"Every Tuesday at 8 in Madrid—no, make that Thursday at 9 in Lisbon—find local tech meetups and send me a chat summary. Name it {prefix} spoken."], "spoken correction")
@@ -388,7 +431,11 @@ steps:
             if guard_id in initial_ids:
                 raise AssertionError("Undo guard baseline reused an existing workflow")
             created_ids.add(guard_id)
-            original = baseline["workflow"]
+            # Compare against the owner-visible saved version that authoring
+            # loads as its before snapshot, rather than the import response.
+            original, _ = call(["workflows", "show", guard_id], "read saved undo guard baseline")
+            if original.get("id") != guard_id:
+                raise AssertionError("Saved undo guard baseline ID changed")
             edited, wall, queue = completed_input(call, ["workflows", "input",
                 "Change only this workflow's schedule to Fridays at 10:15 Europe/Berlin. Preserve its message and all other actions.",
                 "--workflow-id", guard_id], "schedule-only edit")
@@ -399,6 +446,12 @@ steps:
             if len(changed) != 1 or changed[0].get("id") != guard_id:
                 raise AssertionError("Schedule edit touched the wrong workflow")
             if graph_without_schedule(changed[0]["graph"]) != graph_without_schedule(original["graph"]):
+                diagnostic_path = state_dir / f"workflow-rollout-{nonce}-schedule-graphs.json"
+                write_private_report(diagnostic_path, {
+                    "before_graph": original["graph"], "after_graph": changed[0]["graph"],
+                })
+                report["diagnostic_graph_path"] = str(diagnostic_path)
+                persist()
                 raise AssertionError("Schedule edit changed a non-trigger field")
             changed_schedule = schedule(changed[0]["graph"])
             if changed_schedule.get("time") != "10:15" or "friday" not in changed_schedule.get("weekdays", []):
@@ -513,7 +566,7 @@ def main() -> None:
         Path(__file__).resolve().parents[1] / "frontend/packages/openmates-cli/dist/cli.js"))
     parser.add_argument("--confirm-live-inference", action="store_true")
     parser.add_argument("--case", choices=("all", "short_default", "remaining",
-                                           "spoken_correction", "structural"), default="all",
+                                           "spoken_correction", "structural", "conditional_weather"), default="all",
                         help="Run a bounded case; remaining combines spoken correction and structural checks")
     args = parser.parse_args()
     print(json.dumps(run(args), indent=2, sort_keys=True))

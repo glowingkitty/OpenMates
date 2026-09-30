@@ -1110,3 +1110,93 @@ def test_stream_route_emits_provisional_preview_and_final_session() -> None:
     assert events[2]["type"] == "preview" and events[2]["provisional"] is True and events[2]["validated"] is True
     assert events[-1]["type"] == "session" and events[-1]["session"]["status"] == "needs_clarification"
     assert service.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows-ui.authoring.composer-and-preview
+def test_session_routes_serialize_nested_graph_edges_with_public_aliases() -> None:
+    import json
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.routes.workflows import (
+        ensure_workflows_enabled, get_current_user_or_api_key, get_workflow_identity_service,
+        get_workflow_input_service, get_workflow_service, get_workspace_history_service,
+        limiter, router,
+    )
+    from backend.core.api.app.services.workflow_input_service import WorkflowInputSessionResult
+
+    workflow = workflow_service().create_workflow("alice", "Rain workflow", rain_graph())
+    result = WorkflowInputSessionResult(
+        session_id="session-1", status="executed", event_cursor=1,
+        workflow=workflow, workflows=[workflow],
+        preview_workflow=workflow, preview_workflows=[workflow],
+    )
+
+    class SessionService:
+        def start(self, *args: Any, **kwargs: Any) -> WorkflowInputSessionResult:
+            del args
+            on_event = kwargs.get("on_event")
+            if on_event is not None:
+                on_event({"type": "preview", "graph": workflow.graph.model_dump(mode="json", by_alias=True)})
+            return result
+
+        def status(self, *args: Any, **kwargs: Any) -> WorkflowInputSessionResult:
+            return result
+
+        def follow_up(self, *args: Any, **kwargs: Any) -> WorkflowInputSessionResult:
+            return result
+
+        def stop(self, *args: Any, **kwargs: Any) -> WorkflowInputSessionResult:
+            return result
+
+        def undo(self, *args: Any, **kwargs: Any) -> WorkflowInputSessionResult:
+            return result
+
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(router)
+    app.dependency_overrides[ensure_workflows_enabled] = lambda: None
+    app.dependency_overrides[get_current_user_or_api_key] = lambda: SimpleNamespace(id="alice", vault_key_id=None)
+    app.dependency_overrides[get_workflow_input_service] = lambda: SessionService()
+    app.dependency_overrides[get_workflow_service] = lambda: SimpleNamespace()
+    app.dependency_overrides[get_workflow_identity_service] = lambda: SimpleNamespace()
+    app.dependency_overrides[get_workspace_history_service] = lambda: SimpleNamespace()
+
+    def assert_public_edges(payload: dict[str, Any]) -> None:
+        for key in ("workflow", "preview_workflow"):
+            edges = payload[key]["graph"]["edges"]
+            assert edges and all("from" in edge and "to" in edge for edge in edges)
+            assert all("from_node" not in edge and "to_node" not in edge for edge in edges)
+        for key in ("workflows", "preview_workflows"):
+            edges = payload[key][0]["graph"]["edges"]
+            assert edges and all("from" in edge and "to" in edge for edge in edges)
+            assert all("from_node" not in edge and "to_node" not in edge for edge in edges)
+
+    with TestClient(app) as client:
+        responses = [
+            client.post("/v1/workflows/input", json={"text": "Rain workflow"}),
+            client.get("/v1/workflows/input/session-1"),
+            client.post("/v1/workflows/input/session-1/follow-up", json={"text": "Change time"}),
+            client.post("/v1/workflows/input/session-1/stop"),
+            client.post("/v1/workflows/input/session-1/undo"),
+        ]
+        for response in responses:
+            assert response.status_code == 200
+            assert_public_edges(response.json()["session"])
+
+        ask = client.post("/v1/workflows/ask", json={"instruction": "Rain workflow"})
+        assert ask.status_code == 200
+        ask_body = ask.json()
+        assert_public_edges(ask_body["session"])
+        assert "from" in ask_body["workflow"]["graph"]["edges"][0]
+        assert "to" in ask_body["workflows"][0]["graph"]["edges"][0]
+
+        stream = client.post("/v1/workflows/input/stream", json={"text": "Rain workflow"})
+        assert stream.status_code == 200
+        events = [json.loads(line.removeprefix("data: ")) for line in stream.text.splitlines() if line.startswith("data: ")]
+        preview = next(event for event in events if event["type"] == "preview")
+        assert "from" in preview["graph"]["edges"][0] and "to" in preview["graph"]["edges"][0]
+        assert "from_node" not in preview["graph"]["edges"][0]
+        assert_public_edges(events[-1]["session"])

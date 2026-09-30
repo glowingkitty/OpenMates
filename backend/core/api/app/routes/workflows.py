@@ -1015,9 +1015,9 @@ async def ask_workflows(
             "changed_entries": result.changes,
             "undo_all_command": f"openmates workflows input-undo {result.session_id}" if result.undo_available else None,
             "undo_entry_commands": [], "warnings": [],
-            "workflow": details[0].model_dump(mode="json") if details else None,
-            "workflows": [item.model_dump(mode="json") for item in details],
-            "session": result.model_dump(mode="json"),
+            "workflow": details[0].model_dump(mode="json", by_alias=True) if details else None,
+            "workflows": [item.model_dump(mode="json", by_alias=True) for item in details],
+            "session": result.model_dump(mode="json", by_alias=True),
             "processing": result.authoring_metrics,
         }
     if create is None:
@@ -1237,7 +1237,7 @@ async def start_workflow_input(
             idempotency_key=body.idempotency_key,
         )
         result = await _dispatch_queued_workflow_input(request, service, current_user, result)
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1299,7 +1299,7 @@ async def stream_workflow_input(
                     on_event=emit,
                 )
                 result = await _dispatch_queued_workflow_input(request, service, current_user, result)
-                await queue.put({"type": "session", "session": result.model_dump(mode="json")})
+                await queue.put({"type": "session", "session": result.model_dump(mode="json", by_alias=True)})
             except Exception:
                 await queue.put({"type": "error", "error": "Workflow input failed. Please try again."})
             finally:
@@ -1333,7 +1333,7 @@ async def get_workflow_input_session(
         # Dragonfly marker deliberately contains no private graph, so status
         # reads use the encrypted durable session as their source of truth.
         result = await run_in_threadpool(service.status, session_id, current_user.id, current_user.vault_key_id)
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1371,7 +1371,7 @@ async def follow_up_workflow_input(
             text=body.text,
             vault_key_id=current_user.vault_key_id,
         )
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1398,7 +1398,7 @@ async def stop_workflow_input(
                     await client.delete(f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{session_id}")
             except Exception:
                 pass
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
@@ -1418,7 +1418,7 @@ async def undo_workflow_input(
             session_id=session_id,
             vault_key_id=current_user.vault_key_id,
         )
-        return {"session": result.model_dump(mode="json")}
+        return {"session": result.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_input_error(exc)
 
