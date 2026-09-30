@@ -623,7 +623,7 @@ test.describe('Workflows web UI contract', () => {
 				.click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(runnerWorkflow.id));
 			await expect(page.getByTestId('workflow-detail-actions').getByRole('toolbar')).toBeVisible();
-			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+			await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
 			await expect(page.getByTestId('run-workflow')).toBeVisible();
 			await page.getByTestId('workflow-tab-runs').click();
 			await expect(page).toHaveURL(
@@ -652,8 +652,9 @@ test.describe('Workflows web UI contract', () => {
 				'data-read-only',
 				'true'
 			);
-			await expect(page.getByTestId('workflow-run-node-status').first()).toContainText(
-				/queued|running|completed|skipped|failed/i
+			await expect(page.getByTestId('workflow-run-node-status').first()).toHaveAttribute(
+				'aria-label',
+				/^(queued|running|completed|waiting|skipped|failed)$/i
 			);
 			await expect(page.getByTestId('workflow-run-cancel')).toBeVisible();
 			if (proof) {
@@ -694,7 +695,7 @@ test.describe('Workflows web UI contract', () => {
 
 			// Sharing stays in the header but only shows the v1 coming-soon notice.
 			if (!(await page.getByTestId('workflow-share').isVisible())) {
-				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More actions' }).click();
+				await page.getByTestId('workflow-detail-actions').getByRole('button', { name: 'More', exact: true }).click();
 			}
 			const sharingOriginUrl = page.url();
 			await page.getByTestId('workflow-share').click();
