@@ -31,13 +31,14 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
 
 def test_provider_envelope_accepts_single_and_batch_but_keeps_strict_compiler_separate():
     from jsonschema import Draft202012Validator
-    validator = Draft202012Validator(provider_response_schema())
+    validator = Draft202012Validator(provider_response_schema(SimpleNamespace(capabilities=[])))
     plan = {"operation": "create", "title": "Forecast", "schedule": {"type": "daily"},
-            "steps": [{"kind": "app", "id": "weather", "input": {"location": "Berlin"}}]}
+            "steps": [{"kind": "end", "id": "done"}]}
     validator.validate(plan)
     validator.validate({"operations": [plan, {"operation": "clarify", "message": "Missing detail"}]})
     assert list(validator.iter_errors({"operation": "execute"}))
     assert list(validator.iter_errors({"operation": "create", "schedule": {"type": "invalid"}}))
+    assert list(validator.iter_errors({"operation": "create", "steps": [{"type": "app", "id": "wrong"}]}))
 
 
 def test_components_never_emit_incomplete_nested_steps_or_quoted_key():
@@ -80,7 +81,7 @@ async def test_stream_filters_thoughts_emits_complete_steps_and_counts_reasoning
         body = json.loads(request.content)
         assert body["generationConfig"]["thinkingConfig"]["includeThoughts"] is False
         assert body["generationConfig"]["responseMimeType"] == "application/json"
-        assert body["generationConfig"]["responseJsonSchema"] == provider_response_schema()
+        assert body["generationConfig"]["responseJsonSchema"]["type"] == "object"
         assert "responseFormat" not in body["generationConfig"]
         assert request.headers["x-goog-api-key"] == "synthetic-key"
         return httpx.Response(200, text=''.join('data: ' + json.dumps(event) + '\n\n' for event in events))

@@ -186,32 +186,22 @@ def complete_plan_components(source: str) -> list[dict[str, Any]]:
     return components
 
 
-def provider_response_schema() -> dict[str, Any]:
-    """Constrain JSON syntax without sending the full capability union grammar.
+def provider_response_schema(selection: Any) -> dict[str, Any]:
+    """Use Gemini's legacy REST JSON Schema field with the scoped step grammar.
 
-    The provider supports a limited JSON Schema dialect. Keep its envelope
-    shallow; the compiler independently validates every capability and step.
+    Leaving step objects unconstrained allows the decoder to invent their field
+    names despite prompt examples. Share the compiler grammar, while accepting
+    either a single operation or its batch envelope at the transport boundary.
+    The compiler remains authoritative for ownership and semantic validation.
     """
-    properties = {
-        "operation": {"type": "string", "enum": ["create", "update", "draft", "clarify"]},
-        "workflow_id": {"type": "string"},
-        "title": {"type": "string"}, "description": {"type": "string"}, "icon": {"type": "string"},
-        "schedule": {"type": "object", "properties": {
-            "type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
-            "time": {"type": "string"}, "timezone": {"type": "string"},
-            "weekdays": {"type": "array", "items": {"type": "string"}},
-            "minute": {"type": "integer"}, "at": {"type": "string"},
-        }, "required": ["type"], "additionalProperties": False},
-        "steps": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
-        "remove_step_ids": {"type": "array", "items": {"type": "string"}},
-        "message": {"type": "string"},
-    }
-    return {"type": "object", "properties": {
-        **properties, "operations": {"type": "array", "items": {
-            "type": "object", "properties": properties, "required": ["operation"],
-            "additionalProperties": False,
-        }},
-    }, "additionalProperties": False}
+    from backend.core.api.app.services.workflow_authoring_compiler import build_authoring_schema
+
+    schema = build_authoring_schema(selection)
+    plan = {key: value for key, value in schema.items() if key != "$defs"}
+    return {**schema, "required": [], "properties": {
+        **schema.get("properties", {}),
+        "operations": {"type": "array", "items": plan},
+    }}
 
 
 def authoring_prompt(selection: Any, timezone: str) -> str:
@@ -350,7 +340,7 @@ class WorkflowGeminiAuthor:
             }, ensure_ascii=False)}]}],
             "generationConfig": {
                 "responseMimeType": "application/json",
-                "responseJsonSchema": provider_response_schema(),
+                "responseJsonSchema": provider_response_schema(selection),
                 "temperature": 1.0, "maxOutputTokens": 8192,
                 "thinkingConfig": {"thinkingLevel": "low", "includeThoughts": False},
             },
