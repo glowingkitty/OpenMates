@@ -80,6 +80,9 @@ WORKFLOW_RUNTIME_INDEXES = (
     'workflow_input_events_session_event_uq',
     'workflow_input_sessions_owner_updated_idx',
     'workflow_input_mutations_session_created_idx',
+    'workflow_authoring_operations_operation_id_uq',
+    'workflow_input_mutations_operation_idx',
+    'workflow_input_mutations_authoring_expiry_idx',
     'workflow_assistant_proposals_proposal_id_uq',
     'workflow_assistant_proposals_pending_expiry_idx',
 )

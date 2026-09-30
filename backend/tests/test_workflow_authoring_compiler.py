@@ -75,9 +75,13 @@ def test_schedule_rejects_fields_from_other_kinds_before_streaming_header():
                      {"type": "once", "time": "07:30"},
                      {"type": "manual", "timezone": "UTC"}):
         author = FlatAuthoringAccumulator(selection(), "UTC")
-        with pytest.raises(ValueError, match="different schedule type"):
+        with pytest.raises(ValueError, match=f"{schedule['type']} schedule supports") as error:
             author.accept_header({"operation": "create", "title": "Test", "description": "Test",
                                   "icon": "help-circle", "schedule": schedule})
+        assert "unsupported fields: " in str(error.value)
+        assert "07:30" not in str(error.value)
+        if schedule["type"] == "weekly":
+            assert str(error.value) == "weekly schedule supports time, timezone, weekdays; unsupported fields: at"
         assert author.flat_snapshot() is None
     author = FlatAuthoringAccumulator(selection(), "UTC")
     accepted = author.accept_header({"operation": "create", "title": "Test", "description": "Test",

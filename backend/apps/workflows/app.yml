@@ -65,9 +65,9 @@ focuses:
       Use the Workflows capability information and user-owned workflow search when
       needed. Do not invent graph node types, skill parameters, or existing workflows.
       For an existing workflow, verify the target before editing it. For several
-      create or edit operations, gather enough detail for every operation before any
-      save. If the available tool cannot commit all requested changes together,
-      explain that limitation and continue clarifying without making partial changes.
+      create or edit operations, gather enough detail for every operation, then
+      pass the complete request to create-or-modify in one instruction so the
+      changes commit together. Never send an assistant-written graph.
 
       When the validated save path is available, save new workflows disabled and
       preserve the enabled state of edited workflows. Tell the user that a new
@@ -81,8 +81,9 @@ skills:
     description_translation_key: workflows.skills.create_or_modify.description
     icon_image: workflow.svg
     preprocessor_hint: >
-      Create or modify exactly one workflow from chat. Do not batch multiple
-      workflows into one skill call.
+      Save workflows from a complete natural-language instruction. Include all
+      requested creations and edits in one call so they can be validated and
+      committed together. Never invent a WorkflowGraph in chat.
     providers:
       - name: OpenMates
         no_api_key: true
@@ -90,17 +91,18 @@ skills:
     tool_schema:
       type: object
       properties:
+        instruction:
+          type: string
+          maxLength: 16000
+          description: >-
+            Complete natural-language workflow request, including all settled
+            schedule, action, condition, location, delivery and edit details.
+            Include every workflow in a multi-workflow request. Do not send a graph.
         workflow_id:
           type: string
-          description: Existing workflow ID when modifying a workflow.
-        title:
-          type: string
-          description: Short user-facing workflow title.
-        graph:
-          type: object
-          description: Valid WorkflowGraph definition.
+          description: Owner-scoped selected workflow ID when the user explicitly chose one.
       required:
-        - title
+        - instruction
 
   - id: search
     anonymous_access: authenticated

@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import time
 import json
+import asyncio
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -22,9 +24,11 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_workflows_enabled
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
-from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_input_service import (
+    DirectusWorkflowInputRepository, DragonflyWorkflowInputCheckpointStore, WorkflowInputService,
+)
 from backend.core.api.app.services.workflow_file_service import WorkflowFileDocument, WorkflowFileImportError, WorkflowFileService, WorkflowFileTooLargeError
-from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner
+from backend.core.api.app.services.workflow_registry_planner import WorkflowRegistryPlanner
 from backend.core.api.app.services.workflow_identity_service import (
     WorkflowIdentity,
     WorkflowIdentityService,
@@ -187,6 +191,7 @@ class WorkflowInputStartRequest(BaseModel):
     selected_project_id: str | None = Field(default=None, min_length=1, max_length=200)
     timezone: str | None = Field(default=None, min_length=1, max_length=100)
     optimistic_save: bool = False
+    idempotency_key: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
 
     @model_validator(mode="after")
     def validate_input_source(self) -> WorkflowInputStartRequest:
@@ -574,11 +579,12 @@ def get_workflow_input_service(request: Request) -> WorkflowInputService:
     if service is None:
         service = WorkflowInputService(
             workflow_service=get_workflow_service(request),
-            planner=WorkflowNLPlanner(
+            planner=WorkflowRegistryPlanner(
                 secrets_manager=getattr(request.app.state, "secrets_manager", None),
                 workflow_service=get_workflow_service(request),
             ),
             repository=DirectusWorkflowInputRepository(payload_cipher=get_workflow_service(request).payload_cipher),
+            checkpoint_store=DragonflyWorkflowInputCheckpointStore(get_workflow_service(request).payload_cipher),
         )
         request.app.state.workflow_input_service = service
     return service
@@ -783,6 +789,7 @@ async def ask_workflows(
     service: WorkflowService = Depends(get_workflow_service),
     identity_service: WorkflowIdentityService = Depends(get_workflow_identity_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+    input_service: WorkflowInputService = Depends(get_workflow_input_service),
 ) -> dict[str, Any]:
     if sum(bool(value) for value in (body.create, body.exact_update, body.exact_action)) > 1:
         return _workflow_ask_fallback("Use one exact workflow ask action at a time.")
@@ -890,34 +897,27 @@ async def ask_workflows(
     create = body.create
     processing: dict[str, Any] | None = None
     if create is None:
-        if body.selected_object_id is not None:
-            return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
-        if _looks_like_broad_workflow_edit(body.instruction):
-            return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
-        if _is_short_title_like_ask(body.instruction):
-            create = _deterministic_workflow_create(body.instruction)
-            processing = {"inference_used": False, "deterministic_short_create": True}
-        else:
-            secrets_manager = getattr(request.app.state, "secrets_manager", None)
-            if secrets_manager is None:
-                return _workflow_ask_fallback("Workspace ask inference is not configured.")
-            try:
-                result = await run_workflow_ask_pipeline(body.instruction, secrets_manager)
-                processing = result.processing
-                intent_frame = processing.get("intent_frame") or {}
-                if intent_frame.get("operation") not in (None, "create") or intent_frame.get("target_resolution_strategy") not in (None, "none"):
-                    return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.", processing=processing)
-                proposal = result.proposal
-                create = WorkflowCreateRequest(
-                    title=proposal["title"],
-                    description=proposal.get("description"),
-                    graph=proposal["graph"],
-                    enabled=bool(proposal.get("enabled", False)),
-                    source="cli_ask",
-                    created_by_assistant=True,
-                )
-            except WorkspaceAskPlanningError as exc:
-                return _workflow_ask_fallback(str(exc))
+        result = await run_in_threadpool(
+            input_service.start,
+            user_id=current_user.id, text=body.instruction,
+            selected_workflow_id=body.selected_object_id,
+            vault_key_id=current_user.vault_key_id,
+        )
+        if result.status in {"needs_clarification", "failed"}:
+            return _workflow_ask_fallback(result.message or result.error or "Workflow authoring needs more detail.")
+        details = result.workflows or ([result.workflow] if result.workflow else [])
+        return {
+            "outcome": "applied", "applied": True, "fallback_to_chat": False,
+            "fallback_message": None, "change_set_id": None,
+            "summary": f"Saved {len(details)} workflow{'s' if len(details) != 1 else ''}.",
+            "changed_entries": result.changes,
+            "undo_all_command": f"openmates workflows input-undo {result.session_id}" if result.undo_available else None,
+            "undo_entry_commands": [], "warnings": [],
+            "workflow": details[0].model_dump(mode="json") if details else None,
+            "workflows": [item.model_dump(mode="json") for item in details],
+            "session": result.model_dump(mode="json"),
+            "processing": result.authoring_metrics,
+        }
     if create is None:
         return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
     try:
@@ -1144,36 +1144,90 @@ async def start_workflow_input(
             timezone=body.timezone,
             vault_key_id=current_user.vault_key_id,
             optimistic_save=body.optimistic_save,
+            idempotency_key=body.idempotency_key,
         )
-        if result.status == "queued":
-            cache_key = f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{result.session_id}"
-            try:
-                client = await request.app.state.cache_service.client
-                if client is None:
-                    raise RuntimeError("Workflow input pending cache unavailable")
-                await client.set(cache_key, json.dumps({
-                    "session_id": result.session_id, "status": "queued", "event_cursor": result.event_cursor,
-                    "message": result.message,
-                }), ex=10)
-                from backend.core.api.app.tasks.workflow_tasks import commit_workflow_input_task
-
-                commit_workflow_input_task.apply_async(args=[result.session_id], queue="workflow")
-            except Exception:
-                # The encrypted queued plan is durable. If the fast cache/broker
-                # cannot wake a worker, finish synchronously instead of leaving
-                # the user waiting for periodic recovery.
-                committed = await run_in_threadpool(service.commit_queued, result.session_id)
-                if committed is not None:
-                    result = committed
-                try:
-                    client = await request.app.state.cache_service.client
-                    if client is not None:
-                        await client.delete(cache_key)
-                except Exception:
-                    pass
+        result = await _dispatch_queued_workflow_input(request, service, current_user, result)
         return {"session": result.model_dump(mode="json")}
     except Exception as exc:
         _handle_workflow_input_error(exc)
+
+
+async def _dispatch_queued_workflow_input(
+    request: Request, service: WorkflowInputService, current_user: User, result: Any,
+) -> Any:
+    if result.status != "queued":
+        return result
+    cache_key = f"workflow-input:pending:{_hash_owner_id(current_user.id)}:{result.session_id}"
+    try:
+        client = await request.app.state.cache_service.client
+        if client is not None:
+            await client.set(cache_key, json.dumps({
+                "session_id": result.session_id, "status": "queued", "event_cursor": result.event_cursor,
+                "message": result.message,
+            }), ex=10)
+        from backend.core.api.app.tasks.workflow_tasks import commit_workflow_input_task
+        commit_workflow_input_task.apply_async(args=[result.session_id], queue="workflow")
+    except Exception:
+        # The encrypted plan is durable; complete it here if the broker is unavailable.
+        committed = await run_in_threadpool(service.commit_queued, result.session_id)
+        if committed is not None:
+            result = committed
+        try:
+            client = await request.app.state.cache_service.client
+            if client is not None:
+                await client.delete(cache_key)
+        except Exception:
+            pass
+    return result
+
+
+@router.post("/input/stream")
+@limiter.limit("30/minute")
+async def stream_workflow_input(
+    request: Request,
+    body: WorkflowInputStartRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowInputService = Depends(get_workflow_input_service),
+) -> StreamingResponse:
+    """Stream validated node prefixes while planning and persist the final or partial plan."""
+    async def events():
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+
+        def emit(event: dict[str, Any]) -> None:
+            loop.call_soon_threadsafe(queue.put_nowait, event)
+
+        async def run() -> None:
+            try:
+                result = await run_in_threadpool(
+                    service.start,
+                    user_id=current_user.id, text=body.text, input_type=body.input_type,
+                    audio_ref=body.audio_ref, selected_workflow_id=body.selected_workflow_id,
+                    selected_project_id=body.selected_project_id, timezone=body.timezone,
+                    vault_key_id=current_user.vault_key_id, optimistic_save=body.optimistic_save,
+                    idempotency_key=body.idempotency_key,
+                    on_event=emit,
+                )
+                result = await _dispatch_queued_workflow_input(request, service, current_user, result)
+                await queue.put({"type": "session", "session": result.model_dump(mode="json")})
+            except Exception:
+                await queue.put({"type": "error", "error": "Workflow input failed. Please try again."})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(run())
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield f"data: {json.dumps(event, separators=(',', ':'))}\n\n"
+        finally:
+            # The thread can still finish and save the already submitted request.
+            if not task.done():
+                task.add_done_callback(lambda finished: finished.exception() if not finished.cancelled() else None)
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/input/{session_id}")

@@ -617,7 +617,7 @@ class WorkflowAssistantService:
                 user_id,
                 str(payload["title"]),
                 payload["graph"],
-                enabled=True,
+                enabled=False,
                 lifecycle=WorkflowLifecycle(payload["lifecycle"]),
                 source="chat",
                 source_chat_id=payload.get("source_chat_id"),

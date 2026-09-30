@@ -476,6 +476,24 @@ mvp_authoring:
   when: Alice removes the Check.
   then: The builder rewrites the dependency only for an equivalent equality-to-true earlier boolean; otherwise it
     names the dependent steps, keeps the Check and leaves the saved graph valid.
+authoring_composer_preview:
+- id: authoring-voice-provisional-single
+  given: Alice opens the Workflow landing view and records a request for a daily rain alert using the shared audio control.
+  when: The request is transcribed, Gemini's complete steps arrive one at a time, and Alice selects Stop after the validated Weather node; on a separate attempt the next node fails validation twice.
+  then: The fixed bottom composer stays reachable and the information panel appears above the graph. Only backend-validated nodes appear; Stop or the second invalid node retains the valid prefix disabled with a concrete recovery notice and manual-edit option, without claiming the full rain alert was created or opening clarification chat for the generation error.
+- id: authoring-multiple-create-landing
+  given: Bob asks for a morning weather alert and an evening events digest.
+  when: Both validated Workflows are created together.
+  then: The new Workflow landing view appears with both new cards, rather than opening only one Template.
+authoring_edit_control_undo:
+- id: authoring-retains-enabled-state
+  given: Alice has an enabled apartment Workflow and requests a search-city edit plus a new rain alert.
+  when: She reviews and accepts the valid changes.
+  then: The review names both Workflows; the apartment Workflow stays enabled and the new rain alert starts disabled.
+- id: authoring-atomic-failure-and-undo-conflict
+  given: Bob asks to edit two Workflows and one completed edit has an invalid reference. Later he stops AI while it edits his enabled Weather Workflow after a valid node, then changes that Workflow manually.
+  when: He accepts the invalid pair and later requests Undo of the partial Weather edit.
+  then: Neither invalid completed edit saves. The partial edit keeps Weather's original ID and untouched later nodes but disables it; no duplicate card appears. Undo reports Bob's newer manual revision and does not replace it. Without that later revision, Undo would restore the complete prior state including enabled state.
 ask_ai_authoring:
 - id: ask-ai-editor-suggests-existing-results
   given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special" in Ask AI.

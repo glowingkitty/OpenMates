@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from types import SimpleNamespace
 
 import pytest
 
@@ -86,6 +87,141 @@ def _search_skill() -> SearchSkill:
     )
 
 
+class FakeWorkflowInputService:
+    def __init__(self, result: Any) -> None:
+        self.result = result
+        self.calls: list[dict[str, Any]] = []
+
+    def start(self, **kwargs: Any) -> Any:
+        self.calls.append(kwargs)
+        return self.result
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.atomic-update
+@pytest.mark.anyio
+async def test_natural_language_chat_saves_confirmed_disabled_workflows() -> None:
+    saved = {"id": "workflow-1", "title": "Morning weather", "status": "disabled", "enabled": False}
+    service = FakeWorkflowInputService(SimpleNamespace(
+        status="executed", workflow=saved, workflows=[saved], message=None, error=None,
+    ))
+
+    response = await _create_skill().execute(
+        instruction="Every morning, send me the weather in Graz",
+        user_id="user-1", chat_id="chat-1", message_id="message-1",
+        timezone="Europe/Vienna", user_vault_key_id="vault-key-1",
+        workflow_input_service=service,
+    )
+
+    assert response.success is True
+    assert response.status == "finished"
+    assert response.result_count == 1
+    assert response.workflow == saved
+    assert response.results[0]["workflow_id"] == "workflow-1"
+    assert service.calls == [{
+        "user_id": "user-1", "text": "Every morning, send me the weather in Graz",
+        "selected_workflow_id": None, "timezone": "Europe/Vienna",
+        "vault_key_id": "vault-key-1", "source_chat_id": "chat-1",
+        "optimistic_save": False,
+        "idempotency_key": "chat:chat-1:message-1",
+    }]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
+@pytest.mark.anyio
+async def test_natural_language_chat_does_not_claim_clarification_or_queued_save() -> None:
+    for status in ("needs_clarification", "queued", "draft"):
+        service = FakeWorkflowInputService(SimpleNamespace(
+            status=status, workflow=None, workflows=[], message="Which calendar?", error=None,
+        ))
+        response = await _create_skill().execute(
+            instruction="Find calendar events", user_id="user-1", workflow_input_service=service,
+        )
+        assert response.success is True
+        assert response.status == status
+        assert response.message == "Which calendar?"
+        assert response.result_count == 0
+        assert response.results == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.authoring.atomic-update
+@pytest.mark.anyio
+async def test_natural_language_chat_reports_saved_empty_draft_as_draft() -> None:
+    saved = {"id": "workflow-1", "title": "Morning reminder", "status": "draft", "enabled": False}
+    service = FakeWorkflowInputService(SimpleNamespace(
+        status="draft", workflow=saved, workflows=[saved], message=None, error=None,
+    ))
+    response = await _create_skill().execute(
+        instruction="Morning reminder", user_id="user-1", workflow_input_service=service,
+    )
+    assert response.success is True
+    assert response.status == "draft"
+    assert response.result_count == 1
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
+@pytest.mark.anyio
+async def test_natural_language_chat_preserves_partial_recovery_notice() -> None:
+    saved = {"id": "workflow-1", "title": "Weather alert", "status": "draft", "enabled": False}
+    notice = "A later step failed. Valid steps were saved disabled; ask for a concrete update."
+    service = FakeWorkflowInputService(SimpleNamespace(
+        status="draft", workflow=saved, workflows=[saved], message=notice, error=None,
+        partial_reason="provider_error", partial_warning=notice,
+    ))
+    response = await _create_skill().execute(
+        instruction="Update my weather alert", workflow_id="workflow-1", user_id="user-1",
+        workflow_input_service=service,
+    )
+    assert response.success is True
+    assert response.status == "draft"
+    assert response.workflow["id"] == "workflow-1"
+    assert response.workflow["enabled"] is False
+    assert response.message == notice
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update,workflows.access.boundaries
+@pytest.mark.anyio
+async def test_natural_language_chat_passes_selected_edit_target_to_owner_scoped_service() -> None:
+    saved = {"id": "workflow-1", "title": "Updated alert", "status": "active", "enabled": True}
+    service = FakeWorkflowInputService(SimpleNamespace(
+        status="executed", workflow=saved, workflows=[saved], message=None, error=None,
+    ))
+    response = await _create_skill().execute(
+        instruction="Change my selected alert to 9am", workflow_id="workflow-1",
+        user_id="owner-1", workflow_input_service=service,
+    )
+    assert response.success is True
+    assert response.workflow["enabled"] is True
+    assert service.calls[0]["user_id"] == "owner-1"
+    assert service.calls[0]["selected_workflow_id"] == "workflow-1"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.atomic-update
+@pytest.mark.anyio
+async def test_natural_language_chat_rejects_assistant_graph_and_supports_batch_result() -> None:
+    saved = [
+        {"id": "workflow-1", "title": "Weather", "status": "disabled", "enabled": False},
+        {"id": "workflow-2", "title": "News", "status": "disabled", "enabled": False},
+    ]
+    service = FakeWorkflowInputService(SimpleNamespace(
+        status="executed", workflow=saved[0], workflows=saved, message=None, error=None,
+    ))
+    rejected = await _create_skill().execute(
+        instruction="Create both", graph={"nodes": []}, user_id="user-1",
+        workflow_input_service=service,
+    )
+    assert rejected.success is False
+    assert service.calls == []
+
+    response = await _create_skill().execute(
+        instruction="Create a weather and news workflow", user_id="user-1",
+        workflow_input_service=service,
+    )
+    assert response.success is True
+    assert response.result_count == 2
+    assert [item["workflow_id"] for item in response.results] == ["workflow-1", "workflow-2"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_workflow_create_or_modify_returns_exactly_one_child_workflow_embed() -> None:
     assistant = FakeWorkflowAssistantService()
@@ -115,6 +251,7 @@ async def test_workflow_create_or_modify_returns_exactly_one_child_workflow_embe
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity
 @pytest.mark.anyio
 async def test_workflow_create_or_modify_rejects_batch_creation() -> None:
     response = await _create_skill().execute(
@@ -127,6 +264,7 @@ async def test_workflow_create_or_modify_rejects_batch_creation() -> None:
     assert "one workflow" in str(response.error)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.surface.semantic-parity,workflows.access.boundaries
 @pytest.mark.anyio
 async def test_workflow_search_returns_server_side_child_workflow_embed_results() -> None:
     assistant = FakeWorkflowAssistantService()
@@ -155,6 +293,7 @@ async def test_workflow_search_returns_server_side_child_workflow_embed_results(
     }]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
 @pytest.mark.anyio
 async def test_workflow_search_dispatch_receives_user_vault_key_context(monkeypatch: pytest.MonkeyPatch) -> None:
     assistant = FakeWorkflowAssistantService()

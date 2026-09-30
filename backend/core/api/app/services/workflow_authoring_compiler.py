@@ -316,8 +316,11 @@ def _compile_authoring(
             "once": {"type", "at", "timezone"},
             "manual": {"type"},
         }
-        if set(schedule) - schedule_fields[schedule_type]:
-            raise ValueError("Schedule has fields for a different schedule type")
+        unsupported = sorted(set(schedule) - schedule_fields[schedule_type])
+        if unsupported:
+            supported = sorted(schedule_fields[schedule_type] - {"type"})
+            allowed = ", ".join(supported) if supported else "only type"
+            raise ValueError(f"{schedule_type} schedule supports {allowed}; unsupported fields: {', '.join(unsupported)}")
         if schedule_type == "manual":
             trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.MANUAL_TRIGGER)
         else:

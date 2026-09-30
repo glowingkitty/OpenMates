@@ -20,10 +20,11 @@ scope:
     - Workflow send_chat_message delivery for existing or newly routed owner chats.
     - Owner-device claim, encrypted persistence, acknowledgement, retry, expiry, cancellation, and reconnect semantics for chat delivery.
     - Portable Workflow files exported by CLI and web and imported by CLI, Project upload, or the Workflows start composer.
+    - AI-authored Workflow construction and editing with validated node streaming, disabled partial saves, and guarded undo.
   excludes:
     - General Filter nodes, advanced recurrence, and new day/week/month budget forecasts and caps (deferred beyond this delivery).
     - Non-Workflow chat sends and normal chat inference.
-    - AI-authored Workflow construction or editing, user-input pauses, general loops, Wait nodes, and custom code execution in this contract amendment.
+    - User-input pauses, general loops, Wait nodes, and custom code execution in this contract amendment.
     - Structured or multiple named Ask AI outputs and Ask AI-initiated app-skill calls.
     - V1 event/chat/webhook triggers, direct project writes, cross-provider duplicate detection, and comparison with manually saved project content.
     - Separate report, push, or email action nodes; normal chat notifications remain available.
@@ -246,7 +247,7 @@ assertions:
 
   - id: workflows.mvp.steps
     type: behavior
-    must: Authoring offers Use app skill, Ask AI, Check and Send message, plus an optional time/date trigger. Ask AI uses the AI app's Ask capability internally but is not offered inside Use app. Check starts as an exact typed rule and can instead use bounded AI judgment for a boolean question over explicitly selected earlier values. AI-authored Workflow construction or editing, structured Ask AI outputs, code, pauses, loops, Wait and separate report/push/email actions remain out of scope for this contract amendment. Legacy definitions remain inspectable and are never silently rewritten; unsupported legacy actions require an explicit edit before new execution.
+    must: Authoring offers Use app skill, Ask AI, Check and Send message, plus an optional time/date trigger. Ask AI uses the AI app's Ask capability internally but is not offered inside Use app. Check starts as an exact typed rule and can instead use bounded AI judgment for a boolean question over explicitly selected earlier values. Structured Ask AI outputs, code, pauses, loops, Wait and separate report/push/email actions remain out of scope for this contract amendment. Legacy definitions remain inspectable and are never silently rewritten; unsupported legacy actions require an explicit edit before new execution.
     depends_on:
     - examples.mvp_steps
   - id: workflows.schedule.recurrence
@@ -327,6 +328,18 @@ assertions:
     type: invariant
     must: When an accessible earlier action exists, the visible Send message text, Ask AI instruction or AI judgment question must contain at least one valid reference to an earlier action output before any web, REST, CLI or SDK save succeeds. A hidden result block or separately selected AI judgment input does not satisfy this requirement. Without an earlier action, static text is allowed. Previews and Tests report the same invalid reference as Save before charged work.
     depends_on: [examples.earlier_action_reference]
+  - id: workflows.authoring.compact-plan
+    type: behavior
+    must: A natural-language create or edit request uses Jev to select relevant registered app skills and supported create, update and control capabilities. Jev may select skills directly or first select apps and then choose skills for each app in parallel; the two routes are compared for quality, latency and cost without requiring the app-first route as the default. Planning produces a compact generic Workflow description with title, metadata, supported steps, free-text instructions, typed input choices and dependencies; it does not embed per-skill recipes or claim unsupported capabilities. A request that Jev finds unclear or confusing goes to clarification chat before generation. The same validated Workflow semantics apply across authoring surfaces.
+    depends_on: [examples.authoring_compact_plan]
+  - id: workflows.authoring.provisional-validation
+    type: invariant
+    must: Natural-language authoring streams complete Gemini-authored nodes one at a time. Before a node reaches the client, the backend deterministically validates its supported capability, typed inputs and references, dependencies and graph placement against the accepted prefix. An invalid node gets one correction attempt; if it still fails, generation stops, the valid prefix is saved disabled with no automatic execution, and the user sees the specific problem and can request a concrete update or edit manually. A user Stop also retains the valid prefix disabled with no automatic execution. No invalid node is shown as accepted or saved. A fully completed request still requires whole-graph semantic, readiness, ownership and batch validation before its atomic commit.
+    depends_on: [examples.authoring_provisional_validation]
+  - id: workflows.authoring.atomic-update
+    type: invariant
+    must: New AI-authored Workflows remain disabled by default, while successfully completed edits retain each existing Workflow's enabled state unless the owner explicitly changes it. A fully completed request that creates, edits or controls multiple Workflows applies all validated changes together or none. A stopped or failed generation may instead retain its deterministically validated generated prefix with a visible partial-result notice; this does not count as a successful full-batch commit. A partial edit saves into the original Workflow ID, keeps existing nodes not yet reached, disables the Workflow, and creates no copy. Guarded Undo of that partial edit restores the complete prior state, including enabled state, only if no later revision superseded it. Any later manual edit is preserved and shown as a conflict rather than overwritten.
+    depends_on: [examples.authoring_atomic_update]
   - id: workflows.message.standard
     type: behavior
     must: Send message selects an existing owner chat or a new chat title and compiles deterministic text with typed inline references. A result-list reference renders a group of the app's normal result previews at that position, without stringifying or duplicating raw result objects. Existing saved result blocks remain readable and migrate to inline references without losing order or conditional inclusion; a typed earlier boolean can still conditionally include results, including a Check result, and nullable false or unknown omits them. Preview uses unsaved values and the same presentation rules without sending, reserving identities, creating permanent embeds or saving a graph. A full manual run exercises delivery; no AI runs for a message without Ask AI. With no eligible content the run succeeds as No new results and creates no empty chat.

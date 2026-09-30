@@ -550,7 +550,7 @@ specifications:
     version: 7
     status: draft
     path: features/workflows
-    fingerprint: b754737ae6965bbdc70048dcc1cfc10e1019aa0d4222bddce65bae7642fa8557
+    fingerprint: dc5ac574d60fe1b79ac6b9e5029c0c6b865082c39006efb94abbc8650f6566a6
     required_applies_to:
     - rest_api
     - cli
@@ -561,7 +561,7 @@ specifications:
     version: 6
     status: draft
     path: features/workflows-ui
-    fingerprint: ed36ef2e3e4f6c00ef7833b4d2a5ba9c239d325477fd0835deeaf5dd1c64d287
+    fingerprint: 42d5e8a3c2eb0c14193b40cc48ef0d2dcc32fb7f25cf2189b0b3582eb8f056bc
     required_applies_to:
     - gui.web
   feature.workspace-shell:
@@ -7093,7 +7093,7 @@ assertions:
     specification: feature.workflows@7
     specification_id: feature.workflows
     type: behavior
-    fingerprint: 5fcd8d3c1ed999d22a8df861f99558e54be563fdb35b2a5e7833ffbdb00e0890
+    fingerprint: 21afe3d1f93c9aec2b5e8a9533efc4cd1fab1b558c74c0dc2cc920759394496a
     required_applies_to:
     - rest_api
     - cli
@@ -7215,6 +7215,39 @@ assertions:
     specification_id: feature.workflows
     type: invariant
     fingerprint: 7050841f14b3a7cbfcd7ade7357829c12b30c0edf3387713daebc676e34fd9d0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  workflows.authoring.compact-plan:
+    specification: feature.workflows@7
+    specification_id: feature.workflows
+    type: behavior
+    fingerprint: e9e0e9b2509b8539e63c3bef11322f8e58578df8d7070ffaec54ac70ec07e851
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  workflows.authoring.provisional-validation:
+    specification: feature.workflows@7
+    specification_id: feature.workflows
+    type: invariant
+    fingerprint: 1bf095a6852a8c950d3be465ef55f55bfb7c2a7a0706dd34ef9a2875bb720924
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  workflows.authoring.atomic-update:
+    specification: feature.workflows@7
+    specification_id: feature.workflows
+    type: invariant
+    fingerprint: 3428298899659b8107773e514804abd4f5f52c64eaa37d30daf5ce4ca7eff12d
     required_applies_to:
     - rest_api
     - cli
@@ -7470,6 +7503,20 @@ assertions:
     specification_id: feature.workflows-ui
     type: behavior
     fingerprint: 80871946ce8777c8dd68744f30e18a904b5ae3e37f06d7d2f13dcbd41fe2b95f
+    required_applies_to:
+    - gui.web
+  workflows-ui.authoring.composer-and-preview:
+    specification: feature.workflows-ui@6
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 5218e67801e190ddcdbdc105f7259411f065dc256c7683deed44c0e75af0e880
+    required_applies_to:
+    - gui.web
+  workflows-ui.authoring.edit-control-and-undo:
+    specification: feature.workflows-ui@6
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: d5f2f4146b282ecadbe620753cc0466b10435056f3f24d4bcb71fd5b984e579e
     required_applies_to:
     - gui.web
   workflows-ui.mvp.ask-ai:

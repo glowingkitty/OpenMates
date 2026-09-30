@@ -57,6 +57,9 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert schema == provider_response_schema(selection("web.search"))
     assert len(json.dumps(schema)) < 2500
     assert "minItems" not in json.dumps(schema) and "maxItems" not in json.dumps(schema)
+    schedule = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["schedule"]
+    assert "daily or weekly" in schedule["properties"]["time"]["description"]
+    assert "once schedule only" in schedule["properties"]["at"]["description"]
     validator = Draft202012Validator(schema)
     flat = {"workflows": [{"header": {"operation": "create", "schedule": {"type": "daily"}},
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",

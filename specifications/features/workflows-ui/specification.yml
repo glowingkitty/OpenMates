@@ -17,11 +17,12 @@ scope:
     - Persisted disabled title drafts, in-place node editing, per-node Save and discard, unsaved-node navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
     - Automatic Workflow category and icon metadata, category-derived header and card identity, desktop and mobile layout, current OpenMates design tokens and icons, keyboard and touch operation, dark mode, and reduced-motion behavior.
     - Exporting a saved Workflow from Show more and importing Workflow files from Project uploads or the Workflows start composer.
+    - Natural-language and voice Workflow authoring in the workspace, including validated node previews, Stop, partial-result feedback and undo.
   excludes:
     - Global app chrome, chat-sidebar content, profile imagery, recommendation copy, and example Workflow data that do not alter the contracted Workflows layout.
     - Workflow execution, encryption, retention, API, CLI, SDK, and chat-delivery semantics owned by feature.workflows.
     - Shared top-level workspace navigation and base start-shell behavior owned by feature.workspace-shell.
-    - Public Workflow marketplace behavior, natural-language Workflow planning, voice authoring, and Apple-native Workflow UI.
+    - Public Workflow marketplace behavior and Apple-native Workflow UI.
     - Workflow sharing management in the web UI. A future implementation belongs in the regular settings Share menu; existing runtime and CLI sharing APIs are unchanged.
 
 models:
@@ -513,6 +514,14 @@ assertions:
     must: The supplied new-workflow PDF/Figma is the visual source of truth. Title entry opens an empty progressive builder with optional time/date trigger and Use app skill, Ask AI, Check and Send message choices. Shared app/skill cards expose typed inputs, examples and upstream references; frequently used and required fields appear first, advanced fields stay behind Show all fields, and enum, boolean, schedule and reference choices reuse SettingsDropdown. Weather uses the shared date-range calendar with Today as both default inclusive endpoints and disables dates outside Today through Today plus 13; its hidden legacy days field is never shown. Weather, Events and Home reuse the shared map picker, mapping the selected place and coordinates to supported skill inputs; Home requires a resolved municipality and makes its city-wide search scope visible. Test uses unsaved inputs and shows progress/results as structured labeled values and shared result cards without saving or exposing raw JSON/debug schemas. Check defaults to Exact rule and progressively offers Use AI judgment inside the same node rather than adding another AI Check step. Exact numeric or text conditions are recommended back to Exact rule; AI judgment asks one plain-language boolean question, requires explicit earlier-value selection and previews exactly what will be evaluated. Both Check methods show If true and If false; AI judgment additionally shows an Unsure branch that the author can populate with supported steps or leave empty. Run detail distinguishes an uncertain judgment from an evaluator failure. Provider names, prompt syntax and confidence thresholds stay out of the basic editor. Removing a Check either preserves an equivalent earlier boolean dependency or reports the dependent steps and leaves the graph unchanged. General filters, AI-authored Workflow construction, webhooks and app-use triggers are deferred.
     depends_on:
     - models.WorkflowCheckAuthoring
+  - id: workflows-ui.authoring.composer-and-preview
+    type: behavior
+    must: The Workflow start view accepts a natural-language or voice request through the fixed bottom composer using the shared audio recording control. Complete Gemini-authored nodes appear one at a time only after deterministic backend validation, with readable progress and error feedback; the information panel sits above the graph. Stop retains the valid generated prefix disabled with no automatic execution. If one correction attempt for an invalid node also fails, authoring stops, saves that valid prefix and tells the user what failed, inviting a concrete follow-up request or manual edit. A model error does not open clarification chat; only a request Jev finds unclear or confusing does. A fully successful single creation opens its Template; multiple completed creations return to the landing view with their new cards.
+    depends_on: [examples.authoring_composer_preview]
+  - id: workflows-ui.authoring.edit-control-and-undo
+    type: behavior
+    must: Natural-language authoring can create, edit and control existing Workflows in one request. The review shows which Workflows will change and their enabled states; a new Workflow starts disabled, and a fully successful edit keeps its current state unless the owner requests a change. Validation or atomic-save failure of a completed request leaves all affected Workflows unchanged. A stopped or twice-invalid partial edit saves validated changes to the original Workflow ID, retains untouched later nodes, disables it, and never creates a copy; the UI identifies the result as partial. Undo restores the complete prior state including enabled state when the AI revision is still current, and identifies a newer manual revision as a conflict without overwriting it.
+    depends_on: [examples.authoring_edit_control_undo]
   - id: workflows-ui.mvp.ask-ai
     type: behavior
     must: >

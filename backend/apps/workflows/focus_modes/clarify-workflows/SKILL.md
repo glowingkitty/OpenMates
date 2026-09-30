@@ -21,7 +21,7 @@ verified_by_human: false
 - Restate the requested workflows and identify only the missing or unsupported details.
 - Ask one concrete question at a time, with examples and a recommended answer when useful.
 - Check the user's existing workflows before changing one whose identity is uncertain.
-- Agree on the whole set of changes before saving a request that contains several workflows.
+- Agree on the whole set of changes before saving a request that contains several workflows, then send one complete instruction to create-or-modify.
 - Create valid new workflows disabled, preserve the enabled state of edits, and explain how to activate new workflows.
 
 ## How to use
@@ -43,8 +43,8 @@ Use the Workflows capability information and user-owned workflow search when
 needed. Do not invent graph node types, skill parameters, or existing workflows.
 For an existing workflow, verify the target before editing it. For several
 create or edit operations, gather enough detail for every operation before any
-save. If the available tool cannot commit all requested changes together,
-explain that limitation and continue clarifying without making partial changes.
+save, then send one complete natural-language instruction to create-or-modify
+so the changes commit together. Never write a graph in chat.
 
 When the validated save path is available, save new workflows disabled and
 preserve the enabled state of edited workflows. Tell the user that a new

@@ -11,6 +11,10 @@ Spec: docs/specs/workflows-v1/spec.yml
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+import threading
+import time
 from typing import Any
 
 import pytest
@@ -26,10 +30,13 @@ from backend.core.api.app.services.workflow_input_service import (  # noqa: E402
     WORKFLOW_INPUT_SESSION_STATE_INVALID,
     WORKFLOW_INPUT_TRANSCRIPTION_UNAVAILABLE,
     DirectusWorkflowInputRepository,
+    DragonflyWorkflowInputCheckpointStore,
     WorkflowInputEvent,
     WorkflowInputMutation,
     WorkflowInputService,
 )
+from backend.core.api.app.services.workflow_service import _hash_owner_id  # noqa: E402
+from backend.core.api.app.services.workflow_models import WorkflowGraph  # noqa: E402
 from backend.tests.test_workflows_models import FakeDirectusClient, rain_graph  # noqa: E402
 from backend.tests.workflow_test_utils import workflow_service  # noqa: E402
 
@@ -120,8 +127,10 @@ class FakeWorkflowInputRepository:
         return list(self.mutations)
 
 
+# contract-test: supporting surface=rest_api assertions=workflows-ui.authoring.composer-and-preview
 def test_workflow_input_request_requires_one_strict_input_source() -> None:
     assert WorkflowInputStartRequest(text="Create a workflow").input_type == "text"
+    assert WorkflowInputStartRequest(text="Create a workflow", idempotency_key="11111111-1111-4111-8111-111111111111").idempotency_key
     assert WorkflowInputStartRequest(input_type="audio", audio_ref={"id": "audio-1"}).audio_ref == {"id": "audio-1"}
 
     with pytest.raises(ValidationError):
@@ -130,8 +139,11 @@ def test_workflow_input_request_requires_one_strict_input_source() -> None:
         WorkflowInputStartRequest(input_type="audio", audio_ref={"id": 1})
     with pytest.raises(ValidationError):
         WorkflowInputStartRequest(text="Create a workflow", unexpected=True)
+    with pytest.raises(ValidationError):
+        WorkflowInputStartRequest(text="Create a workflow", idempotency_key="not-a-uuid")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
 def test_text_workflow_input_creates_durable_session_and_streams_events() -> None:
     service = workflow_service()
     planner = QueuePlanner([
@@ -169,6 +181,7 @@ def test_text_workflow_input_creates_durable_session_and_streams_events() -> Non
     assert status.undo_available is True
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
 def test_workflow_input_persists_session_events_and_mutations() -> None:
     service = workflow_service()
     repository = FakeWorkflowInputRepository()
@@ -188,6 +201,7 @@ def test_workflow_input_persists_session_events_and_mutations() -> None:
     assert [event.event_id for event in input_service.events(result.session_id, after_event_id=8, user_id="alice")] == [9]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_directus_workflow_input_persists_sensitive_state_only_in_vault_blobs() -> None:
     service = workflow_service()
     repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
@@ -219,6 +233,7 @@ def test_directus_workflow_input_persists_sensitive_state_only_in_vault_blobs() 
     assert restored.workflow.title == "Private rain plan"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
 def test_workflow_input_sanitizes_ascii_smuggling_before_planner_use() -> None:
     service = workflow_service()
     planner = QueuePlanner([
@@ -237,6 +252,7 @@ def test_workflow_input_sanitizes_ascii_smuggling_before_planner_use() -> None:
     assert any(event.type == "input_sanitized" for event in input_service.events(result.session_id))
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.activation.reachable-side-effect
 def test_invalid_generated_nodes_are_rejected_before_commit() -> None:
     invalid_graph = rain_graph()
     invalid_graph["nodes"].append({"id": "code", "type": "custom_code", "config": {"runtime": "python"}})
@@ -254,6 +270,7 @@ def test_invalid_generated_nodes_are_rejected_before_commit() -> None:
     assert [event.type for event in input_service.events(result.session_id)][-1] == "validation_failed"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
 def test_stop_followup_and_undo_are_session_scoped() -> None:
     service = workflow_service()
     planner = QueuePlanner([{"action": "draft", "draft_graph": rain_graph()}])
@@ -275,6 +292,7 @@ def test_stop_followup_and_undo_are_session_scoped() -> None:
     assert undone.error_code == "WORKFLOW_INPUT_UNDO_UNAVAILABLE"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
 def test_undo_reverts_an_executed_workflow_creation() -> None:
     service = workflow_service()
     input_service = WorkflowInputService(
@@ -292,6 +310,7 @@ def test_undo_reverts_an_executed_workflow_creation() -> None:
     assert service.list_workflows("alice") == []
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_project_workflow_linking_validates_workflow_ownership() -> None:
     service = workflow_service()
     alice_workflow = service.create_workflow("alice", "Alice rain", rain_graph())
@@ -326,6 +345,7 @@ def test_project_workflow_linking_validates_workflow_ownership() -> None:
     assert len(linker.links) == 1
 
 
+# contract-test: supporting surface=rest_api assertions=workflows-ui.authoring.composer-and-preview
 def test_audio_input_transcribes_before_planning() -> None:
     service = workflow_service()
     planner = QueuePlanner([
@@ -348,6 +368,7 @@ def test_audio_input_transcribes_before_planning() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows-ui.authoring.composer-and-preview
 def test_unconfigured_planner_and_transcriber_are_visible_typed_failures() -> None:
     service = workflow_service()
     input_service = WorkflowInputService(workflow_service=service)
@@ -362,6 +383,7 @@ def test_unconfigured_planner_and_transcriber_are_visible_typed_failures() -> No
     assert transcription_result.error_code == WORKFLOW_INPUT_TRANSCRIPTION_UNAVAILABLE
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.access.boundaries
 def test_wrong_user_cannot_stop_or_undo_a_session() -> None:
     input_service = WorkflowInputService(
         workflow_service=workflow_service(),
@@ -374,3 +396,687 @@ def test_wrong_user_cannot_stop_or_undo_a_session() -> None:
 
     with pytest.raises(PermissionError):
         input_service.undo(user_id="bob", session_id=draft.session_id)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update,workflows.authoring.provisional-validation
+def test_batch_validates_every_graph_before_any_workflow_is_saved() -> None:
+    service = workflow_service()
+    invalid = rain_graph()
+    invalid["nodes"].append({"id": "code", "type": "custom_code", "config": {"runtime": "python"}})
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=QueuePlanner([{"action": "batch", "operations": [
+            {"action": "create_workflow", "title": "Valid first", "graph": rain_graph()},
+            {"action": "create_workflow", "title": "Invalid second", "graph": invalid},
+        ]}]),
+    )
+
+    result = input_service.start(user_id="alice", text="Make two workflows")
+
+    assert result.status == "failed"
+    assert service.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
+def test_queued_batch_has_plural_previews_and_no_early_mutation() -> None:
+    service = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
+    repository._client = FakeDirectusClient()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        repository=repository,
+        planner=QueuePlanner([{"action": "batch", "operations": [
+            {"action": "create_workflow", "title": "Rain morning", "graph": rain_graph()},
+            {"action": "create_workflow", "title": "Rain evening", "graph": rain_graph()},
+        ]}]),
+    )
+
+    result = input_service.start(user_id="alice", text="Make two rain workflows", optimistic_save=True)
+
+    assert result.status == "queued"
+    assert [item.title for item in result.preview_workflows] == ["Rain morning", "Rain evening"]
+    assert result.preview_workflow == result.preview_workflows[0]
+    assert [item["operation"] for item in result.changes] == ["create", "create"]
+    assert service.list_workflows("alice") == []
+    assert repository.get_session(result.session_id, "alice", None)["pending_operation_id"] == result.session_id
+    input_service._sessions.clear()
+    restored = input_service.status(result.session_id, user_id="alice")
+    assert len(restored.preview_workflows) == 2
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
+def test_batch_calls_atomic_commit_once_and_returns_plural_changes() -> None:
+    service = workflow_service()
+    calls: list[dict[str, Any]] = []
+
+    def commit(user_id: str, operations: list[dict[str, Any]], operation_id: str,
+               vault_key_id: str | None = None, *, before_snapshots: list[Any], session_id: str) -> list[Any]:
+        calls.append({"operations": operations, "operation_id": operation_id,
+                      "before_snapshots": before_snapshots, "session_id": session_id})
+        return [service.create_workflow(user_id, item["title"], item["graph"],
+                                        source="workflow_input", created_by_assistant=True,
+                                        vault_key_id=vault_key_id) for item in operations]
+
+    service.apply_authoring_batch = commit  # type: ignore[method-assign]
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=QueuePlanner([{"action": "batch", "operations": [
+            {"action": "create_workflow", "title": "Rain morning", "graph": rain_graph()},
+            {"action": "create_workflow", "title": "Rain evening", "graph": rain_graph()},
+        ]}]),
+    )
+
+    result = input_service.start(user_id="alice", text="Make two rain workflows")
+
+    assert result.status == "executed"
+    assert len(calls) == 1
+    assert calls[0]["operation_id"] == result.session_id == calls[0]["session_id"]
+    assert len(result.workflows) == 2
+    assert result.workflow == result.workflows[0]
+    assert [item["operation"] for item in result.changes] == ["create", "create"]
+    assert result.undo_available is True
+    undone_operations: list[str] = []
+
+    def undo(user_id: str, operation_id: str, vault_key_id: str | None = None, *, session_id: str) -> list[Any]:
+        del user_id, vault_key_id
+        assert session_id == result.session_id
+        undone_operations.append(operation_id)
+        return []
+
+    service.undo_authoring_batch = undo  # type: ignore[method-assign]
+    undone = input_service.undo(user_id="alice", session_id=result.session_id)
+    assert undone.status == "undone"
+    assert undone_operations == [result.session_id]
+    assert undone.undo_available is False
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+def test_component_preview_is_provisional_and_cannot_save_invalid_plan() -> None:
+    class PreviewPlanner:
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create",
+                                       "accepted_node_count": len(rain_graph()["nodes"]),
+                                       "graph": rain_graph(), "metadata": {"title": "Draft"}})
+            return {"action": "create_workflow", "title": "Invalid", "graph": {"version": 2, "nodes": []}}
+
+    service = workflow_service()
+    seen: list[dict[str, Any]] = []
+    result = WorkflowInputService(workflow_service=service, planner=PreviewPlanner()).start(
+        user_id="alice", text="Make a workflow", on_event=seen.append,
+    )
+
+    assert seen[0]["type"] == "started"
+    assert seen[1] == {"type": "progress", "phase": "planning"}
+    assert any(event.get("type") == "preview" and event.get("provisional") is True
+               and event.get("validated") is True for event in seen)
+    assert result.status == "failed"
+    assert service.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
+def test_cross_worker_stop_retains_accepted_prefix_as_disabled_draft() -> None:
+    prefix = {"version": 2, "trigger_node_id": "trigger", "nodes": [{
+        "id": "trigger", "type": "schedule_trigger",
+        "config": {"schedule": {"type": "daily", "time": "07:00", "timezone": "UTC"}},
+    }], "edges": []}
+    accepted = threading.Event()
+
+    class CheckpointStore:
+        def __init__(self) -> None:
+            self.checkpoints: dict[str, dict[str, Any]] = {}
+            self.stopped: set[str] = set()
+
+        def save(self, user_id: str, session_id: str, checkpoints: dict[str, Any], vault_key_id: str | None) -> None:
+            del user_id, vault_key_id
+            self.checkpoints[session_id] = deepcopy(checkpoints)
+
+        def load(self, user_id: str, session_id: str, vault_key_id: str | None) -> dict[str, Any] | None:
+            del user_id, vault_key_id
+            return deepcopy(self.checkpoints.get(session_id))
+
+        def request_stop(self, user_id: str, session_id: str) -> None:
+            del user_id
+            self.stopped.add(session_id)
+
+        def stop_requested(self, user_id: str, session_id: str) -> bool:
+            del user_id
+            return session_id in self.stopped
+
+        def clear(self, user_id: str, session_id: str) -> None:
+            del user_id
+            self.checkpoints.pop(session_id, None)
+            self.stopped.discard(session_id)
+
+    class WaitingPlanner:
+        atomic_authoring = True
+
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create", "accepted_node_count": 1,
+                                       "graph": prefix, "metadata": {"title": "Stopped prefix"}})
+            accepted.set()
+            deadline = time.monotonic() + 3
+            while not context["_should_stop"]() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert context["_should_stop"]()
+            return {"action": "partial", "reason": "stopped", "notice": "Stopped after one valid step.",
+                    "operations": [{"action": "create_workflow", "title": "Stopped prefix", "graph": prefix}]}
+
+    service = workflow_service()
+    repository = FakeWorkflowInputRepository()
+    cache = CheckpointStore()
+    producer = WorkflowInputService(workflow_service=service, repository=repository,
+                                    checkpoint_store=cache, planner=WaitingPlanner())
+    stopper = WorkflowInputService(workflow_service=service, repository=repository, checkpoint_store=cache)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(producer.start, user_id="alice", text="Create a workflow")
+        assert accepted.wait(2)
+        session_id = next(iter(cache.checkpoints))
+        ack = stopper.stop(user_id="alice", session_id=session_id)
+        assert ack.status == "running" and ack.stop_requested is True
+        cache.stopped.clear()  # The durable signal still reaches a producer if cache loses its marker.
+        producer._sessions[session_id]["_last_durable_stop_check"] = 0.0
+        assert producer._should_stop(producer._sessions[session_id], None) is True
+        result = pending.result(timeout=5)
+    assert result.status == "draft" and result.partial_reason == "stopped"
+    assert result.partial_warning == "Stopped after one valid step."
+    assert result.workflow and result.workflow.enabled is False
+    assert result.workflow.graph == WorkflowGraph.model_validate(prefix)
+    assert service.list_workflows("alice")[0].id == result.workflow.id
+    assert result.authoring_metrics["service_poll_counts"]["stop_checks"] >= 1
+    assert "stop_cache_read_seconds" in result.authoring_metrics["service_stages_seconds"]
+    assert "stop_durable_read_seconds" in result.authoring_metrics["service_stages_seconds"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.access.boundaries
+def test_stop_poll_throttles_cache_but_keeps_fast_signal_and_durable_fallback() -> None:
+    class CountingCache:
+        def __init__(self) -> None:
+            self.reads = 0
+            self.stopped = False
+            self.fail = False
+
+        def stop_requested(self, user_id: str, session_id: str) -> bool:
+            del user_id, session_id
+            self.reads += 1
+            if self.fail:
+                raise RuntimeError("cache unavailable")
+            return self.stopped
+
+    repository = FakeWorkflowInputRepository()
+    cache = CountingCache()
+    service = WorkflowInputService(workflow_service=workflow_service(), repository=repository,
+                                   checkpoint_store=cache)
+    session = service._create_session("alice", None, None, None)
+    session["_last_stop_cache_check"] = time.monotonic()
+    for _ in range(100):
+        assert service._should_stop(session, None) is False
+    assert cache.reads == 0
+    assert session["_poll_counts"]["stop_cache_read_skips"] == 100
+
+    cache.stopped = True
+    time.sleep(0.11)
+    assert service._should_stop(session, None) is True
+    assert cache.reads == 1
+    assert session["_poll_counts"]["stop_cache_reads"] == 1
+
+    # A failed cache signal still reaches the producer through the durable row.
+    second = service._create_session("alice", None, None, None)
+    second["_last_stop_cache_check"] = time.monotonic()
+    repository.sessions[second["id"]]["stop_requested"] = True
+    assert service._should_stop(second, None) is True
+    assert second["_poll_counts"]["stop_durable_reads"] == 1
+
+    # A cache read failure bypasses the one-second durable-read interval.
+    third = service._create_session("alice", None, None, None)
+    third["_last_stop_cache_check"] = 0.0
+    third["_last_durable_stop_check"] = time.monotonic()
+    repository.sessions[third["id"]]["stop_requested"] = True
+    cache.fail = True
+    assert service._should_stop(third, None) is True
+    assert third["_poll_counts"]["stop_durable_reads"] == 1
+
+    class FailedWriteCache(CountingCache):
+        def load(self, user_id: str, session_id: str, vault_key_id: str | None) -> None:
+            del user_id, session_id, vault_key_id
+            return None
+
+        def request_stop(self, user_id: str, session_id: str) -> None:
+            del user_id, session_id
+            raise RuntimeError("cache write unavailable")
+
+    failed_cache = FailedWriteCache()
+    producer = WorkflowInputService(workflow_service=workflow_service(), repository=repository,
+                                    checkpoint_store=failed_cache)
+    fourth = producer._create_session("alice", None, None, None)
+    stopper = WorkflowInputService(workflow_service=producer.workflow_service, repository=repository,
+                                   checkpoint_store=failed_cache)
+    assert stopper.stop(user_id="alice", session_id=fourth["id"]).stop_requested is True
+    assert producer._should_stop(fourth, None) is True
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+def test_stop_between_compiler_acceptance_and_checkpoint_keeps_that_node() -> None:
+    graph = rain_graph()
+    seen: list[dict[str, Any]] = []
+    holder: dict[str, WorkflowInputService] = {}
+
+    class RacingPlanner:
+        atomic_authoring = True
+
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            session_id = seen[0]["session_id"]
+            # The compiler accepted the graph just before this Stop request;
+            # its checkpoint callback has not run yet.
+            ack = holder["service"].stop(user_id="alice", session_id=session_id)
+            assert ack.status == "running" and ack.stop_requested is True
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create",
+                                       "accepted_node_count": len(graph["nodes"]), "graph": graph,
+                                       "metadata": {"title": "Accepted before Stop"}})
+            assert context["_should_stop"]() is True
+            return {"action": "partial", "reason": "stopped", "notice": "Stopped after the accepted node.",
+                    "operations": [{"action": "create_workflow", "title": "Accepted before Stop", "graph": graph}]}
+
+    workflow = workflow_service()
+    holder["service"] = WorkflowInputService(workflow_service=workflow, planner=RacingPlanner())
+    result = holder["service"].start(user_id="alice", text="Make a rain workflow", on_event=seen.append)
+
+    assert result.status == "draft" and result.partial_reason == "stopped"
+    assert result.workflow and result.workflow.enabled is False
+    assert result.workflow.graph == WorkflowGraph.model_validate(graph)
+    assert len(result.partial_previews) == 1
+    assert any(event.get("type") == "preview" and event.get("validated") is True for event in seen)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
+def test_partial_update_disables_same_workflow_and_undo_restores_active_snapshot() -> None:
+    service = workflow_service()
+    original = service.create_workflow("alice", "Active original", rain_graph(), enabled=True)
+    modified = deepcopy(rain_graph())
+    modified["nodes"][1]["config"]["input"]["location"] = "Lisbon"
+    class PartialPlanner(QueuePlanner):
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "update", "accepted_node_count": 1,
+                                       "graph": modified, "metadata": {"workflow_id": original.id,
+                                                                            "expected_record_version": original.version}})
+            return super().plan(text=text, context=context)
+
+    input_service = WorkflowInputService(workflow_service=service, planner=PartialPlanner([{
+        "action": "partial", "reason": "provider_error", "notice": "One later step could not be completed.",
+        "operations": [{"action": "update_workflow", "workflow_id": original.id,
+                        "expected_record_version": original.version, "graph": modified}],
+    }]))
+
+    result = input_service.start(user_id="alice", text="Change the city", selected_workflow_id=original.id)
+    assert result.status == "draft" and result.partial_reason == "provider_error"
+    assert result.workflow and result.workflow.id == original.id and result.workflow.enabled is False
+    assert result.workflow.graph.nodes[1].config["input"]["location"] == "Lisbon"
+    assert len(service.list_workflows("alice")) == 1
+    undone = input_service.undo(user_id="alice", session_id=result.session_id)
+    assert undone.status == "undone"
+    restored = service.get_workflow(original.id, "alice")
+    assert restored.enabled is True and restored.title == original.title
+    assert restored.graph == original.graph
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.access.boundaries
+def test_header_checkpoint_is_saveable_and_stop_is_owner_scoped() -> None:
+    prefix = {"version": 2, "trigger_node_id": "trigger", "nodes": [{
+        "id": "trigger", "type": "schedule_trigger",
+        "config": {"schedule": {"type": "daily", "time": "07:00", "timezone": "UTC"}},
+    }], "edges": []}
+
+    class HeaderPlanner:
+        atomic_authoring = True
+
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create", "accepted_node_count": 0,
+                                       "graph": prefix, "metadata": {"title": "Header only"}})
+            return {"action": "partial", "reason": "stopped", "notice": "Stopped after the trigger.",
+                    "operations": [{"action": "create_workflow", "title": "Header only", "graph": prefix}]}
+
+    input_service = WorkflowInputService(workflow_service=workflow_service(), planner=HeaderPlanner())
+    result = input_service.start(user_id="alice", text="Create a reminder")
+    assert result.status == "draft" and result.workflow and result.workflow.enabled is False
+    assert result.partial_previews[0]["accepted_node_count"] == 0
+    with pytest.raises(PermissionError):
+        input_service.stop(user_id="bob", session_id=result.session_id)
+    with pytest.raises(PermissionError):
+        input_service.status(result.session_id, user_id="bob")
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+def test_partial_plan_cannot_save_graph_beyond_validated_checkpoint() -> None:
+    prefix = {"version": 2, "trigger_node_id": "trigger", "nodes": [{
+        "id": "trigger", "type": "schedule_trigger",
+        "config": {"schedule": {"type": "daily", "time": "07:00", "timezone": "UTC"}},
+    }], "edges": []}
+
+    class UnsafePlanner:
+        atomic_authoring = True
+
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create", "accepted_node_count": 0,
+                                       "graph": prefix, "metadata": {"title": "Safe prefix"}})
+            extra = deepcopy(prefix)
+            extra["nodes"].append({"id": "unvalidated", "type": "end", "config": {}})
+            extra["edges"].append({"from": "trigger", "to": "unvalidated"})
+            return {"action": "partial", "reason": "provider_error", "notice": "Stopped.",
+                    "operations": [{"action": "create_workflow", "title": "Unsafe suffix", "graph": extra}]}
+
+    service = workflow_service()
+    result = WorkflowInputService(workflow_service=service, planner=UnsafePlanner()).start(
+        user_id="alice", text="Create a reminder")
+    assert result.status == "failed" and service.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.access.boundaries
+def test_checkpoint_cache_encrypts_payload_and_separates_owners() -> None:
+    import json
+
+    class Cipher:
+        private: dict[str, Any] | None = None
+
+        def encrypt_json(self, payload: dict[str, Any], vault_key_id: str | None) -> dict[str, str]:
+            assert vault_key_id == "vault-alice"
+            self.private = deepcopy(payload)
+            return {"ciphertext": "opaque-encrypted-value"}
+
+        def decrypt_json(self, blob: dict[str, Any], vault_key_id: str | None) -> dict[str, Any]:
+            assert blob == {"ciphertext": "opaque-encrypted-value"} and vault_key_id == "vault-alice"
+            assert self.private is not None
+            return deepcopy(self.private)
+
+    class Cache:
+        def __init__(self) -> None:
+            self.values: dict[str, str] = {}
+            self.ttls: dict[str, int] = {}
+
+        def setex(self, key: str, ttl: int, value: str) -> None:
+            self.values[key], self.ttls[key] = value, ttl
+
+        def get(self, key: str) -> str | None:
+            return self.values.get(key)
+
+        def exists(self, key: str) -> bool:
+            return key in self.values
+
+        def delete(self, *keys: str) -> None:
+            for key in keys:
+                self.values.pop(key, None)
+
+    cipher = Cipher()
+    cache = Cache()
+    store = DragonflyWorkflowInputCheckpointStore(cipher)
+    store._client = cache
+    payload = {"0": {"graph": {"nodes": [{"title": "private instruction"}]}}}
+    store.save("alice", "session-1", payload, "vault-alice")
+    assert len(cache.values) == 1
+    assert "private instruction" not in next(iter(cache.values.values()))
+    assert json.loads(next(iter(cache.values.values()))) == {"ciphertext": "opaque-encrypted-value"}
+    assert next(iter(cache.ttls.values())) >= 7 * 24 * 60 * 60
+    assert store.load("alice", "session-1", "vault-alice") == payload
+    assert store.load("bob", "session-1", "vault-alice") is None
+    store.request_stop("alice", "session-1")
+    assert store.stop_requested("alice", "session-1") is True
+    assert store.stop_requested("bob", "session-1") is False
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
+def test_stale_stopped_session_recovers_validated_prefix_after_worker_loss() -> None:
+    prefix = {"version": 2, "trigger_node_id": "trigger", "nodes": [{
+        "id": "trigger", "type": "schedule_trigger",
+        "config": {"schedule": {"type": "daily", "time": "07:00", "timezone": "UTC"}},
+    }], "edges": []}
+
+    class Cache:
+        def __init__(self) -> None:
+            self.checkpoints: dict[str, dict[str, Any]] = {}
+            self.stopped: set[str] = set()
+            self.claimed: set[str] = set()
+
+        def save(self, user_id: str, session_id: str, checkpoints: dict[str, Any], vault_key_id: str | None) -> None:
+            del user_id, vault_key_id
+            self.checkpoints[session_id] = deepcopy(checkpoints)
+
+        def load(self, user_id: str, session_id: str, vault_key_id: str | None) -> dict[str, Any] | None:
+            del user_id, vault_key_id
+            return deepcopy(self.checkpoints.get(session_id))
+
+        def request_stop(self, user_id: str, session_id: str) -> None:
+            del user_id
+            self.stopped.add(session_id)
+
+        def stop_requested(self, user_id: str, session_id: str) -> bool:
+            del user_id
+            return session_id in self.stopped
+
+        def claim_recovery(self, user_id: str, session_id: str) -> bool:
+            del user_id
+            if session_id in self.claimed:
+                return False
+            self.claimed.add(session_id)
+            return True
+
+        def clear(self, user_id: str, session_id: str) -> None:
+            del user_id
+            self.checkpoints.pop(session_id, None)
+            self.stopped.discard(session_id)
+            self.claimed.discard(session_id)
+
+    service = workflow_service()
+    repository = FakeWorkflowInputRepository()
+    cache = Cache()
+    producer = WorkflowInputService(workflow_service=service, repository=repository, checkpoint_store=cache)
+    pending = producer._create_session("alice", None, None, None)
+    producer._accept_checkpoint(pending, {"workflow_index": 0, "operation": "create",
+                                          "accepted_node_count": 0, "graph": prefix,
+                                          "metadata": {"title": "Recovered prefix"}}, None)
+    consumer = WorkflowInputService(workflow_service=service, repository=repository, checkpoint_store=cache)
+    ack = consumer.stop(user_id="alice", session_id=pending["id"])
+    assert ack.status == "running" and ack.stop_requested
+    repository.sessions[pending["id"]]["cancellation_requested_at"] = int(time.time()) - 61
+
+    recovered = consumer.status(pending["id"], user_id="alice")
+
+    assert recovered.status == "draft" and recovered.workflow and recovered.workflow.enabled is False
+    assert recovered.workflow.title == "Recovered prefix"
+    assert len(service.list_workflows("alice")) == 1
+    assert consumer.status(pending["id"], user_id="alice").status == "draft"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+def test_planner_failure_after_checkpoint_saves_validated_prefix() -> None:
+    prefix = {"version": 2, "trigger_node_id": "trigger", "nodes": [{
+        "id": "trigger", "type": "schedule_trigger",
+        "config": {"schedule": {"type": "daily", "time": "07:00", "timezone": "UTC"}},
+    }], "edges": []}
+
+    class BrokenPlanner:
+        atomic_authoring = True
+
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create", "accepted_node_count": 0,
+                                       "graph": prefix, "metadata": {"title": "Safe prefix"}})
+            raise RuntimeError("provider connection lost")
+
+    service = workflow_service()
+    result = WorkflowInputService(workflow_service=service, planner=BrokenPlanner()).start(
+        user_id="alice", text="Create a reminder")
+    assert result.status == "draft" and result.partial_reason == "provider_error"
+    assert result.workflow and result.workflow.enabled is False
+    assert len(service.list_workflows("alice")) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+def test_partial_without_validated_checkpoint_fails_without_saving() -> None:
+    service = workflow_service()
+    input_service = WorkflowInputService(workflow_service=service, planner=QueuePlanner([{
+        "action": "partial", "reason": "provider_error", "notice": "No valid steps completed.",
+        "operations": [],
+    }]))
+
+    result = input_service.start(user_id="alice", text="Create a workflow")
+
+    assert result.status == "failed" and result.error_code == "WORKFLOW_INPUT_NO_VALID_PARTIAL"
+    assert service.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
+def test_input_idempotency_reuses_same_instruction_and_rejects_conflict() -> None:
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        repository=FakeWorkflowInputRepository(),
+        planner=QueuePlanner([{"action": "create_workflow", "title": "Rain once", "graph": rain_graph()}]),
+    )
+
+    first = input_service.start(user_id="alice", text="Rain workflow", idempotency_key="chat:1:message:1")
+    repeat = input_service.start(user_id="alice", text="Rain workflow", idempotency_key="chat:1:message:1")
+
+    assert repeat.session_id == first.session_id
+    assert len(service.list_workflows("alice")) == 1
+    with pytest.raises(ValueError, match="different instruction"):
+        input_service.start(user_id="alice", text="Change the instruction", idempotency_key="chat:1:message:1")
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.authoring.atomic-update
+def test_generic_blank_draft_undo_preserves_later_edit() -> None:
+    class AtomicPlanner(QueuePlanner):
+        atomic_authoring = True
+
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=AtomicPlanner([{"action": "create_empty_workflow", "title": "My reminder"}]),
+    )
+
+    result = input_service.start(user_id="alice", text="My reminder")
+    assert result.status == "draft" and result.workflow is not None
+    assert result.workflow.enabled is False
+    assert result.workflow.graph.nodes == []
+    service.update_workflow(result.workflow.id, "alice", title="Edited later")
+
+    undone = input_service.undo(user_id="alice", session_id=result.session_id)
+
+    assert undone.error_code == "WORKFLOW_INPUT_UNDO_CONFLICT"
+    assert service.get_workflow(result.workflow.id, "alice").title == "Edited later"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update
+def test_generic_single_create_uses_atomic_ledger_and_undo() -> None:
+    class AtomicPlanner(QueuePlanner):
+        atomic_authoring = True
+
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=AtomicPlanner([{"action": "create_workflow", "title": "Rain report", "graph": rain_graph()}]),
+    )
+
+    result = input_service.start(user_id="alice", text="Create a rain report")
+    assert result.status == "executed"
+    assert len(result.workflows) == 1
+    assert input_service.status(result.session_id).mutations[0].operation_id == result.session_id
+
+    undone = input_service.undo(user_id="alice", session_id=result.session_id)
+    assert undone.status == "undone"
+    assert service.list_workflows("alice") == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.authoring.atomic-update
+def test_generic_blank_draft_followup_uses_new_atomic_operation() -> None:
+    class AtomicPlanner(QueuePlanner):
+        atomic_authoring = True
+
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=AtomicPlanner([
+            {"action": "create_empty_workflow", "title": "My reminder"},
+            {"action": "update_workflow", "graph": rain_graph()},
+        ]),
+    )
+
+    draft = input_service.start(user_id="alice", text="My reminder")
+    updated = input_service.follow_up(user_id="alice", session_id=draft.session_id, text="Add rain steps")
+
+    assert updated.status == "executed"
+    assert updated.workflow is not None and updated.workflow.id == draft.workflow.id
+    operation_ids = {item.operation_id for item in input_service.status(draft.session_id).mutations}
+    assert operation_ids == {draft.session_id, f"{draft.session_id}:followup:1"}
+
+    undone = input_service.undo(user_id="alice", session_id=draft.session_id)
+    assert undone.status == "undone"
+    assert service.get_workflow(draft.workflow.id, "alice").graph.nodes == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update,workflows.content.encrypted-retained
+def test_directus_mutation_reload_groups_transaction_rows_and_hides_inverse() -> None:
+    service = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
+    fake_client = FakeDirectusClient()
+    repository._client = fake_client
+    rows = fake_client.collections.setdefault("workflow_input_mutations", {})
+    for index, operation_id in enumerate(("op-original", "undo:op-original")):
+        rows[f"mutation-{index}"] = {
+            "id": f"mutation-{index}", "session_id": "session-1", "hashed_user_id": _hash_owner_id("alice"),
+            "type": "create_workflow" if index == 0 else "delete_workflow",
+            "target_type": "workflow", "target_id": "workflow-1", "operation_id": operation_id,
+            "encrypted_before_ref": None, "encrypted_after_ref": None,
+            "undone_at": 123 if index == 0 else None, "created_at": 100 + index,
+        }
+
+    mutations = repository.list_mutations("session-1", "alice", None)
+
+    assert len(mutations) == 1
+    assert mutations[0].operation_id == "op-original"
+    assert mutations[0].undone_at == 123
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows-ui.authoring.composer-and-preview
+def test_stream_route_emits_provisional_preview_and_final_session() -> None:
+    import json
+    from types import SimpleNamespace
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.routes.workflows import (
+        ensure_workflows_enabled, get_current_user_or_api_key, get_workflow_input_service, limiter, router,
+    )
+
+    class StreamingPlanner:
+        def plan(self, *, text: str, context: dict[str, Any]) -> dict[str, Any]:
+            del text
+            context["_on_checkpoint"]({"workflow_index": 0, "operation": "create",
+                                       "accepted_node_count": len(rain_graph()["nodes"]),
+                                       "graph": rain_graph(), "metadata": {"title": "Rain draft"}})
+            return {"action": "needs_clarification", "message": "Choose a time"}
+
+    service = workflow_service()
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(router)
+    app.dependency_overrides[ensure_workflows_enabled] = lambda: None
+    app.dependency_overrides[get_current_user_or_api_key] = lambda: SimpleNamespace(id="alice", vault_key_id=None)
+    app.dependency_overrides[get_workflow_input_service] = lambda: WorkflowInputService(
+        workflow_service=service, planner=StreamingPlanner(),
+    )
+
+    with TestClient(app) as client:
+        response = client.post("/v1/workflows/input/stream", json={"text": "Make a rain workflow"})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    events = [json.loads(line.removeprefix("data: ")) for line in response.text.splitlines() if line.startswith("data: ")]
+    assert events[0]["type"] == "started" and events[0]["status"] == "running"
+    assert events[1] == {"type": "progress", "phase": "planning"}
+    assert events[2]["type"] == "preview" and events[2]["provisional"] is True and events[2]["validated"] is True
+    assert events[-1]["type"] == "session" and events[-1]["session"]["status"] == "needs_clarification"
+    assert service.list_workflows("alice") == []

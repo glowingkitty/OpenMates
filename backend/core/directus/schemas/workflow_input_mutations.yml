@@ -10,6 +10,9 @@ workflow_input_mutations:
     session_id:
       type: string
       note: "[Indexed] Workflow input session id."
+    operation_id:
+      type: string
+      note: "[Indexed] Atomic authoring operation id shared by all batch mutations."
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of the owner."

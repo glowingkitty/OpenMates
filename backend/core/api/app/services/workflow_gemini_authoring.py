@@ -252,9 +252,11 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
     del selection
     schedule = {"type": "object", "additionalProperties": False, "properties": {
         "type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
-        "time": {"type": "string"}, "timezone": {"type": "string"},
+        "time": {"type": "string", "description": "HH:MM clock time for daily or weekly schedules only."},
+        "timezone": {"type": "string"},
         "weekdays": {"type": "array", "items": {"type": "string"}},
-        "minute": {"type": "integer"}, "at": {"type": "string"},
+        "minute": {"type": "integer"},
+        "at": {"type": "string", "description": "Full ISO datetime for once schedule only; never daily or weekly."},
     }, "required": ["type"]}
     header = {"type": "object", "additionalProperties": False, "properties": {
         "operation": {"type": "string", "enum": ["create", "update", "draft"]},

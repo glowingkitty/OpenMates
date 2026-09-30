@@ -274,15 +274,39 @@ def test_workflow_definition_rows_store_sensitive_content_as_encrypted_blob_refs
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
-def test_directus_workflow_repository_persists_workflow_records_without_plaintext() -> None:
+def test_directus_workflow_repository_persists_workflow_records_without_plaintext(monkeypatch) -> None:
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     fake_client = FakeDirectusClient()
     setattr(repository, "_client", fake_client)
+    transaction = InMemoryWorkflowRepository()
+    atomic_commits = []
+
+    def fake_authoring_request(method, path, *, payload=None):
+        result = transaction.authoring_request(method, path, payload=payload)
+        if path == "/":
+            atomic_commits.append(payload)
+            for item in payload["writes"]:
+                record = item["record"]
+                fake_client.collections.setdefault("workflows", {})[record["id"]] = {
+                    "id": record["id"], "workflow_id": record["id"],
+                    "hashed_user_id": record["owner_hash"], "status": record["status"],
+                    "record_json": record,
+                }
+            for blob in payload["blobs"]:
+                fake_client.collections.setdefault("workflow_encrypted_blobs", {})[blob["ref"]] = {
+                    "id": blob["ref"], "ref": blob["ref"], "hashed_user_id": blob["owner_hash"],
+                    "kind": blob["kind"], "ciphertext": blob["ciphertext"],
+                    "checksum": blob["checksum"], "vault_key_ref": blob.get("vault_key_ref"),
+                    "key_version": blob.get("key_version"), "created_at": blob["created_at"],
+                }
+        return result
+
+    monkeypatch.setattr(repository, "authoring_request", fake_authoring_request)
     service = workflow_service(repository=repository)
 
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
-    assert not [request for request in fake_client.requests if request == ("GET", "workflow_encrypted_blobs")]
-    assert sum(request == ("POST", "workflow_encrypted_blobs") for request in fake_client.requests) == 2
+    assert len(atomic_commits) == 1
+    assert not [request for request in fake_client.requests if request[0] == "POST"]
     loaded = service.get_workflow(workflow.id, "alice")
     raw_workflow_rows = json.dumps(fake_client.collections["workflows"], sort_keys=True)
     raw_blob_rows = json.dumps(fake_client.collections["workflow_encrypted_blobs"], sort_keys=True)

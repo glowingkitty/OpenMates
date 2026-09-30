@@ -70,6 +70,15 @@ CREATE INDEX IF NOT EXISTS workflow_input_sessions_owner_updated_idx
   ON workflow_input_sessions (hashed_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS workflow_input_mutations_session_created_idx
   ON workflow_input_mutations (session_id, created_at);
+ALTER TABLE IF EXISTS workflow_input_mutations
+  ADD COLUMN IF NOT EXISTS operation_id varchar(255);
+CREATE UNIQUE INDEX IF NOT EXISTS workflow_authoring_operations_operation_id_uq
+  ON workflow_authoring_operations (operation_id);
+CREATE INDEX IF NOT EXISTS workflow_input_mutations_operation_idx
+  ON workflow_input_mutations (operation_id, hashed_user_id);
+CREATE INDEX IF NOT EXISTS workflow_input_mutations_authoring_expiry_idx
+  ON workflow_input_mutations (created_at)
+  WHERE operation_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_assistant_proposals_proposal_id_uq
   ON workflow_assistant_proposals (proposal_id);
 CREATE INDEX IF NOT EXISTS workflow_assistant_proposals_pending_expiry_idx

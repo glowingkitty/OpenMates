@@ -213,6 +213,33 @@ earlier_action_reference:
   given: Bob has no earlier action before Ask AI, AI judgment or Send message.
   when: He saves a meaningful static instruction, question or message.
   then: No earlier-action variable is required. Once an earlier action is added, each affected field must visibly use at least one accessible earlier action output.
+authoring_compact_plan:
+- id: authoring-plan-weather-notification
+  given: Alice asks to make a daily rain alert from Weather and a chat message.
+  when: OpenMates plans the request.
+  then: Jev selects the registered Weather forecast skill and supported control choices, either directly or by selecting the Weather app first and then its skill. Gemini receives that scoped context and proposes a compact draft with a title, schedule, Weather inputs, rain condition and notification text, without inventing a new Weather skill or per-skill recipe.
+- id: authoring-plan-supported-edit
+  given: Bob has an existing apartment Workflow and asks to change its search city; a separate request just says "Make it better."
+  when: OpenMates plans the edit.
+  then: The clear edit identifies the existing Workflow and supported Home search input while preserving its other steps and metadata. Jev routes the confusing second request to clarification chat before Gemini starts generating; a later model error in a clear request does not trigger clarification.
+authoring_provisional_validation:
+- id: authoring-stream-complete-step
+  given: Alice asks for a Weather rain alert and watches the draft appear.
+  when: Gemini completes a Weather node before the Check and message are ready, and Alice then selects Stop.
+  then: The backend validates Weather's inputs and graph placement before showing it. Stop saves that valid prefix disabled with no automatic execution; Alice can continue editing it manually. Manual run availability still follows normal graph readiness.
+- id: authoring-invalid-node-retry-and-save-prefix
+  given: A validated Weather node is already visible, and Gemini next proposes a message with a reference to a future node.
+  when: The backend rejects that message, asks Gemini once to correct it, and the corrected node still has an invalid reference.
+  then: The invalid message is never shown as accepted. Generation stops, the valid Weather prefix is saved disabled with no automatic execution, and Alice sees the concrete error with options to request a specific update or edit the draft herself; no clarification chat opens.
+authoring_atomic_update:
+- id: authoring-single-create-disabled-edit-retained
+  given: Alice asks for a new rain alert and an edit to her enabled apartment Workflow.
+  when: Both changes validate and she accepts them.
+  then: The rain alert is created disabled and the apartment Workflow remains enabled unless Alice asked to change that state.
+- id: authoring-mixed-failure-and-guarded-undo
+  given: Bob requests two Workflow edits, one with an invalid dependency after generation completes; he later asks AI to edit his enabled Weather Workflow and stops after one validated node.
+  when: The full invalid batch is submitted, then the partial Weather edit is saved and Bob selects Undo before changing it again.
+  then: The full invalid batch changes neither existing Workflow. The partial Weather edit is saved under the same Workflow ID with untouched later nodes retained, the Workflow disabled, and no copy created. Undo restores the entire prior Weather state including enabled state; a newer manual revision would instead cause a conflict.
 standard_message:
 - id: standard_message-1
   given: Alice schedules an AI-news search each weekday and chooses a new chat titled AI news.
