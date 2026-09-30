@@ -50140,7 +50140,7 @@ assertions:
       surface: gui.web
     - &id6060
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 290
+      line: 291
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     - &id6061
@@ -51385,7 +51385,7 @@ assertions:
       surface: gui.web
     - &id6193
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 290
+      line: 291
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     tests:
@@ -52902,7 +52902,7 @@ assertions:
       surface: gui.web
     - &id6379
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 290
+      line: 291
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     - &id6380

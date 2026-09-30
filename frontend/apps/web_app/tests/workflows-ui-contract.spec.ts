@@ -419,21 +419,51 @@ test.describe('Workflows web UI contract', () => {
 				await expect(primaryNodeIcons.nth(index)).toHaveCSS('width', '33px');
 				await expect(primaryNodeIcons.nth(index)).toHaveCSS('height', '33px');
 			}
-			await page.route('**/v1/geocode/search?**', (route) =>
-				route.fulfill({
-					json: [{
-						lat: '48.8566', lon: '2.3522', name: 'Paris', display_name: 'Paris, France',
-						class: 'place', type: 'city', namedetails: { name: 'Paris' },
-						address: { city: 'Paris', country: 'France' }
-					}]
-				})
-			);
+			await page.route('**/v1/geocode/search?**', (route) => {
+				const query = new URL(route.request().url()).searchParams.get('q');
+				const location = query === 'Hamburg'
+					? {
+						lat: '53.5511', lon: '9.9937', name: 'Hamburg', display_name: 'Hamburg, Germany',
+						class: 'place', type: 'city', namedetails: { name: 'Hamburg' },
+						address: { city: 'Hamburg', country: 'Germany' }
+					}
+					: query === 'Paris'
+						? {
+							lat: '48.8566', lon: '2.3522', name: 'Paris', display_name: 'Paris, France',
+							class: 'place', type: 'city', namedetails: { name: 'Paris' },
+							address: { city: 'Paris', country: 'France' }
+						}
+						: null;
+				return route.fulfill({ status: location ? 200 : 400, json: location ? [location] : [] });
+			});
 			await weatherNode.getByTestId('workflow-node-summary').click();
 			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '40px');
 			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '40px');
+			const initialSearch = page.waitForResponse(
+				(response: any) => response.url().includes('/v1/geocode/search?') &&
+					new URL(response.url()).searchParams.get('q') === 'Hamburg',
+				{ timeout: 10_000 }
+			);
 			await weatherNode.getByTestId('workflow-node-location-picker').click();
-			await weatherNode.getByTestId('map-location-search-input').fill('Paris');
-			await weatherNode.getByTestId('map-location-search-result').click();
+			const initialResponse = await initialSearch;
+			expect(initialResponse.ok()).toBe(true);
+			await initialResponse.finished();
+			const locationMap = weatherNode.getByTestId('workflow-location-map');
+			const locationInput = locationMap.getByTestId('map-location-search-input');
+			await expect(locationMap.getByTestId('map-location-select')).toBeVisible();
+			await expect(locationInput).toHaveValue('');
+			const parisSearch = page.waitForResponse(
+				(response: any) => response.url().includes('/v1/geocode/search?') &&
+					new URL(response.url()).searchParams.get('q') === 'Paris',
+				{ timeout: 10_000 }
+			);
+			await locationInput.fill('Paris');
+			const parisResponse = await parisSearch;
+			expect(parisResponse.ok()).toBe(true);
+			await parisResponse.finished();
+			const parisResult = locationMap.getByTestId('map-location-search-result');
+			await expect(parisResult).toContainText('Paris');
+			await parisResult.click();
 			await weatherNode.getByTestId('map-location-select').click();
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-node-save')).toBeVisible();

@@ -251,7 +251,8 @@ test.describe('Tasks web app parity', () => {
 			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'same-document';
 			window.location.hash = `task-id=${encodeURIComponent(nextTaskId)}`;
 		}, secondTaskId);
-		await expect(page).toHaveURL(new RegExp(`/#task-id=${secondTaskId}(?:&|$)`));
+		await expect(page).toHaveURL((url) => url.pathname === '/' &&
+			new URLSearchParams(url.hash.slice(1)).get('task-id') === secondTaskId);
 		await expect(page.getByTestId('task-detail-title')).toContainText(secondTaskTitle, { timeout: 30_000 });
 		await expect(page.getByTestId('task-detail-title')).not.toContainText(taskTitle);
 		expect(await page.evaluate(() =>
