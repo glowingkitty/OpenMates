@@ -16,7 +16,7 @@ scope:
     - Show new workflows on the landing page and show changed or removed nodes for edits.
     - Route requests needing clarification into a new chat with the workflows.clarify_workflows focus mode.
     - Let ordinary chat requests load scoped workflow authoring context and create valid workflows directly; use the clarification focus only when discussion is needed.
-    - Use Jev for bounded decisions, a fast structured LLM when Jev is unavailable, and a generative LLM for free text and unsupported recipe topology.
+    - Select relevant registered app skills and control nodes with Jev, then construct graphs from their contracts. Compare Jev decisions with fast generative models for structure and free text.
     - Benchmark the bounded and generative model routes before fixing production confidence thresholds and model order.
   out:
     - Executing or enabling a newly generated workflow without a separate user action.
@@ -53,7 +53,7 @@ current_state:
 
 confirmed_decisions:
   - A multi-workflow request is atomic: create none if any requested workflow needs clarification.
-  - A short complete instruction creates a ready disabled workflow through the normal Jev recipe path. A short incomplete instruction creates a persisted disabled blank workflow with the exact request as its title and opens its editor. A longer request that cannot be implemented goes to clarification chat.
+  - A short complete instruction creates a ready disabled workflow through the natural-language authoring path. A short incomplete instruction creates a persisted disabled blank workflow with the exact request as its title and opens its editor. A longer request that cannot be implemented goes to clarification chat.
   - When a schedule omits its time, use 09:00 in the browser timezone or the explicitly requested timezone. When a weekly schedule omits its day, use Monday. Show these assumptions to the user.
   - Run the bounded Gemini fallback only when Jev is unavailable or its answer fails confidence or validation. Draft creation metadata with Gemini Flash-Lite concurrently with clear Jev create requests. Escalate the bounded fallback to Gemini 3.8 Flash if Flash-Lite fails.
   - Show a queued save state while the encrypted, durable plan is committed; use Dragonfly for a short-lived status cache and replay queued plans after worker loss. A workflow is shown as created only after the commit succeeds.
@@ -67,16 +67,17 @@ confirmed_decisions:
   - Provide a simple guarded Undo AI changes button. Undo the whole AI batch only when every member is still at its AI-created version; preserve later manual edits and offer version history on conflict.
   - Generate a title, description, and icon with an LLM for every new workflow; evaluate Gemini 3.5 Flash-Lite as the default, choose the icon from the existing allowed icon catalog, and supply the required valid category when saving it.
   - Load workflow authoring knowledge for clear workflow-creation requests in chat, with selective capability context rather than an unbounded static prompt.
-  - In ordinary chat, preload the relevant recipe and selected capability schemas for a clear workflow request; activate workflows.clarify_workflows only when discussion is needed. The workspace handoff activates that mode explicitly.
+  - In ordinary chat, preload selected capability schemas and the graph contract for a clear workflow request; activate workflows.clarify_workflows only when discussion is needed. The workspace handoff activates that mode explicitly.
   - Default an unspecified schedule timezone to the user's browser IANA timezone; select an explicitly named timezone such as Berlin time, San Francisco time, or UTC from the instruction.
   - After a clarification chat has gathered enough detail, auto-save valid new workflows disabled and tell the user they must activate them; save valid edits immediately with their current enabled state and an Undo action.
   - Allow one request to mix new workflows and edits. Plan and validate independent targets concurrently, serialize operations that touch the same workflow, then commit all results or none.
-  - Use Jev as the primary bounded decision engine, with an independent fast structured-output LLM filling the same recipe contract when Jev is unavailable.
-  - Prefer Jev-selected, backend-owned V2 workflow recipes for recognized patterns; use an LLM planner when a request falls outside recipe coverage. Benchmark both routes before final default tuning.
+  - Use at least one Jev call to select relevant apps or app skills and identify whether exact conditions or AI evaluation are required. Prefer direct skill selection while the eligible catalog fits a single request.
+  - Do not restrict authoring to predefined workflow recipes. Derive node, field, reference and branch choices from registered executable contracts and the user instruction.
+  - Compare generic Jev construction with GPT-OSS 120B on Groq and Cerebras using identical preselected contracts. Measure executable validity and intent fidelity separately, along with cost and stage timings, before choosing the downstream production constructor.
 
 architecture_draft:
   - Consolidate the workflow-input and workspace-ask planner contracts around one canonical V2 graph and per-user capability snapshot.
-  - Build deterministic V2 graph recipes for common patterns. Use batched Jev decision waves for routing, recipe and capability selection, and bounded fields; use deterministic parsing for exact times and supplied values. A generative model splits free-form multi-workflow prose into operation intents when bounded Jev choices cannot, then each intent uses Jev recipe selection concurrently.
+  - Build a shared registry-derived skill preselector and generic V2 compiler. Batch independent Jev decisions about node instances, typed parameter sources, output references and branches. Copy user-provided literal values deterministically; evaluate a generative model for free text and compositions that bounded decisions cannot reliably express.
   - Benchmark staged Jev country-to-city choices against direct extraction and the existing geocoder. Use a second Jev wave only when it improves ambiguous-location accuracy; send out-of-list choices through the fallback resolver rather than silently selecting a nearby city.
   - Pass the browser IANA timezone into the authoring request. Let Jev select an explicitly named timezone from bounded canonical IANA or UTC candidates, resolve aliases deterministically, and record the chosen zone in the generated schedule and visible summary.
   - Extend and validate deterministic runtime date values for tomorrow before offering the tomorrow-weather recipe; require semantic checks in addition to graph validity, so a today forecast cannot silently satisfy a tomorrow request.
@@ -93,10 +94,10 @@ architecture_draft:
 
 implementation_sequence:
   - phase: Authoring contract and evaluation
-    work: Define the accepted product Specification and a versioned, owner-scoped V2 capability and recipe catalog. Turn the synthetic pilots into labeled, repeatable routing, recipe, timezone, and Ask AI field evaluations with latency and cost reports. Include a direct LLM-only baseline.
+    work: Use the accepted product Specification and a versioned V2 capability catalog. Implement shared Jev preselection and compare generic Jev construction with Groq and Cerebras GPT-OSS 120B using blind synthetic inputs, semantic assertions, executable validation, latency and cost reports.
     dependency: None.
-  - phase: Planner and recipe compiler
-    work: Implement request segmentation, Jev decision waves, bounded confidence gates, explicit timezone selection, deterministic recipe compilation, tomorrow runtime dates, and strict semantic and V2 validation. Use a fast structured model for Jev outages and a generative planner for unsupported topology. Generate title, description, and allowed icon with an LLM.
+  - phase: Planner and graph compiler
+    work: Implement request segmentation, registry-derived Jev decision waves, bounded confidence gates, explicit timezone selection, generic graph compilation, tomorrow runtime dates, and strict semantic and V2 validation. Use the evaluated fast structured model when generative construction is needed. Generate title, description, and allowed icon with an LLM.
     dependency: The authoring contract and evaluation corpus.
   - phase: Transactional batch and undo
     work: Plan independent create/edit targets concurrently, serialize same-target edits, and commit mixed batches atomically with staged encrypted payloads, one visible metadata transaction, post-commit schedule sync, and idempotency. Persist complete AI before/after states and version-guarded batch undo. Preserve the enabled state of edits and save new workflows disabled.

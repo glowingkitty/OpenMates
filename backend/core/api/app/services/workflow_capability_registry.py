@@ -143,6 +143,7 @@ class WorkflowCapabilityRegistry:
             "app_id": app_id,
             "skill_id": skill_id,
             "input_schema": input_schema,
+            "description": str(_value(skill, "preprocessor_hint") or ""),
             "cost": _dump_value(_value(skill, "pricing")),
         }
         if _value(skill, "internal", default=False):
