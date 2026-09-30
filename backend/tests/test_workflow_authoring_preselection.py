@@ -126,6 +126,8 @@ async def test_staged_selection_routes_apps_then_selects_skills_with_controls():
     assert len(jev.requests) == 2
     assert "app:weather" in jev.requests[0][1]
     assert "changes a detail, not an existing workflow" in jev.requests[0][1]["operation"]["instructions"]
+    assert "title ending in 'spoken'" in jev.requests[0][1]["app:weather"]["instructions"]["rules"]
+    assert "short title alone" in jev.requests[1][1]["weather.forecast"]["instructions"]["rules"]
     assert set(jev.requests[1][1]) == {"weather.forecast", "weather.rain_radar"}
     assert result.metrics["jev_calls"] == 2
     assert result.metrics["input_tokens"] == 200
@@ -193,6 +195,8 @@ async def test_self_correction_routing_prompt_and_safe_metrics():
     assert "existing named workflow or an open workflow" in operation
     assert "corrected details" in questions["operation"]["criteria"]["create"]
     assert "Replacing an earlier time, place" in questions["request_clarity"]["instructions"]
+    assert "title ending in 'spoken'" in questions["weather.forecast"]["instructions"]["rules"]
+    assert "short title alone" in questions["weather.forecast"]["instructions"]["rules"]
     assert state["open_workflow"] is False
     assert result.metrics["operation"] == "create"
     assert result.metrics["request_clarity"] == "clear"

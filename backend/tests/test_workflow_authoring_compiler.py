@@ -10,7 +10,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from backend.core.api.app.services.workflow_authoring_compiler import (
-    FlatAuthoringAccumulator, authoring_validation_code, build_authoring_schema,
+    FlatAuthoringAccumulator, authoring_validation_code, authoring_validation_path, build_authoring_schema,
     compile_authoring_plan, compile_authoring_preview,
 )
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
@@ -93,13 +93,25 @@ def test_schedule_rejects_fields_from_other_kinds_before_streaming_header():
 
 def test_authoring_failure_codes_are_fixed_and_hide_model_values():
     assert authoring_validation_code(ValueError(
-        "weekly schedule supports time, timezone, weekdays; unsupported fields: at"), "header") == "header_schedule"
+        "weekly schedule supports time, timezone, weekdays; unsupported fields: at"), "header") == "header_schedule_field_set"
+    assert authoring_validation_code(ValueError("Schedule time must be HH:MM"), "header") == "header_schedule_time"
+    assert authoring_validation_code(ValueError("Schedule timezone is invalid"), "header") == "header_schedule_timezone"
+    assert authoring_validation_code(ValueError("Weekly schedule needs unique weekdays"), "header") == "header_schedule_weekdays"
+    assert authoring_validation_code(ValueError("Schedule type is unsupported"), "header") == "header_schedule_schema"
+    assert authoring_validation_code(ValueError(
+        "Authoring plan violates the selected capability schema at $.schedule.time"), "header") == "header_schedule_time"
     assert authoring_validation_code(ValueError("Partial create needs a title and description"), "header") == "header_metadata"
     assert authoring_validation_code(ValueError("Authoring plan violates the selected capability schema at $.icon"),
                                      "header") == "header_icon"
     assert authoring_validation_code(ValueError("Authoring plan violates the selected capability schema at $.steps[0]"),
                                      "node") == "node_selected_schema"
     assert authoring_validation_code(ValueError("private arbitrary model string"), "header") == "header_validation"
+    assert authoring_validation_path(ValueError("Schedule timezone is invalid"), "header") == "$.schedule.timezone"
+    assert authoring_validation_path(ValueError(
+        "Authoring plan violates the selected capability schema at $.schedule.weekdays"), "header") == "$.schedule.weekdays"
+    assert authoring_validation_path(ValueError(
+        "Authoring plan violates the selected capability schema at $.private_model_value"), "header") is None
+    assert authoring_validation_path(ValueError("Schedule timezone is invalid"), "node") is None
 
 
 def test_flat_update_header_preserves_original_and_new_node_splices_without_dropping_reply():

@@ -26,6 +26,11 @@ STRONG_RELEVANCE = 0.75
 MAX_SELECTED_SKILLS = 12
 MAX_WORKFLOWS = 8
 PRESELECTION_MODES = {"direct", "staged"}
+ACTION_RELEVANCE_RULE = (
+    "Select only requested actions. A trailing 'name it ...' labels the workflow: "
+    "a title ending in 'spoken' does not request audio. A short title alone can "
+    "imply an action. Do not add maps, web, audio, or AI for topic/title words alone."
+)
 
 
 def compact_schema(value: Any) -> Any:
@@ -119,6 +124,7 @@ class WorkflowAuthoringPreselector:
                         "select web search/read or news just to discover how to perform another skill. "
                         "An explicit web search is not a news search unless news is requested. "
                         "For an edit, select skills needed by the requested change."
+                        " " + ACTION_RELEVANCE_RULE
                     ),
                 },
             }
@@ -168,7 +174,7 @@ class WorkflowAuthoringPreselector:
                             {"id": cap.id, "description": cap.metadata.get("description") or cap.id}
                             for cap in skills
                         ],
-                        "rules": "Include any app with a plausible required skill. Ignore corrected requests. Scheduling, checks and chat delivery are built-in. Do not add web or news merely to discover how another app works. An explicit web search is not a news search.",
+                        "rules": "Include any app with a plausible required skill. Ignore corrected requests. Scheduling, checks and chat delivery are built-in. Do not add web or news merely to discover how another app works. An explicit web search is not a news search. " + ACTION_RELEVANCE_RULE,
                     },
                 }
         state = {"request": text, "browser_timezone": timezone,
@@ -209,7 +215,7 @@ class WorkflowAuthoringPreselector:
                     "type": "noul", "instructions": {
                         "question": f"Is skill {cap.id} needed for a final requirement?",
                         "skill": cap.metadata.get("description") or cap.id,
-                        "rules": "Select all relevant skills. Ignore corrected requests. Checks and chat delivery are built-in. ai.ask is for generated answers or summaries, not an AI check alone. Prefer a dedicated domain skill; do not add web or news solely for discovery.",
+                        "rules": "Select all relevant skills. Ignore corrected requests. Checks and chat delivery are built-in. ai.ask is for generated answers or summaries, not an AI check alone. Prefer a dedicated domain skill; do not add web or news solely for discovery. " + ACTION_RELEVANCE_RULE,
                     }} for cap in apps[app_id]}
                 app_started = time.perf_counter()
                 result = await self.jev_client.evaluate(state=state, questions=app_questions)

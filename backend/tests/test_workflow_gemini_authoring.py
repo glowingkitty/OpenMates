@@ -56,13 +56,18 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     from jsonschema import Draft202012Validator
     schema = provider_response_schema(selection("weather.forecast", "ai.ask"))
     assert schema == provider_response_schema(selection("web.search"))
-    assert len(json.dumps(schema)) < 2500
+    assert len(json.dumps(schema)) < 4500
     assert "minItems" not in json.dumps(schema) and "maxItems" not in json.dumps(schema)
     schedule = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["schedule"]
     operation = schema["properties"]["workflows"]["items"]["properties"]["header"]["properties"]["operation"]
     assert operation["enum"] == ["create", "update"]
-    assert "daily or weekly" in schedule["properties"]["time"]["description"]
-    assert "once schedule only" in schedule["properties"]["at"]["description"]
+    assert [variant["properties"]["type"]["enum"][0] for variant in schedule["anyOf"]] == [
+        "daily", "weekly", "hourly", "once", "manual"]
+    assert "HH:MM" in schedule["anyOf"][0]["properties"]["time"]["description"]
+    assert "IANA" in schedule["anyOf"][1]["properties"]["timezone"]["description"]
+    assert "once schedule only" in schedule["anyOf"][3]["properties"]["at"]["description"]
+    assert schedule["anyOf"][1]["properties"]["weekdays"]["items"]["enum"] == [
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
     validator = Draft202012Validator(schema)
     flat = {"workflows": [{"header": {"operation": "create", "schedule": {"type": "daily"}},
                            "nodes": [{"kind": "app", "id": "weather", "capability": "weather.forecast",
@@ -72,6 +77,18 @@ def test_provider_envelope_is_flat_and_constant_across_selections():
     assert list(validator.iter_errors(flat))
     flat["workflows"][0]["header"]["operation"] = "create"
     assert list(validator.iter_errors({"operation": "create"}))
+    for valid_schedule in ({"type": "weekly", "weekdays": ["thursday"], "time": "09:00"},
+                           {"type": "hourly", "minute": 30}, {"type": "once", "at": "2026-10-01T09:00:00Z"},
+                           {"type": "manual"}):
+        flat["workflows"][0]["header"]["schedule"] = valid_schedule
+        validator.validate(flat)
+    for invalid_schedule in ({"type": "weekly", "at": "09:00"},
+                             {"type": "daily", "weekdays": ["monday"]},
+                             {"type": "weekly", "weekdays": ["Thursday"]},
+                             {"type": "hourly", "minute": 60},
+                             {"type": "manual", "time": "09:00"}):
+        flat["workflows"][0]["header"]["schedule"] = invalid_schedule
+        assert list(validator.iter_errors(flat))
     flat["workflows"][0]["nodes"][0]["input_json"] = {"location": "Berlin"}
     assert list(validator.iter_errors(flat))
 
@@ -199,6 +216,28 @@ async def test_header_failure_has_fixed_code_without_accepting_partial_header():
     assert error.value.code == "header_metadata"
     assert error.value.accepted_prefixes == []
     assert "private" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_cross_kind_schedule_rejects_header_with_field_set_code():
+    header = {"operation": "create", "title": "Events", "description": "Find events", "icon": "help-circle",
+              "schedule": {"type": "weekly", "weekdays": ["monday"], "at": "09:00"}}
+    event = {"candidates": [{"content": {"parts": [{"text": json.dumps({
+        "workflows": [{"header": header, "nodes": []}],
+    })}]}, "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="header failed validation") as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="Find events", selection=selection(), timezone="UTC")
+    assert error.value.code == "header_schedule_field_set"
+    assert error.value.validation_path == "$.schedule"
+    assert error.value.accepted_prefixes == []
 
 
 @pytest.mark.asyncio

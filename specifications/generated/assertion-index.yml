@@ -59400,7 +59400,7 @@ assertions:
       surface: rest_api
     - &id7181
       path: backend/tests/test_workflow_registry_planner.py
-      line: 344
+      line: 346
       name: test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks
       surface: rest_api
     tests:
@@ -59563,7 +59563,7 @@ assertions:
       surface: rest_api
     - &id7204
       path: backend/tests/test_workflow_registry_planner.py
-      line: 344
+      line: 346
       name: test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks
       surface: rest_api
     - &id7206

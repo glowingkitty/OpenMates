@@ -274,14 +274,27 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
     by the authoritative capability-scoped compiler before it is emitted.
     """
     del selection
-    schedule = {"type": "object", "additionalProperties": False, "properties": {
-        "type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
-        "time": {"type": "string", "description": "HH:MM clock time for daily or weekly schedules only."},
-        "timezone": {"type": "string"},
-        "weekdays": {"type": "array", "items": {"type": "string"}},
-        "minute": {"type": "integer"},
-        "at": {"type": "string", "description": "Full ISO datetime for once schedule only; never daily or weekly."},
-    }, "required": ["type"]}
+    # Google supports anyOf and enum in responseJsonSchema, but does not list
+    # regex pattern. Keep exact clock/zone validation in the compiler.
+    zone = {"type": "string", "description": "IANA timezone, for example Europe/Berlin or America/New_York."}
+    clock = {"type": "string", "description": "HH:MM 24-hour local clock time, for example 09:00."}
+    weekdays = {"type": "array", "items": {"type": "string", "enum": [
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    ]}}
+
+    def schedule_kind(kind: str, **fields: dict[str, Any]) -> dict[str, Any]:
+        return {"type": "object", "additionalProperties": False,
+                "properties": {"type": {"type": "string", "enum": [kind]}, **fields},
+                "required": ["type"]}
+
+    schedule = {"anyOf": [
+        schedule_kind("daily", time=clock, timezone=zone),
+        schedule_kind("weekly", time=clock, timezone=zone, weekdays=weekdays),
+        schedule_kind("hourly", minute={"type": "integer", "minimum": 0, "maximum": 59}, timezone=zone),
+        schedule_kind("once", at={"type": "string", "description": "Full ISO datetime for once schedule only."},
+                      timezone=zone),
+        schedule_kind("manual"),
+    ]}
     header = {"type": "object", "additionalProperties": False, "properties": {
         "operation": {"type": "string", "enum": ["create", "update"]},
         "workflow_id": {"type": "string"}, "title": {"type": "string"},
@@ -408,7 +421,7 @@ class WorkflowGeminiAuthor:
         """
         from jsonschema import Draft202012Validator
         from backend.core.api.app.services.workflow_authoring_compiler import (
-            FlatAuthoringAccumulator, authoring_validation_code,
+            FlatAuthoringAccumulator, authoring_validation_code, authoring_validation_path,
         )
 
         prior = accepted_prefixes or []
@@ -500,6 +513,7 @@ class WorkflowGeminiAuthor:
                         "Workflow header failed validation", metrics, snapshots(),
                         code=authoring_validation_code(exc, "header"))
                     error.validation_error = str(exc)[:300]
+                    error.validation_path = authoring_validation_path(exc, "header")
                     raise error from exc
                 accumulators[workflow_index] = accumulator
                 if metrics["first_component_ms"] is None:

@@ -572,13 +572,54 @@ _FLAT_NODE_FIELDS = {"kind", "id", "parent_check_id", "branch", "capability", "m
                      *_FLAT_JSON_FIELDS}
 
 
+_HEADER_SCHEMA_PATHS = frozenset({
+    "$.schedule", "$.schedule.type", "$.schedule.time", "$.schedule.timezone",
+    "$.schedule.weekdays", "$.schedule.minute", "$.schedule.at",
+    "$.title", "$.description", "$.icon", "$.workflow_id",
+})
+
+
+def authoring_validation_path(error: ValueError, phase: str) -> str | None:
+    """Expose only known structural header paths, never authored field values."""
+    if phase != "header":
+        return None
+    message = str(error)
+    prefix = "Authoring plan violates the selected capability schema at "
+    if message.startswith(prefix):
+        path = message.removeprefix(prefix)
+        return path if path in _HEADER_SCHEMA_PATHS else None
+    lower = message.lower()
+    if lower.startswith("schedule timezone") or lower == "browser timezone is invalid":
+        return "$.schedule.timezone"
+    if lower.startswith("schedule time"):
+        return "$.schedule.time"
+    if lower.startswith("weekly schedule needs"):
+        return "$.schedule.weekdays"
+    if lower.startswith("hourly schedule minute"):
+        return "$.schedule.minute"
+    if lower.startswith("one-time schedule requires"):
+        return "$.schedule.at"
+    if lower.startswith(("schedule must", "schedule type")) or re.match(
+            r"^(daily|weekly|hourly|once|manual) schedule supports ", lower):
+        return "$.schedule"
+    return None
+
+
 def authoring_validation_code(error: ValueError, phase: str) -> str:
     """Classify an authored prefix with fixed privacy-safe failure codes."""
     message = str(error).lower()
     if phase == "header":
-        if ("schedule" in message or "timezone" in message or
-                "selected capability schema at $.schedule" in message):
-            return "header_schedule"
+        path = authoring_validation_path(error, phase)
+        if path == "$.schedule":
+            return "header_schedule_field_set" if "schedule supports " in message else "header_schedule_schema"
+        if path in {"$.schedule.time", "$.schedule.minute", "$.schedule.at"}:
+            return "header_schedule_time"
+        if path == "$.schedule.timezone":
+            return "header_schedule_timezone"
+        if path == "$.schedule.weekdays":
+            return "header_schedule_weekdays"
+        if path == "$.schedule.type":
+            return "header_schedule_schema"
         if "icon" in message or "selected capability schema at $.icon" in message:
             return "header_icon"
         if ("title" in message or "description" in message or

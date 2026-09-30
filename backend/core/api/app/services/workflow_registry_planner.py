@@ -457,6 +457,10 @@ class WorkflowRegistryPlanner:
                     if validation_code:
                         usage["validation_code"] = validation_code
                         metrics["last_validation_code"] = validation_code
+                    validation_path = getattr(exc, "validation_path", None)
+                    if validation_path:
+                        usage["validation_path"] = validation_path
+                        metrics["last_validation_path"] = validation_path
                     if attempt == 0:
                         await self._emit(context, {"type": "progress", "phase": "retrying_node", "attempt": 2})
                         continue
