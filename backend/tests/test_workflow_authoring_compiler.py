@@ -102,6 +102,36 @@ def test_fixed_branch_messages_use_upstream_check_without_fake_variables():
                for edge in graph["edges"])
 
 
+def test_rejects_date_marker_encoded_as_app_input_string():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Berlin", "start_date": "{$date:'today',format:'date'}",
+                   "end_date": {"$date": "today", "format": "date"}}},
+        {"kind": "send", "id": "reply", "title": "Weather", "message": [ref("forecast", "summary")]},
+    ])
+    with pytest.raises(ValueError, match="runtime date markers must be structured objects"):
+        compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+
+
+def test_rejects_end_inside_branch_with_queued_continuation():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Berlin", "days": 1}},
+        {"kind": "check", "id": "rain", "mode": "exact",
+         "predicate": {"op": "eq", "left": ref("forecast", "rain_expected"), "right": True},
+         "yes": [{"kind": "end", "id": "stop"}],
+         "no": [{"kind": "send", "id": "dry", "title": "Weather",
+                 "message": [{"text": "It should be dry."}]}]},
+        {"kind": "send", "id": "followup", "title": "Weather",
+         "message": [{"text": "Check complete."}]},
+    ])
+    with pytest.raises(ValueError, match="queued continuation"):
+        compile_authoring_plan(raw, selection("weather.forecast", mode="exact"), "Europe/Berlin")
+    raw["steps"].pop()
+    graph = compile_authoring_plan(raw, selection("weather.forecast", mode="exact"), "Europe/Berlin")["graph"]
+    assert any(node["id"] == "stop" for node in graph["nodes"])
+
+
 def test_check_mode_hint_does_not_remove_needed_fallback_check():
     raw = plan([
         {"kind": "app", "id": "forecast", "capability": "weather.forecast", "input": {"location": "Paris", "days": 1}},

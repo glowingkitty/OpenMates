@@ -29,13 +29,22 @@ class WorkflowAuthoringProviderError(ValueError):
         super().__init__(reason)
 
 
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate authoring property")
+        result[key] = value
+    return result
+
+
 def complete_step_components(source: str) -> list[dict[str, Any]]:
     """Decode only complete entries of the root steps array from partial JSON.
 
     Locate the actual root key using JSON string/depth rules, so escaped quotes,
     nested steps and user text containing the word steps cannot create events.
     """
-    decoder = json.JSONDecoder()
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
     depth = 0
     index = 0
     while index < len(source):
@@ -97,8 +106,11 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         f"Browser timezone is {timezone}; use it unless the user names a schedule timezone. "
         "A search location alone does not set the schedule timezone. Missing schedule defaults "
         "to Monday at 09:00. Honor final self-corrections, including times and cities. "
-        "Weather today uses start_date AND end_date {$date:'today',format:'date'}; tomorrow "
-        "uses {$date:'tomorrow',format:'date'} for BOTH. Never freeze a relative date. "
+        'Weather today uses the JSON OBJECT {"$date":"today","format":"date"} for BOTH '
+        'start_date AND end_date; tomorrow uses {"$date":"tomorrow","format":"date"} '
+        'for BOTH. Example input: {"location":"Berlin","start_date":{"$date":"today",'
+        '"format":"date"},"end_date":{"$date":"today","format":"date"}}. '
+        "These are objects, never quoted strings. Never freeze a relative date. "
         "Use typed ref objects to declared earlier output fields, without an extra output prefix "
         "in the field path. Text fields use segments of literal text or typed refs; no hand-written "
         "graph nodes, edges, interpolation syntax or runtime IDs. Preserve requested true/false "
@@ -207,7 +219,7 @@ class WorkflowGeminiAuthor:
             if finish_reason != "STOP":
                 raise WorkflowAuthoringProviderError("Workflow provider did not complete the plan", metrics)
             try:
-                raw = json.loads(source)
+                raw = json.loads(source, object_pairs_hook=_unique_object)
             except ValueError as exc:
                 raise WorkflowAuthoringProviderError("Workflow provider returned invalid JSON", metrics) from exc
             if not isinstance(raw, dict):

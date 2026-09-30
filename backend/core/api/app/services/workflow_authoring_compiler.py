@@ -164,7 +164,7 @@ def _reference(value: Any, known: set[str], label: str) -> str:
     return f"$nodes.{step}.output" + (f".{field}" if field else "")
 
 
-def _value(value: Any, known: set[str], label: str) -> Any:
+def _value(value: Any, known: set[str], label: str, *, app_input: bool = False) -> Any:
     if isinstance(value, dict):
         if set(value) == {"ref"}:
             return _reference(value["ref"], known, label)
@@ -172,9 +172,14 @@ def _value(value: Any, known: set[str], label: str) -> Any:
             if set(value) - {"$date", "format"} or value["$date"] not in _DATES or value.get("format", "datetime") not in {"date", "datetime"}:
                 raise ValueError(f"{label}: invalid runtime date marker")
             return value
-        return {key: _value(child, known, f"{label}.{key}") for key, child in value.items() if child is not None}
+        return {key: _value(child, known, f"{label}.{key}", app_input=app_input)
+                for key, child in value.items() if child is not None}
     if isinstance(value, list):
-        return [_value(child, known, label) for child in value]
+        return [_value(child, known, label, app_input=app_input) for child in value]
+    if isinstance(value, str) and app_input and "$date" in value:
+        stripped = value.lstrip()
+        if stripped.startswith(("{", "$date")):
+            raise ValueError(f"{label}: runtime date markers must be structured objects")
     if isinstance(value, str) and ("$nodes." in value or "{{" in value or "}}" in value):
         raise ValueError(f"{label}: use a typed reference instead of model-written template syntax")
     return value
@@ -293,7 +298,7 @@ def compile_authoring_plan(
         edges.append(WorkflowEdge(**{"from": source, "to": target, "branch": branch}))
 
     def compile_sequence(items: list[Any], incoming: tuple[str, str | None] | None,
-                         depth: int, known: set[str]) -> None:
+                         depth: int, known: set[str], continuation_pending: bool = False) -> None:
         nonlocal sends, total
         if depth > 4 or not isinstance(items, list):
             raise ValueError("Authoring Check nesting is too deep")
@@ -318,7 +323,7 @@ def compile_authoring_plan(
                 app_id, skill_id = capability.split(".", 1)
                 node = WorkflowNode(id=node_id, type=WorkflowNodeType.APP_SKILL_ACTION,
                                     config={"app_id": app_id, "skill_id": skill_id,
-                                            "input": _value(authored, known, f"Step {node_id} input")})
+                                            "input": _value(authored, known, f"Step {node_id} input", app_input=True)})
             elif kind == "ask_ai":
                 if "ai.ask" not in selected_ids:
                     raise ValueError("Ask AI capability was not selected")
@@ -359,6 +364,8 @@ def compile_authoring_plan(
                                             "message": message, "blocks": blocks})
                 sends += 1
             elif kind == "end":
+                if continuation_pending:
+                    raise ValueError("End inside a Check branch cannot stop a queued continuation")
                 node = WorkflowNode(id=node_id, type=WorkflowNodeType.END)
             else:
                 raise ValueError("Unsupported authoring step kind")
@@ -370,7 +377,8 @@ def compile_authoring_plan(
                     if not isinstance(branch_items, list):
                         raise ValueError("Check branches must be step lists")
                     if branch_items:
-                        compile_sequence(branch_items, (node_id, branch), depth + 1, known.copy())
+                        compile_sequence(branch_items, (node_id, branch), depth + 1, known.copy(),
+                                         continuation_pending or position < len(items) - 1)
                     elif branch in {"yes", "no"} and position == len(items) - 1:
                         # A terminal empty branch has no continuation to fall
                         # through to, so give it an explicit safe endpoint.
