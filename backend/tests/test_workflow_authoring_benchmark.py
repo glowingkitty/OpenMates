@@ -132,6 +132,68 @@ def test_oracle_rejects_implicit_seven_day_weather_default():
     assert "weather action weather lacks exact today range" in issues
 
 
+def test_events_oracle_accepts_declared_events_output_alias():
+    graph = WorkflowGraph.model_validate({"version": 2, "trigger_node_id": "start", "nodes": [
+        {"id": "start", "type": "schedule_trigger", "config": {"schedule": {
+            "type": "weekly", "time": "16:00", "timezone": "Europe/Berlin", "weekdays": ["friday"]}}},
+        {"id": "search", "type": "app_skill_action", "config": {"app_id": "events", "skill_id": "search",
+            "input": {"requests": [{"query": "AI", "location": "Berlin"}]}}},
+        {"id": "summary", "type": "app_skill_action", "config": {"app_id": "ai", "skill_id": "ask",
+            "input": {"prompt": "Summarize {{ $nodes.search.output.events }}"}}},
+        {"id": "send", "type": "send_chat_message", "config": {"title": "Berlin AI events",
+            "message": "{{ $nodes.summary.output.answer }}"}},
+    ], "edges": [{"from": "start", "to": "search"}, {"from": "search", "to": "summary"},
+                 {"from": "summary", "to": "send"}]})
+    case = next(case for case in CASES if case.id == "events_summary")
+    assert oracle(graph, case) == []
+    graph.nodes[2].config["input"]["prompt"] = "Summarize {{ $nodes.search.output.summary }}"
+    assert "Ask AI prompt does not use event results" in oracle(graph, case)
+
+
+def _city_forecasts_graph(*, field="results", missing_instruction=True, send_answer=True):
+    city_nodes = [
+        {"id": f"weather_{city.lower()}", "type": "app_skill_action", "config": {
+            "app_id": "weather", "skill_id": "forecast", "input": {"location": city, "days": 1}}}
+        for city in ("Berlin", "Paris", "London")
+    ]
+    prompt = "Summarize the forecasts for Berlin, Paris, and London. "
+    if missing_instruction:
+        prompt += "If any city has no forecast, say which city has no forecast. "
+    prompt += " ".join(f"{{{{ $nodes.weather_{city.lower()}.output.{field} }}}}"
+                       for city in ("Berlin", "Paris", "London"))
+    nodes = [{"id": "trigger", "type": "schedule_trigger", "config": {"schedule": {
+        "type": "weekly", "time": "07:30", "timezone": "Europe/Berlin",
+        "weekdays": ["monday", "tuesday", "wednesday", "thursday", "friday"]}}},
+        *city_nodes,
+        {"id": "format", "type": "app_skill_action", "config": {"app_id": "ai", "skill_id": "ask",
+            "input": {"prompt": prompt}}},
+        {"id": "send", "type": "send_chat_message", "config": {"title": "City forecasts",
+            "message": "{{ $nodes.format.output.answer }}" if send_answer else "City forecast ready"}},
+    ]
+    ids = [node["id"] for node in nodes]
+    return WorkflowGraph.model_validate({"version": 2, "trigger_node_id": "trigger", "nodes": nodes,
+                                         "edges": [{"from": before, "to": after}
+                                                   for before, after in zip(ids, ids[1:])]})
+
+
+def test_weather_city_oracle_accepts_real_results_with_explicit_ai_empty_fallback():
+    case = next(case for case in CASES if case.id == "weather_cities")
+    assert oracle(_city_forecasts_graph(), case) == []
+
+
+def test_weather_city_oracle_rejects_location_only_summary_and_missing_fallback():
+    case = next(case for case in CASES if case.id == "weather_cities")
+    summary_issues = oracle(_city_forecasts_graph(field="summary"), case)
+    assert "Berlin forecast results do not reach chat" in summary_issues
+    assert "Paris forecast results do not reach chat" in summary_issues
+    assert "London forecast results do not reach chat" in summary_issues
+    assert "missing forecast existence check" in summary_issues
+    no_fallback_issues = oracle(_city_forecasts_graph(missing_instruction=False), case)
+    assert "missing forecast existence check" in no_fallback_issues
+    no_delivery_issues = oracle(_city_forecasts_graph(send_answer=False), case)
+    assert "Berlin forecast results do not reach chat" in no_delivery_issues
+
+
 def test_validator_rejects_unselected_action():
     assert len(validate_graph(_rain_graph(), {"weather.forecast"}).nodes) == 5
     with pytest.raises(ValueError, match="not selected"):

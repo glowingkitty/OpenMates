@@ -244,6 +244,14 @@ def _compile_authoring(
         raise ValueError("Authoring plan must contain JSON values") from exc
     if size > _MAX_PLAN_BYTES:
         raise ValueError("Authoring plan exceeds the size limit")
+    # Icon choice is cosmetic. Preserve the selected graph and all non-icon
+    # fields under the strict schema; only a string outside the icon set gets
+    # the same identity fallback already used by WorkflowInputService.
+    if isinstance(raw.get("icon"), str) and raw["icon"] not in WORKFLOW_ALLOWED_ICONS:
+        if raw.get("operation") == "create":
+            raw = {**raw, "icon": normalize_workflow_identity("general_knowledge", raw["icon"]).icon}
+        elif raw.get("operation") == "update":
+            raw = {key: value for key, value in raw.items() if key != "icon"}
     # JSON mode does not enforce responseFormat's union schema. Validate the
     # selected capability contract here before interpreting any model field.
     # Never include raw values or validator messages in errors: they can contain
@@ -495,7 +503,8 @@ def _compile_authoring(
     graph_data = graph.model_dump(mode="json", by_alias=True)
     if preview:
         return {"title": raw.get("title"), "description": raw.get("description"),
-                "icon": raw.get("icon"), "graph": graph_data,
+                "icon": raw.get("icon") if raw.get("icon") is not None else
+                (selected_workflow or {}).get("icon"), "graph": graph_data,
                 "assumptions": assumptions, "complete": False,
                 **({"workflow_id": selected_workflow["id"]} if operation == "update" else {})}
     if operation == "update":

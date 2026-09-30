@@ -10,9 +10,22 @@ import pytest
 from backend.core.api.app.services.workflow_gemini_authoring import (
     WorkflowAuthoringProviderError,
     WorkflowGeminiAuthor,
+    authoring_prompt,
     complete_plan_components,
     complete_step_components,
 )
+
+
+def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_operators():
+    prompt = authoring_prompt(SimpleNamespace(context=lambda: {"capabilities": []}), "UTC")
+    example_text = prompt.split("not example placeholders): ", 1)[1]
+    examples, _ = json.JSONDecoder().raw_decode(example_text)
+    weather, check = examples["create"]["steps"]
+    assert weather["capability"] == "weather.forecast"
+    assert check["predicate"]["op"] == "eq"
+    assert examples["ask_ai"]["prompt"][1]["ref"]["field"] == "results"
+    assert "NOT forecast data" in prompt
+    assert "op:'" not in prompt
 
 
 def test_components_never_emit_incomplete_nested_steps_or_quoted_key():

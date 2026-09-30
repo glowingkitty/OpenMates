@@ -154,6 +154,7 @@ skills:
             x-ui:
               basic: false
             type: string
+            description: Location label only, such as Weather forecast for Berlin; it does not contain forecast data and remains present when no forecast was returned.
             example: Weather forecast for Berlin
           result_count:
             x-ui:
@@ -328,6 +329,34 @@ skills:
                 precipitation_probability_pct: 60
                 condition: rain
                 temperature_c: 18
+          results:
+            x-ui:
+              basic: false
+            type: array
+            description: Actual forecast day records for the requested dates. An empty array means no forecast was returned; use this value to detect and report a missing forecast.
+            items:
+              type: object
+              properties:
+                date:
+                  type: string
+                title:
+                  type: string
+                condition:
+                  type:
+                  - string
+                  - 'null'
+                temperature_min_c:
+                  type:
+                  - number
+                  - 'null'
+                temperature_max_c:
+                  type:
+                  - number
+                  - 'null'
+                precipitation_probability_max_pct:
+                  type:
+                  - number
+                  - 'null'
           forecast_days:
             x-ui:
               basic: false

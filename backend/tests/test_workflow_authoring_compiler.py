@@ -93,6 +93,19 @@ def test_compiles_ask_ai_and_output_binding():
     assert graph["nodes"][0]["config"]["schedule"]["weekdays"] == ["friday"]
 
 
+def test_weather_results_are_declared_for_ai_forecast_formatting():
+    raw = plan([
+        {"kind": "app", "id": "berlin", "capability": "weather.forecast",
+         "input": {"location": "Berlin", "days": 1}},
+        {"kind": "ask_ai", "id": "format", "prompt": [
+            {"text": "Report the actual Berlin forecast, or say no forecast is available: "},
+            ref("berlin", "results")]},
+        {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("format", "answer")]},
+    ])
+    graph = compile_authoring_plan(raw, selection("weather.forecast", "ai.ask"), "Europe/Berlin")["graph"]
+    assert "{{ $nodes.berlin.output.results }}" in graph["nodes"][2]["config"]["input"]["prompt"]
+
+
 def test_fixed_branch_messages_use_upstream_check_without_fake_variables():
     raw = plan([
         {"kind": "app", "id": "forecast", "capability": "weather.forecast",
@@ -220,6 +233,43 @@ def test_rejects_unknown_app_input_field_without_echoing_raw_content():
         compile_authoring_plan(raw, selection("weather.forecast"), "UTC")
     assert "private-marker" not in str(error.value)
     assert "credential" not in str(error.value)
+
+
+def test_cosmetic_icon_fallback_keeps_graph_validation_strict():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Berlin", "days": 1}},
+        {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("forecast", "summary")]},
+    ])
+    original = compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    raw["icon"] = "shopping-bag"
+    normalized = compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert normalized["icon"] == "help-circle"
+    assert normalized["graph"] == original["graph"]
+    preview = compile_authoring_preview(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert preview["icon"] == "help-circle"
+    raw["steps"][0]["capability"] = "web.search"
+    with pytest.raises(ValueError, match="selected capability schema"):
+        compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    raw["icon"] = 42
+    with pytest.raises(ValueError, match="selected capability schema"):
+        compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+
+
+def test_update_unknown_icon_preserves_selected_icon():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast", "input": {"location": "Berlin", "days": 1}},
+        {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("forecast", "summary")]},
+    ])
+    prior = compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    selected = {"id": "workflow-1", "version": 2, "icon": "cloud-rain", "graph": prior["graph"]}
+    update = {"operation": "update", "workflow_id": "workflow-1", "icon": "shopping-bag", "title": "Updated forecast"}
+    result = compile_authoring_plan(update, selection("weather.forecast", operation="update"),
+                                    "Europe/Berlin", selected)
+    assert "icon" not in result
+    preview = compile_authoring_preview(update, selection("weather.forecast", operation="update"),
+                                        "Europe/Berlin", selected)
+    assert preview["icon"] == "cloud-rain"
 
 
 def test_clarification_is_an_explicit_outcome():

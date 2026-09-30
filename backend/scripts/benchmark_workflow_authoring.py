@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -245,14 +246,52 @@ def validate_graph(raw: dict[str, Any], selected_ids: set[str]) -> WorkflowGraph
     return graph
 
 
+def _uses_output(value: Any, node_id: str, field: str) -> bool:
+    """Recognize a complete typed output path in authored text or result blocks."""
+    content = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    escaped_node, escaped_field = re.escape(node_id), re.escape(field)
+    return bool(re.search(
+        rf"(?:\$nodes\.{escaped_node}\.output\.|steps\.{escaped_node}\.){escaped_field}(?![A-Za-z0-9_-])",
+        content,
+    ))
+
+
+def _weather_city_ai_fallback(graph: WorkflowGraph, weather_actions: list[Any], cities: tuple[str, ...]) -> bool:
+    """Accept an AI formatter only when every city's real rows and empty case reach one chat."""
+    sends = [node for node in graph.nodes if node.type == WorkflowNodeType.SEND_CHAT_MESSAGE]
+    if len(sends) != 1:
+        return False
+    message = sends[0].config.get("message") or ""
+    for node in graph.nodes:
+        if node.type != WorkflowNodeType.APP_SKILL_ACTION or (
+            node.config.get("app_id"), node.config.get("skill_id")
+        ) != ("ai", "ask") or not _uses_output(message, node.id, "answer"):
+            continue
+        prompt = str((node.config.get("input") or {}).get("prompt") or "")
+        if not all(any(
+            city.casefold() in str((weather.config.get("input") or {}).get("location") or "").casefold()
+            and _uses_output(prompt, weather.id, "results") for weather in weather_actions
+        ) for city in cities):
+            continue
+        if re.search(r"\b(?:if|when)\b.{0,120}\b(?:no forecast|missing|unavailable|empty|does not have a forecast)\b",
+                     prompt, re.IGNORECASE | re.DOTALL) and re.search(
+                         r"\b(?:city|cities|location|place)\b", prompt, re.IGNORECASE
+                     ):
+            return True
+    return False
+
+
 def oracle(graph: WorkflowGraph, case: Case) -> list[str]:
     """Independent, conservative intent checks; no planner decisions are used."""
     issues: list[str] = []
     actions = [n for n in graph.nodes if n.type == WorkflowNodeType.APP_SKILL_ACTION]
     capabilities = [f"{n.config.get('app_id')}.{n.config.get('skill_id')}" for n in actions]
+    weather_actions = [n for n in actions if n.config.get("app_id") == "weather"
+                       and n.config.get("skill_id") == "forecast"]
+    city_ai_fallback = case.id == "weather_cities" and _weather_city_ai_fallback(
+        graph, weather_actions, case.action_literals
+    )
     if case.id in {"rain_if", "weather_cities", "speech_self_correction"}:
-        weather_actions = [n for n in actions if n.config.get("app_id") == "weather"
-                           and n.config.get("skill_id") == "forecast"]
         target_day = "tomorrow" if case.id == "speech_self_correction" else "today"
         for action in weather_actions:
             weather_input = action.config.get("input") or {}
@@ -268,14 +307,32 @@ def oracle(graph: WorkflowGraph, case: Case) -> list[str]:
         if required not in capabilities:
             issues.append(f"missing capability {required}")
     for extra in sorted(set(capabilities) - set(case.required_capabilities)):
-        issues.append(f"unrequested capability {extra}")
+        if not (extra == "ai.ask" and city_ai_fallback):
+            issues.append(f"unrequested capability {extra}")
+    if case.id == "weather_cities":
+        sends = [node for node in graph.nodes if node.type == WorkflowNodeType.SEND_CHAT_MESSAGE]
+        for city in case.action_literals:
+            city_actions = [node for node in weather_actions if city.casefold() in
+                            str((node.config.get("input") or {}).get("location") or "").casefold()]
+            direct = any(_uses_output(send.config, weather.id, field)
+                         for weather in city_actions for field in ("results", "forecast_days") for send in sends)
+            via_ai = any(
+                _uses_output(str((ai.config.get("input") or {}).get("prompt") or ""), weather.id, field)
+                and any(_uses_output(send.config.get("message") or "", ai.id, "answer") for send in sends)
+                for weather in city_actions for field in ("results", "forecast_days")
+                for ai in actions if (ai.config.get("app_id"), ai.config.get("skill_id")) == ("ai", "ask")
+            )
+            if not direct and not via_ai:
+                issues.append(f"{city} forecast results do not reach chat")
     if case.id == "events_summary":
         event_nodes = [n.id for n in actions if n.config.get("app_id") == "events" and n.config.get("skill_id") == "search"]
         ask_nodes = [n for n in actions if n.config.get("app_id") == "ai" and n.config.get("skill_id") == "ask"]
         def refers_to(value: str, node_id: str, field: str) -> bool:
             return f"{node_id}.output.{field}" in value or f"steps.{node_id}.{field}" in value
-        if not any(any(refers_to(str(ask.config.get("input", {}).get("prompt", "")), source, "results")
-                       for source in event_nodes) for ask in ask_nodes):
+        # The workflow adapter exposes the same normalized list through both
+        # `results` and its declared domain alias `events`.
+        if not any(any(refers_to(str(ask.config.get("input", {}).get("prompt", "")), source, field)
+                       for source in event_nodes for field in ("results", "events")) for ask in ask_nodes):
             issues.append("Ask AI prompt does not use event results")
         messages = json.dumps([n.config for n in graph.nodes
                                if n.type == WorkflowNodeType.SEND_CHAT_MESSAGE], ensure_ascii=False)
@@ -322,7 +379,7 @@ def oracle(graph: WorkflowGraph, case: Case) -> list[str]:
     checks = [n for n in graph.nodes if n.type == WorkflowNodeType.CHECK]
     if case.check_mode and not any(n.config.get("mode") == case.check_mode for n in checks):
         issues.append(f"missing {case.check_mode} check")
-    if case.require_missing_fallback:
+    if case.require_missing_fallback and not city_ai_fallback:
         messages = json.dumps([n.config for n in graph.nodes
                                if n.type == WorkflowNodeType.SEND_CHAT_MESSAGE], ensure_ascii=False).casefold()
         if not any(term in messages for term in ("no forecast", "unavailable", "missing")):
