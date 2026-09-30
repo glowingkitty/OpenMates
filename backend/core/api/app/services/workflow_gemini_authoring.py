@@ -328,6 +328,37 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
 def authoring_prompt(selection: Any, timezone: str) -> str:
     from backend.core.api.app.services.workflow_identity_service import WORKFLOW_ALLOWED_ICONS
 
+    selected_zone = getattr(selection, "schedule_timezone", None)
+    workflow_count = getattr(selection, "workflow_count", None)
+    preserve_existing_zone = (getattr(selection, "preserve_schedule_timezone", False)
+                              and getattr(selection, "operation", None) in {"update", "mixed"})
+    if preserve_existing_zone and isinstance(workflow_count, int) and workflow_count > 1:
+        schedule_zone_instruction = (
+            "For every edited workflow, keep that target's existing schedule timezone unless the user explicitly "
+            "changes its timezone. For every new workflow, use its own requested timezone or browser timezone "
+            f"{timezone}. The compiler preserves each edited target's existing zone. "
+        )
+    elif preserve_existing_zone:
+        schedule_zone_instruction = (
+            "Jev selected preservation of the edited workflow's existing schedule timezone. For a time or day "
+            "edit, keep its existing timezone even if the browser timezone differs; omit timezone if unsure. "
+            "For an edit unrelated to schedule, omit schedule entirely. The compiler uses the target's prior "
+            "valid timezone for any authored schedule. "
+        )
+    elif isinstance(workflow_count, int) and workflow_count > 1:
+        schedule_zone_instruction = (
+            "For multiple workflows, use each workflow's own requested schedule timezone. "
+            f"If none is requested for that workflow, use browser timezone {timezone}. "
+        )
+    elif isinstance(selected_zone, str) and selected_zone:
+        schedule_zone_instruction = (
+            f"Jev selected {selected_zone} as the schedule timezone. Use that timezone for the authored "
+            "schedule; the compiler will apply it even if a generated timezone differs. For an update that "
+            "does not change the schedule, omit schedule to preserve the existing trigger timezone. "
+        )
+    else:
+        schedule_zone_instruction = f"Browser timezone is {timezone}; use it unless user names a schedule timezone. "
+
     example = {"workflows": [{
         "header": {"operation": "create", "title": "Rain reminder",
                    "description": "Check the forecast and send the appropriate reminder.",
@@ -388,7 +419,7 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "For weather today, input_json must encode start_date and end_date as JSON OBJECTS "
         "{\"$date\":\"today\",\"format\":\"date\"}; tomorrow uses tomorrow in both. "
         "Never freeze relative dates or put marker-looking strings inside input_json. "
-        f"Browser timezone is {timezone}; use it unless user names a schedule timezone. A city attached to the "
+        + schedule_zone_instruction + "A city attached to the "
         "schedule clock time or day, such as '9 in Lisbon' or 'Lisbon time', names the schedule timezone "
         "(Europe/Lisbon in that example). A city used only as a search location does not change the schedule "
         "timezone. Missing schedule defaults Monday 09:00; omit unknown time/day so compiler "

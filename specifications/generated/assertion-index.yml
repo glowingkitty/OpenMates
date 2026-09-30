@@ -57870,7 +57870,7 @@ assertions:
       surface: cli
     - &id7029
       path: frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
-      line: 57
+      line: 63
       name: uses registered capabilities and retains only validated disabled prefixes
       surface: cli
     - &id7030
@@ -59319,7 +59319,7 @@ assertions:
     direct_tests:
     - &id7183
       path: frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
-      line: 57
+      line: 63
       name: uses registered capabilities and retains only validated disabled prefixes
       surface: cli
     supporting_tests:
@@ -59459,7 +59459,7 @@ assertions:
     direct_tests:
     - &id7206
       path: frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
-      line: 57
+      line: 63
       name: uses registered capabilities and retains only validated disabled prefixes
       surface: cli
     supporting_tests:
@@ -59658,7 +59658,7 @@ assertions:
     direct_tests:
     - &id7247
       path: frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
-      line: 57
+      line: 63
       name: uses registered capabilities and retains only validated disabled prefixes
       surface: cli
     supporting_tests:

@@ -30,10 +30,13 @@ def filesystem_capabilities(monkeypatch):
     monkeypatch.setattr(WorkflowCapabilityRegistry, "_registry", lambda self: _FilesystemWorkflowMetadataRegistry())
 
 
-def selection(*capabilities: str, operation: str = "create") -> WorkflowPreselection:
+def selection(*capabilities: str, operation: str = "create", schedule_timezone: str | None = None,
+              workflow_count: int | None = None, preserve_schedule_timezone: bool = False) -> WorkflowPreselection:
     registry = WorkflowCapabilityRegistry()
     return WorkflowPreselection([registry.get_capability(identifier) for identifier in capabilities],
-                                operation, "none", True, {}, {})
+                                operation, "none", True, {}, {}, workflow_count=workflow_count,
+                                schedule_timezone=schedule_timezone,
+                                preserve_schedule_timezone=preserve_schedule_timezone)
 
 
 def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_operators():
@@ -52,6 +55,26 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert "9 in Lisbon" in prompt and "Europe/Lisbon" in prompt
     assert "A city used only as a search location" in prompt
     assert "op:'" not in prompt
+
+
+def test_prompt_uses_jev_schedule_zone_only_for_single_workflow():
+    one = authoring_prompt(selection(schedule_timezone="Europe/Lisbon", workflow_count=1), "UTC")
+    assert "Jev selected Europe/Lisbon as the schedule timezone" in one
+    assert "compiler will apply it even if a generated timezone differs" in one
+    several = authoring_prompt(selection(schedule_timezone="UTC", workflow_count=2), "UTC")
+    assert "use each workflow's own requested schedule timezone" in several
+    assert "Jev selected UTC as the schedule timezone" not in several
+
+
+def test_prompt_preserves_existing_zone_for_time_edits_and_each_batch_target():
+    one = authoring_prompt(selection(operation="update", preserve_schedule_timezone=True), "UTC")
+    assert "Jev selected preservation of the edited workflow's existing schedule timezone" in one
+    assert "For a time or day edit, keep its existing timezone" in one
+    several = authoring_prompt(selection(operation="update", workflow_count=2,
+                                         preserve_schedule_timezone=True), "UTC")
+    assert "For every edited workflow, keep that target's existing schedule timezone" in several
+    created = authoring_prompt(selection(preserve_schedule_timezone=True), "UTC")
+    assert "Jev selected preservation" not in created
 
 
 def test_provider_envelope_is_flat_and_constant_across_selections():

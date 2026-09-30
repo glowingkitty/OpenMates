@@ -324,7 +324,27 @@ def _compile_authoring(
         if schedule_type == "manual":
             trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.MANUAL_TRIGGER)
         else:
-            zone = schedule.get("timezone") or timezone
+            # For a time-only edit, preserve the target's schedule zone even
+            # when Gemini echoes the browser zone in its authored schedule.
+            prior_zone = None
+            if (operation == "update" and getattr(selection, "preserve_schedule_timezone", False)
+                    and prior_trigger is not None and prior_trigger.type == WorkflowNodeType.SCHEDULE_TRIGGER):
+                prior_schedule = prior_trigger.config.get("schedule") or {}
+                candidate = prior_schedule.get("timezone") if isinstance(prior_schedule, dict) else None
+                if isinstance(candidate, str):
+                    try:
+                        ZoneInfo(candidate)
+                    except (ZoneInfoNotFoundError, ValueError):
+                        pass
+                    else:
+                        prior_zone = candidate
+            # A newly authored single-workflow clock follows Jev's explicit
+            # choice; batch workflows retain their individual authored zones.
+            selected_zone = getattr(selection, "schedule_timezone", None)
+            workflow_count = getattr(selection, "workflow_count", None)
+            if isinstance(workflow_count, int) and workflow_count > 1:
+                selected_zone = None  # One global choice cannot encode distinct batch timezones.
+            zone = prior_zone or selected_zone or schedule.get("timezone") or timezone
             try:
                 ZoneInfo(zone)
             except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:

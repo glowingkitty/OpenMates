@@ -129,6 +129,20 @@ def report_case(
     def reason(value: Any) -> str | None:
         return value if isinstance(value, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,79}", value) else None
 
+    def timezone_name(value: Any) -> str | None:
+        return value if isinstance(value, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_+/-]{0,79}", value) else None
+
+    def validation_path(value: Any) -> str | None:
+        return value if isinstance(value, str) and re.fullmatch(r"\$\.[a-z_]+(?:\.[a-z_]+)?", value) else None
+
+    saved = authored_workflows(result)
+    schedules = [node.get("config", {}).get("schedule", {}) for workflow in saved
+                 for node in (workflow.get("graph") or {}).get("nodes", [])
+                 if node.get("type") == "schedule_trigger"]
+    selected_ids = metrics.get("selected_capability_ids")
+    if not isinstance(selected_ids, list):
+        selected_ids = []
+
     return {
         "case": label,
         "status": result.get("status"),
@@ -138,6 +152,21 @@ def report_case(
             r"[A-Z][A-Z0-9_]{0,79}", str(result.get("error_code") or "")) else None,
         "partial_reason": result.get("partial_reason") if result.get("partial_reason") in {
             "stopped", "provider_error"} else None,
+        "operation": reason(metrics.get("operation")),
+        "request_clarity": reason(metrics.get("request_clarity")),
+        "check_mode": reason(metrics.get("check_mode")),
+        "chat_delivery": metrics.get("chat_delivery") if isinstance(metrics.get("chat_delivery"), bool) else None,
+        "workflow_count": metrics.get("workflow_count") if isinstance(metrics.get("workflow_count"), int)
+        and not isinstance(metrics.get("workflow_count"), bool) else None,
+        "saved_workflow_count": len(saved),
+        "selected_capability_ids": [item for item in selected_ids[:32] if isinstance(item, str)
+                                    and re.fullmatch(r"[a-z0-9_.-]{1,80}", item)],
+        "selected_schedule_timezone": timezone_name(metrics.get("schedule_timezone")),
+        "preserve_schedule_timezone": metrics.get("preserve_schedule_timezone") if isinstance(
+            metrics.get("preserve_schedule_timezone"), bool) else None,
+        "schedule_timezone": timezone_name(schedules[0].get("timezone")) if schedules else
+        timezone_name(metrics.get("schedule_timezone")),
+        "schedule_timezones": [timezone_name(item.get("timezone")) for item in schedules],
         "cli_wall_seconds": wall if stream_timing is None else None,
         "client_stream_wall_seconds": wall if stream_timing is not None else None,
         "queue_wait_seconds": queue,
@@ -157,12 +186,14 @@ def report_case(
             for stage in (metrics.get("stages") or []) if isinstance(stage, dict)],
         "last_failure_stage": reason(metrics.get("last_failure_stage")),
         "last_failure_reason_code": reason(metrics.get("last_failure_reason_code")),
+        "last_validation_code": reason(metrics.get("last_validation_code")),
         "generation_attempts": [{key: attempt.get(key) for key in (
             "seconds", "first_component_ms", "component_count", "input_tokens", "output_tokens",
             "thinking_tokens", "estimated_cost_usd") if isinstance(attempt.get(key), (int, float))}
-            | {"failure_reason_code": reason(attempt.get("failure_reason_code"))}
+            | {"failure_reason_code": reason(attempt.get("failure_reason_code")),
+               "validation_code": reason(attempt.get("validation_code")),
+               "validation_path": validation_path(attempt.get("validation_path"))}
             for attempt in attempts if isinstance(attempt, dict)],
-        "workflow_count": len(authored_workflows(result)),
         **({"stream_timing": {key: value for key, value in stream_timing.items()
                               if key in {"first_started_seconds", "first_header_seconds",
                                          "first_validated_action_seconds", "first_preview_seconds",
@@ -316,6 +347,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     or spoken_schedule.get("timezone") != "Europe/Lisbon"
                     or "thursday" not in spoken_schedule.get("weekdays", [])):
                 raise AssertionError("Spoken correction did not use the final time and city")
+            location = event_request(spoken_workflows[0]["graph"]).get("location")
+            if not isinstance(location, str) or "lisbon" not in location.lower() or "madrid" in location.lower():
+                raise AssertionError("Spoken correction did not use the final event city")
 
         if args.case in {"all", "remaining", "structural"}:
             baseline_yaml = state_dir / f"workflow-rollout-{nonce}.yml"

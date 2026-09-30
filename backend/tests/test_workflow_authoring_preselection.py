@@ -50,6 +50,8 @@ class Decisions:
             selection = {"operation": "create", "check_mode": "none", "workflow_count": "1", "request_clarity": "clear", "count:weather.forecast": "1",
                          "count:exact": "0", "count:ai": "0", "count:send": "1", "trigger": "schedule",
                          "trigger:next": "action1", "action1:next": "send1", "send1:next": "end"}.get(name)
+            if name == "schedule_timezone":
+                selection = next(iter(question["criteria"]))
             if self.cycle and name == "send1:next":
                 selection = "action1"
             if selection is None:
@@ -76,7 +78,7 @@ async def test_selects_registered_skills_directly_and_retains_full_contract():
     assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
     assert len(jev.requests) == 1
     state, questions = jev.requests[0]
-    assert set(questions) == {"weather.forecast", "weather.rain_radar", "operation", "check_mode", "chat_delivery", "workflow_count", "request_clarity"}
+    assert set(questions) == {"weather.forecast", "weather.rain_radar", "operation", "check_mode", "chat_delivery", "workflow_count", "request_clarity", "schedule_timezone"}
     assert result.workflow_count == 1
     assert state["existing_graph"] is None
     assert "example" not in result.context()["capabilities"][0]["input_schema"]["properties"]["example"]
@@ -114,7 +116,9 @@ async def test_staged_selection_routes_apps_then_selects_skills_with_controls():
                     value = 0.9 if name in {"app:weather", "weather.forecast", "chat_delivery"} else 0.02
                     answers[name] = {"type": "noul", "noul": value}
                 else:
-                    choice = {"operation": "create", "check_mode": "none", "workflow_count": "1", "request_clarity": "clear"}[name]
+                    choice = ({"operation": "create", "check_mode": "none", "workflow_count": "1",
+                               "request_clarity": "clear"}.get(name)
+                              or next(iter(question["criteria"])))
                     answers[name] = {"type": "choice", "choice": choice,
                                      "probabilities": {choice: 1.0}, "confidence": 1.0}
             return DecisionResponse.model_validate({"model": "test", "answers": answers,
@@ -149,6 +153,7 @@ async def test_staged_skill_outage_falls_back_to_direct_selection():
                            "check_mode": {"type": "choice", "choice": "none", "probabilities": {"none": 1.0}, "confidence": 1.0},
                            "workflow_count": {"type": "choice", "choice": "1", "probabilities": {"1": 1.0}, "confidence": 1.0},
                            "request_clarity": {"type": "choice", "choice": "clear", "probabilities": {"clear": 1.0}, "confidence": 1.0},
+                           "schedule_timezone": {"type": "choice", "choice": "UTC", "probabilities": {"UTC": 1.0}, "confidence": 1.0},
                            "chat_delivery": {"type": "noul", "noul": 0.9}}
                 return DecisionResponse.model_validate({"model": "test", "answers": answers,
                                                         "usage": {"input_tokens": 100, "output_tokens": 10}})
@@ -227,6 +232,117 @@ async def test_existing_open_workflow_remains_an_edit_target():
     assert jev.requests[0][0]["open_workflow"] is True
     assert result.operation == "update"
     assert result.metrics["operation"] == "update"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_text,choice,offered", [
+    ("At 09:00 Berlin time, search local events", "Europe/Berlin", "Europe/Berlin"),
+    ("At 09:00, search events in Berlin", "UTC", "Europe/Berlin"),
+    ("Every Tuesday at 8 in Madrid—no, Thursday at 9 in Lisbon, find meetups", "Europe/Lisbon", "Europe/Madrid"),
+    ("At 9 San Francisco time, find meetups", "America/Los_Angeles", "America/Los_Angeles"),
+    ("At 9 Europe/Paris, find meetups", "Europe/Paris", "Europe/Paris"),
+    ("At 9 Atlantis time, find meetups", "other", None),
+])
+async def test_schedule_timezone_choice_is_bounded_and_separates_clock_from_search(request_text, choice, offered):
+    class TimezoneDecisions(Decisions):
+        async def evaluate(self, *, state, questions):
+            response = await super().evaluate(state=state, questions=questions)
+            if "schedule_timezone" not in questions:
+                return response
+            assert choice in questions["schedule_timezone"]["criteria"]
+            answers = response.model_dump()["answers"]
+            answers["schedule_timezone"] = {"type": "choice", "choice": choice,
+                                            "probabilities": {choice: 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({**response.model_dump(), "answers": answers})
+
+    jev = TimezoneDecisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(request_text)
+    criteria = jev.requests[0][1]["schedule_timezone"]["criteria"]
+    assert len(criteria) <= 7
+    assert "UTC" in criteria and "other" in criteria and "existing" in criteria
+    if offered:
+        assert offered in criteria
+    assert "A place to search, visit" in jev.requests[0][1]["schedule_timezone"]["instructions"]
+    assert result.schedule_timezone == (None if choice == "other" else choice)
+    assert result.context()["schedule_timezone"] == result.schedule_timezone
+    assert result.metrics["schedule_timezone"] == result.schedule_timezone
+
+
+@pytest.mark.asyncio
+async def test_staged_uses_same_initial_timezone_question():
+    jev = Decisions()
+    await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry(), mode="staged").select(
+        "At 9 in Lisbon, find meetups", timezone="Europe/Berlin")
+    criteria = jev.requests[0][1]["schedule_timezone"]["criteria"]
+    assert "Europe/Berlin" in criteria
+    assert "Europe/Lisbon" in criteria
+    assert len(criteria) <= 7
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("request_text,choice,extra_zone", [
+    ("Change only the time to 10:00", "Europe/Berlin", None),
+    ("Change the schedule to 09:00 Lisbon time", "Europe/Lisbon", "Europe/Lisbon"),
+    ("Search meetups in Lisbon and keep everything else", "Europe/Berlin", "Europe/Lisbon"),
+])
+async def test_open_workflow_timezone_is_kept_unless_clock_zone_changes(request_text, choice, extra_zone):
+    class ExistingTimezoneDecisions(Decisions):
+        async def evaluate(self, *, state, questions):
+            response = await super().evaluate(state=state, questions=questions)
+            answers = response.model_dump()["answers"]
+            answers["schedule_timezone"] = {"type": "choice", "choice": choice,
+                                            "probabilities": {choice: 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({**response.model_dump(), "answers": answers})
+
+    selected = {"graph": {"nodes": [{"type": "schedule_trigger", "config": {"schedule": {
+        "type": "daily", "time": "09:00", "timezone": "Europe/Berlin"}}}]}}
+    jev = ExistingTimezoneDecisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+        request_text, timezone="UTC", selected_workflow=selected)
+    state, questions = jev.requests[0]
+    criteria = questions["schedule_timezone"]["criteria"]
+    assert set(("UTC", "Europe/Berlin", "other")) <= set(criteria)
+    if extra_zone:
+        assert extra_zone in criteria
+    assert state["existing_schedule_timezone"] == "Europe/Berlin"
+    assert "keep its existing schedule timezone" in questions["schedule_timezone"]["instructions"]
+    assert len(criteria) <= 7
+    assert result.schedule_timezone == choice
+
+
+@pytest.mark.asyncio
+async def test_invalid_existing_timezone_is_not_added_to_choices():
+    selected = {"graph": {"nodes": [{"type": "schedule_trigger", "config": {"schedule": {
+        "timezone": "Private/Injected_Zone"}}}]}}
+    jev = Decisions()
+    await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+        "Change only the time to 10:00", timezone="UTC", selected_workflow=selected)
+    state, questions = jev.requests[0]
+    assert state["existing_schedule_timezone"] is None
+    assert "Private/Injected_Zone" not in questions["schedule_timezone"]["criteria"]
+
+
+@pytest.mark.asyncio
+async def test_named_edit_can_preserve_unloaded_target_timezone():
+    class PreserveDecisions(Decisions):
+        async def evaluate(self, *, state, questions):
+            response = await super().evaluate(state=state, questions=questions)
+            answers = response.model_dump()["answers"]
+            for name, choice in (("operation", "update"), ("schedule_timezone", "existing")):
+                answers[name] = {"type": "choice", "choice": choice,
+                                 "probabilities": {choice: 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({**response.model_dump(), "answers": answers})
+
+    jev = PreserveDecisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+        "Change my Morning research workflow to run at 10, keep everything else", timezone="UTC")
+    assert jev.requests[0][0]["existing_schedule_timezone"] is None
+    assert "existing" in jev.requests[0][1]["schedule_timezone"]["criteria"]
+    assert result.operation == "update"
+    assert result.schedule_timezone is None
+    assert result.preserve_schedule_timezone is True
+    assert result.context()["preserve_schedule_timezone"] is True
+    assert result.metrics["preserve_schedule_timezone"] is True
 
 
 @pytest.mark.asyncio

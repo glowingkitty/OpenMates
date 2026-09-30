@@ -26,6 +26,12 @@ function skillIds(graph: any): string[] {
 		.map((node: any) => `${node.config?.app_id}.${node.config?.skill_id}`);
 }
 
+function scheduleConfig(graph: any): any {
+	const triggers = (graph.nodes ?? []).filter((node: any) => node.type === 'schedule_trigger');
+	expect(triggers).toHaveLength(1);
+	return triggers[0].config?.schedule;
+}
+
 function expectNoUnsupportedDelivery(graph: any): void {
 	for (const node of graph.nodes ?? []) {
 		expect(String(node.type).toLowerCase()).not.toContain('slack');
@@ -87,12 +93,44 @@ test.describe('CLI natural-language workflow guards', () => {
 				expect(saved.enabled).toBe(false);
 				expectNoUnsupportedDelivery(saved.graph);
 				for (const skill of skillIds(saved.graph)) expect(['web.read', 'ai.ask']).toContain(skill);
-				if (reading.status === 'executed') expect(skillIds(saved.graph)).toContain('web.read');
+				if (reading.status === 'executed') {
+					expect(skillIds(saved.graph)).toContain('web.read');
+					expect(scheduleConfig(saved.graph)).toMatchObject({
+						type: 'weekly', time: '10:00', timezone: 'UTC', weekdays: ['tuesday']
+					});
+				}
 			}
 			const afterReading: any[] = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'list'], 'list workflows after web reading');
 			expectExistingWorkflowsUnchanged(before, afterReading);
 			const readingNewIds = new Set(afterReading.filter((workflow: any) => !baselineIds?.has(workflow.id)).map((workflow: any) => workflow.id));
 			expect(readingNewIds).toEqual(new Set(readingWorkflows.map((workflow: any) => workflow.id)));
+			const spoken = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'input',
+				'Every Tuesday at 8 in Madrid—no, make that Thursday at 9 in Lisbon—find local tech meetups and send me a chat summary.'
+			], 'spoken correction workflow');
+			const spokenWorkflows = authoredWorkflows(spoken);
+			for (const workflow of spokenWorkflows) if (!baselineIds.has(workflow.id)) createdIds.add(workflow.id);
+			expect(spoken.status).toBe('executed');
+			expect(spokenWorkflows).toHaveLength(1);
+			const spokenSaved = await runWorkflowCliJson(apiUrl, homeDir,
+				['workflows', 'show', spokenWorkflows[0].id], 'inspect spoken correction workflow');
+			expect(spokenSaved.enabled).toBe(false);
+			expect(scheduleConfig(spokenSaved.graph)).toMatchObject({
+				type: 'weekly', time: '09:00', timezone: 'Europe/Lisbon', weekdays: ['thursday']
+			});
+			expect(skillIds(spokenSaved.graph)).toContain('events.search');
+			const eventNodes = (spokenSaved.graph.nodes ?? []).filter((node: any) =>
+				node.type === 'app_skill_action' && node.config?.app_id === 'events' && node.config?.skill_id === 'search');
+			expect(eventNodes).toHaveLength(1);
+			const eventRequests = eventNodes[0].config?.input?.requests;
+			expect(eventRequests).toHaveLength(1);
+			expect(String(eventRequests[0].location).toLowerCase()).toContain('lisbon');
+			expect(String(eventRequests[0].location).toLowerCase()).not.toContain('madrid');
+			const afterSpoken: any[] = await runWorkflowCliJson(apiUrl, homeDir,
+				['workflows', 'list'], 'list workflows after spoken correction');
+			expectExistingWorkflowsUnchanged(afterReading, afterSpoken);
+			const spokenNewIds = new Set(afterSpoken.filter((workflow: any) =>
+				!afterReading.some((prior: any) => prior.id === workflow.id)).map((workflow: any) => workflow.id));
+			expect(spokenNewIds).toEqual(new Set([spokenWorkflows[0].id]));
 			const batch = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'input',
 				'Create two workflows: send a Berlin weather update to my chat each morning, and post an accessibility news digest to Slack each Friday.'
 			], 'atomic mixed-capability workflow batch');
@@ -100,10 +138,10 @@ test.describe('CLI natural-language workflow guards', () => {
 			for (const workflow of batchWorkflows) if (!baselineIds.has(workflow.id)) createdIds.add(workflow.id);
 			expect(['draft', 'failed']).toContain(batch.status);
 			const afterBatch: any[] = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'list'], 'list workflows after mixed batch');
-			const afterReadingIds = new Set(afterReading.map((workflow: any) => workflow.id));
-			for (const workflow of afterBatch) if (!afterReadingIds.has(workflow.id)) createdIds.add(workflow.id);
-			expectExistingWorkflowsUnchanged(afterReading, afterBatch);
-			const batchNewIds = new Set(afterBatch.filter((workflow: any) => !afterReadingIds.has(workflow.id)).map((workflow: any) => workflow.id));
+			const afterSpokenIds = new Set(afterSpoken.map((workflow: any) => workflow.id));
+			for (const workflow of afterBatch) if (!afterSpokenIds.has(workflow.id)) createdIds.add(workflow.id);
+			expectExistingWorkflowsUnchanged(afterSpoken, afterBatch);
+			const batchNewIds = new Set(afterBatch.filter((workflow: any) => !afterSpokenIds.has(workflow.id)).map((workflow: any) => workflow.id));
 			if (batch.status === 'draft') {
 				expect(batch.partial_reason).toBe('provider_error');
 				expect(batch.partial_warning).toEqual(expect.any(String));

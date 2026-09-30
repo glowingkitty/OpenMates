@@ -25,11 +25,15 @@ def filesystem_capabilities(monkeypatch):
     monkeypatch.setattr(WorkflowCapabilityRegistry, "_registry", lambda self: _FilesystemWorkflowMetadataRegistry())
 
 
-def selection(*capabilities: str, mode: str = "none", operation: str = "create") -> WorkflowPreselection:
+def selection(*capabilities: str, mode: str = "none", operation: str = "create",
+              schedule_timezone: str | None = None, workflow_count: int | None = None,
+              preserve_schedule_timezone: bool = False) -> WorkflowPreselection:
     registry = WorkflowCapabilityRegistry()
     return WorkflowPreselection(
         capabilities=[registry.get_capability(identifier) for identifier in capabilities],
         operation=operation, check_mode=mode, chat_delivery=True, scores={}, metrics={},
+        schedule_timezone=schedule_timezone, workflow_count=workflow_count,
+        preserve_schedule_timezone=preserve_schedule_timezone,
     )
 
 
@@ -41,6 +45,79 @@ def plan(steps, *, schedule=None):
 
 def ref(step: str, field: str):
     return {"ref": {"step": step, "field": field}}
+
+
+def test_selected_schedule_timezone_overrides_authored_zone_and_browser_for_single_workflow():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    chosen = selection(schedule_timezone="Europe/Lisbon", workflow_count=1)
+    for authored in ({"type": "weekly", "time": "09:00", "weekdays": ["thursday"], "timezone": "UTC"},
+                     {"type": "weekly", "time": "09:00", "weekdays": ["thursday"]}):
+        result = compile_authoring_plan(plan([send], schedule=authored), chosen, "UTC")
+        assert result["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == "Europe/Lisbon"
+
+
+def test_no_selected_zone_preserves_authored_or_browser_timezone():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    for authored, expected in (({"type": "weekly", "timezone": "Europe/Madrid"}, "Europe/Madrid"),
+                               ({"type": "weekly"}, "UTC")):
+        result = compile_authoring_plan(plan([send], schedule=authored), selection(), "UTC")
+        assert result["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == expected
+
+
+def test_unrelated_update_preserves_timezone_but_explicit_schedule_edit_uses_selected_zone():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    original = compile_authoring_plan(
+        plan([send], schedule={"type": "weekly", "time": "09:00", "timezone": "Europe/Berlin"}), selection(), "UTC")
+    target = {"id": "workflow-1", "version": 1, "graph": original["graph"]}
+    chosen = selection(operation="update", schedule_timezone="Europe/Lisbon", workflow_count=1)
+    renamed = compile_authoring_plan(
+        {"operation": "update", "workflow_id": "workflow-1", "title": "Renamed"}, chosen, "UTC", target)
+    assert renamed["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == "Europe/Berlin"
+    rescheduled = compile_authoring_plan(
+        {"operation": "update", "workflow_id": "workflow-1",
+         "schedule": {"type": "weekly", "time": "10:00", "timezone": "UTC"}}, chosen, "UTC", target)
+    assert rescheduled["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == "Europe/Lisbon"
+
+
+def test_multi_workflow_distinct_authored_zones_survive_global_preselection():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    chosen = selection(schedule_timezone="UTC", workflow_count=2)
+    for zone in ("Europe/Berlin", "America/New_York"):
+        result = compile_authoring_plan(
+            plan([send], schedule={"type": "weekly", "time": "09:00", "timezone": zone}), chosen, "UTC")
+        assert result["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == zone
+
+
+def test_time_only_update_preserves_prior_zone_when_model_echoes_browser_zone():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    original = compile_authoring_plan(
+        plan([send], schedule={"type": "weekly", "time": "09:00", "timezone": "Europe/Berlin"}), selection(), "UTC")
+    target = {"id": "workflow-1", "version": 1, "graph": original["graph"]}
+    chosen = selection(operation="update", preserve_schedule_timezone=True, workflow_count=1)
+    result = compile_authoring_plan(
+        {"operation": "update", "workflow_id": "workflow-1",
+         "schedule": {"type": "weekly", "time": "10:00", "timezone": "UTC"}}, chosen, "UTC", target)
+    schedule = result["graph"]["nodes"][0]["config"]["schedule"]
+    assert schedule["time"] == "10:00"
+    assert schedule["timezone"] == "Europe/Berlin"
+
+
+def test_multi_update_preserves_each_prior_zone_and_create_ignores_preserve_flag():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    chosen = selection(operation="update", preserve_schedule_timezone=True, workflow_count=2)
+    for index, zone in enumerate(("Europe/Berlin", "America/New_York")):
+        original = compile_authoring_plan(
+            plan([send], schedule={"type": "weekly", "time": "09:00", "timezone": zone}), selection(), "UTC")
+        workflow_id = f"workflow-{index}"
+        target = {"id": workflow_id, "version": 1, "graph": original["graph"]}
+        result = compile_authoring_plan(
+            {"operation": "update", "workflow_id": workflow_id,
+             "schedule": {"type": "weekly", "time": "10:00", "timezone": "UTC"}}, chosen, "UTC", target)
+        assert result["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == zone
+    create = compile_authoring_plan(
+        plan([send], schedule={"type": "weekly", "time": "10:00"}),
+        selection(preserve_schedule_timezone=True), "UTC")
+    assert create["graph"]["nodes"][0]["config"]["schedule"]["timezone"] == "UTC"
 
 
 def test_flat_accumulator_accepts_check_before_children_and_rejects_bad_node_without_mutation():
