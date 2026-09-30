@@ -27,7 +27,9 @@ import httpx
 from backend.core.api.app.services.workflow_authoring_compiler import compile_authoring_plan
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowAuthoringPreselector
 from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
-from backend.core.api.app.services.workflow_gemini_authoring import WorkflowGeminiAuthor
+from backend.core.api.app.services.workflow_gemini_authoring import (
+    WorkflowAuthoringProviderError, WorkflowGeminiAuthor,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.scripts.benchmark_workflow_authoring import CASES
 from backend.scripts.benchmark_workflow_compact_authoring import run_case
@@ -47,6 +49,44 @@ class RecordingSelector:
         result = await asyncio.wait_for(self.selector.select(*args, **kwargs), timeout=3.2)
         self.last_metrics = result.metrics
         return result
+
+
+class RecordingAuthor:
+    """Capture bounded failure evidence without writing model payloads to stdout."""
+
+    def __init__(self, author: WorkflowGeminiAuthor) -> None:
+        self.author = author
+        self.model = author.model
+        self.last_failure: WorkflowAuthoringProviderError | None = None
+
+    async def generate(self, *args: Any, **kwargs: Any) -> Any:
+        self.last_failure = None
+        try:
+            return await self.author.generate(*args, **kwargs)
+        except WorkflowAuthoringProviderError as exc:
+            self.last_failure = exc
+            raise
+
+
+def provider_failure_details(error: WorkflowAuthoringProviderError) -> dict[str, Any]:
+    """Summarize accepted synthetic content without copying generated text."""
+    prefixes = error.accepted_prefixes if isinstance(error.accepted_prefixes, list) else []
+    counts = [{"header_accepted": isinstance(item.get("header"), dict),
+               "nodes_accepted": len(item.get("nodes", [])) if isinstance(item.get("nodes"), list) else 0}
+              for item in prefixes[:8] if isinstance(item, dict)]
+    details: dict[str, Any] = {"accepted_prefix_counts": counts,
+                               "accepted_node_count": sum(item["nodes_accepted"] for item in counts)}
+    validation_error = getattr(error, "validation_error", None)
+    if isinstance(validation_error, str):
+        details["provider_validation_error"] = validation_error[:600]
+    metrics = error.metrics if isinstance(error.metrics, dict) else {}
+    # A numeric provider estimate is useful even when the plan failed. It is
+    # reported as known metering, never as a complete invoice estimate.
+    known_cost = metrics.get("estimated_cost_usd")
+    details["provider_usage_reported"] = isinstance(known_cost, (int, float))
+    if isinstance(known_cost, (int, float)):
+        details["known_generation_cost_usd"] = known_cost
+    return details
 
 
 def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -91,6 +131,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 async def _main(args: argparse.Namespace) -> int:
+    cases = list(CASES) if args.cases == ["all"] else [case for case in CASES if case.id in args.cases]
+    if not cases or (args.cases != ["all"] and len(cases) != len(args.cases)):
+        raise ValueError("Unknown or duplicate benchmark case")
     logging.getLogger("backend.core.api.app.utils.secrets_manager").setLevel(logging.CRITICAL)
     secrets = SecretsManager()
     await secrets.initialize()
@@ -99,14 +142,15 @@ async def _main(args: argparse.Namespace) -> int:
         async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=5.0)) as client:
             jev = JevDecisionClient(secrets_manager=secrets, http_client=client,
                                     timeout_seconds=3.0, max_retries=0)
-            author = WorkflowGeminiAuthor(secrets_manager=secrets, client=client, model=args.model)
+            author = RecordingAuthor(WorkflowGeminiAuthor(secrets_manager=secrets,
+                                                           client=client, model=args.model))
             selectors = {mode: RecordingSelector(WorkflowAuthoringPreselector(
                 jev_client=jev, registry=registry, mode=mode)) for mode in ("direct", "staged")}
             rows: list[dict[str, Any]] = []
             for repeat in range(args.repeats):
                 # Alternate first arm to reduce warm-cache/order bias.
                 modes = ("direct", "staged") if repeat % 2 == 0 else ("staged", "direct")
-                for case in CASES:
+                for case in cases:
                     for mode in modes:
                         row = await run_case(case, preselector=selectors[mode], author=author,
                                              compile_plan=compile_authoring_plan)
@@ -116,6 +160,9 @@ async def _main(args: argparse.Namespace) -> int:
                         row["selection_stages"] = metrics.get("stages", [])
                         row["app_scores"] = metrics.get("app_scores", {})
                         row["selection_fallback"] = metrics.get("fallback")
+                        if author.last_failure is not None:
+                            row.update(provider_failure_details(author.last_failure))
+                            row["cost_estimate_complete"] = False
                         rows.append(row)
                         print(f"{case.id:23} {mode:6} selection={row.get('selected_capabilities', [])} "
                               f"graph={row['graph_valid']} intent={row['intent_match']} "
@@ -125,7 +172,7 @@ async def _main(args: argparse.Namespace) -> int:
             "model": args.model, "repeats": args.repeats,
             "scope": "Synthetic authoring only; no persistence or execution. Transport/schema failures are separate from intent failures.",
             "first_preview_scope": "Time from Gemini generation start to first complete preview component callback; this may be a validated header or trigger, not the first action.",
-            "cases": [asdict(case) for case in CASES], "summary": summarize(rows), "rows": rows,
+            "cases": [asdict(case) for case in cases], "summary": summarize(rows), "rows": rows,
         }
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +190,7 @@ async def _main(args: argparse.Namespace) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument("--cases", nargs="+", default=["all"], help="Case IDs or all")
     parser.add_argument("--model", default="gemini-3.8-flash")
     parser.add_argument("--output", default="/tmp/workflow-preselection-comparison.json")
     args = parser.parse_args()

@@ -69,6 +69,23 @@ def test_flat_accumulator_accepts_check_before_children_and_rejects_bad_node_wit
     assert author.compile_final()["action"] == "create_workflow"
 
 
+def test_schedule_rejects_fields_from_other_kinds_before_streaming_header():
+    for schedule in ({"type": "weekly", "weekdays": ["monday"], "at": "07:30"},
+                     {"type": "hourly", "time": "07:30"},
+                     {"type": "once", "time": "07:30"},
+                     {"type": "manual", "timezone": "UTC"}):
+        author = FlatAuthoringAccumulator(selection(), "UTC")
+        with pytest.raises(ValueError, match="different schedule type"):
+            author.accept_header({"operation": "create", "title": "Test", "description": "Test",
+                                  "icon": "help-circle", "schedule": schedule})
+        assert author.flat_snapshot() is None
+    author = FlatAuthoringAccumulator(selection(), "UTC")
+    accepted = author.accept_header({"operation": "create", "title": "Test", "description": "Test",
+                                     "icon": "help-circle", "schedule": {"type": "weekly", "time": "07:30",
+                                                                          "weekdays": ["monday"]}})
+    assert accepted["graph"]["nodes"][0]["config"]["schedule"]["time"] == "07:30"
+
+
 def test_flat_update_header_preserves_original_and_new_node_splices_without_dropping_reply():
     original = compile_authoring_plan(plan([
         {"kind": "app", "id": "forecast", "capability": "weather.forecast",

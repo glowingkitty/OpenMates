@@ -309,6 +309,15 @@ def _compile_authoring(
         schedule_type = schedule.get("type")
         if schedule_type not in {"daily", "weekly", "hourly", "once", "manual"}:
             raise ValueError("Schedule type is unsupported")
+        schedule_fields = {
+            "daily": {"type", "time", "timezone"},
+            "weekly": {"type", "time", "timezone", "weekdays"},
+            "hourly": {"type", "minute", "timezone"},
+            "once": {"type", "at", "timezone"},
+            "manual": {"type"},
+        }
+        if set(schedule) - schedule_fields[schedule_type]:
+            raise ValueError("Schedule has fields for a different schedule type")
         if schedule_type == "manual":
             trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.MANUAL_TRIGGER)
         else:

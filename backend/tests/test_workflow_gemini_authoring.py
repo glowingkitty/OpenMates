@@ -46,6 +46,8 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert json.loads(check["predicate_json"])["op"] == "eq"
     assert yes["parent_check_id"] == no["parent_check_id"] == "rain"
     assert "NOT forecast data" in prompt
+    assert "Daily and weekly clock times MUST use time" in prompt
+    assert "do not add Ask AI merely" in prompt
     assert "op:'" not in prompt
 
 
