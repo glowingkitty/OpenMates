@@ -45,137 +45,172 @@ receives only PAKE messages, a one-use grant hash, and an encrypted key bundle.
     let hasPassword = $state(false);
     let has2FA = $state(false);
     let pinCopied = $state(false);
+    let stepUpSuccess = $state<() => void>(() => {});
     let displayPin = $derived(generatedPin ? `${generatedPin.slice(0, 3)} ${generatedPin.slice(3)}` : '');
 
     onMount(() => {
-        const storedToken = get(pendingPairToken);
-        pendingPairToken.set(null);
-        if (!storedToken || !/^[A-Z0-9]{6}$/i.test(storedToken)) { pageStatus = 'invalid'; return; }
-        token = storedToken.toUpperCase();
-        void loadDeviceInfo();
+        // New pair fragments can reuse this mounted settings destination.
+        const unsubscribe = pendingPairToken.subscribe((storedToken) => {
+            if (storedToken === null) return;
+            pendingPairToken.set(null);
+            const nextToken = storedToken.toUpperCase();
+            if (nextToken !== token) replacePair(nextToken);
+        });
+        if (!token) pageStatus = 'invalid';
+        return unsubscribe;
     });
     onDestroy(() => {
-        destroyed = true; generation++; stopPolling(); approver?.abort();
-        if (approved && pageStatus !== 'complete' && token) void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
+        destroyed = true; invalidatePair();
     });
     function stopPolling() { if (pollInterval) clearInterval(pollInterval); pollInterval = null; }
+    function isCurrent(run: number, requestToken: string) {
+        return !destroyed && run === generation && requestToken === token;
+    }
+    function cancelPair(requestToken: string) {
+        void pairRequest(`/${requestToken}`, { method: 'DELETE' }).catch(() => {});
+    }
+    function invalidatePair() {
+        const oldToken = token;
+        const shouldCancel = approved !== null && pageStatus !== 'complete';
+        generation++; stopPolling(); approver?.abort(); approver = null;
+        info = null; approved = null; stage = 'waiting'; polling = false;
+        generatedPin = null; pinCopied = false;
+        stepUpSuccess = () => {};
+        if (shouldCancel && oldToken) cancelPair(oldToken);
+    }
+    function replacePair(nextToken: string) {
+        invalidatePair(); token = nextToken;
+        deviceInfo = null; errorMessage = ''; autoLogoutMinutes = null;
+        hasPasskey = false; hasPassword = false; has2FA = false;
+        if (!/^[A-Z0-9]{6}$/.test(token)) { pageStatus = 'invalid'; return; }
+        void loadDeviceInfo();
+    }
     function fail(message: string) {
-        stopPolling(); approver?.abort(); approver = null; generatedPin = null;
+        invalidatePair();
         errorMessage = message; pageStatus = 'error';
-        if (approved && token) void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
     }
     async function loadDeviceInfo() {
+        const run = generation, requestToken = token;
         pageStatus = 'loading'; errorMessage = '';
         try {
-            const data = await pairRequest<PairInfo>(`/info/${token}`);
-            if (destroyed) return;
+            const data = await pairRequest<PairInfo>(`/info/${requestToken}`);
+            if (!isCurrent(run, requestToken)) return;
             if (data.protocol_version !== 2 || !data.session_id || !data.receiver_token_hash || pairExpired(data.expires_at)) { pageStatus = 'invalid'; return; }
             info = data;
             deviceInfo = { device_name: data.device_name || 'Unknown device', ip_truncated: data.ip_truncated || '', country_code: data.country_code || null, city: data.city || null };
             const methods = await fetch(getApiEndpoint(apiEndpoints.auth.methods), { credentials: 'include' });
+            if (!isCurrent(run, requestToken)) return;
             if (!methods.ok) throw new Error('Could not load authentication methods');
             const auth = await methods.json();
+            if (!isCurrent(run, requestToken)) return;
             hasPasskey = !!auth.has_passkey; hasPassword = !!auth.has_password; has2FA = !!auth.has_2fa;
             pageStatus = 'confirm';
         } catch (err) {
-            if (!destroyed) { errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error'); pageStatus = 'error'; }
+            if (isCurrent(run, requestToken)) { errorMessage = err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error'); pageStatus = 'error'; }
         }
     }
     async function allow() {
         if (!info || pageStatus !== 'confirm') return;
-        const run = generation;
+        const run = generation, requestToken = token, requestInfo = info, lifetime = autoLogoutMinutes;
         pageStatus = 'authorizing'; errorMessage = '';
         try {
-            const data = await pairRequest<PairInfo & { success: boolean }>(`/approve/${token}`, {
-                method: 'POST', body: JSON.stringify({ authorizer_device_name: getAuthorizerDeviceName(), auto_logout_minutes: autoLogoutMinutes }),
+            const data = await pairRequest<PairInfo & { success: boolean }>(`/approve/${requestToken}`, {
+                method: 'POST', body: JSON.stringify({ authorizer_device_name: getAuthorizerDeviceName(), auto_logout_minutes: lifetime }),
             });
-            if (destroyed || run !== generation) {
-                if (data.success) void pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
+            if (!isCurrent(run, requestToken)) {
+                if (data.success) cancelPair(requestToken);
                 return;
             }
-            if (!data.success || data.protocol_version !== 2 || data.session_id !== info.session_id || data.receiver_token_hash !== info.receiver_token_hash || data.auto_logout_minutes !== autoLogoutMinutes || !data.authorizer_user_id || pairExpired(data.expires_at)) throw new Error('Pairing approval mismatch');
+            if (!data.success || data.protocol_version !== 2 || data.session_id !== requestInfo.session_id || data.receiver_token_hash !== requestInfo.receiver_token_hash || data.auto_logout_minutes !== lifetime || !data.authorizer_user_id || pairExpired(data.expires_at)) throw new Error('Pairing approval mismatch');
             if (data.authorizer_user_id !== get(userProfile).user_id) throw new Error('Pairing account mismatch');
             approved = data;
-            const context = createPairContext({ token, session_id: info.session_id, receiver_token_hash: info.receiver_token_hash,
-                authorizer_user_id: data.authorizer_user_id, auto_logout_minutes: autoLogoutMinutes });
+            const context = createPairContext({ token: requestToken, session_id: requestInfo.session_id, receiver_token_hash: requestInfo.receiver_token_hash,
+                authorizer_user_id: data.authorizer_user_id, auto_logout_minutes: lifetime });
             const nextApprover = await createPairApprover(context);
-            if (destroyed || run !== generation) { nextApprover.abort(); return; }
+            if (!isCurrent(run, requestToken)) { nextApprover.abort(); return; }
             approver = nextApprover;
             generatedPin = nextApprover.pin;
             pageStatus = 'pin_display';
             pollInterval = setInterval(() => { void pollStatus(); }, PAIR_POLL_MS);
         } catch (err) {
-            if (destroyed || run !== generation) return;
+            if (!isCurrent(run, requestToken)) return;
             if ([401, 403, 428].includes((err as { status?: number }).status ?? 0)) {
+                stepUpSuccess = () => { void handleStepUpSuccess(run, requestToken); };
                 pageStatus = 'step_up';
             } else fail(err instanceof Error ? err.message : $text('settings.sessions.pair_confirm_error'));
         }
     }
-    async function handleStepUpSuccess() {
-        if (pageStatus !== 'step_up') return;
-        const run = generation;
-        if (destroyed || run !== generation) return;
+    async function handleStepUpSuccess(run: number, requestToken: string) {
+        if (!isCurrent(run, requestToken) || pageStatus !== 'step_up') return;
         // SecurityAuth verifies passkey, TOTP, or password plus one-use email
         // code against the current server session before invoking onSuccess.
         pageStatus = 'confirm';
         await allow();
     }
-    async function deny() {
-        if (approved) await pairRequest(`/${token}`, { method: 'DELETE' }).catch(() => {});
+    function deny() {
+        invalidatePair();
         pageStatus = 'denied'; dispatch('denied');
     }
     async function pollStatus() {
         if (polling || !approved || !approver || pageStatus !== 'pin_display') return;
         if (pairExpired(approved.expires_at)) { fail($text('settings.sessions.pair_expired')); return; }
-        const run = generation;
+        const run = generation, requestToken = token, activeApprover = approver, activeApproval = approved;
         polling = true;
         try {
-            const data = await pairRequest<PairPoll>(`/authorizer/${token}`);
-            if (destroyed || run !== generation) return;
+            const data = await pairRequest<PairPoll>(`/authorizer/${requestToken}`);
+            if (!isCurrent(run, requestToken)) return;
             if (data.status === 'failed' || data.status === 'cancelled') { fail($text('settings.sessions.pair_restart_required')); return; }
             if (data.status === 'request' && data.receiver_request && stage === 'waiting') {
                 stage = 'response';
-                const response = await approver.receiveRequest(data.receiver_request);
-                if (destroyed || run !== generation) return;
-                await pairRequest(`/authorizer/${token}/message`, { method: 'POST', body: JSON.stringify({ stage: 'response', message: response }) });
+                const response = await activeApprover.receiveRequest(data.receiver_request);
+                if (!isCurrent(run, requestToken)) return;
+                await pairRequest(`/authorizer/${requestToken}/message`, { method: 'POST', body: JSON.stringify({ stage: 'response', message: response }) });
+                if (!isCurrent(run, requestToken)) return;
             }
             if (data.status === 'finish' && data.receiver_finish && stage === 'response') {
                 stage = 'authorized';
-                await approver.verifyFinish(data.receiver_finish);
-                if (destroyed || run !== generation) return;
+                await activeApprover.verifyFinish(data.receiver_finish);
+                if (!isCurrent(run, requestToken)) return;
                 // The master key is exported only after a valid local PAKE final proof.
                 const grant = await generateGrantSecret();
-                if (destroyed || run !== generation) return;
-                const bundle = await buildBundle(grant.secret);
-                if (destroyed || run !== generation) return;
-                const encrypted = await approver.encryptBundle(bundle);
-                if (destroyed || run !== generation) return;
-                await pairRequest(`/authorize/${token}`, { method: 'POST', body: JSON.stringify({ ...encrypted, grant_hash: grant.hash }) });
+                if (!isCurrent(run, requestToken)) return;
+                const bundle = await buildBundle(grant.secret, activeApproval, run, requestToken);
+                if (!isCurrent(run, requestToken)) return;
+                const encrypted = await activeApprover.encryptBundle(bundle);
+                if (!isCurrent(run, requestToken)) return;
+                await pairRequest(`/authorize/${requestToken}`, { method: 'POST', body: JSON.stringify({ ...encrypted, grant_hash: grant.hash }) });
+                if (!isCurrent(run, requestToken)) return;
             }
             if (data.status === 'acknowledged' && stage === 'authorized') {
-                stopPolling(); approver.abort(); approver = null; generatedPin = null;
+                stopPolling(); activeApprover.abort(); approver = null; generatedPin = null;
                 pageStatus = 'complete'; newlyPairedSession.set(true);
                 notificationStore.success(get(text)('settings.sessions.pair_complete_success'));
                 dispatch('openSettings', { settingsPath: 'account/security/sessions', direction: 'backward', icon: 'devices', title: get(text)('settings.sessions.title') });
             }
         } catch (err) {
-            if (!destroyed && run === generation) fail(err instanceof Error ? err.message : $text('settings.sessions.pair_restart_required'));
-        } finally { polling = false; }
+            if (isCurrent(run, requestToken)) fail(err instanceof Error ? err.message : $text('settings.sessions.pair_restart_required'));
+        } finally { if (isCurrent(run, requestToken)) polling = false; }
     }
-    async function buildBundle(grantSecret: string): Promise<PairBundle> {
-        if (!approved) throw new Error('Pairing approval missing');
+    async function buildBundle(grantSecret: string, activeApproval: PairInfo, run: number, requestToken: string): Promise<PairBundle> {
+        const check = () => { if (!isCurrent(run, requestToken)) throw new Error('Pairing request replaced'); };
+        check();
         const masterKey = await getKeyFromStorage();
+        check();
         if (!masterKey) throw new Error('Master key not found');
         const salt = getEmailSalt();
         if (!salt) throw new Error('Account metadata unavailable');
         const account = await pairRequest<PairAccountCheck>('/account-check');
-        if (account.user_id !== approved.authorizer_user_id || account.user_id !== get(userProfile).user_id ||
+        check();
+        if (account.user_id !== activeApproval.authorizer_user_id || account.user_id !== get(userProfile).user_id ||
             account.user_email_salt !== uint8ArrayToBase64(salt)) throw new Error('Pairing account mismatch');
         const localEmail = account.encrypted_email_with_master_key ? null : await getEmailDecryptedWithMasterKey();
+        check();
         const encryptedEmail = await resolvePairEmailEnvelope(account, masterKey, localEmail);
+        check();
         const master_key_exported = uint8ArrayToBase64(new Uint8Array(await crypto.subtle.exportKey('raw', masterKey)));
+        check();
         return { protocol_version: 2, master_key_exported, grant_secret: grantSecret, user_email_salt: uint8ArrayToBase64(salt),
-            hashed_email: account.hashed_email, user_id: approved.authorizer_user_id!,
+            hashed_email: account.hashed_email, user_id: activeApproval.authorizer_user_id!,
             account_context: { encrypted_email_with_master_key: encryptedEmail } };
     }
     function getAuthorizerDeviceName(): string {
@@ -193,7 +228,13 @@ receives only PAKE messages, a one-use grant hash, and an encrypted key bundle.
     }
     async function copyPin() {
         if (!generatedPin) return;
-        try { await navigator.clipboard.writeText(generatedPin); pinCopied = true; setTimeout(() => { pinCopied = false; }, 2000); } catch { /* unavailable */ }
+        const run = generation, requestToken = token, pin = generatedPin;
+        try {
+            await navigator.clipboard.writeText(pin);
+            if (!isCurrent(run, requestToken)) return;
+            pinCopied = true;
+            setTimeout(() => { if (isCurrent(run, requestToken)) pinCopied = false; }, 2000);
+        } catch { /* unavailable */ }
     }
 </script>
 
@@ -211,7 +252,7 @@ receives only PAKE messages, a one-use grant hash, and an encrypted key bundle.
         <div class="error-box">
             <p>{errorMessage}</p>
         </div>
-        <button class="btn btn-secondary" onclick={() => loadDeviceInfo()}>
+        <button class="btn btn-secondary" onclick={() => replacePair(token)}>
             {$text('settings.sessions.pair_refresh')}
         </button>
 
@@ -267,7 +308,7 @@ receives only PAKE messages, a one-use grant hash, and an encrypted key bundle.
             sensitiveActionPurpose="pair_approval"
             title={$text('settings.sessions.pair_step_up_title')}
             description={$text('settings.sessions.pair_step_up_description')}
-            onSuccess={() => { void handleStepUpSuccess(); }}
+            onSuccess={stepUpSuccess}
             onFailed={(message) => { errorMessage = message; }}
             onCancel={() => { pageStatus = 'confirm'; }}
         />
