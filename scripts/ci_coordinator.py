@@ -22,7 +22,7 @@ import time
 import uuid
 
 POLL_SECONDS = 30
-MAX_ACTIVE = 4
+MAX_ACTIVE = 10
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex"})
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
