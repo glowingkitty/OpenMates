@@ -142,3 +142,53 @@ header_tap:
   sv: "OpenMates kan hjälpa dig med:"
   he: "OpenMates יכול לעזור לך עם:"
   verified_by_human: []
+
+embed_result:
+  context: Subtitle below a matching composer search card for locally synced embeds
+  en: "Embed"
+  de: "Embed"
+  zh: "嵌入内容"
+  es: "Contenido integrado"
+  fr: "Contenu intégré"
+  pt: "Conteúdo incorporado"
+  ru: "Встроенный элемент"
+  ja: "埋め込み"
+  ko: "임베드"
+  it: "Contenuto incorporato"
+  tr: "Gömülü içerik"
+  vi: "Nội dung nhúng"
+  id: "Sematan"
+  pl: "Osadzenie"
+  nl: "Ingesloten inhoud"
+  ar: "محتوى مضمن"
+  hi: "एम्बेड"
+  th: "เนื้อหาแบบฝัง"
+  cs: "Vložený obsah"
+  sv: "Inbäddning"
+  he: "תוכן מוטמע"
+  verified_by_human: []
+
+skill_result:
+  context: Subtitle below a matching composer search card for locally synced skill outputs
+  en: "Skill result"
+  de: "Skill-Ergebnis"
+  zh: "技能结果"
+  es: "Resultado de habilidad"
+  fr: "Résultat de compétence"
+  pt: "Resultado da habilidade"
+  ru: "Результат навыка"
+  ja: "スキルの結果"
+  ko: "스킬 결과"
+  it: "Risultato della funzione"
+  tr: "Beceri sonucu"
+  vi: "Kết quả kỹ năng"
+  id: "Hasil keterampilan"
+  pl: "Wynik umiejętności"
+  nl: "Vaardigheidsresultaat"
+  ar: "نتيجة المهارة"
+  hi: "कौशल परिणाम"
+  th: "ผลลัพธ์ทักษะ"
+  cs: "Výsledek dovednosti"
+  sv: "Färdighetsresultat"
+  he: "תוצאת מיומנות"
+  verified_by_human: []

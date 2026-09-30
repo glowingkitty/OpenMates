@@ -292,7 +292,7 @@ async function captureRegistrySurface(
 		capture: exists
 			? await captureLocator(target.first(), `${registryKey}:${surface}`, targetTestId ?? surface)
 			: null,
-		screenshotPath
+		screenshotPath: path.relative(OUTPUT_DIR, screenshotPath)
 	};
 }
 
@@ -375,6 +375,7 @@ async function loadShowcase(page: any, app: string): Promise<void> {
 
 test.describe('Apple complete embed rendering web contracts', () => {
 	for (const dimension of DIMENSIONS) {
+		// contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.layout.responsive-history,chats.surface.semantic-parity
 		test(`captures every embed surface for ${dimension.id}`, async ({ page, context }) => {
 			test.setTimeout(600_000);
 			await page.setViewportSize({ width: dimension.width, height: dimension.height });

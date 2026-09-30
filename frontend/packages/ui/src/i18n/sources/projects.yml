@@ -230,3 +230,109 @@ remote_command_mode_background:
   context: Terminal execution mode shown before approval
   en: "Continue chat while running"
   verified_by_human: []
+workspace_tagline: { context: Projects landing subtitle, en: "What do you want to organize next?", verified_by_human: [] }
+workspace_new_project: { context: Create a Project action, en: "New Project", verified_by_human: [] }
+workspace_no_projects: { context: Empty Projects list, en: "No Projects yet", verified_by_human: [] }
+workspace_create_project: { context: Create the first Project action, en: "Create a Project", verified_by_human: [] }
+workspace_loading: { context: Projects list loading state, en: "Loading Projects…", verified_by_human: [] }
+workspace_items_count: { context: Count of items in a Project card, en: "{count} items", verified_by_human: [] }
+workspace_project_settings: { context: Project menu settings action, en: "Project settings", verified_by_human: [] }
+workspace_edit_project: { context: Edit Project action, en: "Edit Project", verified_by_human: [] }
+workspace_delete_project: { context: Delete Project action, en: "Delete Project", verified_by_human: [] }
+workspace_delete_prompt: { context: Delete Project confirmation heading, en: "Delete this Project?", verified_by_human: [] }
+workspace_delete_explanation: { context: Delete Project confirmation body, en: "This removes the Project and its organization. Linked items keep their own lifecycle.", verified_by_human: [] }
+workspace_project: { context: Project detail header eyebrow, en: "Project", verified_by_human: [] }
+workspace_started: { context: Project creation timestamp, en: "Started {date}", verified_by_human: [] }
+workspace_started_today: { context: "Project created today; {time} is localized short time", en: "Started today, {time}", verified_by_human: [] }
+workspace_overview: { context: Project overview tab, en: "Overview", verified_by_human: [] }
+workspace_files: { context: Project files tab and breadcrumb, en: "Files", verified_by_human: [] }
+workspace_tasks: { context: Project tasks tab, en: "Tasks", verified_by_human: [] }
+workspace_overview_loading: { context: Project overview loading state, en: "Loading project overview…", verified_by_human: [] }
+workspace_overview_truncated: { context: Project overview safe read warning, en: "This overview is truncated at the safe read limit.", verified_by_human: [] }
+workspace_overview_empty: { context: Empty Project overview, en: "No project overview created yet.", verified_by_human: [] }
+workspace_upload: { context: Upload action in Project overview, en: "Upload", verified_by_human: [] }
+workspace_create: { context: General Project create action, en: "Create", verified_by_human: [] }
+workspace_source_needed: { context: Connected overview needs source device, en: "The connected Project overview needs its source device.", verified_by_human: [] }
+workspace_overview_failed: { context: Project overview read failed, en: "Could not load the project overview.", verified_by_human: [] }
+workspace_project_tasks: { context: Project tasks panel heading, en: "Project tasks", verified_by_human: [] }
+workspace_open_tasks: { context: Open Project Tasks workspace action, en: "Open tasks", verified_by_human: [] }
+workspace_folder_files_count: { context: Count of Project folders and files, en: "{folders} folders, {files} files and embeds", verified_by_human: [] }
+workspace_remote_entries_count: { context: Count of entries from connected source, en: "{count} files and folders", verified_by_human: [] }
+workspace_show_newest: { context: Project file sort toggle, en: "Show newest first", verified_by_human: [] }
+workspace_show_oldest: { context: Project file sort toggle, en: "Show oldest first", verified_by_human: [] }
+workspace_sort_name: { context: Current alphabetical Project file sort, en: "Name A–Z", verified_by_human: [] }
+workspace_sort_newest: { context: Current Project file sort by newest date, en: "Most recent first", verified_by_human: [] }
+workspace_sort_oldest: { context: Current Project file sort by oldest date, en: "Oldest first", verified_by_human: [] }
+workspace_search_files: { context: Project file search placeholder, en: "Search project files", verified_by_human: [] }
+workspace_greeting: { context: "Projects workspace home greeting; {name} is the user's profile name", en: "Hey {name}!", verified_by_human: [] }
+workspace_name_prompt: { context: Project workspace home composer placeholder, en: "Name a new project", verified_by_human: [] }
+workspace_voice_input: { context: Project workspace home microphone button accessibility label, en: "Voice input", verified_by_human: [] }
+workspace_voice_unavailable: { context: Project workspace home microphone temporary notice, en: "Voice input for projects is coming soon.", verified_by_human: [] }
+workspace_inspiration_brief: { context: Default Project workspace inspiration, en: "Start every project with a short brief: goal, audience, deadline, and the first concrete next step.", verified_by_human: [] }
+workspace_inspiration_brief_title: { context: Default Project workspace inspiration title, en: "Write a Project Brief", verified_by_human: [] }
+workspace_inspiration_brief_feature_title: { context: Project workspace first inspiration feature card heading, en: "Project planning tip", verified_by_human: [] }
+workspace_inspiration_brief_feature_description: { context: Project workspace first inspiration feature card summary, en: "Define the outcome before collecting files and chats.", verified_by_human: [] }
+workspace_inspiration_milestones: { context: Default Project workspace inspiration, en: "Use milestones as folders: research, prototype, review, launch. It keeps work visible without extra UI.", verified_by_human: [] }
+workspace_inspiration_milestones_title: { context: Default Project workspace inspiration title, en: "Milestone Folders", verified_by_human: [] }
+workspace_inspiration_milestones_feature_title: { context: Project workspace second inspiration feature card heading, en: "Milestone structure", verified_by_human: [] }
+workspace_inspiration_milestones_feature_description: { context: Project workspace second inspiration feature card summary, en: "Turn project phases into folders.", verified_by_human: [] }
+workspace_inspiration_assets: { context: Default Project workspace inspiration, en: "Save the source next to the output: prompts, PDFs, images, and final embeds belong in the same project context.", verified_by_human: [] }
+workspace_inspiration_assets_title: { context: Default Project workspace inspiration title, en: "Keep Sources Together", verified_by_human: [] }
+workspace_inspiration_assets_feature_title: { context: Project workspace third inspiration feature card heading, en: "Project organization", verified_by_human: [] }
+workspace_inspiration_assets_feature_description: { context: Project workspace third inspiration feature card summary, en: "Keep evidence and outputs side by side.", verified_by_human: [] }
+workspace_searching: { context: Project file browser search progress, en: "Searching Project files and folders...", verified_by_human: [] }
+workspace_search_current_empty: { context: Empty Project file search in current folder, en: "No matches in this folder.", verified_by_human: [] }
+workspace_search_across_empty: { context: Empty Project file search outside current folder, en: "No other matches in this Project.", verified_by_human: [] }
+workspace_search_partial_failure: { context: Connected Project source search partial failure, en: "Some connected sources could not be searched.", verified_by_human: [] }
+workspace_search_results_count: { context: "Number of Project file search results; {count} is a number", en: "{count} search results", verified_by_human: [] }
+workspace_previous: { context: Previous page of Project file search, en: "Previous", verified_by_human: [] }
+workspace_next: { context: Next page of Project file search, en: "Next", verified_by_human: [] }
+workspace_entries_count: { context: Visible Project browser entry count, en: "{count} entries", verified_by_human: [] }
+workspace_tile: { context: Project file tile view action, en: "Tile", verified_by_human: [] }
+workspace_list: { context: Project file list view action, en: "List", verified_by_human: [] }
+workspace_create_folder: { context: Create Project folder action, en: "Create folder", verified_by_human: [] }
+workspace_new_workflow: { context: Create Project workflow action, en: "New workflow", verified_by_human: [] }
+workspace_new_plan: { context: Create Project plan action, en: "New plan", verified_by_human: [] }
+workspace_files_loading: { context: Project files loading state, en: "Loading Project files…", verified_by_human: [] }
+workspace_files_count: { context: Count of files inside folder, en: "{count} files", verified_by_human: [] }
+workspace_files_or_more: { context: Truncated count of files inside remote folder, en: "{count} files or more", verified_by_human: [] }
+workspace_stored_remotely: { context: Accessible label for connected source icon, en: "Stored remotely", verified_by_human: [] }
+workspace_connected_source: { context: Connected source card type, en: "Connected source", verified_by_human: [] }
+workspace_remote_opening: { context: Opening a connected source file, en: "Opening connected file…", verified_by_human: [] }
+workspace_remote_on_demand: { context: Connected file read behavior, en: "This file opens on demand from the connected source.", verified_by_human: [] }
+workspace_project_name: { context: Project name text field, en: "Project name", verified_by_human: [] }
+workspace_write_permission: { context: Project write policy setup heading, en: "Write permission", verified_by_human: [] }
+workspace_write_prompt: { context: Project creation write policy explanation, en: "Choose how OpenMates may write Project files. A Project focus is also required for chat writes.", verified_by_human: [] }
+workspace_folder_name: { context: New Project folder text field, en: "Folder name", verified_by_human: [] }
+workspace_description: { context: Project description text field, en: "Description", verified_by_human: [] }
+workspace_remote_limited: { context: Project remote directory results limit, en: "Some files are not shown. Refine the folder or search.", verified_by_human: [] }
+workspace_error_account: { context: Project request cancelled after account switch, en: "The active account changed. Reload Projects.", verified_by_human: [] }
+workspace_error_master_key: { context: Project master key unavailable, en: "Project keys are unavailable on this device.", verified_by_human: [] }
+workspace_error_project_key: { context: Project key unavailable, en: "This Project cannot be decrypted on this device.", verified_by_human: [] }
+workspace_error_response: { context: Encrypted Project response invalid, en: "The Project response could not be opened.", verified_by_human: [] }
+workspace_error_context: { context: Project scope or focus missing, en: "Select an authorized Project context first.", verified_by_human: [] }
+workspace_error_source: { context: Connected Project source unavailable, en: "This connected source is unavailable on this device.", verified_by_human: [] }
+workspace_error_generic: { context: Generic Project operation failure, en: "The Project action could not be completed.", verified_by_human: [] }
+workspace_sidebar_new_name: { context: Project sidebar name input placeholder, en: "New project name", verified_by_human: [] }
+workspace_sidebar_create: { context: Project sidebar create action, en: "Create project", verified_by_human: [] }
+workspace_creating: { context: Project home composer submit while creation is in progress, en: "Creating...", verified_by_human: [] }
+workspace_sidebar_empty: { context: Empty Project sidebar description, en: "No projects yet. Create one to start organizing saved work.", verified_by_human: [] }
+workspace_sidebar_failed: { context: Project sidebar loading failure, en: "Failed to load projects.", verified_by_human: [] }
+workspace_sidebar_close: { context: Close Project sidebar accessible label, en: "Close projects", verified_by_human: [] }
+workspace_sidebar_open: { context: Open named Project accessible label, en: "Open {project}", verified_by_human: [] }
+workspace_source_offline: { context: Disconnected Project source status, en: "Offline", verified_by_human: [] }
+workspace_source_pending: { context: Project source waiting for connection status, en: "Connecting", verified_by_human: [] }
+workspace_download_original: { context: Download a connected file after explicit user action, en: "Download original", verified_by_human: [] }
+workspace_share_download: { context: Share completed temporary connected file download, en: "Share downloaded file", verified_by_human: [] }
+workspace_downloading: { context: Connected Project file download progress, en: "Downloading {downloaded} of {total}", verified_by_human: [] }
+workspace_select: { context: Enter Project file selection mode, en: "Select", verified_by_human: [] }
+workspace_selected_count: { context: Selected Project file count, en: "{count} selected", verified_by_human: [] }
+workspace_copy: { context: Copy selected Project items, en: "Copy", verified_by_human: [] }
+workspace_move: { context: Move selected Project items, en: "Move", verified_by_human: [] }
+workspace_paste: { context: Paste copied Project items in current folder, en: "Paste", verified_by_human: [] }
+workspace_move_here: { context: Move selected Project items into current folder, en: "Move here", verified_by_human: [] }
+workspace_sync: { context: Refresh current Project contents, en: "Sync", verified_by_human: [] }
+
+workspace_new_chat_description: { context: Project Create menu chat description, en: "Start a chat inside this project", verified_by_human: [] }
+workspace_new_workflow_description: { context: Project Create menu workflow description, en: "Build a workflow for this project", verified_by_human: [] }
+workspace_new_plan_description: { context: Project Create menu plan description, en: "Plan work for this project", verified_by_human: [] }

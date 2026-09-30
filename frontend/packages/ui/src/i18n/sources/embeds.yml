@@ -22,6 +22,199 @@ learning_mode_shortened_notice:
   sv: Shortened since Learning Mode is active.
   he: Shortened since Learning Mode is active.
   verified_by_human: [en]
+results_view.map:
+  context: Tab for plotted results in an assistant response
+  en: Map
+  de: Karte
+  verified_by_human: [en, de]
+weather.forecast.rain:
+  context: Rain probability suffix on a compact weather forecast day
+  en: rain
+  de: Regen
+  verified_by_human: [en, de]
+finance.check_accounts.net_cash_flow:
+  context: Finance account overview preview label
+  en: Net cash flow
+  de: Netto-Cashflow
+  verified_by_human: [en, de]
+finance.check_accounts.cash_balance:
+  context: Finance account overview preview label
+  en: Cash balance
+  de: Kontostand
+  verified_by_human: [en, de]
+finance.check_accounts.accounts:
+  context: Account count label on finance account overview preview
+  en: accounts
+  de: Konten
+  verified_by_human: [en, de]
+finance.check_accounts.transactions:
+  context: Transaction count label on finance account overview preview
+  en: transactions
+  de: Transaktionen
+  verified_by_human: [en, de]
+finance.check_accounts.income:
+  context: Finance account overview trend legend
+  en: Income
+  de: Einnahmen
+  verified_by_human: [en, de]
+finance.check_accounts.expenses:
+  context: Finance account overview trend legend
+  en: Expenses
+  de: Ausgaben
+  verified_by_human: [en, de]
+finance.check_accounts.filters:
+  context: Heading for filters in fullscreen finance results
+  en: Filters
+  de: Filter
+  verified_by_human: [en, de]
+finance.check_accounts.account:
+  context: Account filter label
+  en: Account
+  de: Konto
+  verified_by_human: [en, de]
+finance.check_accounts.source:
+  context: Source filter label
+  en: Source
+  de: Quelle
+  verified_by_human: [en, de]
+finance.check_accounts.category:
+  context: Category filter label
+  en: Category
+  de: Kategorie
+  verified_by_human: [en, de]
+finance.check_accounts.direction:
+  context: Direction filter label
+  en: Direction
+  de: Richtung
+  verified_by_human: [en, de]
+finance.check_accounts.state:
+  context: Transaction state filter label
+  en: State
+  de: Status
+  verified_by_human: [en, de]
+finance.check_accounts.placeholder:
+  context: Redacted counterparty placeholder filter label
+  en: Placeholder
+  de: Platzhalter
+  verified_by_human: [en, de]
+finance.check_accounts.from:
+  context: Start date filter label
+  en: From
+  de: Von
+  verified_by_human: [en, de]
+finance.check_accounts.to:
+  context: End date filter label
+  en: To
+  de: Bis
+  verified_by_human: [en, de]
+finance.check_accounts.all:
+  context: All items in a finance result filter
+  en: All
+  de: Alle
+  verified_by_human: [en, de]
+finance.check_accounts.no_matches:
+  context: Empty state when no finance transactions match filters
+  en: No transactions match the current filters.
+  de: Keine Transaktionen entsprechen den aktuellen Filtern.
+  verified_by_human: [en, de]
+travel.flight.diverted:
+  context: Badge on a diverted flight preview
+  en: Diverted
+  de: Umgeleitet
+  verified_by_human: [en, de]
+travel.flight.track_available:
+  context: Badge showing that a flight route track is available
+  en: Track available
+  de: Flugroute verfügbar
+  verified_by_human: [en, de]
+results_view.calendar:
+  context: Tab for dated results in an assistant response
+  en: Calendar
+  de: Kalender
+  verified_by_human: [en, de]
+results_view.filter:
+  context: Button that filters assistant response results
+  en: Filter results
+  de: Ergebnisse filtern
+  verified_by_human: [en, de]
+results_view.minimum:
+  context: Accessibility label for the lower bound of an assistant results filter
+  en: Minimum
+  de: Untergrenze
+results_view.maximum:
+  context: Accessibility label for the upper bound of an assistant results filter
+  en: Maximum
+  de: Obergrenze
+results_view.previous_week:
+  context: Button to show the previous week of assistant response results
+  en: Previous week
+  de: Vorherige Woche
+  verified_by_human: [en, de]
+results_view.next_week:
+  context: Button to show the next week of assistant response results
+  en: Next week
+  de: Nächste Woche
+  verified_by_human: [en, de]
+results_view.week_number:
+  context: Calendar week heading in assistant response results, with ISO week and year
+  en: "Week {week} {year}"
+  de: "Woche {week} {year}"
+  verified_by_human: [en, de]
+results_view.all:
+  context: Show all categories in an assistant results view
+  en: All results
+  de: Alle Ergebnisse
+  verified_by_human: [en, de]
+results_view.type:
+  context: Category filter label for an assistant results view
+  en: Type
+  de: Typ
+  verified_by_human: [en, de]
+results_view.remaining:
+  context: Number of assistant results shown after filtering
+  en: "{visible} of {total} results remain"
+  de: "{visible} von {total} Ergebnissen verbleiben"
+  verified_by_human: [en, de]
+results_view.clear_filters:
+  context: Clear all filters in an assistant results view
+  en: Clear all filters
+  de: Alle Filter löschen
+  verified_by_human: [en, de]
+results_view.departure_time:
+  context: Departure time range filter in an assistant results view
+  en: Departure time
+  de: Abflugzeit
+  verified_by_human: [en, de]
+results_view.arrival_time:
+  context: Arrival time range filter in an assistant results view
+  en: Arrival time
+  de: Ankunftszeit
+  verified_by_human: [en, de]
+results_view.duration:
+  context: Duration range filter in an assistant results view
+  en: Duration
+  de: Dauer
+  verified_by_human: [en, de]
+results_view.transfer_time:
+  context: Transfer time range filter in an assistant results view
+  en: Transfer time
+  de: Umsteigezeit
+  verified_by_human: [en, de]
+results_view.price:
+  context: Price range filter in an assistant results view
+  en: Price
+  de: Preis
+  verified_by_human: [en, de]
+results_view.carrier:
+  context: Carrier option filter in an assistant results view
+  en: Carrier
+  de: Fluggesellschaft
+  verified_by_human: [en, de]
+results_view.provider:
+  context: Provider option filter in an assistant results view
+  en: Provider
+  de: Anbieter
+  verified_by_human: [en, de]
 weather.rain_radar.no_rain:
   context: Rain radar fallback text when no rain is visible
   en: No rain visible near this location.
@@ -9126,4 +9319,122 @@ wiki.source_wikipedia:
   cs: "Zdroj: Wikipedie \u2014 obsah pod CC BY-SA 4.0"
   sv: "K\u00E4lla: Wikipedia \u2014 inneh\u00E5ll under CC BY-SA 4.0"
   he: "מקור: ויקיפדיה \u2014 תוכן תחת CC BY-SA 4.0"
+  verified_by_human: []
+
+# Native and web search-result detail labels shared by health, home, nutrition,
+# and shopping cards. English labels mirror the deployed component previews.
+fitness.open_provider:
+  context: Fitness class detail action to open the provider, e.g. Open Urban Sports
+  en: "Open {provider}"
+  de: "{provider} öffnen"
+  verified_by_human: []
+search_domain.listing:
+  context: Generic home search result when no listing title is available
+  en: Listing
+  de: Wohnungsangebot
+  verified_by_human: []
+search_domain.room:
+  context: Singular room count on a home listing
+  en: room
+  de: Zimmer
+  verified_by_human: []
+search_domain.rooms:
+  context: Plural room count on a home listing
+  en: rooms
+  de: Zimmer
+  verified_by_human: []
+search_domain.delivery:
+  context: Product delivery section heading
+  en: Delivery
+  de: Lieferung
+  verified_by_human: []
+search_domain.category:
+  context: Product category section heading
+  en: Category
+  de: Kategorie
+  verified_by_human: []
+search_domain.rent:
+  context: Home listing type badge
+  en: Rent
+  de: Miete
+  verified_by_human: []
+search_domain.buy:
+  context: Home listing type badge
+  en: Buy
+  de: Kauf
+  verified_by_human: []
+search_domain.easy:
+  context: Recipe difficulty label
+  en: Easy
+  de: Einfach
+  verified_by_human: []
+search_domain.medium:
+  context: Recipe difficulty label
+  en: Medium
+  de: Mittel
+  verified_by_human: []
+search_domain.hard:
+  context: Recipe difficulty label
+  en: Hard
+  de: Schwer
+  verified_by_human: []
+search_domain.bio:
+  context: Organic product tag as shown by the shopping result card
+  en: Bio
+  de: Bio
+  verified_by_human: []
+search_domain.vegan:
+  context: Vegan product tag
+  en: Vegan
+  de: Vegan
+  verified_by_human: []
+search_domain.vegetarian:
+  context: Vegetarian product tag as shown by the shopping result card
+  en: Vegetarisch
+  de: Vegetarisch
+  verified_by_human: []
+search_domain.dairy_free:
+  context: Dairy-free product tag as shown by the shopping result card
+  en: Laktosefrei
+  de: Laktosefrei
+  verified_by_human: []
+search_domain.gluten_free:
+  context: Gluten-free product tag as shown by the shopping result card
+  en: Glutenfrei
+  de: Glutenfrei
+  verified_by_human: []
+search_domain.regional:
+  context: Regional product tag
+  en: Regional
+  de: Regional
+  verified_by_human: []
+search_domain.insurance_public:
+  context: Public health insurance badge on an appointment
+  en: Public
+  de: Gesetzlich
+  verified_by_human: []
+search_domain.insurance_private:
+  context: Private health insurance badge on an appointment
+  en: Private
+  de: Privat
+  verified_by_human: []
+search_domain.minutes:
+  context: Recipe duration shorter than one hour
+  en: "{count} min"
+  de: "{count} Min."
+  verified_by_human: []
+search_domain.hours:
+  context: Recipe duration in whole hours
+  en: "{count} h"
+  de: "{count} Std."
+  verified_by_human: []
+search_domain.hours_minutes:
+  context: Recipe duration containing both hours and minutes
+  en: "{hours} h {minutes} min"
+  de: "{hours} Std. {minutes} Min."
+  verified_by_human: []
+maps.show_all_results:
+  context: Reset the selected route filter on the map results panel
+  en: Show all results
+  de: Alle Ergebnisse anzeigen
   verified_by_human: []

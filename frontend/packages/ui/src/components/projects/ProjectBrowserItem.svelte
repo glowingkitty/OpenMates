@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
   ProjectBrowserItem.svelte
   Renders a project browser entry in tile or list mode.
   Embed items resolve through the shared embed preview registry so Projects use

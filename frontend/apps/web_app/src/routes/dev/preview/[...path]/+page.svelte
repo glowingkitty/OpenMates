@@ -82,6 +82,17 @@
 
 	/** The component path from the URL (without .svelte extension) */
 	let componentPath = $derived(page.params.path || '');
+	// Workspace roots size themselves to a real page. Give these preview targets
+	// a definite block height without changing the centered embed/card canvas.
+	const FULL_PAGE_WORKSPACE_COMPONENTS = new Set([
+		'projects/ProjectsPage',
+		'plans/PlanDetailPage',
+		'tasks/TasksPage',
+		'workspace/WorkspaceHomeShell',
+		'workflows/WorkflowHomePreviewHarness',
+		'workflows/WorkflowDetailPage'
+	]);
+	let fullPageWorkspacePreview = $derived(FULL_PAGE_WORKSPACE_COMPONENTS.has(componentPath));
 
 	/** Look up glob keys using the clean path */
 	let moduleKey = $derived(componentKeyMap.get(componentPath) || '');
@@ -211,9 +222,14 @@
 			(hasPreviewFile && config.variant !== 'default' && !variants[config.variant]
 				? `Unknown preview variant: ${config.variant}`
 				: null);
+	});
 
-		if (config.theme === 'light' || config.theme === 'dark') {
-			theme.set(config.theme);
+	// Layout theme initialization can finish after this page's first effect.
+	// A capture URL stays authoritative when a saved/OS theme arrives later.
+	$effect(() => {
+		const requestedTheme = urlConfig.theme;
+		if ((requestedTheme === 'light' || requestedTheme === 'dark') && $theme !== requestedTheme) {
+			theme.set(requestedTheme);
 		}
 	});
 
@@ -666,7 +682,7 @@
 	}
 </script>
 
-<div class="preview-page" class:capture-mode={captureMode}>
+<div class="preview-page" class:capture-mode={captureMode} class:full-page-workspace={fullPageWorkspacePreview}>
 	<!-- Top toolbar -->
 	{#if !captureMode}
 	<header class="toolbar" data-testid="preview-toolbar">
@@ -918,6 +934,24 @@
 
 	.capture-mode .component-mount {
 		width: 100%;
+	}
+
+	/* Full-page workspaces rely on height:100% through their root shell. The
+	   ordinary preview mount has content height, which clips those roots. */
+	.full-page-workspace .preview-viewport,
+	.full-page-workspace .component-mount {
+		height: 100%;
+		min-height: 0;
+	}
+
+	.capture-mode.full-page-workspace .preview-container {
+		display: block;
+		padding: 0;
+	}
+
+	.capture-mode.full-page-workspace .preview-viewport,
+	.capture-mode.full-page-workspace .component-mount {
+		display: block;
 	}
 
 	.capture-mode .preview-viewport--constrained::before,

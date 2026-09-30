@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
   Figma-aligned Project hero. The shared WorkspaceDetailHeader keeps the
   established inline editing contract while this component owns Project-only
   actions and the persistent blue workspace treatment.

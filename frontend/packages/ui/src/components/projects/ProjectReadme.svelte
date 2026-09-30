@@ -1,4 +1,8 @@
-<!-- Safe, GitHub-like renderer for a Project's root README.md. -->
+<!--
+  Safe, GitHub-like renderer for a Project's root README.md.
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+-->
 <script lang="ts">
   import {
     safeProjectReadmeImageUrl,

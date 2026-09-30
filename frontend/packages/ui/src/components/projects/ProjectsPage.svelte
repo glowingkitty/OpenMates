@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
   ProjectsPage.svelte
   Projects V1 workspace UI for manually organizing chats, embeds, and uploads.
   Files uploaded here are converted into embeds first and then linked through

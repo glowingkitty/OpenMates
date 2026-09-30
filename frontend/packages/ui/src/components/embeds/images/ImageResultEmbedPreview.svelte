@@ -8,14 +8,15 @@
   Displays a thumbnail image covering the full preview container with a gradient
   overlay showing the source domain and title at the bottom.
 
-  External images must be proxied by the caller (ImagesSearchEmbedFullscreen
-  proxies via proxyImage(), AppSkillUseRenderer proxies for standalone use).
+  External images pass through the privacy proxy here. Callers may also supply
+  already-proxied URLs; proxyImage avoids wrapping those again.
 
   Architecture: See docs/architecture/embeds.md
 -->
 
 <script lang="ts">
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
 
   interface Props {
@@ -25,7 +26,7 @@
     title?: string;
     /** Source domain name (e.g., "flickr.com") */
     sourceDomain?: string;
-    /** Proxied thumbnail URL (caller must proxy before passing) */
+    /** Thumbnail URL, raw or already proxied */
     thumbnailUrl?: string;
     /** Full-size image URL (fallback display image) */
     imageUrl?: string;
@@ -71,7 +72,7 @@
   }
 
   /** The display image — prefer full-size imageUrl, fallback to thumbnailUrl */
-  let displayImage = $derived(imageUrl || thumbnailUrl);
+  let displayImage = $derived(proxyImage(imageUrl || thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL));
 
   function handleStop() {
     // no-op for image results (already resolved server-side)
@@ -139,7 +140,7 @@
     display: block;
     opacity: 0;
     transition: opacity var(--duration-normal) var(--easing-default);
-    background: var(--color-grey-15, #ebebeb);
+    background: var(--color-grey-25);
   }
 
   .result-image.visible {
@@ -152,7 +153,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-grey-15, #ebebeb);
+    background: var(--color-grey-25);
   }
 
   .placeholder-icon {
@@ -189,7 +190,7 @@
   .skeleton-image {
     width: 100%;
     height: 100%;
-    background: var(--color-grey-15, #ebebeb);
+    background: var(--color-grey-25);
     animation: pulse 1.5s ease-in-out infinite;
   }
 
@@ -198,16 +199,6 @@
     50%       { opacity: 1; }
   }
 
-  :global(.dark) .result-image {
-    background: var(--color-grey-85, #222);
-  }
 
-  :global(.dark) .skeleton-image,
-  :global(.dark) .image-placeholder {
-    background: var(--color-grey-85, #222);
-  }
 
-  :global(.dark) .placeholder-icon {
-    background: var(--color-grey-70, #555) !important;
-  }
 </style>

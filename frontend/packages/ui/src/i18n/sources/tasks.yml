@@ -183,3 +183,536 @@ activity.key_error:
   en: One or more Activity attachments could not be decrypted.
   de: Mindestens ein Aktivitaetsanhang konnte nicht entschluesselt werden.
   verified_by_human: []
+workspace.greeting:
+  context: Greeting on the Tasks workspace home
+  en: Hey there!
+  de: Hallo!
+  verified_by_human: []
+
+workspace.next:
+  context: Tasks workspace home subtitle
+  en: What task is next?
+  de: Welche Aufgabe ist als Nächstes dran?
+  verified_by_human: []
+
+workspace.search:
+  context: Tasks workspace search control
+  en: Search
+  de: Suchen
+  verified_by_human: []
+
+workspace.filters:
+  context: Tasks workspace filter control
+  en: Toggle task filters
+  de: Aufgabenfilter umschalten
+  verified_by_human: []
+
+workspace.prompt:
+  context: Tasks workspace composer placeholder
+  en: Click to add or update tasks
+  de: Tippen, um Aufgaben hinzuzufügen oder zu aktualisieren
+  verified_by_human: []
+
+workspace.prompt_compact:
+  context: Compact Project Tasks composer placeholder
+  en: Click here to add or update tasks
+  de: Hier tippen, um Aufgaben hinzuzufügen oder zu aktualisieren
+  verified_by_human: []
+
+workspace.saving:
+  context: Tasks workspace composer label while saving a task or plan
+  en: Saving...
+  de: Wird gespeichert...
+  verified_by_human: []
+
+workspace.empty:
+  context: Empty Tasks board message
+  en: Click above to add your first task.
+  de: Tippe oben, um deine erste Aufgabe hinzuzufügen.
+  verified_by_human: []
+
+workspace.no_matches:
+  context: Empty filtered Tasks board message
+  en: No tasks or plans match that filter.
+  de: Keine Aufgaben oder Pläne entsprechen diesem Filter.
+  verified_by_human: []
+
+workspace.load_error:
+  context: Tasks board loading error
+  en: Tasks could not be loaded.
+  de: Aufgaben konnten nicht geladen werden.
+  verified_by_human: []
+
+workspace.new_task:
+  context: Create Task action
+  en: New task
+  de: Neue Aufgabe
+  verified_by_human: []
+
+workspace.new_plan:
+  context: Create Plan action
+  en: New plan
+  de: Neuer Plan
+  verified_by_human: []
+
+workspace.plan_requires_project:
+  context: Plan creation requires a linked Project
+  en: Choose a Project for this plan.
+  de: Wähle ein Projekt für diesen Plan.
+  verified_by_human: []
+
+workspace.open_task:
+  context: Open Task detail action
+  en: Open task
+  de: Aufgabe öffnen
+  verified_by_human: []
+
+workspace.open_plan:
+  context: Open Plan detail action
+  en: Open plan
+  de: Plan öffnen
+  verified_by_human: []
+
+workspace.open_chat:
+  context: Open connected chat action
+  en: Open chat
+  de: Chat öffnen
+  verified_by_human: []
+
+workspace.show_more:
+  context: Show more board cards action
+  en: Show more
+  de: Mehr anzeigen
+  verified_by_human: []
+
+workspace.backlog:
+  context: Backlog Kanban column
+  en: Backlog
+  de: Backlog
+  verified_by_human: []
+
+workspace.todo:
+  context: Todo Kanban column
+  en: Todo
+  de: Zu erledigen
+  verified_by_human: []
+
+workspace.in_progress:
+  context: In progress Kanban column
+  en: In progress
+  de: In Bearbeitung
+  verified_by_human: []
+
+workspace.blocked:
+  context: Blocked Kanban column
+  en: Blocked
+  de: Blockiert
+  verified_by_human: []
+
+workspace.done:
+  context: Done Kanban column
+  en: Done
+  de: Erledigt
+  verified_by_human: []
+
+workspace.status:
+  context: Task detail status label
+  en: Status
+  de: Status
+  verified_by_human: []
+
+workspace.assignee:
+  context: Task detail assignee label
+  en: Assigned to
+  de: Zugewiesen an
+  verified_by_human: []
+
+workspace.me:
+  context: Task assignee current user
+  en: Me
+  de: Mir
+  verified_by_human: []
+
+workspace.unassigned:
+  context: Task assignee without a user
+  en: Unassigned
+  de: Nicht zugewiesen
+  verified_by_human: []
+
+workspace.description:
+  context: Task detail description section
+  en: Description
+  de: Beschreibung
+  verified_by_human: []
+
+workspace.no_description:
+  context: Task without a description
+  en: No description added.
+  de: Keine Beschreibung hinzugefügt.
+  verified_by_human: []
+
+workspace.due:
+  context: Task due date section
+  en: Due
+  de: Fällig
+  verified_by_human: []
+
+workspace.no_due:
+  context: Task without a due date
+  en: No due date.
+  de: Kein Fälligkeitsdatum.
+  verified_by_human: []
+
+workspace.projects:
+  context: Task connected Projects section
+  en: Connected projects
+  de: Verknüpfte Projekte
+  verified_by_human: []
+
+workspace.no_project:
+  context: Task without a connected Project
+  en: No connected project.
+  de: Kein verknüpftes Projekt.
+  verified_by_human: []
+
+workspace.plan:
+  context: Task connected Plan section
+  en: Connected plan
+  de: Verknüpfter Plan
+  verified_by_human: []
+
+workspace.no_plan:
+  context: Task without a connected Plan
+  en: No connected plan.
+  de: Kein verknüpfter Plan.
+  verified_by_human: []
+
+workspace.dependencies:
+  context: Task dependencies section
+  en: Blockers and dependencies
+  de: Blocker und Abhängigkeiten
+  verified_by_human: []
+
+workspace.no_dependencies:
+  context: Task without dependencies
+  en: No blockers or dependencies.
+  de: Keine Blocker oder Abhängigkeiten.
+  verified_by_human: []
+
+workspace.tags:
+  context: Task tags section
+  en: Tags
+  de: Schlagwörter
+  verified_by_human: []
+
+workspace.no_tags:
+  context: Task without tags
+  en: No tags.
+  de: Keine Schlagwörter.
+  verified_by_human: []
+
+workspace.chat:
+  context: Task connected chat section
+  en: Connected chat
+  de: Verknüpfter Chat
+  verified_by_human: []
+
+workspace.no_chat:
+  context: Task without a connected chat
+  en: No connected chat.
+  de: Kein verknüpfter Chat.
+  verified_by_human: []
+
+workspace.delete_confirmation:
+  context: Task deletion confirmation prompt
+  en: Delete this task?
+  de: Diese Aufgabe löschen?
+  verified_by_human: []
+
+workspace.assign_ai:
+  context: Assign Task to AI action
+  en: Assign to AI
+  de: KI zuweisen
+  verified_by_human: []
+
+workspace.move:
+  context: Move Task or Plan action
+  en: Move to
+  de: Verschieben nach
+  verified_by_human: []
+
+workspace.complete:
+  context: Mark Task complete action
+  en: Complete
+  de: Abschließen
+  verified_by_human: []
+
+workspace.skip:
+  context: Skip Task action
+  en: Skip
+  de: Überspringen
+  verified_by_human: []
+
+workspace.plan_goal:
+  context: Plan detail goal heading
+  en: Goal
+  de: Ziel
+  verified_by_human: []
+
+workspace.plan_assumptions:
+  context: Plan detail assumptions section
+  en: Assumptions
+  de: Annahmen
+  verified_by_human: []
+
+workspace.plan_criteria:
+  context: Plan detail criteria section
+  en: Acceptance Criteria
+  de: Akzeptanzkriterien
+  verified_by_human: []
+
+workspace.plan_checks:
+  context: Plan detail verification section
+  en: Checks
+  de: Prüfungen
+  verified_by_human: []
+
+workspace.plan_patterns:
+  context: Plan detail reference patterns section
+  en: Reference Patterns
+  de: Referenzmuster
+  verified_by_human: []
+
+workspace.plan_activate:
+  context: Activate Plan action
+  en: Activate plan
+  de: Plan aktivieren
+  verified_by_human: []
+
+workspace.plan_complete:
+  context: Complete Plan action
+  en: Complete plan
+  de: Plan abschließen
+  verified_by_human: []
+
+workspace.workflow_run_id:
+  context: Exact Workflow run identifier in a Tasks board projection detail
+  en: Exact run ID
+  de: Exakte Ausführungs-ID
+  verified_by_human: []
+
+workspace.no_workflow_run_id:
+  context: Error when a Tasks board Workflow projection has no run ID
+  en: This projection does not reference a Workflow run.
+  de: Diese Projektion verweist auf keine Workflow-Ausführung.
+  verified_by_human: []
+
+workspace.workflow_node_status:
+  context: Heading for Workflow node states in a Tasks board projection detail
+  en: Live node status
+  de: Live-Status der Knoten
+  verified_by_human: []
+
+workspace.open_workflow_run:
+  context: Link on a Tasks board Workflow projection card to open its exact Workflow run
+  en: Open workflow run
+  de: Workflow-Ausführung öffnen
+  verified_by_human: []
+
+workspace.inspiration_next_action:
+  context: First hardcoded Task workspace Daily Inspiration phrase
+  en: Turn one messy goal into a next action you can finish today.
+  de: Verwandle ein unübersichtliches Ziel in einen nächsten Schritt, den du heute abschließen kannst.
+  verified_by_human: []
+
+workspace.inspiration_next_action_title:
+  context: First hardcoded Task workspace Daily Inspiration title
+  en: Find the Next Action
+  de: Finde den nächsten Schritt
+  verified_by_human: []
+
+workspace.inspiration_priorities:
+  context: Second hardcoded Task workspace Daily Inspiration phrase
+  en: Choose the three tasks that matter most today, then start with the one that removes a blocker.
+  de: Wähle die drei wichtigsten Aufgaben für heute und beginne mit der, die eine Blockade auflöst.
+  verified_by_human: []
+
+workspace.inspiration_priorities_title:
+  context: Second hardcoded Task workspace Daily Inspiration title
+  en: Choose Today's Priorities
+  de: Wähle die Prioritäten für heute
+  verified_by_human: []
+
+workspace.inspiration_finish_line:
+  context: Third hardcoded Task workspace Daily Inspiration phrase
+  en: Write down what done looks like before you begin a task.
+  de: Schreibe auf, woran du eine erledigte Aufgabe erkennst, bevor du beginnst.
+  verified_by_human: []
+
+workspace.inspiration_finish_line_title:
+  context: Third hardcoded Task workspace Daily Inspiration title
+  en: Define Done
+  de: Definiere, was erledigt bedeutet
+  verified_by_human: []
+
+workspace.plans_inspiration_timeline:
+  context: Hardcoded Plans workspace Daily Inspiration phrase
+  en: Start a plan with the deadline, the decision points, and the first reversible step.
+  de: Beginne einen Plan mit der Frist, den Entscheidungspunkten und dem ersten umkehrbaren Schritt.
+  verified_by_human: []
+
+workspace.plans_inspiration_timeline_title:
+  context: Hardcoded Plans workspace Daily Inspiration title
+  en: Sketch a Lightweight Plan
+  de: Skizziere einen einfachen Plan
+  verified_by_human: []
+
+workspace.inspiration_create_task:
+  context: Call to action in the Task workspace Daily Inspiration card
+  en: Click to create task
+  de: Klicken, um eine Aufgabe zu erstellen
+  verified_by_human: []
+
+workspace.inspiration_create_plan:
+  context: Call to action in the Plans workspace Daily Inspiration card
+  en: Click to create plan
+  de: Klicken, um einen Plan zu erstellen
+  verified_by_human: []
+
+workspace.voice_input_unavailable:
+  context: Message shown when the Tasks or Plans workspace microphone action is selected before voice task input is available
+  en: Voice task input is not available yet
+  de: Spracheingabe für Aufgaben ist noch nicht verfügbar
+  verified_by_human: []
+
+workspace.add:
+  context: Add button in native Tasks and Plans editors
+  en: Add
+  de: Hinzufügen
+  verified_by_human: []
+
+detail.priority_none:
+  context: Priority badge for a Task with no assigned priority
+  en: No priority
+  de: Keine Priorität
+  verified_by_human: []
+
+detail.priority_low:
+  context: Priority badge for a Task with low priority
+  en: Low
+  de: Niedrig
+  verified_by_human: []
+
+detail.priority_medium:
+  context: Priority badge for a Task with medium priority
+  en: Medium
+  de: Mittel
+  verified_by_human: []
+
+detail.priority_high:
+  context: Priority badge for a Task with high priority
+  en: High
+  de: Hoch
+  verified_by_human: []
+
+detail.priority_urgent:
+  context: Priority badge for a Task with urgent priority
+  en: Urgent
+  de: Dringend
+  verified_by_human: []
+
+detail.creator_you:
+  context: Fallback current profile name in Task detail when no username is set
+  en: You
+  de: Du
+  verified_by_human: []
+
+detail.created_seconds_ago:
+  context: Task detail creation time when less than one minute old
+  en: Created seconds ago
+  de: Vor wenigen Sekunden erstellt
+  verified_by_human: []
+
+detail.created_minutes_ago:
+  context: Task detail creation time when two or more minutes old but less than one hour old
+  en: Created {count} minutes ago
+  de: Vor {count} Minuten erstellt
+  verified_by_human: []
+
+detail.created_minute_ago:
+  context: Task detail creation time when one minute old
+  en: Created {count} minute ago
+  de: Vor {count} Minute erstellt
+  verified_by_human: []
+
+detail.created_on:
+  context: Task detail creation time when at least one hour old
+  en: Created {date}
+  de: Erstellt am {date}
+  verified_by_human: []
+
+detail.created_by:
+  context: Task detail subtitle showing relative creation time and current profile name
+  en: '{created} by {creator}'
+  de: '{created} von {creator}'
+  verified_by_human: []
+
+plan.open_assumptions:
+  context: Plan detail summary of assumptions still open
+  en: open assumptions
+  de: offene Annahmen
+  verified_by_human: []
+
+plan.uncovered_criteria:
+  context: Plan detail summary of acceptance criteria without check coverage
+  en: uncovered criteria
+  de: nicht abgedeckte Kriterien
+  verified_by_human: []
+
+plan.failed_checks:
+  context: Plan detail summary of failed checks
+  en: failed checks
+  de: fehlgeschlagene Prüfungen
+  verified_by_human: []
+
+plan.assumption_placeholder:
+  context: Placeholder for a new Plan assumption
+  en: Add an assumption to verify before implementation
+  de: Annahme hinzufügen, die vor der Umsetzung geprüft werden soll
+  verified_by_human: []
+
+plan.add_assumption:
+  context: Button adding a new Plan assumption
+  en: Add assumption
+  de: Annahme hinzufügen
+  verified_by_human: []
+
+plan.criterion_placeholder:
+  context: Placeholder for a required Plan acceptance criterion
+  en: Add a required acceptance criterion
+  de: Erforderliches Abnahmekriterium hinzufügen
+  verified_by_human: []
+
+plan.add_criterion:
+  context: Button adding a Plan acceptance criterion
+  en: Add criterion
+  de: Kriterium hinzufügen
+  verified_by_human: []
+
+plan.check_description:
+  context: Placeholder for a new Plan check title
+  en: Check description
+  de: Prüfbeschreibung
+  verified_by_human: []
+
+plan.optional_command:
+  context: Placeholder for an optional Plan check command
+  en: Optional command
+  de: Optionaler Befehl
+  verified_by_human: []
+
+plan.add_check:
+  context: Button adding a new Plan check
+  en: Add check
+  de: Prüfung hinzufügen
+  verified_by_human: []

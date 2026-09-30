@@ -2,9 +2,7 @@
  * Preview mock data for ImageResultEmbedPreview.
  *
  * Single image result card (child embed inside ImagesSearchEmbedFullscreen).
- * Uses Unsplash URLs which reliably proxy through preview.openmates.org.
- * Note: thumbnailUrl must already be proxied by the caller (AppSkillUseRenderer).
- * In this preview file we pass the raw URL; the component itself calls proxyImage internally.
+ * Uses raw Unsplash URLs; the component routes them through the image proxy.
  *
  * Wikimedia URLs are intentionally NOT used here: upload.wikimedia.org sets the
  * WMF-Uniq cookie which contaminates the legal cookie inventory run via the

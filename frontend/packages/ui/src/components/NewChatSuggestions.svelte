@@ -1,4 +1,9 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+  - apple/OpenMates/Sources/App/MainAppView.swift
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+
   NewChatSuggestions.svelte — Horizontal suggestion cards for the new chat screen.
 
   Each card shows the app's color gradient background, a skill or app icon (white),

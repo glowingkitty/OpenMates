@@ -37,11 +37,14 @@ function handleSelect(item: string) {
 }`;
 
 /** Default props — shows a fullscreen code view */
+const codeData = (code: string, language: string, filename: string, lineCount: number) => ({
+	decodedContent: { code, language, filename, line_count: lineCount },
+	attrs: { type: 'code-code' }
+});
+
 const defaultProps = {
-	language: 'typescript',
-	filename: 'SearchableList.svelte',
-	lineCount: 32,
-	codeContent: sampleCode,
+	data: codeData(sampleCode, 'typescript', 'SearchableList.svelte', 32),
+	embedId: 'preview-code-fullscreen-1',
 	onClose: () => {},
 	hasPreviousEmbed: true,
 	hasNextEmbed: true,
@@ -63,13 +66,10 @@ export const variants = {
 	/** Long code — tests scrolling behavior */
 	longCode: {
 		...defaultProps,
-		filename: 'long_file.py',
-		language: 'python',
-		lineCount: 100,
-		codeContent: Array.from(
+		data: codeData(Array.from(
 			{ length: 100 },
 			(_, i) => `line_${i + 1} = "content for line ${i + 1}"`
-		).join('\n')
+		).join('\n'), 'python', 'long_file.py', 100)
 	},
 
 	/** Virtual file streamed from a connected project source. */

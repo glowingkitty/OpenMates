@@ -25,7 +25,15 @@
   } from '../../services/userPlanService';
   import { text } from '@repo/ui';
 
-  let { planId }: { planId: string } = $props();
+  let {
+    planId,
+    previewPlan = null,
+    previewDetailState = null,
+  }: {
+    planId: string;
+    previewPlan?: UserPlanViewModel | null;
+    previewDetailState?: UserPlanDetailState | null;
+  } = $props();
   let plan = $state<UserPlanViewModel | null>(null);
   let detailState = $state<UserPlanDetailState>({ criteria: [], verifications: [], assumptions: [], referencePatterns: [] });
   let hasError = $state(false);
@@ -42,7 +50,14 @@
   let unresolvedAssumptions = $derived(detailState.assumptions.filter((item) => !['confirmed', 'waived'].includes(item.status)).length);
   let uncoveredCriteria = $derived(detailState.criteria.filter((item) => item.required && item.coverageStatus !== 'covered' && item.verificationIds.length === 0).length);
   let failedChecks = $derived(detailState.verifications.filter((item) => item.status === 'failed').length);
-  onMount(() => { void load(); });
+  onMount(() => {
+    if (previewPlan) {
+      plan = previewPlan;
+      detailState = previewDetailState ?? { criteria: [], verifications: [], assumptions: [], referencePatterns: [] };
+      return;
+    }
+    void load();
+  });
   async function load(): Promise<void> {
     hasError = false;
     try {
@@ -56,6 +71,7 @@
 
   async function loadDetailState(): Promise<void> {
     if (!plan) return;
+    if (previewPlan) return;
     isDetailLoading = true;
     detailError = false;
     try {
@@ -71,11 +87,27 @@
     }
   }
 
-  async function saveTitle(title: string): Promise<void> { if (plan) plan = await planDetailAdapter.saveTitle(plan, title); }
-  async function saveDescription(summary: string): Promise<void> { if (plan) plan = await planDetailAdapter.saveDescription(plan, summary); }
+  async function saveTitle(title: string): Promise<void> {
+    if (previewPlan && plan) { plan = { ...plan, title }; return; }
+    if (plan) plan = await planDetailAdapter.saveTitle(plan, title);
+  }
+  async function saveDescription(summary: string): Promise<void> {
+    if (previewPlan && plan) { plan = { ...plan, goal: summary }; return; }
+    if (plan) plan = await planDetailAdapter.saveDescription(plan, summary);
+  }
 
   async function handleAddAssumption(): Promise<void> {
     if (!plan || !assumptionText.trim() || isSaving) return;
+    if (previewPlan) {
+      const template = detailState.assumptions[0];
+      if (template) {
+        const assumptionId = `preview-assumption-${detailState.assumptions.length + 1}`;
+        detailState = { ...detailState, assumptions: [...detailState.assumptions,
+          { ...template, assumptionId, text: assumptionText.trim(), status: 'unchecked' }] };
+        assumptionText = '';
+      }
+      return;
+    }
     isSaving = true;
     try {
       const assumption = await createPlanAssumption(plan, { text: assumptionText.trim(), requiredBefore: 'implementation' });
@@ -88,6 +120,11 @@
 
   async function handleConfirmAssumption(assumption: UserPlanAssumptionViewModel): Promise<void> {
     if (!plan || isSaving) return;
+    if (previewPlan) {
+      detailState = { ...detailState, assumptions: detailState.assumptions.map((item) =>
+        item.assumptionId === assumption.assumptionId ? { ...item, status: 'confirmed' } : item) };
+      return;
+    }
     isSaving = true;
     try {
       const updated = await updatePlanAssumption(plan, assumption.assumptionId, { status: 'confirmed', evidenceSummary: 'Confirmed from plan review.' });
@@ -99,6 +136,16 @@
 
   async function handleAddCriterion(): Promise<void> {
     if (!plan || !criterionText.trim() || isSaving) return;
+    if (previewPlan) {
+      const template = detailState.criteria[0];
+      if (template) {
+        const criterionId = `preview-criterion-${detailState.criteria.length + 1}`;
+        detailState = { ...detailState, criteria: [...detailState.criteria,
+          { ...template, criterionId, text: criterionText.trim() }] };
+        criterionText = '';
+      }
+      return;
+    }
     isSaving = true;
     try {
       const criterion = await createPlanCriterion(plan, { text: criterionText.trim(), type: 'acceptance', required: true });
@@ -111,6 +158,23 @@
 
   async function handleAddVerification(): Promise<void> {
     if (!plan || !checkTitle.trim() || isSaving) return;
+    if (previewPlan) {
+      const verificationId = `preview-check-${detailState.verifications.length + 1}`;
+      const verification: UserPlanVerificationViewModel = {
+        verificationId, kind: checkCommand.trim() ? 'command' : 'manual', phase: '',
+        status: 'pending', requiredForDone: true, covers: detailState.criteria.map((item) => item.criterionId),
+        lifecycleStatus: '', sourceHash: null, threshold: null, score: null, confidence: null,
+        linkedTaskId: null, linkedSubChatId: null, sourceEmbedId: null, runnerKind: null, runId: null,
+        description: checkTitle.trim(), command: checkCommand.trim(), evaluationPrompt: '',
+        evaluatorInstructions: '', expectedResult: '', resultSummary: '', requiredFixes: '',
+        sourcePath: '', redPhaseReason: '', createdAt: null, updatedAt: null,
+        encrypted: { verification_id: verificationId, kind: 'manual', status: 'pending' },
+      };
+      detailState = { ...detailState, verifications: [...detailState.verifications, verification] };
+      selectedVerificationId = verificationId;
+      checkTitle = ''; checkCommand = '';
+      return;
+    }
     isSaving = true;
     try {
       const covers = detailState.criteria.map((criterion) => criterion.criterionId);
@@ -141,6 +205,13 @@
 
   async function handleAddEvidence(): Promise<void> {
     if (!plan || !selectedVerificationId || !evidenceSummary.trim() || isSaving) return;
+    if (previewPlan) {
+      detailState = { ...detailState, verifications: detailState.verifications.map((item) =>
+        item.verificationId === selectedVerificationId
+          ? { ...item, status: 'passed', resultSummary: evidenceSummary.trim() } : item) };
+      evidenceSummary = '';
+      return;
+    }
     isSaving = true;
     try {
       const updated = await addPlanVerificationEvidence(plan, selectedVerificationId, {

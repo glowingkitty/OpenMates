@@ -188,6 +188,9 @@
 <style>
   .music-fullscreen {
     container-type: inline-size;
+    /* Inline-size containment needs an explicit width in the shared flex pane. */
+    width: 100%;
+    box-sizing: border-box;
     display: grid;
     gap: 18px;
     padding: 22px;

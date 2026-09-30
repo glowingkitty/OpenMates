@@ -1,4 +1,9 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Input/ComposerSearchSuggestions.swift
+  - apple/OpenMates/Sources/App/MainAppView.swift
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+
   ChatSearchSuggestions.svelte — Horizontal search result cards for open chats.
 
   When the user types in the message input while an existing chat is open,

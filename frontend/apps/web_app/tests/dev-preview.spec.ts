@@ -116,6 +116,87 @@ test.describe('Component Preview System', () => {
 		await expect(page.getByTestId('preview-status-bar')).toBeVisible();
 	});
 
+	test('web search preview fixture serves and renders its result thumbnail', async ({ page }) => {
+		const asset = await page.request.get('/images/examples/group1.jpg');
+		expect(asset.ok()).toBeTruthy();
+		expect(asset.headers()['content-type']).toContain('image/jpeg');
+
+		await page.goto('/dev/preview/embeds/web/WebSearchEmbedPreview?chrome=0');
+		const thumbnail = page.getByTestId('web-search-thumbnail').first();
+		await expect(thumbnail).toBeVisible();
+		await expect.poll(() => thumbnail.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+	});
+
+	test('code and sheet fullscreen fixtures render their actual content', async ({ page }) => {
+		await page.goto('/dev/preview/embeds/code/CodeEmbedFullscreen?chrome=0');
+		await expect(page.getByTestId('code-fullscreen-code')).toContainText('handleSelect');
+		await expect(page.getByText('No code content available.')).toHaveCount(0);
+
+		await page.goto('/dev/preview/embeds/sheets/SheetEmbedFullscreen?chrome=0');
+		await expect(page.getByText('Alice Johnson')).toBeVisible();
+		await expect(page.getByText('No table data available')).toHaveCount(0);
+	});
+
+	test('full-page workspace previews fill the phone and wide capture viewport', async ({ page }) => {
+		for (const size of [{ width: 402, height: 874 }, { width: 1376, height: 1032 }]) {
+			await page.setViewportSize(size);
+			await page.goto('/dev/preview/projects/ProjectsPage?variant=landing&theme=light&chrome=0');
+			const canvas = page.getByTestId('component-preview-canvas');
+			await expect(canvas).toHaveAttribute('data-preview-ready', 'true');
+			const mount = page.locator('.component-mount');
+			const project = page.getByTestId('projects-page');
+			const home = page.getByTestId('projects-start-screen');
+			const composer = page.getByTestId('project-input-composer');
+			await expect(home).toBeVisible();
+			await expect(composer).toBeVisible();
+			const [canvasBox, mountBox, projectBox, composerBox] = await Promise.all([
+				canvas.boundingBox(), mount.boundingBox(), project.boundingBox(), composer.boundingBox()
+			]);
+			expect(canvasBox).not.toBeNull();
+			expect(mountBox).not.toBeNull();
+			expect(projectBox).not.toBeNull();
+			expect(composerBox).not.toBeNull();
+			expect(Math.abs(mountBox!.height - canvasBox!.height)).toBeLessThan(2);
+			expect(Math.abs(projectBox!.height - canvasBox!.height)).toBeLessThan(2);
+			expect(composerBox!.y + composerBox!.height).toBeLessThanOrEqual(projectBox!.y + projectBox!.height + 1);
+			await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
+		}
+
+		await page.setViewportSize({ width: 402, height: 874 });
+		await page.goto('/dev/preview/plans/PlanDetailPage?theme=light&chrome=0');
+		const planCanvas = page.getByTestId('component-preview-canvas');
+		await expect(planCanvas).toHaveAttribute('data-preview-ready', 'true');
+		const plan = page.getByTestId('plan-detail-page');
+		await expect(plan).toBeVisible();
+		const [planCanvasBox, planBox] = await Promise.all([planCanvas.boundingBox(), plan.boundingBox()]);
+		expect(planCanvasBox).not.toBeNull();
+		expect(planBox).not.toBeNull();
+		expect(Math.abs(planBox!.height - planCanvasBox!.height)).toBeLessThan(2);
+
+		await page.goto('/dev/preview/embeds/web/WebSearchEmbedPreview?theme=light&chrome=0');
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+		const embedBox = await page.getByTestId('embed-preview').boundingBox();
+		expect(embedBox).not.toBeNull();
+		expect(embedBox!.width).toBe(300);
+		expect(embedBox!.height).toBe(200);
+	});
+
+	test('composed workflow home preview includes its composer and browse controls', async ({ page }) => {
+		for (const size of [{ width: 402, height: 874 }, { width: 1376, height: 1032 }]) {
+			await page.setViewportSize(size);
+			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?theme=light&chrome=0');
+			await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+			await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
+			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
+			await page.getByTestId('workflows-show-all').click();
+			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
+			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(1);
+			await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
+			await page.getByTestId('workflows-back-to-recent').click();
+			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
+		}
+	});
+
 	test('client-side navigation from index to component works', async ({ page }) => {
 		await page.goto('/dev/preview', { waitUntil: 'networkidle' });
 		await page.waitForTimeout(2000);
@@ -185,6 +266,19 @@ test.describe('Component Preview System', () => {
 		expect(Math.abs(viewportBox!.x + viewportBox!.width / 2 - (canvasBox!.x + canvasBox!.width / 2))).toBeLessThan(2);
 		expect(Math.abs(viewportBox!.y + viewportBox!.height / 2 - (canvasBox!.y + canvasBox!.height / 2))).toBeLessThan(2);
 		await proof.checkpoint('configured-preview');
+	});
+
+	test('capture URL theme survives startup with a different saved and system theme', async ({ page }) => {
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.addInitScript(() => localStorage.setItem('theme_mode', 'dark'));
+		await page.goto('/dev/preview/Notification?variant=warning&theme=light&chrome=0', {
+			waitUntil: 'networkidle'
+		});
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+		await page.reload({ waitUntil: 'networkidle' });
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 	});
 
 	test('message input capture does not combine empty-state and action-row microphone controls', async ({ page }) => {
