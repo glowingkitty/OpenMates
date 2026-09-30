@@ -51,6 +51,7 @@
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
+	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
 	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
 	import type { DailyInspiration } from '@repo/ui/stores/dailyInspirationStore.ts';
@@ -100,8 +101,10 @@
 	let editorGraph = $state<WorkflowGraph | null>(null);
 	let editorDirty = $state(false);
 	let workflowGraphRef = $state<WorkflowGraphRenderer | null>(null);
+	let editorHasPendingDraft = $state(false);
 	let identityResetSignal = $state(0);
-	let hydratedEditorWorkflowId = $state<string | null>(null);
+	let hydratedEditorWorkflow: WorkflowDetail | null = null;
+	let verifyingMissingWorkflow: { id: string; generation: number } | null = null;
 	let pendingNavigation = $state<{ action: () => void | Promise<void> } | null>(null);
 	let showAllWorkflows = $state(false);
 	let workflowClosing = $state(false);
@@ -307,6 +310,16 @@
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		window.addEventListener('popstate', syncWorkflowHashFromLocation);
+		const refreshVisibleWorkflow = () => {
+			if (!routeAlive || !canLoadWorkflows || editorDirty || saving || workflowGraphRef?.hasPendingDraft()) return;
+			void workflowWorkspaceStore.loadWorkflows().catch(() => undefined);
+			const selectedId = $workflowWorkspaceStore.selectedWorkflowId;
+			if (selectedId) void workflowWorkspaceStore.selectWorkflow(selectedId).catch(() => undefined);
+		};
+		const onVisibilityChange = () => { if (!document.hidden) refreshVisibleWorkflow(); };
+		window.addEventListener('focus', refreshVisibleWorkflow);
+		window.addEventListener('online', refreshVisibleWorkflow);
+		document.addEventListener('visibilitychange', onVisibilityChange);
 		void initializeWorkflowsRoute();
 
 		return () => {
@@ -314,6 +327,9 @@
 			streamController?.abort();
 			window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
 			window.removeEventListener('popstate', syncWorkflowHashFromLocation);
+			window.removeEventListener('focus', refreshVisibleWorkflow);
+			window.removeEventListener('online', refreshVisibleWorkflow);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	});
 
@@ -510,9 +526,11 @@
 		const sameWorkflowAlreadySelected = $workflowWorkspaceStore.selectedWorkflowId === workflowId;
 		if (!sameWorkflowAlreadySelected) authoringReminder = null;
 		const workflow = await workflowWorkspaceStore.selectWorkflow(workflowId);
-		if (sameWorkflowAlreadySelected && editorDirty) return;
-		selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
-		resetEditor(workflow);
+		if (sameWorkflowAlreadySelected && (editorDirty || saving || pendingSaveSessionId || streamController || workflowGraphRef?.hasPendingDraft())) return;
+		const latest = $workflowWorkspaceStore.selectedWorkflow;
+		const currentWorkflow = latest?.id === workflowId ? latest : workflow;
+		selectedRunContentRetention = currentWorkflow.run_content_retention ?? 'last_5';
+		resetEditor(currentWorkflow);
 		aiChange = null;
 		aiSession = null;
 		undoConflict = false;
@@ -537,7 +555,9 @@
 
 	$effect(() => {
 		if (!canLoadWorkflows) return;
+		const generation = $workflowWorkspaceStore.generation;
 		void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
+			if (!workflowWorkspaceStore.isCurrentGeneration(generation)) return;
 			console.error('[WorkflowsRoute] Failed to warm workflow cache:', loadError);
 		});
 	});
@@ -586,35 +606,62 @@
 
 	$effect(() => {
 		if (!canLoadWorkflows) return;
+		const requestedId = requestedWorkflowId;
+		if (!requestedId) {
+			verifyingMissingWorkflow = null;
+			return;
+		}
 		const requestedWorkflow = requestedWorkflowId
 			? workflows.find((workflow) => workflow.id === requestedWorkflowId)
 			: null;
-		const workflowId = requestedWorkflow?.id ?? null;
-		if (requestedWorkflowId && !workflowId && $workflowWorkspaceStore.listStatus === 'ready') {
-			openWorkflowHome(true);
+		if (!requestedWorkflow && $workflowWorkspaceStore.listStatus === 'ready') {
+			const generation = $workflowWorkspaceStore.generation;
+			if (verifyingMissingWorkflow?.id === requestedId && verifyingMissingWorkflow.generation === generation) return;
+			const verification = { id: requestedId, generation };
+			verifyingMissingWorkflow = verification;
+			void (async () => {
+				// Let the completed list request clear its in-flight marker before forcing a new read.
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				try {
+					const refreshed = await workflowWorkspaceStore.loadWorkflows({ force: true });
+					if (verifyingMissingWorkflow !== verification || !workflowWorkspaceStore.isCurrentGeneration(generation) || workflowHashState.workflowId !== requestedId) return;
+					if (!refreshed.some((workflow) => workflow.id === requestedId) &&
+						!$workflowWorkspaceStore.workflows.some((workflow) => workflow.id === requestedId)) openWorkflowHome(true);
+				} catch (loadError) {
+					if (verifyingMissingWorkflow === verification && workflowWorkspaceStore.isCurrentGeneration(generation) && workflowHashState.workflowId === requestedId) {
+						verifyingMissingWorkflow = null;
+						routeError = loadError instanceof Error ? loadError.message : 'Could not verify workflow link.';
+						console.error('[WorkflowsRoute] Failed to verify workflow link:', loadError);
+					}
+				}
+			})();
 			return;
 		}
-		if (!workflowId || workflowId === $workflowWorkspaceStore.selectedWorkflowId) return;
-		void selectWorkflow(workflowId).catch((selectError) => {
+		if (!requestedWorkflow) return;
+		verifyingMissingWorkflow = null;
+		if (requestedId === $workflowWorkspaceStore.selectedWorkflowId) return;
+		void selectWorkflow(requestedId).catch((selectError) => {
+			if (selectError instanceof WorkflowApiError && selectError.status === 404 && workflowHashState.workflowId === requestedId) {
+				openWorkflowHome(true);
+				return;
+			}
 			console.error('[WorkflowsRoute] Failed to select workflow:', selectError);
 		});
 	});
 
 	$effect(() => {
-		if (!selectedWorkflow || hydratedEditorWorkflowId === selectedWorkflow.id) return;
-		selectedRunContentRetention = selectedWorkflow.run_content_retention ?? 'last_5';
-		resetEditor(selectedWorkflow);
-		hydratedEditorWorkflowId = selectedWorkflow.id;
+		const workflow = selectedWorkflow;
+		if (!workflow || hydratedEditorWorkflow === workflow || editorDirty || saving || pendingSaveSessionId || streamController || editorHasPendingDraft || workflowGraphRef?.hasPendingDraft()) return;
+		selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
+		resetEditor(workflow);
 	});
 
 	$effect(() => {
-		const generation = workflowWorkspaceStore.getGeneration();
-		const storeSelectedWorkflowId = $workflowWorkspaceStore.selectedWorkflowId;
+		const generation = $workflowWorkspaceStore.generation;
 		if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
 			observedWorkflowGeneration = generation;
 			routeError = null;
 		}
-		void storeSelectedWorkflowId;
 	});
 
 	async function createRainWorkflow() {
@@ -1164,7 +1211,7 @@
 		editorDescription = workflow.description ?? '';
 		editorGraph = cloneGraph(workflow.graph);
 		editorDirty = false;
-		hydratedEditorWorkflowId = workflow.id;
+		hydratedEditorWorkflow = workflow;
 	}
 
 	function clearAiReview(workflowId: string): void {
@@ -1451,6 +1498,7 @@
 															workflowId={selectedWorkflow.id}
 															onChange={updateEditorGraph}
 															onSave={saveNodeGraph}
+															onDraftStateChange={(hasDraft) => { editorHasPendingDraft = hasDraft; }}
 																/>
 													{/if}
 											{#if hasTimeTrigger && !activeEditorPreview}

@@ -281,7 +281,8 @@ test.describe('Tasks web app parity', () => {
 		await expect(secondCardToDelete).toBeVisible();
 		await secondCardToDelete.getByTestId('task-actions-more').click();
 		await Promise.all([
-			page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/v1/user-tasks/${secondTaskId}`) && response.ok()),
+			page.waitForResponse((response) => response.request().method() === 'DELETE' &&
+				new URL(response.url()).pathname === `/v1/user-tasks/${secondTaskId}` && response.ok()),
 			secondCardToDelete.getByTestId('task-delete-button').click(),
 		]);
 		await expect(page.getByTestId('task-board')).not.toContainText(secondTaskTitle);

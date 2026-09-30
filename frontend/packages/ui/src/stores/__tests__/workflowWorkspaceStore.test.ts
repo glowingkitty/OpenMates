@@ -91,4 +91,26 @@ describe('workflowWorkspaceStore navigation cache', () => {
     await selection;
     expect(get(workflowWorkspaceStore).selectedWorkflow?.title).toBe('Locally saved');
   });
+
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.runs.timeline-execution-detail
+  it('ignores an old run-list failure after newer run detail succeeds', async () => {
+    const oldRuns = deferred<Response>();
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const path = String(input);
+      if (path.endsWith('/runs')) return oldRuns.promise;
+      if (path.endsWith('/runs/run-1')) return Promise.resolve(json({ run: { id: 'run-1', status: 'completed' } }));
+      return Promise.resolve(json({ workflow: detail }));
+    });
+
+    await workflowWorkspaceStore.selectWorkflow(detail.id);
+    await workflowWorkspaceStore.getWorkflowRun(detail.id, 'run-1');
+    expect(get(workflowWorkspaceStore).runsStatus).toBe('ready');
+
+    oldRuns.resolve(new Response(JSON.stringify({ detail: 'Old read failed' }), { status: 500 }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const state = get(workflowWorkspaceStore);
+    expect(state.runsStatus).toBe('ready');
+    expect(state.error).toBeNull();
+    expect(state.runsByWorkflowId[detail.id]?.[0]?.id).toBe('run-1');
+  });
 });

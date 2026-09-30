@@ -197,6 +197,53 @@ async function expectNoPageOverflow(page: any): Promise<void> {
 }
 
 test.describe('Workflows web UI contract', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.detail.shared-template-runs-tabs
+	test('opens an externally created workflow from a fresh cached empty list', async ({ page }: { page: any }, testInfo: any) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		const title = `${WORKFLOW_TITLE_PREFIX} external ${Date.now()}-${testInfo.workerIndex}`;
+		let workflowId: string | null = null;
+		let listReads = 0;
+
+		await page.route('**/v1/workflows', (route: any) => {
+			if (route.request().method() !== 'GET') return route.continue();
+			listReads += 1;
+			return listReads === 1
+				? route.fulfill({ json: { workflows: [] } })
+				: route.continue();
+		});
+		const initialList = page.waitForResponse((response: any) =>
+			response.url().endsWith('/v1/workflows') && response.request().method() === 'GET'
+		);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page);
+
+		try {
+			await page.goto(getE2EDebugUrl('/#workflows'), { waitUntil: 'domcontentloaded' });
+			expect((await initialList).ok()).toBe(true);
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			expect(listReads).toBe(1);
+
+			const workflow = await createWorkflow(page, apiUrl, {
+				title,
+				graph: rainGraph('Berlin'),
+				enabled: false,
+				run_content_retention: 'last_5'
+			});
+			workflowId = workflow.id;
+			await page.evaluate((id: string) => {
+				window.location.hash = `#workflow-id=${id}&workflow-tab=details`;
+			}, workflow.id);
+			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(workflow.id));
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
+			expect(listReads).toBeGreaterThanOrEqual(2);
+		} finally {
+			if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+		}
+	});
+
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.explicit-guarded-save,workflows-ui.runs.timeline-execution-detail
 	test('opens Template before slow Runs and keeps an unsaved draft through refresh', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(120_000);
@@ -206,8 +253,10 @@ test.describe('Workflows web UI contract', () => {
 		const title = `${WORKFLOW_TITLE_PREFIX} refresh ${Date.now()}-${testInfo.workerIndex}`;
 		let workflowId: string | null = null;
 		let releaseRuns!: () => void;
+		let releaseDraftDetail!: () => void;
 		let releaseDetail!: () => void;
 		const runsGate = new Promise<void>(resolve => { releaseRuns = resolve; });
+		const draftDetailGate = new Promise<void>(resolve => { releaseDraftDetail = resolve; });
 		const detailGate = new Promise<void>(resolve => { releaseDetail = resolve; });
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -234,6 +283,49 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
 			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
 			releaseRuns();
+			const externalUpdate = await page.request.patch(`${apiUrl}${detailPath}`, {
+				data: { graph: rainGraph('Hamburg') }
+			});
+			expect(externalUpdate.ok(), await externalUpdate.text()).toBe(true);
+			const cleanRefresh = page.waitForResponse((response: any) =>
+				response.url().endsWith(detailPath) && response.request().method() === 'GET'
+			);
+			await page.evaluate(() => {
+				const originalNow = Date.now.bind(Date);
+				Date.now = () => originalNow() + 61_000;
+				window.dispatchEvent(new Event('focus'));
+			});
+			expect((await cleanRefresh).ok()).toBe(true);
+			await expect(page.getByTestId('workflow-node-input-summary')).toHaveText('Hamburg');
+			await expect(page.getByTestId('workflow-version-selector')).toContainText('Version 2');
+
+			await page.route(`**${detailPath}`, async (route: any) => {
+				await draftDetailGate;
+				await route.continue();
+			});
+			const draftRefreshRequest = page.waitForRequest((request: any) => request.url().endsWith(detailPath));
+			await page.evaluate(() => {
+				const originalNow = Date.now.bind(Date);
+				Date.now = () => originalNow() + 61_000;
+				window.dispatchEvent(new Event('focus'));
+			});
+			await draftRefreshRequest;
+			await page.getByTestId('workflow-node-summary').filter({ hasText: 'Hamburg' }).click();
+			const nodeDraft = page.getByTestId('workflow-node-expanded');
+			await expect(nodeDraft).toBeVisible();
+			const secondExternalUpdate = await page.request.patch(`${apiUrl}${detailPath}`, {
+				data: { graph: rainGraph('Paris') }
+			});
+			expect(secondExternalUpdate.ok(), await secondExternalUpdate.text()).toBe(true);
+			const draftRefreshResponse = page.waitForResponse((response: any) =>
+				response.url().endsWith(detailPath) && response.request().method() === 'GET'
+			);
+			releaseDraftDetail();
+			expect((await draftRefreshResponse).ok()).toBe(true);
+			await expect(nodeDraft).toBeVisible();
+			await nodeDraft.locator('button.close-button').click();
+			await expect(page.getByTestId('workflow-node-input-summary')).toHaveText('Paris');
+			await expect(page.getByTestId('workflow-version-selector')).toContainText('Version 3');
 
 			await page.route(`**${detailPath}`, async (route: any) => {
 				await detailGate;
@@ -256,6 +348,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 		} finally {
 			releaseRuns();
+			releaseDraftDetail();
 			releaseDetail();
 			if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
 		}
@@ -475,6 +568,7 @@ test.describe('Workflows web UI contract', () => {
 				await proof.checkpoint('guard-visible');
 			}
 			await page.getByTestId('workflow-node-save').click();
+			await expect(weatherNode.getByTestId('workflow-node-expanded')).toHaveCount(0);
 			await expect(
 				page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')
 			).toContainText('Paris');

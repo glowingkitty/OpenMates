@@ -35,15 +35,17 @@
   import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema } from './workflowBuilder';
   import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeAfter } from './workflowReordering';
 
-  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null }: {
+  let { graph, readOnly = false, nodeRuns = [], testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null, onDraftStateChange }: {
     graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
     aiAddedNodeIds?: string[]; aiEditedNodeIds?: string[];
     onChange: (graph: WorkflowGraph) => void; onSave?: ((graph: WorkflowGraph) => Promise<void>) | null;
+    onDraftStateChange?: (hasDraft: boolean) => void;
   } = $props();
   let capabilities = $state<Capability[]>([]);
   let capabilityLoad: Promise<void> | null = null;
   let loadError = $state('');
   let draft = $state<WorkflowNode | null>(null);
+  $effect(() => { onDraftStateChange?.(!readOnly && draft !== null); });
   let insertion = $state<Insertion>({ after: null });
   let picker = $state<'trigger' | 'action' | 'app' | 'skill' | null>(null);
   let selectedApp = $state('');
