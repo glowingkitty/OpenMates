@@ -191,8 +191,10 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
 
     The compiler's generated schema is authoritative and stricter. Provider
     structured output uses one optional recursive branch definition instead of
-    expanding every step kind at every branch depth; the compiler validates the
-    emitted kind-specific fields, references and app capability/input pairing.
+    expanding every step kind at every branch depth. App input keys are scoped to
+    selected capabilities, while their nested types remain in the prompt and
+    strict compiler validation: expanding all app input variants makes Gemini
+    reject the entire response schema before generation.
     """
     from backend.core.api.app.services.workflow_authoring_compiler import build_authoring_schema
 
@@ -219,8 +221,12 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
     if app_definitions:
         step_fields["kind"]["enum"].append("app")
         step_fields["capability"] = {"type": "string", "enum": app_ids}
-        app_inputs = [value["properties"]["input"] for value in app_definitions]
-        step_fields["input"] = app_inputs[0] if len(app_inputs) == 1 else {"anyOf": app_inputs}
+        input_keys = sorted({key for capability in selection.capabilities
+                             if capability.id != "ai.ask"
+                             for key in capability.metadata["input_schema"].get("properties", {})})
+        value_schema = {"type": ["string", "number", "boolean", "null", "object", "array"]}
+        step_fields["input"] = {"type": "object", "additionalProperties": False,
+                                "properties": {key: value_schema for key in input_keys}}
     if "ask_ai" in definitions:
         step_fields["kind"]["enum"].append("ask_ai")
         step_fields["prompt"] = definitions["ask_ai"]["properties"]["prompt"]
