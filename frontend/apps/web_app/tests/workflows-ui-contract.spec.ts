@@ -161,11 +161,13 @@ function waitingGraph() {
 				title: 'Confirm the next step',
 				config: { prompt: 'Continue this Workflow?', timeout_seconds: 600 }
 			},
+			{ id: 'notify', type: 'send_notification', title: 'Show result', config: { title: 'Ready', body: 'Ready' } },
 			{ id: 'end', type: 'end', title: 'Done', config: {} }
 		],
 		edges: [
 			{ from: 'manual', to: 'approval' },
-			{ from: 'approval', to: 'end' }
+			{ from: 'approval', to: 'notify' },
+			{ from: 'notify', to: 'end' }
 		]
 	};
 }

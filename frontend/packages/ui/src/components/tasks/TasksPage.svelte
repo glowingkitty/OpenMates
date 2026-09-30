@@ -24,6 +24,7 @@
     blockUserTask,
     completeUserTask,
     createUserTask,
+    createTaskMoveSequencer,
     deleteUserTask,
     cancelWorkflowRunTaskProjection,
     extractUserTaskProposals,
@@ -31,6 +32,7 @@
     isWorkflowRunTaskProjectionViewModel,
     listTaskBoardItems,
     peekTaskBoardItems,
+    peekUserTask,
     prependTaskBoardItem,
     peekTaskAssignmentEligibility,
     subscribeUserTasks,
@@ -94,7 +96,7 @@
   let transcriptText = $state('');
   let correctedTranscriptText = $state('');
   let taskPromptValue = $state('');
-  let pendingTaskDelete = $state<{ task: TasksBoardItem; request: string } | null>(null);
+  let pendingTaskDelete = $state<{ task: TasksBoardItem; request: string; scope: string | null } | null>(null);
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
   let tasksPageWidth = $state(900);
@@ -104,6 +106,7 @@
   let showMobileTaskTags = $state(false);
   let selectedWorkflowRunProjection = $state<WorkflowRunTaskProjectionViewModel | null>(null);
   let selectedTask = $state<UserTaskViewModel | null>(null);
+  let selectedTaskChange = $state<(updated: UserTaskViewModel) => void>(() => {});
   let taskBoardPanel: HTMLElement | null = $state(null);
   let projectNames = $state<Record<string, string>>({});
   let assigneeAvatarUrl = $state<string | null>(null);
@@ -124,6 +127,34 @@
   let canAssignCodex = $state(false);
   let taskRequestGeneration = 0;
   let planRequestGeneration = 0;
+  const runTaskMove = createTaskMoveSequencer();
+
+  function scopeIsCurrent(requestedScope: string | null): boolean {
+    return requestedScope === getWorkspaceCacheIdentity();
+  }
+
+  function clearSensitiveTaskState(): void {
+    tasks = [];
+    plans = [];
+    title = '';
+    description = '';
+    taskAssigneeChoice = 'user';
+    transcriptText = '';
+    correctedTranscriptText = '';
+    taskPromptValue = '';
+    extractedProposals = [];
+    searchTerm = '';
+    selectedTask = null;
+    selectedTaskChange = () => {};
+    selectedWorkflowRunProjection = null;
+    pendingTaskDelete = null;
+    canAssignCodex = false;
+    isSaving = false;
+    isExtracting = false;
+    planActionId = null;
+    hasLoadError = false;
+    projectNames = {};
+  }
 
   function formatGreetingName(username: string): string {
     const trimmed = username.trim();
@@ -205,7 +236,8 @@
     return /\b(assign|assigned|handoff|hand off|start)\b/i.test(request) && /\bcodex\b/i.test(request);
   }
 
-  function handleTaskChange(updated: UserTaskViewModel): void {
+  function handleTaskChange(updated: UserTaskViewModel, requestedScope: string | null): void {
+    if (!scopeIsCurrent(requestedScope)) return;
     tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
     if (selectedTask?.task_id === updated.task_id) selectedTask = updated;
     broadcastTasksChanged();
@@ -213,7 +245,9 @@
 
   async function revealTaskBoardPanel(): Promise<void> {
     if (!isCentralTasksWorkspace || !taskBoardPanel) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     await tick();
+    if (!scopeIsCurrent(requestedScope)) return;
     taskBoardPanel?.scrollIntoView({ block: isNarrowTasksWorkspace ? 'start' : 'center', inline: 'nearest', behavior: 'auto' });
   }
 
@@ -226,8 +260,13 @@
     }
     if (!isWorkflowRunTaskProjectionViewModel(task)) {
       selectedWorkflowRunProjection = null;
-      if (onOpenTask) onOpenTask(task, canAssignCodex, handleTaskChange);
+      if (onOpenTask) {
+        const requestedScope = getWorkspaceCacheIdentity();
+        onOpenTask(task, canAssignCodex, (updated) => handleTaskChange(updated, requestedScope));
+      }
       else {
+        const requestedScope = getWorkspaceCacheIdentity();
+        selectedTaskChange = (updated) => handleTaskChange(updated, requestedScope);
         selectedTask = task;
         void revealTaskBoardPanel();
       }
@@ -287,6 +326,7 @@
 
   async function refreshTasks(): Promise<void> {
     const generation = ++taskRequestGeneration;
+    const requestedScope = getWorkspaceCacheIdentity();
     const requestedFilters = filters();
     if (!tasksEnabled) {
       tasks = [];
@@ -300,17 +340,17 @@
     try {
       hasLoadError = false;
       const loaded = await listTaskBoardItems(requestedFilters);
-      if (generation !== taskRequestGeneration) return;
+      if (generation !== taskRequestGeneration || !scopeIsCurrent(requestedScope)) return;
       tasks = loaded;
       const eligible = peekTaskAssignmentEligibility() ?? await getTaskAssignmentEligibility();
-      if (generation === taskRequestGeneration) canAssignCodex = eligible;
+      if (generation === taskRequestGeneration && scopeIsCurrent(requestedScope)) canAssignCodex = eligible;
     } catch (error) {
-      if (generation !== taskRequestGeneration) return;
+      if (generation !== taskRequestGeneration || !scopeIsCurrent(requestedScope)) return;
       hasLoadError = peekTaskBoardItems(requestedFilters) === undefined;
       console.error('[TasksPage] Failed to load tasks:', error);
       notificationStore.error('Failed to load tasks');
     } finally {
-      if (generation === taskRequestGeneration) isLoading = false;
+      if (generation === taskRequestGeneration && scopeIsCurrent(requestedScope)) isLoading = false;
     }
   }
 
@@ -320,10 +360,13 @@
       assigneeAvatarUrl = previewAssigneeAvatarUrl;
       return;
     }
+    const requestedScope = getWorkspaceCacheIdentity();
     try {
       const projects = await listProjects();
+      if (!scopeIsCurrent(requestedScope)) return;
       projectNames = Object.fromEntries(projects.map((project) => [project.project_id, project.name]));
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to load linked project labels:', error);
       projectNames = {};
     }
@@ -331,6 +374,7 @@
 
   async function refreshPlans(): Promise<void> {
     const generation = ++planRequestGeneration;
+    const requestedScope = getWorkspaceCacheIdentity();
     if (!plansEnabled) {
       plans = [];
       isLoadingPlans = false;
@@ -342,12 +386,12 @@
     isLoadingPlans = !cached;
     try {
       const loaded = await listUserPlans(planFilters);
-      if (generation === planRequestGeneration) plans = loaded;
+      if (generation === planRequestGeneration && scopeIsCurrent(requestedScope)) plans = loaded;
     } catch (error) {
-      if (generation !== planRequestGeneration) return;
+      if (generation !== planRequestGeneration || !scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to load plans:', error);
     } finally {
-      if (generation === planRequestGeneration) isLoadingPlans = false;
+      if (generation === planRequestGeneration && scopeIsCurrent(requestedScope)) isLoadingPlans = false;
     }
   }
 
@@ -358,6 +402,7 @@
       notificationStore.error('Codex must create its first task before it can be assigned work.');
       return;
     }
+    const requestedScope = getWorkspaceCacheIdentity();
     isSaving = true;
     try {
       const selectedAssignee = taskAssigneeChoice;
@@ -370,6 +415,7 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
+      if (!scopeIsCurrent(requestedScope)) return;
       tasks = prependTaskBoardItem(tasks, task);
       broadcastTasksChanged();
       title = '';
@@ -377,15 +423,17 @@
       taskAssigneeChoice = 'user';
       notificationStore.success(assigneeSuccessLabel(selectedAssignee));
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to create task:', error);
       notificationStore.error('Failed to create task');
     } finally {
-      isSaving = false;
+      if (scopeIsCurrent(requestedScope)) isSaving = false;
     }
   }
 
   async function handleTaskPromptSubmit(value: string): Promise<void> {
     if (!tasksEnabled || isSaving) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     if (/\bexternal[-\s]?ai\b/i.test(value) && !/\bcodex\b/i.test(value) && /\b(assign|start|handoff|hand off)\b/i.test(value)) {
       notificationStore.error('Name Codex explicitly when assigning work to it.');
       return;
@@ -397,7 +445,7 @@
         notificationStore.error('Name the task to delete first.');
         return;
       }
-      pendingTaskDelete = { task: mentionedTask, request: value };
+      pendingTaskDelete = { task: mentionedTask, request: value, scope: requestedScope };
       taskPromptValue = '';
       return;
     }
@@ -409,11 +457,13 @@
       const targetStatus = parseTaskStatus(value);
       if (renamedTitle) {
         await updateTaskFromPrompt(mentionedTask, { title: renamedTitle }, 'Task renamed');
+        if (!scopeIsCurrent(requestedScope)) return;
         taskPromptValue = '';
         return;
       }
       if (description) {
         await updateTaskFromPrompt(mentionedTask, { description }, 'Task details updated');
+        if (!scopeIsCurrent(requestedScope)) return;
         taskPromptValue = '';
         return;
       }
@@ -425,11 +475,13 @@
         } else {
           await updateTaskFromPrompt(mentionedTask, assignmentPatchForTask(mentionedTask, targetAssignee), targetAssignee === 'codex' ? 'Task assigned to Codex' : 'Task assignment updated');
         }
+        if (!scopeIsCurrent(requestedScope)) return;
         taskPromptValue = '';
         return;
       }
       if (targetStatus) {
         await handleMove(mentionedTask, targetStatus);
+        if (!scopeIsCurrent(requestedScope)) return;
         taskPromptValue = '';
         return;
       }
@@ -441,6 +493,7 @@
     }
 
     await createTaskFromPrompt(value);
+    if (!scopeIsCurrent(requestedScope)) return;
     taskPromptValue = '';
   }
 
@@ -449,6 +502,7 @@
       notificationStore.error('Codex must create its first task before it can be assigned work.');
       return;
     }
+    const requestedScope = getWorkspaceCacheIdentity();
     isSaving = true;
     try {
       const selectedAssignee: TaskAssigneeChoice = requestedCodexAssignment(value)
@@ -465,24 +519,29 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
+      if (!scopeIsCurrent(requestedScope)) return;
       tasks = prependTaskBoardItem(tasks, task);
       broadcastTasksChanged();
       notificationStore.success(assigneeSuccessLabel(selectedAssignee));
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to create task from prompt:', error);
       notificationStore.error('Failed to create task');
     } finally {
-      isSaving = false;
+      if (scopeIsCurrent(requestedScope)) isSaving = false;
     }
   }
 
   async function updateTaskFromPrompt(task: UserTaskViewModel, patch: Parameters<typeof updateUserTask>[1], successMessage: string): Promise<void> {
+    const requestedScope = getWorkspaceCacheIdentity();
     try {
       const updated = await updateUserTask(task, patch);
+      if (!scopeIsCurrent(requestedScope)) return;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
       notificationStore.success(successMessage);
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to update task from prompt:', error);
       notificationStore.error('Failed to update task');
     }
@@ -490,6 +549,7 @@
 
   async function confirmTaskDelete(): Promise<void> {
     if (!pendingTaskDelete) return;
+    if (!scopeIsCurrent(pendingTaskDelete.scope)) { pendingTaskDelete = null; return; }
     const task = pendingTaskDelete.task;
     pendingTaskDelete = null;
     await handleDelete(task);
@@ -504,26 +564,31 @@
   async function handleExtractTasks(): Promise<void> {
     const correctedText = (correctedTranscriptText || transcriptText).trim();
     if (!correctedText || isExtracting) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     isExtracting = true;
     try {
-      extractedProposals = await extractUserTaskProposals({
+      const proposals = await extractUserTaskProposals({
         correctedText,
         contextChatId: chatId,
         projectIds: projectId ? [projectId] : [],
       });
+      if (!scopeIsCurrent(requestedScope)) return;
+      extractedProposals = proposals;
       if (extractedProposals.length === 0) {
         notificationStore.error('No task proposals found');
       }
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to extract task proposals:', error);
       notificationStore.error('Failed to extract task proposals');
     } finally {
-      isExtracting = false;
+      if (scopeIsCurrent(requestedScope)) isExtracting = false;
     }
   }
 
   async function handleAcceptProposal(proposal: UserTaskProposal): Promise<void> {
     if (isSaving) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     isSaving = true;
     try {
       const task = await createUserTask({
@@ -534,15 +599,17 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
+      if (!scopeIsCurrent(requestedScope)) return;
       tasks = prependTaskBoardItem(tasks, task);
       extractedProposals = extractedProposals.filter((candidate) => candidate !== proposal);
       broadcastTasksChanged();
       notificationStore.success('Task created from transcript');
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to accept task proposal:', error);
       notificationStore.error('Failed to create task from proposal');
     } finally {
-      isSaving = false;
+      if (scopeIsCurrent(requestedScope)) isSaving = false;
     }
   }
 
@@ -555,12 +622,14 @@
     return Math.min(0, ...positions) - 1;
   }
 
-  async function persistMove(task: UserTaskViewModel, status: UserTaskStatus, position: number): Promise<UserTaskViewModel> {
+  async function persistMove(task: UserTaskViewModel, status: UserTaskStatus, position: number, requestedScope: string | null): Promise<UserTaskViewModel | null> {
+    if (requestedScope !== getWorkspaceCacheIdentity()) return null;
     let updated = task;
     if (status === 'done' && task.status !== 'done') updated = await completeUserTask(task);
     else if (status === 'blocked' && task.status !== 'blocked') updated = await blockUserTask(task);
     else if (task.status === 'blocked' && status !== 'blocked') updated = await unblockUserTask(task);
     else if (status === 'backlog' && task.status !== 'backlog') updated = await skipUserTask(task);
+    if (requestedScope !== getWorkspaceCacheIdentity()) return null;
 
     const [moved] = await reorderUserTasks([{ task: updated, status, position }]);
     if (!moved) throw new Error('Task reorder returned no task');
@@ -568,27 +637,55 @@
   }
 
   async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<void> {
-    if (isWorkflowRunTaskProjectionViewModel(task) || task.status === status) return;
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    const requestedScope = getWorkspaceCacheIdentity();
+    await runTaskMove(task.task_id, async () => {
+      if (requestedScope !== getWorkspaceCacheIdentity()) return;
+      const displayed = tasks.find((candidate) => candidate.task_id === task.task_id);
+      if (!displayed || isWorkflowRunTaskProjectionViewModel(displayed)) return;
+      const cached = peekUserTask(task.task_id);
+      const current = cached && (cached.version > displayed.version || (cached.version === displayed.version && cached.updatedAt > displayed.updatedAt))
+        ? cached : displayed;
+      if (current.status === status) return;
+      await persistBoardMove(current, status, requestedScope);
+    });
+  }
+
+  async function persistBoardMove(task: UserTaskViewModel, status: UserTaskStatus, requestedScope: string | null): Promise<void> {
+    const scopeIsCurrent = () => requestedScope === getWorkspaceCacheIdentity();
+    if (!scopeIsCurrent()) return;
     const previous = tasks;
     const position = firstPositionIn(status, task.task_id, previous);
     tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
     try {
-      let updated: UserTaskViewModel;
+      let updated: UserTaskViewModel | null;
       try {
-        updated = await persistMove(task, status, position);
+        updated = await persistMove(task, status, position, requestedScope);
       } catch (error) {
+        if (!scopeIsCurrent()) return;
         if (!(error instanceof Error) || !error.message.includes('Tasks API failed (409)')) throw error;
         // Another client may have changed this task since the board loaded.
         const latest = await listTaskBoardItems(filters(), { force: true });
+        if (!scopeIsCurrent()) return;
         const current = latest.find((candidate) => candidate.task_id === task.task_id);
         if (!current || isWorkflowRunTaskProjectionViewModel(current)) throw error;
         tasks = latest.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
-        updated = await persistMove(current, status, position);
+        updated = await persistMove(current, status, position, requestedScope);
       }
+      if (!scopeIsCurrent() || !updated) return;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
     } catch (error) {
-      try { tasks = await listTaskBoardItems(filters(), { force: true }); } catch { tasks = previous; }
+      if (!scopeIsCurrent()) return;
+      try {
+        const latest = await listTaskBoardItems(filters(), { force: true });
+        if (!scopeIsCurrent()) return;
+        tasks = latest;
+      } catch {
+        if (!scopeIsCurrent()) return;
+        tasks = previous;
+      }
+      if (!scopeIsCurrent()) return;
       console.error('[TasksPage] Failed to update task:', error);
       notificationStore.error('Failed to update task');
     }
@@ -596,13 +693,16 @@
 
   async function handleSkip(task: TasksBoardItem): Promise<void> {
     if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     const previous = tasks;
     tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status: 'backlog' } : candidate);
     try {
       const updated = await skipUserTask(task);
+      if (requestedScope !== getWorkspaceCacheIdentity()) return;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
     } catch (error) {
+      if (requestedScope !== getWorkspaceCacheIdentity()) return;
       tasks = previous;
       console.error('[TasksPage] Failed to skip task:', error);
       notificationStore.error('Failed to skip task');
@@ -611,13 +711,16 @@
 
   async function handleDelete(task: TasksBoardItem): Promise<void> {
     if (isWorkflowRunTaskProjectionViewModel(task) && !task.canDelete) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     const previous = tasks;
     tasks = tasks.filter((candidate) => candidate.task_id !== task.task_id);
     try {
       await deleteUserTask(task);
+      if (!scopeIsCurrent(requestedScope)) return;
       broadcastTasksChanged();
       notificationStore.success(isWorkflowRunTaskProjectionViewModel(task) ? 'Next workflow run skipped' : 'Task deleted');
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       tasks = previous;
       console.error('[TasksPage] Failed to delete task:', error);
       notificationStore.error('Failed to delete task');
@@ -626,12 +729,15 @@
 
   async function handleStartAI(task: TasksBoardItem): Promise<void> {
     if (isWorkflowRunTaskProjectionViewModel(task)) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     try {
       const updated = await startUserTaskWithAI(task);
+      if (!scopeIsCurrent(requestedScope)) return;
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
       notificationStore.success('AI task queued');
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to start AI task:', error);
       notificationStore.error('Failed to start AI task');
     }
@@ -639,11 +745,15 @@
 
   async function handleCancelWorkflowRun(task: TasksBoardItem): Promise<void> {
     if (!isWorkflowRunTaskProjectionViewModel(task)) return;
+    const requestedScope = getWorkspaceCacheIdentity();
     try {
       await cancelWorkflowRunTaskProjection(task);
+      if (!scopeIsCurrent(requestedScope)) return;
       await refreshTasks();
+      if (!scopeIsCurrent(requestedScope)) return;
       notificationStore.success('Workflow run cancellation requested');
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       console.error('[TasksPage] Failed to cancel workflow run:', error);
       notificationStore.error('Failed to cancel workflow run');
     }
@@ -663,6 +773,7 @@
       notificationStore.error(status === 'in_progress' ? 'Link this plan to a chat before starting it.' : 'Link this plan to a chat before blocking it.');
       return;
     }
+    const requestedScope = getWorkspaceCacheIdentity();
     const previous = plans;
     plans = plans.map((candidate) => candidate.plan_id === plan.plan_id ? { ...candidate, status: planStatusForColumn(status) } : candidate);
     planActionId = plan.plan_id;
@@ -679,34 +790,39 @@
       } else {
         updated = await updateUserPlan(plan, { status: 'draft' });
       }
+      if (!scopeIsCurrent(requestedScope)) return;
       plans = plans.map((candidate) => candidate.plan_id === updated.plan_id ? updated : candidate);
       broadcastPlansChanged();
       notificationStore.success(status === 'done' ? 'Plan completed' : 'Plan updated');
     } catch (error) {
+      if (!scopeIsCurrent(requestedScope)) return;
       plans = previous;
       console.error('[TasksPage] Failed to move plan:', error);
       notificationStore.error(status === 'done' ? 'Plan still has blockers before completion' : error instanceof Error ? error.message : 'Failed to update plan');
     } finally {
-      planActionId = null;
+      if (scopeIsCurrent(requestedScope)) planActionId = null;
     }
   }
 
   onMount(() => {
     if (hasPreviewData) return;
     let displayedScope = getWorkspaceCacheIdentity();
+    let displayedUserId = $userProfile.user_id;
     const clearOnScopeChange = () => {
       const scope = getWorkspaceCacheIdentity();
       if (scope === displayedScope) return;
       displayedScope = scope;
+      const userId = $userProfile.user_id;
       taskRequestGeneration += 1;
       planRequestGeneration += 1;
-      tasks = [];
-      plans = [];
-      selectedTask = null;
-      selectedWorkflowRunProjection = null;
-      pendingTaskDelete = null;
-      canAssignCodex = false;
-      projectNames = {};
+      clearSensitiveTaskState();
+      if (userId !== displayedUserId) assigneeAvatarUrl = null;
+      displayedUserId = userId;
+      if (scope) {
+        void refreshTasks();
+        void refreshPlans();
+        void refreshTaskPresentation();
+      }
     };
     const unsubscribeTasks = subscribeUserTasks(() => {
       clearOnScopeChange();
@@ -730,6 +846,7 @@
   $effect(() => {
     const profileImageUrl = $userProfile.profile_image_url;
     const userId = $userProfile.user_id;
+    const requestedScope = getWorkspaceCacheIdentity();
     if (hasPreviewData) {
       projectNames = previewProjectNames;
       assigneeAvatarUrl = previewAssigneeAvatarUrl;
@@ -741,7 +858,7 @@
     }
     let cancelled = false;
     getProfileImageBlobUrl(profileImageUrl, getApiUrl(), userId).then((resolved) => {
-      if (!cancelled) assigneeAvatarUrl = resolved;
+      if (!cancelled && scopeIsCurrent(requestedScope)) assigneeAvatarUrl = resolved;
     });
     return () => { cancelled = true; };
   });
@@ -763,11 +880,7 @@
     if (!userId) {
       taskRequestGeneration += 1;
       planRequestGeneration += 1;
-      tasks = [];
-      plans = [];
-      selectedTask = null;
-      selectedWorkflowRunProjection = null;
-      pendingTaskDelete = null;
+      clearSensitiveTaskState();
       isLoading = false;
       isLoadingPlans = false;
       return;
@@ -882,7 +995,7 @@
                   task={selectedTask}
                   {canAssignCodex}
                   presentation="split"
-                  onTaskChange={handleTaskChange}
+                  onTaskChange={selectedTaskChange}
                   onClose={() => { selectedTask = null; }}
                 />
               </div>
@@ -1080,7 +1193,7 @@
   {/if}
   {/if}
   {#if selectedTask && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
-    <TaskDetailFullscreen task={selectedTask} {canAssignCodex} onTaskChange={handleTaskChange} onClose={() => { selectedTask = null; }} />
+    <TaskDetailFullscreen task={selectedTask} {canAssignCodex} onTaskChange={selectedTaskChange} onClose={() => { selectedTask = null; }} />
   {/if}
   {#if selectedWorkflowRunProjection && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
     <WorkflowRunTaskDetail projection={selectedWorkflowRunProjection} presentation="overlay" onClose={() => { selectedWorkflowRunProjection = null; }} />

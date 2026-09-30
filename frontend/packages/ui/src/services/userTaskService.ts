@@ -252,6 +252,18 @@ export function prependTaskBoardItem(items: TasksBoardItem[], task: UserTaskView
   return [task, ...items.filter((item) => item.task_id !== task.task_id)];
 }
 
+/** Keep successive board actions for one Task behind its final reorder. */
+export function createTaskMoveSequencer(): (taskId: string, move: () => Promise<void>) => Promise<void> {
+  const tails = new Map<string, Promise<void>>();
+  return (taskId, move) => {
+    const operation = (tails.get(taskId) ?? Promise.resolve()).then(move);
+    const settled = operation.then(() => undefined, () => undefined);
+    tails.set(taskId, settled);
+    void settled.then(() => { if (tails.get(taskId) === settled) tails.delete(taskId); });
+    return operation;
+  };
+}
+
 export interface CreateUserTaskInput {
   title: string;
   description?: string;

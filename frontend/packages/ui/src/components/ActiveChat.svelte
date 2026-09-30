@@ -27,7 +27,7 @@
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
-    import { getRecentChatRevision, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, reconcileRecentChatMessages } from '../services/recentChatWindowCache';
+    import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { deactivateFocusForChat, isProjectFocusId } from '../services/projectFocusSendPreflight';
@@ -60,6 +60,7 @@
         currentSignupStep, 
         getStepFromPath, 
         isLoggingOut, 
+        forcedLogoutInProgress,
         isSignupPath,
         STEP_ALPHA_DISCLAIMER,
         STEP_BASICS,
@@ -2986,7 +2987,24 @@
         ? getExampleChatCompressionCheckpoints(initialPublicChat.chat_id)
         : [];
 
-    let showWelcome = $state(!initialPublicChat && !initialAnonymousChatId);
+    // A new chat component mounts after workspace navigation. Publish a valid
+    // selected snapshot on its first render, before page setup and IDB chat lookup.
+    const initialRecentChatSelection = (() => {
+        if (typeof window === 'undefined' || !$authStore.isAuthenticated || !initialActiveChatId
+            || initialPublicChat || initialAnonymousChatId || $isLoggingOut || $forcedLogoutInProgress
+            || isSignupPath($userProfile.last_opened)) return null;
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        if (hash.get('chat-id') !== initialActiveChatId || hash.has('message-id') || hash.has('messageid')
+            || hash.has('embed-id') || hash.has('embed_id') || hash.has('scroll')) return null;
+        if (!chatKeyManager.getKeySync(initialActiveChatId)) return null;
+        const selected = getRecentChatSelection(initialActiveChatId);
+        if (!selected || selected.chat.is_incognito || selected.chat.is_anonymous
+            || isPersistedDraftOnlyChat(selected.chat)
+            || !isChatInActiveTeamContext(selected.chat, get(activeTeamId))) return null;
+        return selected;
+    })();
+
+    let showWelcome = $state(!initialPublicChat && !initialAnonymousChatId && !initialRecentChatSelection);
     let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
@@ -4177,11 +4195,11 @@
     let cancelledPendingNewChatDraftText = $state<string | null>(null);
     let cancelledPendingNewChatPreserveId = $state(false);
     // Decrypted chat header metadata for new chats, populated once the server sends title/category/icon.
-    let activeChatDecryptedTitle = $state<string>(initialPublicChat?.title ?? '');
-    let activeChatDecryptedCategory = $state<string | null>(initialPublicChat?.category ?? null);
-    let activeChatDecryptedIcon = $state<string | null>(initialPublicChat?.icon?.split(',')[0]?.trim() || null);
+    let activeChatDecryptedTitle = $state<string>(initialRecentChatSelection?.window.header.title ?? initialPublicChat?.title ?? '');
+    let activeChatDecryptedCategory = $state<string | null>(initialRecentChatSelection?.window.header.category ?? initialPublicChat?.category ?? null);
+    let activeChatDecryptedIcon = $state<string | null>(initialRecentChatSelection?.window.header.icon ?? initialPublicChat?.icon?.split(',')[0]?.trim() ?? null);
     // Decrypted chat summary shown in the header below the title (available after post-processing).
-    let activeChatDecryptedSummary = $state<string | null>(initialPublicChat?.chat_summary ?? null);
+    let activeChatDecryptedSummary = $state<string | null>(initialRecentChatSelection?.window.header.summary ?? initialPublicChat?.chat_summary ?? null);
     // Bumped after closing embed fullscreen so ChatHeader remounts after layout classes settle.
     // Mate name captured from the mate_selected preprocessing step, used for the
     // "{Mate} is typing..." spinner text after model_selected arrives.
@@ -5371,13 +5389,13 @@
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
-     let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
-      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat ?? initialRecentChatSelection?.chat ?? null);
+      let currentMessages = $state<ChatMessageModel[]>(initialRecentChatSelection?.window.messages ?? initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
       let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
-        initialPublicChat || initialAnonymousChat ? 'ready' : 'idle',
+        initialPublicChat || initialAnonymousChat || initialRecentChatSelection ? 'ready' : 'idle',
      );
      let currentMessageIdsAreUnique = $derived(
         new Set(currentMessages.map((message) => message.message_id)).size === currentMessages.length,
@@ -5403,8 +5421,8 @@
             showWelcome = false;
         }
      });
-     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialPublicCompressionCheckpoints);
-      let currentMessageWindowHasMoreBefore = $state(false);
+     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialRecentChatSelection?.window.compressionCheckpoints ?? initialPublicCompressionCheckpoints);
+      let currentMessageWindowHasMoreBefore = $state(initialRecentChatSelection?.window.hasMoreBefore ?? false);
       let olderMessageWindowLoading = $state(false);
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
       function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
@@ -5418,8 +5436,10 @@
       }
 
       function cacheDisplayedChatWindow(chatId: string, epoch: number, revision: number, fallbackChat?: Chat): void {
+        const draftOnly = isPersistedDraftOnlyChat(currentChat);
         if (!$authStore.isAuthenticated || currentChat?.chat_id !== chatId || isPublicChat(chatId)
-            || currentChat.is_incognito || currentChat.is_anonymous || currentMessages.length === 0) return;
+            || currentChat.is_incognito || currentChat.is_anonymous || draftOnly
+            || currentMessages.length === 0) return;
         putRecentChatWindow(chatId, {
             messages: currentMessages,
             compressionCheckpoints: currentCompressionCheckpoints,
@@ -5435,7 +5455,7 @@
                 encryptedSummary: currentChat.encrypted_chat_summary ?? fallbackChat?.encrypted_chat_summary,
                 titleVersion: currentChat.title_v ?? fallbackChat?.title_v,
             },
-        }, epoch, revision);
+        }, epoch, revision, currentChat);
       }
 
       let hasActivePrivateChatSurface = $derived(Boolean(
@@ -5581,6 +5601,46 @@
     // Each loadChat() call increments this; if the counter has moved on by the time async work
     // completes, the stale call bails out instead of writing wrong messages into the view.
     let loadChatGeneration = 0;
+    const initialWarmGuard = initialRecentChatSelection
+        ? new RecentChatWarmReadGuard(initialRecentChatSelection.chat.chat_id, getWorkspaceCacheEpoch(),
+            getRecentChatRevision(initialRecentChatSelection.chat.chat_id))
+        : null;
+    const initialWarmOwnerId = $userProfile.user_id;
+    function discardRevokedInitialWarmChat(authenticated: boolean, ownerId: string | null, selectedId: string | null, teamId: string | null): void {
+        if (!initialWarmGuard?.active) return;
+        const warmChatId = initialWarmGuard.chatId;
+        const scopeValid = authenticated && ownerId === initialWarmOwnerId && selectedId === warmChatId
+            && chatKeyManager.getKeySync(warmChatId)
+            && currentChat && isChatInActiveTeamContext(currentChat, teamId);
+        const outcome = initialWarmGuard.inspect(!!scopeValid, getWorkspaceCacheEpoch(), getRecentChatRevision(warmChatId));
+        if (outcome === 'current') return;
+        // A message mutation only discards the early snapshot. The held IDB
+        // read still reaches the revision check and retries from canonical data.
+        currentMessages = [];
+        // ChatHistory intentionally keeps its parsed internal messages when a
+        // same-chat source prop becomes empty; clear that view immediately too.
+        chatHistoryRef?.updateMessages([]);
+        currentCompressionCheckpoints = [];
+        currentMessageWindowHasMoreBefore = false;
+        activeChatDecryptedTitle = '';
+        activeChatDecryptedCategory = null;
+        activeChatDecryptedIcon = null;
+        activeChatDecryptedSummary = null;
+        chatLoadState = 'loading';
+    }
+    const unsubscribeWarmInvalidation = subscribeRecentChatWindowInvalidation(() => {
+        // Master-key clear and chat-key removal call this synchronously. Remove
+        // the early plaintext in the same stack, even if IDB lookup is delayed.
+        discardRevokedInitialWarmChat(get(authStore).isAuthenticated, get(userProfile).user_id,
+            activeChatStore.get(), get(activeTeamId));
+    });
+    onDestroy(unsubscribeWarmInvalidation);
+    $effect(() => {
+        // Store changes without cache mutation (selection/team/account) also
+        // revoke the optimistic shell before canonical navigation takes over.
+        discardRevokedInitialWarmChat($authStore.isAuthenticated, $userProfile.user_id,
+            $activeChatStore, $activeTeamId);
+    });
     let lastDebugChatInspectionId = $state<string | null>(null);
 
     // Decrypted active focus mode ID for the current chat (e.g. "jobs-career_insights").
@@ -9509,6 +9569,8 @@
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
          if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
+         const isInitialWarmContinuation = !!initialWarmGuard?.active && initialWarmGuard.chatId === chat.chat_id;
+         if (!isInitialWarmContinuation) initialWarmGuard?.complete();
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -9518,12 +9580,24 @@
            const thisLoadGeneration = ++loadChatGeneration;
            const thisLoadEpoch = getWorkspaceCacheEpoch();
            const thisLoadRevision = getRecentChatRevision(chat.chat_id);
-           const isCurrentLoadTarget = () => thisLoadGeneration === loadChatGeneration && thisLoadEpoch === getWorkspaceCacheEpoch() && currentChat?.chat_id === chat.chat_id;
+           const isCurrentLoadTarget = () => thisLoadGeneration === loadChatGeneration
+               && thisLoadEpoch === getWorkspaceCacheEpoch() && currentChat?.chat_id === chat.chat_id
+               && (!isInitialWarmContinuation || (initialWarmGuard!.canContinue && $authStore.isAuthenticated
+                   && $userProfile.user_id === initialWarmOwnerId && activeChatStore.get() === chat.chat_id
+                   && !!chatKeyManager.getKeySync(chat.chat_id)
+                   && isChatInActiveTeamContext(chat, get(activeTeamId))));
            const recentWindow = !options?.messageId && $authStore.isAuthenticated && !isPublicChat(chat.chat_id) && !chat.is_incognito && !chat.is_anonymous && !isPersistedDraftOnlyChat(chat)
                ? getRecentChatWindow(chat)
                : null;
-           currentCompressionCheckpoints = [];
-          currentMessageWindowHasMoreBefore = false;
+           if (isInitialWarmContinuation && !recentWindow) {
+               // A key, account, or canonical mutation invalidated the shell
+               // before the persisted chat arrived. Do not retain its plaintext.
+               currentMessages = [];
+               chatHistoryRef?.updateMessages([]);
+               chatLoadState = 'loading';
+           }
+           currentCompressionCheckpoints = recentWindow?.compressionCheckpoints ?? [];
+          currentMessageWindowHasMoreBefore = recentWindow?.hasMoreBefore ?? false;
           olderMessageWindowLoading = false;
 
          // Clear any active processing phase indicator from the previous chat
@@ -9558,7 +9632,9 @@
          // reset whenever the header is already valid for this chat.
            const headerAlreadyLoadedForSameChat = isSameActiveChat
                && !!activeChatDecryptedTitle
-               && !!activeChatDecryptedCategory;
+               && (!!activeChatDecryptedCategory || !!(isInitialWarmContinuation && recentWindow && recentChatHeaderMatches(chat, recentWindow.header)))
+               && (!isInitialWarmContinuation || !!(recentWindow && recentChatHeaderMatches(chat, recentWindow.header)));
+           if (isInitialWarmContinuation && isSameActiveChat) currentChat = chat;
            if (!isSameActiveChat) {
                clearPendingTaskProposals();
                focusPillSetByEvent = false;
@@ -10437,11 +10513,16 @@
         currentMessages = currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
             ? pruneCurrentDecryptedMessageWindow(newMessages)
             : newMessages;
+        // Commit the canonical window to ChatHistory before the follow-up
+        // metadata awaits below. Its same-chat prop effect deliberately keeps
+        // an already rendered document until updateMessages is called.
+        if (isInitialWarmContinuation) chatHistoryRef?.updateMessages(currentMessages);
         chatLoadState = currentMessages.length === 0 && messageLoadFailed
             ? 'error'
             : backgroundMessageWindowRepair
                 ? 'repairing'
                 : 'ready';
+        if (isInitialWarmContinuation) initialWarmGuard?.complete();
 
         if (currentChat?.chat_id) {
             // Every selected chat owns the active surface, including empty or still-hydrating chats.

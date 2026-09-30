@@ -120,7 +120,14 @@
 	let bfcacheRestoreHandler: ((event: PageTransitionEvent) => void) | null = null; // Store BFCache restore handler for cleanup
 	let globalOpenSearchShortcutHandler: ((event: KeyboardEvent) => void) | null = null; // Persistent Cmd/Ctrl+F handler
 	let hasAutoOpenedGiftCardRedeemAfterAuth = $state(false);
-	let workspaceHashRoute = $derived(readWorkspaceHashRoute(page.url.hash));
+	// Native hash navigation can precede SvelteKit's page.url update. Keep the
+	// selected workspace in sync before any asynchronous deep-link work starts.
+	let workspaceHash = $state(browser ? window.location.hash : page.url.hash);
+	let workspaceHashRoute = $derived(readWorkspaceHashRoute(workspaceHash));
+	$effect(() => {
+		const kitHash = page.url.hash;
+		untrack(() => { workspaceHash = browser ? window.location.hash : kitHash; });
+	});
 
 	const SHORTCUT_OPEN_SEARCH_KEY = 'f';
 	const SHORTCUT_TOGGLE_CHATS_CODE = 'Backslash';
@@ -3273,6 +3280,7 @@
 		// in handleNewChatClick) to be treated as real user navigation — triggering
 		// loadDemoWelcomeChat and overwriting the new-chat state just as the user sent a message.
 		const newHash = window.location.hash;
+		workspaceHash = newHash;
 		if (readWorkspaceHashRoute(newHash).workspace !== 'chats') {
 			console.debug('[+page.svelte] Workspace hash changed:', newHash);
 			const workspaceSettingsPath = getSettingsPathFromHash(newHash);

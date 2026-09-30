@@ -32,11 +32,23 @@ interface StoredRecentChatWindow extends RecentChatWindow {
   epoch: number;
   revision: number;
   accountId: string;
+  sourceChat: Chat | null;
 }
 
 const cache = new BoundedCache<string, StoredRecentChatWindow>(MAX_RECENT_WINDOW_BYTES, MAX_RECENT_WINDOWS);
 const revisions = new Map<string, number>();
 let nextRevision = 0;
+const invalidationListeners = new Set<() => void>();
+
+/** Observe revocations synchronously; callers must unsubscribe on unmount. */
+export function subscribeRecentChatWindowInvalidation(listener: () => void): () => void {
+  invalidationListeners.add(listener);
+  return () => invalidationListeners.delete(listener);
+}
+
+function signalInvalidation(): void {
+  for (const listener of invalidationListeners) listener();
+}
 
 function rememberRevision(chatId: string, revision: number): number {
   revisions.delete(chatId);
@@ -63,6 +75,38 @@ export function isRecentChatReadCurrent(chatId: string, epoch: number, revision:
   return epoch === getWorkspaceCacheEpoch() && revision === getRecentChatRevision(chatId);
 }
 
+/** Distinguish a recoverable message write from loss of the warm view's security scope. */
+export class RecentChatWarmReadGuard {
+  private state: 'active' | 'revoked' | 'completed' = 'active';
+
+  constructor(
+    readonly chatId: string,
+    readonly epoch: number,
+    private revision: number,
+  ) {}
+
+  get active(): boolean { return this.state === 'active'; }
+  get canContinue(): boolean { return this.state !== 'revoked'; }
+
+  inspect(scopeValid: boolean, epoch: number, revision: number): 'current' | 'mutation' | 'revoked' {
+    if (this.state === 'revoked') return 'revoked';
+    if (this.state === 'completed') return 'current';
+    if (!scopeValid || epoch !== this.epoch) {
+      this.state = 'revoked';
+      return 'revoked';
+    }
+    if (revision !== this.revision) {
+      this.revision = revision;
+      return 'mutation';
+    }
+    return 'current';
+  }
+
+  complete(): void {
+    if (this.state === 'active') this.state = 'completed';
+  }
+}
+
 /** Keep older loaded pages while refreshing canonical fields of the latest page. */
 export function reconcileRecentChatMessages(current: Message[], incoming: Message[], hasMoreBefore: boolean): Message[] {
   if (!hasMoreBefore || !shouldPreserveExpandedMessageWindow(current, incoming)) return incoming;
@@ -74,6 +118,7 @@ export function reconcileRecentChatMessages(current: Message[], incoming: Messag
 export function invalidateRecentChatWindow(chatId: string): void {
   rememberRevision(chatId, ++nextRevision);
   cache.delete(chatId);
+  signalInvalidation();
 }
 
 export function invalidateRecentChatWindowForMessage(messageId: string): void {
@@ -85,6 +130,7 @@ export function invalidateRecentChatWindowForMessage(messageId: string): void {
 export function clearRecentChatWindows(): void {
   cache.clear();
   revisions.clear();
+  signalInvalidation();
 }
 
 registerWorkspaceCacheClear(clearRecentChatWindows);
@@ -94,11 +140,13 @@ export function putRecentChatWindow(
   window: RecentChatWindow,
   expectedEpoch = getWorkspaceCacheEpoch(),
   expectedRevision = getRecentChatRevision(chatId),
+  sourceChat?: Chat,
 ): boolean {
   // Resolve identity only on access; importing the store must not subscribe at module initialization.
   const accountId = get(userProfile).user_id;
   if (!accountId) return false;
   if (!isRecentChatReadCurrent(chatId, expectedEpoch, expectedRevision)) return false;
+  if (sourceChat && (sourceChat.is_incognito || sourceChat.is_anonymous || sourceChat.is_hidden_candidate)) return false;
   if (window.messages.length === 0 || window.messages.some((message) => message.chat_id !== chatId)) return false;
   // Only settled, persisted messages can be replayed on a future selection.
   if (window.messages.some((message) =>
@@ -108,7 +156,45 @@ export function putRecentChatWindow(
   )) return false;
   let entry: StoredRecentChatWindow;
   try {
-    entry = snapshot({ ...window, epoch: expectedEpoch, revision: expectedRevision, accountId });
+    const sourceChatForSelection: Chat | null = sourceChat?.chat_id === chatId
+      ? {
+          chat_id: sourceChat.chat_id,
+          user_id: sourceChat.user_id,
+          team_id: sourceChat.team_id,
+          encrypted_title: sourceChat.encrypted_title,
+          encrypted_category: sourceChat.encrypted_category,
+          encrypted_icon: sourceChat.encrypted_icon,
+          encrypted_chat_summary: sourceChat.encrypted_chat_summary,
+          messages_v: sourceChat.messages_v,
+          title_v: sourceChat.title_v,
+          metadata_v: sourceChat.metadata_v,
+          last_edited_overall_timestamp: sourceChat.last_edited_overall_timestamp,
+          unread_count: sourceChat.unread_count,
+          created_at: sourceChat.created_at,
+          updated_at: sourceChat.updated_at,
+          last_visible_message_id: sourceChat.last_visible_message_id,
+          processing_metadata: sourceChat.processing_metadata,
+          waiting_for_metadata: sourceChat.waiting_for_metadata,
+          is_shared: sourceChat.is_shared,
+          is_private: sourceChat.is_private,
+          is_shared_by_others: sourceChat.is_shared_by_others,
+          is_hidden: sourceChat.is_hidden,
+          is_hidden_candidate: sourceChat.is_hidden_candidate,
+          is_incognito: sourceChat.is_incognito,
+          is_anonymous: sourceChat.is_anonymous,
+          is_metadata_only: sourceChat.is_metadata_only,
+          parent_id: sourceChat.parent_id,
+          is_sub_chat: sourceChat.is_sub_chat,
+          encrypted_draft_md: null,
+          encrypted_draft_preview: null,
+        }
+      : null;
+    entry = snapshot({
+      ...window, epoch: expectedEpoch, revision: expectedRevision, accountId,
+      // The remount shell needs the selected chat's metadata before IndexedDB
+      // resolves. The composer restores its canonical draft separately.
+      sourceChat: sourceChatForSelection,
+    });
   } catch {
     // Optional memory acceleration must never interrupt canonical chat opening.
     return false;
@@ -127,7 +213,21 @@ export function getRecentChatWindow(chat: Chat): RecentChatWindow | null {
     cache.delete(chat.chat_id);
     return null;
   }
-  return snapshot(entry);
+  return snapshot({
+    messages: entry.messages,
+    compressionCheckpoints: entry.compressionCheckpoints,
+    hasMoreBefore: entry.hasMoreBefore,
+    header: entry.header,
+  });
+}
+
+/** Synchronous selected-chat snapshot for a new ActiveChat component instance. */
+export function getRecentChatSelection(chatId: string): { chat: Chat; window: RecentChatWindow } | null {
+  const entry = cache.get(chatId);
+  if (!entry?.sourceChat || entry.sourceChat.chat_id !== chatId) return null;
+  const window = getRecentChatWindow(entry.sourceChat);
+  if (!window || !recentChatHeaderMatches(entry.sourceChat, window.header)) return null;
+  return { chat: snapshot(entry.sourceChat), window };
 }
 
 export function recentChatHeaderMatches(chat: Chat, header: RecentChatHeader): boolean {

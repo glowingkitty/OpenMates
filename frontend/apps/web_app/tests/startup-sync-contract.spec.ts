@@ -214,6 +214,8 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 		message: 'Startup sync should cache a short chat plus another navigation target'
 	}).toBeGreaterThanOrEqual(2);
 	const [firstLocalChat, secondLocalChat] = localChats;
+	expect(firstLocalChat.messageCount, 'fixture short chat retains a bounded local window').toBe(LOCAL_SHORT_WINDOW_TARGET_COUNT);
+	expect(secondLocalChat.messageCount, 'second warm chat retains its persisted messages').toBeGreaterThan(0);
 
 	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
@@ -483,6 +485,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	expect(receivedTypes).toContain('phase_2_last_20_chats_ready');
 	expect(receivedTypes).not.toContain('background_message_sync');
 	expect(Math.max(...phase1bChatCounts)).toBeLessThanOrEqual(10);
+	expect(phase2Payloads.some((payload) => payload?.total_chat_count === 22), 'phase 2 should report all fixture chats').toBe(true);
 
 	for (const payload of phase2Payloads) {
 		expect(payload?.chat_count).toBe((payload?.chats || []).length);
@@ -497,8 +500,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 
 	const metadataOnlyChatId = await prepareLocalMetadataOnlyChat(page);
 	if (!metadataOnlyChatId) {
-		console.log('No local metadata-only chat found; startup sync boundary verified, skipping hydration check.');
-		return;
+		throw new Error('Encrypted startup fixture should leave an older metadata-only chat for on-demand hydration');
 	}
 
 	const coldWindowRoute = `**/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window**`;
@@ -642,6 +644,21 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 		}).toBeGreaterThan(0);
 		const readDone = await page.evaluate(() => (window as typeof window & { __recentChatBlockedReadDone?: boolean }).__recentChatBlockedReadDone);
 		expect(readDone, 'the IndexedDB message read should still be blocked when cached content is visible').toBe(false);
+
+		// Returning through another workspace remounts the chat view. The recent
+		// encrypted window must still render while the message store remains locked.
+		await page.evaluate(() => { window.location.hash = 'tasks'; });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 10000 });
+		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, first.chatId);
+		await expect(active).toHaveAttribute('data-current-chat-id', first.chatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count') || 0), {
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		}).toBeGreaterThan(0);
+		await expect(page.getByTestId('chat-history-content')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		expect(await page.evaluate(() =>
+			(window as typeof window & { __recentChatBlockedReadDone?: boolean }).__recentChatBlockedReadDone
+		), 'workspace return must show cached content before the blocked IndexedDB read completes').toBe(false);
 	} finally {
 		await releaseMessageStoreReads(page);
 	}

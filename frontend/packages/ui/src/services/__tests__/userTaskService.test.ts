@@ -32,6 +32,7 @@ import {
   canSubmitUserTaskActivity,
   createUserTaskActivity,
   createUserTask,
+  createTaskMoveSequencer,
   deleteUserTask,
   deleteUserTaskActivity,
   externalChatLookupHash,
@@ -90,6 +91,28 @@ describe('userTaskService external chat privacy', () => {
   });
 
   afterEach(() => userProfile.update((profile) => ({ ...profile, user_id: null })));
+
+  // contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible
+  it('waits for a block reorder before starting an immediate unblock of the same Task', async () => {
+    const runMove = createTaskMoveSequencer();
+    const actions: string[] = [];
+    let finishBlockReorder!: () => void;
+    const blockReorder = new Promise<void>((resolve) => { finishBlockReorder = resolve; });
+
+    const block = runMove('task-a', async () => {
+      actions.push('block response');
+      await blockReorder;
+      actions.push('block reorder');
+    });
+    const unblock = runMove('task-a', async () => { actions.push('unblock request'); });
+    const otherTask = runMove('task-b', async () => { actions.push('other task request'); });
+
+    await otherTask;
+    expect(actions).toEqual(['block response', 'other task request']);
+    finishBlockReorder();
+    await Promise.all([block, unblock]);
+    expect(actions).toEqual(['block response', 'other task request', 'block reorder', 'unblock request']);
+  });
 
   // contract-test: direct surface=gui.web assertions=tasks.surface.semantic-parity,tasks.content.client-encrypted
   it('reuses an exact chat query and its selected entity without decrypting it again', async () => {

@@ -5,13 +5,16 @@ import { invalidateWorkspaceCaches, getWorkspaceCacheEpoch } from '../workspaceC
 import {
   clearRecentChatWindows,
   getRecentChatRevision,
+  getRecentChatSelection,
   getRecentChatWindow,
   getRecentChatWindowStats,
   invalidateRecentChatWindow,
   invalidateRecentChatWindowForMessage,
   putRecentChatWindow,
   recentChatHeaderMatches,
+  RecentChatWarmReadGuard,
   reconcileRecentChatMessages,
+  subscribeRecentChatWindowInvalidation,
   type RecentChatWindow,
 } from '../recentChatWindowCache';
 
@@ -111,5 +114,79 @@ describe('recent decrypted chat windows', () => {
     expect(getRecentChatWindow(chat('a'))).toBeNull();
     userProfile.update((profile) => ({ ...profile, user_id: null }));
     expect(putRecentChatWindow('a', windowFor('a'))).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('provides a bounded remount shell without carrying a draft or stale selection', () => {
+    const sourceChat = { ...chat('a'), encrypted_draft_md: 'private draft ciphertext',
+      encrypted_chat_key: 'wrapped key', candidate_encrypted_keys: ['candidate key'],
+      encrypted_shared_short_url: 'private share URL', messages: [message('draft', 'a')] };
+    expect(putRecentChatWindow('a', windowFor('a'), getWorkspaceCacheEpoch(), getRecentChatRevision('a'), sourceChat)).toBe(true);
+    const selected = getRecentChatSelection('a')!;
+    expect(selected.chat.chat_id).toBe('a');
+    expect(selected.chat.encrypted_draft_md).toBeNull();
+    expect(selected.chat.messages).toBeUndefined();
+    expect(selected.chat.encrypted_chat_key).toBeUndefined();
+    expect(selected.chat.candidate_encrypted_keys).toBeUndefined();
+    expect(selected.chat.encrypted_shared_short_url).toBeUndefined();
+    expect(selected.window.messages[0].content).toBe('original');
+    selected.window.messages[0].content = 'consumer edit';
+    expect(getRecentChatSelection('a')?.window.messages[0].content).toBe('original');
+    invalidateRecentChatWindow('a');
+    expect(getRecentChatSelection('a')).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('notifies a mounted warm shell synchronously when its key epoch is cleared', () => {
+    let observed = false;
+    const unsubscribe = subscribeRecentChatWindowInvalidation(() => { observed = true; });
+    invalidateWorkspaceCaches();
+    expect(observed).toBe(true);
+    unsubscribe();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('aborts a held canonical read when the key epoch is revoked', async () => {
+    const sourceChat = chat('a');
+    const epoch = getWorkspaceCacheEpoch();
+    const revision = getRecentChatRevision('a');
+    expect(putRecentChatWindow('a', windowFor('a'), epoch, revision, sourceChat)).toBe(true);
+    const guard = new RecentChatWarmReadGuard('a', epoch, revision);
+    let finishRead!: () => void;
+    const heldRead = new Promise<void>((resolve) => { finishRead = resolve; });
+    let observed: string | null = null;
+    const unsubscribe = subscribeRecentChatWindowInvalidation(() => {
+      observed = guard.inspect(true, getWorkspaceCacheEpoch(), getRecentChatRevision('a'));
+    });
+    const pending = heldRead.then(() => guard.canContinue);
+    invalidateWorkspaceCaches();
+    expect(observed).toBe('revoked');
+    expect(getRecentChatSelection('a')).toBeNull();
+    finishRead();
+    expect(await pending).toBe(false);
+    unsubscribe();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('keeps a held canonical read retryable after an ordinary message write', async () => {
+    const epoch = getWorkspaceCacheEpoch();
+    const revision = getRecentChatRevision('a');
+    const guard = new RecentChatWarmReadGuard('a', epoch, revision);
+    let finishRead!: () => void;
+    const heldRead = new Promise<void>((resolve) => { finishRead = resolve; });
+    let observed: string | null = null;
+    const unsubscribe = subscribeRecentChatWindowInvalidation(() => {
+      observed = guard.inspect(true, getWorkspaceCacheEpoch(), getRecentChatRevision('a'));
+    });
+    const pending = heldRead.then(() => ({ canContinue: guard.canContinue, stale: revision !== getRecentChatRevision('a') }));
+    invalidateRecentChatWindow('a');
+    expect(observed).toBe('mutation');
+    expect(guard.active).toBe(true);
+    finishRead();
+    expect(await pending).toEqual({ canContinue: true, stale: true });
+    expect(guard.inspect(true, epoch, getRecentChatRevision('a'))).toBe('current');
+    guard.complete();
+    expect(guard.active).toBe(false);
+    unsubscribe();
   });
 });

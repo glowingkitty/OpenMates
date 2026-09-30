@@ -204,6 +204,30 @@ test.describe('Tasks web app parity', () => {
 		await page.getByTestId('task-workspace-submit').click();
 		const secondTaskId = (await (await secondCreated).json()).task.task_id as string;
 		await expect(taskCardIn(page.getByTestId('task-column-todo'), secondTaskTitle)).toBeVisible({ timeout: 30_000 });
+		await page.goto(getE2EDebugUrl('/#tasks'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
+		const boardToDetailListReads: string[] = [];
+		const recordBoardToDetailListRead = (request: { method: () => string; url: () => string }) => {
+			if (request.method() !== 'GET') return;
+			const path = new URL(request.url()).pathname;
+			if (path === '/v1/user-tasks' || path === '/v1/user-plans' || path === '/v1/projects') boardToDetailListReads.push(path);
+		};
+		page.on('request', recordBoardToDetailListRead);
+		await page.evaluate((selectedTaskId: string) => {
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'board-to-task';
+			window.location.hash = `task-id=${encodeURIComponent(selectedTaskId)}`;
+		}, taskId!);
+		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker
+		), 'the board must open Task A without reloading the document').toBe('board-to-task');
+		page.off('request', recordBoardToDetailListRead);
+		expect(boardToDetailListReads, 'board-to-detail navigation does not load full workspace lists').toEqual([]);
+		await page.evaluate(() => { window.location.hash = 'tasks'; });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
 		const coldDetailReads: string[] = [];
 		const recordColdDetailRead = (request: { method: () => string; url: () => string }) => {
 			if (request.method() !== 'GET') return;
