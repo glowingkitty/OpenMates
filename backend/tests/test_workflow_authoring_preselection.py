@@ -125,10 +125,12 @@ async def test_staged_selection_routes_apps_then_selects_skills_with_controls():
     assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
     assert len(jev.requests) == 2
     assert "app:weather" in jev.requests[0][1]
+    assert "changes a detail, not an existing workflow" in jev.requests[0][1]["operation"]["instructions"]
     assert set(jev.requests[1][1]) == {"weather.forecast", "weather.rain_radar"}
     assert result.metrics["jev_calls"] == 2
     assert result.metrics["input_tokens"] == 200
     assert result.metrics["app_scores"] == {"weather": 0.9}
+    assert result.metrics["selected_capability_ids"] == ["weather.forecast"]
     assert result.workflow_count == 1
 
 
@@ -177,6 +179,44 @@ async def test_jev_unclear_count_is_confusing_unless_title_only():
     assert confusing.request_clarity == "confusing"
     assert draft.request_clarity == "title_only"
     assert draft.context()["request_clarity"] == "title_only"
+
+
+@pytest.mark.asyncio
+async def test_self_correction_routing_prompt_and_safe_metrics():
+    spoken = ("Every Tuesday at 8 in Madrid—no, make that Thursday at 9 in Lisbon—"
+              "find local tech meetups and send a chat summary. Name it CLI rollout spoken")
+    jev = Decisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(spoken)
+    state, questions = jev.requests[0]
+    operation = questions["operation"]["instructions"]
+    assert "changes a detail, not an existing workflow" in operation
+    assert "existing named workflow or an open workflow" in operation
+    assert "corrected details" in questions["operation"]["criteria"]["create"]
+    assert "Replacing an earlier time, place" in questions["request_clarity"]["instructions"]
+    assert state["open_workflow"] is False
+    assert result.metrics["operation"] == "create"
+    assert result.metrics["request_clarity"] == "clear"
+    assert result.metrics["workflow_count"] == 1
+    assert result.metrics["selected_capability_ids"] == ["weather.forecast"]
+    assert spoken not in str(result.metrics)
+
+
+@pytest.mark.asyncio
+async def test_existing_open_workflow_remains_an_edit_target():
+    class UpdateDecisions(Decisions):
+        async def evaluate(self, *, state, questions):
+            response = await super().evaluate(state=state, questions=questions)
+            answers = response.model_dump()["answers"]
+            answers["operation"] = {"type": "choice", "choice": "update",
+                                    "probabilities": {"update": 1.0}, "confidence": 1.0}
+            return DecisionResponse.model_validate({**response.model_dump(), "answers": answers})
+
+    jev = UpdateDecisions()
+    result = await WorkflowAuthoringPreselector(jev_client=jev, registry=Registry()).select(
+        "Change this workflow's schedule to Thursday at 9", selected_workflow={"graph": {"nodes": []}})
+    assert jev.requests[0][0]["open_workflow"] is True
+    assert result.operation == "update"
+    assert result.metrics["operation"] == "update"
 
 
 @pytest.mark.asyncio
