@@ -182,12 +182,14 @@
 	}
 
 	function isCurrentChatNavigationTarget(chatId: string): boolean {
+		if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return false;
 		const currentStoreChatId = activeChatStore.get();
 		const currentHashChatId = activeChatStore.getChatIdFromHash();
-		return currentStoreChatId === chatId || currentHashChatId === chatId;
+		return (currentHashChatId ?? currentStoreChatId) === chatId;
 	}
 
 	function hasDifferentCurrentChatNavigationTarget(chatId: string): boolean {
+		if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return true;
 		const currentHashChatId = activeChatStore.getChatIdFromHash();
 		const currentStoreChatId = activeChatStore.get();
 		const currentChatTarget = currentHashChatId ?? currentStoreChatId;
@@ -686,6 +688,15 @@
 
 		// Update the activeChatStore so the Chats component highlights it when opened
 		activeChatStore.setActiveChat(chatId);
+		// Publish a validated recent window before the public-chat module lookup and
+		// IndexedDB metadata await. The normal route still loads the canonical chat.
+		const pendingDraftChat = $authStore.isAuthenticated ? chatListCache.getPendingOrCachedChat(chatId) : null;
+		let warmSelectionPending = false;
+		if (!messageId && !embedId && !scrollToLatestResponse && !autoplayVideo
+			&& !pendingDraftChat?.encrypted_draft_md && !pendingDraftChat?.encrypted_draft_preview) {
+			warmSelectionPending = !!activeChat && (activeChat.canContinueRecentChatSelection(chatId)
+				|| activeChat.showRecentChatSelection(chatId));
+		}
 
 		// Check if this is an example chat (hardcoded with embeds)
 		if (isExampleChat(chatId)) {
@@ -929,6 +940,7 @@
 					console.debug(`[+page.svelte] Loading cached encrypted draft chat directly: ${chatId}`);
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'cached draft deep-link load')) return;
+						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
 						activeChat.loadChat(cachedDraftChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = cachedDraftChat.chat_id;
 
@@ -969,6 +981,7 @@
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
 						if (skipStaleChatNavigationTarget(chatId, 'deep-linked IndexedDB chat load')) return;
+						if (warmSelectionPending && !activeChat.canContinueRecentChatSelection(chatId)) return;
 						activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = chat.chat_id;
 
@@ -1644,9 +1657,11 @@
 		console.debug('[+page.svelte] onMount started');
 		// Sweep browser-local download staging left by a closed or crashed Projects tab.
 		void cleanupStaleConnectedProjectDownloads().catch(() => {});
-		await installE2ETestHooks();
 		window.addEventListener('hashchange', handleHashChange);
 		window.addEventListener('popstate', handleHashChange);
+		workspaceHash = window.location.hash;
+		await installE2ETestHooks();
+		workspaceHash = window.location.hash;
 		// Example cards can render before slower onMount setup completes, so register this early.
 		window.addEventListener('demoChatSelected', handleDemoChatSelected);
 		document.documentElement.setAttribute('data-hash-router-ready', 'true');
@@ -1895,7 +1910,7 @@
 		// store with an old chat ID, which would cause it to auto-open without user intent.
 		const hashChatMatch = originalHash.match(/^#chat-id=(.+)/);
 		if (!hashChatMatch) {
-			activeChatStore.clearActiveChat();
+			activeChatStore.setWithoutHashUpdate(null);
 			console.debug(
 				'[+page.svelte] [INIT] No chat hash in URL — cleared activeChatStore to prevent stale auto-open'
 			);
@@ -2268,11 +2283,10 @@
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
 			// During forced logout, the handler returns to new chat for empty/null hash.
 			const handlers = createDeepLinkHandlers();
-			const hashToProcess =
-				shouldSuppressForcedLogoutHash || originalWorkspaceHashRoute.workspace !== 'chats'
-					? ''
-					: originalHash || '';
-			await processDeepLink(hashToProcess, handlers);
+			const hashToProcess = shouldSuppressForcedLogoutHash ? '' : originalHash || '';
+			if (originalWorkspaceHashRoute.workspace === 'chats') {
+				await processDeepLink(hashToProcess, handlers);
+			}
 			if (originalWorkspaceHashRoute.workspace !== 'chats') {
 				const workspaceSettingsPath = getSettingsPathFromHash(originalHash);
 				if (workspaceSettingsPath) {
@@ -3152,6 +3166,7 @@
 	 * a link to the last opened chat, letting the user decide whether to open it.
 	 */
 	async function loadLastOpenedChatOrCreateNew() {
+		if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return;
 		console.debug(
 			'[+page.svelte] Staying on new chat page for authenticated user (resume card will show last opened chat)'
 		);
@@ -3196,6 +3211,8 @@
 			},
 			onEmbed: handleEmbedDeepLink,
 			onNoHash: async () => {
+				// A delayed chat startup callback must not reset a workspace detail.
+				if (browser && readWorkspaceHashRoute(window.location.hash).workspace !== 'chats') return;
 				// Handle the case where no hash is present - load appropriate default chat
 				const isAuth = $authStore.isAuthenticated;
 				console.debug('[+page.svelte] onNoHash: Determining default chat to load', { isAuth });

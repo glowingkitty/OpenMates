@@ -8808,12 +8808,12 @@ assertions:
       surface: gui.web
     - &id1068
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 384
+      line: 386
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id1070
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 594
+      line: 596
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id1071
@@ -8903,7 +8903,7 @@ assertions:
       surface: gui.web
     - &id1069
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 583
+      line: 585
       name: continue carousel remains visible during reconnect churn
       surface: gui.web
     - &id1073
@@ -9053,7 +9053,7 @@ assertions:
       surface: gui.web
     - &id1094
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 384
+      line: 386
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id1098
@@ -28211,17 +28211,17 @@ assertions:
       surface: gui.apple
     - &id3361
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 384
+      line: 386
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id3363
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 594
+      line: 596
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id3364
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 605
+      line: 607
       name: recent chats replay the selected window while IndexedDB reconciliation
         waits
       surface: gui.web
@@ -28353,7 +28353,7 @@ assertions:
       surface: gui.web
     - &id3362
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 583
+      line: 585
       name: continue carousel remains visible during reconnect churn
       surface: gui.web
     - &id3366
@@ -29434,12 +29434,12 @@ assertions:
       surface: gui.web
     - &id3560
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 384
+      line: 386
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id3562
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 594
+      line: 596
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id3563
@@ -30056,7 +30056,7 @@ assertions:
       surface: gui.web
     - &id3561
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 583
+      line: 585
       name: continue carousel remains visible during reconnect churn
       surface: gui.web
     - &id3564
@@ -30681,12 +30681,12 @@ assertions:
       surface: gui.web
     - &id3694
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 384
+      line: 386
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id3695
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 594
+      line: 596
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id3700
@@ -50105,7 +50105,7 @@ assertions:
       surface: gui.web
     - &id6055
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 284
+      line: 290
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     - &id6056
@@ -51350,7 +51350,7 @@ assertions:
       surface: gui.web
     - &id6188
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 284
+      line: 290
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     tests:
@@ -52867,7 +52867,7 @@ assertions:
       surface: gui.web
     - &id6374
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 284
+      line: 290
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     - &id6375

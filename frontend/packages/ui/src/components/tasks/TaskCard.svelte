@@ -220,6 +220,10 @@
     transition: none;
   }
 
+  /* Each card creates a stacking context for drag animation. Lift an open menu
+     above following cards so its lower actions remain clickable. */
+  .task-card:has(.task-action-menu[open]) { z-index: 9; }
+
   .card-select { position: absolute; z-index: 1; inset: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
   .card-select:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
   .task-card-main, .task-card-metadata, .task-actions { position: relative; z-index: 2; pointer-events: none; }

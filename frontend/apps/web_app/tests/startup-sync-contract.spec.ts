@@ -303,20 +303,20 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 	}
 }
 
-/** Keep a write transaction open so a revisit cannot finish its IndexedDB read. */
-async function holdMessageStoreReads(page: any): Promise<void> {
+/** Keep both selected-chat stores locked so a revisit cannot read local metadata or messages. */
+async function holdSelectedChatStoreReads(page: any): Promise<void> {
 	await page.evaluate(async () => {
 		const testWindow = window as typeof window & {
-			__releaseRecentChatMessageLock?: () => void;
-			__recentChatBlockedReadDone?: boolean;
+			__releaseRecentChatStoreLock?: () => void;
+			__recentChatBlockedReadDone?: { chats: boolean; messages: boolean };
 		};
 		const db = await new Promise<IDBDatabase>((resolve, reject) => {
 			const request = indexedDB.open('chats_db');
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = () => reject(request.error);
 		});
-		const transaction = db.transaction('messages', 'readwrite');
-		const store = transaction.objectStore('messages');
+		const transaction = db.transaction(['chats', 'messages'], 'readwrite');
+		const store = transaction.objectStore('chats');
 		let held = true;
 		const keepAlive = () => {
 			if (!held) return;
@@ -324,19 +324,21 @@ async function holdMessageStoreReads(page: any): Promise<void> {
 			request.onsuccess = keepAlive;
 		};
 		keepAlive();
-		testWindow.__recentChatBlockedReadDone = false;
-		const blockedRead = db.transaction('messages', 'readonly').objectStore('messages').get('__recent_chat_blocked_read__');
-		blockedRead.onsuccess = () => { testWindow.__recentChatBlockedReadDone = true; };
-		testWindow.__releaseRecentChatMessageLock = () => { held = false; };
+		testWindow.__recentChatBlockedReadDone = { chats: false, messages: false };
+		for (const storeName of ['chats', 'messages'] as const) {
+			const blockedRead = db.transaction(storeName, 'readonly').objectStore(storeName).get('__recent_chat_blocked_read__');
+			blockedRead.onsuccess = () => { testWindow.__recentChatBlockedReadDone![storeName] = true; };
+		}
+		testWindow.__releaseRecentChatStoreLock = () => { held = false; };
 		transaction.oncomplete = () => db.close();
 	});
 }
 
-async function releaseMessageStoreReads(page: any): Promise<void> {
+async function releaseSelectedChatStoreReads(page: any): Promise<void> {
 	await page.evaluate(() => {
-		const testWindow = window as typeof window & { __releaseRecentChatMessageLock?: () => void };
-		testWindow.__releaseRecentChatMessageLock?.();
-		delete testWindow.__releaseRecentChatMessageLock;
+		const testWindow = window as typeof window & { __releaseRecentChatStoreLock?: () => void };
+		testWindow.__releaseRecentChatStoreLock?.();
+		delete testWindow.__releaseRecentChatStoreLock;
 	});
 }
 
@@ -617,6 +619,7 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 	}, { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toBeGreaterThanOrEqual(2);
 	const [first, second] = chats;
 	const active = page.getByTestId('active-chat-container');
+	const composerGate = page.getByTestId('chat-warm-composer-gate');
 	const select = async (chatId: string) => {
 		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, chatId);
 		await expect(active).toHaveAttribute('data-current-chat-id', chatId, { timeout: 30000 });
@@ -627,7 +630,12 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 	};
 	await select(first.chatId);
 	await select(second.chatId);
-	await holdMessageStoreReads(page);
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (await sidebar.isVisible().catch(() => false)) {
+		await sidebar.getByRole('button', { name: /close/i }).click();
+	}
+	await expect(sidebar).not.toBeVisible();
+	await holdSelectedChatStoreReads(page);
 	try {
 		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, first.chatId);
 		await expect(active).toHaveAttribute('data-current-chat-id', first.chatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
@@ -639,14 +647,34 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 		await expect(active).toHaveAttribute('data-current-message-ids-unique', 'true');
 		await expect(active).toHaveAttribute('data-current-message-order-valid', 'true');
 		await expect(page.getByTestId('chat-history-content')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(composerGate).toHaveJSProperty('inert', true);
+		await expect(composerGate).toHaveAttribute('aria-busy', 'true');
 		await expect.poll(async () => Number(await page.getByTestId('chat-history-content').getAttribute('data-source-message-count') || 0), {
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
 		}).toBeGreaterThan(0);
-		const readDone = await page.evaluate(() => (window as typeof window & { __recentChatBlockedReadDone?: boolean }).__recentChatBlockedReadDone);
-		expect(readDone, 'the IndexedDB message read should still be blocked when cached content is visible').toBe(false);
+		const readDone = await page.evaluate(() =>
+			(window as typeof window & { __recentChatBlockedReadDone?: { chats: boolean; messages: boolean } }).__recentChatBlockedReadDone
+		);
+		expect(readDone, 'IndexedDB chat metadata and message reads should still be blocked when cached content is visible')
+			.toEqual({ chats: false, messages: false });
+		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, second.chatId);
+		await expect(active).toHaveAttribute('data-current-chat-id', second.chatId, { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect.poll(async () => Number(await active.getAttribute('data-current-message-count') || 0), {
+			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
+		}).toBeGreaterThan(0);
+		await expect(active).toHaveAttribute('data-current-message-chat-consistent', 'true');
+		await expect(page.getByTestId('chat-history-content')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(composerGate).toHaveJSProperty('inert', true);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { __recentChatBlockedReadDone?: { chats: boolean; messages: boolean } }).__recentChatBlockedReadDone
+		), 'closed-sidebar A to B navigation must show cached content before either IndexedDB read completes')
+			.toEqual({ chats: false, messages: false });
 
 		// Returning through another workspace remounts the chat view. The recent
-		// encrypted window must still render while the message store remains locked.
+		// encrypted window must still render while both selected-chat stores remain locked.
 		await page.evaluate(() => { window.location.hash = 'tasks'; });
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 10000 });
 		await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, first.chatId);
@@ -656,11 +684,20 @@ test('recent chats replay the selected window while IndexedDB reconciliation wai
 			timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS
 		}).toBeGreaterThan(0);
 		await expect(page.getByTestId('chat-history-content')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(page.getByTestId('chat-header-banner')).toBeVisible({ timeout: LOCAL_CHAT_SHELL_TIMEOUT_MS });
+		await expect(composerGate).toHaveJSProperty('inert', true);
 		expect(await page.evaluate(() =>
-			(window as typeof window & { __recentChatBlockedReadDone?: boolean }).__recentChatBlockedReadDone
-		), 'workspace return must show cached content before the blocked IndexedDB read completes').toBe(false);
+			(window as typeof window & { __recentChatBlockedReadDone?: { chats: boolean; messages: boolean } }).__recentChatBlockedReadDone
+		), 'workspace return must show cached content before either IndexedDB read completes')
+			.toEqual({ chats: false, messages: false });
 	} finally {
-		await releaseMessageStoreReads(page);
+		await releaseSelectedChatStoreReads(page);
 	}
+	await expect.poll(() => page.evaluate(() =>
+		(window as typeof window & { __recentChatBlockedReadDone?: { chats: boolean; messages: boolean } }).__recentChatBlockedReadDone
+	)).toEqual({ chats: true, messages: true });
 	await expect(active).toHaveAttribute('data-chat-load-state', 'ready', { timeout: 30000 });
+	await expect(composerGate).toHaveJSProperty('inert', false);
+	await expect(composerGate).toHaveAttribute('aria-busy', 'false');
+	await expect(composerGate.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeVisible();
 });

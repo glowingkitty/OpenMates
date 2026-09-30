@@ -429,8 +429,8 @@ test.describe('Workflows web UI contract', () => {
 				})
 			);
 			await weatherNode.getByTestId('workflow-node-summary').click();
-			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '33px');
-			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '33px');
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('width', '40px');
+			await expect(page.getByTestId('workflow-editor-primary-icon')).toHaveCSS('height', '40px');
 			await weatherNode.getByTestId('workflow-node-location-picker').click();
 			await weatherNode.getByTestId('map-location-search-input').fill('Paris');
 			await weatherNode.getByTestId('map-location-search-result').click();

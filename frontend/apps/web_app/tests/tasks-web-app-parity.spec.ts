@@ -237,10 +237,16 @@ test.describe('Tasks web app parity', () => {
 				path === '/v1/user-plans' || path === '/v1/projects') coldDetailReads.push(path);
 		};
 		page.on('request', recordColdDetailRead);
-		await page.goto(getE2EDebugUrl(`/#task-id=${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
+		await page.evaluate(() => {
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'before-cold-detail';
+		});
+		await page.goto(getE2EDebugUrl(`/?e2e-task-detail-cold=1#task-id=${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('task-detail-content')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker
+		), 'cold Task A must load in a new document').toBeUndefined();
 		await page.evaluate((nextTaskId: string) => {
 			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'same-document';
 			window.location.hash = `task-id=${encodeURIComponent(nextTaskId)}`;

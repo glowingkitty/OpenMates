@@ -5397,6 +5397,11 @@
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat || initialRecentChatSelection ? 'ready' : 'idle',
      );
+     // A warm history/header can render before the editor's encrypted draft and
+     // ownership context are known. Keep the editor mounted for restoration but
+     // unavailable to the user until both canonical checks have settled.
+     let warmComposerChatId = $state<string | null>(initialRecentChatSelection?.chat.chat_id ?? null);
+     let warmComposerBlockedForCurrentChat = $derived(!!warmComposerChatId && currentChat?.chat_id === warmComposerChatId);
      let currentMessageIdsAreUnique = $derived(
         new Set(currentMessages.map((message) => message.message_id)).size === currentMessages.length,
      );
@@ -5601,19 +5606,21 @@
     // Each loadChat() call increments this; if the counter has moved on by the time async work
     // completes, the stale call bails out instead of writing wrong messages into the view.
     let loadChatGeneration = 0;
-    const initialWarmGuard = initialRecentChatSelection
+    let warmSelectionGuard = initialRecentChatSelection
         ? new RecentChatWarmReadGuard(initialRecentChatSelection.chat.chat_id, getWorkspaceCacheEpoch(),
             getRecentChatRevision(initialRecentChatSelection.chat.chat_id))
         : null;
-    const initialWarmOwnerId = $userProfile.user_id;
+    let warmSelectionOwnerId = $userProfile.user_id;
     function discardRevokedInitialWarmChat(authenticated: boolean, ownerId: string | null, selectedId: string | null, teamId: string | null): void {
-        if (!initialWarmGuard?.active) return;
-        const warmChatId = initialWarmGuard.chatId;
-        const scopeValid = authenticated && ownerId === initialWarmOwnerId && selectedId === warmChatId
+        if (!warmSelectionGuard?.active) return;
+        const warmChatId = warmSelectionGuard.chatId;
+        const scopeValid = authenticated && ownerId === warmSelectionOwnerId && selectedId === warmChatId
             && chatKeyManager.getKeySync(warmChatId)
             && currentChat && isChatInActiveTeamContext(currentChat, teamId);
-        const outcome = initialWarmGuard.inspect(!!scopeValid, getWorkspaceCacheEpoch(), getRecentChatRevision(warmChatId));
+        const outcome = warmSelectionGuard.inspect(!!scopeValid, getWorkspaceCacheEpoch(), getRecentChatRevision(warmChatId));
         if (outcome === 'current') return;
+        // Keep a revoked warm editor hidden until navigation replaces this
+        // surface; clearing the gate here would reveal stale draft plaintext.
         // A message mutation only discards the early snapshot. The held IDB
         // read still reaches the revision check and retries from canonical data.
         currentMessages = [];
@@ -7197,6 +7204,7 @@
      * }
      */
     async function handleSendMessage(event: CustomEvent) {
+        if (warmComposerBlockedForCurrentChat) return;
         const { message, newChat, isEditSend, editCreatedAt } = event.detail as {
             message: ChatMessageModel,
             newChat?: Chat,
@@ -9532,6 +9540,73 @@
         return currentChat?.chat_id ?? null;
     }
 
+    /** Show a previously decrypted selection while the route resolves its canonical chat. */
+    export function showRecentChatSelection(chatId: string): boolean {
+        if (typeof window === 'undefined' || !$authStore.isAuthenticated || $isLoggingOut
+            || $forcedLogoutInProgress || isSignupPath($userProfile.last_opened)
+            || activeChatStore.get() !== chatId || currentChat?.chat_id === chatId
+            || isPublicChat(chatId) || isExampleChat(chatId) || isAnonymousChatId(chatId)
+            || messageInputHasContent || showCodeFullscreen || showEmbedFullscreen || showWikiFullscreen
+            || currentMessages.some(message => ['sending', 'processing', 'streaming', 'waiting_for_upload', 'waiting_for_internet'].includes(message.status))) return false;
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        if (hash.get('chat-id') !== chatId || hash.has('message-id') || hash.has('messageid')
+            || hash.has('embed-id') || hash.has('embed_id') || hash.has('scroll')) return false;
+        if (!chatKeyManager.getKeySync(chatId)) return false;
+        const selected = getRecentChatSelection(chatId);
+        if (!selected || selected.chat.is_incognito || selected.chat.is_anonymous
+            || isPersistedDraftOnlyChat(selected.chat)
+            || !isChatInActiveTeamContext(selected.chat, get(activeTeamId))) return false;
+
+        // Retire any held read from the previous selection before changing the
+        // surface. Its generation check must not be allowed to commit afterward.
+        warmSelectionGuard?.complete();
+        warmSelectionOwnerId = $userProfile.user_id;
+        warmSelectionGuard = new RecentChatWarmReadGuard(chatId, getWorkspaceCacheEpoch(), getRecentChatRevision(chatId));
+        const generation = ++loadChatGeneration;
+        warmComposerChatId = chatId;
+        // The previous chat's ownership result must not briefly enable B's editor.
+        chatOwnershipResolved = !!selected.chat.user_id && selected.chat.user_id === $userProfile.user_id;
+        if (currentChat?.chat_id) clearProcessingFeedback(currentChat.chat_id);
+        clearProcessingPhase();
+        resetChatHeaderState();
+        clearPendingTaskProposals();
+        focusPillSetByEvent = false;
+        activeFocusId = null;
+        followUpSuggestions = [];
+        quickTipSlugs = [];
+        currentChat = selected.chat;
+        currentMessages = selected.window.messages;
+        currentCompressionCheckpoints = selected.window.compressionCheckpoints;
+        currentMessageWindowHasMoreBefore = selected.window.hasMoreBefore;
+        olderMessageWindowLoading = false;
+        activeChatDecryptedTitle = selected.window.header.title;
+        activeChatDecryptedCategory = selected.window.header.category;
+        activeChatDecryptedIcon = selected.window.header.icon;
+        activeChatDecryptedSummary = selected.window.header.summary;
+        chatLoadState = 'ready';
+        showWelcome = false;
+        chatHistoryRef?.updateMessages(currentMessages);
+        updateNavFromCache(chatId);
+        void tick().then(() => {
+            if (generation !== loadChatGeneration || currentChat?.chat_id !== chatId
+                || !warmSelectionGuard?.canContinue || !chatHistoryRef) return;
+            if (selected.chat.last_visible_message_id) chatHistoryRef.restoreScrollPosition(selected.chat.last_visible_message_id);
+        });
+        return true;
+    }
+
+    /** Fence the route's delayed canonical lookup against warm-view revocation. */
+    export function canContinueRecentChatSelection(chatId: string): boolean {
+        if (typeof window === 'undefined'
+            || new URLSearchParams(window.location.hash.slice(1)).get('chat-id') !== chatId) return false;
+        return !!warmSelectionGuard?.active && warmSelectionGuard.chatId === chatId
+            && warmSelectionGuard.epoch === getWorkspaceCacheEpoch()
+            && $authStore.isAuthenticated && $userProfile.user_id === warmSelectionOwnerId
+            && activeChatStore.get() === chatId && currentChat?.chat_id === chatId
+            && !!chatKeyManager.getKeySync(chatId)
+            && isChatInActiveTeamContext(currentChat, get(activeTeamId));
+    }
+
     /**
      * First persistence gives the live composer a durable identity; it is not
      * navigation. Commit ownership before publishing the URL/store so recovery
@@ -9569,8 +9644,12 @@
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
          if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
-         const isInitialWarmContinuation = !!initialWarmGuard?.active && initialWarmGuard.chatId === chat.chat_id;
-         if (!isInitialWarmContinuation) initialWarmGuard?.complete();
+         const isInitialWarmContinuation = !!warmSelectionGuard?.active && warmSelectionGuard.chatId === chat.chat_id;
+         const isWarmComposerContinuation = warmComposerChatId === chat.chat_id && currentChat?.chat_id === chat.chat_id;
+         if (!isInitialWarmContinuation) {
+             warmSelectionGuard?.complete();
+             if (!isWarmComposerContinuation) warmComposerChatId = null;
+         }
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -9582,8 +9661,12 @@
            const thisLoadRevision = getRecentChatRevision(chat.chat_id);
            const isCurrentLoadTarget = () => thisLoadGeneration === loadChatGeneration
                && thisLoadEpoch === getWorkspaceCacheEpoch() && currentChat?.chat_id === chat.chat_id
-               && (!isInitialWarmContinuation || (initialWarmGuard!.canContinue && $authStore.isAuthenticated
-                   && $userProfile.user_id === initialWarmOwnerId && activeChatStore.get() === chat.chat_id
+               && (!isInitialWarmContinuation || (warmSelectionGuard!.canContinue && $authStore.isAuthenticated
+                   && $userProfile.user_id === warmSelectionOwnerId && activeChatStore.get() === chat.chat_id
+                   && !!chatKeyManager.getKeySync(chat.chat_id)
+                   && isChatInActiveTeamContext(chat, get(activeTeamId))))
+               && (!isWarmComposerContinuation || ($authStore.isAuthenticated
+                   && $userProfile.user_id === warmSelectionOwnerId && activeChatStore.get() === chat.chat_id
                    && !!chatKeyManager.getKeySync(chat.chat_id)
                    && isChatInActiveTeamContext(chat, get(activeTeamId))));
            const recentWindow = !options?.messageId && $authStore.isAuthenticated && !isPublicChat(chat.chat_id) && !chat.is_incognito && !chat.is_anonymous && !isPersistedDraftOnlyChat(chat)
@@ -10522,7 +10605,6 @@
             : backgroundMessageWindowRepair
                 ? 'repairing'
                 : 'ready';
-        if (isInitialWarmContinuation) initialWarmGuard?.complete();
 
         if (currentChat?.chat_id) {
             // Every selected chat owns the active surface, including empty or still-hydrating chats.
@@ -10694,6 +10776,7 @@
         // For authenticated users, load encrypted drafts from IndexedDB
         // CRITICAL: messageInputFieldRef may not be bound yet during initial page load (component not fully mounted).
         // Retry with increasing delays to ensure draft restoration isn't silently skipped.
+        const pendingDraftApplies: Promise<void>[] = [];
         const restoreDraftWithRetry = async (retriesLeft = DRAFT_RESTORE_REF_RETRY_ATTEMPTS): Promise<void> => {
             if (thisLoadGeneration !== loadChatGeneration) return;
             if (!messageInputFieldRef) {
@@ -10726,18 +10809,26 @@
                     },
                 ].slice(-20);
             };
-            const runCurrentDraftRestoreSoon = (callback: (ref: MessageInputFieldRef) => void) => {
-                setTimeout(() => {
-                    const ref = messageInputFieldRef;
-                    if (!ref || !isCurrentDraftRestoreTarget()) return;
-                    appendDraftRestoreDiagnostic('apply-before', {
-                        textLength: ref.getTextContent().length,
-                    });
-                    callback(ref);
-                    appendDraftRestoreDiagnostic('apply-after', {
-                        textLength: ref.getTextContent().length,
-                    });
-                }, DRAFT_RESTORE_APPLY_DELAY_MS);
+            const runCurrentDraftRestoreSoon = (callback: (ref: MessageInputFieldRef) => void | Promise<void>) => {
+                pendingDraftApplies.push(new Promise<void>((resolve) => {
+                    setTimeout(async () => {
+                        try {
+                            const ref = messageInputFieldRef;
+                            if (!ref || !isCurrentDraftRestoreTarget()) return;
+                            appendDraftRestoreDiagnostic('apply-before', {
+                                textLength: ref.getTextContent().length,
+                            });
+                            await callback(ref);
+                            appendDraftRestoreDiagnostic('apply-after', {
+                                textLength: ref.getTextContent().length,
+                            });
+                        } catch (error) {
+                            console.error('[ActiveChat] Failed to apply restored draft:', error);
+                        } finally {
+                            resolve();
+                        }
+                    }, DRAFT_RESTORE_APPLY_DELAY_MS);
+                }));
             };
 
             if (!$authStore.isAuthenticated) {
@@ -10968,7 +11059,7 @@
                                         fallbackLength: plainTextFallback.length,
                                     });
                                     if (ref.replaceDraftWithPlainText) {
-                                        ref.replaceDraftWithPlainText(draftRestoreChatId, plainTextFallback, draftVersion || 1);
+                                        return ref.replaceDraftWithPlainText(draftRestoreChatId, plainTextFallback, draftVersion || 1);
                                     } else {
                                         ref.setSuggestionText(plainTextFallback);
                                         ref.setOriginalMarkdown?.(plainTextFallback);
@@ -10978,28 +11069,90 @@
                         } else {
                             console.error(`[ActiveChat] Failed to decrypt draft for chat ${draftRestoreChatId} - master key not available`);
                             // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                            if (isCurrentDraftRestoreTarget()) await messageInputFieldRef?.clearMessageField(false, true);
+                            if (isCurrentDraftRestoreTarget()) {
+                                await messageInputFieldRef?.clearMessageField(false, true);
+                                if (isWarmComposerContinuation && isCurrentDraftRestoreTarget())
+                                    messageInputFieldRef?.setCurrentChatContext?.(draftRestoreChatId, null, draftVersion || 0);
+                            }
                         }
                     } catch (error) {
                         console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${draftRestoreChatId}:`, error);
                         // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                        if (isCurrentDraftRestoreTarget()) await messageInputFieldRef?.clearMessageField(false, true);
+                        if (isCurrentDraftRestoreTarget()) {
+                            await messageInputFieldRef?.clearMessageField(false, true);
+                            if (isWarmComposerContinuation && isCurrentDraftRestoreTarget())
+                                messageInputFieldRef?.setCurrentChatContext?.(draftRestoreChatId, null, draftVersion || 0);
+                        }
                     }
                 } else {
                     console.debug(`[ActiveChat] No draft found for current user in chat ${draftRestoreChatId}. Clearing editor.`);
-                    if (messageInputFieldRef.getTextContent().trim().length > 0) {
+                    if (messageInputFieldRef.getTextContent().trim().length > 0
+                        && (!isWarmComposerContinuation || get(draftEditorUIState).currentChatId === draftRestoreChatId)) {
                         console.debug(`[ActiveChat] Skipping no-draft clear for ${draftRestoreChatId}; composer has live input`);
                         return;
                     }
                     // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                    if (isCurrentDraftRestoreTarget()) await messageInputFieldRef?.clearMessageField(false, true);
+                    if (isCurrentDraftRestoreTarget()) {
+                        await messageInputFieldRef?.clearMessageField(false, true);
+                        if (isWarmComposerContinuation && isCurrentDraftRestoreTarget())
+                            messageInputFieldRef?.setCurrentChatContext?.(draftRestoreChatId, null, draftVersion || 0);
+                    }
                 }
             }
         };
+        const waitForWarmDraftContext = async (): Promise<boolean> => {
+            if (!isWarmComposerContinuation) return true;
+            // draftCore first flushes A (including a 50 ms async gap), then sets
+            // B's context and leaves its switching guard active for 500 ms.
+            // An older context's timer can clear the shared flag early, so also
+            // require B's context to stay present for a full settling interval.
+            let contextSeenAt: number | null = null;
+            for (let attempt = 0; attempt < 120; attempt += 1) {
+                if (!isCurrentLoadTarget() || warmComposerChatId !== chat.chat_id) return false;
+                const draftState = get(draftEditorUIState);
+                if (messageInputFieldRef && draftState.currentChatId === chat.chat_id) {
+                    contextSeenAt ??= Date.now();
+                    if (!draftState.isSwitchingContext && Date.now() - contextSeenAt >= 550) return true;
+                } else {
+                    contextSeenAt = null;
+                }
+                await new Promise(resolve => setTimeout(resolve, DRAFT_RESTORE_REF_RETRY_DELAY_MS));
+            }
+            console.warn(`[ActiveChat] Warm composer remains unavailable until draft context is ready: ${chat.chat_id}`);
+            return false;
+        };
+        let warmDraftContextReady = false;
         if (options?.preserveActiveComposer) {
             console.debug('[ActiveChat] Preserving live composer while activating persisted draft shell:', chat.chat_id);
+            warmDraftContextReady = await waitForWarmDraftContext();
         } else {
-            await restoreDraftWithRetry();
+            try {
+                await restoreDraftWithRetry();
+                await Promise.all(pendingDraftApplies);
+                warmDraftContextReady = await waitForWarmDraftContext();
+            } finally {
+                if (isWarmComposerContinuation && warmDraftContextReady
+                    && isCurrentLoadTarget() && warmComposerChatId === chat.chat_id) {
+                    await checkChatOwnership();
+                    if (isCurrentLoadTarget() && warmComposerChatId === chat.chat_id) {
+                        // A cached shared-chat owner is sufficient to deny editing
+                        // even if the local profile lookup could not resolve.
+                        if (currentChat?.user_id && $userProfile.user_id
+                            && currentChat.user_id !== $userProfile.user_id) chatOwnershipResolved = false;
+                        warmSelectionGuard?.complete();
+                        warmComposerChatId = null;
+                    }
+                }
+            }
+        }
+        if (options?.preserveActiveComposer && isWarmComposerContinuation && warmDraftContextReady
+            && isCurrentLoadTarget() && warmComposerChatId === chat.chat_id) {
+            await checkChatOwnership();
+            if (!isCurrentLoadTarget() || warmComposerChatId !== chat.chat_id) return;
+            if (currentChat?.user_id && $userProfile.user_id
+                && currentChat.user_id !== $userProfile.user_id) chatOwnershipResolved = false;
+            warmSelectionGuard?.complete();
+            warmComposerChatId = null;
         }
         
         notifyBackendOfActiveChat();
@@ -14242,7 +14395,11 @@
                         </div>
                     {/if}
 
-                    <div class="message-input-container" bind:this={messageInputContainerEl}>
+                    <div class="message-input-container" bind:this={messageInputContainerEl}
+                        data-testid="chat-warm-composer-gate"
+                        inert={warmComposerBlockedForCurrentChat}
+                        aria-busy={warmComposerBlockedForCurrentChat}
+                        style:visibility={warmComposerBlockedForCurrentChat ? 'hidden' : 'visible'}>
                          <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
                          <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
                          <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
@@ -14294,7 +14451,7 @@
                         <!-- This allows it to scroll with messages instead of being fixed at the bottom -->
 
                         <!-- Read-only indicator for shared chats -->
-                        {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}
+                        {#if currentChat && !chatOwnershipResolved && !warmComposerBlockedForCurrentChat && $authStore.isAuthenticated}
                             <div class="read-only-indicator" transition:fade={{ duration: 200 }}>
                                 <div class="read-only-icon">🔒</div>
                                 <p class="read-only-text">{$text('chat.read_only_shared')}</p>
@@ -14316,7 +14473,7 @@
 
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <!-- Public read-only chats use the start-new-chat placeholder instead of MessageInput. -->
-                        {#if (!(currentChat && (isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))) || startNewChatPlaceholderMode) && (chatOwnershipResolved || !$authStore.isAuthenticated)}
+                        {#if (!(currentChat && (isLegalChat(currentChat.chat_id) || isNewsletterChat(currentChat.chat_id))) || startNewChatPlaceholderMode) && (chatOwnershipResolved || warmComposerBlockedForCurrentChat || !$authStore.isAuthenticated)}
                             {#if startNewChatPlaceholderMode}
                                 <!-- Intro/legal/newsletter demo chats: full-width orange CTA button instead of MessageInput -->
                                 <div class="message-input-action-row">
