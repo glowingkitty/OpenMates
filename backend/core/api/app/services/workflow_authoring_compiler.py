@@ -9,6 +9,7 @@ after the selected branch completes. No model-authored graph edges are accepted.
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -21,7 +22,8 @@ from backend.core.api.app.services.workflow_identity_service import (
 )
 from backend.core.api.app.services.workflow_models import (
     WorkflowEdge, WorkflowGraph, WorkflowNode, WorkflowNodeType,
-    validate_workflow_composition_refs, validate_workflow_readiness,
+    _validate_builder_execution_inputs, validate_workflow_composition_refs,
+    validate_workflow_readiness,
 )
 
 
@@ -32,6 +34,7 @@ _DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "su
 _DATES = ("today", "today_end", "tomorrow", "tomorrow_end", "next_seven_days_start",
           "next_seven_days_end", "next_week_start", "next_week_end")
 _MAX_STEPS = 40
+_MAX_PLAN_BYTES = 64 * 1024
 
 
 def _object(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
@@ -135,10 +138,11 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
                                           ["kind", "id", "mode", "yes", "no"])
         definitions[f"step_{depth}"] = {"anyOf": [*base_variants, {"$ref": f"#/$defs/{check_name}"}]}
 
-    schedule = _object({"type": {"type": "string", "enum": ["daily", "weekly", "manual"]},
+    schedule = _object({"type": {"type": "string", "enum": ["daily", "weekly", "hourly", "once", "manual"]},
                         "time": {"type": "string"}, "timezone": {"type": "string"},
-                        "weekdays": {"type": "array", "items": {"type": "string", "enum": list(_DAYS)}}}, ["type"])
-    result = _object({"operation": {"type": "string", "enum": ["create", "update", "clarify"]},
+                        "weekdays": {"type": "array", "items": {"type": "string", "enum": list(_DAYS)}},
+                        "minute": {"type": "integer"}, "at": {"type": "string"}}, ["type"])
+    result = _object({"operation": {"type": "string", "enum": ["create", "update", "draft", "clarify"]},
                     "workflow_id": {"type": ["string", "null"]},
                     "title": {"type": ["string", "null"]},
                     "description": {"type": ["string", "null"]},
@@ -146,6 +150,7 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
                                        {"type": "null"}]},
                     "schedule": schedule,
                     "steps": {"type": "array", "items": {"$ref": "#/$defs/step_3"}},
+                    "remove_step_ids": {"type": "array", "items": {"type": "string"}},
                     "message": {"type": ["string", "null"]}}, ["operation"])
     result["$defs"] = definitions
     return result
@@ -220,11 +225,12 @@ def _predicate(value: Any, known: set[str]) -> dict[str, Any]:
     return result
 
 
-def compile_authoring_plan(
+def _compile_authoring(
     raw: dict[str, Any], selection: WorkflowPreselection, timezone: str,
     selected_workflow: dict[str, Any] | None = None,
+    *, preview: bool = False,
 ) -> dict[str, Any]:
-    """Compile one compact plan to the WorkflowInputService action envelope.
+    """Compile a complete plan or a provisional read-only graph preview.
 
     ``raw`` is untrusted model output. Every generated graph passes the existing
     typed graph, readiness, and composition validators. Updates are full graph
@@ -232,6 +238,12 @@ def compile_authoring_plan(
     """
     if not isinstance(raw, dict):
         raise ValueError("Authoring plan must be an object")
+    try:
+        size = len(json.dumps(raw, ensure_ascii=False).encode("utf-8"))
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise ValueError("Authoring plan must contain JSON values") from exc
+    if size > _MAX_PLAN_BYTES:
+        raise ValueError("Authoring plan exceeds the size limit")
     # JSON mode does not enforce responseFormat's union schema. Validate the
     # selected capability contract here before interpreting any model field.
     # Never include raw values or validator messages in errors: they can contain
@@ -241,12 +253,25 @@ def compile_authoring_plan(
     if first_error is not None:
         path = first_error.json_path
         raise ValueError(f"Authoring plan violates the selected capability schema at {path}")
+    for field, limit in (("title", 200), ("description", 2_000)):
+        value = raw.get(field)
+        if value is not None and (not isinstance(value, str) or len(value) > limit):
+            raise ValueError(f"Authoring {field} exceeds its allowed length")
     operation = raw.get("operation")
     if operation == "clarify":
+        if preview:
+            raise ValueError("Clarification has no workflow preview")
         message = raw.get("message")
         if not isinstance(message, str) or not message.strip():
             raise ValueError("Clarification requires a reason")
         return {"action": "needs_clarification", "message": message.strip()[:1000]}
+    if operation == "draft":
+        if preview:
+            raise ValueError("Empty draft has no workflow preview")
+        title = raw.get("title")
+        if not isinstance(title, str) or not title.strip() or len(title.strip()) > 200:
+            raise ValueError("Empty draft requires a short title")
+        return {"action": "create_empty_workflow", "title": title.strip()}
     if operation not in {"create", "update"} or operation != selection.operation:
         raise ValueError("Authoring operation does not match preselection")
     if operation == "update":
@@ -260,33 +285,73 @@ def compile_authoring_plan(
         raise ValueError("Browser timezone is invalid") from exc
     previous_graph = WorkflowGraph.model_validate(selected_workflow["graph"]) if operation == "update" else None
     trigger_id = previous_graph.trigger_node_id if previous_graph and previous_graph.trigger_node_id else "trigger"
-    schedule = raw.get("schedule") or {"type": "weekly", "time": "09:00", "weekdays": ["monday"]}
-    if not isinstance(schedule, dict):
-        raise ValueError("Schedule must be an object")
-    schedule_type = schedule.get("type")
-    if schedule_type not in {"daily", "weekly", "manual"}:
-        raise ValueError("Schedule type is unsupported")
-    if schedule_type != "manual":
-        time = schedule.get("time", "09:00")
-        zone = schedule.get("timezone") or timezone
-        if not isinstance(time, str) or not _TIME.fullmatch(time):
-            raise ValueError("Schedule time must be HH:MM")
-        try:
-            ZoneInfo(zone)
-        except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:
-            raise ValueError("Schedule timezone is invalid") from exc
-        config_schedule: dict[str, Any] = {"type": schedule_type, "time": time, "timezone": zone}
-        if schedule_type == "weekly":
-            weekdays = schedule.get("weekdays") or ["monday"]
-            if not isinstance(weekdays, list) or not weekdays or any(day not in _DAYS for day in weekdays) or len(set(weekdays)) != len(weekdays):
-                raise ValueError("Weekly schedule needs unique weekdays")
-            config_schedule["weekdays"] = weekdays
-        trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.SCHEDULE_TRIGGER, config={"schedule": config_schedule})
+    prior_trigger = next((node for node in previous_graph.nodes if node.id == trigger_id), None) if previous_graph else None
+    assumptions: list[str] = []
+    schedule = raw.get("schedule")
+    if schedule is None and prior_trigger is not None:
+        trigger = prior_trigger.model_copy(deep=True)
+        schedule_type = (trigger.config.get("schedule") or {}).get("type") if trigger.type == WorkflowNodeType.SCHEDULE_TRIGGER else "manual"
     else:
-        trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.MANUAL_TRIGGER)
+        if schedule is None:
+            schedule = {"type": "weekly"}
+        if not isinstance(schedule, dict):
+            raise ValueError("Schedule must be an object")
+        schedule_type = schedule.get("type")
+        if schedule_type not in {"daily", "weekly", "hourly", "once", "manual"}:
+            raise ValueError("Schedule type is unsupported")
+        if schedule_type == "manual":
+            trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.MANUAL_TRIGGER)
+        else:
+            zone = schedule.get("timezone") or timezone
+            try:
+                ZoneInfo(zone)
+            except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:
+                raise ValueError("Schedule timezone is invalid") from exc
+            config_schedule: dict[str, Any] = {"type": schedule_type, "timezone": zone}
+            if schedule_type in {"daily", "weekly"}:
+                time = schedule.get("time")
+                if time is None:
+                    time = "09:00"
+                    assumptions.append("No time was specified, so this workflow is scheduled for 09:00.")
+                if not isinstance(time, str) or not _TIME.fullmatch(time):
+                    raise ValueError("Schedule time must be HH:MM")
+                config_schedule["time"] = time
+                if schedule_type == "weekly":
+                    weekdays = schedule.get("weekdays")
+                    if weekdays is None:
+                        weekdays = ["monday"]
+                        assumptions.append("No weekly day was specified, so this workflow is scheduled for Monday.")
+                    if not isinstance(weekdays, list) or not weekdays or any(day not in _DAYS for day in weekdays) or len(set(weekdays)) != len(weekdays):
+                        raise ValueError("Weekly schedule needs unique weekdays")
+                    config_schedule["weekdays"] = weekdays
+            elif schedule_type == "hourly":
+                minute = schedule.get("minute")
+                if minute is None:
+                    minute = 0
+                    assumptions.append("No hourly minute was specified, so this workflow runs at minute 00.")
+                if isinstance(minute, bool) or not isinstance(minute, int) or not 0 <= minute <= 59:
+                    raise ValueError("Hourly schedule minute must be between 0 and 59")
+                config_schedule["minute"] = minute
+            else:
+                at = schedule.get("at")
+                if not isinstance(at, str) or not at.strip():
+                    raise ValueError("One-time schedule requires an ISO timestamp")
+                config_schedule["at"] = at
+            trigger = WorkflowNode(id=trigger_id, type=WorkflowNodeType.SCHEDULE_TRIGGER,
+                                   config={"schedule": config_schedule})
     steps = raw.get("steps")
-    if not isinstance(steps, list) or not steps:
+    preserve_prior_steps = operation == "update" and steps is None
+    if steps is None:
+        steps = []
+    if not isinstance(steps, list) or (not steps and not preview and not preserve_prior_steps):
         raise ValueError("Authoring plan requires steps")
+    removed_ids = raw.get("remove_step_ids") or []
+    if removed_ids and operation != "update":
+        raise ValueError("Only an update can remove existing steps")
+    if len(removed_ids) != len(set(removed_ids)):
+        raise ValueError("Removed step IDs must be unique")
+    if preserve_prior_steps and removed_ids:
+        raise ValueError("Removing steps requires a complete replacement step list")
     selected_ids = {cap.id for cap in selection.capabilities}
     nodes = [trigger]
     edges: list[WorkflowEdge] = []
@@ -396,15 +461,49 @@ def compile_authoring_plan(
             else:
                 previous = (node_id, None)
 
-    compile_sequence(steps, (trigger_id, None), 0, {trigger_id})
-    if not sends:
+    if preserve_prior_steps:
+        if previous_graph.version != 2 or prior_trigger is None:
+            raise ValueError("Updating an existing graph without steps requires a V2 trigger")
+        nodes.extend(node.model_copy(deep=True) for node in previous_graph.nodes if node.id != trigger_id)
+        edges.extend(edge.model_copy(deep=True) for edge in previous_graph.edges)
+        sends = sum(node.type == WorkflowNodeType.SEND_CHAT_MESSAGE for node in nodes)
+    else:
+        compile_sequence(steps, (trigger_id, None), 0, {trigger_id})
+    if not preview and not sends:
         raise ValueError("Authoring plan has no chat delivery")
+    if previous_graph and not preserve_prior_steps and not preview:
+        old_ids = {node.id for node in previous_graph.nodes if node.id != trigger_id}
+        new_ids = {node.id for node in nodes if node.id != trigger_id}
+        incoming_edges: dict[str, list[WorkflowEdge]] = {}
+        for prior_edge in previous_graph.edges:
+            incoming_edges.setdefault(prior_edge.to_node, []).append(prior_edge)
+        generated_ends = {node.id for node in previous_graph.nodes
+                          if node.type == WorkflowNodeType.END
+                          and len(incoming_edges.get(node.id, [])) == 1
+                          and (edge := incoming_edges[node.id][0]) is not None
+                          and node.id == f"{edge.from_node}_{edge.branch}_end"
+                          and edge.branch in {"yes", "no"}}
+        missing = old_ids - new_ids - generated_ends
+        if set(removed_ids) != missing:
+            raise ValueError("Update must preserve existing step IDs or explicitly list removed steps")
     graph = WorkflowGraph(version=2, trigger_node_id=trigger_id, nodes=nodes, edges=edges)
-    validate_workflow_readiness(graph, require_schedule=schedule_type != "manual")
+    if preview:
+        _validate_builder_execution_inputs(graph)
+    else:
+        validate_workflow_readiness(graph, require_schedule=schedule_type != "manual")
     validate_workflow_composition_refs(graph, previous_graph, allow_data_dependencies=True)
     graph_data = graph.model_dump(mode="json", by_alias=True)
+    if preview:
+        return {"title": raw.get("title"), "description": raw.get("description"),
+                "icon": raw.get("icon"), "graph": graph_data,
+                "assumptions": assumptions, "complete": False,
+                **({"workflow_id": selected_workflow["id"]} if operation == "update" else {})}
     if operation == "update":
-        result = {"action": "update_workflow", "workflow_id": selected_workflow["id"], "graph": graph_data}
+        result = {"action": "update_workflow", "workflow_id": selected_workflow["id"],
+                  "graph": graph_data, "assumptions": assumptions}
+        record_version = selected_workflow.get("version")
+        if isinstance(record_version, int) and not isinstance(record_version, bool) and record_version >= 1:
+            result["expected_record_version"] = record_version
         for key in ("title", "description", "icon"):
             if raw.get(key) is not None:
                 result[key] = raw[key]
@@ -418,4 +517,24 @@ def compile_authoring_plan(
     identity = normalize_workflow_identity("general_knowledge", raw["icon"])
     return {"action": "create_workflow", "title": title.strip()[:200], "description": description.strip()[:2000],
             "category": identity.category, "icon": identity.icon, "graph": graph_data,
-            "enabled": False, "assumptions": []}
+            "enabled": False, "assumptions": assumptions}
+
+
+def compile_authoring_plan(
+    raw: dict[str, Any], selection: WorkflowPreselection, timezone: str,
+    selected_workflow: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a validated action envelope for one complete compact workflow."""
+    return _compile_authoring(raw, selection, timezone, selected_workflow)
+
+
+def compile_authoring_preview(
+    raw_prefix: dict[str, Any], selection: WorkflowPreselection, timezone: str,
+    selected_workflow: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return a read-only V2 preview from completed header and step components.
+
+    The preview has no WorkflowInputService action or enable flag. It validates
+    completed nodes and references, but need not contain a final delivery.
+    """
+    return _compile_authoring(raw_prefix, selection, timezone, selected_workflow, preview=True)

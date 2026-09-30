@@ -47,7 +47,7 @@ class Decisions:
             if question["type"] == "noul":
                 answers[name] = {"type": "noul", "noul": 0.9 if name in {"weather.forecast", "chat_delivery"} else 0.02}
                 continue
-            selection = {"operation": "create", "check_mode": "none", "count:weather.forecast": "1",
+            selection = {"operation": "create", "check_mode": "none", "workflow_count": "1", "count:weather.forecast": "1",
                          "count:exact": "0", "count:ai": "0", "count:send": "1", "trigger": "schedule",
                          "trigger:next": "action1", "action1:next": "send1", "send1:next": "end"}.get(name)
             if self.cycle and name == "send1:next":
@@ -76,11 +76,25 @@ async def test_selects_registered_skills_directly_and_retains_full_contract():
     assert [cap.id for cap in result.capabilities] == ["weather.forecast"]
     assert len(jev.requests) == 1
     state, questions = jev.requests[0]
-    assert set(questions) == {"weather.forecast", "weather.rain_radar", "operation", "check_mode", "chat_delivery"}
+    assert set(questions) == {"weather.forecast", "weather.rain_radar", "operation", "check_mode", "chat_delivery", "workflow_count"}
+    assert result.workflow_count == 1
     assert state["existing_graph"] is None
     assert "example" not in result.context()["capabilities"][0]["input_schema"]["properties"]["example"]
     assert "title" in result.context()["capabilities"][0]["input_schema"]["properties"]
     assert result.metrics["jev_calls"] == 1
+
+
+@pytest.mark.asyncio
+async def test_implicit_result_formatting_can_use_available_ask_ai_builtin():
+    class BuiltinRegistry(Registry):
+        def list_capabilities(self):
+            return [*super().list_capabilities(), capability("ai.ask")]
+
+    result = await WorkflowAuthoringPreselector(jev_client=Decisions(), registry=BuiltinRegistry()).select(
+        "Weather in three cities with a missing-forecast explanation")
+    assert result.scores["ai.ask"] < 0.35
+    assert "ai.ask" in {cap.id for cap in result.capabilities}
+    assert result.metrics["builtin_capabilities"] == ["ai.ask"]
 
 
 @pytest.mark.asyncio

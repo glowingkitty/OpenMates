@@ -9,10 +9,18 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from backend.core.api.app.services.workflow_authoring_compiler import (
-    build_authoring_schema, compile_authoring_plan,
+    build_authoring_schema, compile_authoring_plan, compile_authoring_preview,
 )
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
-from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+from backend.core.api.app.services.workflow_capability_registry import (
+    WorkflowCapabilityRegistry, _FilesystemWorkflowMetadataRegistry,
+)
+
+
+@pytest.fixture(autouse=True)
+def filesystem_capabilities(monkeypatch):
+    """Keep graph contract tests independent of runtime service imports."""
+    monkeypatch.setattr(WorkflowCapabilityRegistry, "_registry", lambda self: _FilesystemWorkflowMetadataRegistry())
 
 
 def selection(*capabilities: str, mode: str = "none", operation: str = "create") -> WorkflowPreselection:
@@ -36,7 +44,7 @@ def ref(step: str, field: str):
 def test_schema_is_selected_capability_scoped_and_supports_structured_steps():
     schema = build_authoring_schema(selection("weather.forecast", mode="exact"))
     Draft202012Validator.check_schema(schema)
-    assert schema["properties"]["operation"]["enum"] == ["create", "update", "clarify"]
+    assert schema["properties"]["operation"]["enum"] == ["create", "update", "draft", "clarify"]
     serialized = str(schema)
     assert "weather.forecast" in serialized
     assert "shopping.search_products" not in serialized
@@ -218,3 +226,103 @@ def test_clarification_is_an_explicit_outcome():
     result = compile_authoring_plan({"operation": "clarify", "message": "Email delivery is unavailable."},
                                     selection("weather.forecast"), "UTC")
     assert result == {"action": "needs_clarification", "message": "Email delivery is unavailable."}
+
+
+def test_preview_accepts_header_and_completed_app_without_delivery():
+    raw = {"operation": "create", "title": "Weather watch", "description": "Forecast", "icon": "cloud-rain"}
+    header = compile_authoring_preview(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert header["complete"] is False
+    assert header["graph"]["version"] == 2
+    assert [node["id"] for node in header["graph"]["nodes"]] == ["trigger"]
+    assert "action" not in header and "enabled" not in header
+    assert header["assumptions"] == [
+        "No time was specified, so this workflow is scheduled for 09:00.",
+        "No weekly day was specified, so this workflow is scheduled for Monday.",
+    ]
+    raw["steps"] = [{"kind": "app", "id": "forecast", "capability": "weather.forecast",
+                     "input": {"location": "Berlin", "days": 1}}]
+    partial = compile_authoring_preview(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert [node["id"] for node in partial["graph"]["nodes"]] == ["trigger", "forecast"]
+    with pytest.raises(ValueError, match="chat delivery"):
+        compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+
+
+def test_preview_rejects_invalid_completed_step_reference():
+    raw = {"operation": "create", "steps": [{"kind": "app", "id": "forecast",
+           "capability": "weather.forecast", "input": {"location": ref("later", "summary")}}]}
+    with pytest.raises(ValueError, match="earlier step"):
+        compile_authoring_preview(raw, selection("weather.forecast"), "UTC")
+
+
+def test_schedule_defaults_and_hourly_once_runtime_shapes():
+    steps = [{"kind": "app", "id": "forecast", "capability": "weather.forecast",
+              "input": {"location": "Berlin", "days": 1}},
+             {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("forecast", "summary")]}]
+    raw = plan(steps)
+    raw.pop("schedule")
+    result = compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert result["graph"]["nodes"][0]["config"]["schedule"] == {
+        "type": "weekly", "time": "09:00", "timezone": "Europe/Berlin", "weekdays": ["monday"]}
+    assert len(result["assumptions"]) == 2
+    raw["schedule"] = {"type": "hourly", "minute": 15}
+    hourly = compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert hourly["graph"]["nodes"][0]["config"]["schedule"] == {
+        "type": "hourly", "timezone": "Europe/Berlin", "minute": 15}
+    raw["schedule"] = {"type": "once", "at": "2027-01-02T09:00:00"}
+    once = compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
+    assert once["graph"]["nodes"][0]["config"]["schedule"] == {
+        "type": "once", "timezone": "Europe/Berlin", "at": "2027-01-02T09:00:00"}
+
+
+def test_update_without_steps_preserves_graph_and_full_replacement_requires_explicit_removal():
+    base = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Berlin", "days": 1}},
+        {"kind": "app", "id": "other", "capability": "weather.forecast",
+         "input": {"location": "Paris", "days": 1}},
+        {"kind": "send", "id": "reply", "title": "Forecast", "message": [ref("forecast", "summary")]},
+    ])
+    prior = compile_authoring_plan(base, selection("weather.forecast"), "Europe/Berlin")["graph"]
+    selected = {"id": "workflow-1", "version": 4, "graph": prior}
+    change = {"operation": "update", "workflow_id": "workflow-1",
+              "schedule": {"type": "daily", "time": "11:00"}}
+    updated = compile_authoring_plan(change, selection("weather.forecast", operation="update"),
+                                     "Europe/Berlin", selected)
+    assert updated["expected_record_version"] == 4
+    assert [node["id"] for node in updated["graph"]["nodes"]] == ["trigger", "forecast", "other", "reply"]
+    assert updated["graph"]["edges"] == prior["edges"]
+    metadata_only = {"operation": "update", "workflow_id": "workflow-1", "title": "New title"}
+    unchanged_graph = compile_authoring_plan(metadata_only, selection("weather.forecast", operation="update"),
+                                             "Europe/Berlin", selected)
+    assert unchanged_graph["graph"] == prior
+    change["steps"] = [base["steps"][0], base["steps"][2]]
+    first_step_preview = compile_authoring_preview({**change, "steps": [base["steps"][0]]},
+                                                   selection("weather.forecast", operation="update"),
+                                                   "Europe/Berlin", selected)
+    assert [node["id"] for node in first_step_preview["graph"]["nodes"]] == ["trigger", "forecast"]
+    assert first_step_preview["complete"] is False
+    with pytest.raises(ValueError, match="preserve existing step IDs"):
+        compile_authoring_plan(change, selection("weather.forecast", operation="update"),
+                               "Europe/Berlin", selected)
+    change["remove_step_ids"] = ["other"]
+    removed = compile_authoring_plan(change, selection("weather.forecast", operation="update"),
+                                    "Europe/Berlin", selected)
+    assert [node["id"] for node in removed["graph"]["nodes"]] == ["trigger", "forecast", "reply"]
+    change.pop("steps")
+    change.pop("remove_step_ids")
+    change["schedule"] = {"type": "weekly"}
+    defaulted = compile_authoring_plan(change, selection("weather.forecast", operation="update"),
+                                       "Europe/Berlin", selected)
+    assert len(defaulted["assumptions"]) == 2
+
+
+def test_explicit_short_title_draft_has_no_graph():
+    result = compile_authoring_plan({"operation": "draft", "title": "Morning digest"},
+                                    selection("weather.forecast"), "UTC")
+    assert result == {"action": "create_empty_workflow", "title": "Morning digest"}
+
+
+def test_preview_rejects_oversized_model_document_before_graph_work():
+    raw = {"operation": "create", "title": "Weather", "description": "A" * 70_000}
+    with pytest.raises(ValueError, match="size limit"):
+        compile_authoring_preview(raw, selection("weather.forecast"), "UTC")

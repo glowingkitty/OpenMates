@@ -10,6 +10,7 @@ import pytest
 from backend.core.api.app.services.workflow_gemini_authoring import (
     WorkflowAuthoringProviderError,
     WorkflowGeminiAuthor,
+    complete_plan_components,
     complete_step_components,
 )
 
@@ -21,6 +22,21 @@ def test_components_never_emit_incomplete_nested_steps_or_quoted_key():
     source = prefix + json.dumps(first) + ',' + json.dumps(check)
     assert complete_step_components(source[:-2]) == [first]
     assert complete_step_components(source) == [first, check]
+
+
+def test_batch_components_keep_header_and_only_complete_steps():
+    first = {"operation": "create", "title": "First", "schedule": {"type": "weekly"},
+             "steps": [{"kind": "end", "id": "done"}]}
+    source = '{"operations":[' + json.dumps(first) + ',{"operation":"create","title":"Second","steps":['
+    components = complete_plan_components(source)
+    assert len(components) == 1
+    assert components[0] == {"workflow_index": 0, "index": 0, "plan": first}
+    source += '{"kind":"app","id":"partial","input":'
+    assert complete_plan_components(source) == components
+
+
+def test_duplicate_properties_do_not_create_provisional_steps():
+    assert complete_plan_components('{"operation":"create","operation":"update","steps":[{"kind":"end","id":"x"}]}') == []
 
 
 @pytest.mark.asyncio

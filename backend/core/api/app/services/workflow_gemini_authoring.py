@@ -92,6 +92,100 @@ def complete_step_components(source: str) -> list[dict[str, Any]]:
     return []
 
 
+def _partial_plan(source: str, start: int = 0) -> tuple[dict[str, Any], int, bool]:
+    """Parse completed fields/steps without closing or repairing model JSON."""
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_object)
+    position = start
+    while position < len(source) and source[position].isspace():
+        position += 1
+    if position >= len(source) or source[position] != "{":
+        return {}, position, False
+    position += 1
+    result: dict[str, Any] = {}
+    while position < len(source):
+        while position < len(source) and source[position].isspace():
+            position += 1
+        if position < len(source) and source[position] == "}":
+            return result, position + 1, True
+        try:
+            key, position = decoder.raw_decode(source, position)
+        except ValueError:
+            return result, position, False
+        if not isinstance(key, str) or key in result:
+            return {}, position, False
+        while position < len(source) and source[position].isspace():
+            position += 1
+        if position >= len(source) or source[position] != ":":
+            return result, position, False
+        position += 1
+        while position < len(source) and source[position].isspace():
+            position += 1
+        if key in {"steps", "operations"} and position < len(source) and source[position] == "[":
+            position += 1
+            values = []
+            result[key] = values
+            while position < len(source):
+                while position < len(source) and source[position].isspace():
+                    position += 1
+                if position < len(source) and source[position] == "]":
+                    position += 1
+                    break
+                try:
+                    value, end = decoder.raw_decode(source, position)
+                except ValueError:
+                    if key == "operations":
+                        value, _, _ = _partial_plan(source, position)
+                        if value:
+                            values.append(value)
+                    return result, position, False
+                values.append(value)
+                position = end
+                while position < len(source) and source[position].isspace():
+                    position += 1
+                if position >= len(source):
+                    return result, position, False
+                if source[position] == ",":
+                    position += 1
+                elif source[position] != "]":
+                    return {}, position, False
+            else:
+                return result, position, False
+        else:
+            try:
+                result[key], position = decoder.raw_decode(source, position)
+            except ValueError:
+                return result, position, False
+        while position < len(source) and source[position].isspace():
+            position += 1
+        if position >= len(source):
+            return result, position, False
+        if source[position] == ",":
+            position += 1
+        elif source[position] != "}":
+            return {}, position, False
+    return result, position, False
+
+
+def complete_plan_components(source: str) -> list[dict[str, Any]]:
+    """Return one prefix per complete semantic step in one or several plans."""
+    root, _, _ = _partial_plan(source)
+    plans = root.get("operations", [root])
+    if not isinstance(plans, list) or len(plans) > 8:
+        return []
+    components = []
+    for workflow_index, plan in enumerate(plans):
+        if not isinstance(plan, dict):
+            continue
+        steps = plan.get("steps")
+        if not isinstance(steps, list):
+            continue
+        for index in range(min(len(steps), 40)):
+            if isinstance(steps[index], dict):
+                components.append({"workflow_index": workflow_index, "index": index,
+                                   "plan": {**plan, "steps": steps[:index + 1]}})
+    return components
+
+
 def authoring_prompt(selection: Any, timezone: str) -> str:
     from backend.core.api.app.services.workflow_identity_service import WORKFLOW_ALLOWED_ICONS
 
@@ -117,11 +211,22 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "messages and missing-result handling. Existing update node IDs must be preserved for "
         "unchanged and edited steps; never remove unrelated existing steps. "
         "For creates generate a concise title, description and supported icon. For edits preserve "
-        "metadata unless the instruction changes it. Return one JSON object: "
+        "metadata unless the instruction changes it. For schedule-only or metadata-only updates "
+        "omit steps to preserve the entire existing graph. When replacing steps preserve all "
+        "previous non-trigger IDs; explicitly list removed IDs in remove_step_ids. "
+        "Do not drop, duplicate, or invent a requested workflow. A request for several workflows "
+        "returns {operations:[one compact plan per requested workflow]}; a mixed request includes "
+        "both creates and updates. If any operation needs clarification, return only clarify "
+        "for the whole request. Put operation, workflow_id, metadata and schedule BEFORE steps "
+        "so completed steps can be previewed. Return one JSON object: "
         "{operation:'create'|'update'|'clarify',workflow_id:'existing ID only for update',"
         "title:'title',description:'description',icon:'allowed icon',"
-        "schedule:{type:'daily'|'weekly'|'manual',time:'HH:MM',timezone:'IANA zone',"
+        "schedule:{type:'daily'|'weekly'|'hourly'|'once'|'manual',time:'HH:MM',timezone:'IANA zone',"
         "weekdays:['monday',...] only for weekly},steps:[ordered semantic steps]}. "
+        "Hourly uses minute:0..59; once uses at:an ISO timestamp. Omit unspecified time or "
+        "weekly days so the compiler records the default assumptions. For a short incomplete "
+        "request that supplies no actionable task, return {operation:'draft',title:'exact request'}. "
+        "Unsupported requests must clarify, even when short. Never draft an existing update. "
         "For clarify return {operation:'clarify',message:'plain-language reason'}. "
         "Each step has a unique stable id and kind. App: {kind:'app',id,capability:'app.skill',"
         "input:{real capability fields}}. Ask AI: {kind:'ask_ai',id,prompt:[text segments]}. "
@@ -155,7 +260,8 @@ class WorkflowGeminiAuthor:
 
     async def generate(self, *, text: str, selection: Any, timezone: str,
                        selected_workflow: dict[str, Any] | None = None,
-                       on_component: Callable[..., Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
+                       on_component: Callable[..., Any] | None = None,
+                       on_plan_component: Callable[..., Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
         key = await self.secrets_manager.get_secret(secret_path=GOOGLE_SECRET_PATH, secret_key="api_key")
         if not key:
             raise WorkflowAuthoringProviderError("Workflow authoring provider unavailable")
@@ -177,6 +283,8 @@ class WorkflowGeminiAuthor:
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=5.0))
         source = ""
+        emitted_prefixes: set[tuple[int, int]] = set()
+        legacy_emitted = 0
         finish_reason = None
         try:
             async with client.stream("POST", f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:streamGenerateContent",
@@ -207,13 +315,23 @@ class WorkflowGeminiAuthor:
                         if len(source.encode("utf-8")) > MAX_RESPONSE_BYTES:
                             raise WorkflowAuthoringProviderError("Workflow provider response too large", metrics)
                         components = complete_step_components(source)
-                        while metrics["component_count"] < len(components):
-                            index = metrics["component_count"]
+                        while legacy_emitted < len(components):
+                            index = legacy_emitted
+                            legacy_emitted += 1
+                            if on_component is not None:
+                                result = on_component({"index": index, "step": components[index]})
+                                if inspect.isawaitable(result):
+                                    await result
+                        for prefix in complete_plan_components(source):
+                            identity = (prefix["workflow_index"], prefix["index"])
+                            if identity in emitted_prefixes:
+                                continue
+                            emitted_prefixes.add(identity)
                             if metrics["first_component_ms"] is None:
                                 metrics["first_component_ms"] = round((time.perf_counter() - started) * 1000, 1)
                             metrics["component_count"] += 1
-                            if on_component is not None:
-                                result = on_component({"index": index, "step": components[index]})
+                            if on_plan_component is not None:
+                                result = on_plan_component(prefix)
                                 if inspect.isawaitable(result):
                                     await result
             if finish_reason != "STOP":

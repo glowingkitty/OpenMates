@@ -53,12 +53,14 @@ class WorkflowPreselection:
     chat_delivery: bool
     scores: dict[str, float]
     metrics: dict[str, Any]
+    workflow_count: int | None = None
 
     def context(self) -> dict[str, Any]:
         return {
             "operation": self.operation,
             "check_mode": self.check_mode,
             "chat_delivery": self.chat_delivery,
+            "workflow_count": self.workflow_count,
             "capabilities": [
                 {
                     "id": cap.id,
@@ -120,6 +122,13 @@ class WorkflowAuthoringPreselector:
             "ai": "Subjective assessment requiring a yes/no AI question",
             "both": "Both deterministic and subjective conditional checks",
         })
+        questions["workflow_count"] = _choice(
+            "How many separate workflows must be created or updated? Several steps or cities "
+            "inside one automation are ONE workflow. Count distinct create/update targets, "
+            "not nodes. Select unclear for ambiguous targets or more than eight workflows.",
+            {**{str(count): f"Exactly {count} separate workflow(s)" for count in range(1, 9)},
+             "unclear": "The count or targets require clarification"},
+        )
         questions["chat_delivery"] = {
             "type": "noul", "instructions": "Does request ask for delivery to chat, or omit the delivery channel so chat is the default? Do not replace an explicit email or push channel with chat.",
         }
@@ -137,6 +146,12 @@ class WorkflowAuthoringPreselector:
                 raise ValueError(f"Jev omitted skill relevance for {cap.id}")
             scores[cap.id] = answer.noul
         selected = [cap for cap in capabilities if scores[cap.id] >= CANDIDATE_RELEVANCE]
+        # Ask AI is a control builtin for combining/formatting prior results.
+        # Relevance scores are candidates, not permission checks; implicit
+        # formatting must not be blocked because the user did not say "ask AI".
+        builtin_ai = next((cap for cap in capabilities if cap.id == "ai.ask"), None)
+        if builtin_ai is not None and builtin_ai not in selected:
+            selected.append(builtin_ai)
         if len(selected) > MAX_SELECTED_SKILLS:
             raise ValueError("Workflow selection is too broad; clarify the request")
         decisions = {}
@@ -148,11 +163,16 @@ class WorkflowAuthoringPreselector:
         delivery = response.answers.get("chat_delivery")
         if not isinstance(delivery, NoulAnswer):
             raise ValueError("Jev omitted the delivery decision")
+        count = response.answers.get("workflow_count")
+        if not isinstance(count, ChoiceAnswer) or count.choice not in questions["workflow_count"]["criteria"]:
+            raise ValueError("Jev returned an invalid workflow count")
         return WorkflowPreselection(
             capabilities=selected, operation=decisions["operation"], check_mode=decisions["check_mode"],
             chat_delivery=delivery.noul >= 0.5, scores=scores,
+            workflow_count=int(count.choice) if count.choice != "unclear" else None,
             metrics={"seconds": round(time.perf_counter() - started, 3), "jev_calls": 1,
                      "input_tokens": response.usage.input_tokens,
                      "estimated_cost_usd": round(response.usage.input_tokens * JEV_INPUT_PRICE, 8),
+                     "builtin_capabilities": ["ai.ask"] if builtin_ai is not None else [],
                      "uncertain_capabilities": [cap.id for cap in selected if scores[cap.id] < STRONG_RELEVANCE]},
         )
