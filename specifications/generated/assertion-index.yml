@@ -59542,17 +59542,17 @@ assertions:
       surface: rest_api
     - &id7199
       path: backend/tests/test_workflow_registry_planner.py
-      line: 317
+      line: 318
       name: test_retry_metrics_keep_safe_failure_codes_without_private_correction
       surface: rest_api
     - &id7200
       path: backend/tests/test_workflow_registry_planner.py
-      line: 346
+      line: 350
       name: test_missing_requested_check_reports_specific_finalization_code
       surface: rest_api
     - &id7201
       path: backend/tests/test_workflow_registry_planner.py
-      line: 359
+      line: 363
       name: test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks
       surface: rest_api
     tests:
@@ -59717,7 +59717,7 @@ assertions:
       surface: rest_api
     - &id7224
       path: backend/tests/test_workflow_registry_planner.py
-      line: 359
+      line: 363
       name: test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks
       surface: rest_api
     - &id7226

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import replace
 import json
 
 import pytest
@@ -17,6 +18,7 @@ from backend.core.api.app.services.workflow_authoring_preselection import Workfl
 from backend.core.api.app.services.workflow_capability_registry import (
     WorkflowCapabilityRegistry, _FilesystemWorkflowMetadataRegistry,
 )
+from backend.core.api.app.services.workflow_yaml_compiler import compile_workflow_yaml
 
 
 @pytest.fixture(autouse=True)
@@ -279,6 +281,227 @@ def test_compiles_ask_ai_and_output_binding():
     assert graph["nodes"][2]["config"]["input"]["prompt"] == "Summarize these upcoming events: {{ $nodes.events.output.results }}"
     assert graph["nodes"][3]["config"]["message"] == "Events: {{ $nodes.summary.output.answer }}"
     assert graph["nodes"][0]["config"]["schedule"]["weekdays"] == ["friday"]
+
+
+def test_event_date_named_strings_accept_structured_runtime_markers():
+    # events.search declares these fields as strings without JSON Schema
+    # format, while its runtime accepts relative date markers from Workflow.
+    raw = plan([
+        {"kind": "app", "id": "events", "capability": "events.search", "input": {"requests": [{
+            "query": "robotics", "providers": ["Luma", "Eventbrite"], "location": "Lisbon",
+            "event_type": "PHYSICAL", "start_date": {"$date": "next_week_start"},
+            "end_date": {"$date": "next_week_end"}, "count": 10,
+        }]}},
+        {"kind": "send", "id": "report", "title": "Events", "message": [
+            {"text": "Events: "}, ref("events", "results")]},
+    ])
+    chosen = selection("events.search", "ai.ask")
+    Draft202012Validator(build_authoring_schema(chosen)).validate(raw)
+    graph = compile_authoring_plan(raw, chosen, "UTC")["graph"]
+    request = graph["nodes"][1]["config"]["input"]["requests"][0]
+    assert request["start_date"] == {"$date": "next_week_start"}
+    assert request["end_date"] == {"$date": "next_week_end"}
+    malformed = deepcopy(raw)
+    malformed["steps"][0]["input"]["requests"][0]["query"] = {"$date": "today"}
+    assert list(Draft202012Validator(build_authoring_schema(chosen)).iter_errors(malformed))
+
+
+def test_selected_app_schema_failure_reports_only_registry_path_and_keyword():
+    raw = plan([{"kind": "app", "id": "events", "capability": "events.search", "input": {
+        "requests": [{"query": "robotics", "location": "Lisbon", "providers": ["private-bad-provider"]}],
+    }}])
+    with pytest.raises(ValueError, match="selected capability schema") as caught:
+        compile_authoring_preview(raw, selection("events.search"), "UTC")
+    assert caught.value.validation_path == "$.steps[0].input.requests[0].providers[0]"
+    assert caught.value.validation_keyword == "enum"
+    assert "private-bad-provider" not in str(caught.value)
+    raw["steps"][0]["input"]["requests"][0].pop("providers")
+    raw["steps"][0]["input"]["requests"][0]["private-unknown-key"] = "sensitive"
+    with pytest.raises(ValueError) as caught:
+        compile_authoring_preview(raw, selection("events.search"), "UTC")
+    assert caught.value.validation_path == "$.steps[0].input.requests[0]"
+    assert caught.value.validation_keyword == "additionalProperties"
+    assert "private-unknown-key" not in caught.value.validation_path
+
+
+def test_imported_event_workflow_full_replay_preserves_every_unedited_field():
+    source = """title: Synthetic undo guard
+start_when:
+  schedule: {type: weekly, weekdays: [monday], time: '08:00', timezone: Europe/Berlin}
+steps:
+  - id: events
+    use_app_skill: events.search
+    input:
+      requests:
+        - query: AI
+          providers: [Luma, Eventbrite]
+          location: Berlin
+          event_type: PHYSICAL
+          start_date: {$date: next_week_start}
+          end_date: {$date: next_week_end}
+          count: 10
+  - id: report
+    send_chat_message:
+      title: Synthetic message
+      message: "Synthetic events: {{steps.events.results}}"
+      blocks:
+        - {id: events, label: Synthetic event results, source: '$nodes.events.output.results'}
+"""
+    registry = WorkflowCapabilityRegistry()
+    before = compile_workflow_yaml(source, registry).graph.model_dump(mode="json", by_alias=True)
+    before["nodes"][2]["ui"] = {"position": {"x": 40, "y": 25}}
+    target = {"id": "workflow-1", "version": 3, "graph": before}
+    changed_input = deepcopy(before["nodes"][1]["config"]["input"])
+    changed_input["requests"][0]["query"] = "robotics"
+    changed_input["requests"][0]["location"] = "Lisbon"
+    raw = {"operation": "update", "workflow_id": "workflow-1", "steps": [
+        {"kind": "app", "id": "events", "capability": "events.search", "input": changed_input},
+        {"kind": "send", "id": "report"},
+    ]}
+    chosen = selection("events.search", "ai.ask", operation="update")
+    expected = deepcopy(before)
+    expected["nodes"][1]["config"]["input"] = changed_input
+    assert compile_authoring_plan(raw, chosen, "UTC", target)["graph"] == expected
+    author = FlatAuthoringAccumulator(chosen, "UTC", target)
+    author.accept_header({"operation": "update", "workflow_id": "workflow-1"})
+    author.accept_node({"kind": "app", "id": "events", "capability": "events.search",
+                        "input_json": json.dumps(changed_input)})
+    author.accept_node({"kind": "send", "id": "report"})
+    assert author.compile_final()["graph"] == expected
+
+    # Reauthoring a Send is allowed; its omitted block label keeps the prior
+    # presentation label for the same stable block ID.
+    reauthored = deepcopy(raw)
+    reauthored["steps"][1] = {"kind": "send", "id": "report", "title": "New message",
+                             "message": [{"text": "Updated events"}],
+                             "blocks": [{"id": "events", "source": {"step": "events", "field": "results"}}]}
+    changed = compile_authoring_plan(reauthored, chosen, "UTC", target)["graph"]
+    assert changed["nodes"][2]["config"]["blocks"][0]["label"] == "Synthetic event results"
+    reauthored["steps"][1]["blocks"][0]["label"] = "New label"
+    changed = compile_authoring_plan(reauthored, chosen, "UTC", target)["graph"]
+    assert changed["nodes"][2]["config"]["blocks"][0]["label"] == "New label"
+
+
+def test_id_only_send_reuse_rejects_create_unknown_and_wrong_prior_type():
+    send = {"kind": "send", "id": "report", "title": "Message", "message": [{"text": "Hello"}]}
+    with pytest.raises(ValueError, match="unchanged existing Send ID"):
+        compile_authoring_preview(plan([{"kind": "send", "id": "report"}]), selection(), "UTC")
+    before = compile_authoring_plan(plan([send]), selection(), "UTC")["graph"]
+    target = {"id": "workflow-1", "graph": before}
+    with pytest.raises(ValueError, match="unchanged existing Send ID"):
+        compile_authoring_preview({"operation": "update", "workflow_id": "workflow-1",
+                                   "steps": [{"kind": "send", "id": "missing"}]},
+                                  selection(operation="update"), "UTC", target)
+    app_send = {**send, "message": [{"text": "Events: "}, ref("events", "summary")]}
+    app_before = compile_authoring_plan(plan([
+        {"kind": "app", "id": "events", "capability": "events.search",
+         "input": {"requests": [{"query": "AI", "location": "Berlin"}]}}, app_send,
+    ]), selection("events.search"), "UTC")["graph"]
+    app_target = {"id": "workflow-2", "graph": app_before}
+    with pytest.raises(ValueError, match="unchanged existing Send ID"):
+        compile_authoring_preview({"operation": "update", "workflow_id": "workflow-2",
+                                   "steps": [{"kind": "send", "id": "events"}]},
+                                  selection(operation="update"), "UTC", app_target)
+
+
+def test_send_schema_accepts_only_complete_authoring_or_exact_id_reuse():
+    chosen = selection()
+    schema = Draft202012Validator(build_authoring_schema(chosen))
+    complete = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    for incomplete in ({"kind": "send", "id": "reply", "message": [{"text": "Changed"}]},
+                       {"kind": "send", "id": "reply", "title": "Changed"},
+                       {"kind": "send", "id": "reply", "blocks": []},
+                       {"kind": "send", "id": "reply", "title": "Changed", "blocks": []}):
+        assert list(schema.iter_errors(plan([incomplete])))
+        with pytest.raises(ValueError, match="selected capability schema"):
+            compile_authoring_preview(plan([incomplete]), chosen, "UTC")
+    assert not list(schema.iter_errors(plan([complete])))
+    before = compile_authoring_plan(plan([complete]), chosen, "UTC")["graph"]
+    target = {"id": "workflow-1", "graph": before}
+    author = FlatAuthoringAccumulator(selection(operation="update"), "UTC", target)
+    author.accept_header({"operation": "update", "workflow_id": "workflow-1"})
+    frozen = author.flat_snapshot()
+    for partial in ({"kind": "send", "id": "reply", "message_json": '[{"text":"Changed"}]'},
+                    {"kind": "send", "id": "reply", "title": "Changed"},
+                    {"kind": "send", "id": "reply", "blocks_json": "[]"}):
+        with pytest.raises(ValueError, match="selected capability schema"):
+            author.accept_node(partial)
+        assert author.flat_snapshot() == frozen
+    author.accept_node({"kind": "send", "id": "reply"})
+    assert author.compile_final()["graph"] == before
+
+
+def test_id_only_app_and_ask_ai_replay_preserves_legacy_prompt_and_modified_node_ui():
+    created = plan([
+        {"kind": "app", "id": "events", "capability": "events.search",
+         "input": {"requests": [{"query": "AI", "location": "Berlin", "count": 10}]}},
+        {"kind": "ask_ai", "id": "summary", "prompt": [
+            {"text": "Summarize "}, ref("events", "results")]},
+        {"kind": "send", "id": "reply", "title": "Events", "message": [ref("summary", "answer")]},
+    ])
+    before = compile_authoring_plan(created, selection("events.search", "ai.ask"), "UTC")["graph"]
+    before["nodes"][1]["ui"] = {"position": {"x": 10, "y": 20}}
+    before["nodes"][2]["ui"] = {"position": {"x": 21, "y": 32}}
+    before["nodes"][2]["config"]["input"]["prompt"] = "Summarize {{steps.events.results}}"
+    target = {"id": "workflow-1", "version": 3, "graph": before}
+    changed_input = deepcopy(before["nodes"][1]["config"]["input"])
+    changed_input["requests"][0]["query"] = "robotics"
+    changed_input["requests"][0]["location"] = "Lisbon"
+    chosen = selection("events.search", "ai.ask", operation="update")
+    raw = {"operation": "update", "workflow_id": "workflow-1", "steps": [
+        {"kind": "app", "id": "events", "capability": "events.search", "input": changed_input},
+        {"kind": "ask_ai", "id": "summary"}, {"kind": "send", "id": "reply"},
+    ]}
+    expected = deepcopy(before)
+    expected["nodes"][1]["config"]["input"] = changed_input
+    assert compile_authoring_plan(raw, chosen, "UTC", target)["graph"] == expected
+    author = FlatAuthoringAccumulator(chosen, "UTC", target)
+    author.accept_header({"operation": "update", "workflow_id": "workflow-1"})
+    author.accept_node({"kind": "app", "id": "events", "capability": "events.search",
+                        "input_json": json.dumps(changed_input)})
+    author.accept_node({"kind": "ask_ai", "id": "summary"})
+    author.accept_node({"kind": "send", "id": "reply"})
+    assert author.compile_final()["graph"] == expected
+
+
+def test_id_only_app_and_ask_ai_reuse_rejects_wrong_scope_before_preview():
+    created = plan([
+        {"kind": "app", "id": "events", "capability": "events.search",
+         "input": {"requests": [{"query": "AI", "location": "Berlin"}]}},
+        {"kind": "ask_ai", "id": "summary", "prompt": [
+            {"text": "Summarize "}, ref("events", "results")]},
+        {"kind": "send", "id": "reply", "title": "Events", "message": [ref("summary", "answer")]},
+    ])
+    base = selection("events.search", "ai.ask")
+    target = {"id": "workflow-1", "graph": compile_authoring_plan(created, base, "UTC")["graph"]}
+    cases = [
+        (plan([{"kind": "app", "id": "events"}]), base, None, "App reuse requires"),
+        (plan([{"kind": "ask_ai", "id": "summary"}]), base, None, "Ask AI reuse requires"),
+        ({"operation": "update", "workflow_id": "workflow-1", "steps": [{"kind": "app", "id": "missing"}]},
+         selection("events.search", operation="update"), target, "App reuse requires"),
+        ({"operation": "update", "workflow_id": "workflow-1", "steps": [{"kind": "ask_ai", "id": "missing"}]},
+         selection("ai.ask", operation="update"), target, "Ask AI reuse requires"),
+        ({"operation": "update", "workflow_id": "workflow-1", "steps": [{"kind": "app", "id": "summary"}]},
+         selection("events.search", operation="update"), target, "selected available capability"),
+        ({"operation": "update", "workflow_id": "workflow-1", "steps": [{"kind": "ask_ai", "id": "events"}]},
+         selection("ai.ask", operation="update"), target, "Ask AI reuse requires"),
+        ({"operation": "update", "workflow_id": "workflow-1", "steps": [{"kind": "app", "id": "events"}]},
+         selection("ai.ask", operation="update"), target, "selected available capability"),
+        ({"operation": "update", "workflow_id": "workflow-1", "steps": [{"kind": "ask_ai", "id": "summary"}]},
+         selection("events.search", operation="update"), target, "not selected or available"),
+    ]
+    disabled = selection("events.search", operation="update")
+    disabled = replace(disabled, capabilities=[disabled.capabilities[0].model_copy(update={"enabled": False})])
+    cases.append(({"operation": "update", "workflow_id": "workflow-1",
+                   "steps": [{"kind": "app", "id": "events"}]}, disabled, target, "selected available capability"))
+    disabled_ai = selection("ai.ask", operation="update")
+    disabled_ai = replace(disabled_ai, capabilities=[disabled_ai.capabilities[0].model_copy(update={"enabled": False})])
+    cases.append(({"operation": "update", "workflow_id": "workflow-1",
+                   "steps": [{"kind": "ask_ai", "id": "summary"}]}, disabled_ai, target,
+                  "not selected or available"))
+    for raw, chosen, selected_workflow, reason in cases:
+        with pytest.raises(ValueError, match=reason):
+            compile_authoring_preview(raw, chosen, "UTC", selected_workflow)
 
 
 def test_weather_results_are_declared_for_ai_forecast_formatting():

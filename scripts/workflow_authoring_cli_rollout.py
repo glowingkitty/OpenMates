@@ -26,6 +26,13 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 
+VALIDATION_KEYWORDS = frozenset({
+    "additionalProperties", "allOf", "anyOf", "const", "enum", "format", "maxItems",
+    "maxLength", "maximum", "minItems", "minLength", "minimum", "oneOf", "pattern",
+    "required", "type", "uniqueItems",
+})
+
+
 def cli_json(command: str, api_url: str, state_dir: Path, args: list[str], label: str) -> tuple[Any, float]:
     started = time.perf_counter()
     completed = subprocess.run(
@@ -133,7 +140,12 @@ def report_case(
         return value if isinstance(value, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_+/-]{0,79}", value) else None
 
     def validation_path(value: Any) -> str | None:
-        return value if isinstance(value, str) and re.fullmatch(r"\$\.[a-z_]+(?:\.[a-z_]+)?", value) else None
+        return value if (isinstance(value, str) and len(value) <= 180 and re.fullmatch(
+            r"\$\.[A-Za-z_][A-Za-z0-9_]*(?:\[(?:[0-9]|[1-3][0-9])\]|\.[A-Za-z_][A-Za-z0-9_]*)*",
+            value)) else None
+
+    def validation_keyword(value: Any) -> str | None:
+        return value if isinstance(value, str) and value in VALIDATION_KEYWORDS else None
 
     saved = authored_workflows(result)
     schedules = [node.get("config", {}).get("schedule", {}) for workflow in saved
@@ -187,12 +199,15 @@ def report_case(
         "last_failure_stage": reason(metrics.get("last_failure_stage")),
         "last_failure_reason_code": reason(metrics.get("last_failure_reason_code")),
         "last_validation_code": reason(metrics.get("last_validation_code")),
+        "last_validation_path": validation_path(metrics.get("last_validation_path")),
+        "last_validation_keyword": validation_keyword(metrics.get("last_validation_keyword")),
         "generation_attempts": [{key: attempt.get(key) for key in (
             "seconds", "first_component_ms", "component_count", "input_tokens", "output_tokens",
             "thinking_tokens", "estimated_cost_usd") if isinstance(attempt.get(key), (int, float))}
             | {"failure_reason_code": reason(attempt.get("failure_reason_code")),
                "validation_code": reason(attempt.get("validation_code")),
-               "validation_path": validation_path(attempt.get("validation_path"))}
+               "validation_path": validation_path(attempt.get("validation_path")),
+               "validation_keyword": validation_keyword(attempt.get("validation_keyword"))}
             for attempt in attempts if isinstance(attempt, dict)],
         **({"stream_timing": {key: value for key, value in stream_timing.items()
                               if key in {"first_started_seconds", "first_header_seconds",
@@ -470,8 +485,20 @@ steps:
             app_graph = app_workflows[0]["graph"]
             request = event_request(app_graph)
             if request.get("location") != "Lisbon" or request.get("query") != "robotics":
+                diagnostic_path = state_dir / f"workflow-rollout-{nonce}-app-graphs.json"
+                write_private_report(diagnostic_path, {
+                    "before_graph": changed[0]["graph"], "after_graph": app_graph,
+                })
+                report["diagnostic_graph_path"] = str(diagnostic_path)
+                persist()
                 raise AssertionError("App-parameter edit did not change the requested city and topic")
             if graph_without_event_topic_and_city(app_graph) != graph_without_event_topic_and_city(changed[0]["graph"]):
+                diagnostic_path = state_dir / f"workflow-rollout-{nonce}-app-graphs.json"
+                write_private_report(diagnostic_path, {
+                    "before_graph": changed[0]["graph"], "after_graph": app_graph,
+                })
+                report["diagnostic_graph_path"] = str(diagnostic_path)
+                persist()
                 raise AssertionError("App-parameter edit changed unrelated inputs, nodes, or edges")
 
             batch, wall, queue = completed_input(call, ["workflows", "input",

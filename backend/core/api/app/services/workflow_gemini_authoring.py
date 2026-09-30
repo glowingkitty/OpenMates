@@ -385,6 +385,12 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "A complete create needs title, description, supported icon, schedule and nodes. "
         "For edits preserve metadata unless asked to change it; preserve existing node IDs and unrelated steps. "
         "For schedule-only updates use empty nodes, preserving the existing graph. "
+        "For an app-input edit replay all nodes in their existing order. Include the FULL app input object, "
+        "changing only the requested values; retain unrelated filters, providers, date markers and counts. "
+        "An unchanged existing app or Ask AI node can be replayed with only its kind and id if its exact "
+        "capability remains selected; the compiler copies the original configuration. "
+        "An unchanged existing Send node can be replayed as only {\"kind\":\"send\",\"id\":\"existing_id\"}; "
+        "the compiler copies its exact message and blocks. New or changed Send nodes need title and message_json. "
         "Each node record has unique stable kind and id. Root sequence nodes omit parent_check_id and branch. "
         "A Check's child node names an EARLIER Check in parent_check_id and chooses branch yes, no or unsure. "
         "Put each child after its parent. Later root nodes are shared continuation after the chosen Check branch. "
@@ -394,10 +400,12 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "Every field ending _json is a STRING whose contents are valid JSON with double-quoted keys and strings; "
         "encode its object or array exactly once. input_json is the app input object, predicate_json the exact "
         "Check predicate object, prompt_json/question_json/message_json arrays of text/ref segments, "
-        "selected_inputs_json an array of {step,field} refs, and blocks_json a result-block array. "
+        "selected_inputs_json an array of {step,field} refs. blocks_json is an array of result blocks, each "
+        "with required id and source:{step,field} (NO ref wrapper); label, only_new_results and include_if "
+        "are optional. For a changed Send, keep existing block IDs, labels and sources unless asked to change them. "
         "Do not put arrays or objects directly in a _json field. App nodes need capability and input_json. "
         "Ask AI nodes need prompt_json. Exact Check nodes need mode exact and predicate_json. "
-        "AI Check nodes need mode ai, question_json and selected_inputs_json. Send nodes need title and message_json. "
+        "AI Check nodes need mode ai, question_json and selected_inputs_json. "
         "Use only registered selected capabilities and declared inputs/outputs. Selected skills are candidates; "
         "use only those actually needed. Scheduling, Check and Send are builtins. Ask AI processes prior values. "
         "Typed references are {\"ref\":{\"step\":\"earlier_id\",\"field\":\"declared_output\"}} "
@@ -575,7 +583,11 @@ class WorkflowGeminiAuthor:
                     error = WorkflowAuthoringProviderError(
                         "Workflow node failed validation", metrics, snapshots(),
                         code=authoring_validation_code(exc, "node"))
-                    error.validation_error = str(exc)[:300]
+                    error.validation_path = getattr(exc, "validation_path", None)
+                    error.validation_keyword = getattr(exc, "validation_keyword", None)
+                    detail = (f"; {error.validation_keyword} at {error.validation_path}"
+                              if error.validation_path and error.validation_keyword else "")
+                    error.validation_error = (str(exc) + detail)[:300]
                     raise error from exc
                 seen_new_ids[workflow_index].add(node_id)
                 metrics["component_count"] += 1

@@ -314,7 +314,8 @@ async def test_gemini_clarification_output_is_retried_then_fails_without_opening
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
 @pytest.mark.asyncio
-async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(monkeypatch):
+@pytest.mark.parametrize("keyword", ["enum", "Private generated value"])
+async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(monkeypatch, keyword):
     configure(monkeypatch)
 
     class FailingAuthor:
@@ -324,6 +325,7 @@ async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(
             error.code = "header_validation"
             error.validation_code = "schedule_fields"
             error.validation_path = "$.schedule.time"
+            error.validation_keyword = keyword
             error.validation_error = "Private generated value must stay in correction only"
             raise error
 
@@ -334,9 +336,11 @@ async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(
     assert metrics["last_failure_reason_code"] == "header_validation"
     assert metrics["last_validation_code"] == "schedule_fields"
     assert metrics["last_validation_path"] == "$.schedule.time"
+    assert metrics.get("last_validation_keyword") == ("enum" if keyword == "enum" else None)
     assert len(metrics["generation_attempts"]) == 2
     assert all(attempt["failure_reason_code"] == "header_validation"
                and attempt["validation_code"] == "schedule_fields"
+               and attempt.get("validation_keyword") == ("enum" if keyword == "enum" else None)
                for attempt in metrics["generation_attempts"])
     assert "Private" not in json.dumps(metrics)
 

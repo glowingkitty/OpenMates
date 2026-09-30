@@ -54,6 +54,10 @@ def test_prompt_examples_are_valid_json_with_real_weather_contract_and_quoted_op
     assert "Do not output clarify or draft" in prompt
     assert "9 in Lisbon" in prompt and "Europe/Lisbon" in prompt
     assert "A city used only as a search location" in prompt
+    assert "Include the FULL app input object" in prompt
+    assert "An unchanged existing app or Ask AI node can be replayed" in prompt
+    assert "An unchanged existing Send node can be replayed" in prompt
+    assert "source:{step,field} (NO ref wrapper)" in prompt
     assert "op:'" not in prompt
 
 
@@ -313,6 +317,34 @@ async def test_cross_kind_schedule_rejects_header_with_field_set_code():
     assert error.value.code == "header_schedule_field_set"
     assert error.value.validation_path == "$.schedule"
     assert error.value.accepted_prefixes == []
+
+
+@pytest.mark.asyncio
+async def test_rejected_app_input_exposes_only_schema_field_path_for_retry():
+    header = {"operation": "create", "title": "Events", "description": "Find events", "icon": "help-circle",
+              "schedule": {"type": "weekly"}}
+    node = {"kind": "app", "id": "events", "capability": "events.search",
+            "input_json": json.dumps({"requests": [{"query": "robotics", "location": "Lisbon",
+                                                    "providers": ["private-bad-provider"]}]})}
+    event = {"candidates": [{"content": {"parts": [{"text": json.dumps({
+        "workflows": [{"header": header, "nodes": [node]}],
+    })}]}, "finishReason": "STOP"}]}
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n'))) as client:
+        with pytest.raises(WorkflowAuthoringProviderError, match="node failed validation") as error:
+            await WorkflowGeminiAuthor(Secrets(), client).generate(
+                text="Find events", selection=selection("events.search"), timezone="UTC")
+    assert error.value.code == "node_selected_schema"
+    assert error.value.validation_path == "$.steps[0].input.requests[0].providers[0]"
+    assert error.value.validation_keyword == "enum"
+    assert "private-bad-provider" not in error.value.validation_error
+    assert len(error.value.accepted_prefixes) == 1
+    assert error.value.accepted_prefixes[0]["nodes"] == []
 
 
 @pytest.mark.asyncio

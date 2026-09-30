@@ -38,6 +38,10 @@ CLARIFICATION = "I could not build a valid workflow for every part of this reque
 PARTIAL_FAILURE = "The AI could not finish this workflow after a correction attempt. Your validated changes were saved and the workflow is disabled. Ask for a specific update or edit it manually."
 PARTIAL_STOPPED = "Generation stopped. Your validated changes were saved and the workflow is disabled."
 _PROVIDER_CACHE_KEYS = (f"{GOOGLE_SECRET_PATH}/api_key", f"{OPENROUTER_SECRET_PATH}/{OPENROUTER_SECRET_KEY}")
+_VALIDATION_KEYWORDS = frozenset({
+    "type", "enum", "required", "additionalProperties", "anyOf", "oneOf", "allOf",
+    "format", "pattern", "minimum", "maximum", "minItems", "maxItems", "minLength", "maxLength",
+})
 _PLAN_FAILURE_CODES = {
     "Not every requested workflow was authored": "workflow_count_mismatch",
     "An actionable request cannot become an empty or clarification plan": "empty_actionable_plan",
@@ -474,6 +478,10 @@ class WorkflowRegistryPlanner:
                     if validation_path:
                         usage["validation_path"] = validation_path
                         metrics["last_validation_path"] = validation_path
+                    validation_keyword = getattr(exc, "validation_keyword", None)
+                    if isinstance(validation_keyword, str) and validation_keyword in _VALIDATION_KEYWORDS:
+                        usage["validation_keyword"] = validation_keyword
+                        metrics["last_validation_keyword"] = validation_keyword
                     if attempt == 0:
                         await self._emit(context, {"type": "progress", "phase": "retrying_node", "attempt": 2})
                         continue

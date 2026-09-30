@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+from copy import deepcopy
 from dataclasses import is_dataclass, replace
 from types import SimpleNamespace
 from typing import Any
@@ -57,7 +58,8 @@ def _date_schema() -> dict[str, Any]:
                     "format": {"type": "string", "enum": ["date", "datetime"]}}, ["$date"])
 
 
-def _input_schema(schema: dict[str, Any], *, depth: int = 0, allow_ref: bool = True) -> dict[str, Any]:
+def _input_schema(schema: dict[str, Any], *, depth: int = 0, allow_ref: bool = True,
+                  field_name: str | None = None) -> dict[str, Any]:
     """Project a selected app contract into Gemini's bounded JSON Schema subset."""
     if depth > 8:
         raise ValueError("Selected capability input schema is too deep")
@@ -66,7 +68,7 @@ def _input_schema(schema: dict[str, Any], *, depth: int = 0, allow_ref: bool = T
         kinds = [item for item in kind if item != "null"]
         kind = kinds[0] if len(kinds) == 1 else "string"
     if kind == "object":
-        props = {key: _input_schema(value, depth=depth + 1)
+        props = {key: _input_schema(value, depth=depth + 1, field_name=key)
                  for key, value in (schema.get("properties") or {}).items()
                  if isinstance(value, dict)}
         literal = _object(props, list(schema.get("required") or []))
@@ -81,7 +83,12 @@ def _input_schema(schema: dict[str, Any], *, depth: int = 0, allow_ref: bool = T
     alternatives = [literal]
     if allow_ref:
         alternatives.append(_reference_schema())
-    if kind == "string" and schema.get("format") in {"date", "date-time", "datetime"}:
+    # App contracts often describe an ISO date in prose without a JSON Schema
+    # format (for example nested event start_date/end_date). Runtime markers
+    # are valid for those date-named fields and resolve before dispatch.
+    date_named = field_name == "date" or isinstance(field_name, str) and field_name.endswith(
+        ("_date", "_datetime", "_timestamp"))
+    if kind == "string" and (schema.get("format") in {"date", "date-time", "datetime"} or date_named):
         alternatives.append(_date_schema())
     return {"anyOf": alternatives} if len(alternatives) > 1 else literal
 
@@ -101,7 +108,7 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
                           "left": scalar, "right": scalar}, ["op", "left"])
     predicate = {"anyOf": [comparison, _object({"op": {"type": "string", "enum": ["and", "or"]},
                                                 "conditions": {"type": "array", "items": comparison}})]}
-    block = _object({"id": {"type": "string"}, "source": _ref_schema(),
+    block = _object({"id": {"type": "string"}, "source": _ref_schema(), "label": {"type": "string"},
                      "only_new_results": {"type": "boolean"},
                      "include_if": {"anyOf": [{"type": "boolean"}, ref]}}, ["id", "source"])
     common = {"kind": {"type": "string"}, "id": {"type": "string"}}
@@ -120,14 +127,22 @@ def build_authoring_schema(selection: WorkflowPreselection) -> dict[str, Any]:
     if any(cap.id == "ai.ask" for cap in selection.capabilities):
         definitions["ask_ai"] = _object({**common, "kind": {"type": "string", "enum": ["ask_ai"]},
                                          "prompt": segments})
-    definitions["send"] = _object({**common, "kind": {"type": "string", "enum": ["send"]},
-                                    "title": {"type": "string"}, "message": segments,
-                                    "blocks": {"type": "array", "items": block}}, ["kind", "id", "title", "message"])
+    definitions["reuse_app"] = _object({"kind": {"type": "string", "enum": ["app"]},
+                                          "id": {"type": "string"}}, ["kind", "id"])
+    definitions["reuse_ask_ai"] = _object({"kind": {"type": "string", "enum": ["ask_ai"]},
+                                             "id": {"type": "string"}}, ["kind", "id"])
+    definitions["send_full"] = _object({**common, "kind": {"type": "string", "enum": ["send"]},
+                                         "title": {"type": "string"}, "message": segments,
+                                         "blocks": {"type": "array", "items": block}},
+                                        ["kind", "id", "title", "message"])
+    definitions["reuse_send"] = _object({"kind": {"type": "string", "enum": ["send"]},
+                                           "id": {"type": "string"}}, ["kind", "id"])
     definitions["end"] = _object({**common, "kind": {"type": "string", "enum": ["end"]}})
-    base_variants = [*app_variants]
+    base_variants = [*app_variants, {"$ref": "#/$defs/reuse_app"}, {"$ref": "#/$defs/reuse_ask_ai"}]
     if "ask_ai" in definitions:
         base_variants.append({"$ref": "#/$defs/ask_ai"})
-    base_variants.extend([{"$ref": "#/$defs/send"}, {"$ref": "#/$defs/end"}])
+    base_variants.extend([{"$ref": "#/$defs/send_full"}, {"$ref": "#/$defs/reuse_send"},
+                          {"$ref": "#/$defs/end"}])
     definitions["step_0"] = {"anyOf": base_variants}
     for depth in range(1, 4):
         children = {"type": "array", "items": {"$ref": f"#/$defs/step_{depth - 1}"}}
@@ -227,6 +242,55 @@ def _predicate(value: Any, known: set[str]) -> dict[str, Any]:
     return result
 
 
+def _selected_app_schema_diagnostic(
+    raw: dict[str, Any], selection: WorkflowPreselection, error: Any,
+) -> tuple[str, str] | None:
+    """Return a registry-field path and schema keyword, never an authored value."""
+    parts = list(error.absolute_path)
+    if len(parts) < 2 or parts[0] != "steps" or not isinstance(parts[1], int):
+        return None
+    try:
+        step = raw["steps"][parts[1]]
+        for part in parts[2:]:
+            step = step[part]
+    except (KeyError, IndexError, TypeError):
+        return None
+    if not isinstance(step, dict) or step.get("kind") != "app" or not isinstance(step.get("input"), dict):
+        return None
+    capability = next((cap for cap in selection.capabilities if cap.id == step.get("capability")), None)
+    if capability is None:
+        return None
+    app_schema = capability.metadata["input_schema"]
+    app_error = next(Draft202012Validator(_input_schema(app_schema, allow_ref=False)).iter_errors(step["input"]), None)
+    if app_error is None:
+        return None
+    while app_error.context:
+        # A generated app input follows the literal branch of each anyOf;
+        # reference alternatives add noisy errors without useful field paths.
+        literal = [child for child in app_error.context if child.schema_path and child.schema_path[0] == 0]
+        app_error = (literal or app_error.context)[0]
+    keyword = app_error.validator
+    if keyword not in {"type", "required", "enum", "additionalProperties", "minimum", "maximum", "minItems", "maxItems"}:
+        return None
+    current = app_schema
+    path = f"$.steps[{parts[1]}].input"
+    for part in app_error.absolute_path:
+        if isinstance(part, int):
+            if not isinstance(current, dict) or current.get("type") != "array" or part > 999:
+                return None
+            current = current.get("items")
+            path += f"[{part}]"
+        elif isinstance(part, str):
+            properties = current.get("properties") if isinstance(current, dict) else None
+            if not isinstance(properties, dict) or part not in properties:
+                return None
+            current = properties[part]
+            path += f".{part}"
+        else:
+            return None
+    return (path, keyword) if len(path) <= 160 else None
+
+
 def _compile_authoring(
     raw: dict[str, Any], selection: WorkflowPreselection, timezone: str,
     selected_workflow: dict[str, Any] | None = None,
@@ -262,7 +326,11 @@ def _compile_authoring(
     first_error = next(errors, None)
     if first_error is not None:
         path = first_error.json_path
-        raise ValueError(f"Authoring plan violates the selected capability schema at {path}")
+        failure = ValueError(f"Authoring plan violates the selected capability schema at {path}")
+        detail = _selected_app_schema_diagnostic(raw, selection, first_error)
+        if detail is not None:
+            failure.validation_path, failure.validation_keyword = detail
+        raise failure
     for field, limit in (("title", 200), ("description", 2_000)):
         value = raw.get(field)
         if value is not None and (not isinstance(value, str) or len(value) > limit):
@@ -294,6 +362,7 @@ def _compile_authoring(
     except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:
         raise ValueError("Browser timezone is invalid") from exc
     previous_graph = WorkflowGraph.model_validate(selected_workflow["graph"]) if operation == "update" else None
+    prior_nodes_by_id = {node.id: node for node in previous_graph.nodes} if previous_graph else {}
     trigger_id = previous_graph.trigger_node_id if previous_graph and previous_graph.trigger_node_id else "trigger"
     prior_trigger = next((node for node in previous_graph.nodes if node.id == trigger_id), None) if previous_graph else None
     assumptions: list[str] = []
@@ -421,22 +490,40 @@ def _compile_authoring(
             if previous is not None:
                 edge(previous[0], node_id, previous[1])
             if kind == "app":
-                capability = item.get("capability")
-                if capability not in selected_ids or capability == "ai.ask":
-                    raise ValueError("App step must use a selected capability")
-                authored = item.get("input")
-                if not isinstance(authored, dict):
-                    raise ValueError("App input must be an object")
-                app_id, skill_id = capability.split(".", 1)
-                node = WorkflowNode(id=node_id, type=WorkflowNodeType.APP_SKILL_ACTION,
-                                    config={"app_id": app_id, "skill_id": skill_id,
-                                            "input": _value(authored, known, f"Step {node_id} input", app_input=True)})
+                if set(item) == {"kind", "id"}:
+                    prior_app = prior_nodes_by_id.get(node_id)
+                    if operation != "update" or prior_app is None or prior_app.type != WorkflowNodeType.APP_SKILL_ACTION:
+                        raise ValueError("App reuse requires an unchanged existing app ID")
+                    capability = f"{prior_app.config.get('app_id')}.{prior_app.config.get('skill_id')}"
+                    if capability == "ai.ask" or not any(
+                            cap.id == capability and cap.enabled for cap in selection.capabilities):
+                        raise ValueError("App reuse requires its selected available capability")
+                    node = prior_app.model_copy(deep=True)
+                else:
+                    capability = item.get("capability")
+                    if capability not in selected_ids or capability == "ai.ask":
+                        raise ValueError("App step must use a selected capability")
+                    authored = item.get("input")
+                    if not isinstance(authored, dict):
+                        raise ValueError("App input must be an object")
+                    app_id, skill_id = capability.split(".", 1)
+                    node = WorkflowNode(id=node_id, type=WorkflowNodeType.APP_SKILL_ACTION,
+                                        config={"app_id": app_id, "skill_id": skill_id,
+                                                "input": _value(authored, known, f"Step {node_id} input", app_input=True)})
             elif kind == "ask_ai":
-                if "ai.ask" not in selected_ids:
-                    raise ValueError("Ask AI capability was not selected")
-                prompt = _text(item.get("prompt"), known, f"Step {node_id} prompt")
-                node = WorkflowNode(id=node_id, type=WorkflowNodeType.APP_SKILL_ACTION,
-                                    config={"app_id": "ai", "skill_id": "ask", "input": {"prompt": prompt}})
+                if not any(cap.id == "ai.ask" and cap.enabled for cap in selection.capabilities):
+                    raise ValueError("Ask AI capability was not selected or available")
+                if set(item) == {"kind", "id"}:
+                    prior_ask = prior_nodes_by_id.get(node_id)
+                    if (operation != "update" or prior_ask is None
+                            or prior_ask.type != WorkflowNodeType.APP_SKILL_ACTION
+                            or prior_ask.config.get("app_id") != "ai" or prior_ask.config.get("skill_id") != "ask"):
+                        raise ValueError("Ask AI reuse requires an unchanged existing Ask AI ID")
+                    node = prior_ask.model_copy(deep=True)
+                else:
+                    prompt = _text(item.get("prompt"), known, f"Step {node_id} prompt")
+                    node = WorkflowNode(id=node_id, type=WorkflowNodeType.APP_SKILL_ACTION,
+                                        config={"app_id": "ai", "skill_id": "ask", "input": {"prompt": prompt}})
             elif kind == "check":
                 mode = item.get("mode")
                 if mode not in {"exact", "ai"}:
@@ -454,21 +541,34 @@ def _compile_authoring(
             elif kind == "send":
                 if not selection.chat_delivery:
                     raise ValueError("Chat delivery was not selected")
-                message = _text(item.get("message"), known, f"Step {node_id} message")
-                blocks = []
-                for block in item.get("blocks") or []:
-                    if not isinstance(block, dict) or not isinstance(block.get("id"), str):
-                        raise ValueError("Message block requires an ID")
-                    compiled = {"id": block["id"], "source": _reference(block.get("source"), known, f"Step {node_id} block")}
-                    if "only_new_results" in block:
-                        compiled["only_new_results"] = block["only_new_results"]
-                    if "include_if" in block:
-                        value = block["include_if"]
-                        compiled["include_if"] = _reference(value["ref"], known, f"Step {node_id} block condition") if isinstance(value, dict) and set(value) == {"ref"} else value
-                    blocks.append(compiled)
-                node = WorkflowNode(id=node_id, type=WorkflowNodeType.SEND_CHAT_MESSAGE,
-                                    config={"title": item.get("title") or raw.get("title") or "Workflow update",
-                                            "message": message, "blocks": blocks})
+                prior_send = prior_nodes_by_id.get(node_id)
+                if "message" not in item:
+                    if (operation != "update" or set(item) != {"kind", "id"} or prior_send is None
+                            or prior_send.type != WorkflowNodeType.SEND_CHAT_MESSAGE):
+                        raise ValueError("Send requires authored message or an unchanged existing Send ID")
+                    node = prior_send.model_copy(deep=True)
+                else:
+                    message = _text(item["message"], known, f"Step {node_id} message")
+                    prior_blocks = {block["id"]: block for block in (prior_send.config.get("blocks") or [])
+                                    if isinstance(block, dict) and isinstance(block.get("id"), str)} if prior_send else {}
+                    blocks = []
+                    for block in item.get("blocks") or []:
+                        if not isinstance(block, dict) or not isinstance(block.get("id"), str):
+                            raise ValueError("Message block requires an ID")
+                        compiled = {"id": block["id"], "source": _reference(block.get("source"), known, f"Step {node_id} block")}
+                        if "label" in block:
+                            compiled["label"] = block["label"]
+                        elif isinstance(prior_blocks.get(block["id"], {}).get("label"), str):
+                            compiled["label"] = prior_blocks[block["id"]]["label"]
+                        if "only_new_results" in block:
+                            compiled["only_new_results"] = block["only_new_results"]
+                        if "include_if" in block:
+                            value = block["include_if"]
+                            compiled["include_if"] = _reference(value["ref"], known, f"Step {node_id} block condition") if isinstance(value, dict) and set(value) == {"ref"} else value
+                        blocks.append(compiled)
+                    node = WorkflowNode(id=node_id, type=WorkflowNodeType.SEND_CHAT_MESSAGE,
+                                        config={"title": item.get("title") or raw.get("title") or "Workflow update",
+                                                "message": message, "blocks": blocks})
                 sends += 1
             elif kind == "end":
                 if continuation_pending:
@@ -476,6 +576,9 @@ def _compile_authoring(
                 node = WorkflowNode(id=node_id, type=WorkflowNodeType.END)
             else:
                 raise ValueError("Unsupported authoring step kind")
+            prior_same = prior_nodes_by_id.get(node_id)
+            if operation == "update" and prior_same is not None and prior_same.type == node.type:
+                node.ui = deepcopy(prior_same.ui)
             nodes.append(node)
             known.add(node_id)
             if kind == "check":
