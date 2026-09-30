@@ -196,10 +196,41 @@ test.describe('Tasks web app parity', () => {
 		await expect(persistedDoneCard).toBeVisible({ timeout: 30_000 });
 		const taskId = await persistedDoneCard.getAttribute('data-task-id');
 		expect(taskId, 'created task id should be available for direct-route verification').toBeTruthy();
+		const secondTaskTitle = `Web parity route B ${suffix}`;
+		const secondCreated = page.waitForResponse((response) =>
+			response.request().method() === 'POST' && response.url().endsWith('/v1/user-tasks') && response.ok()
+		);
+		await page.getByTestId('task-workspace-input').fill(secondTaskTitle);
+		await page.getByTestId('task-workspace-submit').click();
+		const secondTaskId = (await (await secondCreated).json()).task.task_id as string;
+		await expect(taskCardIn(page.getByTestId('task-column-todo'), secondTaskTitle)).toBeVisible({ timeout: 30_000 });
+		const coldDetailReads: string[] = [];
+		const recordColdDetailRead = (request: { method: () => string; url: () => string }) => {
+			if (request.method() !== 'GET') return;
+			const path = new URL(request.url()).pathname;
+			if (path === '/v1/user-tasks' || path === '/v1/user-tasks/assignment-eligibility' ||
+				path === `/v1/user-tasks/${taskId}` || path === `/v1/user-tasks/${secondTaskId}` ||
+				path === '/v1/user-plans' || path === '/v1/projects') coldDetailReads.push(path);
+		};
+		page.on('request', recordColdDetailRead);
 		await page.goto(getE2EDebugUrl(`/#task-id=${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('task-detail-content')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		await page.evaluate((nextTaskId: string) => {
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker = 'same-document';
+			window.location.hash = `task-id=${encodeURIComponent(nextTaskId)}`;
+		}, secondTaskId);
+		await expect(page).toHaveURL(new RegExp(`/#task-id=${secondTaskId}(?:&|$)`));
+		await expect(page.getByTestId('task-detail-title')).toContainText(secondTaskTitle, { timeout: 30_000 });
+		await expect(page.getByTestId('task-detail-title')).not.toContainText(taskTitle);
+		expect(await page.evaluate(() =>
+			(window as typeof window & { taskDetailDocumentMarker?: string }).taskDetailDocumentMarker
+		), 'Task B must open by client navigation without reloading the document').toBe('same-document');
+		page.off('request', recordColdDetailRead);
+		expect(coldDetailReads.filter((path) => path === `/v1/user-tasks/${taskId}`), 'cold Task A reads its selected record once').toHaveLength(1);
+		expect(coldDetailReads.filter((path) => path === `/v1/user-tasks/${secondTaskId}`), 'Task B reads its selected record once after the hash switch').toHaveLength(1);
+		expect(coldDetailReads.filter((path) => path !== `/v1/user-tasks/${taskId}` && path !== `/v1/user-tasks/${secondTaskId}`), 'detail navigation does not load full task, Plan or Project lists').toEqual([]);
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
 		const cardToDelete = taskCardIn(page.getByTestId('task-column-done'), taskTitle);
@@ -211,6 +242,18 @@ test.describe('Tasks web app parity', () => {
 			cardToDelete.getByTestId('task-delete-button').click(),
 		]);
 		await expect(page.getByTestId('task-board')).not.toContainText(taskTitle, { timeout: 30_000 });
+		await page.getByTestId('chats-nav-link').click();
+		await page.getByTestId('tasks-nav-link').click();
+		await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('task-board')).not.toContainText(taskTitle);
+		const secondCardToDelete = taskCardIn(page.getByTestId('task-column-todo'), secondTaskTitle);
+		await expect(secondCardToDelete).toBeVisible();
+		await secondCardToDelete.getByTestId('task-actions-more').click();
+		await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/v1/user-tasks/${secondTaskId}`) && response.ok()),
+			secondCardToDelete.getByTestId('task-delete-button').click(),
+		]);
+		await expect(page.getByTestId('task-board')).not.toContainText(secondTaskTitle);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible,tasks.detail.embed-responsive,tasks.surface.semantic-parity

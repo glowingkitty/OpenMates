@@ -289,12 +289,25 @@
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		window.addEventListener('popstate', syncWorkflowHashFromLocation);
+		const refreshVisibleWorkflow = () => {
+			if (!routeAlive || !canLoadWorkflows || editorDirty || saving || workflowGraphRef?.hasPendingDraft()) return;
+			void workflowWorkspaceStore.loadWorkflows().catch(() => undefined);
+			const selectedId = $workflowWorkspaceStore.selectedWorkflowId;
+			if (selectedId) void workflowWorkspaceStore.selectWorkflow(selectedId).catch(() => undefined);
+		};
+		const onVisibilityChange = () => { if (!document.hidden) refreshVisibleWorkflow(); };
+		window.addEventListener('focus', refreshVisibleWorkflow);
+		window.addEventListener('online', refreshVisibleWorkflow);
+		document.addEventListener('visibilitychange', onVisibilityChange);
 		void initializeWorkflowsRoute();
 
 		return () => {
 			routeAlive = false;
 			window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
 			window.removeEventListener('popstate', syncWorkflowHashFromLocation);
+			window.removeEventListener('focus', refreshVisibleWorkflow);
+			window.removeEventListener('online', refreshVisibleWorkflow);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	});
 
@@ -514,7 +527,9 @@
 
 	$effect(() => {
 		if (!canLoadWorkflows) return;
+		const generation = $workflowWorkspaceStore.generation;
 		void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
+			if (!workflowWorkspaceStore.isCurrentGeneration(generation)) return;
 			console.error('[WorkflowsRoute] Failed to warm workflow cache:', loadError);
 		});
 	});
@@ -581,13 +596,11 @@
 	});
 
 	$effect(() => {
-		const generation = workflowWorkspaceStore.getGeneration();
-		const storeSelectedWorkflowId = $workflowWorkspaceStore.selectedWorkflowId;
+		const generation = $workflowWorkspaceStore.generation;
 		if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
 			observedWorkflowGeneration = generation;
 			routeError = null;
 		}
-		void storeSelectedWorkflowId;
 	});
 
 	async function createRainWorkflow() {

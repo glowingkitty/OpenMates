@@ -125,20 +125,115 @@ test.describe('Plans on the global Tasks board', () => {
 			await expect(planCard.getByTestId('task-board-plan-actions')).toBeVisible();
 			await expect(planCard.getByTestId('task-board-plan-move-todo')).toBeAttached();
 
-			const backlogBefore = await columnCount(page, 'backlog');
-			const todoBefore = await columnCount(page, 'todo');
-			const moved = page.waitForResponse(
-				(response: any) => response.request().method() === 'PATCH'
-					&& new URL(response.url()).pathname.endsWith(`/v1/user-plans/${planId}`)
-					&& response.ok()
-			);
-			await dragPlanToColumn(page, planCard, 'todo');
-			await moved;
-			await expect(planCard).toHaveAttribute('data-plan-status', 'awaiting_confirmation', { timeout: 30000 });
-			await expect(planCard).toHaveAttribute('data-plan-column', 'todo');
-			await expect(page.getByTestId('task-column-todo').locator(`[data-plan-id="${planId}"]`)).toHaveCount(1);
-			await expect.poll(() => columnCount(page, 'backlog')).toBe(backlogBefore - 1);
-			await expect.poll(() => columnCount(page, 'todo')).toBe(todoBefore + 1);
+			// A real Project and Plan have now populated the in-memory workspace cache.
+			// Keep later list reads in flight long enough to catch a remount that hides
+			// useful content behind a loading state or refetches a fresh query.
+			await page.getByTestId('projects-nav-link').click();
+			const projectCard = page.getByTestId('project-landing-card').filter({ hasText: projectName });
+			await expect(projectCard).toHaveCount(1);
+			await expect(projectCard).toBeVisible({ timeout: 30000 });
+			await page.getByTestId('tasks-nav-link').click();
+			await expectTaskBoardReady(page);
+			await expect(planCard).toBeVisible({ timeout: 30000 });
+
+			const repeatedListReads: string[] = [];
+			const holdListReads = async (route: any) => {
+				const request = route.request();
+				if (request.method() === 'GET' && /^\/v1\/(?:user-tasks(?:\/assignment-eligibility)?|user-plans|projects)$/.test(new URL(request.url()).pathname)) {
+					repeatedListReads.push(request.url());
+					await new Promise((resolve) => setTimeout(resolve, 5000));
+				}
+				await route.continue();
+			};
+			await page.route('**/v1/**', holdListReads);
+			try {
+				for (const width of [1512, 390]) {
+					await page.setViewportSize({ width, height: 844 });
+					const navigate = async (href: string) => {
+						if (width === 390) await page.getByTestId('workspace-mobile-select').selectOption(href);
+						else await page.getByTestId(href === '/#projects' ? 'projects-nav-link' : 'tasks-nav-link').click();
+					};
+
+					await navigate('/#projects');
+					await expect(page).toHaveURL(/\/#projects$/);
+					await expect(projectCard).toBeVisible({ timeout: 2000 });
+					await expect(projectCard).toHaveCount(1);
+					await expect(page.getByText('Loading projects...', { exact: true })).toHaveCount(0);
+					await navigate('/#tasks');
+					await expect(page).toHaveURL(/\/#tasks$/);
+					await expect(planCard).toBeVisible({ timeout: 2000 });
+					await expect(page.getByTestId('tasks-loading')).toHaveCount(0);
+				}
+				expect(repeatedListReads, 'fresh board and Project summaries should survive route remounts without new list reads').toEqual([]);
+			} finally {
+				await page.unroute('**/v1/**', holdListReads);
+				await page.setViewportSize({ width: 1512, height: 844 });
+			}
+
+			// Make the cached Plan stale without slowing browser timers. The intercepted
+			// GET captures the old encrypted server response before the real UI move,
+			// then delivers it at least five seconds later to exercise the mutation fence.
+			await page.evaluate(() => {
+				const realNow = Date.now.bind(Date);
+				(window as typeof window & { restoreWorkspaceCacheClock?: () => void }).restoreWorkspaceCacheClock = () => { Date.now = realNow; };
+				Date.now = () => realNow() + 61_000;
+			});
+			let releaseHeldPlanRead!: () => void;
+			const heldPlanReadGate = new Promise<void>((resolve) => { releaseHeldPlanRead = resolve; });
+			let stalePlanReadStarted = false;
+			let stalePlanReadCaptured = false;
+			let stalePlanReadCompleted = false;
+			await page.route('**/v1/user-plans**', async (route: any) => {
+				if (route.request().method() !== 'GET' || new URL(route.request().url()).pathname !== '/v1/user-plans' || stalePlanReadStarted) {
+					await route.continue();
+					return;
+				}
+				stalePlanReadStarted = true;
+				const oldResponse = await route.fetch();
+				const capturedAt = Date.now();
+				stalePlanReadCaptured = true;
+				await heldPlanReadGate;
+				await new Promise((resolve) => setTimeout(resolve, Math.max(0, 5000 - (Date.now() - capturedAt))));
+				await route.fulfill({ response: oldResponse });
+				stalePlanReadCompleted = true;
+			});
+			try {
+				await page.getByTestId('projects-nav-link').click();
+				await page.getByTestId('tasks-nav-link').click();
+				await expect(planCard).toBeVisible({ timeout: 2000 });
+				await expect(page.getByTestId('tasks-loading')).toHaveCount(0);
+				await expect.poll(() => stalePlanReadCaptured, { timeout: 5000 }).toBe(true);
+				await expect(planCard).toBeVisible();
+				await expect(page.getByTestId('tasks-loading')).toHaveCount(0);
+				expect(stalePlanReadCompleted, 'cached Plan stays visible while its refresh is held').toBe(false);
+
+				const backlogBefore = await columnCount(page, 'backlog');
+				const todoBefore = await columnCount(page, 'todo');
+				const moved = page.waitForResponse(
+					(response: any) => response.request().method() === 'PATCH'
+						&& new URL(response.url()).pathname.endsWith(`/v1/user-plans/${planId}`)
+						&& response.ok()
+				);
+				await dragPlanToColumn(page, planCard, 'todo');
+				await moved;
+				await expect(planCard).toHaveAttribute('data-plan-status', 'awaiting_confirmation', { timeout: 30000 });
+				await expect(planCard).toHaveAttribute('data-plan-column', 'todo');
+				await expect(page.getByTestId('task-column-todo').locator(`[data-plan-id="${planId}"]`)).toHaveCount(1);
+				await expect.poll(() => columnCount(page, 'backlog')).toBe(backlogBefore - 1);
+				await expect.poll(() => columnCount(page, 'todo')).toBe(todoBefore + 1);
+				releaseHeldPlanRead();
+				await expect.poll(() => stalePlanReadCompleted, { timeout: 10000 }).toBe(true);
+				await page.evaluate(() => new Promise<void>((resolve) => {
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+				}));
+				await expect(planCard).toHaveAttribute('data-plan-column', 'todo');
+			} finally {
+				releaseHeldPlanRead();
+				await page.unroute('**/v1/user-plans**');
+				await page.evaluate(() => {
+					(window as typeof window & { restoreWorkspaceCacheClock?: () => void }).restoreWorkspaceCacheClock?.();
+				});
+			}
 
 			await planCard.getByTestId('task-board-plan-open').click();
 			await expect(page).toHaveURL(new RegExp(`/#plan-id=${planId}(?:&|$)`));

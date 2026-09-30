@@ -51,6 +51,9 @@
     ProjectRemoteAccessError,
     readEncryptedProjectFile,
     listProjects,
+    peekProjects,
+    subscribeProjects,
+    getProjectsRefreshError,
     moveProjectItemToFolder,
     requestProjectRemoteAccess,
     transferProjectRemoteEntries,
@@ -157,7 +160,7 @@
 
   let { variant = 'main', onNewChat, onNewPlan, onNewWorkflow, previewState = null, initialTab = 'overview' }: Props = $props();
 
-  let projects = $state<ProjectViewModel[]>([]);
+  let projects = $state<ProjectViewModel[]>(peekProjects() ?? []);
   let selectedProject = $state<ProjectViewModel | null>(null);
   let projectTaskOverlay = $state<{
     task: UserTaskViewModel;
@@ -167,7 +170,7 @@
   let folders = $state<ProjectFolderViewModel[]>([]);
   let items = $state<ProjectItemViewModel[]>([]);
   let sources = $state<ProjectSourceViewModel[]>([]);
-  let isLoading = $state(true);
+  let isLoading = $state(peekProjects() === undefined);
   let isSaving = $state(false);
   let newProjectName = $state('');
   let newProjectWriteMode = $state<ProjectWriteMode | null>(null);
@@ -699,7 +702,7 @@
   }
 
   async function refreshProjects(): Promise<void> {
-    isLoading = true;
+    isLoading = peekProjects() === undefined;
     try {
       hasLoadError = false;
       projects = await listProjects();
@@ -849,7 +852,7 @@
     isSaving = true;
     try {
       const project = await createProject(name, newProjectWriteMode);
-      projects = [project, ...projects];
+      projects = [project, ...projects.filter((candidate) => candidate.project_id !== project.project_id)];
       selectedProject = project;
       currentFolder = null;
       currentFolderTrail = [];
@@ -1900,7 +1903,31 @@
       return () => { pageDisposed = true; cancelProjectSearch(); replaceReadmeState({ status: 'empty' }); };
     }
     syncProjectHashFromLocation();
+    let lastRefreshError: unknown;
+    const unsubscribeProjects = subscribeProjects(() => {
+      if (pageDisposed) return;
+      const cached = peekProjects();
+      if (cached !== undefined) {
+        projects = cached;
+        isLoading = false;
+        const refreshError = getProjectsRefreshError();
+        if (refreshError && refreshError !== lastRefreshError) notificationStore.error('Failed to load projects');
+        lastRefreshError = refreshError;
+        if (selectedProject) {
+          const current = cached.find((project) => project.project_id === selectedProject?.project_id);
+          if (current) selectedProject = current;
+          else clearSelectedProject();
+        }
+      } else {
+        projects = [];
+        clearSelectedProject();
+        isLoading = true;
+      }
+    });
     void refreshProjects();
+    const refreshVisibleProjects = () => {
+      if (document.visibilityState === 'visible') void refreshProjects();
+    };
     const handleProjectSelected = (event: Event) => {
       const project = (event as CustomEvent<ProjectViewModel>).detail;
       if (!project || selectedProject?.project_id === project.project_id) return;
@@ -1920,12 +1947,16 @@
       }
     };
     const sourceStatusTimer = window.setInterval(() => void refreshRemoteSourceStatus(), 15_000);
+    const summaryRefreshTimer = window.setInterval(refreshVisibleProjects, 15_000);
+    window.addEventListener('focus', refreshVisibleProjects);
+    window.addEventListener('online', refreshVisibleProjects);
     window.addEventListener('hashchange', syncProjectHashFromLocation);
     window.addEventListener('popstate', syncProjectHashFromLocation);
     window.addEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
     window.addEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
     return () => {
       pageDisposed = true;
+      unsubscribeProjects();
       cancelProjectSearch();
       replaceReadmeState({ status: 'empty' });
       cancelRemoteDownload();
@@ -1937,6 +1968,9 @@
       window.removeEventListener(PROJECT_SELECTED_EVENT, handleProjectSelected);
       window.removeEventListener(PROJECTS_CHANGED_EVENT, handleProjectsChanged);
       window.clearInterval(sourceStatusTimer);
+      window.clearInterval(summaryRefreshTimer);
+      window.removeEventListener('focus', refreshVisibleProjects);
+      window.removeEventListener('online', refreshVisibleProjects);
     };
   });
 

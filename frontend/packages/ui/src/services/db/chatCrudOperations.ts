@@ -24,6 +24,7 @@ import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
 import { unwrapTeamChatKey, wrapTeamChatKey } from "../teamService";
+import { invalidateRecentChatWindow } from "../recentChatWindowCache";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -1350,6 +1351,9 @@ export async function deleteChat(
   chat_id: string,
   transaction?: IDBTransaction,
 ): Promise<{ deletedEmbedIds: string[] }> {
+  // The active chat component may be unmounted in another workspace. Fence any
+  // in-flight message-window read before the first asynchronous deletion step.
+  invalidateRecentChatWindow(chat_id);
   await dbInstance.init();
   console.debug(`[ChatDatabase] Deleting chat ${chat_id} and its messages.`);
 
@@ -1384,6 +1388,7 @@ export async function deleteChat(
       [dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME],
       "readwrite",
     ));
+  currentTransaction.addEventListener("complete", () => invalidateRecentChatWindow(chat_id));
 
   const chatStore = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
   const messagesStore = currentTransaction.objectStore(MESSAGES_STORE_NAME);

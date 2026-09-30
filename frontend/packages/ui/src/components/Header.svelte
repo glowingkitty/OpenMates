@@ -18,7 +18,7 @@
     introBannerVisible,
   } from "../stores/uiStateStore"; // Import mobile view state and login interface visibility
   import { authStore } from "../stores/authStore"; // Import auth store to check login status
-  import { signupFreeTestingCreditsPromotion } from "../stores/serverStatusStore";
+  import { initializeServerStatus, serverStatusStore, signupFreeTestingCreditsPromotion } from "../stores/serverStatusStore";
   import {
     featureAvailabilityStore,
     initializeFeatureAvailability,
@@ -63,8 +63,7 @@
     onPrimaryCta?: () => void;
   } = $props();
 
-  // Server edition state - will be fetched on mount
-  let serverEdition = $state<string | null>(null);
+  let serverEdition = $derived($serverStatusStore.status?.server_edition ?? null);
   let serverEditionLabel = $derived(
     publicationLabel ??
       (serverEdition === "self_hosted"
@@ -108,7 +107,7 @@
     workspaceHash = typeof window === "undefined" ? pageHash : window.location.hash;
   });
   let workspaceHashParams = $derived(
-    new URLSearchParams(workspaceHash.replace(/^#\/?(?:workflows|projects|plans|tasks)&?/, "")),
+    new URLSearchParams(workspaceHash.replace(/^#\/?/, "").replace(/^(?:workflows|projects|plans|tasks)(?:&|$)/, "")),
   );
   let workspaceHashMarker = $derived(
     workspaceHash.replace(/^#\/?/, "").split("&", 1)[0],
@@ -380,24 +379,7 @@
     window.addEventListener("resize", checkMobile);
 
     if (!publicationLabel) {
-      // Fetch server status to display server edition (async, fire and forget)
-      (async () => {
-        try {
-          const { getApiEndpoint } = await import("../config/api");
-          const response = await fetch(
-            getApiEndpoint("/v1/settings/server-status"),
-          );
-          if (response.ok) {
-            const status = await response.json();
-            // Use server_edition from request-based validation (includes "development" for dev subdomains)
-            // server_edition can be: "production" | "development" | "self_hosted"
-            serverEdition = status.server_edition || null;
-            // server_edition detection logged for debugging: production | development | self_hosted
-          }
-        } catch (error) {
-          console.error("[Header] Error fetching server status:", error);
-        }
-      })();
+      void initializeServerStatus();
 
       initializeFeatureAvailability().catch((error) => {
         console.warn(

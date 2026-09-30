@@ -16,6 +16,8 @@ import {
 } from "./cryptoService";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
+import { getWorkspaceCacheIdentity, WorkspaceQueryCache } from "./workspaceQueryCache";
+import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 
 export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
@@ -317,6 +319,69 @@ export interface ListUserPlansFilters {
   projectId?: string;
   activeOnly?: boolean;
   limit?: number;
+}
+
+const planListCache = new WorkspaceQueryCache<UserPlanViewModel[]>({ ttlMs: 60_000, maxEntries: 32 });
+const planEntityCache = new WorkspaceQueryCache<UserPlanViewModel>({ ttlMs: 60_000, maxEntries: 128 });
+const knownPlanFilters = new Map<string, ListUserPlansFilters>();
+let knownPlanScope: string | null = null;
+registerWorkspaceCacheClear(() => { knownPlanFilters.clear(); knownPlanScope = null; });
+
+function ensurePlanScope(): void {
+  const scope = getWorkspaceCacheIdentity();
+  if (scope !== knownPlanScope) { knownPlanFilters.clear(); knownPlanScope = scope; }
+}
+
+function planQueryKey(filters: ListUserPlansFilters): string {
+  return JSON.stringify([filters.status ?? null, filters.chatId ?? null, filters.projectId ?? null,
+    filters.activeOnly ?? false, filters.limit ?? 100]);
+}
+
+function planMatchesFilter(plan: UserPlanViewModel, filters: ListUserPlansFilters): boolean {
+  return (!filters.status || plan.status === filters.status)
+    && (!filters.chatId || plan.primaryChatId === filters.chatId)
+    && (!filters.projectId || plan.linkedProjectIds.includes(filters.projectId))
+    && (!filters.activeOnly || ['active', 'executing', 'blocked'].includes(plan.status));
+}
+
+function rememberPlan(plan: UserPlanViewModel, expectedScope: string | null): UserPlanViewModel {
+  ensurePlanScope();
+  if (!expectedScope || expectedScope !== getWorkspaceCacheIdentity()) return plan;
+  const existing = peekUserPlan(plan.plan_id);
+  if (existing && (existing.version > plan.version || (existing.version === plan.version && existing.updatedAt > plan.updatedAt))) return existing;
+  planEntityCache.set(plan.plan_id, plan);
+  for (const [key, filters] of knownPlanFilters) {
+    const list = planListCache.peek(key);
+    if (!list) { planListCache.invalidate(key); continue; }
+    const without = list.filter((candidate) => candidate.plan_id !== plan.plan_id);
+    const wasPresent = without.length !== list.length;
+    if (list.length >= (filters.limit ?? 100) && (!wasPresent || !planMatchesFilter(plan, filters))) {
+      planListCache.invalidate(key); // The server's top-N ordering must be re-resolved.
+      continue;
+    }
+    planListCache.set(key, planMatchesFilter(plan, filters) ? [plan, ...without].slice(0, filters.limit ?? 100) : without);
+  }
+  return plan;
+}
+
+export function peekUserPlans(filters: ListUserPlansFilters = {}): UserPlanViewModel[] | undefined {
+  ensurePlanScope();
+  return planListCache.peek(planQueryKey(filters));
+}
+
+export function peekUserPlan(planId: string): UserPlanViewModel | undefined {
+  ensurePlanScope();
+  let newest = planEntityCache.peek(planId);
+  for (const key of knownPlanFilters.keys()) {
+    const plan = planListCache.peek(key)?.find((candidate) => candidate.plan_id === planId);
+    if (plan && (!newest || plan.version > newest.version || (plan.version === newest.version && plan.updatedAt > newest.updatedAt))) newest = plan;
+  }
+  return newest;
+}
+
+export function subscribeUserPlans(listener: () => void): () => void {
+  const unsubscribers = [planListCache.subscribe(listener), planEntityCache.subscribe(listener)];
+  return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
 }
 
 export interface CreatePlanCriterionInput {
@@ -724,12 +789,37 @@ async function buildTaskKeyWrappers(
 }
 
 export async function listUserPlans(filters: ListUserPlansFilters = {}): Promise<UserPlanViewModel[]> {
-  const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(`/v1/user-plans${buildQuery(filters)}`);
-  const decrypted = await Promise.all(data.plans.map(decryptPlan));
-  return decrypted.filter((plan): plan is UserPlanViewModel => plan !== null);
+  ensurePlanScope();
+  const key = planQueryKey(filters);
+  knownPlanFilters.set(key, { ...filters });
+  if (knownPlanFilters.size > 32) knownPlanFilters.delete(knownPlanFilters.keys().next().value!);
+  return planListCache.load(key, async () => {
+    const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(`/v1/user-plans${buildQuery(filters)}`);
+    const decrypted = await Promise.all(data.plans.map(decryptPlan));
+    return decrypted.filter((plan): plan is UserPlanViewModel => plan !== null);
+  });
+}
+
+export async function getUserPlan(planId: string): Promise<UserPlanViewModel> {
+  const warm = peekUserPlan(planId);
+  const load = () => planEntityCache.load(planId, async () => {
+    const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`);
+    const plan = await decryptPlan(data.plan);
+    if (!plan) throw new Error(`Plan ${planId} could not be decrypted`);
+    const latest = peekUserPlan(planId);
+    return latest && (latest.version > plan.version || (latest.version === plan.version && latest.updatedAt > plan.updatedAt)) ? latest : plan;
+  });
+  if (!warm) return load();
+  if (planEntityCache.isFresh(planId)) return warm;
+  for (const key of knownPlanFilters.keys()) {
+    if (planListCache.isFresh(key) && planListCache.peek(key)?.some((plan) => plan.plan_id === planId)) return warm;
+  }
+  void load().catch((error) => console.error('[Plans] Failed to refresh selected plan:', error));
+  return warm;
 }
 
 export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPlanViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const linkedProjectIds = Array.from(new Set((input.linkedProjectIds ?? []).map((id) => id.trim()).filter(Boolean)));
   if (linkedProjectIds.length === 0) throw new Error("New plans require a Project");
   const planKey = generateEmbedKey();
@@ -755,7 +845,7 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   });
   const decrypted = await decryptPlan(data.plan);
   if (!decrypted) throw new Error("Created plan could not be decrypted");
-  return decrypted;
+  return rememberPlan(decrypted, cacheScope);
 }
 
 export async function listUserPlanKeyWrappers(planId: string): Promise<UserPlanKeyWrapperRecord[]> {
@@ -772,6 +862,7 @@ export async function addUserPlanKeyWrappers(planId: string, keyWrappers: UserPl
 }
 
 export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<CreateUserPlanInput> & { status?: UserPlanStatus }): Promise<UserPlanViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const planKey = await decryptPlanKey(plan);
   const body: Record<string, unknown> = { version: plan.version, updated_at: nowSeconds() };
   if (patch.title !== undefined) body.encrypted_title = await encryptWithEmbedKey(patch.title, planKey);
@@ -802,10 +893,11 @@ export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<Cre
   });
   const decrypted = await decryptPlan(data.plan);
   if (!decrypted) throw new Error("Updated plan could not be decrypted");
-  return decrypted;
+  return rememberPlan(decrypted, cacheScope);
 }
 
 export async function activateUserPlan(plan: UserPlanViewModel): Promise<UserPlanViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/activate`, {
     method: "POST",
     body: JSON.stringify({
@@ -816,17 +908,18 @@ export async function activateUserPlan(plan: UserPlanViewModel): Promise<UserPla
   });
   const decrypted = await decryptPlan(data.plan);
   if (!decrypted) throw new Error("Activated plan could not be decrypted");
-  return decrypted;
+  return rememberPlan(decrypted, cacheScope);
 }
 
 export async function completeUserPlan(plan: UserPlanViewModel, completionNote?: string): Promise<UserPlanViewModel> {
+  const cacheScope = getWorkspaceCacheIdentity();
   const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/complete`, {
     method: "POST",
     body: JSON.stringify({ updated_at: nowSeconds(), completion_note: completionNote, version: plan.version }),
   });
   const decrypted = await decryptPlan(data.plan);
   if (!decrypted) throw new Error("Completed plan could not be decrypted");
-  return decrypted;
+  return rememberPlan(decrypted, cacheScope);
 }
 
 export async function listPlanCriteria(plan: UserPlanViewModel): Promise<UserPlanCriterionViewModel[]> {

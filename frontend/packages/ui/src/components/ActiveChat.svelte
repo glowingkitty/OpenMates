@@ -26,6 +26,8 @@
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
+    import { getRecentChatRevision, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, reconcileRecentChatMessages } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { deactivateFocusForChat, isProjectFocusId } from '../services/projectFocusSendPreflight';
@@ -5415,6 +5417,27 @@
         return prunedWindow.messages;
       }
 
+      function cacheDisplayedChatWindow(chatId: string, epoch: number, revision: number, fallbackChat?: Chat): void {
+        if (!$authStore.isAuthenticated || currentChat?.chat_id !== chatId || isPublicChat(chatId)
+            || currentChat.is_incognito || currentChat.is_anonymous || currentMessages.length === 0) return;
+        putRecentChatWindow(chatId, {
+            messages: currentMessages,
+            compressionCheckpoints: currentCompressionCheckpoints,
+            hasMoreBefore: currentMessageWindowHasMoreBefore,
+            header: {
+                title: activeChatDecryptedTitle,
+                category: activeChatDecryptedCategory,
+                icon: activeChatDecryptedIcon,
+                summary: activeChatDecryptedSummary,
+                encryptedTitle: currentChat.encrypted_title ?? fallbackChat?.encrypted_title,
+                encryptedCategory: currentChat.encrypted_category ?? fallbackChat?.encrypted_category,
+                encryptedIcon: currentChat.encrypted_icon ?? fallbackChat?.encrypted_icon,
+                encryptedSummary: currentChat.encrypted_chat_summary ?? fallbackChat?.encrypted_chat_summary,
+                titleVersion: currentChat.title_v ?? fallbackChat?.title_v,
+            },
+        }, epoch, revision);
+      }
+
       let hasActivePrivateChatSurface = $derived(Boolean(
          currentChat?.chat_id &&
          !isPublicChat(currentChat.chat_id) &&
@@ -8719,6 +8742,9 @@
     async function handleChatUpdated(event: CustomEvent) {
         const detail = event.detail as ChatUpdatedDetail;
         const incomingChatId = detail.chat_id;
+        if (incomingChatId && (detail.newMessage || detail.messagesUpdated || detail.messages?.length)) {
+            invalidateRecentChatWindow(incomingChatId);
+        }
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
         console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, detail);
@@ -9020,15 +9046,20 @@
             }
             console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading stored messages for chat:', currentChat.chat_id);
             try {
+                if (currentChat?.chat_id !== incomingChatId) return;
+                const readEpoch = getWorkspaceCacheEpoch();
+                const readRevision = getRecentChatRevision(incomingChatId);
                 let freshMessages: ChatMessageModel[];
+                let freshHasMoreBefore = false;
                 if (currentChat.is_anonymous) {
-                    freshMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
-                    currentMessageWindowHasMoreBefore = false;
+                    freshMessages = await anonymousChatStorage.getMessagesForChat(incomingChatId);
                 } else {
-                    const freshWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                    const freshWindow = await chatDB.getMessageWindowForChat(incomingChatId, { direction: 'latest' });
                     freshMessages = freshWindow.messages;
-                    currentMessageWindowHasMoreBefore = freshWindow.hasMoreBefore;
+                    freshHasMoreBefore = freshWindow.hasMoreBefore;
                 }
+                if (currentChat?.chat_id !== incomingChatId || !isRecentChatReadCurrent(incomingChatId, readEpoch, readRevision)) return;
+                currentMessageWindowHasMoreBefore = freshHasMoreBefore;
 
                 // Preserve any in-flight streaming messages — the DB won't have
                 // the latest streaming content, so keep our local copies.
@@ -9045,20 +9076,21 @@
                     console.debug(`[ActiveChat] handleChatUpdated: Preserved ${streamingMessages.length} streaming message(s) during IndexedDB reload`);
                 }
 
-                // Only update if the message set actually changed to avoid unnecessary re-renders
-                const currentIds = currentMessages.map(m => m.message_id).sort().join(',');
-                const freshIds = freshMessages.map(m => m.message_id).sort().join(',');
-                if (shouldPreserveExpandedMessageWindow(currentMessages, freshMessages)) {
-                    console.debug('[ActiveChat] handleChatUpdated: Preserving expanded older-message window; latest reload is already covered by current messages.');
-                } else if (currentIds !== freshIds || freshMessages.length !== currentMessages.length) {
+                // Refresh same-ID edits/status changes as well as membership. A full
+                // latest window is authoritative; a partial page retains older rows.
+                const reconciledMessages = reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
+                if (JSON.stringify(currentMessages) !== JSON.stringify(reconciledMessages)) {
                     console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
-                    currentMessages = freshMessages;
+                    currentMessages = reconciledMessages;
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
                     }
                     showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
                 } else {
                     console.debug('[ActiveChat] handleChatUpdated: IndexedDB reload returned same message set. No display update needed.');
+                }
+                if (readRevision === getRecentChatRevision(incomingChatId)) {
+                    cacheDisplayedChatWindow(incomingChatId, readEpoch, readRevision);
                 }
             } catch (error) {
                 console.error('[ActiveChat] handleChatUpdated: Failed to reload stored messages:', error);
@@ -9067,6 +9099,10 @@
             console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event. Full event.detail:', JSON.parse(JSON.stringify(detail)));
             // If currentChat metadata (like title or messages_v) was updated, UI elements bound to currentChat will react.
             // No explicit call to chatHistoryRef.updateMessages if currentMessages array reference hasn't changed.
+        }
+        if (isHeaderMetadataUpdate && !detail.newMessage && !detail.messagesUpdated && currentChat?.chat_id === incomingChatId
+            && getRecentChatWindow(currentChat)) {
+            cacheDisplayedChatWindow(incomingChatId, getWorkspaceCacheEpoch(), getRecentChatRevision(incomingChatId));
         }
     }
 
@@ -9289,6 +9325,8 @@
 
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
+        const openedChatId = currentChat.chat_id;
+        const openedEpoch = getWorkspaceCacheEpoch();
         const { firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
 
@@ -9300,7 +9338,7 @@
                     before_message_id: currentChat.shared_message_window_next_before_message_id,
                     limit: String(MESSAGE_WINDOW_LIMIT),
                 });
-                const response = await fetch(getApiEndpoint(`/v1/share/chat/${currentChat.chat_id}/messages?${params.toString()}`));
+                const response = await fetch(getApiEndpoint(`/v1/share/chat/${openedChatId}/messages?${params.toString()}`));
                 if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
                 const payload = await response.json() as {
                     messages?: Array<string | Record<string, unknown>>;
@@ -9308,13 +9346,14 @@
                     next_before_timestamp?: number | null;
                     next_before_message_id?: string | null;
                 };
+                if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
                 const parsedMessages: ChatMessageModel[] = (payload.messages || []).flatMap((raw) => {
                     const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
                     const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
                     if (typeof messageId !== 'string') return [];
                     return [{
                         message_id: messageId,
-                        chat_id: currentChat!.chat_id,
+                        chat_id: openedChatId,
                         role: messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user',
                         created_at: typeof messageObj.created_at === 'number' ? messageObj.created_at : Math.floor(Date.now() / 1000),
                         status: 'synced' as const,
@@ -9329,6 +9368,7 @@
                 });
                 if (parsedMessages.length > 0) {
                     await chatDB.batchSaveMessages(parsedMessages);
+                    if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
                     currentChat = {
                         ...currentChat,
                         shared_message_window_has_more_before: !!payload.has_more,
@@ -9337,6 +9377,7 @@
                     };
                     currentMessageWindowHasMoreBefore = !!payload.has_more;
                     await chatDB.updateChat(currentChat);
+                    if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
                     const existingIds = new Set(currentMessages.map((message) => message.message_id));
                     currentMessages = [
                         ...parsedMessages.filter((message) => !existingIds.has(message.message_id)),
@@ -9345,7 +9386,7 @@
                     chatHistoryRef?.updateMessages(currentMessages);
                     if (firstMessageId) {
                         await tick();
-                        chatHistoryRef?.restoreScrollPosition(firstMessageId);
+                        if (currentChat?.chat_id === openedChatId && openedEpoch === getWorkspaceCacheEpoch()) chatHistoryRef?.restoreScrollPosition(firstMessageId);
                     }
                 } else {
                     currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null, shared_message_window_next_before_message_id: null };
@@ -9356,20 +9397,23 @@
             const windowStartMessage = currentMessages[0];
             if (!windowStartMessage?.created_at || !windowStartMessage.message_id) return;
             const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-            let olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+            let windowRevision = getRecentChatRevision(openedChatId);
+            let olderWindow = await chatDB.getMessageWindowForChat(openedChatId, {
                 direction: 'before',
                 beforeTimestamp: windowStartMessage.created_at,
                 beforeMessageId: windowStartMessage.message_id,
                 compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
             });
             if (olderWindow.messages.length === 0) {
-                olderWindow = await fetchAuthenticatedMessageWindow(currentChat.chat_id, {
+                olderWindow = await fetchAuthenticatedMessageWindow(openedChatId, {
                     direction: 'before',
                     beforeTimestamp: windowStartMessage.created_at,
                     beforeMessageId: windowStartMessage.message_id,
                     compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
                 });
+                windowRevision = getRecentChatRevision(openedChatId);
             }
+            if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
             if (olderWindow.messages.length === 0) {
                 currentMessageWindowHasMoreBefore = false;
                 return;
@@ -9381,10 +9425,11 @@
             ]);
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
+            cacheDisplayedChatWindow(openedChatId, openedEpoch, windowRevision);
             const restoreMessageId = firstMessageId || windowStartMessage.message_id;
             if (restoreMessageId) {
                 await tick();
-                chatHistoryRef?.restoreScrollPosition(restoreMessageId);
+                if (currentChat?.chat_id === openedChatId && openedEpoch === getWorkspaceCacheEpoch()) chatHistoryRef?.restoreScrollPosition(restoreMessageId);
             }
         } catch (error) {
             console.error('[ActiveChat] Failed to load older message window:', error);
@@ -9462,7 +9507,7 @@
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
          if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
@@ -9471,7 +9516,12 @@
          // append messages from the wrong chat. The generation counter prevents stale completions
          // from overwriting currentMessages after a newer loadChat has started.
            const thisLoadGeneration = ++loadChatGeneration;
-           const isCurrentLoadTarget = () => thisLoadGeneration === loadChatGeneration && currentChat?.chat_id === chat.chat_id;
+           const thisLoadEpoch = getWorkspaceCacheEpoch();
+           const thisLoadRevision = getRecentChatRevision(chat.chat_id);
+           const isCurrentLoadTarget = () => thisLoadGeneration === loadChatGeneration && thisLoadEpoch === getWorkspaceCacheEpoch() && currentChat?.chat_id === chat.chat_id;
+           const recentWindow = !options?.messageId && $authStore.isAuthenticated && !isPublicChat(chat.chat_id) && !chat.is_incognito && !chat.is_anonymous && !isPersistedDraftOnlyChat(chat)
+               ? getRecentChatWindow(chat)
+               : null;
            currentCompressionCheckpoints = [];
           currentMessageWindowHasMoreBefore = false;
           olderMessageWindowLoading = false;
@@ -9528,9 +9578,28 @@
 
           if (!isSameActiveChat) {
               currentChat = chat;
-              currentMessages = [];
-              chatLoadState = 'loading';
+              currentMessages = recentWindow?.messages ?? [];
+              currentCompressionCheckpoints = recentWindow?.compressionCheckpoints ?? [];
+              currentMessageWindowHasMoreBefore = recentWindow?.hasMoreBefore ?? false;
+              chatLoadState = recentWindow ? 'ready' : 'loading';
               showWelcome = false;
+              if (recentWindow && recentChatHeaderMatches(chat, recentWindow.header)) {
+                  activeChatDecryptedTitle = recentWindow.header.title;
+                  activeChatDecryptedCategory = recentWindow.header.category;
+                  activeChatDecryptedIcon = recentWindow.header.icon;
+                  activeChatDecryptedSummary = recentWindow.header.summary;
+              }
+              // Publish before the first IndexedDB/key await. ChatHistory keeps only its
+              // normal component lifetime; this snapshot has no editor or DOM references.
+              chatHistoryRef?.updateMessages(currentMessages);
+              if (recentWindow) {
+                  void tick().then(() => {
+                      if (!isCurrentLoadTarget() || !chatHistoryRef) return;
+                      if (options?.scrollToTop) chatHistoryRef.scrollToTop();
+                      else if (options?.scrollToLatestResponse) chatHistoryRef.scrollToLatestAssistantMessage();
+                      else if (chat.last_visible_message_id) chatHistoryRef.restoreScrollPosition(chat.last_visible_message_id);
+                  });
+              }
           }
 
          // Ensure the chatNavigationStore has up-to-date prev/next state even when
@@ -10137,7 +10206,7 @@
         if (backgroundMessageWindowRepair && currentChat?.chat_id) {
             const repairChatId = currentChat.chat_id;
             void backgroundMessageWindowRepair.then((repairedWindow) => {
-                if (thisLoadGeneration !== loadChatGeneration || currentChat?.chat_id !== repairChatId) {
+                if (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId) {
                     return;
                 }
                 if (!repairedWindow) {
@@ -10166,6 +10235,7 @@
                 currentMessages = pruneCurrentDecryptedMessageWindow(mergedMessages);
                 chatLoadState = 'ready';
                 chatHistoryRef?.updateMessages(currentMessages);
+                cacheDisplayedChatWindow(repairChatId, thisLoadEpoch, getRecentChatRevision(repairChatId), chat);
             });
         }
         
@@ -10347,8 +10417,20 @@
         // RACE CONDITION GUARD: If another loadChat() was called while we were awaiting
         // DB reads / decryption, this completion is stale — bail out to prevent overwriting
         // currentMessages with messages from the wrong chat.
-        if (thisLoadGeneration !== loadChatGeneration) {
+        if (!isCurrentLoadTarget()) {
             console.warn(`[ActiveChat] loadChat: Stale completion for ${chat.chat_id} (gen ${thisLoadGeneration}, current ${loadChatGeneration}) — aborting to prevent message mixup`);
+            return;
+        }
+
+        if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
+            // A canonical write landed during this read. Retry after the transaction
+            // settles so an older window cannot revive edited or deleted content.
+            // Keep retrying while this remains the selected chat; a cold view must
+            // eventually publish once sync writes quiet down.
+            const retries = options?.recentCacheRetries ?? 0;
+            setTimeout(() => {
+                if (isCurrentLoadTarget()) void loadChat(chat, { ...options, recentCacheRetries: retries + 1 });
+            }, Math.min(400, 50 * 2 ** Math.min(retries, 3)));
             return;
         }
 
@@ -10368,6 +10450,8 @@
             showWelcome = currentMessages.length === 0;
         }
         console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
+
+        cacheDisplayedChatWindow(chat.chat_id, thisLoadEpoch, thisLoadRevision, chat);
 
         // ─── Autoplay video deep link ────────────────────────────────────
         // Passed explicitly via loadChat options rather than read from window.location.hash
@@ -12240,6 +12324,7 @@
         // Also handles carousel and resume card updates for cross-device sync.
         const chatDeletedHandler = ((event: CustomEvent) => {
             const { chat_id } = event.detail;
+            if (typeof chat_id === 'string') invalidateRecentChatWindow(chat_id);
             console.debug('[ActiveChat] Received chatDeleted event for chat:', chat_id, 'Current chat:', currentChat?.chat_id);
 
             if (currentChat && chat_id === currentChat.chat_id) {
@@ -12580,6 +12665,7 @@
         // `embedUpdated`, we need to force a re-render so the embed content is displayed.
         const embedUpdatedHandler = ((event: CustomEvent) => {
             const { chat_id, message_id, embed_id, type, status, isProcessing } = event.detail;
+            if (typeof chat_id === 'string') invalidateRecentChatWindow(chat_id);
             
             // Only process if this embed is for the current chat
             if (!currentChat || currentChat.chat_id !== chat_id) {

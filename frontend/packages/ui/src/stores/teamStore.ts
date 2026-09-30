@@ -1,5 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import type { TeamViewModel } from '../services/teamService';
+import { invalidateWorkspaceCaches } from '../services/workspaceCacheLifecycle';
 
 /**
  * Writable store to track whether team features are enabled in settings.
@@ -49,6 +50,7 @@ export function setActiveTeamContext(team: TeamViewModel | null): void {
     epoch: contextChanged ? current.epoch + 1 : current.epoch,
   };
   activeTeamContext.set(next);
+  if (contextChanged) invalidateWorkspaceCaches();
   if (contextChanged && typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent<TeamContextSnapshot>(TEAM_CONTEXT_CHANGED_EVENT, {
       detail: next,

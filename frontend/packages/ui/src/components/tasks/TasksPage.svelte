@@ -18,6 +18,7 @@
   import { userProfile } from '../../stores/userProfile';
   import { getApiUrl } from '../../config/api';
   import { getProfileImageBlobUrl } from '../../services/profileImageService';
+  import { getWorkspaceCacheIdentity } from '../../services/workspaceQueryCache';
   import { listProjects } from '../../services/projectService';
   import {
     blockUserTask,
@@ -29,6 +30,10 @@
     getTaskAssignmentEligibility,
     isWorkflowRunTaskProjectionViewModel,
     listTaskBoardItems,
+    peekTaskBoardItems,
+    prependTaskBoardItem,
+    peekTaskAssignmentEligibility,
+    subscribeUserTasks,
     reorderUserTasks,
     skipUserTask,
     startUserTaskWithAI,
@@ -47,6 +52,8 @@
     activateUserPlan,
     completeUserPlan,
     listUserPlans,
+    peekUserPlans,
+    subscribeUserPlans,
     updateUserPlan,
     type UserPlanStatus,
     type UserPlanViewModel,
@@ -115,6 +122,8 @@
   const visiblePlans = $derived(filterPlans(boardPlans, searchTerm));
   const isBoardLoading = $derived(isLoading || (plansEnabled && isLoadingPlans));
   let canAssignCodex = $state(false);
+  let taskRequestGeneration = 0;
+  let planRequestGeneration = 0;
 
   function formatGreetingName(username: string): string {
     const trimmed = username.trim();
@@ -277,24 +286,31 @@
   }
 
   async function refreshTasks(): Promise<void> {
-    canAssignCodex = false;
+    const generation = ++taskRequestGeneration;
+    const requestedFilters = filters();
     if (!tasksEnabled) {
       tasks = [];
       isLoading = false;
       return;
     }
-    isLoading = true;
+    const cached = peekTaskBoardItems(requestedFilters);
+    if (cached) tasks = cached;
+    canAssignCodex = peekTaskAssignmentEligibility() ?? canAssignCodex;
+    isLoading = !cached;
     try {
       hasLoadError = false;
-      const [loadedTasks, eligible] = await Promise.all([listTaskBoardItems(filters()), getTaskAssignmentEligibility()]);
-      tasks = loadedTasks;
-      canAssignCodex = eligible;
+      const loaded = await listTaskBoardItems(requestedFilters);
+      if (generation !== taskRequestGeneration) return;
+      tasks = loaded;
+      const eligible = peekTaskAssignmentEligibility() ?? await getTaskAssignmentEligibility();
+      if (generation === taskRequestGeneration) canAssignCodex = eligible;
     } catch (error) {
-      hasLoadError = true;
+      if (generation !== taskRequestGeneration) return;
+      hasLoadError = peekTaskBoardItems(requestedFilters) === undefined;
       console.error('[TasksPage] Failed to load tasks:', error);
       notificationStore.error('Failed to load tasks');
     } finally {
-      isLoading = false;
+      if (generation === taskRequestGeneration) isLoading = false;
     }
   }
 
@@ -314,21 +330,24 @@
   }
 
   async function refreshPlans(): Promise<void> {
+    const generation = ++planRequestGeneration;
     if (!plansEnabled) {
       plans = [];
       isLoadingPlans = false;
       return;
     }
-    isLoadingPlans = true;
+    const planFilters = { projectId: projectId ?? undefined, chatId: chatId ?? undefined };
+    const cached = peekUserPlans(planFilters);
+    if (cached) plans = cached;
+    isLoadingPlans = !cached;
     try {
-      plans = await listUserPlans({
-        projectId: projectId ?? undefined,
-        chatId: chatId ?? undefined,
-      });
+      const loaded = await listUserPlans(planFilters);
+      if (generation === planRequestGeneration) plans = loaded;
     } catch (error) {
+      if (generation !== planRequestGeneration) return;
       console.error('[TasksPage] Failed to load plans:', error);
     } finally {
-      isLoadingPlans = false;
+      if (generation === planRequestGeneration) isLoadingPlans = false;
     }
   }
 
@@ -351,7 +370,7 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
-      tasks = [task, ...tasks];
+      tasks = prependTaskBoardItem(tasks, task);
       broadcastTasksChanged();
       title = '';
       description = '';
@@ -446,7 +465,7 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
-      tasks = [task, ...tasks];
+      tasks = prependTaskBoardItem(tasks, task);
       broadcastTasksChanged();
       notificationStore.success(assigneeSuccessLabel(selectedAssignee));
     } catch (error) {
@@ -515,7 +534,7 @@
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
-      tasks = [task, ...tasks];
+      tasks = prependTaskBoardItem(tasks, task);
       extractedProposals = extractedProposals.filter((candidate) => candidate !== proposal);
       broadcastTasksChanged();
       notificationStore.success('Task created from transcript');
@@ -560,7 +579,7 @@
       } catch (error) {
         if (!(error instanceof Error) || !error.message.includes('Tasks API failed (409)')) throw error;
         // Another client may have changed this task since the board loaded.
-        const latest = await listTaskBoardItems(filters());
+        const latest = await listTaskBoardItems(filters(), { force: true });
         const current = latest.find((candidate) => candidate.task_id === task.task_id);
         if (!current || isWorkflowRunTaskProjectionViewModel(current)) throw error;
         tasks = latest.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status, position } : candidate);
@@ -569,7 +588,7 @@
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
       broadcastTasksChanged();
     } catch (error) {
-      try { tasks = await listTaskBoardItems(filters()); } catch { tasks = previous; }
+      try { tasks = await listTaskBoardItems(filters(), { force: true }); } catch { tasks = previous; }
       console.error('[TasksPage] Failed to update task:', error);
       notificationStore.error('Failed to update task');
     }
@@ -674,11 +693,38 @@
 
   onMount(() => {
     if (hasPreviewData) return;
+    let displayedScope = getWorkspaceCacheIdentity();
+    const clearOnScopeChange = () => {
+      const scope = getWorkspaceCacheIdentity();
+      if (scope === displayedScope) return;
+      displayedScope = scope;
+      taskRequestGeneration += 1;
+      planRequestGeneration += 1;
+      tasks = [];
+      plans = [];
+      selectedTask = null;
+      selectedWorkflowRunProjection = null;
+      pendingTaskDelete = null;
+      canAssignCodex = false;
+      projectNames = {};
+    };
+    const unsubscribeTasks = subscribeUserTasks(() => {
+      clearOnScopeChange();
+      const cached = peekTaskBoardItems(filters());
+      if (cached) tasks = cached;
+      canAssignCodex = peekTaskAssignmentEligibility() ?? canAssignCodex;
+    });
+    const unsubscribePlans = subscribeUserPlans(() => {
+      clearOnScopeChange();
+      const cached = peekUserPlans({ projectId: projectId ?? undefined, chatId: chatId ?? undefined });
+      if (cached) plans = cached;
+    });
     void initializeFeatureAvailability();
     if (!isCentralTasksWorkspace) {
       void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
     }
     void refreshTaskPresentation();
+    return () => { unsubscribeTasks(); unsubscribePlans(); };
   });
 
   $effect(() => {
@@ -701,6 +747,7 @@
   });
 
   $effect(() => {
+    const userId = $userProfile.user_id;
     void projectId;
     void chatId;
     void tasksEnabled;
@@ -711,6 +758,18 @@
       isLoading = false;
       isLoadingPlans = false;
       hasLoadError = false;
+      return;
+    }
+    if (!userId) {
+      taskRequestGeneration += 1;
+      planRequestGeneration += 1;
+      tasks = [];
+      plans = [];
+      selectedTask = null;
+      selectedWorkflowRunProjection = null;
+      pendingTaskDelete = null;
+      isLoading = false;
+      isLoadingPlans = false;
       return;
     }
     if (!$featureAvailabilityStore.initialized) return;

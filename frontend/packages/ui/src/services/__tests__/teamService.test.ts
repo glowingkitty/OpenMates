@@ -23,14 +23,54 @@ vi.mock('../../config/api', () => ({
 }));
 
 vi.mock('../cryptoService', () => cryptoMocks);
+vi.mock('../../stores/userProfile', async () => {
+	const { writable } = await import('svelte/store');
+	return { userProfile: writable({ user_id: 'team-cache-test-user' }) };
+});
 
-import { createTeam } from '../teamService';
+import { createTeam, getTeam, getTeamKey, listTeams } from '../teamService';
+import { invalidateWorkspaceCaches } from '../workspaceCacheLifecycle';
+import { TEAMS_UPDATED_EVENT } from '../../stores/teamStore';
 
 describe('teamService', () => {
 	beforeEach(() => {
+		invalidateWorkspaceCaches();
 		vi.restoreAllMocks();
 		vi.clearAllMocks();
 		vi.spyOn(crypto, 'randomUUID').mockReturnValue('team-local-id' as ReturnType<Crypto['randomUUID']>);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.lifecycle.encrypted-profiled,teams.context.full-switch-local
+	it('shares a recent team list and refreshes after a local team update', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ teams: [] }), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		}));
+		await listTeams();
+		await listTeams();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		window.dispatchEvent(new CustomEvent(TEAMS_UPDATED_EVENT));
+		await listTeams();
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local
+	it('discards a team key decrypted after the workspace identity resets', async () => {
+		let releaseDecrypt!: (key: Uint8Array) => void;
+		cryptoMocks.decryptChatKeyWithMasterKey.mockImplementationOnce(() => new Promise(resolve => {
+			releaseDecrypt = resolve;
+		}));
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({
+			team: { team_id: 'team-old', encrypted_team_key: 'wrapped', encrypted_name: 'enc:Team' }
+		}), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+		const oldRead = getTeam('team-old');
+		await vi.waitFor(() => expect(cryptoMocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(1));
+		invalidateWorkspaceCaches();
+		releaseDecrypt(new Uint8Array([1, 2, 3, 4]));
+		await expect(oldRead).rejects.toThrow(/cancelled/);
+		await expect(getTeamKey('team-old')).resolves.toEqual(new Uint8Array([1, 2, 3, 4]));
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		expect(cryptoMocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(2);
 	});
 
 	// contract-test: direct surface=gui.web assertions=teams.lifecycle.encrypted-profiled

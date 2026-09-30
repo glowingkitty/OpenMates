@@ -1,0 +1,451 @@
+# Goal-first Plan per AGENTS.md. OpenMates Tasks is the work-status authority.
+id: web-workspace-navigation-cache
+title: Immediate recent workspace navigation with current content
+status: implementing
+goal: so a user could quickly switch between chats, then to tasks, then to projects - with minimal to none delay
+  before seeing the rendered chats, tasks, workflows, projects.
+request_scope: The user approved implementation on 2026-09-30 after live observation and the final recommendation.
+  Implement P1-P3 and their correctness/verification requirements. P4 persistence and populated project projection
+  caching remain conditional on the measured need described below. Scoped dev rollout is authorized by repository
+  implementation guidance; production is out of scope.
+confirmed_requirements:
+- Of course requesting a single task must only load/decrypt that single task.
+tracking:
+  openmates_task: 0fb3348a-3963-40fa-a2bb-ec4a2c7dc993
+  external_chat: codex:01a0f2aa-eea6-7c61-b23f-435d38c82390
+  workspace: agent-254d
+evidence:
+  live_observations: docs/plans/web-workspace-navigation-cache/live-observations.json
+  observed_date: '2026-09-30'
+  environment: https://app.dev.openmates.org
+  account: Verified personal DEV TEST account
+  browser: Headless Chromium 153.0.8010.12 on Linux ARM64
+  viewports:
+  - 1440x1000
+  - 390x844
+  local_source_revision: 00cf8a40098b667648c753748516c12cc48aaff2
+  deployment_identity: Baseline loaded start.D-nUXPFj.js and app.CD6NLTDV.js. Reload loaded start.BeWK4WQ9.js; do
+    not treat reload as a same-build timing comparison. Bundle identifiers do not prove parity with the local source
+    revision.
+  method: Observe actual authenticated content through desktop clicks and mobile viewport hash transitions. Measure
+    content-ready DOM and its next animation frame, fetch timings/counts, crypto calls, IndexedDB requests and long
+    tasks. These are approximate display readiness measurements, not exact compositor paint timings or representative
+    population percentiles.
+  limitations:
+  - Mobile viewport measurements do not establish physical mobile or Safari performance.
+  - Crypto and IndexedDB duration sums overlap and cannot be added to decompose wall time.
+  - Exclude an already-active-chat selection and clicks intercepted by an update notification.
+  - Exclude the first project's README error from successful overview timing.
+  - Two sampled encrypted chats each contained two source messages with embeds; long histories need implementation
+    coverage.
+  - No account content, credentials, full network traces or screenshots are committed.
+observed_findings:
+- Desktop task-board revisits reached the next content frame in 1544, 1652 and 1932 ms. Each repeated two task GETs
+  (board plus owner assignment eligibility), a plan GET, a project GET and roughly 750 decrypt operations across
+  loaded data. The shell appeared in approximately 52-62 ms and then showed loading.
+- Desktop project-card revisits took 638-744 ms and fetched/decrypted the project list again. The separate empty
+  project overview settled in 363 ms after parallel items/source requests. No actual stored README was benchmarked.
+- Cached workflow lists took 106-189 ms on desktop. First workflow detail took 912 ms; reopening its cached detail
+  took 120 ms with no workflow GET. In the first detail sample the detail response was slower than runs, so run
+  history was not proved to be the dominant wait in that sample.
+- Returning between two encrypted chats took 1106 and 1252 ms on desktop. Each revisit repeated message-window reconciliation,
+  IndexedDB work, task/plan reads and rendering. Individual decrypt calls were mostly below 1 ms; the evidence does
+  not support blaming cryptography alone for the full delay.
+- A desktop task detail route took 1605 ms and performed 734 decrypt operations because its adapter fetched the
+  full task list. The existing backend already exposes an encrypted single-task endpoint.
+- In the mobile viewport, task-board revisits took 1560-1647 ms, project cards 668 ms, cached workflows 70 ms, and
+  returning from a workspace to chat 1551 ms.
+- Route remounts repeat team reads and duplicate server-status/referral reads. Header and Settings bypass the existing
+  server-status store. Settings triggers referral loading from both its mount callback and an effect.
+- Request attribution confirmed three identical chat-scoped task GETs and three identical plan GETs with limit=3
+  during one workspace-to-chat return. Source inspection identifies the active chat task preview as this query's
+  reader; the exact reactive/remount trigger for all duplicates remains unproved.
+scope:
+  in:
+  - Shared recent data across workspace mounts while preserving existing view layouts and interactions.
+  - Reuse existing encryption, BoundedCache, message-window APIs, sync and cache lifecycle utilities.
+  - Load task details by ID; cache task/plan queries for boards and chat previews, and project summaries.
+  - Keep workflow caching and improve refresh/selection dependencies.
+  - Evaluate encrypted workspace persistence only if a measured reload need remains after memory caching.
+  - Preserve updates, deletions, account/team isolation, key lifecycle and unsaved work.
+  out:
+  - Replacing IndexedDB, the chat sync protocol, the API encryption model or the approved workflow vault boundary.
+  - Keeping every workspace, TipTap editor, graph or embed subtree mounted indefinitely.
+  - Caching decrypted content in localStorage, service-worker HTTP caches or raw disk snapshots.
+  - Unrelated README, map-rendering, update-notification or deployment repairs.
+  - Apple implementation or production rollout.
+implementation_stages:
+- id: P1
+  outcome: Load task details by ID and share task, plan and project results
+  approach:
+  - First add getUserTask using the existing /v1/user-tasks/{id} endpoint and the existing single-record decryption
+    path. Use a compatible cached entity or this direct GET for detail; never fall back to fetching the full list.
+    Publish the selected task before activity, dependencies or linked context. Inspect all detail consumers so none
+    loads a whole board to resolve one ID or assignment eligibility. Multiple encrypted fields/key unwraps for the
+    selected record are expected; no unrelated task is decrypted.
+  - Remove full task/plan/project list reads from related-context resolution. Reuse cached labels or resolve only
+    referenced IDs through authorized entity endpoints, independently of core task rendering. Dependency status
+    and activity use their task-scoped endpoints. Do not load/decrypt unrelated entities to populate selectors before
+    the user needs those selectors. Deduplicate referenced IDs and handle each inaccessible/deleted reference independently
+    with existing fallback labels instead of dropping all context.
+  - Introduce a small reusable account/team-scoped query cache helper with stable snapshots, in-flight deduplication,
+    fetchedAt/stale/hasData state, generation fences and byte-bounded eviction. Keep domain encryption and mutations
+    inside existing services/stores. A loaded empty result is data. Before enabling each cache, update it from local
+    mutation/delete events, fence old responses against newer mutations and account/team/key changes, clear it on
+    logout/revocation and preserve dirty local state. Query membership and cached authorization provenance must
+    remain correct.
+  - Move task-board, project-label and plan-list data out of page component lifetimes. Reuse them from task detail,
+    project task panels, active chat task previews and opened chat settings using exact compatible query keys. Return
+    warm data synchronously before any await.
+  - Cache assignment eligibility as owner-scoped server provenance, or reuse it from the same board response when
+    present. Do not infer permission from visible tasks. For cold task detail, return the existing safe eligibility
+    metadata alongside the selected-task response; stop its separate limit=1 task-list request. That request currently
+    does not decrypt task records, but still retrieves a record it does not need. Retain server authorization for
+    mutations and distinguish owner eligibility from team context.
+  - Header and Settings consume serverStatusStore. Share and deduplicate team and referral reads; remove duplicate
+    referral triggers. Preserve current server-status failure fallback and mutation/event refresh behavior.
+  - Scope active chat preview effects to stable chat ID and feature readiness; deduplicate identical requests and
+    reject completions for an old chat. Coalesce change notifications and avoid self-event refetches after updating
+    shared state from a successful local mutation.
+  owned_modules:
+  - frontend/packages/ui/src/services/userTaskService.ts
+  - frontend/packages/ui/src/services/userPlanService.ts
+  - frontend/packages/ui/src/services/projectService.ts
+  - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+  - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+  - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+  - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+  - frontend/packages/ui/src/components/workspace/detailMetadataAdapters.ts
+  - backend/core/api/app/routes/user_tasks.py
+  - frontend/packages/ui/src/components/Header.svelte
+  - frontend/packages/ui/src/components/Settings.svelte
+  - frontend/packages/ui/src/services/referralService.ts
+  - frontend/packages/ui/src/services/teamService.ts
+- id: P2
+  outcome: Display recent chats before reconciliation finishes
+  approach:
+  - Keep a bounded in-memory cache of recent decrypted chat windows and header metadata. Initially target up to
+    8 recent windows within a 16 MiB payload budget, with active views retaining their own references. Validate/tune
+    this starting budget using heap and repeated-navigation measurements.
+  - Show the cached selected chat window immediately, then reconcile existing encrypted IndexedDB/window sync in
+    the background. Preserve ordering, compression checkpoints, highlight/deep-link position and streamed edits.
+    Update cached windows from canonical message persistence and sync events. Ship account/key generation fences,
+    local edit/delete handling and logout clearing with the cache. Reject a slow completion for a previously selected
+    chat; never resurrect deleted messages or overwrite newer streamed content.
+  - Reuse parsed message documents only when message content/status, locale, PII mapping, embed revisions and key
+    epoch match. Reuse the existing parsed content budget instead of creating another unbounded copy. Mount visible
+    message/embed roots with the existing cleanup lifecycle; prioritize first usable content and hydrate costly
+    embeds without withholding all text.
+  owned_modules:
+  - frontend/packages/ui/src/components/ActiveChat.svelte
+  - frontend/packages/ui/src/components/ChatHistory.svelte
+  - frontend/packages/ui/src/services/db/messageOperations.ts
+  - frontend/packages/ui/src/services/chatMetadataCache.ts
+  - frontend/packages/ui/src/utils/contentCache.ts
+- id: P3
+  outcome: Extend external-change freshness and targeted prefetch
+  approach:
+  - Retain the existing workflow store. Separate detail/editor publication from runs, make cached empty lists fresh,
+    and add detail/run freshness metadata so external changes cannot remain invisible indefinitely. Do not overwrite
+    a dirty workflow editor during background refresh.
+  - Revalidate stale visible results on return, focus and reconnect. Use short visible-only refresh intervals for
+    running work while domain push events are unavailable. Account-scoped team/referral/eligibility caches should
+    start with 60-second freshness; tune task/run freshness independently.
+  - If immediate external updates are required, add owner/team-scoped domain invalidation notifications for task/plan/project/workflow
+    changes and deletion. Carry minimal IDs/revisions, never decrypted content. Subscribe globally, coalesce invalidations
+    and refresh on reconnect to recover gaps. The existing CLI Project Task sync feed is scoped to authorized project/
+    source bindings and has no web consumer or Plan feed; it cannot be assumed to cover general workspace invalidation.
+    Preserve that protocol.
+  - Extend existing authenticated hover/focus/idle prefetch to task/project summaries and likely recent details.
+    Use at most two background jobs; foreground navigation wins and chat sync remains on its existing path.
+  owned_modules:
+  - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+  - frontend/apps/web_app/src/routes/workflows/+page.svelte
+  - frontend/packages/ui/src/services/workspacePrefetchService.ts
+  - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+  - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+  - frontend/packages/ui/src/stores/authSessionActions.ts
+- id: P4
+  outcome: Recover recent workspace content after reload through encrypted IndexedDB
+  activation: 'Conditional follow-up: implement only if a same-bundle measurement after P1-P3 shows a meaningful
+    reload recovery problem, or reload/offline recovery becomes an explicit requirement. The current different-bundle
+    reload does not establish a persistence performance need for within-session switching.'
+  approach:
+  - Add versioned, bounded workspace snapshot persistence beside existing encrypted chat storage. Encrypt complete
+    snapshot envelopes with existing local encryption helpers before writing. Raw workflow responses and workflow-run
+    task projections contain plaintext and require encryption. Never serialize a decrypted project key or CryptoKey
+    as snapshot data.
+  - Partition keys by API environment, account, team, schema/key epoch and complete query identity. Persist query
+    membership/order and entity version metadata so cached rows survive reload without replacing canonical data.
+  - After authentication and crypto readiness, hydrate only the selected view and recently used summaries first,
+    then revalidate. Cache misses, browser eviction, denied storage and quota/write failures fall back to memory
+    plus existing fetch paths. Discard incompatible or revoked snapshots.
+  - Persist recent read projections only; never evict the sole unsaved copy of drafts, streams, offline edits or
+    failed writes. Clear snapshots and decrypted memory through manual/automatic logout and key/account lifecycle.
+conditional_followups:
+- Measure a successful populated project overview and stored README before expanding projection caching. If needed,
+  cache contents/source metadata and README projections by project/source/location/revision, publish them independently,
+  and preserve the last valid projection while refreshing. Include the same mutation, deletion, identity and key
+  safeguards from launch.
+proposed_acceptance_targets:
+- Warm desktop revisits reach useful content within 250 ms and the 390px viewport within 400 ms at p95 over a bounded
+  repeated-navigation sample. These are proposed implementation targets, not established current percentiles.
+- Previously loaded content remains visible when revalidation is delayed by five seconds or fails. Unknown data
+  may show a loading state; cached valid empty data does not behave as a cache miss.
+- Concurrent consumers issue one request for an identical query. A fresh board, label list, preview or owner eligibility
+  lookup does not fetch/decrypt again solely because a component remounted.
+- Cold task detail navigation issues one selected-task GET and decrypts only that task's encrypted record/fields.
+  Warm detail reuses the same entity with no redundant task read/decryption while fresh. No full task list request
+  is made for detail, dependency labels or assignment eligibility. Related context uses cached data or explicitly
+  referenced IDs without gating core rendering; unrelated task IDs never enter the decryption path. Preserve inaccessible/
+  missing-task handling and server-enforced assignment authorization.
+- New messages, task/plan moves, workflow updates and project changes reconcile correctly; deletions disappear;
+  a slow older response never resurrects them. Authenticated cache data never crosses account, team or key epochs.
+- If P4 is activated, after reload recently used workspace content can render from encrypted snapshots before deliberately
+  delayed API responses, once authentication and required keys are ready. Disk inspection reveals no plaintext content/keys.
+- Repeated equivalent navigation does not retain detached chat/editor/embed roots or grow caches beyond their budgets.
+  Preserve live playback and drafts.
+verification_plan:
+  local:
+  - Focused cache/service tests for exact query keys, single-flight, empty results and generation/revision fences.
+  - Cache tests for key removal and manual/automatic logout; persistence migration/quota tests if P4 is activated.
+  - Focused TypeScript/lint checks on changed modules.
+  isolated_github_ci:
+  - Extend workspace-hash-routing.spec.ts for warm content with held refresh responses on desktop and mobile viewport.
+  - Extend tasks-plans-workspace.spec.ts and task detail coverage for cold/warm ID-scoped loading, absence of list
+    GETs, unrelated-record decryption, linked dependencies, eligibility and mutations.
+  - Add focused chat A-to-B-to-A and chat-to-workspace-to-chat cases with existing contract metadata; include a
+    long encrypted history, edits, embed updates, streaming, locale and sidebar-closed state.
+  - Extend workflow/project coverage for detail hydration, dirty editors, summary restoration, empty states and
+    deletion; README/tree restoration only if that follow-up is activated.
+  - Test cross-account/team changes, logout during an in-flight request, reconnect recovery, refresh failures, cleared
+    storage and cache eviction.
+  live_after_implementation:
+  - Repeat the same read-only personal dev observation on one recorded deployed bundle; compare request counts and
+    first useful content to this baseline.
+  - Inspect desktop/mobile screenshots and repeated-navigation heap/DOM counts without exporting personal contents
+    or heap snapshots.
+  execution_policy: Focused unit checks run locally. Product/browser E2E uses sessions.py ci-source and the existing
+    GitHub CI coordinator. The live observation in this Plan was explicitly requested by the user and is not an
+    isolated E2E pass.
+scenarios:
+- id: S-1
+  title: Open one Task
+  given:
+  - A signed-in owner has encrypted Tasks.
+  when:
+  - The owner navigates directly to a cold or warm Task ID.
+  then:
+  - Only that Task record is loaded/decrypted; related IDs are resolved independently.
+- id: S-2
+  title: Revisit recent workspaces
+  given:
+  - Tasks, Plans and Project summaries have been loaded.
+  when:
+  - The user switches workspace while refresh responses are slow.
+  then:
+  - Cached valid content stays visible and identical concurrent queries share a read.
+- id: S-3
+  title: Recover current chat content
+  given:
+  - Two encrypted chats have locally available persisted messages.
+  when:
+  - The user selects A, B, A with the sidebar closed, including concurrent writes.
+  then:
+  - Current target content appears locally; stale/deleted messages never overwrite newer data.
+- id: S-4
+  title: Select a Workflow
+  given:
+  - A Workflow is saved and its runs request may be delayed.
+  when:
+  - The user selects detail, edits it, and refreshes or changes cache identity.
+  then:
+  - Detail does not await runs; dirty edits and valid deep links survive refresh.
+- id: S-5
+  title: Reject old identity and mutation responses
+  given:
+  - A cached read or key unwrap is pending.
+  when:
+  - A local mutation, deletion, account/team switch, or key/logout reset occurs.
+  then:
+  - The old completion cannot repopulate current cache or visible entities.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Single-Task detail uses one selected-record read, no full-list read/decryption, and safe owner assignment
+    provenance.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-TASKS
+- id: AC-2
+  scenario: S-2
+  text: Warm desktop/mobile Project and Plan returns retain useful content while a stale refresh is held for five
+    seconds; fresh queries do not repeat.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-BOARDS
+- id: AC-3
+  scenario: S-3
+  text: Warm saved-chat selection publishes cached persisted content before held local reads; canonical writes invalidate
+    old windows.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-CHAT
+- id: AC-4
+  scenario: S-4
+  text: Workflow detail appears before held runs, dirty metadata is retained during refresh, and old list responses
+    cannot clear reset deep links.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-WORKFLOWS
+- id: AC-5
+  scenario: S-5
+  text: Cache/account/team/key generations, mutation versions and deletion fences reject old completions; payloads
+    and tokens are bounded.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_frontend
+  verification_ids:
+  - T-UNIT
+tests:
+- id: T-TASKS
+  type: playwright
+  file: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 254d --source <candidate> --spec tasks-web-app-parity.spec.ts
+  target: isolated_github_ci
+  assertions:
+  - Single-Task detail uses one selected-record read, no full-list read/decryption, and safe owner assignment provenance.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Use retained live observations; do not repeat known reproduction.
+    evidence:
+      file: docs/plans/web-workspace-navigation-cache/live-observations.json
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+  execution_environment: isolated_github_ci
+- id: T-BOARDS
+  type: playwright
+  file: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 254d --source <candidate> --spec tasks-plans-workspace.spec.ts
+  target: isolated_github_ci
+  assertions:
+  - Warm desktop/mobile Project and Plan returns retain useful content while a stale refresh is held for five seconds;
+    fresh queries do not repeat.
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: Use retained live observations; do not repeat known reproduction.
+    evidence:
+      file: docs/plans/web-workspace-navigation-cache/live-observations.json
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+  execution_environment: isolated_github_ci
+- id: T-CHAT
+  type: playwright
+  file: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 254d --source <candidate> --spec startup-sync-contract.spec.ts
+  target: isolated_github_ci
+  assertions:
+  - Warm saved-chat selection publishes cached persisted content before held local reads; canonical writes invalidate
+    old windows.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: Use retained live observations; do not repeat known reproduction.
+    evidence:
+      file: docs/plans/web-workspace-navigation-cache/live-observations.json
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+  execution_environment: isolated_github_ci
+- id: T-WORKFLOWS
+  type: playwright
+  file: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session 254d --source <candidate> --spec workflows-ui-contract.spec.ts
+  target: isolated_github_ci
+  assertions:
+  - Workflow detail appears before held runs, dirty metadata is retained during refresh, and old list responses
+    cannot clear reset deep links.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: Use retained live observations; do not repeat known reproduction.
+    evidence:
+      file: docs/plans/web-workspace-navigation-cache/live-observations.json
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+  execution_environment: isolated_github_ci
+- id: T-UNIT
+  type: unit
+  file: frontend/packages/ui/src/services/__tests__/workspaceQueryCache.test.ts
+  command: pnpm --dir frontend/packages/ui exec vitest run src/services/__tests__/workspaceQueryCache.test.ts
+  target: isolated_github_ci
+  assertions:
+  - Cache/account/team/key generations, mutation versions and deletion fences reject old completions; payloads and
+    tokens are bounded.
+  covers:
+  - AC-5
+  red_phase:
+    required: false
+    expected: Use retained live observations; do not repeat known reproduction.
+    evidence:
+      file: docs/plans/web-workspace-navigation-cache/live-observations.json
+  green_phase:
+    required: true
+    expected: Focused source-bound regression checks pass.
+    evidence:
+      status: pending
+implementation_state:
+  subject_commit: 00cf8a40098b667648c753748516c12cc48aaff2
+  note: Implementation is the scoped uncommitted session diff; exact CI candidate and deployment receipts will be
+    recorded separately.
+approvals:
+  specification:
+    status: not_required
+    reason: Engineering performance/cache implementation preserves existing approved product and privacy contracts.
+  plan:
+    status: approved
+    approved_at: '2026-09-30'
+    confirmation: ok sounds good. go ahead and implement the changes
+decisions:
+- id: D-MEMORY-FIRST
+  status: active
+  decision: Implement P1-P3 with identity/mutation safeguards from launch; persistence and project projections remain
+    conditional.
+  reason: Live delay evidence concerns repeated in-session loading; reload used another bundle.
+  decided_at: '2026-09-30'
+document_checks:
+  yaml_and_sanitized_evidence: passed
+  independent_source_and_scope_review: completed; fixes and focused regressions added
+  executable_plan_validator: Goal-first profile preserves approved scope and checks; Task status/dependencies stay
+    exclusively in OpenMates Tasks per AGENTS.md.
+profile: lightweight

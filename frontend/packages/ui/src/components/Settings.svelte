@@ -57,12 +57,13 @@ changes to the documentation (to keep the documentation up to date).
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     import { pendingMentionStore } from '../stores/pendingMentionStore';
     import { activeTeam, activeTeamId, setActiveTeamContext, TEAMS_UPDATED_EVENT } from '../stores/teamStore';
-    import { listTeams, type TeamViewModel } from '../services/teamService';
+    import { listTeams, subscribeTeamListRefresh, type TeamViewModel } from '../services/teamService';
     import { getTeamAvatarBackground } from '../utils/teamAvatar';
     // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { isRestrictedSession } from '../stores/pairSessionStore'; // Pair session restricted mode
     import { loadReferralStatus, referralStatus } from '../services/referralService';
+    import { initializeServerStatus, serverStatusStore } from '../stores/serverStatusStore';
     import { DEMO_MARKETING_CREDITS, DEMO_MARKETING_USERNAME } from '../demo_chats/usageDemoData';
     import { convertDemoChatToChat, convertDemoMessagesToMessages, getExampleChat, getExampleChatMessages, getPublicChatById, isExampleChat, translateDemoChat } from '../demo_chats';
     
@@ -2448,38 +2449,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // Setup listeners
     onMount(() => {
-        // Check server status to determine if payment is enabled (async, fire and forget)
-        (async () => {
-            try {
-                const { getApiEndpoint } = await import('../config/api');
-                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
-                if (response.ok) {
-                    const status = await response.json();
-                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
-                    // This correctly identifies localhost and other self-hosted instances
-                    isSelfHosted = status.is_self_hosted || false;
-                    // Self-hosted responses omit payment_enabled; hide billing from is_self_hosted.
-                    if (isSelfHosted) {
-                        paymentEnabled = false;
-                    } else {
-                        paymentEnabled = status.payment_enabled || false;
-                    }
-                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
-                    // server_edition can be: "production" | "development" | "self_hosted"
-                    _serverEdition = status.server_edition || null;
-                    // Payment settings loaded: paymentEnabled, serverEdition, isSelfHosted
-                } else {
-                    console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
-                    paymentEnabled = true; // Default to enabled if check fails
-                }
-            } catch (error) {
-                console.error('[Settings] Error checking server status:', error);
-                paymentEnabled = true; // Default to enabled if check fails
-            }
-        })();
-        if ($authStore.isAuthenticated) {
-            void loadReferralStatus();
-        }
+        void initializeServerStatus();
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
@@ -2578,6 +2548,11 @@ changes to the documentation (to keep the documentation up to date).
             void loadProfileTeams();
         };
         window.addEventListener(TEAMS_UPDATED_EVENT, handleTeamsUpdated);
+        const unsubscribeTeamListRefresh = subscribeTeamListRefresh(() => {
+            if (profileTeamsLoaded && !profileTeamsLoading && get(authStore).isAuthenticated && isTeamsFeatureEnabled()) {
+                void loadProfileTeams();
+            }
+        });
 
         // Prime decorative icons on mount to avoid empty first paint.
         scheduleHeaderChatDecorIconRefresh();
@@ -2664,6 +2639,7 @@ changes to the documentation (to keep the documentation up to date).
             window.removeEventListener('language-changed', languageChangeHandler);
             window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
             window.removeEventListener(TEAMS_UPDATED_EVENT, handleTeamsUpdated);
+            unsubscribeTeamListRefresh();
             if (headerIconRefreshTimer) {
                 clearTimeout(headerIconRefreshTimer);
                 headerIconRefreshTimer = null;
@@ -2679,9 +2655,16 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     $effect(() => {
-        if ($authStore.isAuthenticated && !isSelfHosted) {
+        const status = $serverStatusStore.status;
+        isSelfHosted = status?.is_self_hosted ?? false;
+        paymentEnabled = status ? (status.is_self_hosted ? false : status.payment_enabled ?? false) : true;
+        _serverEdition = status?.server_edition ?? null;
+    });
+
+    $effect(() => {
+        if ($authStore.isAuthenticated && $serverStatusStore.initialized && !isSelfHosted) {
             void loadReferralStatus();
-        } else {
+        } else if (!$authStore.isAuthenticated || isSelfHosted) {
             referralStatus.set(null);
         }
     });

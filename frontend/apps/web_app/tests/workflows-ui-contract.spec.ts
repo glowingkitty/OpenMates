@@ -195,6 +195,70 @@ async function expectNoPageOverflow(page: any): Promise<void> {
 }
 
 test.describe('Workflows web UI contract', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.explicit-guarded-save,workflows-ui.runs.timeline-execution-detail
+	test('opens Template before slow Runs and keeps an unsaved draft through refresh', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(120_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		const title = `${WORKFLOW_TITLE_PREFIX} refresh ${Date.now()}-${testInfo.workerIndex}`;
+		let workflowId: string | null = null;
+		let releaseRuns!: () => void;
+		let releaseDetail!: () => void;
+		const runsGate = new Promise<void>(resolve => { releaseRuns = resolve; });
+		const detailGate = new Promise<void>(resolve => { releaseDetail = resolve; });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page);
+		try {
+			const workflow = await createWorkflow(page, apiUrl, {
+				title,
+				graph: rainGraph('Berlin'),
+				enabled: false,
+				run_content_retention: 'last_5'
+			});
+			workflowId = workflow.id;
+			const runsPath = `/v1/workflows/${encodeURIComponent(workflow.id)}/runs`;
+			const detailPath = `/v1/workflows/${encodeURIComponent(workflow.id)}`;
+			await page.route(`**${runsPath}`, async (route: any) => {
+				await runsGate;
+				await route.continue();
+			});
+
+			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			const runsRequest = page.waitForRequest((request: any) => request.url().endsWith(runsPath));
+			await page.getByTestId('workflow-landing-card').filter({ hasText: title }).first().click();
+			await runsRequest;
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
+			releaseRuns();
+
+			await page.route(`**${detailPath}`, async (route: any) => {
+				await detailGate;
+				await route.continue();
+			});
+			const refreshRequest = page.waitForRequest((request: any) => request.url().endsWith(detailPath));
+			await page.evaluate(() => {
+				const originalNow = Date.now.bind(Date);
+				Date.now = () => originalNow() + 61_000;
+				window.dispatchEvent(new Event('focus'));
+			});
+			await refreshRequest;
+			await page.getByTestId('workspace-detail-title').click();
+			const draftTitle = `${title} unsaved`;
+			const titleInput = page.locator('.workflow-detail-header form input').first();
+			await titleInput.fill(draftTitle);
+			releaseDetail();
+			await expect(titleInput).toHaveValue(draftTitle);
+			await page.getByTestId('workflow-detail-back').click();
+			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
+		} finally {
+			releaseRuns();
+			releaseDetail();
+			if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
+		}
+	});
+
 	// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft,workflows-ui.detail.stable-visual-header,workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor,workflows-ui.template.explicit-guarded-save,workflows-ui.versions.timeline-readonly-restore-new,workflows-ui.runs.timeline-execution-detail,workflows-ui.responsive-accessible-reachable
 	test('preserves identity while editing versions and inspecting a cancellable run', async ({
 		page
@@ -243,7 +307,7 @@ test.describe('Workflows web UI contract', () => {
 				title: runnerTitle,
 				description: 'A manual approval Workflow.',
 				graph: waitingGraph(),
-				enabled: true,
+				enabled: false,
 				run_content_retention: 'last_5',
 				category: 'general_knowledge',
 				icon: 'help-circle'

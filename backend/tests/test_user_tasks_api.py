@@ -1349,15 +1349,36 @@ async def test_exact_task_read_keeps_team_viewer_access_and_scoped_lookup(monkey
     monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
     team = SimpleNamespace(require_team_role=AsyncMock())
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
-    methods = SimpleNamespace(get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}))
+    methods = SimpleNamespace(
+        get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}),
+        eligible_external_ai=AsyncMock(return_value=["codex"]),
+    )
     result = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
     methods.get_task.assert_awaited_once_with("task-1", "user-1", "team-1")
     assert "viewer" in team.require_team_role.await_args.args[2]
     assert result["task"]["encrypted_title"] == "cipher"
+    assert result["eligible_external_ai"] == ["codex"]
+    methods.eligible_external_ai.assert_awaited_once_with("user-1")
+    methods.eligible_external_ai.side_effect = RuntimeError("eligibility unavailable")
+    degraded = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
+    assert degraded == {"task": {"task_id": "task-1", "encrypted_title": "cipher"}}
     methods.get_task.return_value = None
     with pytest.raises(HTTPException) as error:
         await user_tasks.get_user_task(request, None, "missing", "team-1", SimpleNamespace(task_methods=methods))
     assert error.value.status_code == 404
+    assert methods.eligible_external_ai.await_count == 2
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
+async def test_assignment_eligibility_read_does_not_list_tasks(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    methods = SimpleNamespace(eligible_external_ai=AsyncMock(return_value=["codex"]), list_tasks=AsyncMock())
+    request = SimpleNamespace()
+    result = await user_tasks.get_task_assignment_eligibility(request, None, SimpleNamespace(task_methods=methods))
+    assert result == {"eligible_external_ai": ["codex"]}
+    methods.eligible_external_ai.assert_awaited_once_with("user-1")
+    methods.list_tasks.assert_not_awaited()
 
 
 @pytest.mark.asyncio

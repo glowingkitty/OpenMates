@@ -8,6 +8,7 @@
 
 import { writable } from "svelte/store";
 import { apiEndpoints, getApiEndpoint } from "../config/api";
+import { WorkspaceQueryCache, WorkspaceCacheDiscardedError } from "./workspaceQueryCache";
 
 const PENDING_REFERRAL_KEY = "openmates_pending_referral_code";
 const REFERRAL_CODE_PATTERN = /^[A-Za-z0-9]{4,32}$/;
@@ -24,6 +25,8 @@ export interface ReferralStatus {
 }
 
 export const referralStatus = writable<ReferralStatus | null>(null);
+const statusCache = new WorkspaceQueryCache<ReferralStatus>({ ttlMs: 60_000, maxEntries: 1 });
+statusCache.subscribe(() => queueMicrotask(() => referralStatus.set(statusCache.peek("status") ?? null)));
 
 function parseReferralCodeFromHash(): string | null {
   if (typeof window === "undefined") return null;
@@ -63,6 +66,8 @@ export async function submitPendingReferralCode(): Promise<void> {
     });
     if (response.ok) {
       sessionStorage.removeItem(PENDING_REFERRAL_KEY);
+      statusCache.invalidate("status");
+      void loadReferralStatus();
     }
   } catch (error) {
     console.warn("[ReferralService] Failed to submit pending referral code", error);
@@ -71,19 +76,19 @@ export async function submitPendingReferralCode(): Promise<void> {
 
 export async function loadReferralStatus(): Promise<ReferralStatus | null> {
   try {
-    const response = await fetch(getApiEndpoint(apiEndpoints.referrals.status), {
-      credentials: "include",
+    const status = await statusCache.load("status", async () => {
+      const response = await fetch(getApiEndpoint(apiEndpoints.referrals.status), {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error(`Referral status request failed: ${response.status}`);
+      return (await response.json()) as ReferralStatus;
     });
-    if (!response.ok) {
-      referralStatus.set(null);
-      return null;
-    }
-    const status = (await response.json()) as ReferralStatus;
     referralStatus.set(status);
     return status;
   } catch (error) {
+    if (error instanceof WorkspaceCacheDiscardedError) return null;
     console.warn("[ReferralService] Failed to load referral status", error);
-    referralStatus.set(null);
+    if (!statusCache.peek("status")) referralStatus.set(null);
     return null;
   }
 }

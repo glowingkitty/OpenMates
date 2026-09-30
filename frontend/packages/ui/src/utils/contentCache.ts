@@ -5,6 +5,7 @@
  */
 
 import { BoundedCache, estimatePayloadBytes } from "./boundedCache";
+import { registerWorkspaceCacheClear } from "../services/workspaceCacheLifecycle";
 
 const MAX_CONTENT_CACHE_BYTES = 32 * 1024 * 1024;
 
@@ -108,6 +109,7 @@ export class ContentCache {
 
 // Export singleton instance
 export const contentCache = new ContentCache();
+registerWorkspaceCacheClear(() => contentCache.clear());
 
 if (typeof window !== "undefined") {
   window.addEventListener("userLoggingOut", () => contentCache.clear());
