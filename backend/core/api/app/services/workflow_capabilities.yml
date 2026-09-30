@@ -54,6 +54,9 @@ capabilities:
   books.translate:
     available: false
     unavailable_reason: WORKFLOW_SKILL_NOT_REGISTERED
+  calendar.list-calendars:
+    available: false
+    unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED
   calendar.get-events:
     available: false
     unavailable_reason: WORKFLOW_CONNECTED_ACCOUNT_REQUIRED

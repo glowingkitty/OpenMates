@@ -189,3 +189,51 @@ def test_ask_and_ai_check_require_visible_source_in_their_authored_text():
         validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
     data["nodes"][1]["config"]["input"]["prompt"] = "Summarize {{ $nodes.search.output.results }}"
     validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference,workflows.control.ai-check
+def test_selected_inputs_and_result_blocks_are_real_composition_dependencies():
+    data = graph_data()
+    data["nodes"][1]["config"] = {"mode": "ai", "question": "Is this relevant?", "selected_inputs": ["$nodes.search.output.results"]}
+    data["nodes"][2]["config"]["message"] = "Here are the results"
+    with pytest.raises(WorkflowValidationError, match="Step check"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+    data["nodes"][1]["config"]["selected_inputs"] = ["$nodes.search.output.results.missing"]
+    with pytest.raises(WorkflowValidationError, match="not declared"):
+        validate_workflow_readiness(WorkflowGraph.model_validate(data))
+    data["nodes"][1]["config"]["selected_inputs"] = ["$nodes.search.output.results"]
+    data["nodes"][2]["config"]["blocks"][0]["source"] = "$nodes.search.output.results.missing"
+    with pytest.raises(WorkflowValidationError, match="not declared"):
+        validate_workflow_readiness(WorkflowGraph.model_validate(data))
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference
+def test_opted_in_result_block_satisfies_composition_without_inline_variable():
+    data = graph_data()
+    data["nodes"] = [data["nodes"][0], data["nodes"][2]]
+    data["edges"] = [{"from": "search", "to": "send"}]
+    data["nodes"][1]["config"]["message"] = "Results"
+    data["nodes"][1]["config"]["blocks"][0].pop("include_if")
+    graph = WorkflowGraph.model_validate(data)
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(graph)
+    validate_workflow_composition_refs(graph, allow_data_dependencies=True)
+
+    data["nodes"][1]["config"]["blocks"][0]["source"] = "$nodes.search.output"
+    with pytest.raises(WorkflowValidationError, match="result blocks"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+
+# contract-test: direct surface=rest_api assertions=workflows.composition.earlier-action-reference
+def test_fixed_message_after_data_condition_has_composition_dependency():
+    data = graph_data()
+    data["nodes"][2]["config"] = {"title": "News", "message": "New results found"}
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data))
+    validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
+
+    data["nodes"][1]["config"]["predicate"] = {"left": 3, "op": "gt", "right": 0}
+    with pytest.raises(WorkflowValidationError, match="insert a variable"):
+        validate_workflow_composition_refs(WorkflowGraph.model_validate(data), allow_data_dependencies=True)
