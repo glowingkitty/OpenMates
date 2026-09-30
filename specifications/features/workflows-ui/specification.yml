@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 5
+version: 6
 status: draft
 title: Workflows Web UI
 summary: >
@@ -16,6 +16,7 @@ scope:
     - The complete visual composition of the Workflow detail header, Template and Runs tab switch, graph canvas, node cards, dirty state, version timeline, run timeline, and execution detail.
     - Persisted disabled title drafts, in-place node editing, per-node Save and discard, unsaved-node navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
     - Automatic Workflow category and icon metadata, category-derived header and card identity, desktop and mobile layout, current OpenMates design tokens and icons, keyboard and touch operation, dark mode, and reduced-motion behavior.
+    - Exporting a saved Workflow from Show more and importing Workflow files from Project uploads or the Workflows start composer.
   excludes:
     - Global app chrome, chat-sidebar content, profile imagery, recommendation copy, and example Workflow data that do not alter the contracted Workflows layout.
     - Workflow execution, encryption, retention, API, CLI, SDK, and chat-delivery semantics owned by feature.workflows.
@@ -215,7 +216,8 @@ models:
         back: circular_icon
         secondary_actions: circular_light_buttons
         share: {web_v1_behavior: coming_soon_notification_only, opens_management: false, mutates_sharing: false, future_management_surface: regular_settings_share_menu}
-        contextual_show_more_actions: [run_now, delete]
+        contextual_show_more_actions: [run_now, export, delete]
+        export: {placement: shared_show_more_menu, saved_definition_only: true, enabled_and_disabled_workflows: true, incomplete_saved_drafts: true}
         run_now: {placement: shared_show_more_menu, centered_header_button: forbidden, visible_when: saved_workflow_is_valid_and_executable, executes: saved_definition, unsaved_node_edits_ignored: true}
         standalone_header_history_play_delete_icons: forbidden
         standalone_corner_ready_badge: forbidden
@@ -447,6 +449,36 @@ assertions:
     type: behavior
     must: A compact white two-position icon-tab pill overlaps the centered boundary below the Workflow header, uses a sliding blue active pill, switches in place between accessible Template and Runs hash states through the existing tab system, and does not remount or lose the selected Workflow. Its icons are the existing workflow.svg for Template and projectmanagement.svg for Runs, matching the supplied design.
     depends_on: [models.WorkflowViewTabs, examples.detail_tabs]
+  - id: workflows-ui.files.more-export
+    type: behavior
+    must: >
+      Export appears in the existing Show more menu for every saved Workflow, including disabled or
+      incomplete drafts. It downloads the current saved definition in the portable file format owned by
+      feature.workflows and makes saved-definition-only behavior clear when node edits are unsubmitted.
+      Export is available from Template and Runs without saving, discarding or executing an editor draft.
+    depends_on: [models.WorkflowDetailHeader, examples.workflow_file_export]
+  - id: workflows-ui.files.project-upload-import
+    type: behavior
+    must: >
+      The existing Project upload picker recognizes portable Workflow documents and imports them as fresh
+      disabled Workflows linked in the selected authorized Project and folder, rather than uploading them
+      as generic file embeds. Recognition uses the Workflow format marker and dedicated filename suffix;
+      unrelated uploaded files retain their existing behavior. A recognized malformed or unsupported
+      Workflow file shows an import error without falling back to generic upload. The UI reports import
+      and attachment outcomes accurately and provides access to the imported Workflow and its required
+      recipient review without changing ownership or bypassing Project permissions.
+    depends_on: [examples.workflow_project_import]
+  - id: workflows-ui.files.composer-drop-import
+    type: behavior
+    must: >
+      Dropping a portable Workflow file onto the Workflows start composer imports and opens a fresh
+      disabled Workflow in Template, using the same validation and recipient review as Project upload
+      and CLI import. A file drag exposes a clear drop affordance. Import never submits the typed new-Workflow
+      title, creates an extra title draft, starts inference or executes the Workflow; existing typed text
+      remains intact if the import fails. Invalid or unsupported files show a readable error without
+      creation. Normal title submission retains its existing behavior, and imported account-specific
+      bindings and schedule review remain visible until resolved before automatic enablement.
+    depends_on: [examples.workflow_composer_import]
   - id: workflows-ui.detail.fullscreen-route-motion
     type: behavior
     must: Opening a Workflow moves it upward from the bottom with a fade, and closing reverses that motion, using the same 320ms cubic-bezier(0.32, 0, 0.2, 1) timing as fullscreen embeds. Reduced-motion preferences disable the nonessential movement. Temporary animation transforms and compositor hints are released when the movement finishes, so a settled or closed Workflow does not retain a permanent animated graphics surface.
@@ -536,7 +568,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

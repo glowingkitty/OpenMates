@@ -74,7 +74,7 @@ def _workflow_scope_for_request(method: str, path: str) -> str:
     method_upper = method.upper()
     if method_upper == "GET":
         return "workflow:read"
-    if method_upper == "POST" and path.rstrip("/") == "/v1/workflows":
+    if method_upper == "POST" and path.rstrip("/") in {"/v1/workflows", "/v1/workflows/file-import"}:
         return "workflow:create"
     if method_upper == "DELETE" and "/runs/" in path:
         return "workflow:write"

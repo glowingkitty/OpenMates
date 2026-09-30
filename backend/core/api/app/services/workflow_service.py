@@ -33,6 +33,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowGraph,
     WorkflowLifecycle,
     WorkflowMissingInputError,
+    WorkflowNodeType,
     WorkflowRunDetail,
     WorkflowRunContentRetention,
     WorkflowRunContentStorage,
@@ -1231,6 +1232,7 @@ class WorkflowService:
         icon: str | None = None,
         workflow_id: str | None = None,
         initial_version_id: str | None = None,
+        initial_binding_requirements: list[dict[str, Any]] | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         if workflow_id is not None:
@@ -1278,6 +1280,8 @@ class WorkflowService:
             raise ValueError("auto_delete_at is only valid for temporary workflows")
         workflow_id = workflow_id or str(uuid.uuid4())
         version_id = initial_version_id or str(uuid.uuid4())
+        if initial_binding_requirements is not None and (source != "import" or enabled):
+            raise ValueError("Initial binding requirements require a disabled imported workflow")
         graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
         payloads: list[tuple[str, Any]] = [("workflow_title", title)]
         if description is not None:
@@ -1319,6 +1323,8 @@ class WorkflowService:
             "next_run_at": None,
             "last_run_status": None,
             "run_content_retention": retention.value,
+            "binding_requirements": deepcopy(initial_binding_requirements or []),
+            "completed_binding_requirements": [],
             "current_version_id": version_id,
             "encrypted_graph_ref": graph_blob["ref"],
             "encrypted_graph_checksum": graph_blob["checksum"],
@@ -1539,6 +1545,47 @@ class WorkflowService:
             raise WorkflowBindingRequirementUnresolvedError("BINDING_REQUIREMENT_NOT_FOUND")
         return deepcopy(requirement)
 
+    def ensure_import_bindings_resolved(self, workflow_id: str, user_id: str) -> None:
+        """Fence manual runs as well as scheduled activation for imported drafts."""
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        self._ensure_import_binding_requirements_resolved(record)
+
+    def complete_chat_destination_binding(
+        self,
+        workflow_id: str,
+        user_id: str,
+        node_id: str,
+        *,
+        chat_id: str | None = None,
+        new_chat: bool = False,
+        vault_key_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a destination only after the saved graph reflects the explicit choice.
+
+        The route verifies ownership of an existing chat before entering here.
+        """
+        requirement = self.get_import_binding_requirement(workflow_id, user_id, "chat_destination", node_id)
+        if bool(chat_id) == bool(new_chat):
+            raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_SELECTION_REQUIRED")
+        workflow = self.get_workflow(workflow_id, user_id, vault_key_id)
+        node = next((item for item in workflow.graph.nodes if item.id == node_id), None)
+        if node is None or node.type != WorkflowNodeType.SEND_CHAT_MESSAGE or node.config.get("destination_required") is not True:
+            raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_NOT_PENDING")
+        if chat_id:
+            if node.config.get("chat_id") != chat_id:
+                raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_NOT_SAVED")
+        elif node.config.get("chat_id") or not str(node.config.get("title") or "").strip():
+            raise WorkflowBindingRequirementUnresolvedError("NEW_CHAT_DESTINATION_NOT_SAVED")
+        graph_data = workflow.graph.model_dump(mode="json", by_alias=True)
+        for item in graph_data["nodes"]:
+            if item["id"] == node_id:
+                item["config"].pop("destination_required", None)
+                break
+        self.update_workflow(workflow_id, user_id, graph=graph_data, vault_key_id=vault_key_id)
+        return self.complete_import_binding_requirement(workflow_id, user_id, requirement)
+
     def validate_schedule_binding_requirement(
         self,
         workflow_id: str,
@@ -1562,10 +1609,16 @@ class WorkflowService:
         user_id: str,
         node_id: str,
         registry: Any,
+        vault_key_id: str | None = None,
     ) -> dict[str, Any]:
         requirement = self.get_import_binding_requirement(workflow_id, user_id, "app_skill", node_id)
         app_id = requirement.get("app_id")
         skill_id = requirement.get("skill_id")
+        workflow = self.get_workflow(workflow_id, user_id, vault_key_id)
+        node = next((item for item in workflow.graph.nodes if item.id == node_id), None)
+        if (node is None or node.type != WorkflowNodeType.APP_SKILL_ACTION
+                or node.config.get("app_id") != app_id or node.config.get("skill_id") != skill_id):
+            raise WorkflowBindingRequirementUnresolvedError("APP_SKILL_CHANGED")
         if not isinstance(app_id, str) or not isinstance(skill_id, str) or not registry.is_skill_available(app_id, skill_id):
             raise WorkflowBindingRequirementUnresolvedError("APP_SKILL_UNAVAILABLE")
         return requirement
@@ -1794,6 +1847,11 @@ class WorkflowService:
     def validate_manual_run_input(self, workflow: WorkflowDetail, input_payload: dict[str, Any] | None) -> None:
         from backend.core.api.app.services.workflow_models import validate_manual_run_input
 
+        self._ensure_import_binding_requirements_resolved({
+            "source": workflow.source,
+            "binding_requirements": workflow.binding_requirements,
+            "completed_binding_requirements": workflow.completed_binding_requirements,
+        })
         try:
             validate_manual_run_input(workflow.graph, input_payload)
         except WorkflowMissingInputError:
@@ -1883,7 +1941,12 @@ class WorkflowService:
     ) -> WorkflowDetail:
         known = known_payloads or {}
         graph_payload = known["graph"] if "graph" in known else self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)
-        return WorkflowDetail(**self._summary_from_record(record, vault_key_id, known).model_dump(), graph=WorkflowGraph.model_validate(graph_payload))
+        return WorkflowDetail(
+            **self._summary_from_record(record, vault_key_id, known).model_dump(),
+            graph=WorkflowGraph.model_validate(graph_payload),
+            binding_requirements=deepcopy(record.get("binding_requirements") or []),
+            completed_binding_requirements=deepcopy(record.get("completed_binding_requirements") or []),
+        )
 
     def _ensure_workflow_slug_lookup_available(
         self,

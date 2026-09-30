@@ -322,6 +322,12 @@
     finally { busy = false; }
   }
   export function hasPendingDraft(): boolean { return !readOnly && draft !== null; }
+  export function openNodeEditor(nodeId: string): void {
+    const node = graph.nodes.find(candidate => candidate.id === nodeId);
+    if (!node || readOnly) return;
+    edit(node);
+    void tick().then(() => graphPanel?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(nodeId)}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  }
   export async function savePendingDraft(): Promise<boolean> {
     if (!hasPendingDraft()) return true;
     await saveNode();

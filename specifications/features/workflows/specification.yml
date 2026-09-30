@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows
-version: 6
+version: 7
 status: draft
 title: Workflows
 summary: >
@@ -19,6 +19,7 @@ scope:
     - Tool-isolated Ask AI answers over explicit earlier Workflow values, with selected-result preview references and shared authoring validation across web, CLI and SDKs.
     - Workflow send_chat_message delivery for existing or newly routed owner chats.
     - Owner-device claim, encrypted persistence, acknowledgement, retry, expiry, cancellation, and reconnect semantics for chat delivery.
+    - Portable Workflow files exported by CLI and web and imported by CLI, Project upload, or the Workflows start composer.
   excludes:
     - General Filter nodes, advanced recurrence, and new day/week/month budget forecasts and caps (deferred beyond this delivery).
     - Non-Workflow chat sends and normal chat inference.
@@ -30,8 +31,23 @@ scope:
     - Provider-specific app skill result semantics except as typed Workflow action outputs.
     - Team-owned Workflow chat delivery.
     - Server-side creation of normal chat keys or plaintext regular chat rows.
+    - File-based transfer of execution history, account authorization, or Workflow ownership to a Team.
 
 models:
+  PortableWorkflowFile:
+    document:
+      type: versioned_yaml_document
+      required: true
+      constraints: {format: openmates-workflow, format_version: 1, default_filename_suffix: .workflow.yml, plaintext_local_file: true}
+    definition:
+      type: portable_workflow_definition
+      required: true
+      constraints: {saved_definition_only: true, incomplete_drafts_allowed: true, automatic_trigger_optional: true, preserve_authored_graph_and_references: true, preserve_description_and_retention: true}
+    identity:
+      type: fresh_recipient_owned_workflow
+      required: true
+      constraints: {source_workflow_overwrite: forbidden, automatic_enablement: forbidden, runtime_state_transfer: forbidden}
+
   WorkflowActivationReadiness:
     draft_graph:
       type: incomplete_workflow_graph
@@ -153,6 +169,52 @@ models:
       constraints: {uses_delivery_chat_and_message_ids: true}
 
 assertions:
+  - id: workflows.portability.definition-roundtrip
+    type: parity
+    must: >
+      CLI and web export the current saved Workflow definition as the same versioned YAML document,
+      with format openmates-workflow, format_version 1 and a default .workflow.yml filename. Either
+      surface can import the other's file. Export and import preserve the title, description, retention
+      setting and portable authored graph, including app inputs, input mappings, branches, typed step
+      references, variables and authoring layout. Graph-local references stay consistent if node identities
+      change. Manual Workflows without a schedule and incomplete saved drafts remain exportable and
+      importable. Unsubmitted editor changes are not exported; no unsupported authored field is silently
+      discarded or converted into a different action.
+    depends_on: [models.PortableWorkflowFile, examples.portable_definition]
+  - id: workflows.portability.private-content-boundary
+    type: privacy
+    must: >
+      A Workflow file contains the authored definition in readable plaintext, but excludes OpenMates
+      account credentials, encryption keys, authorization grants, source Workflow/version/owner/Project/chat
+      identifiers, run history, outputs, delivery state and schedule execution state. Account-specific
+      destinations or connections become visible requirements to select or authorize in the importing
+      account; they are never inherited silently. Authored text and ordinary app inputs remain part of
+      the exported definition. Retained imported Workflow content continues to use Automation Vault
+      encryption and existing authenticated owner access; file export introduces no public plaintext API
+      or private-content logging.
+    depends_on: [models.PortableWorkflowFile, examples.portable_privacy]
+  - id: workflows.portability.disabled-validated-import
+    type: invariant
+    must: >
+      Every successful file import creates a fresh Workflow owned by the importing user, disabled and
+      with no runs, deliveries or automatic execution. Import never overwrites a Workflow with the same
+      title. The server validates the supported document and graph before persistence, using the existing
+      authoring and authorization boundaries. Required account-specific bindings and schedule review are
+      visible and must be resolved through authenticated validation before enabling automatic execution;
+      incomplete drafts remain disabled until normally completed. Malformed files, unsupported format
+      versions and invalid graphs produce a readable error without creating a Workflow or side effect.
+    depends_on: [models.PortableWorkflowFile, examples.portable_import]
+  - id: workflows.portability.cli-commands
+    type: behavior
+    must: >
+      The CLI offers workflows export <workflow-id> --output <path> and workflows import --file <path>.
+      Export reports the written file and import reports the fresh Workflow identity and unresolved
+      requirements, with existing --json output available. Import may attach the Workflow to an explicitly
+      selected authorized Project and folder using the existing encrypted Project item flow. An unsupported
+      ownership context or denied Project link is reported without claiming a successful attachment; an
+      already-created disabled Workflow remains reachable when attachment fails. Command help explains
+      the file format, disabled import and saved-definition export behavior.
+    depends_on: [examples.portable_cli]
   - id: workflows.activation.reachable-side-effect
     type: invariant
     must: A blank draft is saveable but not runnable. A complete forward graph with a reachable Send message step is runnable by its owner or an authorized assistant without an automatic trigger or enabled schedule. Enabling automatic execution additionally requires exactly one valid date/time schedule. Missing required inputs, invalid references, cycles, or a second automatic trigger prevent acceptance without creating a run or side effect; a branch may legitimately finish without sending.
@@ -365,7 +427,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, ai_check, ask_ai_execution, ask_ai_validation, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery]
+  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, ai_check, ask_ai_execution, ask_ai_validation, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries, delivery_recovery, portable_definition, portable_privacy, portable_import, portable_cli]
 
 approval:
   source: user-approved workflow v1 implementation plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

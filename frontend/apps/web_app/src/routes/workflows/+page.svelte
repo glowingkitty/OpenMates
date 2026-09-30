@@ -45,11 +45,13 @@
 	} from '@repo/ui/components/workflows/workflowBuilder.ts';
 	import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
 	import WorkflowPendingPreview from '@repo/ui/components/workflows/WorkflowPendingPreview.svelte';
+	import WorkflowBindingReview from '@repo/ui/components/workflows/WorkflowBindingReview.svelte';
+	import { downloadWorkflowFile, readWorkflowFile } from '@repo/ui/services/workflowFileService';
 	import { committedWorkflows, getWorkflowInstruction, submitWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowInputChange, type WorkflowInputSession } from '@repo/ui/services/workflowInputService';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
-	import type { WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
+	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
 	import type { DailyInspiration } from '@repo/ui/stores/dailyInspirationStore.ts';
 
@@ -137,6 +139,8 @@
 	let blankWorkflowTitle = $state('');
 	let projectWorkflowTarget = $state<ProjectCreationTarget | null>(null);
 	let lastStartedRunId = $state<string | null>(null);
+	let workflowImportInput = $state<HTMLInputElement | null>(null);
+	let draggingWorkflowFile = $state(false);
 
 	let recentWorkflows = $derived.by(() => {
 		const sorted = [...workflows].sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0));
@@ -208,11 +212,61 @@
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
 	let editorActivationReady = $derived(
-		editorGraph ? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
+		editorGraph && selectedWorkflow?.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
+			? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
 	);
 	let savedRunReady = $derived(
-		selectedWorkflow ? workflowGraphReady(selectedWorkflow.graph) : false
+		selectedWorkflow && selectedWorkflow.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
+			? workflowGraphReady(selectedWorkflow.graph) : false
 	);
+
+	async function importWorkflowFile(file: File): Promise<void> {
+		if (!canLoadWorkflows || saving) return;
+		saving = true;
+		routeError = null;
+		try {
+			const workflowDocument = await readWorkflowFile(file);
+			if (!workflowDocument) throw new Error($text('workflows.builder.file_import_choose'));
+			const imported = await workflowWorkspaceStore.importWorkflowFile(workflowDocument);
+			await selectWorkflow(imported.id);
+			openWorkflowDetails(imported.id);
+			notificationStore.success($text('workflows.builder.file_import_success'));
+		} catch (importError) {
+			routeError = importError instanceof Error ? importError.message : $text('workflows.builder.file_import_failed');
+		} finally {
+			saving = false;
+		}
+	}
+
+	function handleWorkflowFileDrop(event: DragEvent): void {
+		draggingWorkflowFile = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (!file) return;
+		event.preventDefault();
+		void importWorkflowFile(file);
+	}
+
+	async function confirmBinding(requirement: WorkflowBindingRequirement): Promise<void> {
+		if (!selectedWorkflow || editorDirty || saving || workflowGraphRef?.hasPendingDraft()) return;
+		const node = selectedWorkflow.graph.nodes.find(item => item.id === requirement.node_id);
+		const input: WorkflowBindingRequirement & { chat_id?: string; new_chat?: boolean } = { ...requirement };
+		if (requirement.type === 'chat_destination') {
+			const chatId = String(node?.config?.chat_id ?? '').trim();
+			if (chatId) input.chat_id = chatId;
+			else if (String(node?.config?.title ?? '').trim()) input.new_chat = true;
+			else { routeError = $text('workflows.builder.file_binding_chat_missing'); return; }
+		}
+		saving = true;
+		routeError = null;
+		try {
+			const updated = await workflowWorkspaceStore.completeBindingRequirement(selectedWorkflow.id, input);
+			resetEditor(updated);
+		} catch (bindingError) {
+			routeError = bindingError instanceof Error ? bindingError.message : $text('workflows.builder.file_binding_failed');
+		} finally {
+			saving = false;
+		}
+	}
 	let hasTimeTrigger = $derived(
 		editorGraph?.nodes.some((node) => node.type === 'schedule_trigger') ?? false
 	);
@@ -1118,6 +1172,8 @@
 						onStartInspiration={startWorkflowFromInspiration}
 					>
 						<svelte:fragment slot="composer">
+							<input bind:this={workflowImportInput} type="file" accept=".yml,.yaml,text/yaml,application/yaml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
+							<div class="workflow-import-dropzone" class:dragging={draggingWorkflowFile} role="group" aria-label={$text('workflows.builder.file_import_group')} data-testid="workflow-import-dropzone" ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); draggingWorkflowFile = true; } }} ondragleave={() => { draggingWorkflowFile = false; }} ondrop={handleWorkflowFileDrop}>
 							<WorkspacePromptComposer
 								surface="workflows"
 								bind:value={workflowInputText}
@@ -1136,6 +1192,9 @@
 								onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'home')}
 								onRecordingClose={() => { voiceTarget = null; }}
 							/>
+							<button type="button" class="workflow-import-button" data-testid="workflow-import-button" disabled={saving || !canLoadWorkflows} onclick={() => workflowImportInput?.click()}>{$text('workflows.builder.file_import_button')}</button>
+							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}
+							</div>
 							{#if pendingSaveSessionId}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || $text('workflows.builder.ai_saving')}</span>{#if !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 							{#if pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === null}
 								<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing"/>
@@ -1196,10 +1255,14 @@
 										onDeleteWorkflow={deleteSelectedWorkflow}
 										onOpenHome={requestWorkflowHome}
 										onOpenShare={requestWorkflowShare}
+										onExport={() => { if (!selectedWorkflow) return; try { downloadWorkflowFile(selectedWorkflow); } catch (exportError) { routeError = exportError instanceof Error ? exportError.message : $text('workflows.builder.file_export_failed'); } }}
 										onOpenRuns={() => requestWorkflowTab('runs')}
 										runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
 									/>
 									{/key}
+									{#if !isRunsView && selectedWorkflow.binding_requirements?.length}
+										<WorkflowBindingReview requirements={selectedWorkflow.binding_requirements} completed={selectedWorkflow.completed_binding_requirements ?? []} graph={editorGraph ?? selectedWorkflow.graph} {saving} hasUnsavedChanges={editorDirty || !!workflowGraphRef?.hasPendingDraft()} onEdit={(nodeId) => workflowGraphRef?.openNodeEditor(nodeId)} onConfirm={confirmBinding} />
+									{/if}
 
 									{#if isRunsView}
 										<WorkflowRunHistory
@@ -1396,6 +1459,7 @@
 
 <style>
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:0;padding:12px 1rem max(12px,env(safe-area-inset-bottom));background:var(--color-grey-10);box-shadow:0 -8px 24px color-mix(in srgb,var(--color-grey-100) 9%,transparent)}
+	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-button{border:0;border-radius:var(--radius-8);padding:.35rem .75rem;background:transparent;color:var(--color-primary);font:inherit;font-size:var(--font-size-small);cursor:pointer}.workflow-import-button:hover{text-decoration:underline}.workflow-import-button:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}.workflow-import-button:disabled{opacity:.5;cursor:default}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
 	.workflow-ai-pending{display:flex;justify-content:center;align-items:center;gap:.75rem;max-width:42rem;margin:.75rem auto;color:var(--color-font-secondary)}
 	.workflow-ai-pending button{border:1px solid var(--color-button-primary);border-radius:.7rem;padding:.35rem .7rem;background:transparent;color:var(--color-primary);font:inherit;cursor:pointer}

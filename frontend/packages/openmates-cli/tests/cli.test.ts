@@ -19,6 +19,7 @@ import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { promisify } from "node:util";
 import { WebSocketServer } from "ws";
+import { parse as parseYaml } from "yaml";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -1445,6 +1446,8 @@ describe("workflows command", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
     assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows export <workflow-id>/);
+    assert.match(output, /openmates workflows import --file <path.workflow.yml>/);
     assert.match(output, /openmates workflows <workflow-id> add-to-project <project-id>/);
     assert.match(output, /openmates workflows <workflow-id> remove-from-project <project-id>/);
     assert.match(output, /openmates workflows input <text>/);
@@ -1466,6 +1469,97 @@ describe("workflows command", () => {
     assert.notEqual(result.status, 0);
     assert.doesNotMatch(result.stderr, /Missing --idempotency-key/);
     assert.match(result.stderr, /Not logged in|login/i);
+  });
+
+  // contract-test: direct surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary,workflows.portability.disabled-validated-import,workflows.portability.cli-commands
+  it("exports a portable YAML graph and imports it as a disabled workflow", async () => {
+    const tempHome = mkdtempSync(join(tmpdir(), "openmates-workflow-file-"));
+    const stateDir = join(tempHome, ".openmates");
+    mkdirSync(stateDir, { recursive: true });
+    const requests: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+    const graph = {
+      version: 1,
+      trigger_node_id: "start",
+      nodes: [
+        { id: "start", type: "manual_trigger", config: {} },
+        { id: "notify", type: "send_notification", config: { text: "Done" }, input_mapping: { text: "start.output" }, ui: { x: 120, y: 40 } },
+      ],
+      edges: [{ from: "start", to: "notify" }],
+      variables: { label: "daily" },
+      limits: { max_steps: 8 },
+      ui_layout: { zoom: 1 },
+    };
+    const workflow = { id: "wf-portable", title: "Morning / Brief", description: "Daily update", status: "disabled", enabled: false, current_version_id: "version-1", created_at: 1, updated_at: 1, run_content_retention: "none", graph };
+    const server = createServer(async (request, response) => {
+      const url = request.url ?? "";
+      let body: Record<string, unknown> | undefined;
+      if (request.method === "POST") body = await readJsonBody(request);
+      requests.push({ method: request.method ?? "", url, body });
+      if (url === "/v1/workflows" && request.method === "GET") writeJson(response, { workflows: [workflow] });
+      else if (url === "/v1/workflows/wf-portable" && request.method === "GET") writeJson(response, { workflow });
+      else if (url === "/v1/workflows/file-import" && request.method === "POST") writeJson(response, { workflow: { ...workflow, id: "wf-imported", binding_requirements: body?.binding_requirements, completed_binding_requirements: [] } });
+      else writeJsonStatus(response, 404, { error: "Unexpected request" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+      apiUrl,
+      sessionId: "session-1",
+      wsToken: "ws-token",
+      cookies: { auth_refresh_token: "refresh-token" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+      hashedEmail: "hashed-email",
+      userEmailSalt: "salt",
+      createdAt: Date.now(),
+      authorizerDeviceName: "test-device",
+      autoLogoutMinutes: null,
+    }));
+    try {
+      const file = join(tempHome, "morning.workflow.yml");
+      const env = { HOME: tempHome, USERPROFILE: tempHome };
+      await runCliAsync(["workflows", "export", "wf-portable", "--output", file, "--api-url", apiUrl], env);
+      const exported = parseYaml(readFileSync(file, "utf8")) as Record<string, unknown>;
+      assert.equal(exported.format, "openmates-workflow");
+      assert.equal(exported.format_version, 1);
+      assert.equal((exported.workflow as Record<string, unknown>).title, workflow.title);
+      assert.equal((exported.workflow as Record<string, unknown>).run_content_retention, "none");
+      assert.deepEqual(((exported.workflow as Record<string, unknown>).graph as Record<string, unknown>).edges, [{ from: "step_1", to: "step_2" }]);
+      assert.equal(JSON.stringify(exported).includes("wf-portable"), false);
+      const imported = JSON.parse(await runCliAsync(["workflows", "import", "--file", file, "--json", "--api-url", apiUrl], env)) as { workflow: { id: string; enabled: boolean } };
+      assert.equal(imported.workflow.id, "wf-imported");
+      assert.equal(imported.workflow.enabled, false);
+      assert.deepEqual(requests.find((item) => item.url === "/v1/workflows/file-import")?.body, exported);
+
+      const malformed = join(tempHome, "invalid.workflow.yml");
+      writeFileSync(malformed, "format: openmates-workflow\nformat: openmates-workflow\n");
+      await assert.rejects(runCliAsync(["workflows", "import", "--file", malformed, "--api-url", apiUrl], env), /Invalid workflow YAML/);
+      writeFileSync(malformed, "format: openmates-workflow\nformat_version: 2\nworkflow: {}\nbinding_requirements: []\n");
+      await assert.rejects(runCliAsync(["workflows", "import", "--file", malformed, "--api-url", apiUrl], env), /version|Version/);
+      assert.equal(requests.filter((item) => item.url === "/v1/workflows/file-import").length, 1);
+
+      for (const teamFlag of ["--team", "--team-id"]) {
+        await assert.rejects(
+          runCliAsync(["workflows", "import", "--file", file, teamFlag, "team-1", "--api-url", apiUrl], env),
+          /Workflow file import creates a Personal Workflow/,
+        );
+      }
+      const sessionPath = join(stateDir, "session.json");
+      const session = JSON.parse(readFileSync(sessionPath, "utf8")) as Record<string, unknown>;
+      writeFileSync(sessionPath, JSON.stringify({ ...session, activeTeamId: "team-1" }));
+      await assert.rejects(
+        runCliAsync(["workflows", "import", "--file", file, "--api-url", apiUrl], env),
+        /Workflow file import creates a Personal Workflow/,
+      );
+      assert.equal(requests.filter((item) => item.url === "/v1/workflows/file-import").length, 1);
+      await runCliAsync(["workflows", "import", "--file", file, "--personal", "--api-url", apiUrl], env);
+      assert.equal(requests.filter((item) => item.url === "/v1/workflows/file-import").length, 2);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(tempHome, { recursive: true, force: true });
+    }
   });
 });
 

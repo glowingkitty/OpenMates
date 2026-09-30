@@ -1871,6 +1871,136 @@ builder.sharing_soon:
   en: "Workflow sharing is coming soon."
   verified_by_human: []
 
+builder.file_import_button:
+  context: Button for selecting a portable Workflow YAML file
+  en: "Import .workflow.yml"
+  verified_by_human: []
+
+builder.file_import_group:
+  context: Accessible label for the Workflow home composer and file drop target
+  en: "Create or import a workflow"
+  verified_by_human: []
+
+builder.file_import_drop_hint:
+  context: Hint shown while dragging a file over the Workflow composer
+  en: "Drop .workflow.yml to import"
+  verified_by_human: []
+
+builder.file_import_choose:
+  context: Error when a dropped or selected file is not a portable Workflow
+  en: "Choose an OpenMates .workflow.yml file."
+  verified_by_human: []
+
+builder.file_import_failed:
+  context: Generic Workflow file import failure
+  en: "Could not import workflow file."
+  verified_by_human: []
+
+builder.file_import_personal_only:
+  context: Workflow file uploads cannot create Team-owned workflows
+  en: "Switch to Personal to import a Workflow. Team workflow import is not supported."
+  verified_by_human: []
+
+builder.file_import_success:
+  context: Workflow file import success and next step
+  en: "Workflow imported. Review its bindings before enabling it."
+  verified_by_human: []
+
+builder.file_project_import_success:
+  context: Project upload imported and linked a portable Workflow
+  en: "Workflow imported into this project. Review its bindings before enabling it."
+  verified_by_human: []
+
+builder.file_project_link_failed:
+  context: Project upload imported a Workflow but failed to link it to the Project
+  en: "Workflow imported, but could not be linked to this project. Open Workflows to find it."
+  verified_by_human: []
+
+builder.file_export_saved:
+  context: More-menu action that exports only the saved Workflow definition
+  en: "Export saved .workflow.yml"
+  verified_by_human: []
+
+builder.file_export_aria:
+  context: Accessible name of the Workflow file export action
+  en: "Export saved workflow"
+  verified_by_human: []
+
+builder.file_export_failed:
+  context: Generic Workflow file export failure
+  en: "Could not export workflow file."
+  verified_by_human: []
+
+builder.file_open_workflow:
+  context: Action to open a Workflow imported from a Project
+  en: "Open workflow"
+  verified_by_human: []
+
+builder.file_binding_title:
+  context: Heading for recipient binding review after importing a Workflow
+  en: "Review imported workflow settings"
+  verified_by_human: []
+
+builder.file_binding_description:
+  context: Instruction for confirming each imported Workflow binding
+  en: "Check each destination and account setting. Save the edited step, then confirm it before enabling this workflow."
+  verified_by_human: []
+
+builder.file_binding_schedule:
+  context: Imported schedule binding label
+  en: "Schedule and time zone"
+  verified_by_human: []
+
+builder.file_binding_app:
+  context: Imported app skill binding label
+  en: "App and skill access"
+  verified_by_human: []
+
+builder.file_binding_notification:
+  context: Imported notification preferences binding label
+  en: "Notification preferences"
+  verified_by_human: []
+
+builder.file_binding_chat:
+  context: Imported chat destination binding label
+  en: "Chat destination"
+  verified_by_human: []
+
+builder.file_binding_chat_hint:
+  context: Instruction for an imported Workflow chat destination
+  en: "Choose an existing chat or explicitly name a new chat in this step."
+  verified_by_human: []
+
+builder.file_binding_chat_missing:
+  context: Error when confirming an imported chat destination without a saved choice
+  en: "Choose an existing chat or name a new chat in this step, then save it."
+  verified_by_human: []
+
+builder.file_binding_edit:
+  context: Action to edit an imported Workflow binding step
+  en: "Edit step"
+  verified_by_human: []
+
+builder.file_binding_confirm:
+  context: Action to validate and confirm an imported Workflow binding
+  en: "Confirm"
+  verified_by_human: []
+
+builder.file_binding_confirmed:
+  context: State of a confirmed imported Workflow binding
+  en: "Confirmed"
+  verified_by_human: []
+
+builder.file_binding_save_first:
+  context: Status when Workflow binding confirmation waits for node Save
+  en: "Save your changes before confirming bindings."
+  verified_by_human: []
+
+builder.file_binding_failed:
+  context: Generic imported Workflow binding confirmation error
+  en: "Could not confirm this binding."
+  verified_by_human: []
+
 run_embed.title:
   context: Preview and fullscreen title for a workflow execution linked from its delivered chat message
   en: "Workflow run"

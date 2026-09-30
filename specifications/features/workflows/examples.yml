@@ -1,5 +1,41 @@
 schema_version: 1
-specification: feature.workflows@6
+specification: feature.workflows@7
+portable_definition:
+- id: cli-web-definition-roundtrip
+  given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
+  when: She exports it from the CLI and imports the file in the web app, then exports the saved copy from the web app and imports it in the CLI.
+  then: Each copy keeps the authored title, description, retention, inputs, branches, variables and layout. Every step reference still points to the corresponding imported step.
+- id: manual-and-incomplete-draft-files
+  given: Bob has a saved manual Workflow with no schedule, and a second Workflow with only a title and an incomplete graph.
+  when: He exports and imports each saved Workflow while an unsubmitted node edit is open.
+  then: Both saved definitions can be transferred. The unsubmitted edit is absent from the file, and the incomplete copy remains a disabled draft.
+portable_privacy:
+- id: destination-requires-recipient-selection
+  given: Alice's scheduled Workflow sends Berlin event results to an existing private chat and has completed runs.
+  when: She exports its file and Bob imports it into his account.
+  then: The file keeps the authored event query and message template but contains no private chat ID, source ownership, keys, credentials, run results or delivery state. Bob must select his own destination and review the schedule before enabling the copy.
+- id: imported-definition-retains-encryption
+  given: Bob imports a Workflow containing an authored apartment-search query and message text.
+  when: The imported definition is retained and clients receive its normal encrypted data.
+  then: The existing Automation Vault and authenticated owner boundaries protect the saved content; plaintext file contents and encryption material do not appear in logs or a public export endpoint.
+portable_import:
+- id: import-creates-disabled-independent-copy
+  given: Alice has an enabled hourly Workflow and already owns another Workflow with the same title.
+  when: She imports an exported copy.
+  then: A new disabled Workflow appears with an independent identity and no history or deliveries. Neither existing Workflow changes, and no schedule runs until Alice reviews the required bindings and explicitly enables the copy.
+- id: invalid-import-creates-nothing
+  given: Bob has a malformed Workflow YAML file, a file declaring an unsupported format version, and a file with a broken graph reference.
+  when: He attempts to import each file through the CLI or web app.
+  then: Each attempt explains the error and creates no Workflow, Project item, run or delivery.
+portable_cli:
+- id: export-and-import-command-help
+  given: Alice owns a saved Berlin events Workflow.
+  when: She runs openmates workflows export <workflow-id> --output berlin-events.workflow.yml, then openmates workflows import --file berlin-events.workflow.yml.
+  then: Export reports the written path. Import reports a new disabled Workflow and any review requirements; help explains the shared YAML format, and --json returns structured command results.
+- id: cli-import-project-attachment
+  given: Bob selects an authorized Personal Project and folder for a Workflow file import.
+  when: He imports the file with the Project and folder options; on another attempt his Project write access has been revoked.
+  then: The authorized attempt links the new disabled Workflow in that folder using the encrypted Project item flow. The denied attempt does not claim attachment and reports any created disabled Workflow so Bob can still open it.
 activation_readiness:
 - id: activation_readiness-1
   given: A blank draft has no steps or schedule.

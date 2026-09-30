@@ -65,9 +65,18 @@ export type WorkflowAuthoringWarning = {
   message: string;
 };
 
+export type WorkflowBindingRequirement = {
+  type: "schedule" | "app_skill" | "notification_preferences" | "chat_destination";
+  node_id: string;
+  app_id?: string;
+  skill_id?: string;
+};
+
 export type WorkflowDetail = WorkflowSummary & {
   graph: WorkflowGraph;
   authoring_warnings?: WorkflowAuthoringWarning[];
+  binding_requirements?: WorkflowBindingRequirement[];
+  completed_binding_requirements?: WorkflowBindingRequirement[];
 };
 
 export type WorkflowVersionSummary = {
@@ -406,6 +415,29 @@ export const workflowWorkspaceStore = {
     this.upsertWorkflow(workflow);
     setSelectedFromCaches(workflow.id);
     return workflow;
+  },
+
+  async importWorkflowFile(document: unknown): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>("/v1/workflows/file-import", {
+      method: "POST",
+      body: JSON.stringify(document),
+    });
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    setSelectedFromCaches(data.workflow.id);
+    return data.workflow;
+  },
+
+  async completeBindingRequirement(workflowId: string, input: WorkflowBindingRequirement & { chat_id?: string; new_chat?: boolean }): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
+      { method: "POST", body: JSON.stringify(input) },
+    );
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    return data.workflow;
   },
 
   async patchWorkflow(workflowId: string, payload: Record<string, unknown>): Promise<WorkflowDetail> {

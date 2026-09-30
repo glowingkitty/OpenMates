@@ -7,10 +7,10 @@
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import IconTabBar, { type IconTabItem } from '../IconTabBar.svelte';
   import { getCategoryGradientColors, getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
-  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onUpdateIdentity, onDraftIdentity }: {
+  let { title, description, category, icon, createdAt, nextRunAt, enabled, canEnable, canRun, lastStartedRunId = null, activeTab = 'template', saving, onTabChange, onToggleEnabled, onRunWorkflow, onDeleteWorkflow, onOpenHome, onOpenShare, onExport, onUpdateIdentity, onDraftIdentity }: {
     title: string; description: string; category: string; icon: string; createdAt?: number | null; nextRunAt?: number | null;
     enabled: boolean; canEnable: boolean; canRun: boolean; lastStartedRunId?: string | null; activeTab: 'template' | 'runs'; saving: boolean;
-    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onOpenRuns: () => void; runsHref: string;
+    onTabChange: (tab: 'template' | 'runs') => void; onToggleEnabled: () => void | Promise<void>; onRunWorkflow: () => void | Promise<void>; onDeleteWorkflow: () => void | Promise<void>; onOpenHome: () => void; onOpenShare: () => void; onExport: () => void; onOpenRuns: () => void; runsHref: string;
     onUpdateIdentity: (title: string, description: string) => Promise<void>;
     onDraftIdentity: (title: string, description: string) => void;
   } = $props();
@@ -33,10 +33,11 @@
 </script>
 
 <div class="header-toolbar" data-testid="workflow-detail-actions" use:headerOverlayControls>
-    <HeaderActionMenu resetKey={title} hasShare actionCount={canRun ? 2 : 1} forceOverflow>
+    <HeaderActionMenu resetKey={title} hasShare actionCount={canRun ? 3 : 2} forceOverflow>
       {#snippet report()}<WorkspaceReportIssueButton toolbar/>{/snippet}
       {#snippet share()}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-share" aria-label={tr('share')} onclick={onOpenShare} use:tooltip><span class="clickable-icon icon_share top-button" aria-hidden="true"></span><span class="action-label">{tr('share')}</span></button></div>{/snippet}
       {#snippet actions()}
+        <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="workflow-export" aria-label={tr('file_export_aria')} disabled={saving} onclick={onExport} use:tooltip><span class="clickable-icon icon_download top-button" aria-hidden="true"></span><span class="action-label">{tr('file_export_saved')}</span></button></div>
         {#if canRun}<div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="run-workflow" aria-label={tr('run_now')} disabled={saving} onclick={() => void onRunWorkflow()} use:tooltip><span class="workflow-icon icon-play size-20" aria-hidden="true"></span><span class="action-label">{tr('run_now')}</span></button></div>{/if}
         <div class="new-chat-button-wrapper"><button type="button" class="header-action" data-testid="delete-workflow" aria-label={tr('delete_workflow')} disabled={saving} onclick={() => void onDeleteWorkflow()} use:tooltip><span class="clickable-icon icon_delete top-button" aria-hidden="true"></span><span class="action-label">{tr('delete_workflow')}</span></button></div>
       {/snippet}

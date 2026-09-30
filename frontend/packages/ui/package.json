@@ -64,6 +64,10 @@
     "./services/workflowInputService": {
       "types": "./src/services/workflowInputService.ts",
       "default": "./src/services/workflowInputService.ts"
+    },
+    "./services/workflowFileService": {
+      "types": "./src/services/workflowFileService.ts",
+      "default": "./src/services/workflowFileService.ts"
     }
   },
   "scripts": {

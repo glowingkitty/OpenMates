@@ -250,6 +250,8 @@ class WorkflowSummary(BaseModel):
 
 class WorkflowDetail(WorkflowSummary):
     graph: WorkflowGraph
+    binding_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    completed_binding_requirements: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class WorkflowVersionSummary(BaseModel):

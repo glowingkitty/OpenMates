@@ -23,6 +23,7 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 from backend.core.api.app.services.feature_availability_guards import ensure_workflows_enabled
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_file_service import WorkflowFileDocument, WorkflowFileImportError, WorkflowFileService, WorkflowFileTooLargeError
 from backend.core.api.app.services.workflow_nl_planner import WorkflowNLPlanner
 from backend.core.api.app.services.workflow_identity_service import (
     WorkflowIdentity,
@@ -222,6 +223,8 @@ class WorkflowTemplateBindingCompletionRequest(BaseModel):
 
     type: str = Field(min_length=1, max_length=100)
     node_id: str = Field(min_length=1, max_length=200)
+    chat_id: str | None = Field(default=None, min_length=1, max_length=200)
+    new_chat: bool = False
 
 
 class WorkflowAssistantDeleteConfirmationRequest(BaseModel):
@@ -658,6 +661,10 @@ def _handle_workflow_error(exc: Exception) -> None:
     if isinstance(exc, (WorkflowTemplateProjectionNotFoundError, WorkflowTemplateProjectionRevokedError)):
         raise HTTPException(status_code=404, detail="Workflow template projection not found") from exc
     if isinstance(exc, (WorkflowTemplateProjectionError, WorkflowTemplateImportError)):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if isinstance(exc, WorkflowFileTooLargeError):
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    if isinstance(exc, WorkflowFileImportError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -1334,6 +1341,27 @@ async def import_workflow_template(
         _handle_workflow_error(exc)
 
 
+@router.post("/file-import")
+@limiter.limit("30/minute")
+async def import_workflow_file(
+    request: Request,
+    body: WorkflowFileDocument,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowService = Depends(get_workflow_service),
+) -> dict[str, Any]:
+    """Session or approved-device create surface; owner-scoped Vault storage."""
+    try:
+        file_service = WorkflowFileService(service)
+        document, graph = await run_in_threadpool(file_service.validate_document, body)
+        warnings = await _validate_workflow_ask_ai_nodes(request, graph, current_user.id)
+        workflow = await run_in_threadpool(
+            file_service.import_document, current_user.id, document, graph, current_user.vault_key_id,
+        )
+        return {"workflow": workflow.model_dump(mode="json", by_alias=True), "warnings": warnings}
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
 @router.get("/assistant-proposals/{proposal_id}")
 @limiter.limit("60/minute")
 async def get_workflow_assistant_proposal(
@@ -1446,9 +1474,36 @@ async def complete_workflow_template_binding(
     request: Request,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    directus_service: Any = Depends(get_directus_service),
 ) -> dict[str, Any]:
     """Persist only binding completion proven by the matching server service."""
     try:
+        if body.type == "chat_destination":
+            if bool(body.chat_id) == body.new_chat:
+                raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_SELECTION_REQUIRED")
+            await run_in_threadpool(
+                service.get_import_binding_requirement,
+                workflow_id,
+                current_user.id,
+                "chat_destination",
+                body.node_id,
+            )
+            if body.chat_id and not await directus_service.chat.check_chat_ownership(body.chat_id, current_user.id):
+                raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_NOT_OWNED")
+            completed = await run_in_threadpool(
+                service.complete_chat_destination_binding,
+                workflow_id,
+                current_user.id,
+                body.node_id,
+                chat_id=body.chat_id,
+                new_chat=body.new_chat,
+                vault_key_id=current_user.vault_key_id,
+            )
+            workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+            return {"workflow_id": workflow_id, "binding_requirement": completed, "completed": True,
+                    "workflow": workflow.model_dump(mode="json", by_alias=True)}
+        if body.chat_id or body.new_chat:
+            raise WorkflowBindingRequirementUnresolvedError("CHAT_DESTINATION_SELECTION_UNEXPECTED")
         if body.type == "schedule":
             requirement = await run_in_threadpool(
                 service.validate_schedule_binding_requirement,
@@ -1469,6 +1524,7 @@ async def complete_workflow_template_binding(
                 current_user.id,
                 body.node_id,
                 registry,
+                current_user.vault_key_id,
             )
         elif body.type == "notification_preferences":
             requirement = await run_in_threadpool(
@@ -1490,7 +1546,9 @@ async def complete_workflow_template_binding(
             current_user.id,
             requirement,
         )
-        return {"workflow_id": workflow_id, "binding_requirement": completed, "completed": True}
+        workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        return {"workflow_id": workflow_id, "binding_requirement": completed, "completed": True,
+                "workflow": workflow.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
         _handle_workflow_error(exc)
 
@@ -1876,6 +1934,7 @@ async def run_workflow(
     try:
         workflow = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
         await run_in_threadpool(service.validate_manual_run_input, workflow, body.input)
+        await run_in_threadpool(service.ensure_import_bindings_resolved, workflow_id, current_user.id)
         idempotency_key = request.headers.get("Idempotency-Key")
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
             raise ValueError("IDEMPOTENCY_KEY_REQUIRED")

@@ -1,5 +1,29 @@
 schema_version: 1
-specification: feature.workflows-ui@5
+specification: feature.workflows-ui@6
+workflow_file_export:
+- id: more-exports-current-saved-workflow
+  assertion_ids: [workflows-ui.files.more-export]
+  given: Alice has a saved Workflow open and has changed an input in an expanded node without saving it.
+  when: She chooses Export from Show more in Template or Runs.
+  then: A .workflow.yml file downloads with the current saved definition, and the UI makes clear that the unsubmitted input edit is not included. Export is also available for a disabled blank draft.
+workflow_project_import:
+- id: project-picker-imports-workflow-in-selected-folder
+  given: Alice opens the Automation folder of her Personal Project and chooses a Workflow file in the existing upload picker.
+  when: The file is validated and imported.
+  then: A new disabled Workflow item appears in that folder, with a way to open Template and review required bindings. The Workflow document is not added as a generic file embed.
+- id: project-upload-classification-and-errors
+  given: Bob uploads an ordinary JSON note and separately uploads a malformed .workflow.yml file or a Workflow file he cannot attach to the selected Project.
+  when: The Project upload handler processes the selected file.
+  then: The note uses normal encrypted upload. The recognized invalid Workflow displays an import error without generic upload or creation; denied attachment is reported accurately and any created disabled Workflow remains reachable.
+workflow_composer_import:
+- id: drop-import-opens-disabled-template
+  given: Alice is on the Workflows start screen with a valid exported Workflow file and a typed name for a possible new Workflow.
+  when: She drags the file over the composer and drops it.
+  then: The composer shows a drop affordance, then opens the imported disabled Workflow in Template with its required recipient review. No title draft, inference request or Workflow execution occurs.
+- id: invalid-drop-preserves-title
+  given: Bob has typed Morning events in the Workflows composer and drops an invalid or unsupported Workflow file.
+  when: Import validation fails.
+  then: A readable error appears, no Workflow is created, and Morning events remains typed. Submitting that title normally still creates a disabled title draft.
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:

@@ -26,6 +26,9 @@
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { notificationStore } from '../../stores/notificationStore';
+  import { workflowWorkspaceStore } from '../../stores/workflowWorkspaceStore';
+  import { readWorkflowFile } from '../../services/workflowFileService';
+  import { saveWorkflowToProjectTarget } from '../../services/projectCreationNavigation';
   import { authStore } from '../../stores/authStore';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -912,12 +915,46 @@
     if (!file) return;
     isSaving = true;
     try {
+      const workflowDocument = await readWorkflowFile(file);
+      if (workflowDocument) {
+        if (getActiveTeamContextSnapshot().teamId) {
+          throw new Error($text('workflows.builder.file_import_personal_only'));
+        }
+        const imported = await workflowWorkspaceStore.importWorkflowFile(workflowDocument);
+        try {
+          await saveWorkflowToProjectTarget({
+            projectId: selectedProject.project_id,
+            projectName: selectedProject.name,
+            folderId: currentFolder?.folder_id ?? null,
+            folderPath: currentVirtualPath,
+            sourceId: activeRemoteSourceId,
+            teamId: getActiveTeamContextSnapshot().teamId,
+          }, imported.id, imported.title);
+        } catch (linkError) {
+          console.error('[ProjectsPage] Workflow imported but project link failed:', linkError);
+          notificationStore.addNotificationWithOptions('error', {
+            message: $text('workflows.builder.file_project_link_failed'),
+            messageSecondary: imported.title,
+            duration: 0,
+            onAction: () => window.location.assign(`/#workflow-id=${encodeURIComponent(imported.id)}&workflow-tab=details`),
+            actionLabel: $text('workflows.builder.file_open_workflow'),
+          });
+          return;
+        }
+        await refreshSelectedProject();
+        notificationStore.addNotificationWithOptions('success', {
+          message: $text('workflows.builder.file_project_import_success'),
+          onAction: () => window.location.assign(`/#workflow-id=${encodeURIComponent(imported.id)}&workflow-tab=details`),
+          actionLabel: $text('workflows.builder.file_open_workflow'),
+        });
+        return;
+      }
       await uploadFileToProject(selectedProject, file, {}, { folderId: currentFolder?.folder_id ?? null });
       await refreshSelectedProject();
       notificationStore.success('File uploaded to project');
     } catch (error) {
       console.error('[ProjectsPage] Failed to upload file to project:', error);
-      notificationStore.error('Failed to upload file to project');
+      notificationStore.error(error instanceof Error ? error.message : 'Failed to upload file to project');
     } finally {
       isSaving = false;
       input.value = '';

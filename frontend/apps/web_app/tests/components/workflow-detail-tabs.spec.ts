@@ -16,6 +16,18 @@ const preview = (variant?: string) =>
 	})}`;
 
 test.describe('Workflow detail tabs', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.files.more-export
+	test('shows export in More for a saved and a blank workflow', async ({ page }: { page: Page }) => {
+		await page.goto(preview(), { waitUntil: 'networkidle' });
+		await page.getByRole('button', { name: 'More', exact: true }).click();
+		await expect(page.getByTestId('workflow-export')).toBeEnabled();
+		const emitted = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('workflow-preview-export', () => resolve(), { once: true })));
+		await page.getByTestId('workflow-export').click();
+		await emitted;
+		await page.goto(preview('blank'), { waitUntil: 'networkidle' });
+		await page.getByRole('button', { name: 'More', exact: true }).click();
+		await expect(page.getByTestId('workflow-export')).toBeEnabled();
+	});
 	// contract-test: direct surface=gui.web assertions=workflows-ui.detail.shared-template-runs-tabs
 	test('uses the shared workspace tab dimensions and gradient pill', async ({ page }: { page: Page }) => {
 		await page.goto(preview(), { waitUntil: 'networkidle' });

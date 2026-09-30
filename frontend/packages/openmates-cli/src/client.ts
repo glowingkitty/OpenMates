@@ -118,6 +118,7 @@ import {
   type SpeechMessageResult,
 } from "./assistantSpeech.js";
 import { taskOwnerConflict } from "./codexConnection.js";
+import type { WorkflowFileDocument } from "../../workflowFile.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -734,6 +735,8 @@ export interface WorkflowSummary {
 export interface WorkflowDetail extends WorkflowSummary {
   graph: WorkflowGraph;
   authoring_warnings?: WorkflowAuthoringWarning[];
+  binding_requirements?: WorkflowFileDocument["binding_requirements"];
+  completed_binding_requirements?: WorkflowFileDocument["binding_requirements"];
 }
 
 export interface WorkflowNodeRun {
@@ -1331,7 +1334,7 @@ export interface WorkflowTemplateImportPayload {
 }
 
 export interface ImportedWorkflowTemplate extends WorkflowDetail {
-  binding_requirements: Array<Record<string, unknown>>;
+  binding_requirements: WorkflowFileDocument["binding_requirements"];
 }
 
 export interface WorkflowTemplateShortUrlParams {
@@ -9103,6 +9106,19 @@ export class OpenMatesClient {
       { ...response.data.workflow, authoring_warnings: response.data.warnings ?? [] },
       { personal: true },
     );
+  }
+
+  async importWorkflowFile(document: WorkflowFileDocument): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      "/v1/workflows/file-import",
+      document,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow file import failed with HTTP ${response.status}`);
+    }
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
   async askWorkflow(input: {
