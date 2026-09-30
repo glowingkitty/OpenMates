@@ -52725,7 +52725,7 @@ assertions:
       surface: cli
     - &id6301
       path: backend/tests/test_workflow_nl_planner.py
-      line: 654
+      line: 656
       name: test_explicit_batch_is_never_partially_saved
       surface: cli
     - &id6302
@@ -53879,22 +53879,22 @@ assertions:
       surface: rest_api
     - &id6479
       path: backend/tests/test_workflow_nl_planner.py
-      line: 696
+      line: 698
       name: test_landing_edit_selects_only_the_named_owner_workflow
       surface: cli
     - &id6480
       path: backend/tests/test_workflow_nl_planner.py
-      line: 719
+      line: 721
       name: test_landing_edit_without_matching_workflow_clarifies_without_mutation
       surface: cli
     - &id6481
       path: backend/tests/test_workflow_nl_planner.py
-      line: 734
+      line: 736
       name: test_landing_edit_does_not_select_a_workflow_from_timezone_city_alone
       surface: cli
     - &id6482
       path: backend/tests/test_workflow_nl_planner.py
-      line: 750
+      line: 752
       name: test_ai_undo_preserves_later_manual_edits
       surface: cli
     - &id6495
@@ -54456,7 +54456,7 @@ assertions:
     direct_tests:
     - &id6529
       path: backend/tests/test_workflow_nl_planner.py
-      line: 613
+      line: 615
       name: test_schedule_only_edit_changes_weekday_and_rejects_an_unchanged_graph
       surface: cli
     - &id6530
@@ -54520,7 +54520,7 @@ assertions:
       surface: cli
     - &id6538
       path: backend/tests/test_workflow_nl_planner.py
-      line: 663
+      line: 665
       name: test_tomorrow_runtime_date_rolls_in_schedule_timezone
       surface: cli
     - &id6539
@@ -54602,41 +54602,41 @@ assertions:
     - &id6579
       path: backend/tests/test_workflow_nl_planner.py
       line: 472
-      name: test_jev_outage_uses_flash_lite_for_same_recipe_contract
+      name: test_jev_outage_uses_flash_38_for_bounded_fallback
       surface: cli
     - &id6581
       path: backend/tests/test_workflow_nl_planner.py
-      line: 526
+      line: 528
       name: test_low_confidence_jev_retries_once_before_gemini_fallback
       surface: cli
     - &id6582
       path: backend/tests/test_workflow_nl_planner.py
-      line: 548
+      line: 550
       name: test_unsupported_delivery_creates_nothing_and_requests_clarification
       surface: cli
     - &id6583
       path: backend/tests/test_workflow_nl_planner.py
-      line: 556
+      line: 558
       name: test_web_search_cannot_be_silently_replaced_with_news_search
       surface: cli
     - &id6584
       path: backend/tests/test_workflow_nl_planner.py
-      line: 570
+      line: 572
       name: test_news_recipe_requires_news_intent_and_honors_requested_count
       surface: cli
     - &id6585
       path: backend/tests/test_workflow_nl_planner.py
-      line: 590
+      line: 592
       name: test_unsupported_action_edit_does_not_commit_a_partial_or_noop_update
       surface: cli
     - &id6586
       path: backend/tests/test_workflow_nl_planner.py
-      line: 641
+      line: 643
       name: test_explicit_external_channel_cannot_be_silently_replaced_by_chat
       surface: cli
     - &id6587
       path: backend/tests/test_workflow_nl_planner.py
-      line: 671
+      line: 673
       name: test_selected_workflow_schedule_edit_keeps_enabled_state
       surface: cli
     - &id6593
@@ -54829,8 +54829,8 @@ assertions:
       surface: cli
     - &id6580
       path: backend/tests/test_workflow_nl_planner.py
-      line: 508
-      name: test_invalid_flash_lite_bounded_fallback_escalates_to_flash_38
+      line: 509
+      name: test_invalid_flash_38_bounded_fallback_uses_flash_lite_as_last_resort
       surface: cli
     - &id6588
       path: backend/tests/test_workflow_yaml_news_readiness.py
@@ -55269,12 +55269,12 @@ assertions:
       surface: rest_api
     - &id6630
       path: backend/tests/test_workflow_nl_planner.py
-      line: 763
+      line: 765
       name: test_news_ai_recipe_uses_generated_grounded_instruction
       surface: cli
     - &id6631
       path: backend/tests/test_workflow_nl_planner.py
-      line: 773
+      line: 775
       name: test_gemini_cost_usage_includes_reasoning_tokens
       surface: cli
     supporting_tests:
@@ -55671,7 +55671,7 @@ assertions:
       surface: rest_api
     - &id6680
       path: backend/tests/test_workflow_nl_planner.py
-      line: 763
+      line: 765
       name: test_news_ai_recipe_uses_generated_grounded_instruction
       surface: cli
     - &id6681

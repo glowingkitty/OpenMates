@@ -469,14 +469,15 @@ def test_selected_events_edit_with_a_schedule_change_requires_clarification():
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
-def test_jev_outage_uses_flash_lite_for_same_recipe_contract():
+def test_jev_outage_uses_flash_38_for_bounded_fallback():
     gemini = StubGemini()
     service, _ = _input_service(StubJev(unavailable=True), gemini)
     result = service.start(user_id="alice", timezone="Europe/Berlin",
                            text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
     assert result.status == "executed", result.error
-    assert gemini.models.count("gemini-3.5-flash-lite") == 2
-    assert result.authoring_metrics["bounded_fallback"] == "gemini-3.5-flash-lite"
+    assert gemini.models.count("gemini-3.8-flash") == 1
+    assert gemini.models.count("gemini-3.5-flash-lite") == 1
+    assert result.authoring_metrics["bounded_fallback"] == "gemini-3.8-flash"
 
 
 # contract-test: infrastructure
@@ -505,21 +506,22 @@ def test_clear_create_drafts_metadata_while_jev_decides():
 
 
 # contract-test: supporting surface=cli assertions=workflows.actions.skill-contract
-def test_invalid_flash_lite_bounded_fallback_escalates_to_flash_38():
-    class InvalidLiteBoundedGemini(StubGemini):
+def test_invalid_flash_38_bounded_fallback_uses_flash_lite_as_last_resort():
+    class InvalidFlash38BoundedGemini(StubGemini):
         async def __call__(self, model, payload, schema):
-            if model == "gemini-3.5-flash-lite" and "criteria" in payload:
+            if model == "gemini-3.8-flash" and "criteria" in payload:
                 self.models.append(model)
                 return {"route": "unknown"}, {"input_tokens": 100, "output_tokens": 5}
             return await super().__call__(model, payload, schema)
 
-    gemini = InvalidLiteBoundedGemini()
+    gemini = InvalidFlash38BoundedGemini()
     service, _ = _input_service(StubJev(unavailable=True), gemini)
     result = service.start(user_id="alice", timezone="Europe/Berlin",
                            text="Every weekday at 7, check tomorrow's weather in Berlin and send a chat umbrella reminder if it rains")
     assert result.status == "executed", result.error
-    assert "gemini-3.8-flash" in gemini.models
-    assert result.authoring_metrics["bounded_fallback"] == "gemini-3.8-flash"
+    assert gemini.models.count("gemini-3.8-flash") == 1
+    assert gemini.models.count("gemini-3.5-flash-lite") == 2
+    assert result.authoring_metrics["bounded_fallback"] == "gemini-3.5-flash-lite"
 
 
 # contract-test: direct surface=cli assertions=workflows.actions.skill-contract
