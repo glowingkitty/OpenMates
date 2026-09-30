@@ -1261,6 +1261,11 @@ struct SettingsNotificationsView: View {
     @State private var isLoaded = false
     @State private var errorMessage: String?
 
+    init(deepLinkPath: String? = nil) {
+        _destination = State(initialValue: deepLinkPath == "chat" ? .chat
+            : deepLinkPath == "backup" ? .backup : nil)
+    }
+
     var body: some View {
         if let destination {
             VStack(spacing: 0) {

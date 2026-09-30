@@ -28,6 +28,7 @@ async def test_push_worker_initializes_push_service(monkeypatch):
     fake_push_service = SimpleNamespace(
         initialize=AsyncMock(),
         is_ready=Mock(return_value=True),
+        is_apns_ready=Mock(return_value=False),
     )
 
     monkeypatch.setattr(push_worker_service, "SecretsManager", lambda: fake_secrets_manager)
@@ -49,6 +50,7 @@ async def test_push_worker_fails_startup_when_service_is_unavailable(monkeypatch
     fake_push_service = SimpleNamespace(
         initialize=AsyncMock(),
         is_ready=Mock(return_value=False),
+        is_apns_ready=Mock(return_value=False),
     )
 
     monkeypatch.setattr(push_worker_service, "SecretsManager", lambda: fake_secrets_manager)
@@ -57,6 +59,24 @@ async def test_push_worker_fails_startup_when_service_is_unavailable(monkeypatch
     with pytest.raises(RuntimeError, match="Push notification service failed to initialize"):
         await push_worker_service.initialize_push_services({"push"})
 
+    fake_secrets_manager.aclose.assert_awaited_once_with()
+
+
+# contract-test: direct surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+@pytest.mark.asyncio
+async def test_push_worker_accepts_apns_without_vapid(monkeypatch):
+    fake_secrets_manager = AsyncMock()
+    fake_push_service = SimpleNamespace(
+        initialize=AsyncMock(),
+        is_ready=Mock(return_value=False),
+        is_apns_ready=Mock(return_value=True),
+    )
+    monkeypatch.setattr(push_worker_service, "SecretsManager", lambda: fake_secrets_manager)
+    monkeypatch.setattr(push_worker_service, "push_notification_service", fake_push_service)
+
+    await push_worker_service.initialize_push_services({"push"})
+
+    fake_push_service.initialize.assert_awaited_once_with(fake_secrets_manager)
     fake_secrets_manager.aclose.assert_awaited_once_with()
 
 

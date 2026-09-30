@@ -81,6 +81,27 @@ enum ShareLinkCrypto {
         try urlWithFragment(webURL.appendingPathComponent("s/\(token)"), fragment: shortKey)
     }
 
+    static func decryptShortURL(_ encryptedURL: String, token: String, shortKey: String) async throws -> URL {
+        guard token.range(of: "^[A-Za-z0-9]{6,12}$", options: .regularExpression) != nil,
+              shortKey.range(of: "^[A-Za-z0-9]{4,22}$", options: .regularExpression) != nil,
+              encryptedURL.utf8.count <= 131_072,
+              encryptedURL.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else {
+            throw ShareLinkCryptoError.invalidShortURL
+        }
+        var encoded = encryptedURL.replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+        guard let combined = Data(base64Encoded: encoded), combined.count > 28 else {
+            throw ShareLinkCryptoError.invalidShortURL
+        }
+        let key = try await CryptoManager.shared.deriveWrappingKeyFromPassword(
+            password: shortKey, salt: Data("\(shortURLSaltPrefix)\(token)".utf8), iterations: 200_000)
+        let plaintext = try AES.GCM.open(AES.GCM.SealedBox(combined: combined), using: key)
+        guard let text = String(data: plaintext, encoding: .utf8),
+              let url = URL(string: text) else { throw ShareLinkCryptoError.invalidShortURL }
+        return url
+    }
+
     static func urlWithFragment(_ url: URL, fragment: String) throws -> URL {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw ShareLinkCryptoError.urlConstructionFailed
@@ -124,4 +145,5 @@ enum ShareLinkCrypto {
 enum ShareLinkCryptoError: Error {
     case serializationFailed
     case urlConstructionFailed
+    case invalidShortURL
 }

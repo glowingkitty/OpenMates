@@ -4,6 +4,8 @@
 // ALL strings go through AppStrings (i18n) — no hardcoded English.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/settings-ui/specification.yml
+// Assertions: settings-ui.shell.lifecycle-and-routing, settings-ui.navigation.contextual-availability, settings-ui.navigation.parent-return
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
@@ -218,6 +220,69 @@ enum SettingsRouteInventory {
     }
 }
 
+struct SettingsDeepLinkRoute: Equatable {
+    let path: String
+    let topLevel: String
+    let childPath: String
+    var childID: String? { childPath.isEmpty ? nil : childPath }
+
+    init(_ rawPath: String) {
+        var path = rawPath.trimmingCharacters(in: CharacterSet(charactersIn: "/#"))
+        if path == "settings" { path = "" }
+        else if path.hasPrefix("settings/") { path = String(path.dropFirst(9)) }
+        self.path = path
+        let parts = path.split(separator: "/", omittingEmptySubsequences: true)
+        topLevel = parts.first.map(String.init) ?? ""
+        childPath = parts.dropFirst().joined(separator: "/")
+    }
+
+    var requiresAuthentication: Bool {
+        ["settings_memories", "privacy", "projects", "billing", "notifications", "shared",
+         "account", "developers", "server", "logs"].contains(topLevel)
+    }
+    var requiresAdmin: Bool { ["server", "logs"].contains(topLevel) }
+    func canOpen(authenticated: Bool, admin: Bool) -> Bool {
+        (!requiresAuthentication || authenticated) && (!requiresAdmin || admin)
+    }
+
+    // Each child maps to an existing native page/control. Transient receipts
+    // such as payment/confirmation need their originating action state.
+    var hasNativeChild: Bool {
+        if childPath.isEmpty { return true }
+        let children: [String: Set<String>] = [
+            "interface": ["language", "dark_mode"],
+            "account": ["username", "timezone", "email", "interests", "profile-picture", "usage",
+                "storage", "chats", "import", "export", "delete", "security", "security/passkeys",
+                "security/password", "security/2fa", "security/recovery-key", "security/sessions",
+                "security/sessions/pair-initiate"],
+            "billing": ["buy-credits", "auto-topup", "auto-topup/low-balance", "auto-topup/monthly",
+                "invoices", "usage", "referral-code", "gift-cards", "gift-cards/redeem",
+                "gift-cards/redeemed", "gift-cards/buy", "redeem-giftcard"],
+            "privacy": ["connected-accounts", "hide-personal-data", "hide-personal-data/add-name",
+                "hide-personal-data/add-address", "hide-personal-data/add-birthday", "hide-personal-data/add-custom",
+                "auto-deletion/chats", "share-debug-logs"],
+            "notifications": ["chat", "backup"],
+            "developers": ["api-keys", "api-keys/create", "devices", "webhooks"],
+            "server": ["software-update", "stats", "gift-cards", "free-testing-credits", "anonymous-free-usage", "tests"],
+            "support": ["one-time", "monthly"],
+            "shared": ["share", "tip"],
+            "learning-mode": ["setup"],
+            "incognito": ["info"],
+        ]
+        if topLevel == "apps" {
+            let parts = childPath.split(separator: "/")
+            return parts.count == 1 || (parts.count == 3 && ["skills", "focus", "focus-modes", "memories", "settings-memories", "content-types"].contains(String(parts[1])))
+        }
+        if topLevel == "mates" { return !childPath.contains("/") }
+        if topLevel == "ai" { return !childPath.contains("/") }
+        if topLevel == "projects" { return !childPath.contains("/") }
+        if topLevel == "account", childPath.hasPrefix("storage/") {
+            return ["images", "videos", "audio", "pdf", "code", "docs", "sheets", "archives", "other"].contains(String(childPath.dropFirst(8)))
+        }
+        return children[topLevel]?.contains(childPath) == true
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
@@ -229,6 +294,10 @@ struct SettingsView: View {
     var referralCodeRequest: Int
     var shareChatId: String?
     var messageSettingsTarget: AssistantMessageSettingsTarget?
+    var projectID: String?
+    var teamContext: TeamWorkspaceContext?
+    var deepLinkPath: String?
+    var deepLinkRequest: Int
     private let isolatedNavigation: Bool
     @State private var showIncognitoInfo = false
     @StateObject private var incognitoSession: IncognitoSettingsSession
@@ -241,6 +310,8 @@ struct SettingsView: View {
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
+    @State private var activeDeepLinkRoute: SettingsDeepLinkRoute?
+    @State private var activeDeepLinkRevision = 0
 
     init(
         isolatedNavigation: Bool = false,
@@ -248,9 +319,17 @@ struct SettingsView: View {
         referralCodeRequest: Int = 0,
         shareChatId: String? = nil,
         messageSettingsTarget: AssistantMessageSettingsTarget? = nil,
+        projectID: String? = nil,
+        teamContext: TeamWorkspaceContext? = nil,
+        deepLinkPath: String? = nil,
+        deepLinkRequest: Int = 0,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
+        self.projectID = projectID
+        self.teamContext = teamContext
+        self.deepLinkPath = deepLinkPath
+        self.deepLinkRequest = deepLinkRequest
         self.isolatedNavigation = isolatedNavigation
         _incognitoSession = StateObject(wrappedValue: isolatedNavigation ? .isolated() : .shared)
         _guestLearningMode = StateObject(wrappedValue: isolatedNavigation ? LearningModeGuestSession() : .shared)
@@ -289,11 +368,22 @@ struct SettingsView: View {
         ZStack {
             VStack(spacing: 0) {
                 settingsBannerShell
+                    .overlay(alignment: .bottom) {
+                        if isAuthenticated, destination == nil, let teamContext {
+                            TeamWorkspaceContextSelector(context: teamContext, isCollapsed: homeScrollTop > 30)
+                                .padding(.bottom, .spacing3)
+                        }
+                    }
 
                 ZStack {
                     if let destination {
                         settingsDestinationContent(destination)
+                            .id("\(destination.pageAccessibilityIdentifier)|\(activeDeepLinkRoute?.path ?? "")|\(activeDeepLinkRevision)")
                             .transition(.move(edge: navigationDirection == .forward ? .trailing : .leading))
+                    } else if let route = activeDeepLinkRoute, !route.path.isEmpty {
+                        Text(AppStrings.localized("documentation.page_not_found"))
+                            .font(.omP).foregroundStyle(Color.fontSecondary)
+                            .accessibilityIdentifier("settings-deep-link-unavailable")
                     } else {
                         settingsHomeContent
                             .transition(.move(edge: navigationDirection == .forward ? .leading : .trailing))
@@ -331,8 +421,18 @@ struct SettingsView: View {
             case .model: navigateTo(.ai)
             }
         }
+        .onChange(of: projectID) { _, id in
+            guard id != nil else { return }
+            navigateTo(.projects)
+        }
+        .onChange(of: deepLinkPath) { _, _ in applyDeepLink() }
+        .onChange(of: deepLinkRequest) { _, _ in applyDeepLink() }
+        .onChange(of: isAuthenticated) { _, _ in applyDeepLink() }
+        .onChange(of: isAdmin) { _, _ in applyDeepLink() }
         .onAppear {
+            applyDeepLink()
             guard !isolatedNavigation else { return }
+            if deepLinkPath == nil, projectID != nil { navigateTo(.projects) }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
                 IncognitoExplainerSeenState().resetForUITestingOnce()
             }
@@ -340,6 +440,36 @@ struct SettingsView: View {
                 Task { await accountLearningMode.loadAccountStatus() }
             }
         }
+    }
+
+    private func applyDeepLink() {
+        guard let deepLinkPath else { return }
+        let route = SettingsDeepLinkRoute(deepLinkPath)
+        activeDeepLinkRoute = nil
+        guard route.canOpen(authenticated: isAuthenticated || BillingUITestFixture.enabled, admin: isAdmin) else {
+            destination = nil
+            if route.requiresAuthentication && !isAuthenticated {
+                NotificationCenter.default.post(name: .openAuth, object: nil)
+            }
+            return
+        }
+        let destinations: [String: SettingsDestination] = [
+            "pricing": .pricing, "ai": .ai, "settings_memories": .memories, "apps": .apps,
+            "privacy": .privacy, "projects": .projects, "mates": .mates, "billing": .billing,
+            "notifications": .notifications, "shared": .shared, "interface": .interface,
+            "account": .account, "developers": .developers, "newsletter": .newsletter,
+            "support": .support, "report_issue": .reportIssue, "report-issue": .reportIssue,
+            "server": .server, "server-connection": .serverConnection, "logs": .logs,
+            "learning-mode": .learningMode, "legal": .privacyPolicy,
+            "privacy-policy": .privacyPolicy, "terms": .terms, "imprint": .imprint,
+        ]
+        if route.topLevel == "incognito", route.childPath == "info" {
+            showIncognitoInfo = true
+            return
+        }
+        activeDeepLinkRoute = route
+        activeDeepLinkRevision += 1
+        destination = destinations[route.topLevel]
     }
 
     // MARK: - Main settings menu
@@ -469,6 +599,7 @@ struct SettingsView: View {
                 SettingsStandardBanner(destination: destination, scrollTop: destinationScrollTop) {
                     navigationDirection = .back
                     withAnimation(.easeOut(duration: 0.2)) {
+                        activeDeepLinkRoute = nil
                         self.destination = nil
                     }
                 }
@@ -550,6 +681,7 @@ struct SettingsView: View {
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
+        activeDeepLinkRoute = nil
         guard !isolatedNavigation || destination == .learningMode else { return }
         navigationDirection = .forward
         destinationScrollTop = 0
@@ -644,6 +776,7 @@ struct SettingsView: View {
             : destination.pageAccessibilityIdentifier
         destinationContent(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(accessibilityIdentifier)
             .environment(\.omSettingsScrollOffsetHandler, OMSettingsScrollOffsetHandler { offset in
                 destinationScrollTop = offset
@@ -652,6 +785,12 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func destinationContent(for destination: SettingsDestination) -> some View {
+        if let route = activeDeepLinkRoute, !route.hasNativeChild {
+            Text(AppStrings.localized("documentation.page_not_found"))
+                .font(.omP).foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("settings-deep-link-unavailable")
+        } else {
         switch destination {
         case .pricing:
             SettingsPricingView(
@@ -659,7 +798,8 @@ struct SettingsView: View {
                 onOpenAI: { navigateTo(.ai) }
             )
         case .apps:
-            SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
+            SettingsAppsFullView(deepLinkPath: activeDeepLinkRoute?.childPath,
+                onOpenExampleChat: onOpenExampleChat ?? { _ in })
         case .learningMode:
             SettingsLearningModeView(
                 isAuthenticated: isAuthenticated,
@@ -667,16 +807,27 @@ struct SettingsView: View {
                 controller: accountLearningMode
             )
         case .shared:
-            SettingsSharedView(initialChatId: shareChatId)
+            SettingsSharedView(initialChatId: shareChatId, initiallyShowsTip: activeDeepLinkRoute?.childPath == "tip")
         case .mates:
-            SettingsMatesView(initialMateID: activeMateSettingsID)
+            SettingsMatesView(initialMateID: activeDeepLinkRoute?.childID ?? activeMateSettingsID)
         case .ai:
-            SettingsAIFullView(initialModelID: activeModelSettingsID)
+            SettingsAIFullView(initialModelID: activeDeepLinkRoute?.childID ?? activeModelSettingsID)
+        case .projects:
+            SettingsProjectsView(initialProjectID: activeDeepLinkRoute?.childID ?? projectID, teamID: teamContext?.teamID)
+        case .account: SettingsAccountSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .interface: SettingsInterfaceSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .privacy: SettingsPrivacyContentView(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .billing: SettingsBillingView(referralCodeRequest: activeReferralCodeRequest, deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .notifications: SettingsNotificationsView(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .developers: SettingsDeveloperView(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .server: SettingsServerView(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .support: SettingsSupportView(deepLinkPath: activeDeepLinkRoute?.childPath)
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
                 referralCodeRequest: activeReferralCodeRequest
             )
+        }
         }
     }
 
@@ -1119,6 +1270,10 @@ struct SettingsInterfaceSubPage: View {
     @ObservedObject private var locManager = LocalizationManager.shared
     @State private var destination: InterfaceDestination?
 
+    init(deepLinkPath: String? = nil) {
+        _destination = State(initialValue: deepLinkPath == "language" ? .language : nil)
+    }
+
     var body: some View {
         if let dest = destination {
             VStack(spacing: 0) {
@@ -1159,6 +1314,7 @@ struct SettingsInterfaceSubPage: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color.grey0)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
         } else {
             ScrollView {
@@ -1238,6 +1394,21 @@ struct SettingsInterfaceSubPage: View {
 struct SettingsAccountSubPage: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var destination: AccountDestination? = AccountDestination.uiTestInitialDestination
+    private let deepLinkPath: String?
+
+    init(deepLinkPath: String? = nil) {
+        self.deepLinkPath = deepLinkPath
+        let routes: [String: AccountDestination] = [
+            "username": .username, "timezone": .username, "email": .email, "interests": .interests,
+            "profile-picture": .profilePicture, "usage": .usage, "storage": .storage, "chats": .chats,
+            "import": .importChats, "export": .exportData, "delete": .deleteAccount,
+            "security/passkeys": .passkeys, "security/password": .password, "security/2fa": .twoFactor,
+            "security/recovery-key": .recoveryKey, "security/sessions": .sessions,
+            "security/sessions/pair-initiate": .pairDevice,
+        ]
+        _destination = State(initialValue: deepLinkPath?.hasPrefix("storage/") == true
+            ? .storage : (routes[deepLinkPath ?? ""] ?? AccountDestination.uiTestInitialDestination))
+    }
 
     var body: some View {
         if let dest = destination {
@@ -1261,10 +1432,18 @@ struct SettingsAccountSubPage: View {
                     .frame(height: 0)
                     .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
 
+                if dest == .storage {
+                    SettingsStorageFullView(initialCategory: deepLinkPath.flatMap {
+                        $0.hasPrefix("storage/") ? String($0.dropFirst(8)) : nil
+                    })
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
                 dest.view
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
             .background(Color.grey0)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
         } else {
             ScrollView {

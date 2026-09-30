@@ -26,7 +26,7 @@ async def initialize_push_services(worker_queues: set[str]) -> None:
     try:
         await secrets_manager.initialize()
         await push_notification_service.initialize(secrets_manager)
-        if not push_notification_service.is_ready():
+        if not (push_notification_service.is_ready() or push_notification_service.is_apns_ready()):
             raise RuntimeError("Push notification service failed to initialize")
         logger.info("Push notification service initialized for worker process")
     finally:

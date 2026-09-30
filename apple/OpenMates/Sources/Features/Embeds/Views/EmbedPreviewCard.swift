@@ -11,6 +11,33 @@
 
 import SwiftUI
 
+private struct EmbedChatIDKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
+private struct EmbedPIIMappingsKey: EnvironmentKey {
+    static let defaultValue: [PIIMapping] = []
+}
+
+private struct EmbedPIIRevealedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var embedChatID: String? {
+        get { self[EmbedChatIDKey.self] }
+        set { self[EmbedChatIDKey.self] = newValue }
+    }
+    var embedPIIMappings: [PIIMapping] {
+        get { self[EmbedPIIMappingsKey.self] }
+        set { self[EmbedPIIMappingsKey.self] = newValue }
+    }
+    var embedPIIRevealed: Bool {
+        get { self[EmbedPIIRevealedKey.self] }
+        set { self[EmbedPIIRevealedKey.self] = newValue }
+    }
+}
+
 // SearchResultsTemplate stretches compact cards within a result cell, capped at
 // 320pt. Ordinary inline previews remain 300pt even on a phone.
 private struct EmbedPreviewFillsGridCellKey: EnvironmentKey {
@@ -27,6 +54,67 @@ extension EnvironmentValues {
 enum EmbedPreviewCardVariant {
     case compact
     case large
+}
+
+/// The web registry's preview/fullscreen components pass explicit
+/// `skillIconName` values to BasicInfosBar and EmbedHeader. Resolve by the
+/// canonical embed key so result cards do not inherit an unrelated app icon.
+enum EmbedVisualSkillIcon {
+    static func name(for embed: EmbedRecord, fullscreen: Bool = false) -> String {
+        switch embed.type {
+        case "recording": return "microphone"
+        case "app:audio:generate", "app:audio:speak": return "audio"
+        case "app:business:company_financials", "business-company-financial-result": return "business"
+        case "app:calendar:list-calendars", "app:calendar:get-events", "app:calendar:create-event",
+             "app:calendar:update-event", "app:calendar:delete-event",
+             "app:code:search_repos", "app:design:search_icons",
+             "app:electronics:search_components", "electronics-component",
+             "app:events:search", "app:fitness:search_locations", "app:fitness:search_classes",
+             "app:home:search", "app:images:search", "app:maps:search",
+             "app:models3d:search", "app:news:search", "app:nutrition:search_recipes",
+             "nutrition-recipe", "app:shopping:search_products", "shopping-product",
+             "app:social_media:get-posts", "app:social_media:search", "app:tasks:search",
+             "app:travel:search_connections", "app:travel:search_stays", "travel-stay",
+             "app:videos:search", "app:web:search", "app:workflows:search": return "search"
+        case "code-repo": return "github"
+        case "app:code:get_docs", "docs-doc": return "docs"
+        case "code-code", "code-notebook", "code-application": return "coding"
+        case "design-icon-result": return fullscreen ? "design" : "search"
+        case "electronics-pcb-schematic": return "pcbdesign"
+        case "events-event": return "event"
+        case "file-file": return "files"
+        case "app:finance:check_accounts": return "finance"
+        case "fitness-location", "fitness-class": return "fitness"
+        case "app:health:search_appointments": return fullscreen ? "health" : "search"
+        case "health-appointment": return "health"
+        case "home-listing": return fullscreen ? "home" : "search"
+        case "app:images:generate", "app:images:generate_draft", "app:music:generate": return "ai"
+        case "image", "images-image-result": return "image"
+        case "app:mail:search", "mail-email": return "mail"
+        case "maps", "maps-place": return "pin"
+        case "app:math:calculate", "math-plot": return "math"
+        case "mindmaps-mindmap": return "workflow"
+        case "app:models3d:generate", "models3d-model-result": return "3dmodels"
+        case "web-website": return "website"
+        case "pdf": return "pdf"
+        case "app:reminder:set-reminder", "app:reminder:list-reminders", "app:reminder:cancel-reminder": return "reminder"
+        case "social-media-post": return "socialmedia"
+        case "app:tasks:create", "tasks-task": return "task"
+        case "travel-connection": return fullscreen ? "travel" : "search"
+        case "app:travel:price_calendar": return "calendar"
+        case "app:travel:get_flight": return "travel"
+        case "videos-video": return "video"
+        case "app:videos:get_transcript": return "transcript"
+        case "app:videos:create", "app:videos:generate": return "videos"
+        case "weather-day", "app:weather:forecast", "app:weather:rain_radar": return "weather"
+        case "app:web:read": return "text"
+        case "app:workflows:create-or-modify", "workflows-workflow": return "workflow"
+        case "sheets-sheet": return "table"
+        case "focus-mode-activation": return "focus"
+        default:
+            return AppIconView.iconName(forAppId: embed.appId ?? EmbedType.normalized(rawValue: embed.type)?.appId ?? "web")
+        }
+    }
 }
 
 struct EmbedPreviewCard: View {
@@ -57,12 +145,16 @@ struct EmbedPreviewCard: View {
     let variant: EmbedPreviewCardVariant
     let onTap: () -> Void
     @Environment(\.embedPreviewFillsGridCell) private var fillsGridCell
+    @Environment(\.embedChatID) private var embedChatID
+    @Environment(\.embedPIIMappings) private var embedPIIMappings
+    @Environment(\.embedPIIRevealed) private var embedPIIRevealed
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
     @State private var processingStartDate: Date?
     @State private var statusHintPhase: StatusHintPhase = .settled
     @State private var statusHintTask: Task<Void, Never>?
+    @StateObject private var generatedAudioPreviewController = GeneratedAudioPreviewController()
 
     init(
         embed: EmbedRecord,
@@ -82,9 +174,11 @@ struct EmbedPreviewCard: View {
 
     var body: some View {
         Group {
-            if embedType == .recording {
+            if embedType == .recording || embedType == .audioGenerate || embedType == .audioSpeak {
                 ZStack(alignment: .top) {
                     cardSurface
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("embed-preview-card")
                         .contentShape(Rectangle())
                         .onTapGesture {
                             if embed.status != .processing { onTap() }
@@ -116,6 +210,7 @@ struct EmbedPreviewCard: View {
                     type: embedType?.displayName ?? embed.type,
                     title: statusTitle
                 )
+                .accessibilityElement(children: embedType == .webSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web") ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
         }
@@ -134,6 +229,7 @@ struct EmbedPreviewCard: View {
 
     private var cardSurface: some View {
         previewLayout
+            .environment(\.generatedAudioPreviewController, generatedAudioPreviewController)
             .frame(width: cardWidth, height: cardHeight)
             .background(Color.grey25)
             .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
@@ -290,9 +386,13 @@ struct EmbedPreviewCard: View {
                     embed: embed,
                     mode: .preview,
                     allEmbedRecords: allEmbedRecords,
+                    chatId: embedChatID,
+                    hasPIIMappings: !embedPIIMappings.isEmpty,
+                    piiMappings: embedPIIMappings,
+                    isPIIRevealed: embedPIIRevealed,
                     previewVariant: variant
                 )
-                .padding(.horizontal, appId == "web" ? 20 : .spacing20)
+                .padding(.horizontal, .spacing10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else if embed.status == .processing {
                 processingView
@@ -305,13 +405,17 @@ struct EmbedPreviewCard: View {
                     embed: embed,
                     mode: .preview,
                     allEmbedRecords: allEmbedRecords,
+                    chatId: embedChatID,
+                    hasPIIMappings: !embedPIIMappings.isEmpty,
+                    piiMappings: embedPIIMappings,
+                    isPIIRevealed: embedPIIRevealed,
                     previewVariant: variant
                 )
                     .padding(
                         .horizontal,
                         hasFullWidthDetails || embedType == .recording
                             ? 0
-                            : appId == "web" ? 20 : .spacing20
+                            : .spacing10
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -359,7 +463,34 @@ struct EmbedPreviewCard: View {
             title: statusTitle,
             subtitle: statusSubtitle,
             faviconURL: faviconURL,
-            showSkillIcon: showsSkillIcon
+            faviconIsCircular: embedType == .codeRepo || embedType == .videosVideo,
+            showSkillIcon: showsSkillIcon,
+            trailingAction: processingOrAudioTrailingAction
+        )
+    }
+
+    private var isGeneratedAudioSkill: Bool {
+        embedType == .audioGenerate || embedType == .audioSpeak
+    }
+
+    private var processingOrAudioTrailingAction: AnyView? {
+        if embed.status == .processing {
+            return AnyView(
+                Icon("stop_processing", size: 35)
+                    .foregroundStyle(Color.red)
+                    .frame(width: 40, height: 40)
+                    .accessibilityLabel(AppStrings.stop)
+            )
+        }
+        guard embed.status == .finished,
+              isGeneratedAudioSkill,
+              GeneratedAudioPreviewPlayButton.hasPlayableMedia(data: embed.rawData) else { return nil }
+        return AnyView(
+            GeneratedAudioPreviewPlayButton(
+                controller: generatedAudioPreviewController,
+                data: embed.rawData,
+                skillId: embedType == .audioSpeak ? "speak" : "generate"
+            )
         )
     }
 
@@ -368,35 +499,29 @@ struct EmbedPreviewCard: View {
     }
 
     private var skillIconName: String {
-        switch embed.skillId ?? embedType?.displayName.lowercased() {
-        case "search", "search_products", "search_connections", "search_stays", "search_appointments", "search_recipes":
-            return "search"
-        case "read":
-            return "visible"
-        case "view" where appId == "images":
-            return "visible"
-        case "get_docs":
-            return "docs"
-        case "get_transcript":
-            return "videos"
-        case "generate", "generate_draft", "image_result":
-            return "image"
-        case "calculate":
-            return "math"
-        case "set-reminder":
-            return "reminder"
-        default:
-            return AppIconView.iconName(forAppId: appId)
-        }
+        EmbedVisualSkillIcon.name(for: embed)
     }
 
     private var showsSkillIcon: Bool {
-        if embedType == .codeCode
+        if embedType == .webSearch
+            || embedType == .videosSearch
+            || embedType == .image
+            || embedType == .codeRepo
+            || embedType == .codeCode
+            || embedType == .docsDoc
+            || embedType == .fileFile
             || embedType == .webWebsite
             || embedType == .videosVideo
             || embedType == .imagesImageResult
             || embedType == .eventsEvent
-            || embedType == .travelConnection {
+            || embedType == .healthAppointment
+            || embedType == .travelConnection
+            || embedType == .codeApplication
+            || embedType == .designIconResult
+            || embedType == .electronicsPcbSchematic
+            || embedType == .mindmapsMindmap
+            || embedType == .sheetsSheet
+            || embedType == .pdf {
             return false
         }
         return true
@@ -407,13 +532,68 @@ struct EmbedPreviewCard: View {
             return websiteUsesFullWidthImage
         }
         return embedType == .codeCode
+            || embedType == .docsDoc
             || embedType == .image
             || embedType == .imagesImageResult
             || embedType == .imagesSearch
+            || embedType == .videosVideo
             || (embed.isAppSkillUse && appId == "images")
     }
 
     private var statusTitle: String {
+        switch embedType {
+        case .audioGenerate, .audioSpeak: return "Generate SFX"
+        case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent,
+             .calendarUpdateEvent, .calendarDeleteEvent: return AppStrings.search
+        case .imagesGenerate, .imagesGenerateDraft, .videosGenerate, .musicGenerate: return "Generate"
+        case .financeCheckAccounts: return AppStrings.financeCheckAccounts
+        case .mathCalculate: return "Calculate"
+        case .reminderSet, .reminderList, .reminderCancel: return AppStrings.setReminder
+        case .weatherForecast: return "Get forecast"
+        case .travelFlight: return "Flight Track"
+        default: break
+        }
+        if embedType == .docsDoc {
+            return firstString(in: embed.rawData ?? [:], keys: ["filename", "title"])
+                ?? EmbedType.docsDoc.displayName
+        }
+        if embedType == .sheetsSheet {
+            return ParsedSheetTable(data: embed.rawData)
+                .applyingPII(mappings: embedPIIMappings, revealed: embedPIIRevealed).title ?? AppStrings.localized("embeds.table")
+        }
+        if embedType == .image {
+            return firstString(in: embed.rawData ?? [:], keys: ["filename"])
+                ?? embedType?.displayName ?? embed.type
+        }
+        if embedType == .codeNotebook {
+            return firstString(in: embed.rawData ?? [:], keys: ["filename"]) ?? "notebook.ipynb"
+        }
+        if embedType == .codeApplication {
+            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? "Application"
+        }
+        if embedType == .designIconResult {
+            return firstString(in: embed.rawData ?? [:], keys: ["display_name", "name", "icon_id"]) ?? "Icon"
+        }
+        if embedType == .socialMediaPost {
+            return firstString(in: embed.rawData ?? [:], keys: ["author_display_name", "author"])
+                ?? EmbedType.socialMediaPost.displayName
+        }
+        if embedType == .electronicsPcbSchematic { return "Code snippet" }
+        if embedType == .pdf {
+            return firstString(in: embed.rawData ?? [:], keys: ["filename"]) ?? "PDF"
+        }
+        if embedType == .codeRepo {
+            let raw = embed.rawData ?? [:]
+            let fullName = firstString(in: raw, keys: ["name", "full_name"]) ?? ""
+            return fullName.split(separator: "/").last.map(String.init) ?? EmbedType.codeRepo.displayName
+        }
+        if embedType == .videosVideo {
+            let rawTitle = firstString(in: embed.rawData ?? [:], keys: ["title"]) ?? AppStrings.transcriptYouTubeVideo
+            return rawTitle.count > 30 ? String(rawTitle.prefix(29)) + "…" : rawTitle
+        }
+        if embedType == .diagramsMermaid {
+            return Self.mermaidStatusTitle(in: embed.rawData ?? [:])
+        }
         if embedType == .webWebsite {
             return firstString(in: embed.rawData ?? [:], keys: ["title", "site_name"])
                 ?? host(from: firstString(in: embed.rawData ?? [:], keys: ["url"]))
@@ -421,6 +601,10 @@ struct EmbedPreviewCard: View {
         }
         if embedType == .imagesImageResult {
             return sourceDomain ?? embedType?.displayName ?? embed.type
+        }
+        if embedType == .healthAppointment {
+            return firstString(in: embed.rawData ?? [:], keys: ["name", "doctor_name", "speciality"])
+                ?? AppStrings.domainHealthAppointment
         }
         if embedType == .eventsEvent {
             return firstString(in: embed.rawData ?? [:], keys: ["title", "name"])
@@ -432,7 +616,11 @@ struct EmbedPreviewCard: View {
             let origin = firstString(in: raw, keys: ["origin_code", "departure_airport_code", "from_code", "origin"])
             let destination = firstString(in: raw, keys: ["destination_code", "arrival_airport_code", "to_code", "destination"])
             if let origin, let destination {
-                return "\(origin) → \(destination)"
+                // TravelConnectionEmbedPreview.svelte uses extractCode() in
+                // BasicInfosBar, keeping long city names in the details area.
+                let originCode = TravelValue.iataCode(from: origin) ?? String(origin.split(separator: " ").first ?? "")
+                let destinationCode = TravelValue.iataCode(from: destination) ?? String(destination.split(separator: " ").first ?? "")
+                return "\(originCode) → \(destinationCode)"
             }
             return firstString(in: raw, keys: ["title", "route"])
                 ?? embedType?.displayName
@@ -453,6 +641,16 @@ struct EmbedPreviewCard: View {
         return embedType?.displayName ?? embed.type
     }
 
+    static func mermaidStatusTitle(in raw: [String: AnyCodable]) -> String {
+        let title = (raw["title"]?.value as? String ?? "")
+            .unicodeScalars
+            .filter { !CharacterSet.controlCharacters.contains($0) }
+            .map(String.init)
+            .joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Mermaid Diagram" : title
+    }
+
     private var statusSubtitle: String? {
         if statusHintPhase == .storedEncrypted {
             return AppStrings.embedStoredEncrypted
@@ -464,8 +662,89 @@ struct EmbedPreviewCard: View {
             return AppStrings.embedTapToShowDetails
             #endif
         }
+        if embed.status == .processing {
+            if isGeneratedAudioSkill { return nil }
+            if embedType == .videosGenerate { return "Veo" }
+            if embedType == .electronicsPcbSchematic { return "Atopile" }
+            return AppStrings.localized("common.processing")
+        }
+        switch embedType {
+        case .financeCheckAccounts:
+            let accounts = embed.rawData?["account_count"]?.value as? Int ?? 0
+            let transactions = embed.rawData?["transaction_count"]?.value as? Int ?? 0
+            return "\(accounts) accounts · \(transactions) transactions"
+        case .reminderSet, .reminderList, .reminderCancel:
+            return embed.rawData?["trigger_at_formatted"]?.value as? String
+        case .weatherForecast:
+            if let provider = embed.rawData?["provider"]?.value as? String {
+                return "\(AppStrings.via) \(provider)"
+            }
+            return nil
+        case .musicGenerate:
+            return "Lyria 3 Clip · 0:30"
+        case .audioGenerate, .audioSpeak:
+            return "ElevenLabs"
+        case .videosGenerate:
+            return "Veo"
+        default: break
+        }
         if embed.isAppSkillUse {
             return nil
+        }
+        if embedType == .docsDoc {
+            let count = embed.rawData?["word_count"]?.value as? Int ?? 0
+            return count > 0 ? "\(count) words" : nil
+        }
+        if embedType == .sheetsSheet {
+            let table = ParsedSheetTable(data: embed.rawData)
+            return table.displayRowCount == 0 && table.displayColCount == 0 ? nil : table.dimensionsText
+        }
+        if embedType == .pdf {
+            let count = embed.rawData?["page_count"]?.value as? Int ?? 0
+            return count > 0 ? "\(count) \(count == 1 ? "page" : "pages")" : nil
+        }
+        if embedType == .image,
+           let filename = firstString(in: embed.rawData ?? [:], keys: ["filename"]),
+           let ext = filename.split(separator: ".").last,
+           filename.contains(".") {
+            return ext.uppercased()
+        }
+        if embedType == .codeNotebook {
+            let notebook = embed.rawData?["notebook"]?.value as? [String: Any]
+            let count = (notebook?["cells"] as? [Any])?.count ?? 0
+            return "\(count) cells, Notebook"
+        }
+        if embedType == .codeApplication {
+            let raw = embed.rawData ?? [:]
+            let framework = firstString(in: raw, keys: ["framework"])
+            let runtime = firstString(in: raw, keys: ["runtime"])
+            let count = (raw["file_refs"]?.value as? [Any])?.count ?? 0
+            return [framework, runtime, count > 0 ? "\(count) files" : nil]
+                .compactMap { $0 }.joined(separator: " · ")
+        }
+        if embedType == .codeRepo {
+            let raw = embed.rawData ?? [:]
+            let language = firstString(in: raw, keys: ["primary_language"])
+            let license = firstString(in: raw, keys: ["license_spdx_id", "license_name"])
+            let metadata = [language, license].compactMap { $0 }.joined(separator: " · ")
+            return metadata.isEmpty ? EmbedType.codeRepo.displayName : metadata
+        }
+        if embedType == .videosVideo {
+            let raw = embed.rawData ?? [:]
+            var parts: [String] = []
+            if let formatted = firstString(in: raw, keys: ["duration_formatted", "duration"]) {
+                parts.append(formatted)
+            } else if let seconds = raw["duration_seconds"]?.value as? Int {
+                parts.append(String(format: "%d:%02d", seconds / 60, seconds % 60))
+            }
+            if let published = firstString(in: raw, keys: ["published_at", "publishedAt"]),
+               let date = ISO8601DateFormatter().date(from: published) {
+                let formatter = DateFormatter()
+                formatter.locale = Locale(identifier: "en_US")
+                formatter.dateFormat = "MMM d, yyyy"
+                parts.append(formatter.string(from: date))
+            }
+            return parts.isEmpty ? nil : parts.joined(separator: ", ")
         }
         if embedType == .codeCode {
             let data = embed.rawData ?? [:]
@@ -490,6 +769,15 @@ struct EmbedPreviewCard: View {
 
     private var faviconURL: String? {
         let raw = embed.rawData ?? [:]
+        if embedType == .imagesImageResult { return nil }
+        if embedType == .codeRepo {
+            return firstString(in: raw, keys: ["owner_avatar_url"])
+                .flatMap { EmbedFieldReader.proxiedImageURL($0, maxWidth: 64) }
+        }
+        if embedType == .videosVideo {
+            return firstString(in: raw, keys: ["channel_thumbnail", "channel_thumbnail_url"])
+                .flatMap { EmbedFieldReader.proxiedImageURL($0, maxWidth: 64) }
+        }
         return EmbedFieldReader.proxiedFaviconImageURL(
             directURL: firstString(in: raw, keys: ["favicon_url", "favicon", "meta_url_favicon", "meta_url.favicon"]),
             pageURL: firstString(in: raw, keys: ["source_page_url", "url"])
@@ -524,9 +812,13 @@ struct EmbedPreviewCard: View {
         case ("travel", "search_connections"):
             return "Search connections"
         case ("code", "get_docs"):
-            return LocalizationManager.shared.text("common.docs")
+            return AppStrings.localized("app_skills.code.get_docs")
         default:
-            return EmbedType(rawValue: embed.type)?.displayName ?? skillId.replacingOccurrences(of: "_", with: " ")
+            let key = "app_skills.\(appId).\(skillId.replacingOccurrences(of: "-", with: "_"))"
+            let localized = AppStrings.localized(key)
+            return localized.hasPrefix("[T:")
+                ? (EmbedType(rawValue: embed.type)?.displayName ?? skillId.replacingOccurrences(of: "_", with: " "))
+                : localized
         }
     }
 

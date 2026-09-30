@@ -5,12 +5,50 @@
 // Guards message-scoped parsing from moving back into SwiftUI body evaluation.
 
 import CryptoKit
+import MapKit
 import SwiftData
 import XCTest
 @testable import OpenMates
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsMapCameraFitsBerlinMarkersAtCityScaleAndRetainsSingleLocationScale() throws {
+        let berlin = [CLLocationCoordinate2D(latitude: 52.5219, longitude: 13.4132),
+                      CLLocationCoordinate2D(latitude: 52.5163, longitude: 13.3777),
+                      CLLocationCoordinate2D(latitude: 52.5207, longitude: 13.4010)]
+        let rect = try XCTUnwrap(AppleResultsMapCamera.fittedRect(coordinates: berlin))
+        berlin.forEach { XCTAssertTrue(rect.contains(MKMapPoint($0)), "Every result must fit the initial camera") }
+        let region = MKCoordinateRegion(rect)
+        XCTAssertLessThan(region.span.longitudeDelta, 0.1, "Berlin events need city scale, never world zoom")
+        XCTAssertEqual(region.center.latitude, 52.5191, accuracy: 0.003)
+        XCTAssertEqual(region.center.longitude, 13.39545, accuracy: 0.001)
+
+        let single = try XCTUnwrap(AppleResultsMapCamera.fittedRect(coordinates: [berlin[0], berlin[0]]))
+        let meters = single.size.width / MKMapPointsPerMeterAtLatitude(berlin[0].latitude)
+        XCTAssertEqual(meters, 1_200, accuracy: 1, "Shared venues must receive a useful nonzero neighborhood camera")
+        XCTAssertNil(AppleResultsMapCamera.fittedRect(coordinates: []))
+        XCTAssertNil(AppleResultsMapCamera.fittedRect(coordinates: [.init(latitude: 100, longitude: 200)]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsMapCameraFitsRoutesAcrossDateLineAndZoomsAboutCurrentCenter() throws {
+        let rect = try XCTUnwrap(AppleResultsMapCamera.fittedRect(coordinates: [
+            .init(latitude: 10, longitude: 179.5), .init(latitude: 10, longitude: -179.5),
+        ]))
+        XCTAssertLessThan(rect.size.width, MKMapRect.world.size.width / 100,
+                          "A route crossing the date line must use the short longitude interval")
+        let region = MKCoordinateRegion(center: .init(latitude: 52.52, longitude: 13.405),
+                                        span: .init(latitudeDelta: 0.02, longitudeDelta: 0.04))
+        let closer = AppleResultsMapCamera.zoomed(region, factor: 0.5)
+        XCTAssertEqual(closer.center.latitude, region.center.latitude)
+        XCTAssertEqual(closer.center.longitude, region.center.longitude)
+        XCTAssertEqual(closer.span.longitudeDelta, 0.02, accuracy: 0.00001)
+        let restored = AppleResultsMapCamera.zoomed(closer, factor: 2)
+        XCTAssertEqual(restored.span.latitudeDelta, region.span.latitudeDelta, accuracy: 0.00001)
+        XCTAssertEqual(restored.span.longitudeDelta, region.span.longitudeDelta, accuracy: 0.00001)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.surface.semantic-parity
     func testTranscriptDisplayProjectionRestoresSharedEmbedsOnceAndKeepsUserMappingPrecedence() {
         let placeholder = "[PERSON_NAME_1]"
@@ -311,7 +349,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
-    func testResultsViewProtocolBuildsEmbedGroupWithoutExposingMetadata() throws {
+    func testResultsViewProtocolPreservesDescriptorWithoutExposingMetadata() throws {
         let message = Message(
             id: "message-results-view",
             chatId: "chat-synthetic",
@@ -338,12 +376,135 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
 
         let document = try XCTUnwrap(message.renderDocumentForDisplay)
 
-        XCTAssertEqual(document.blocks.map(\.kind), [.embedGroup])
-        XCTAssertEqual(
-            document.blocks[0].embedReferences.map(\.id),
-            ["result-one", "result-two", "source-one"]
-        )
+        XCTAssertEqual(document.blocks.map(\.kind), [.resultsView])
+        XCTAssertEqual(document.blocks[0].resultsView?.title, "Mapped results")
+        XCTAssertEqual(document.blocks[0].resultsView?.embedRefs, ["result-one", "result-two"])
+        XCTAssertEqual(document.blocks[0].resultsView?.sourceRefs, ["source-one", "result-two"])
+        XCTAssertEqual(document.blocks[0].resultsView?.highlightRefs, ["source-one"])
+        XCTAssertTrue(document.blocks[0].embedReferences.isEmpty)
         XCTAssertFalse(document.blocks.contains { $0.kind == .codeBlock })
+
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self, from: JSONEncoder().encode(document))
+        XCTAssertEqual(restored.blocks[0].resultsView, document.blocks[0].resultsView)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsViewEligibilityHidesInvalidRecordsAndRetainsDateOnlyCalendarEntry() {
+        let descriptor = AppleResultsViewDescriptor.parse("""
+            title: Synthetic results
+            embeds: missing, invalid, date-only, mapped, mapped
+            highlight: mapped
+            """)
+        let invalid = EmbedRecord(id: "invalid", type: "events-event", status: .finished,
+                                  data: .raw(["date": AnyCodable("2026-02-30"),
+                                              "latitude": AnyCodable(100), "longitude": AnyCodable(200)]),
+                                  parentEmbedId: nil, appId: "events", skillId: nil,
+                                  embedIds: nil, createdAt: nil)
+        let dated = EmbedRecord(id: "date-only", type: "events-event", status: .finished,
+                                data: .raw(["title": AnyCodable("Date-only event"),
+                                            "date": AnyCodable("2026-09-20")]),
+                                parentEmbedId: nil, appId: "events", skillId: nil,
+                                embedIds: nil, createdAt: nil)
+        let mapped = EmbedRecord(id: "mapped", type: "maps-place", status: .finished,
+                                 data: .raw(["title": AnyCodable("Mapped place"),
+                                             "latitude": AnyCodable(52.52), "longitude": AnyCodable(13.405)]),
+                                 parentEmbedId: nil, appId: "maps", skillId: nil,
+                                 embedIds: nil, createdAt: nil)
+        let entries = AppleResultsViewEntry.resolve(descriptor, lookup: [:],
+                                                    records: [invalid.id: invalid, dated.id: dated, mapped.id: mapped])
+        XCTAssertEqual(entries.map(\.id), ["date-only", "mapped"])
+        XCTAssertNotNil(entries[0].date)
+        XCTAssertNil(entries[0].coordinate)
+        XCTAssertNotNil(entries[1].coordinate)
+        XCTAssertFalse(entries[0].matches(category: nil, ranges: ["price": 0...20], options: [:]),
+                       "An active facet excludes entries that do not expose that facet")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsViewAcceptsNestedCoordinatesFlatAndStructuredRoutesAndExcludesOnlineMap() {
+        func record(_ id: String, _ fields: [String: AnyCodable]) -> EmbedRecord {
+            EmbedRecord(id: id, type: "maps-place", status: .finished, data: .raw(fields),
+                        parentEmbedId: nil, appId: "maps", skillId: nil,
+                        embedIds: nil, createdAt: nil)
+        }
+        let nested = record("nested", ["venue": AnyCodable(["lat": 52.52, "lng": 13.405] as [String: Any])])
+        let gps = record("gps", ["gps_coordinates_latitude": AnyCodable(52.4),
+                                 "gps_coordinates_longitude": AnyCodable(13.1)])
+        let flat = record("flat", ["legs_0_segments_0_departure_latitude": AnyCodable(52.52),
+                                   "legs_0_segments_0_departure_longitude": AnyCodable(13.4),
+                                   "legs_0_segments_0_arrival_latitude": AnyCodable(25.27),
+                                   "legs_0_segments_0_arrival_longitude": AnyCodable(51.6)])
+        let structured = record("structured", ["legs": AnyCodable([
+            ["segments": [["departure_latitude": 52.52, "departure_longitude": 13.4,
+                            "arrival_latitude": 13.68, "arrival_longitude": 100.74]]]
+        ] as [[String: Any]])])
+        let online = record("online", ["event_type": AnyCodable("online"),
+                                       "venue_lat": AnyCodable(52.52), "venue_lon": AnyCodable(13.4),
+                                       "date": AnyCodable("2026-09-20")])
+        let records = [nested, gps, flat, structured, online]
+        let descriptor = AppleResultsViewDescriptor.parse(
+            "embeds: " + records.map(\.id).joined(separator: ", ")
+        )
+        let entries = AppleResultsViewEntry.resolve(descriptor, lookup: [:],
+                                                    records: Dictionary(uniqueKeysWithValues: records.map { ($0.id, $0) }))
+        XCTAssertEqual(entries.map(\.id), records.map(\.id))
+        XCTAssertEqual(entries[0].coordinate?.latitude, 52.52)
+        XCTAssertEqual(entries[1].coordinate?.longitude, 13.1)
+        XCTAssertEqual(entries[2].route.count, 2)
+        XCTAssertEqual(entries[3].route.count, 2)
+        XCTAssertNil(entries[4].coordinate)
+        XCTAssertNotNil(entries[4].date)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsViewSourceExpansionCapsAtFortyUniqueRefs() {
+        let ids = (0..<45).map { "child-\($0)" }
+        let source = EmbedRecord(id: "source", type: "app_skill_use", status: .finished,
+                                 data: .raw([:]), parentEmbedId: nil, appId: "maps", skillId: "search",
+                                 embedIds: ids.joined(separator: "|"), createdAt: nil)
+        let children = ids.map { id in
+            EmbedRecord(id: id, type: "maps-place", status: .finished,
+                        data: .raw(["latitude": AnyCodable(52.52), "longitude": AnyCodable(13.405)]),
+                        parentEmbedId: source.id, appId: "maps", skillId: nil,
+                        embedIds: nil, createdAt: nil)
+        }
+        let descriptor = AppleResultsViewDescriptor.parse("sources: source\nembeds: child-0")
+        let records = Dictionary(uniqueKeysWithValues: ([source] + children).map { ($0.id, $0) })
+        let entries = AppleResultsViewEntry.resolve(descriptor, lookup: [:], records: records)
+        XCTAssertEqual(entries.count, 40)
+        XCTAssertEqual(entries.first?.id, "child-0")
+        XCTAssertEqual(entries.last?.id, "child-39")
+
+        let rawSource = EmbedRecord(id: "raw-source", type: "app_skill_use", status: .finished,
+                                    data: .raw(["child_embed_ids": AnyCodable(["child-3", "child-4"])]),
+                                    parentEmbedId: nil, appId: "maps", skillId: "search",
+                                    embedIds: nil, createdAt: nil)
+        let rawRecords = Dictionary(uniqueKeysWithValues: ([rawSource] + children).map { ($0.id, $0) })
+        let rawEntries = AppleResultsViewEntry.resolve(
+            AppleResultsViewDescriptor.parse("sources: raw-source"), lookup: [:], records: rawRecords
+        )
+        XCTAssertEqual(rawEntries.map(\.id), ["child-3", "child-4"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testLegacyResultsViewDocumentIsRebuiltOnMessageRestore() throws {
+        let content = "```embeds_results_view\ntitle: Upgraded\nembeds: mapped\n```"
+        let fresh = Message(id: "legacy-results", chatId: "chat-synthetic", role: .assistant,
+                            content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+                            updatedAt: nil, appId: "maps", isStreaming: false, embedRefs: nil)
+        let identity = try XCTUnwrap(fresh.renderDocumentForDisplay?.identity)
+        let lossyBlock = ChatHistoryRenderBlock(messageId: fresh.id, index: 0,
+            markdownBlock: .embedGroup([MarkdownEmbedReference(value: "mapped", isRef: false, isLargePreview: false)]),
+            embedRefsById: [:])
+        let legacy = ChatHistoryRenderDocument(version: 1, messageId: fresh.id,
+                                               identity: identity, blocks: [lossyBlock])
+        let restored = Message(id: fresh.id, chatId: fresh.chatId, role: fresh.role,
+                               content: content, encryptedContent: nil, createdAt: fresh.createdAt,
+                               updatedAt: nil, appId: "maps", isStreaming: false,
+                               embedRefs: nil, renderDocument: legacy)
+        XCTAssertEqual(restored.renderDocumentForDisplay?.version, ChatHistoryRenderDocument.schemaVersion)
+        XCTAssertEqual(restored.renderDocumentForDisplay?.blocks.map(\.kind), [.resultsView])
+        XCTAssertEqual(restored.renderDocumentForDisplay?.blocks.first?.resultsView?.title, "Upgraded")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

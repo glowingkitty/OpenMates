@@ -11,7 +11,8 @@ enum DevHistoryWelcomeData {
         Chat(id: id, title: title, lastMessageAt: "2026-09-12T12:00:00Z",
              createdAt: "2026-09-12T10:00:00Z", updatedAt: "2026-09-12T12:00:00Z",
              isArchived: archived, isPinned: pinned, appId: nil,
-             category: title == nil ? nil : "technology", encryptedTitle: nil,
+             category: title == nil ? nil : "technology",
+             chatSummary: title == nil ? nil : "A synthetic summary of the research and its next steps.", encryptedTitle: nil,
              encryptedChatKey: nil, messagesV: messages, titleV: title == nil ? 0 : 1,
              draftV: draft, parentId: parent, isHiddenCandidate: hidden, hasNonEmptyDraft: draft > 0)
     }

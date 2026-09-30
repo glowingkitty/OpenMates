@@ -22,6 +22,8 @@ struct RemotionVideoCreateRenderer: View {
 
     @State private var selectedView: RemotionVideoCreateViewMode = .video
     @State private var actionError: String?
+    @State private var videoPlayer: AVPlayer?
+    @State private var currentTime: Double = 0
 
     private let model: RemotionVideoCreateModel
 
@@ -54,12 +56,13 @@ struct RemotionVideoCreateRenderer: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if model.isFinished, model.hasThumbnail {
+            if model.isFinished, model.hasThumbnail || model.publicVideoURL != nil {
                 ZStack {
-                    thumbnailView
-                    Icon("play", size: 34)
-                        .foregroundStyle(.white.opacity(0.92))
-                        .shadow(color: .black.opacity(0.35), radius: 4, x: 0, y: 2)
+                    if model.hasThumbnail {
+                        thumbnailView
+                    } else {
+                        Color.grey10
+                    }
                     VStack {
                         Spacer()
                         HStack {
@@ -76,7 +79,7 @@ struct RemotionVideoCreateRenderer: View {
                         .padding(.spacing3)
                     }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                .clipShape(RoundedRectangle(cornerRadius: .radius2))
             } else if model.status == "error" {
                 statusPlaceholder(icon: "videos", text: model.errorMessage ?? AppStrings.videoCreateStatusError, color: Color.error)
             } else {
@@ -103,27 +106,8 @@ struct RemotionVideoCreateRenderer: View {
     }
 
     private var fullscreen: some View {
-        VStack(alignment: .leading, spacing: .spacing6) {
-            VStack(alignment: .leading, spacing: .spacing2) {
-                Text(model.filename)
-                    .font(.omH3)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                Text(AppStrings.videoCreateHeaderSubtitle(version: String(model.sourceVersion), status: currentStatusText))
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-            }
-
-            OMSegmentedControl(
-                items: [
-                    .init(id: .video, title: AppStrings.videoCreateVideo),
-                    .init(id: .timeline, title: AppStrings.videoCreateTimeline),
-                    .init(id: .code, title: AppStrings.videoCreateCode),
-                ],
-                selection: $selectedView
-            )
-
-            actionBar
+        VStack(alignment: .leading, spacing: 16) {
+            toolbar
 
             if let actionError {
                 Text(actionError)
@@ -134,9 +118,10 @@ struct RemotionVideoCreateRenderer: View {
             switch selectedView {
             case .video:
                 fullscreenVideo
-                RemotionTimelinePreview(manifest: model.manifest, compact: false)
+                controlsBar
+                RemotionTimelinePreview(manifest: model.manifest, compact: false, currentTime: currentTime, onSeek: seek)
             case .timeline:
-                RemotionTimelinePreview(manifest: model.manifest, compact: false)
+                RemotionTimelinePreview(manifest: model.manifest, compact: false, currentTime: currentTime, onSeek: seek)
             case .code:
                 ScrollView([.vertical, .horizontal]) {
                     Text(model.source.isEmpty ? AppStrings.videoCreateStatusProcessing : model.source)
@@ -154,33 +139,82 @@ struct RemotionVideoCreateRenderer: View {
                 )
             }
         }
+        .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onReceive(Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()) { _ in
+            guard let seconds = videoPlayer?.currentTime().seconds, seconds.isFinite else { return }
+            currentTime = seconds
+        }
+        .onDisappear { videoPlayer?.pause(); videoPlayer = nil }
     }
 
-    private var actionBar: some View {
-        HStack(spacing: .spacing3) {
+    private var toolbar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                toolbarTab(.video, title: AppStrings.videoCreateVideo)
+                toolbarTab(.timeline, title: AppStrings.videoCreateTimeline)
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 8) {
+                toolbarTab(.code, title: AppStrings.videoCreateCode)
+                Spacer(minLength: 0)
+                Button(AppStrings.videoCreateActionRerender) {
+                    Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: nil) }
+                }
+                .buttonStyle(RemotionToolbarButtonStyle())
+                .disabled(embedId == nil)
+                .accessibilityIdentifier("video-create-rerender")
+            }
+            HStack(spacing: 8) {
             if model.status == "rendering" {
                 Button(AppStrings.videoCreateActionStopRender) {
                     Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render/current/stop", sourceVersion: nil) }
                 }
-                .buttonStyle(OMSecondaryButtonStyle())
+                .buttonStyle(RemotionToolbarButtonStyle())
                 .disabled(embedId == nil)
             }
-
-            Button(AppStrings.videoCreateActionRerender) {
-                Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: nil) }
-            }
-            .buttonStyle(OMPrimaryButtonStyle())
-            .disabled(embedId == nil)
-
             Button(AppStrings.videoCreateActionRenderThisVersion) {
                 Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: model.sourceVersion) }
             }
-            .buttonStyle(OMSecondaryButtonStyle())
+            .buttonStyle(RemotionToolbarButtonStyle())
             .disabled(embedId == nil)
-
+            .accessibilityIdentifier("video-create-render-version")
             Spacer(minLength: 0)
+            }
         }
+    }
+
+    private func toolbarTab(_ tab: RemotionVideoCreateViewMode, title: String) -> some View {
+        Button(title) { selectedView = tab }
+            .buttonStyle(RemotionToolbarButtonStyle(active: selectedView == tab))
+            .accessibilityIdentifier("video-create-tab-\(tab)")
+            .accessibilityValue(selectedView == tab ? "selected" : "unselected")
+    }
+
+    private var controlsBar: some View {
+        HStack(spacing: 12) {
+            Button((videoPlayer?.rate ?? 0) > 0 ? "Pause" : "Play") {
+                guard let videoPlayer else { return }
+                if videoPlayer.rate > 0 { videoPlayer.pause() } else { videoPlayer.play() }
+            }
+            .buttonStyle(RemotionToolbarButtonStyle())
+            .disabled(videoPlayer == nil)
+            .accessibilityIdentifier("video-create-playback")
+            Text("\(Self.timestamp(currentTime)) / \(Self.timestamp(Double(model.manifest.durationSeconds)))")
+                .font(.omP)
+                .fontWeight(.semibold)
+                .monospacedDigit()
+        }
+    }
+
+    private func seek(_ seconds: Double) {
+        videoPlayer?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
+        currentTime = seconds
+    }
+
+    private static func timestamp(_ seconds: Double) -> String {
+        let value = max(0, Int(seconds))
+        return String(format: "%d:%02d", value / 60, value % 60)
     }
 
     @ViewBuilder
@@ -189,8 +223,13 @@ struct RemotionVideoCreateRenderer: View {
            model.aesNonce != nil || model.videoEncryption != nil {
             EncryptedVideoPlayer(
                 s3Url: videoS3URL, aesKey: aesKey, aesNonce: model.aesNonce,
-                encryption: model.videoEncryption, filename: model.filename
+                encryption: model.videoEncryption, filename: model.filename,
+                onPlayerReady: { videoPlayer = $0 }
             )
+                .frame(minHeight: 240)
+                .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        } else if let publicVideoURL = model.publicVideoURL {
+            RemotionPlayerView(url: publicVideoURL, onPlayerReady: { videoPlayer = $0 })
                 .frame(minHeight: 240)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
         } else if model.hasThumbnail {
@@ -199,9 +238,8 @@ struct RemotionVideoCreateRenderer: View {
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
                 .overlay(statusOverlay(AppStrings.videoCreateStatusUnavailable))
         } else {
-            statusPlaceholder(icon: "videos", text: currentStatusText, color: Color.fontTertiary)
+            Color.black
                 .frame(minHeight: 240)
-                .background(Color.grey10)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
         }
     }
@@ -267,6 +305,29 @@ private enum RemotionVideoCreateViewMode: Hashable {
     case code
 }
 
+private struct RemotionToolbarButtonStyle: ButtonStyle {
+    var active = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.omP)
+            .fontWeight(.semibold)
+            .foregroundStyle(active ? Color.grey0 : Color.fontPrimary)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 40)
+            .background(active ? Color.buttonPrimary : Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.grey25, lineWidth: active ? 0 : 1)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+    }
+}
+
 private struct RemotionVideoCreateModel {
     let filename: String
     let status: String
@@ -276,6 +337,7 @@ private struct RemotionVideoCreateModel {
     let aesKey: String?
     let aesNonce: String?
     let thumbnailURL: String?
+    let publicVideoURL: URL?
     let thumbnailS3URL: String?
     let videoS3URL: String?
     let thumbnailEncryption: String?
@@ -292,6 +354,10 @@ private struct RemotionVideoCreateModel {
         aesKey = Self.string(data, ["aes_key"])
         aesNonce = Self.string(data, ["aes_nonce"])
         thumbnailURL = Self.string(data, ["thumbnail_url"])
+        let publicVideo = Self.string(data, ["video_url", "videoUrl"])
+        publicVideoURL = publicVideo.flatMap {
+            URL(string: $0, relativeTo: ServerProfile.current().webBaseURL)?.absoluteURL
+        }
         chatId = Self.string(data, ["chat_id"])
 
         let s3BaseURL = Self.string(data, ["s3_base_url"])
@@ -343,51 +409,103 @@ private struct RemotionVideoCreateModel {
 private struct RemotionTimelineManifest {
     let title: String
     let durationSeconds: Int
+    let durationInFrames: Int
+    let fps: Int
     let width: Int
     let height: Int
-    let layers: [RemotionTimelineLayer]
+    let tracks: [RemotionTimelineTrack]
 
     init(source: String) {
-        let fps = Self.firstInt(in: source, pattern: #"fps\s*[:=]\s*(\d+)"#) ?? 30
-        let frames = Self.firstInt(in: source, pattern: #"durationInFrames\s*[:=]\s*(\d+)"#) ?? 150
-        title = Self.firstString(in: source, pattern: #"title\s*[:=]\s*[\"']([^\"']+)[\"']"#) ?? "Remotion"
-        durationSeconds = max(1, Int(ceil(Double(frames) / Double(max(1, fps)))))
-        width = Self.firstInt(in: source, pattern: #"width\s*[:=]\s*(\d+)"#) ?? 1920
-        height = Self.firstInt(in: source, pattern: #"height\s*[:=]\s*(\d+)"#) ?? 1080
-        layers = Self.componentLayers(from: source, durationSeconds: durationSeconds)
-    }
+        let composition = Self.groups(in: source, pattern: #"<Composition\b([^>]*)>"#).first?.first ?? source
+        let parsedFPS = Self.value(in: composition, pattern: #"\bfps=\{?(\d+)"#) ?? 30
+        fps = parsedFPS
+        let frames = Self.value(in: composition, pattern: #"\bdurationInFrames=\{?(\d+)"#) ?? 300
+        durationInFrames = frames
+        title = Self.capture(in: composition, pattern: #"\bid=[\"']([^\"']+)[\"']"#) ?? "Untitled"
+        durationSeconds = max(1, Int(ceil(Double(frames) / Double(max(1, parsedFPS)))))
+        width = Self.value(in: composition, pattern: #"\bwidth=\{?(\d+)"#) ?? 1920
+        height = Self.value(in: composition, pattern: #"\bheight=\{?(\d+)"#) ?? 1080
 
-    private static func componentLayers(from source: String, durationSeconds: Int) -> [RemotionTimelineLayer] {
-        let names = matches(in: source, pattern: #"<([A-Z][A-Za-z0-9]*)\b"#)
-            .filter { !["AbsoluteFill", "Sequence", "Img", "Audio", "Video"].contains($0) }
-        let uniqueNames = Array(NSOrderedSet(array: names)).compactMap { $0 as? String }.prefix(6)
-        guard !uniqueNames.isEmpty else {
-            return [RemotionTimelineLayer(name: "Composition", start: 0, duration: durationSeconds)]
+        var visual = Self.groups(in: source, pattern: #"<Sequence\b([^>]*)>([\s\S]*?)</Sequence>"#)
+            .compactMap { parts -> RemotionTimelineLayer? in
+                guard parts.count == 2 else { return nil }
+                let name = Self.capture(in: parts[0], pattern: #"\bname=[\"']([^\"']+)[\"']"#)
+                    ?? Self.capture(in: parts[1], pattern: #"<([A-Z][A-Za-z0-9]*)\b"#)
+                    ?? "Scene"
+                return .init(name: Self.readable(name),
+                             start: Self.value(in: parts[0], pattern: #"\bfrom=\{?(\d+)"#) ?? 0,
+                             duration: Self.value(in: parts[0], pattern: #"\bdurationInFrames=\{?(\d+)"#) ?? frames,
+                             color: Color(hex: 0x3B82F6))
+            }
+        if visual.isEmpty {
+            visual = [.init(name: Self.readable(title), start: 0, duration: frames, color: Color(hex: 0x3B82F6))]
         }
-        let segment = max(1, durationSeconds / max(1, uniqueNames.count))
-        return uniqueNames.enumerated().map { index, name in
-            RemotionTimelineLayer(name: name, start: index * segment, duration: index == uniqueNames.count - 1 ? max(1, durationSeconds - index * segment) : segment)
+        var groups: [[RemotionTimelineLayer]] = []
+        for layer in visual {
+            if let index = groups.firstIndex(where: { group in
+                group.allSatisfy { layer.start >= $0.start + $0.duration || layer.start + layer.duration <= $0.start }
+            }) {
+                groups[index].append(layer)
+            } else {
+                groups.append([layer])
+            }
         }
+        let colors: [UInt32] = [0x3B82F6, 0x8B5CF6, 0xEC4899, 0xF59E0B]
+        var parsed: [RemotionTimelineTrack] = groups.enumerated().map { index, group in
+            RemotionTimelineTrack(
+                name: index == 0 ? (groups.count == 1 ? "Scenes" : "Background") : "Layer \(index + 1)",
+                isAudio: false,
+                layers: group.sorted { $0.start < $1.start }.map {
+                    .init(name: $0.name, start: $0.start, duration: $0.duration,
+                          color: Color(hex: colors[index % colors.count]))
+                }
+            )
+        }
+        let audio = Self.groups(in: source, pattern: #"<Audio\b([^>]*)/?>"#).compactMap { parts -> RemotionTimelineLayer? in
+            guard let attrs = parts.first,
+                  let src = Self.capture(in: attrs, pattern: #"\bsrc=[\"']([^\"']+)[\"']"#) else { return nil }
+            return .init(name: src.split(separator: "/").last.map(String.init) ?? "Audio",
+                         start: 0, duration: frames, color: Color(hex: 0x22C55E))
+        }
+        if !audio.isEmpty {
+            parsed.append(RemotionTimelineTrack(name: "Audio", isAudio: true, layers: audio))
+        }
+        tracks = parsed
     }
 
-    private static func firstInt(in source: String, pattern: String) -> Int? {
-        guard let match = matches(in: source, pattern: pattern).first else { return nil }
-        return Int(match)
+    private static func readable(_ name: String) -> String {
+        let spaced = name.replacingOccurrences(of: "([a-z])([A-Z])", with: "$1 $2", options: .regularExpression)
+            .replacingOccurrences(of: "([A-Z])([A-Z][a-z])", with: "$1 $2", options: .regularExpression)
+            .lowercased()
+        return spaced.prefix(1).uppercased() + String(spaced.dropFirst())
     }
 
-    private static func firstString(in source: String, pattern: String) -> String? {
-        matches(in: source, pattern: pattern).first
+    private static func value(in source: String, pattern: String) -> Int? {
+        capture(in: source, pattern: pattern).flatMap(Int.init)
     }
 
-    private static func matches(in source: String, pattern: String) -> [String] {
+    private static func capture(in source: String, pattern: String) -> String? {
+        groups(in: source, pattern: pattern).first?.first
+    }
+
+    private static func groups(in source: String, pattern: String) -> [[String]] {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let range = NSRange(source.startIndex..<source.endIndex, in: source)
         return regex.matches(in: source, range: range).compactMap { match in
-            guard match.numberOfRanges > 1,
-                  let swiftRange = Range(match.range(at: 1), in: source) else { return nil }
-            return String(source[swiftRange])
+            let values = (1..<match.numberOfRanges).compactMap { index -> String? in
+                guard let swiftRange = Range(match.range(at: index), in: source) else { return nil }
+                return String(source[swiftRange])
+            }
+            return values.isEmpty ? nil : values
         }
     }
+}
+
+private struct RemotionTimelineTrack: Identifiable {
+    var id: String { name }
+    let name: String
+    let isAudio: Bool
+    let layers: [RemotionTimelineLayer]
 }
 
 private struct RemotionTimelineLayer: Identifiable {
@@ -395,55 +513,85 @@ private struct RemotionTimelineLayer: Identifiable {
     let name: String
     let start: Int
     let duration: Int
+    let color: Color
 }
 
 private struct RemotionTimelinePreview: View {
     let manifest: RemotionTimelineManifest
     let compact: Bool
+    var currentTime: Double = 0
+    var onSeek: ((Double) -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? .spacing2 : .spacing4) {
-            HStack(spacing: .spacing3) {
-                Text(manifest.title)
-                    .font(compact ? .omXs : .omP)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Text("\(manifest.durationSeconds)s · \(manifest.width)x\(manifest.height)")
-                    .font(.omTiny)
-                    .foregroundStyle(Color.fontTertiary)
+        VStack(alignment: .leading, spacing: compact ? 3 : 4) {
+            if !compact {
+                HStack(spacing: 0) {
+                    Color.clear.frame(width: 90, height: 18)
+                    GeometryReader { ruler in
+                        ForEach(Array(stride(from: 0, through: manifest.durationSeconds,
+                                             by: manifest.durationSeconds <= 15 ? 2 : 5)), id: \.self) { second in
+                            Text("\(second)s")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Color.grey50)
+                                .position(x: ruler.size.width * CGFloat(second) / CGFloat(max(1, manifest.durationSeconds)), y: 7)
+                        }
+                    }
+                    .frame(height: 18)
+                }
             }
-
-            VStack(alignment: .leading, spacing: compact ? .spacing1 : .spacing2) {
-                ForEach(manifest.layers) { layer in
-                    HStack(spacing: .spacing3) {
-                        Text(layer.name)
-                            .font(.omTiny)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.fontSecondary)
-                            .lineLimit(1)
-                            .frame(width: compact ? 72 : 120, alignment: .leading)
-                        GeometryReader { geometry in
-                            let total = max(1, manifest.durationSeconds)
-                            let x = geometry.size.width * CGFloat(layer.start) / CGFloat(total)
-                            let width = max(8, geometry.size.width * CGFloat(layer.duration) / CGFloat(total))
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.grey20)
-                                Capsule()
-                                    .fill(Color.buttonPrimary.opacity(0.78))
-                                    .frame(width: width)
-                                    .offset(x: x)
+            ForEach(manifest.tracks) { track in
+                HStack(spacing: 0) {
+                    if !compact {
+                        HStack(spacing: 5) {
+                            Text(track.isAudio ? "♫" : "▪").foregroundStyle(Color.grey40)
+                            Text(track.name).lineLimit(1)
+                        }
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.grey60)
+                        .frame(width: 90, alignment: .leading)
+                    }
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4).fill(Color.grey10)
+                            ForEach(track.layers) { layer in
+                                let total = CGFloat(max(1, manifest.durationInFrames))
+                                let x = geometry.size.width * CGFloat(layer.start) / total
+                                let width = max(2, geometry.size.width * CGFloat(layer.duration) / total)
+                                HStack(spacing: 2) {
+                                    Text(layer.name)
+                                        .font(.system(size: compact ? 9 : 10, weight: .medium))
+                                        .lineLimit(1)
+                                    if !compact && width > 48 {
+                                        Spacer(minLength: 0)
+                                        Text("\(max(1, layer.duration / max(1, manifest.fps)))s")
+                                            .font(.system(size: 9))
+                                            .opacity(0.75)
+                                    }
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .frame(width: width, height: compact ? 16 : 24)
+                                .background(layer.color)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                                .offset(x: x)
+                            }
+                            if currentTime > 0 {
+                                Rectangle().fill(Color.buttonPrimary).frame(width: 2)
+                                    .offset(x: geometry.size.width * CGFloat(currentTime) / CGFloat(max(1, manifest.durationSeconds)))
                             }
                         }
-                        .frame(height: compact ? 8 : 14)
+                        .contentShape(Rectangle())
+                        .gesture(DragGesture(minimumDistance: 0).onChanged { value in
+                            guard let onSeek else { return }
+                            let ratio = min(1, max(0, value.location.x / max(1, geometry.size.width)))
+                            onSeek(Double(ratio) * Double(manifest.durationSeconds))
+                        })
                     }
+                    .frame(height: compact ? 20 : 28)
                 }
             }
         }
-        .padding(compact ? .spacing3 : .spacing5)
-        .background(Color.grey10)
-        .clipShape(RoundedRectangle(cornerRadius: compact ? .radius3 : .radius6))
+        .padding(.vertical, 8)
     }
 }
 
@@ -453,6 +601,7 @@ private struct EncryptedVideoPlayer: View {
     let aesNonce: String?
     let encryption: String?
     let filename: String
+    let onPlayerReady: (AVPlayer) -> Void
 
     @State private var temporaryURL: URL?
     @State private var loadError: String?
@@ -460,7 +609,7 @@ private struct EncryptedVideoPlayer: View {
     var body: some View {
         Group {
             if let temporaryURL {
-                VideoPlayerView(url: temporaryURL)
+                RemotionPlayerView(url: temporaryURL, onPlayerReady: onPlayerReady)
             } else if let loadError {
                 Color.grey100.overlay(
                     Text(loadError)
@@ -497,5 +646,28 @@ private struct EncryptedVideoPlayer: View {
         if let temporaryURL {
             try? FileManager.default.removeItem(at: temporaryURL)
         }
+    }
+}
+
+private struct RemotionPlayerView: View {
+    let url: URL
+    let onPlayerReady: (AVPlayer) -> Void
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        Group {
+            if let player {
+                VideoPlayer(player: player)
+            } else {
+                Color.black
+            }
+        }
+        .onAppear {
+            guard player == nil else { return }
+            let newPlayer = AVPlayer(url: url)
+            player = newPlayer
+            onPlayerReady(newPlayer)
+        }
+        .onDisappear { player?.pause(); player = nil }
     }
 }

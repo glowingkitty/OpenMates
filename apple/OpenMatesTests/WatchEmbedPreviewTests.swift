@@ -3,6 +3,7 @@
 // iOS/macOS embed stack or storing private chat content in fixtures.
 
 import XCTest
+import CryptoKit
 @testable import OpenMates
 
 final class WatchEmbedPreviewTests: XCTestCase {
@@ -11,8 +12,8 @@ final class WatchEmbedPreviewTests: XCTestCase {
         XCTAssertEqual(Set(WatchUIContract.pairLoginIdentifiers), [
             "watch-pair-login",
             "watch-pair-confirm-iphone-title",
-            "watch-pair-confirm-iphone-description",
             "watch-pair-manual-fallback",
+            "watch-pair-login-without-iphone-button",
             "watch-pair-token",
             "watch-pair-url",
             "watch-pair-waiting-label",
@@ -43,10 +44,14 @@ final class WatchEmbedPreviewTests: XCTestCase {
 
         XCTAssertEqual(Set(WatchUIContract.audioComposerIdentifiers), [
             "watch-audio-record-button",
-            "watch-audio-stop-button",
-            "watch-audio-transcribing",
+            "watch-audio-recording-screen",
+            "watch-audio-recording-duration",
+            "watch-audio-cancel-button",
+            "watch-audio-send-button",
             "watch-pending-audio-embed",
             "watch-audio-error",
+            "watch-audio-retry-button",
+            "watch-audio-back-button",
         ])
         XCTAssertNoDuplicates(WatchUIContract.chatFlowIdentifiers)
         XCTAssertNoDuplicates(WatchUIContract.audioComposerIdentifiers)
@@ -76,7 +81,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
         ])
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("Color.grey100") })
         XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("ScrollView/LazyVStack") })
-        XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("pending audio-recording embed") })
+        XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("encrypted audio-recording embed") })
     }
 
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
@@ -340,5 +345,146 @@ final class WatchEmbedPreviewTests: XCTestCase {
         line: UInt = #line
     ) {
         XCTAssertEqual(values.count, Set(values).count, file: file, line: line)
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testWatchMarkdownKeepsHeadingListsQuoteAndCodeSemantics() throws {
+        let blocks = WatchMarkdownParser.blocks("# Berlin **Meetup**\n\nA *public* [link](https://example.com).\n\n- First\n2. Second\n> Quoted\n```swift\nlet value = 1\n```")
+        XCTAssertEqual(blocks.map(\.kind), [.heading(1), .paragraph, .list("•"), .list("2."), .quote, .code("swift")])
+        XCTAssertEqual(blocks.last?.text, "let value = 1")
+        let inline = try AttributedString(markdown: blocks[0].text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+        XCTAssertEqual(String(inline.characters), "Berlin Meetup")
+        XCTAssertTrue(inline.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testWatchEventsAndDocumentSkillFamiliesPreserveAppSemantics() {
+        let fixtures: [(EmbedType, WatchEmbedPreviewFamily, String)] = [
+            (.eventsSearch, .searchResults, "events"), (.eventsEvent, .event, "events"),
+            (.docsDoc, .document, "docs"), (.sheetsSheet, .spreadsheet, "sheets"),
+            (.mindmapsMindmap, .mindmap, "mindmaps"), (.audioSpeak, .audio, "audio"),
+            (.nutritionSearch, .searchResults, "nutrition")
+        ]
+        for (type, family, appID) in fixtures {
+            let record = Self.embed(type: type.rawValue, raw: ["title": AnyCodable("Public fixture"), "query": AnyCodable("Berlin")])
+            let preview = WatchEmbedPreviewMapper.makeModel(for: record, chatId: "fixture-chat")
+            XCTAssertEqual(preview.family, family, type.rawValue)
+            XCTAssertEqual(preview.appId, appID, type.rawValue)
+            XCTAssertEqual(preview.state, .ready, type.rawValue)
+            if appID == "mindmaps" { XCTAssertEqual(preview.iconName, "workflow") }
+        }
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testInlineSkillFenceRetainsKnownAppSkillIdentityForPreview() {
+        let content = """
+        ```json_embed
+        {"embed_id":"public-events","type":"app-skill-use","app_id":"events","skill_id":"search","title":"Berlin meetups","result_count":3,"secret":"discarded"}
+        ```
+        """
+        let refs = WatchMessageContentSanitizer.inlineEmbedRefs(content: content)
+        XCTAssertEqual(refs.count, 1)
+        XCTAssertNil(refs.first?.data?["secret"])
+        let model = refs.first.map { WatchEmbedPreviewMapper.makeModel(for: $0, chatId: "public-chat") }
+        XCTAssertEqual(model?.family, .searchResults)
+        XCTAssertEqual(model?.appId, "events")
+        XCTAssertEqual(model?.typeLabel, "Events")
+        XCTAssertEqual(model?.state, .ready)
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.compact-layout,drafts.access.first-party-encrypted
+    func testSavedWatchEmbedHydratesOnlyBoundAccountChatAndEmbedWrappers() throws {
+        let masterKey = SymmetricKey(size: .bits256)
+        let chatKey = SymmetricKey(size: .bits256)
+        let embedKey = SymmetricKey(size: .bits256)
+        func hash(_ value: String) -> String {
+            SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+        }
+        let body = #"{"app_id":"events","skill_id":"search","query":"Berlin public meetups","result_count":3}"#
+        let encryptedContent = try ComposerEmbedCrypto.encryptContent(body, using: embedKey)
+        let wrapper: [String: Any] = ["hashed_embed_id": hash("public-embed"), "key_type": "master",
+            "hashed_user_id": hash("public-owner"), "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey)]
+        let payload: [String: Any] = ["embed_id": "public-embed", "user_id": "public-owner",
+            "already_encrypted": true, "encryption_mode": "client", "content": encryptedContent,
+            "type": try ComposerEmbedCrypto.encryptContent("app_skill_use", using: embedKey),
+            "status": "finished", "embed_keys": [wrapper]]
+        let ref = try WatchEmbedHydration.open(payload: payload, embedID: "public-embed", chatID: "public-chat",
+            accountID: "public-owner", masterKey: masterKey, chatKey: chatKey)
+        let model = WatchEmbedPreviewMapper.makeModel(for: ref, chatId: "public-chat")
+        XCTAssertEqual(model.family, .searchResults)
+        XCTAssertEqual(model.appId, "events")
+        XCTAssertEqual(model.title, "Berlin public meetups")
+        XCTAssertEqual(model.typeLabel, "Events")
+        XCTAssertThrowsError(try WatchEmbedHydration.open(payload: payload, embedID: "different-embed", chatID: "public-chat",
+            accountID: "public-owner", masterKey: masterKey, chatKey: chatKey))
+        XCTAssertThrowsError(try WatchEmbedHydration.open(payload: payload, embedID: "public-embed", chatID: "public-chat",
+            accountID: "other-owner", masterKey: masterKey, chatKey: chatKey))
+        XCTAssertThrowsError(try WatchEmbedHydration.open(payload: payload, embedID: "public-embed", chatID: "public-chat",
+            accountID: "public-owner", masterKey: SymmetricKey(size: .bits256), chatKey: chatKey))
+        var chatPayload = payload
+        chatPayload["embed_keys"] = [["hashed_embed_id": hash("public-embed"), "key_type": "chat",
+            "hashed_chat_id": hash("public-chat"), "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey)]]
+        XCTAssertThrowsError(try WatchEmbedHydration.open(payload: chatPayload, embedID: "public-embed", chatID: "another-chat",
+            accountID: "public-owner", masterKey: masterKey, chatKey: chatKey))
+    }
+}
+
+extension WatchEmbedPreviewTests {
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,apple-watch.chats.compact-layout
+    func testWatchLiveEmbedStorageQueuesOnlyCiphertextAndBoundMasterChatWrappers() throws {
+        let masterKey = SymmetricKey(size: .bits256)
+        let chatKey = SymmetricKey(size: .bits256)
+        let content = #"{"app_id":"events","skill_id":"search","query":"Berlin public meetup","result_count":3}"#
+        let live: [String: Any] = ["embed_id": "public-embed", "user_id": "public-owner", "chat_id": "public-chat",
+            "type": "app_skill_use", "content": content, "status": "finished", "text_preview": "Public meetup",
+            "embed_ids": ["public-child"], "is_private": false, "is_shared": false]
+        let wire = try WatchEmbedHydration.prepareStorage(payload: live, embedID: "public-embed", chatID: "public-chat",
+            messageID: "public-message", accountID: "public-owner", masterKey: masterKey, chatKey: chatKey, now: 123)
+        let wrappers = try XCTUnwrap(wire.keys["keys"] as? [[String: Any]])
+        XCTAssertEqual(wrappers.count, 2)
+        XCTAssertEqual(wrappers.map { $0["key_type"] as? String }, ["master", "chat"])
+        let ciphertext = try XCTUnwrap(wire.embed["encrypted_content"] as? String)
+        for (index, wrappingKey) in [masterKey, chatKey].enumerated() {
+            let key = try ComposerEmbedCrypto.unwrapKey(try XCTUnwrap(wrappers[index]["encrypted_embed_key"] as? String), using: wrappingKey)
+            XCTAssertEqual(try ComposerEmbedCrypto.decryptContent(ciphertext, using: key), content)
+        }
+        XCTAssertEqual(wire.embed["embed_ids"] as? [String], ["public-child"])
+        // Child routing IDs survive both canonical envelope representations,
+        // including when supplied inside encrypted content rather than beside it.
+        for childIDs: Any in [["public-child", "public-child-2"], "public-child|public-child-2"] {
+            var variant = live
+            variant["embed_ids"] = childIDs
+            let prepared = try WatchEmbedHydration.prepareStorage(payload: variant, embedID: "public-embed", chatID: "public-chat",
+                messageID: "public-message", accountID: "public-owner", masterKey: masterKey, chatKey: chatKey, now: 123)
+            XCTAssertEqual(prepared.embed["embed_ids"] as? [String], ["public-child", "public-child-2"])
+        }
+        var nested = live
+        nested.removeValue(forKey: "embed_ids")
+        nested["content"] = #"{"app_id":"events","skill_id":"search","embed_ids":["public-child"]}"#
+        let nestedWire = try WatchEmbedHydration.prepareStorage(payload: nested, embedID: "public-embed", chatID: "public-chat",
+            messageID: "public-message", accountID: "public-owner", masterKey: masterKey, chatKey: chatKey, now: 123)
+        XCTAssertEqual(nestedWire.embed["embed_ids"] as? [String], ["public-child"])
+        XCTAssertEqual(wire.embed["created_at"] as? Int, 123)
+        XCTAssertNotNil(wire.keys["request_id"] as? String)
+        XCTAssertNotNil(wire.embed["request_id"] as? String)
+        let keysID = try XCTUnwrap(wire.keys["request_id"] as? String)
+        let embedID = try XCTUnwrap(wire.embed["request_id"] as? String)
+        let queued = [
+            WatchPendingCompletion(id: keysID, chatId: "public-chat", eventType: "store_embed_keys", encryptedPayload: try JSONSerialization.data(withJSONObject: wire.keys)),
+            WatchPendingCompletion(id: embedID, chatId: "public-chat", eventType: "store_embed", encryptedPayload: try JSONSerialization.data(withJSONObject: wire.embed))
+        ]
+        let durableJSON = String(decoding: try JSONEncoder().encode(queued), as: UTF8.self)
+        XCTAssertFalse(durableJSON.contains("Berlin public meetup"))
+        XCTAssertFalse(durableJSON.contains("Public meetup"))
+        XCTAssertNil(wire.embed["content"])
+        XCTAssertNil(wire.embed["type"])
+        XCTAssertThrowsError(try WatchEmbedHydration.prepareStorage(payload: live, embedID: "public-embed", chatID: "other-chat",
+            messageID: "public-message", accountID: "public-owner", masterKey: masterKey, chatKey: chatKey))
     }
 }

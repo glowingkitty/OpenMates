@@ -3,6 +3,10 @@
 // Syncs with the in-memory ChatStore and resolves conflicts on reconnection.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
+// Specification: specifications/features/app-skills/code-run/specification.yml
+// Assertions: code-run.output.chat-bound-encrypted
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 
 import CryptoKit
 import Foundation
@@ -287,6 +291,59 @@ final class PersistedEmbed {
 }
 
 @Model
+final class PersistedCodeRunOutput {
+    @Attribute(.unique) var id: String
+    var chatId: String
+    var embedId: String
+    var authorUserId: String?
+    var encryptedPayload: String
+    var keyVersion: Int?
+    var createdAt: Double
+    var updatedAt: Double
+    var needsSync: Bool
+
+    init(id: String, chatId: String, embedId: String, authorUserId: String?,
+         encryptedPayload: String, keyVersion: Int?, createdAt: Double, updatedAt: Double,
+         needsSync: Bool = false) {
+        self.id = id
+        self.chatId = chatId
+        self.embedId = embedId
+        self.authorUserId = authorUserId
+        self.encryptedPayload = encryptedPayload
+        self.keyVersion = keyVersion
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.needsSync = needsSync
+    }
+}
+
+enum CodeRunOfflineStoreError: Error {
+    case inactiveScope
+}
+
+@Model
+final class PersistedOwnerEmbedPII {
+    @Attribute(.unique) var embedId: String
+    var chatId: String
+    var ownerUserId: String
+    var encryptedMappings: String
+    var createdAt: Double
+
+    init(embedId: String, chatId: String, ownerUserId: String,
+         encryptedMappings: String, createdAt: Double) {
+        self.embedId = embedId
+        self.chatId = chatId
+        self.ownerUserId = ownerUserId
+        self.encryptedMappings = encryptedMappings
+        self.createdAt = createdAt
+    }
+}
+
+enum OwnerEmbedPIIOfflineStoreError: Error {
+    case inactiveScope
+}
+
+@Model
 final class PersistedEmbedKey {
     @Attribute(.unique) var id: String
     var hashedEmbedId: String
@@ -361,6 +418,7 @@ final class OfflineStore: ObservableObject {
 
     private(set) var activeScopeId: String?
     private(set) var scopeGeneration = UUID()
+    private var chatDeletionVersions: [String: Int] = [:]
     private var storageDirectory: URL?
 
     // Remain detached until authentication identifies the owner. The legacy
@@ -401,6 +459,7 @@ final class OfflineStore: ObservableObject {
 
     func deactivate() {
         scopeGeneration = UUID()
+        chatDeletionVersions.removeAll()
         modelContext = nil
         modelContainer = nil
         activeScopeId = nil
@@ -413,6 +472,8 @@ final class OfflineStore: ObservableObject {
             PersistedMessage.self,
             PersistedEmbed.self,
             PersistedEmbedKey.self,
+            PersistedCodeRunOutput.self,
+            PersistedOwnerEmbedPII.self,
             PersistedComposerDraft.self,
             PendingOfflineAction.self,
         ])
@@ -436,7 +497,9 @@ final class OfflineStore: ObservableObject {
                 let acceptsIncomingMetadata = (chat.metadataV ?? 0) >= (existing.metadataV ?? 0)
                 let acceptsIncomingSummary = (chat.metadataV ?? 0) > (existing.metadataV ?? 0)
                     || ((chat.metadataV ?? 0) == (existing.metadataV ?? 0)
-                        && existing.chatSummary == nil && existing.encryptedChatSummary == nil)
+                        && existing.chatSummary == nil
+                        && (existing.encryptedChatSummary == nil
+                            || (chat.chatSummary != nil && chat.encryptedChatSummary == existing.encryptedChatSummary)))
                 let incomingTitleVersion = chat.titleV ?? 0
                 let storedTitleVersion = existing.titleV ?? 0
                 if incomingTitleVersion > storedTitleVersion {
@@ -717,6 +780,94 @@ final class OfflineStore: ObservableObject {
         return (try? context.fetch(descriptor))?.map { $0.toEmbed() } ?? []
     }
 
+    @discardableResult
+    func persistCodeRunOutput(_ output: PersistedCodeRunOutput) throws -> Bool {
+        guard let context = modelContext else { throw CodeRunOfflineStoreError.inactiveScope }
+        let chatId = output.chatId
+        let embedId = output.embedId
+        let descriptor = FetchDescriptor<PersistedCodeRunOutput>(
+            predicate: #Predicate { $0.chatId == chatId && $0.embedId == embedId }
+        )
+        let rows = try context.fetch(descriptor)
+        guard !rows.contains(where: {
+            $0.updatedAt > output.updatedAt ||
+                ($0.needsSync && !output.needsSync && $0.encryptedPayload != output.encryptedPayload)
+        }) else { return false }
+        for old in rows where old.id != output.id { context.delete(old) }
+        if let existing = rows.first(where: { $0.id == output.id }) {
+            existing.authorUserId = output.authorUserId
+            existing.encryptedPayload = output.encryptedPayload
+            existing.keyVersion = output.keyVersion
+            existing.createdAt = output.createdAt
+            existing.updatedAt = output.updatedAt
+            existing.needsSync = output.needsSync
+        } else {
+            context.insert(output)
+        }
+        try context.save()
+        return true
+    }
+
+    func pendingCodeRunOutputs() throws -> [PersistedCodeRunOutput] {
+        guard let context = modelContext else { throw CodeRunOfflineStoreError.inactiveScope }
+        let descriptor = FetchDescriptor<PersistedCodeRunOutput>(
+            predicate: #Predicate { $0.needsSync == true },
+            sortBy: [SortDescriptor(\PersistedCodeRunOutput.updatedAt)]
+        )
+        return try context.fetch(descriptor)
+    }
+
+    func acknowledgeCodeRunOutput(id: String, encryptedPayload: String) throws {
+        guard let context = modelContext else { throw CodeRunOfflineStoreError.inactiveScope }
+        let targetId = id
+        let descriptor = FetchDescriptor<PersistedCodeRunOutput>(
+            predicate: #Predicate { $0.id == targetId }
+        )
+        guard let existing = try context.fetch(descriptor).first,
+              existing.encryptedPayload == encryptedPayload else { return }
+        existing.needsSync = false
+        try context.save()
+    }
+
+    func loadCodeRunOutput(chatId: String, embedId: String) -> PersistedCodeRunOutput? {
+        guard let context = modelContext else { return nil }
+        let targetChatId = chatId
+        let targetEmbedId = embedId
+        let descriptor = FetchDescriptor<PersistedCodeRunOutput>(
+            predicate: #Predicate { $0.chatId == targetChatId && $0.embedId == targetEmbedId },
+            sortBy: [SortDescriptor(\PersistedCodeRunOutput.updatedAt, order: .reverse)]
+        )
+        return try? context.fetch(descriptor).first
+    }
+
+    func persistOwnerEmbedPII(_ row: PersistedOwnerEmbedPII) throws {
+        guard let context = modelContext else { throw OwnerEmbedPIIOfflineStoreError.inactiveScope }
+        let targetEmbedId = row.embedId
+        let descriptor = FetchDescriptor<PersistedOwnerEmbedPII>(
+            predicate: #Predicate { $0.embedId == targetEmbedId }
+        )
+        if let existing = try context.fetch(descriptor).first {
+            guard existing.chatId == row.chatId, existing.ownerUserId == row.ownerUserId else {
+                throw OwnerEmbedPIIOfflineStoreError.inactiveScope
+            }
+            existing.encryptedMappings = row.encryptedMappings
+            existing.createdAt = row.createdAt
+        } else {
+            context.insert(row)
+        }
+        try context.save()
+    }
+
+    func loadOwnerEmbedPII(chatId: String, embedId: String) throws -> PersistedOwnerEmbedPII? {
+        guard let context = modelContext else { throw OwnerEmbedPIIOfflineStoreError.inactiveScope }
+        let targetChatId = chatId
+        let targetEmbedId = embedId
+        let descriptor = FetchDescriptor<PersistedOwnerEmbedPII>(
+            predicate: #Predicate { $0.chatId == targetChatId && $0.embedId == targetEmbedId }
+        )
+        return try context.fetch(descriptor).first
+    }
+
     func loadEmbedKeys() -> [EmbedKeyRecord] {
         guard let context = modelContext else { return [] }
         let descriptor = FetchDescriptor<PersistedEmbedKey>()
@@ -732,6 +883,11 @@ final class OfflineStore: ObservableObject {
     // MARK: - Delete
 
     func deleteChat(_ chatId: String, preservingDraftTombstone: Bool = false) {
+        chatDeletionVersions[chatId, default: 0] += 1
+        if self === Self.shared {
+            CodeRunOutputStore.shared.remove(chatId: chatId)
+            OwnerEmbedPIIStore.shared.remove(chatId: chatId)
+        }
         guard let context = modelContext else { return }
         let targetChatId = chatId
         let chatDescriptor = FetchDescriptor<PersistedChat>(
@@ -751,6 +907,18 @@ final class OfflineStore: ObservableObject {
         )
         for embed in (try? context.fetch(embedDescriptor)) ?? [] {
             context.delete(embed)
+        }
+        let runDescriptor = FetchDescriptor<PersistedCodeRunOutput>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        for output in (try? context.fetch(runDescriptor)) ?? [] {
+            context.delete(output)
+        }
+        let ownerPIIDescriptor = FetchDescriptor<PersistedOwnerEmbedPII>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        for row in (try? context.fetch(ownerPIIDescriptor)) ?? [] {
+            context.delete(row)
         }
         let draftDescriptor = FetchDescriptor<PersistedComposerDraft>(
             predicate: #Predicate { $0.chatId == targetChatId }
@@ -779,12 +947,22 @@ final class OfflineStore: ObservableObject {
         updatePendingCount()
     }
 
+    func chatDeletionVersion(_ chatId: String) -> Int {
+        chatDeletionVersions[chatId, default: 0]
+    }
+
     func clearAll() {
         guard let context = modelContext else { return }
+        if self === Self.shared {
+            CodeRunOutputStore.shared.clearAll()
+            OwnerEmbedPIIStore.shared.clearAll()
+        }
         try? context.delete(model: PersistedChat.self)
         try? context.delete(model: PersistedMessage.self)
         try? context.delete(model: PersistedEmbed.self)
         try? context.delete(model: PersistedEmbedKey.self)
+        try? context.delete(model: PersistedCodeRunOutput.self)
+        try? context.delete(model: PersistedOwnerEmbedPII.self)
         try? context.delete(model: PersistedComposerDraft.self)
         try? context.delete(model: PendingOfflineAction.self)
         try? context.save()

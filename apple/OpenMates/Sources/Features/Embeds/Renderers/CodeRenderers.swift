@@ -24,8 +24,11 @@
 import SwiftUI
 import WebKit
 import AVFoundation
+import ZIPFoundation
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 struct AppleCodeEmbedContent: Equatable {
@@ -158,18 +161,128 @@ struct AppleCodeEmbedContent: Equatable {
     }
 }
 
+/// Generated application card and workspace shell. The preview uses the
+/// application manifest's file and entrypoint counts, matching the web card.
+struct ApplicationEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var fileRefs: [[String: Any]] { data?["file_refs"]?.value as? [[String: Any]] ?? [] }
+    private var entrypoints: [Any] { data?["entrypoints"]?.value as? [Any] ?? [] }
+    private var fileCount: Int { fileRefs.count }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing2) {
+                placeholder
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
+                    .overlay(RoundedRectangle(cornerRadius: .radius3).stroke(Color.grey20))
+                HStack(spacing: .spacing2) {
+                    Text("\(fileCount) \(fileCount == 1 ? "file" : "files")")
+                    if !entrypoints.isEmpty {
+                        Text("\(entrypoints.count) \(entrypoints.count == 1 ? "entrypoint" : "entrypoints")")
+                    }
+                }
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("application-preview-details")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing4) {
+                VStack(spacing: .spacing3) {
+                    RoundedRectangle(cornerRadius: .radius3)
+                        .fill(Color.grey10)
+                        .frame(width: 180, height: 110)
+                    Text("Preview not started")
+                        .font(.omH4).fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                    Text("Start the preview to run this generated app in an isolated sandbox.")
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing8)
+
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text("Preview not started").font(.omSmall).fontWeight(.semibold)
+                        Text("IDLE").font(.omXs).foregroundStyle(Color.fontSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.spacing3)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
+
+                    Text("Logs").font(.omH4).fontWeight(.semibold)
+                    Text("Start the preview to run this generated app in an isolated sandbox.")
+                        .font(.omXs).foregroundStyle(Color.fontSecondary)
+                    Text("Files").font(.omH4).fontWeight(.semibold)
+                    ForEach(Array(fileRefs.enumerated()), id: \.offset) { _, file in
+                        VStack(alignment: .leading, spacing: .spacing1) {
+                            Text(file["path"] as? String ?? "File")
+                                .font(.omSmall).foregroundStyle(Color.fontPrimary)
+                            Text(file["role"] as? String ?? "source")
+                                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.spacing2)
+                        .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius3))
+                    }
+                }
+                .padding(.spacing2)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier("application-fullscreen-workspace")
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Capsule().fill(Color.grey30).frame(width: 34, height: 8)
+                Capsule().fill(Color.grey30).frame(maxWidth: .infinity).frame(height: 10)
+                Capsule().fill(Color.grey30).frame(width: 132, height: 10)
+                RoundedRectangle(cornerRadius: .radius3)
+                    .fill(Color.grey30.opacity(0.7))
+                    .frame(height: 54)
+            }
+            .padding(.spacing3)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            Icon("play", size: 14)
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .background(LinearGradient.appCode, in: Circle())
+                .shadow(color: .black.opacity(0.2), radius: 7, y: 4)
+        }
+        .clipped()
+        .accessibilityIdentifier("application-preview-screenshot")
+    }
+}
+
 struct CodeEmbedRenderer: View {
     let data: [String: AnyCodable]?
+    let embed: EmbedRecord?
     let embedId: String
     let chatId: String?
     let mode: EmbedDisplayMode
+    var hasPIIMappings = false
+    var piiMappings: [PIIMapping] = []
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
     var previewActive = false
     var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
+    @ObservedObject private var savedOutputs = CodeRunOutputStore.shared
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
     private var code: String { content.code }
+    private var displayCode: String { EmbedPIIText.render(code, mappings: piiMappings, revealed: isPIIRevealed) }
     private var language: String { content.language }
     private var filename: String? { content.filename }
     private var lineCount: Int { content.lineCount }
@@ -178,7 +291,17 @@ struct CodeEmbedRenderer: View {
         switch mode {
         case .preview:
             VStack(alignment: .leading, spacing: 0) {
-                if code.isEmpty {
+                if let savedOutputPreview {
+                    Text(savedOutputPreview)
+                        .font(.omTiny.monospaced())
+                        .foregroundStyle(Color.grey10)
+                        .lineLimit(isLargePreview ? 18 : 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.spacing4)
+                        .background(Color.grey100)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .accessibilityIdentifier("code-run-output-preview")
+                } else if code.isEmpty {
                     VStack(spacing: .spacing4) {
                         Circle()
                             .fill(LinearGradient.primary)
@@ -202,10 +325,20 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier(code.isEmpty ? "code-embed-processing" : "code-embed-source-preview")
+            .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : (code.isEmpty ? "code-embed-processing" : "code-embed-source-preview"))
+            .task(id: embedId) {
+                guard let chatId, !chatId.isEmpty else { return }
+                #if DEBUG
+                if chatId == "dev-embed-preview-chat" { return }
+                #endif
+                await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
+            }
 
         case .fullscreen:
             VStack(spacing: 0) {
+                if hasPIIMappings {
+                    EmbedPIIToggle(isRevealed: isPIIRevealed, action: onTogglePII)
+                }
                 if previewActive {
                     GeometryReader { proxy in
                         HStack(spacing: 1) {
@@ -225,16 +358,20 @@ struct CodeEmbedRenderer: View {
                     ZStack(alignment: .top) {
                         codeSourcePanel(isSplit: false)
 
-                        if let codeRunViewModel, codeRunViewModel.isPanelOpen {
-                            CodeRunTerminalView(
+                        if let codeRunViewModel {
+                            CodeRunPanelOverlay(
                                 viewModel: codeRunViewModel,
-                                chatId: chatId,
-                                embedId: embedId,
-                                file: runClientFile,
-                                onViewCode: { codeRunViewModel.closePanel() }
+                                content: CodeRunTerminalView(
+                                    viewModel: codeRunViewModel,
+                                    savedOutput: savedRunOutput,
+                                    chatId: chatId,
+                                    embedId: embedId,
+                                    file: runClientFile,
+                                    onViewCode: { codeRunViewModel.closePanel() }
+                                )
+                                .padding(.top, .spacing8)
+                                .padding(.horizontal, horizontalSizeClass == .compact ? .spacing4 : .spacing10)
                             )
-                            .padding(.top, .spacing8)
-                            .padding(.horizontal, horizontalSizeClass == .compact ? .spacing4 : .spacing10)
                         }
                     }
                 }
@@ -251,7 +388,7 @@ struct CodeEmbedRenderer: View {
     private func codeSourcePanel(isSplit: Bool) -> some View {
         ScrollView([.horizontal, .vertical], showsIndicators: true) {
             CodeLinesView(
-                code: code,
+                code: displayCode,
                 language: language,
                 showsLineNumbers: true,
                 fontSize: isSplit ? 13 : 15,
@@ -269,11 +406,13 @@ struct CodeEmbedRenderer: View {
     @ViewBuilder
     private var outputPanel: some View {
         if previewActive, isPreviewable {
-            CodePreviewPane(code: code, language: language, filename: filename)
+            CodePreviewPane(code: displayCode, language: language, filename: filename)
                 .frame(minHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: .radius4))
         } else if let codeRunViewModel {
-            CodeRunTerminalView(viewModel: codeRunViewModel, chatId: chatId, embedId: embedId, file: runClientFile, onViewCode: { codeRunViewModel.closePanel() })
+            CodeRunTerminalView(viewModel: codeRunViewModel, savedOutput: savedRunOutput,
+                                chatId: chatId, embedId: embedId, file: runClientFile,
+                                onViewCode: { codeRunViewModel.closePanel() })
                 .frame(minHeight: 420)
         } else {
             EmptyView()
@@ -281,7 +420,7 @@ struct CodeEmbedRenderer: View {
     }
 
     private var runClientFile: CodeRunClientFile {
-        CodeRunClientFile(embedId: embedId, code: code, language: language, filename: filename, isTarget: true)
+        CodeRunClientFile(embedId: embedId, code: displayCode, language: language, filename: filename, isTarget: true)
     }
 
     private var isPreviewable: Bool {
@@ -295,7 +434,18 @@ struct CodeEmbedRenderer: View {
     }
 
     private var previewCode: String {
-        code.components(separatedBy: "\n").prefix(isLargePreview ? 21 : 8).joined(separator: "\n")
+        displayCode.components(separatedBy: "\n").prefix(isLargePreview ? 21 : 8).joined(separator: "\n")
+    }
+
+    private var savedOutputPreview: String? {
+        guard let chatId,
+              let output = savedOutputs.output(chatId: chatId, embedId: embedId)?.output else { return nil }
+        return CodeRunPreviewText.lastLines(output, limit: isLargePreview ? 18 : 8)
+    }
+
+    private var savedRunOutput: CodeRunOutput? {
+        guard let chatId else { return nil }
+        return savedOutputs.output(chatId: chatId, embedId: embedId)
     }
 
     private var codeInfoText: String {
@@ -314,6 +464,65 @@ struct CodeEmbedRenderer: View {
         case "python", "py": return "Python"
         default: return language.uppercased()
         }
+    }
+}
+
+private struct CodeRunPanelOverlay<Content: View>: View {
+    @ObservedObject var viewModel: CodeRunViewModel
+    let content: Content
+
+    var body: some View {
+        if viewModel.isPanelOpen {
+            content
+        }
+    }
+}
+
+enum CodeRunPreviewText {
+    static func lastLines(_ output: String, limit: Int) -> String? {
+        var lines = output.components(separatedBy: "\n")
+        while lines.last == "" { lines.removeLast() }
+        let result = lines.suffix(max(limit, 0)).joined(separator: "\n")
+        return result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : result
+    }
+}
+
+enum EmbedPIIText {
+    static func render(_ text: String, mappings: [PIIMapping], revealed: Bool) -> String {
+        guard !mappings.isEmpty else { return text }
+        if revealed { return PIIDetector.restorePII(in: text, mappings: mappings) }
+        var hidden = text
+        for mapping in mappings.sorted(by: { $0.original.count > $1.original.count }) where !mapping.original.isEmpty {
+            hidden = hidden.replacingOccurrences(of: mapping.original, with: mapping.placeholder)
+        }
+        return hidden
+    }
+}
+
+private struct EmbedPIIToggle: View {
+    let isRevealed: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                Icon(isRevealed ? "hidden" : "visible", size: 16)
+                Text(isRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+                    .font(.omXs.weight(.semibold))
+            }
+            .foregroundStyle(Color.fontPrimary)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.spacing4)
+        .background(Color.grey0)
+        .accessibilityLabel(isRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+        .accessibilityValue(isRevealed ? "true" : "false")
+        .accessibilityIdentifier("embed-pii-toggle")
     }
 }
 
@@ -626,7 +835,15 @@ struct NotebookEmbedRenderer: View {
             .accessibilityIdentifier("notebook-preview")
 
         case .fullscreen:
-            LazyVStack(alignment: .leading, spacing: .spacing6) {
+            if payload.cells.isEmpty {
+                Text(AppStrings.localized("embeds.notebook_empty"))
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, .spacing8)
+                    .accessibilityIdentifier("notebook-fullscreen")
+            } else {
+                LazyVStack(alignment: .leading, spacing: .spacing6) {
                 HStack(spacing: .spacing3) {
                     Icon("coding", size: 24)
                         .foregroundStyle(LinearGradient.appCode)
@@ -641,20 +858,15 @@ struct NotebookEmbedRenderer: View {
                     }
                 }
 
-                if payload.cells.isEmpty {
-                    Text(AppStrings.localized("embeds.notebook_empty"))
-                        .font(.omP)
-                        .foregroundStyle(Color.fontSecondary)
-                } else {
                     ForEach(payload.cells) { cell in
                         notebookCell(cell, compact: false)
                     }
                 }
+                .padding(.spacing8)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("notebook-fullscreen")
             }
-            .padding(.spacing8)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("notebook-fullscreen")
         }
     }
 
@@ -809,6 +1021,7 @@ private struct NotebookEmbedPayload {
 struct FileEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    let status: EmbedStatus
     @Environment(\.openURL) private var openURL
 
     private var payload: FileEmbedPayload { FileEmbedPayload(data) }
@@ -816,22 +1029,31 @@ struct FileEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(spacing: .spacing4) {
-                Icon("files", size: 46)
-                    .foregroundStyle(LinearGradient.primary)
-                Text(payload.filename)
-                    .font(.omP)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(1)
-                if !payload.metadata.isEmpty {
-                    Text(payload.metadata)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(1)
+            Group {
+                if status == .processing {
+                    Text(AppStrings.localized("apps.file"))
+                        .font(.omP.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(spacing: .spacing4) {
+                        Icon("files", size: 46)
+                            .foregroundStyle(LinearGradient.appFiles)
+                        Text(payload.filename)
+                            .font(.omP)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                            .lineLimit(1)
+                        if !payload.metadata.isEmpty {
+                            Text(payload.metadata)
+                                .font(.omXs)
+                                .foregroundStyle(Color.fontSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("file-embed-preview")
 
@@ -937,6 +1159,7 @@ private struct FileEmbedPayload {
 
 private struct CodeRunTerminalView: View {
     @ObservedObject var viewModel: CodeRunViewModel
+    let savedOutput: CodeRunOutput?
     let chatId: String?
     let embedId: String
     let file: CodeRunClientFile
@@ -947,12 +1170,14 @@ private struct CodeRunTerminalView: View {
             viewCodeButton
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(viewModel.events) { event in
+                    ForEach(displayEvents) { event in
                         Text(event.text)
                             .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .foregroundStyle(color(for: event.kind))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
+                            .accessibilityIdentifier("code-run-output-text")
+                            .accessibilityLabel(event.text)
                     }
                 }
                 .padding(.vertical, .spacing4)
@@ -970,7 +1195,12 @@ private struct CodeRunTerminalView: View {
         .background(Color(hex: 0x242424))
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .shadow(color: .black.opacity(0.28), radius: 24, x: 0, y: 14)
-        .accessibilityIdentifier("code-run-terminal")
+        .overlay(alignment: .topLeading) {
+            Color.clear.frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("code-run-terminal")
+                .allowsHitTesting(false)
+        }
     }
 
     private var viewCodeButton: some View {
@@ -994,6 +1224,29 @@ private struct CodeRunTerminalView: View {
         return viewModel.files.isEmpty ? viewModel.status.rawValue : "\(viewModel.status.rawValue) · \(fileText)"
     }
 
+    private var displayEvents: [CodeRunEvent] {
+        if viewModel.status != .idle || !viewModel.events.isEmpty { return viewModel.events }
+        if let savedOutput, !savedOutput.events.isEmpty { return savedOutput.events }
+        guard let output = savedOutput?.output, !output.isEmpty else { return [] }
+        return [CodeRunEvent(kind: .stdout, text: output, timestamp: savedOutput?.savedAt ?? 0)]
+    }
+
+    private var copyableOutput: String {
+        if viewModel.status != .idle || !viewModel.events.isEmpty { return viewModel.programOutputText }
+        return savedOutput?.output ?? ""
+    }
+
+    private func copyOutput() {
+        guard !copyableOutput.isEmpty else { return }
+        #if os(iOS)
+        UIPasteboard.general.string = copyableOutput
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(copyableOutput, forType: .string)
+        #endif
+        ToastManager.shared.show(AppStrings.codeRunOutputCopied, type: .success)
+    }
+
     private var terminalActions: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
             if viewModel.isActive {
@@ -1002,17 +1255,18 @@ private struct CodeRunTerminalView: View {
                 }
             }
             terminalAction(AppStrings.codeRunAskFollowup, disabled: true) {}
-            terminalAction(AppStrings.codeRunCopyOutput, disabled: viewModel.programOutputText.isEmpty) {
-                viewModel.copyOutput()
+            terminalAction(AppStrings.codeRunCopyOutput, disabled: copyableOutput.isEmpty,
+                           identifier: "code-run-copy-output") {
+                copyOutput()
             }
             terminalAction(AppStrings.codeRunAgain, disabled: viewModel.isActive) {
                 Task { await viewModel.start(chatId: chatId, embedId: embedId, file: file) }
             }
         }
-        .accessibilityIdentifier("code-run-terminal-actions")
     }
 
-    private func terminalAction(_ title: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+    private func terminalAction(_ title: String, disabled: Bool,
+                                identifier: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text("> \(title)")
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
@@ -1022,6 +1276,7 @@ private struct CodeRunTerminalView: View {
         .disabled(disabled)
         .help(Text(title))
         .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier ?? title)
     }
 
     private func color(for kind: CodeRunEvent.Kind) -> Color {
@@ -1392,18 +1647,31 @@ struct CodeGetDocsEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? {
-        firstString(["title", "library_id", "library"])
-            ?? firstResultString(["library_id", "id", "library_title", "title"])
+    static func libraryID(from data: [String: AnyCodable]?) -> String? {
+        guard let data else { return nil }
+        let results = (data["results"]?.value as? [[String: Any]])
+            ?? (data["results"]?.value as? [[String: AnyCodable]])?.map { $0.mapValues(\.value) }
+            ?? []
+        let first = results.first ?? [:]
+        if let value = first["library_id"] as? String, !value.isEmpty { return value }
+        if let library = first["library"] as? [String: Any],
+           let value = library["id"] as? String, !value.isEmpty { return value }
+        if let library = first["library"] as? [String: AnyCodable],
+           let value = library["id"]?.value as? String, !value.isEmpty { return value }
+        return data["library"]?.value as? String
     }
-    private var html: String? { data?["html"]?.value as? String }
-    private var content: String? {
-        firstString(["content", "documentation", "html"])
-            ?? firstResultString(["content", "documentation", "text"])
+
+    private var title: String? { Self.libraryID(from: data) }
+    private var documentation: String? {
+        firstResultString(["documentation", "content", "text"])
+            ?? firstString(["documentation", "content"])
     }
     private var question: String? { firstString(["question", "query"]) }
-    private var wordCount: Int? {
+    private var previewWordCount: Int? {
         firstInt(["word_count", "wordCount"]) ?? firstResultInt(["word_count", "wordCount"])
+    }
+    private var fullWordCount: Int {
+        documentation?.split(whereSeparator: \.isWhitespace).count ?? 0
     }
 
     var body: some View {
@@ -1427,7 +1695,7 @@ struct CodeGetDocsEmbedRenderer: View {
                 Text("via Context7")
                     .font(.omSmall)
                     .foregroundStyle(Color.grey70)
-                if let wordCount {
+                if let wordCount = previewWordCount {
                     Text("\(wordCount.formatted()) words")
                         .font(.omSmall)
                         .fontWeight(.medium)
@@ -1437,29 +1705,31 @@ struct CodeGetDocsEmbedRenderer: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let title {
-                    Text(title)
-                        .font(.omH3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey100)
-                        .monospaced()
-                }
-                if let question {
-                    Text(question)
-                        .font(.omP)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                if let wordCount {
-                    Text("\(wordCount.formatted()) words")
+            VStack(spacing: .spacing8) {
+                if fullWordCount > 0 {
+                    Text("via Context7: \(fullWordCount.formatted()) words")
                         .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey70)
+                        .frame(maxWidth: .infinity)
                 }
-                Text(content ?? html ?? "")
-                    .font(.omP)
-                    .foregroundStyle(Color.fontPrimary)
-                    .textSelection(.enabled)
+                if let documentation, !documentation.isEmpty {
+                    RichMarkdownView(content: documentation, isUserMessage: false)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(.spacing12)
+                        .background(Color.grey0, in: RoundedRectangle(cornerRadius: 30))
+                        .shadow(color: .black.opacity(0.1), radius: 8, y: -4)
+                } else {
+                    Text("No documentation available")
+                        .font(.omP)
+                        .foregroundStyle(Color.grey70)
+                        .frame(maxWidth: .infinity, minHeight: 200)
+                }
             }
+            .padding(.horizontal, .spacing5)
+            .padding(.top, .spacing12)
+            .padding(.bottom, 120)
+            .accessibilityIdentifier("code-get-docs-fullscreen")
         }
     }
 
@@ -1534,156 +1804,161 @@ struct DocsRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? { data?["title"]?.value as? String }
-    private var html: String? { data?["html"]?.value as? String }
-    private var content: String? { data?["content"]?.value as? String }
-    private var wordCount: Int? {
-        if let value = data?["word_count"]?.value as? Int { return value }
-        if let value = data?["word_count"]?.value as? String { return Int(value) }
-        return nil
-    }
-
     var body: some View {
-        switch mode {
-        case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
-                if let title {
-                    Text(title)
-                        .font(.omSmall)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(2)
-                }
-                if let wordCount {
-                    Text("\(wordCount.formatted()) words")
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-                if let content {
-                    Text(content)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(4)
-                }
-            }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-        case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let wordCount {
-                    Text("\(wordCount.formatted()) words")
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-                Text(content ?? html ?? "")
-                    .font(.omP)
-                    .foregroundStyle(Color.fontPrimary)
-                    .textSelection(.enabled)
-            }
-        }
+        DocumentCanvasView(source: DocumentCanvasSource(data: data), mode: mode)
     }
 }
 
 struct SheetRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    var hasPIIMappings = false
+    var piiMappings: [PIIMapping] = []
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
+    var onDisplayedRowsChange: (([[String]]) -> Void)? = nil
+    var isLargePreview = false
 
-    private var table: ParsedSheetTable { ParsedSheetTable(data: data) }
+    private var table: ParsedSheetTable {
+        ParsedSheetTable(data: data).applyingPII(mappings: piiMappings, revealed: isPIIRevealed)
+    }
 
     var body: some View {
         switch mode {
         case .preview:
-            SheetPreviewTable(table: table)
+            SheetPreviewTable(table: table, isLargePreview: isLargePreview)
 
         case .fullscreen:
-            SheetFullscreenTable(table: table)
+            SheetFullscreenTable(table: table, hasPIIMappings: hasPIIMappings,
+                                 isPIIRevealed: isPIIRevealed, onTogglePII: onTogglePII,
+                                 onDisplayedRowsChange: onDisplayedRowsChange)
         }
     }
 }
 
 private struct SheetPreviewTable: View {
     let table: ParsedSheetTable
+    let isLargePreview: Bool
 
-    private let maxRows = 4
-    private var visibleHeaders: [String] { Array(table.headers.prefix(4)) }
-    private var visibleRows: [[String]] { Array(table.rows.prefix(maxRows)).map { Array($0.prefix(4)) } }
-    private var hiddenColumnCount: Int { max(table.headers.count - visibleHeaders.count, 0) }
+    // This table explicitly uses the browser's Apple system font stack,
+    // overriding the surrounding Lexend UI. Rendered reference: 11px/1.3
+    // compact, 13px/1.3 large; header overflow counter is 9px.
+    private var cellFontSize: CGFloat { isLargePreview ? 13 : 11 }
+
+    private var maxRows: Int { isLargePreview ? 8 : 4 }
     private var remainingRowCount: Int { max(table.rows.count - maxRows, 0) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if table.headers.isEmpty {
-                VStack(spacing: .spacing3) {
-                    Icon("table", size: 38)
-                        .foregroundStyle(Color.grey70)
-                    Text(LocalizationManager.shared.text("embeds.table"))
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                    GridRow {
-                        ForEach(visibleHeaders.indices, id: \.self) { index in
-                            sheetCell(visibleHeaders[index], isHeader: true)
-                        }
-                        if hiddenColumnCount > 0 {
-                            sheetCell("+\(hiddenColumnCount)", isHeader: true, isMuted: true)
-                        }
+        GeometryReader { geometry in
+            let columns = SheetPreviewColumns(headers: table.headers, rows: Array(table.rows.prefix(maxRows)),
+                                              budget: isLargePreview ? max(geometry.size.width - 20, 0) : 260)
+            let visibleHeaders = Array(table.headers.prefix(columns.visibleCount))
+            let visibleRows = Array(table.rows.prefix(maxRows))
+            let hiddenColumnCount = max(table.headers.count - visibleHeaders.count, 0)
+            // HTML table auto layout stretches large tables across their container.
+            let naturalWidth = columns.widths.prefix(columns.visibleCount).reduce(0, +) + (hiddenColumnCount > 0 ? 45 : 0)
+            let extraWidth = max(geometry.size.width - naturalWidth, 0) / CGFloat(max(visibleHeaders.count, 1))
+            VStack(spacing: 0) {
+                if table.headers.isEmpty {
+                    VStack(spacing: .spacing3) {
+                        Icon("table", size: 38)
+                            .foregroundStyle(Color.grey70)
+                        Text(LocalizationManager.shared.text("embeds.table"))
+                            .font(.omSmall)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontSecondary)
                     }
-                    ForEach(visibleRows.indices, id: \.self) { rowIndex in
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                         GridRow {
-                            ForEach(visibleHeaders.indices, id: \.self) { colIndex in
-                                sheetCell(visibleRows[rowIndex].indices.contains(colIndex) ? visibleRows[rowIndex][colIndex] : "", isHeader: false, alternate: rowIndex.isMultiple(of: 2) == false)
+                            ForEach(visibleHeaders.indices, id: \.self) { index in
+                                sheetCell(visibleHeaders[index], isHeader: true, width: columns.widths[index] + extraWidth)
                             }
                             if hiddenColumnCount > 0 {
-                                sheetCell("", isHeader: false, isMuted: true, alternate: rowIndex.isMultiple(of: 2) == false)
+                                sheetCell("+\(hiddenColumnCount)", isHeader: true, isMuted: true, width: 45)
+                            }
+                        }
+                        ForEach(visibleRows.indices, id: \.self) { rowIndex in
+                            GridRow {
+                                ForEach(visibleHeaders.indices, id: \.self) { colIndex in
+                                    sheetCell(visibleRows[rowIndex].indices.contains(colIndex) ? visibleRows[rowIndex][colIndex] : "", isHeader: false, alternate: rowIndex.isMultiple(of: 2) == false, width: columns.widths[colIndex] + extraWidth)
+                                }
+                                if hiddenColumnCount > 0 {
+                                    sheetCell("", isHeader: false, isMuted: true, alternate: rowIndex.isMultiple(of: 2) == false, width: 45)
+                                }
+                            }
+                        }
+                        if remainingRowCount > 0 {
+                            GridRow {
+                                Text("+\(remainingRowCount) more rows")
+                                    .font(.system(size: cellFontSize))
+                                    .italic()
+                                    .foregroundStyle(Color.grey50)
+                                    .padding(.vertical, 3)
+                                    .frame(maxWidth: .infinity)
+                                    .gridCellColumns(visibleHeaders.count + (hiddenColumnCount > 0 ? 1 : 0))
+                                    .background(Color.grey25)
+                                    .accessibilityIdentifier("sheet-preview-more-rows")
                             }
                         }
                     }
-                    if remainingRowCount > 0 {
-                        GridRow {
-                            Text("+\(remainingRowCount) more rows")
-                                .font(.omMicro)
-                                .italic()
-                                .foregroundStyle(Color.grey50)
-                                .padding(.vertical, 3)
-                                .frame(maxWidth: .infinity)
-                                .gridCellColumns(visibleHeaders.count + (hiddenColumnCount > 0 ? 1 : 0))
-                                .background(Color.grey25)
-                        }
-                    }
+                    .fixedSize(horizontal: true, vertical: true)
+                    .padding(.top, 15)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                .padding(.top, .spacing5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipped()
+            .accessibilityIdentifier("sheet-preview-table")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .clipped()
-        .accessibilityIdentifier("sheet-preview-table")
     }
 
-    private func sheetCell(_ text: String, isHeader: Bool, isMuted: Bool = false, alternate: Bool = false) -> some View {
+    private func sheetCell(_ text: String, isHeader: Bool, isMuted: Bool = false, alternate: Bool = false, width: CGFloat) -> some View {
         Text(text)
-            .font(isHeader ? .omMicro : .omMicro)
-            .fontWeight(isHeader ? .bold : .semibold)
-            .foregroundStyle(isMuted ? Color.grey50 : (isHeader ? Color.grey80 : Color.grey80))
+            .font(.system(size: isMuted && isHeader ? 9 : cellFontSize))
+            .fontWeight(isHeader ? .semibold : .regular)
+            .foregroundStyle(isMuted ? Color.fontTertiary : (isHeader ? Color.fontPrimary : Color.fontSecondary))
             .lineLimit(1)
-            .padding(.horizontal, .spacing3)
-            .padding(.vertical, .spacing2)
-            .frame(minWidth: 60, maxWidth: 140, alignment: .leading)
-            .background(isHeader ? Color.grey25 : (alternate ? Color.grey20 : Color.grey10))
+            .padding(.horizontal, .spacing4)
+            .frame(height: cellFontSize * 1.3 + .spacing4 + 1)
+            .frame(width: width, alignment: .leading)
+            .background(isHeader || alternate || isMuted ? Color.grey10 : Color.clear)
             .overlay(
                 Rectangle()
-                    .stroke(Color.grey30, lineWidth: 0.7)
+                    .stroke(Color.grey25, lineWidth: 1)
             )
+    }
+}
+
+// SheetEmbedPreview.svelte measures each column from visible text (8px per
+// character, clamped to 60...200) and shows the columns that fit a 260px card.
+struct SheetPreviewColumns {
+    let widths: [CGFloat]
+    let visibleCount: Int
+
+    init(headers: [String], rows: [[String]], budget: CGFloat = 260) {
+        widths = headers.indices.map { index in
+            let length = max(headers[index].count, rows.map { $0.indices.contains(index) ? $0[index].count : 0 }.max() ?? 0)
+            return min(max(CGFloat(length * 8), 60), 200)
+        }
+        var used: CGFloat = 0
+        var count = 0
+        for width in widths {
+            if count > 0 && used + width > budget { break }
+            used += width
+            count += 1
+        }
+        visibleCount = count
     }
 }
 
 private struct SheetFullscreenTable: View {
     let table: ParsedSheetTable
+    var hasPIIMappings = false
+    var isPIIRevealed = false
+    var onTogglePII: () -> Void = {}
+    var onDisplayedRowsChange: (([[String]]) -> Void)? = nil
     @State private var sortColumnIndex: Int?
     @State private var sortAscending = true
     @State private var showFilters = false
@@ -1711,6 +1986,9 @@ private struct SheetFullscreenTable: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if hasPIIMappings {
+                EmbedPIIToggle(isRevealed: isPIIRevealed, action: onTogglePII)
+            }
             if showFilters {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: .spacing3) {
@@ -1736,7 +2014,9 @@ private struct SheetFullscreenTable: View {
         }
         .onAppear {
             filters = Array(repeating: "", count: table.headers.count)
+            onDisplayedRowsChange?(displayRows)
         }
+        .onChange(of: displayRows) { _, rows in onDisplayedRowsChange?(rows) }
         .accessibilityIdentifier("sheet-fullscreen-table")
     }
 
@@ -2250,6 +2530,8 @@ struct ParsedSheetTable {
     let headers: [String]
     let rows: [[String]]
     let markdown: String
+    let displayRowCount: Int
+    let displayColCount: Int
 
     init(data: [String: AnyCodable]?) {
         var markdown = ParsedSheetTable.firstString(data, ["table", "code", "content", "markdown"]) ?? ""
@@ -2269,9 +2551,14 @@ struct ParsedSheetTable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && $0.contains("|") }
 
+        let declaredRows = EmbedFieldReader.int(data ?? [:], keys: ["row_count", "rows"])
+        let declaredColumns = EmbedFieldReader.int(data ?? [:], keys: ["col_count", "cols"])
+
         guard lines.count >= 2 else {
             headers = []
             rows = []
+            displayRowCount = max(declaredRows ?? 0, 0)
+            displayColCount = max(declaredColumns ?? 0, 0)
             return
         }
 
@@ -2281,15 +2568,29 @@ struct ParsedSheetTable {
             let cells = ParsedSheetTable.parseRow(line)
             return parsedHeaders.indices.map { cells.indices.contains($0) ? cells[$0] : "" }
         }
+        displayRowCount = declaredRows.flatMap { $0 > 0 ? $0 : nil } ?? rows.count
+        displayColCount = declaredColumns.flatMap { $0 > 0 ? $0 : nil } ?? headers.count
     }
 
     var rowCount: Int { rows.count }
+
+    func applyingPII(mappings: [PIIMapping], revealed: Bool) -> ParsedSheetTable {
+        guard !mappings.isEmpty else { return self }
+        return ParsedSheetTable(data: [
+            "table": AnyCodable(EmbedPIIText.render(markdown, mappings: mappings, revealed: revealed)),
+            "title": AnyCodable(EmbedPIIText.render(title ?? "", mappings: mappings, revealed: revealed)),
+            "row_count": AnyCodable(displayRowCount), "col_count": AnyCodable(displayColCount)
+        ])
+    }
     var colCount: Int { headers.count }
     var dimensionsText: String {
-        "\(rowCount) \(rowCount == 1 ? "row" : "rows") × \(colCount) \(colCount == 1 ? "column" : "columns")"
+        "\(displayRowCount) \(displayRowCount == 1 ? "row" : "rows") × \(displayColCount) \(displayColCount == 1 ? "column" : "columns")"
     }
     var tsv: String {
-        ([headers] + rows)
+        tsv(rows: rows)
+    }
+    func tsv(rows selectedRows: [[String]]) -> String {
+        ([headers] + selectedRows)
             .map { $0.map { $0.replacingOccurrences(of: "\t", with: " ") }.joined(separator: "\t") }
             .joined(separator: "\n")
     }
@@ -2319,6 +2620,96 @@ struct ParsedSheetTable {
             }
         }
         return nil
+    }
+}
+
+// SheetEmbedFullscreen.svelte exports an Office Open XML workbook. Build the
+// same format in memory so the share/save flow never exposes a temporary table
+// directory or leaves its source rows on disk.
+struct SheetXLSXExporter {
+    enum ExportError: Error { case emptyTable, archiveUnavailable }
+
+    static func makeData(table: ParsedSheetTable, rows: [[String]]? = nil) throws -> Data {
+        guard !table.headers.isEmpty else { throw ExportError.emptyTable }
+        let archive = try Archive(data: Data(), accessMode: .create)
+        let sheetName = validSheetName(table.title ?? "Table")
+        let files: [(String, String)] = [
+            ("[Content_Types].xml", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>
+            """),
+            ("_rels/.rels", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>
+            """),
+            ("xl/workbook.xml", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="\(escapeXML(sheetName))" sheetId="1" r:id="rId1"/></sheets></workbook>
+            """),
+            ("xl/_rels/workbook.xml.rels", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>
+            """),
+            ("xl/styles.xml", """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>
+            """),
+            ("xl/worksheets/sheet1.xml", worksheetXML(table, rows: rows ?? table.rows))
+        ]
+        for (path, xml) in files {
+            let data = Data(xml.utf8)
+            try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count)) { position, size in
+                data.subdata(in: Int(position)..<min(Int(position) + size, data.count))
+            }
+        }
+        guard let result = archive.data else { throw ExportError.archiveUnavailable }
+        return result
+    }
+
+    private static func worksheetXML(_ table: ParsedSheetTable, rows selectedRows: [[String]]) -> String {
+        let rows = [table.headers] + selectedRows
+        let lastColumn = columnName(table.headers.count - 1)
+        var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><dimension ref=\"A1:\(lastColumn)\(rows.count)\"/><sheetData>"
+        for (rowIndex, row) in rows.enumerated() {
+            let number = rowIndex + 1
+            xml += "<row r=\"\(number)\">"
+            for columnIndex in table.headers.indices {
+                let text = row.indices.contains(columnIndex) ? row[columnIndex] : ""
+                let style = rowIndex == 0 ? " s=\"1\"" : ""
+                xml += "<c r=\"\(columnName(columnIndex))\(number)\" t=\"inlineStr\"\(style)><is><t xml:space=\"preserve\">\(escapeXML(text))</t></is></c>"
+            }
+            xml += "</row>"
+        }
+        return xml + "</sheetData></worksheet>"
+    }
+
+    private static func columnName(_ index: Int) -> String {
+        var value = index + 1
+        var name = ""
+        while value > 0 {
+            value -= 1
+            name = String(UnicodeScalar(65 + value % 26)!) + name
+            value /= 26
+        }
+        return name
+    }
+
+    private static func validSheetName(_ proposed: String) -> String {
+        let invalid = CharacterSet(charactersIn: "[]:*?/\\")
+        let cleaned = String(String.UnicodeScalarView(proposed.unicodeScalars.filter { !invalid.contains($0) }))
+        let bounded = String(cleaned.prefix(31)).trimmingCharacters(in: .whitespacesAndNewlines)
+        return bounded.isEmpty ? "Table" : bounded
+    }
+
+    private static func escapeXML(_ value: String) -> String {
+        let valid = String(String.UnicodeScalarView(value.unicodeScalars.filter {
+            $0.value == 9 || $0.value == 10 || $0.value == 13 || $0.value >= 32
+        }))
+        return valid.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
     }
 }
 
@@ -2387,7 +2778,7 @@ private struct CodeRepoPreview: View {
                     .lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("code-repo-preview-details")
     }
 }
@@ -2542,7 +2933,7 @@ private struct ElectronicsComponentPreview: View {
             .font(.omXxs)
             .foregroundStyle(Color.grey70)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("electronics-component-preview")
     }
 
@@ -2608,13 +2999,14 @@ private struct ElectronicsComponentFullscreen: View {
 struct PcbSchematicEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    let status: EmbedStatus
 
     private var schematic: PcbSchematicSummary { PcbSchematicSummary(data: data ?? [:]) }
 
     var body: some View {
         switch mode {
         case .preview:
-            PcbSchematicPreview(schematic: schematic)
+            PcbSchematicPreview(schematic: schematic, status: status)
         case .fullscreen:
             PcbSchematicFullscreen(schematic: schematic)
         }
@@ -2623,9 +3015,15 @@ struct PcbSchematicEmbedRenderer: View {
 
 private struct PcbSchematicPreview: View {
     let schematic: PcbSchematicSummary
+    let status: EmbedStatus
 
     var body: some View {
-        if schematic.code.isEmpty {
+        if status == .processing {
+            Text(AppStrings.localized("embeds.processing"))
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if schematic.code.isEmpty {
             VStack(spacing: .spacing4) {
                 Icon("pcbdesign", size: .spacing16)
                     .foregroundStyle(LinearGradient.appElectronics)
@@ -2657,7 +3055,11 @@ private struct PcbSchematicFullscreen: View {
         Group {
             if horizontalSizeClass == .compact {
                 VStack(spacing: .spacing6) {
-                    sourcePanel
+                    if schematic.code.isEmpty {
+                        Color.clear.frame(height: 170)
+                    } else {
+                        sourcePanel
+                    }
                     compilePanel
                 }
             } else {

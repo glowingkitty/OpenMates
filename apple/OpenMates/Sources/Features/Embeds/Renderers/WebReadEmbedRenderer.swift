@@ -8,6 +8,8 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
 
 import SwiftUI
 
@@ -17,7 +19,22 @@ struct WebReadEmbedRenderer: View {
 
     private var title: String { data?["title"]?.value as? String ?? "Article" }
     private var url: String { data?["url"]?.value as? String ?? "" }
-    private var content: String? { data?["content"]?.value as? String }
+    private var content: String? {
+        Self.sourceContent(in: data)
+    }
+
+    /// Read skills persist provider results under results[].markdown/content;
+    /// the excerpt target must reach that text as well as legacy top-level data.
+    static func sourceContent(in data: [String: AnyCodable]?) -> String? {
+        let raw = data ?? [:]
+        if let direct = EmbedFieldReader.string(raw, keys: ["content", "markdown", "text"]) { return direct }
+        let results = raw["results"]?.value as? [[String: Any]] ?? []
+        let contents = results.compactMap { result -> String? in
+            let fields = result.mapValues(AnyCodable.init)
+            return EmbedFieldReader.string(fields, keys: ["markdown", "content", "text"])
+        }
+        return contents.isEmpty ? nil : contents.joined(separator: "\n\n")
+    }
     private var wordCount: Int? { data?["word_count"]?.value as? Int }
 
     var body: some View {
@@ -59,7 +76,7 @@ struct WebReadEmbedRenderer: View {
                 }
 
                 if let content {
-                    Text(content)
+                    SourceQuoteTextDocument(text: content, locationPrefix: "web-read-paragraph")
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                 }

@@ -73,16 +73,27 @@ struct Icon: View {
             "key": "security_key",
             "low_balance": "coins",
             "secrets": "lock",
+            "books": "book",
+            "code": "coding",
+            "events": "event",
+            "health": "heart",
+            "images": "image",
+            "models3d": "3dmodels",
+            "social_media": "socialmedia",
             "api-keys": "coding",
             "app-ai": "ai",
             "dark_mode": "darkmode",
             "focus": "search",
             "light_mode": "darkmode",
             "link": "web",
+            "microphone": "recordaudio",
             "notification": "announcement",
             "profile-picture": "user",
             "shield": "lock",
-            "username": "user"
+            "username": "user",
+            "video": "videos",
+            "website": "web",
+            "table": "sheets"
         ][cleanName] ?? cleanName
     }
 }

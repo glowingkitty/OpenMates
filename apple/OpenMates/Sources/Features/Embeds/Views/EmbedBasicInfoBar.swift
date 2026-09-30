@@ -27,6 +27,7 @@ struct EmbedBasicInfoBar: View {
     let title: String
     let subtitle: String?
     let faviconURL: String?
+    let faviconIsCircular: Bool
     let showSkillIcon: Bool
     let titleLineLimit: Int?
     let titleTruncationMode: Text.TruncationMode
@@ -38,6 +39,7 @@ struct EmbedBasicInfoBar: View {
         title: String,
         subtitle: String?,
         faviconURL: String?,
+        faviconIsCircular: Bool = false,
         showSkillIcon: Bool,
         titleLineLimit: Int? = nil,
         titleTruncationMode: Text.TruncationMode = .tail,
@@ -48,6 +50,7 @@ struct EmbedBasicInfoBar: View {
         self.title = title
         self.subtitle = subtitle
         self.faviconURL = faviconURL
+        self.faviconIsCircular = faviconIsCircular
         self.showSkillIcon = showSkillIcon
         self.titleLineLimit = titleLineLimit
         self.titleTruncationMode = titleTruncationMode
@@ -77,6 +80,7 @@ struct EmbedBasicInfoBar: View {
                 HStack(spacing: 8) {
                     titleFavicon
                     Text(title)
+                        .accessibilityIdentifier("embed-basic-info-title")
                         .font(.omP)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.grey100)
@@ -118,8 +122,9 @@ struct EmbedBasicInfoBar: View {
                 Icon(skillIconName, size: 16)
                     .foregroundStyle(Color.grey70)
             }
-            .frame(width: Constants.faviconSize, height: Constants.faviconSize)
-            .clipShape(RoundedRectangle(cornerRadius: 2))
+            .frame(width: faviconIsCircular ? 25 : Constants.faviconSize,
+                   height: faviconIsCircular ? 25 : Constants.faviconSize)
+            .clipShape(RoundedRectangle(cornerRadius: faviconIsCircular ? 12.5 : 2))
             .accessibilityHidden(true)
         }
     }

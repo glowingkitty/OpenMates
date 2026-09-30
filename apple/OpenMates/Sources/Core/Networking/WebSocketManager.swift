@@ -3,6 +3,10 @@
 // and chat updates to ChatStore. Uses native URLSessionWebSocketTask.
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation, chats.rendering.assistant-document-convergence, chats.rendering.inline-entity-interaction
+// Specification: specifications/features/app-skills/code-run/specification.yml
+// Assertions: code-run.output.chat-bound-encrypted
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 
 import CryptoKit
 import Foundation
@@ -18,6 +22,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var pingTimer: Timer?
     private let decoder = JSONDecoder()
     private var connectTask: Task<Void, Never>?
+    private var reconnectTask: Task<Void, Never>?
+    private var reconnectAttempts = 0
     private var connectionGeneration = 0
     private var activeConnectionKey: ConnectionKey?
     private var didOpenCurrentSocket = false
@@ -47,6 +53,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
+    #if DEBUG
+    // Substitute only the transport attempt, preserving production retry and
+    // cancellation behavior for deterministic lifecycle tests.
+    var debugConnectionAttempt: (() -> Void)?
+    var debugReconnectDelay: TimeInterval?
+    #endif
 
     override init() {
         super.init()
@@ -73,6 +85,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
 
+        if activeConnectionKey != nextKey {
+            reconnectAttempts = 0
+            reconnectDelay = 1.0
+        }
+        reconnectTask?.cancel()
+        reconnectTask = nil
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
@@ -91,6 +109,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         activeConnectionKey = nextKey
         shouldReconnect = true
         connectionState = .connecting
+
+        #if DEBUG
+        if let debugConnectionAttempt {
+            debugConnectionAttempt()
+            return
+        }
+        #endif
 
         connectTask = Task { [weak self] in
             guard let self else { return }
@@ -130,13 +155,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                       isCancelled: Task.isCancelled
                   ) else {
                 guard generation == connectionGeneration else { return }
-                print("[WS] Connection probe failed before sync request")
+                NativeDiagnostics.event("socket_open_failed", category: "network", level: .warning)
                 handleDisconnect()
                 return
             }
 
             traceNativeStartupSync("phase=socketOpened")
             connectionState = .connected
+            reconnectAttempts = 0
             reconnectDelay = 1.0
             startPingTimer()
             receiveMessages(from: connectingTask)
@@ -159,6 +185,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             } catch {
                 traceNativeStartupSync("phase=phasedSyncSendFailed errorType=\(type(of: error))")
             }
+            guard generation == connectionGeneration else { return }
+            await CodeRunOutputStore.shared.flushPendingUploads()
         }
     }
 
@@ -175,6 +203,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             waiter.continuation.resume(throwing: WebSocketError.notConnected)
         }
         shouldReconnect = false
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        reconnectAttempts = 0
+        reconnectDelay = 1.0
         connectTask?.cancel()
         connectTask = nil
         pingTimer?.invalidate()
@@ -227,15 +259,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         timeout: Duration = .seconds(20),
         matching predicate: @escaping ([String: Any]) -> Bool
     ) async throws -> WebSocketResponse {
-        let waiterId = UUID()
-        return try await withCheckedThrowingContinuation { continuation in
-            messageWaiters[waiterId] = MessageWaiter(types: [type], predicate: predicate, continuation: continuation)
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: timeout)
-                guard let waiter = self?.messageWaiters.removeValue(forKey: waiterId) else { return }
-                waiter.continuation.resume(throwing: WebSocketError.messageTimeout)
-            }
-        }
+        try await awaitMessage(responseTypes: [type], timeout: timeout, matching: predicate)
     }
 
     func sendAndWait(
@@ -254,41 +278,74 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         _ message: WSOutboundMessage,
         responseTypes: Set<String>,
         timeout: Duration = .seconds(20),
-        matching predicate: @escaping ([String: Any]) -> Bool
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: (@MainActor () async throws -> Void)? = nil
     ) async throws -> WebSocketResponse {
         guard let boundSocket = webSocketTask else { throw WebSocketError.notConnected }
-        let waiterId = UUID()
         let expectedGeneration = connectionGeneration
-        return try await withCheckedThrowingContinuation { continuation in
-            messageWaiters[waiterId] = MessageWaiter(
-                types: responseTypes,
-                predicate: predicate,
-                continuation: continuation
-            )
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                do {
-                    guard messageWaiters[waiterId] != nil,
-                          Self.shouldContinueConnectionAttempt(
-                            expectedGeneration: expectedGeneration,
-                            currentGeneration: connectionGeneration,
-                            isCancelled: Task.isCancelled
-                          ) else { throw WebSocketError.notConnected }
-                    guard webSocketTask === boundSocket else { throw WebSocketError.notConnected }
-                    let data = try JSONEncoder().encode(message)
-                    guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
-                    try await boundSocket.send(.string(json))
-                } catch {
-                    guard let waiter = messageWaiters.removeValue(forKey: waiterId) else { return }
-                    waiter.continuation.resume(throwing: error)
+        return try await awaitMessage(responseTypes: responseTypes, timeout: timeout, matching: predicate) {
+            try await beforeSend?()
+            try Task.checkCancellation()
+            guard Self.shouldContinueConnectionAttempt(
+                expectedGeneration: expectedGeneration, currentGeneration: self.connectionGeneration,
+                isCancelled: Task.isCancelled
+            ), self.webSocketTask === boundSocket else { throw WebSocketError.notConnected }
+            let data = try JSONEncoder().encode(message)
+            guard let json = String(data: data, encoding: .utf8) else { throw WebSocketError.encodingFailed }
+            try await boundSocket.send(.string(json))
+        }
+    }
+
+    /// Registration, send, timeout and caller cancellation share one lifetime.
+    /// The cancellation latch is synchronous so cancellation cannot race a
+    /// MainActor hop and let a queued private commit start afterward.
+    func awaitMessage(
+        responseTypes: Set<String>, timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        send: (@MainActor () async throws -> Void)? = nil
+    ) async throws -> WebSocketResponse {
+        let waiterId = UUID()
+        let lifetime = WebSocketWaiterLifetime()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
+                guard !lifetime.isCancelled else {
+                    continuation.resume(throwing: CancellationError())
+                    return
                 }
+                messageWaiters[waiterId] = MessageWaiter(types: responseTypes,
+                    predicate: predicate, continuation: continuation, lifetime: lifetime)
+                if let send {
+                    lifetime.add(Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        do {
+                            try Task.checkCancellation()
+                            guard !lifetime.isCancelled, self.messageWaiters[waiterId] != nil else {
+                                throw CancellationError()
+                            }
+                            try await send()
+                        } catch {
+                            self.finishWaiter(waiterId, error: error)
+                        }
+                    })
+                }
+                lifetime.add(Task { @MainActor [weak self] in
+                    do { try await Task.sleep(for: timeout) } catch { return }
+                    self?.finishWaiter(waiterId, error: WebSocketError.messageTimeout)
+                })
             }
+        } onCancel: {
+            lifetime.cancel()
             Task { @MainActor [weak self] in
-                try? await Task.sleep(for: timeout)
-                guard let waiter = self?.messageWaiters.removeValue(forKey: waiterId) else { return }
-                waiter.continuation.resume(throwing: WebSocketError.messageTimeout)
+                self?.finishWaiter(waiterId, error: CancellationError())
             }
         }
+    }
+
+    private func finishWaiter(_ id: UUID, error: Error) {
+        guard let waiter = messageWaiters.removeValue(forKey: id) else { return }
+        waiter.lifetime.cancel()
+        waiter.continuation.resume(throwing: error)
     }
 
     var isConnected: Bool {
@@ -399,7 +456,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                     self.handleRawMessage(message)
                     self.receiveMessages(from: receivingTask)
                 case .failure(let error):
-                    print("[WS] Receive error: \(error.localizedDescription)")
+                    NativeDiagnostics.failure("socket_receive_failed", category: "network", level: .warning, error: error)
                     self.handleDisconnect()
                 }
             }
@@ -426,6 +483,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     private func routeMessage(_ msg: WSInboundParsed, raw: Data) {
         AssistantSpeechAppRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
+        ProjectWorkspaceReviewRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         if msg.type == "error" {
             rejectWaiters(with: msg.fields)
         }
@@ -468,7 +526,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
-                userInfo: ["type": msg.type, "raw": raw]
+                userInfo: ["type": msg.type, "raw": raw,
+                           "accountScope": OfflineStore.shared.scopeGeneration,
+                           "transportGeneration": connectionGeneration]
             )
 
         case "ai_message_update":
@@ -622,12 +682,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
               "encrypted_metadata_stored", "post_processing_metadata_stored",
               "focus_mode_activated",
               "spawn_sub_chats", "sub_chat_confirmation_required",
-              "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped",
+              "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped", "sub_chat_completed",
               "ai_background_response_completed":
             recoveryCoordinator?.handleTerminalStream(msg.fields)
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
-                userInfo: ["type": msg.type, "raw": raw]
+                userInfo: ["type": msg.type, "raw": raw,
+                           "accountScope": OfflineStore.shared.scopeGeneration,
+                           "transportGeneration": connectionGeneration]
             )
 
         // Sync phases
@@ -637,7 +699,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
              "background_message_sync", "cache_primed", "cache_status_response",
              "load_more_chats_response", "sync_metadata_chats_response",
              "phased_sync_complete", "sync_status_response",
-             "offline_sync_complete", "chat_content_batch_response":
+             "offline_sync_complete", "chat_content_batch_response",
+             "code_run_outputs_sync_ready":
             traceNativeStartupSync("phase=syncEventReceived type=\(msg.type)")
             NotificationCenter.default.post(
                 name: .wsSyncEvent, object: nil,
@@ -645,6 +708,15 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             )
 
         // Embed updates
+        case "code_run_output_synced":
+            let expectedScope = OfflineStore.shared.scopeGeneration
+            if let payload = CodeRunOutputSyncedPayload.decode(fields: msg.fields) {
+                Task { @MainActor in
+                    guard expectedScope == OfflineStore.shared.scopeGeneration else { return }
+                    await CodeRunOutputStore.shared.ingest(payload, expectedScope: expectedScope)
+                }
+            }
+
         case "send_embed_data":
             guard let embedStreamCoordinator else {
                 NotificationCenter.default.post(
@@ -702,7 +774,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private func rejectAllWaiters() {
         let pending = Array(messageWaiters.values)
         messageWaiters.removeAll()
-        for waiter in pending { waiter.continuation.resume(throwing: WebSocketError.notConnected) }
+        for waiter in pending {
+            waiter.lifetime.cancel()
+            waiter.continuation.resume(throwing: WebSocketError.notConnected)
+        }
     }
 
     private func resolveWaiters(type: String, payload: [String: Any]) {
@@ -711,6 +786,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
         for (id, waiter) in matches {
             messageWaiters.removeValue(forKey: id)
+            waiter.lifetime.cancel()
             waiter.continuation.resume(returning: WebSocketResponse(fields: payload, type: type))
         }
     }
@@ -722,6 +798,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             messageWaiters.removeValue(forKey: id)
         }
         for waiter in matchingWaiters.values {
+            waiter.lifetime.cancel()
             waiter.continuation.resume(throwing: WebSocketError.remote(code: code))
         }
     }
@@ -748,7 +825,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 let taskIdentifier = pingTask.taskIdentifier
                 pingTask.sendPing { error in
                     if let error {
-                        print("[WS] Ping error: \(error.localizedDescription)")
+                        NativeDiagnostics.failure("socket_ping_failed", category: "network", level: .warning, error: error)
                         Task { @MainActor [weak self] in
                             guard let self,
                                   Self.isCurrentSocket(
@@ -766,6 +843,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Reconnect
 
     private func handleDisconnect() {
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        connectTask?.cancel()
+        connectTask = nil
         rejectAllWaiters()
         connectionGeneration += 1
         streamEventDispatcher.reset()
@@ -773,27 +854,34 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
+        webSocketTask?.cancel(with: .goingAway, reason: nil)
         webSocketTask = nil
+        didOpenCurrentSocket = false
         recoveryCoordinator?.handleTransportDisconnected()
         guard shouldReconnect else {
             connectionState = .disconnected
             return
         }
 
-        let currentAttempt: Int
-        if case .reconnecting(let a) = connectionState { currentAttempt = a + 1 }
-        else { currentAttempt = 1 }
+        reconnectAttempts += 1
+        let currentAttempt = reconnectAttempts
 
         guard currentAttempt <= maxReconnectAttempts else {
+            shouldReconnect = false
             connectionState = .disconnected
+            NativeDiagnostics.event("socket_retries_exhausted", category: "network", level: .warning,
+                                    counts: ["attempts": currentAttempt - 1])
             return
         }
 
         connectionState = .reconnecting(attempt: currentAttempt)
 
-        let delay = reconnectDelay
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
+        var delay = reconnectDelay
+        #if DEBUG
+        delay = debugReconnectDelay ?? delay
+        #endif
+        reconnectTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
             guard let self,
                   Self.shouldContinueConnectionAttempt(
                       expectedGeneration: reconnectGeneration,
@@ -806,6 +894,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
     }
+
+    #if DEBUG
+    func debugFailCurrentConnection() { handleDisconnect() }
+    #endif
 
     static func isCurrentSocket(
         callbackTaskIdentifier: Int,
@@ -848,6 +940,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 callbackTaskIdentifier: webSocketTask.taskIdentifier,
                 currentTaskIdentifier: self.webSocketTask?.taskIdentifier
             ) else { return }
+            NativeDiagnostics.event("socket_closed", category: "network", level: .warning,
+                                    counts: ["close_code": closeCode.rawValue])
             self.handleDisconnect()
         }
     }
@@ -864,6 +958,7 @@ final class ChatEmbedStreamCoordinator {
     private let masterKey: (String) async -> SymmetricKey?
     private let chatKey: (String) -> SymmetricKey?
     private let persistEmbedKeys: ([EmbedKeyRecord]) -> Void
+    private let persistOwnerPII: ([PIIMapping], String, String, String, SymmetricKey) async throws -> Void
     private let accountScopeGeneration: () -> UUID
     private let retryDelay: (Int) -> Duration
     private var generation = UUID()
@@ -872,6 +967,8 @@ final class ChatEmbedStreamCoordinator {
     private var inFlightPayloadKeys = Set<String>()
     private var pendingRetries: [String: PendingRetry] = [:]
     private var retryTasks: [String: Task<Void, Never>] = [:]
+    private var pendingOwnerPayloads: [String: PendingOwnerPayload] = [:]
+    private var ownerRetryTasks: [String: Task<Void, Never>] = [:]
 
     init(
         transport: ChatWebSocketTransport,
@@ -880,6 +977,12 @@ final class ChatEmbedStreamCoordinator {
         masterKey: @escaping (String) async -> SymmetricKey?,
         chatKey: @escaping (String) -> SymmetricKey?,
         persistEmbedKeys: @escaping ([EmbedKeyRecord]) -> Void,
+        persistOwnerPII: @escaping ([PIIMapping], String, String, String, SymmetricKey) async throws -> Void = {
+            mappings, chatId, embedId, ownerId, key in
+            try await OwnerEmbedPIIStore.shared.persist(
+                mappings, chatId: chatId, embedId: embedId, ownerUserId: ownerId, masterKey: key
+            )
+        },
         accountScopeGeneration: @escaping () -> UUID = { OfflineStore.shared.scopeGeneration },
         retryDelay: @escaping (Int) -> Duration = { attempt in
             switch attempt {
@@ -895,6 +998,7 @@ final class ChatEmbedStreamCoordinator {
         self.masterKey = masterKey
         self.chatKey = chatKey
         self.persistEmbedKeys = persistEmbedKeys
+        self.persistOwnerPII = persistOwnerPII
         self.accountScopeGeneration = accountScopeGeneration
         self.retryDelay = retryDelay
     }
@@ -916,7 +1020,10 @@ final class ChatEmbedStreamCoordinator {
     func reset() {
         generation = UUID()
         retryTasks.values.forEach { $0.cancel() }
+        ownerRetryTasks.values.forEach { $0.cancel() }
         retryTasks.removeAll()
+        ownerRetryTasks.removeAll()
+        pendingOwnerPayloads.removeAll()
         pendingRetries.removeAll()
         requestedEmbedIdsByChat.removeAll()
         processedPayloadKeys.removeAll()
@@ -975,6 +1082,12 @@ final class ChatEmbedStreamCoordinator {
             if status == .error || status == .cancelled {
                 return
             }
+            if fields["owner_pii_mappings"] != nil {
+                try await persistOwnerMappings(
+                    fields, embedId: embedId,
+                    expectedGeneration: expectedGeneration, expectedScope: expectedScope
+                )
+            }
             if fields["already_encrypted"] as? Bool == true {
                 try storeAlreadyEncrypted(
                     fields,
@@ -992,9 +1105,17 @@ final class ChatEmbedStreamCoordinator {
             }
             guard isCurrent(expectedGeneration, expectedScope) else { return }
             cancelRetry(payloadKey)
+            pendingOwnerPayloads.removeValue(forKey: payloadKey)
+            ownerRetryTasks[payloadKey]?.cancel()
+            ownerRetryTasks[payloadKey] = nil
             processedPayloadKeys.insert(payloadKey)
             NativeDiagnostics.event("live_embed_persisted", category: "chat_stream", counts: ["children": childIds.count])
         } catch {
+            if fields["owner_pii_mappings"] != nil,
+               isCurrent(expectedGeneration, expectedScope) {
+                scheduleOwnerRetry(fields, payloadKey: payloadKey,
+                                   expectedGeneration: expectedGeneration, expectedScope: expectedScope)
+            }
             if let chatId = resolveChatId(fields["chat_id"] as? String),
                isCurrent(expectedGeneration, expectedScope) {
                 scheduleRetry(
@@ -1006,6 +1127,111 @@ final class ChatEmbedStreamCoordinator {
                 )
             }
             NativeDiagnostics.failure("live_embed_persistence_failed", category: "chat_stream", level: .warning, error: error)
+        }
+    }
+
+    /// The backend sends Finance originals only in this transient owner payload.
+    /// Persist the sidecar before writing or syncing the canonical embed.
+    private func persistOwnerMappings(
+        _ fields: [String: Any], embedId: String,
+        expectedGeneration: UUID, expectedScope: UUID
+    ) async throws {
+        guard isCurrent(expectedGeneration, expectedScope),
+              fields["already_encrypted"] as? Bool != true,
+              let chatId = resolveChatId(fields["chat_id"] as? String),
+              chatStore.chat(for: chatId) != nil,
+              let content = fields["content"] as? String else {
+            throw LiveEmbedError.invalidOwnerPIIPayload
+        }
+        let deletionVersion = OfflineStore.shared.chatDeletionVersion(chatId)
+        let parsed = EmbedRecord.parseContent(content)
+        let appId = fields["app_id"] as? String ?? parsed["app_id"] as? String
+        let skillId = fields["skill_id"] as? String ?? parsed["skill_id"] as? String
+        guard appId == "finance", skillId == "check_accounts",
+              let mappings = Self.normalizedOwnerPIIMappings(fields["owner_pii_mappings"]),
+              !content.contains("owner_pii_mappings"),
+              !content.contains("_owner_pii_mappings"),
+              mappings.allSatisfy({ mapping in
+                  !content.contains(mapping.original)
+                  && !(fields["text_preview"] as? String ?? "").contains(mapping.original)
+              }) else {
+            throw LiveEmbedError.invalidOwnerPIIPayload
+        }
+        guard let ownerId = await authenticatedOwnerId(),
+              isCurrent(expectedGeneration, expectedScope),
+              fields["user_id"] as? String == ownerId,
+              let key = await masterKey(ownerId),
+              isCurrent(expectedGeneration, expectedScope),
+              OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion,
+              chatStore.chat(for: chatId) != nil else {
+            throw LiveEmbedError.missingEncryptionContext
+        }
+        try await persistOwnerPII(mappings, chatId, embedId, ownerId, key)
+        guard isCurrent(expectedGeneration, expectedScope),
+              OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion,
+              chatStore.chat(for: chatId) != nil else {
+            throw LiveEmbedError.staleContext
+        }
+    }
+
+    static func normalizedOwnerPIIMappings(_ value: Any?) -> [PIIMapping]? {
+        guard let rows = value as? [[String: Any]], !rows.isEmpty else { return nil }
+        var seen = Set<String>()
+        var result: [PIIMapping] = []
+        for row in rows {
+            guard let rawPlaceholder = row["placeholder"] as? String,
+                  let rawOriginal = row["original"] as? String else { return nil }
+            let placeholder = rawPlaceholder.trimmingCharacters(in: .whitespacesAndNewlines)
+            let original = rawOriginal.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !placeholder.isEmpty, !original.isEmpty else { return nil }
+            if seen.insert(placeholder).inserted {
+                result.append(PIIMapping(placeholder: placeholder, original: original, type: "COUNTERPARTY"))
+            }
+        }
+        return result.isEmpty ? nil : result
+    }
+
+    /// Retry the original transient payload locally: request_embed may omit its
+    /// owner-only mappings after the first delivery.
+    func retryPendingOwnerPersistence() async {
+        for payloadKey in pendingOwnerPayloads.keys.sorted() {
+            ownerRetryTasks[payloadKey]?.cancel()
+            ownerRetryTasks[payloadKey] = nil
+            guard let pending = pendingOwnerPayloads[payloadKey],
+                  isCurrent(pending.generation, pending.scope),
+                  OfflineStore.shared.chatDeletionVersion(pending.chatId) == pending.deletionVersion else {
+                pendingOwnerPayloads.removeValue(forKey: payloadKey)
+                continue
+            }
+            await handleEmbedData(pending.fields)
+        }
+    }
+
+    private func scheduleOwnerRetry(
+        _ fields: [String: Any], payloadKey: String,
+        expectedGeneration: UUID, expectedScope: UUID
+    ) {
+        let attempt = (pendingOwnerPayloads[payloadKey]?.attempt ?? 0) + 1
+        guard let chatId = resolveChatId(fields["chat_id"] as? String) else { return }
+        let deletionVersion = pendingOwnerPayloads[payloadKey]?.deletionVersion
+            ?? OfflineStore.shared.chatDeletionVersion(chatId)
+        guard OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion else { return }
+        guard attempt <= 60 else {
+            pendingOwnerPayloads.removeValue(forKey: payloadKey)
+            ownerRetryTasks[payloadKey]?.cancel()
+            ownerRetryTasks[payloadKey] = nil
+            return
+        }
+        pendingOwnerPayloads[payloadKey] = PendingOwnerPayload(
+            fields: fields, chatId: chatId, deletionVersion: deletionVersion, attempt: attempt,
+            generation: expectedGeneration, scope: expectedScope
+        )
+        ownerRetryTasks[payloadKey]?.cancel()
+        ownerRetryTasks[payloadKey] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, let self else { return }
+            self.ownerRetryTasks[payloadKey] = nil
+            await self.retryPendingOwnerPersistence()
         }
     }
 
@@ -1111,15 +1337,21 @@ final class ChatEmbedStreamCoordinator {
         expectedScope: UUID
     ) async throws {
         guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
-        guard let rawChatId = resolveChatId(fields["chat_id"] as? String),
-              let rawMessageId = fields["message_id"] as? String,
+        guard let rawChatId = resolveChatId(fields["chat_id"] as? String) else {
+            throw LiveEmbedError.missingEncryptionContext
+        }
+        let deletionVersion = OfflineStore.shared.chatDeletionVersion(rawChatId)
+        guard let rawMessageId = fields["message_id"] as? String,
               let content = fields["content"] as? String,
               let type = fields["type"] as? String,
               let ownerId = await authenticatedOwnerId(),
               let chatKey = chatKey(rawChatId) else {
             throw LiveEmbedError.missingEncryptionContext
         }
-        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        guard isCurrent(expectedGeneration, expectedScope),
+              OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
+            throw LiveEmbedError.staleContext
+        }
 
         let parentEmbedId = fields["parent_embed_id"] as? String
         let keyOwnerId = parentEmbedId?.isEmpty == false ? parentEmbedId! : embedId
@@ -1184,7 +1416,10 @@ final class ChatEmbedStreamCoordinator {
             contentHash: fields["content_hash"] as? String,
             createdAt: String(createdAt)
         )
-        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        guard isCurrent(expectedGeneration, expectedScope),
+              OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
+            throw LiveEmbedError.staleContext
+        }
         chatStore.upsertEmbeds([record], for: rawChatId)
 
         if !keyRecords.isEmpty {
@@ -1206,10 +1441,16 @@ final class ChatEmbedStreamCoordinator {
                 ]),
                 responseType: "store_embed_keys_confirmed"
             ) { $0["request_id"] as? String == requestId }
-            guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+            guard isCurrent(expectedGeneration, expectedScope),
+                  OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
+                throw LiveEmbedError.staleContext
+            }
         }
 
-        guard isCurrent(expectedGeneration, expectedScope) else { throw LiveEmbedError.staleContext }
+        guard isCurrent(expectedGeneration, expectedScope),
+              OfflineStore.shared.chatDeletionVersion(rawChatId) == deletionVersion else {
+            throw LiveEmbedError.staleContext
+        }
         let requestId = UUID().uuidString
         var storePayload: [String: Any] = [
             "request_id": requestId,
@@ -1420,6 +1661,16 @@ final class ChatEmbedStreamCoordinator {
     private enum LiveEmbedError: Error {
         case missingEncryptionContext
         case staleContext
+        case invalidOwnerPIIPayload
+    }
+
+    private struct PendingOwnerPayload {
+        let fields: [String: Any]
+        let chatId: String
+        let deletionVersion: Int
+        let attempt: Int
+        let generation: UUID
+        let scope: UUID
     }
 
     private struct PendingRetry {
@@ -1589,6 +1840,34 @@ private struct MessageWaiter {
     let types: Set<String>
     let predicate: ([String: Any]) -> Bool
     let continuation: CheckedContinuation<WebSocketResponse, Error>
+    let lifetime: WebSocketWaiterLifetime
+}
+
+private final class WebSocketWaiterLifetime: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var tasks: [Task<Void, Never>] = []
+
+    var isCancelled: Bool { lock.withLock { cancelled } }
+
+    func add(_ task: Task<Void, Never>) {
+        let cancelImmediately = lock.withLock {
+            if cancelled { return true }
+            tasks.append(task)
+            return false
+        }
+        if cancelImmediately { task.cancel() }
+    }
+
+    func cancel() {
+        let pending = lock.withLock {
+            cancelled = true
+            let pending = tasks
+            tasks.removeAll()
+            return pending
+        }
+        pending.forEach { $0.cancel() }
+    }
 }
 
 /// Keeps untyped decoded WebSocket JSON at the main-actor transport boundary.

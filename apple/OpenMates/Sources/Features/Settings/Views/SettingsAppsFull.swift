@@ -23,11 +23,13 @@ struct SettingsAppsFullView: View {
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var selectedApp: AppInfo?
+    @State private var appInitialDetailPath: [String] = []
     @State private var isShowingAllApps = false
     @State private var mostUsedAppIDs: [String] = []
     let onOpenExampleChat: (String) -> Void
+    private let deepLinkPath: String?
 
-    init(onOpenExampleChat: @escaping (String) -> Void = { chatId in
+    init(deepLinkPath: String? = nil, onOpenExampleChat: @escaping (String) -> Void = { chatId in
         guard let url = URL(string: "openmates://chat/\(chatId)") else { return }
         NotificationCenter.default.post(
             name: .deepLinkReceived,
@@ -36,6 +38,7 @@ struct SettingsAppsFullView: View {
         )
     }) {
         self.onOpenExampleChat = onOpenExampleChat
+        self.deepLinkPath = deepLinkPath
     }
 
     struct AppInfo: Identifiable, Decodable {
@@ -264,9 +267,11 @@ struct SettingsAppsFullView: View {
     var body: some View {
         Group {
             if let selectedApp {
-                AppDetailView(app: selectedApp, onOpenExampleChat: onOpenExampleChat) {
+                AppDetailView(app: selectedApp, onOpenExampleChat: onOpenExampleChat,
+                    initialDetailPath: appInitialDetailPath) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         self.selectedApp = nil
+                        appInitialDetailPath = []
                     }
                 }
                 .transition(.move(edge: .trailing))
@@ -311,7 +316,15 @@ struct SettingsAppsFullView: View {
                 }
             }
         }
-        .task { await loadApps() }
+        .task {
+            await loadApps()
+            guard let deepLinkPath else { return }
+            if deepLinkPath == "all" { isShowingAllApps = true }
+            else if let appID = deepLinkPath.split(separator: "/").first {
+                appInitialDetailPath = Array(deepLinkPath.split(separator: "/").dropFirst()).map(String.init)
+                selectedApp = apps.first { $0.id == String(appID) }
+            }
+        }
     }
 
     private func loadApps() async {
@@ -925,14 +938,30 @@ struct AppDetailView: View {
     let app: SettingsAppsFullView.AppInfo
     let onOpenExampleChat: (String) -> Void
     let onBack: () -> Void
+    let initialDetailPath: [String]
 
     @State private var selectedSkill: SettingsAppsFullView.AppSkill?
     @State private var selectedFocusMode: SettingsAppsFullView.AppSkill?
     @State private var selectedMemory: SettingsAppsFullView.AppSkill?
     @State private var selectedContent: SettingsAppsFullView.ContentType?
+    @State private var missingInitialDetail = false
+    @State private var appliedInitialDetail = false
+
+    init(app: SettingsAppsFullView.AppInfo, onOpenExampleChat: @escaping (String) -> Void,
+         initialDetailPath: [String] = [], onBack: @escaping () -> Void) {
+        self.app = app
+        self.onOpenExampleChat = onOpenExampleChat
+        self.initialDetailPath = initialDetailPath
+        self.onBack = onBack
+    }
 
     var body: some View {
-        if let selectedSkill {
+        Group {
+        if missingInitialDetail {
+            Text(AppStrings.localized("documentation.page_not_found"))
+                .font(.omP).foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("settings-deep-link-unavailable")
+        } else if let selectedSkill {
             AppSkillDetailNativeView(app: app, skill: selectedSkill, onOpenExampleChat: onOpenExampleChat) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.selectedSkill = nil
@@ -962,6 +991,21 @@ struct AppDetailView: View {
             }
         } else {
             appDetailBody
+        }
+        }
+        .onAppear {
+            guard !appliedInitialDetail else { return }
+            appliedInitialDetail = true
+            guard initialDetailPath.count == 2 else { return }
+            let id = initialDetailPath[1]
+            switch initialDetailPath[0] {
+            case "skills": selectedSkill = app.skills?.first { $0.id == id }
+            case "focus", "focus-modes": selectedFocusMode = app.focusModes?.first { $0.id == id }
+            case "memories", "settings-memories": selectedMemory = app.settingsAndMemories?.first { $0.id == id }
+            case "content-types": selectedContent = app.contentTypes.first { $0.id == id }
+            default: break
+            }
+            missingInitialDetail = selectedSkill == nil && selectedFocusMode == nil && selectedMemory == nil && selectedContent == nil
         }
     }
 

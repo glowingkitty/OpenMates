@@ -46,12 +46,19 @@ struct WorkflowRunRequest: Encodable, Sendable {
 enum WorkflowAPIRequestFactory {
     static let basePath = "/v1/workflows"
 
-    static func listPath() -> String { basePath }
+    static func listPath(teamID: String? = nil) -> String { scoped(basePath, teamID: teamID) }
+
+    static func scoped(_ path: String, teamID: String?) -> String {
+        guard let teamID else { return path }
+        let escaped = teamID.addingPercentEncoding(withAllowedCharacters:
+            CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~")) ?? ""
+        return "\(path)?team_id=\(escaped)"
+    }
 
     static func capabilitiesPath() -> String { "\(basePath)/capabilities" }
 
-    static func workflowPath(_ workflowId: String) -> String {
-        "\(basePath)/\(workflowId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? workflowId)"
+    static func workflowPath(_ workflowId: String, teamID: String? = nil) -> String {
+        scoped("\(basePath)/\(workflowId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? workflowId)", teamID: teamID)
     }
 
     static func enablePath(_ workflowId: String) -> String { "\(workflowPath(workflowId))/enable" }
@@ -62,9 +69,70 @@ enum WorkflowAPIRequestFactory {
 
     static func runsPath(_ workflowId: String) -> String { "\(workflowPath(workflowId))/runs" }
 
+    static func versionsPath(_ workflowId: String) -> String { "\(workflowPath(workflowId))/versions" }
+
+    static func versionPath(workflowId: String, versionId: String) -> String {
+        let encoded = versionId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? versionId
+        return "\(versionsPath(workflowId))/\(encoded)"
+    }
+
+    static func restoreVersionPath(workflowId: String, versionId: String) -> String {
+        "\(versionPath(workflowId: workflowId, versionId: versionId))/restore"
+    }
+
     static func runDetailPath(workflowId: String, runId: String) -> String {
         let encodedRunId = runId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? runId
         return "\(runsPath(workflowId))/\(encodedRunId)"
+    }
+
+
+    static func cancelRunPath(workflowId: String, runId: String) -> String {
+        "\(runDetailPath(workflowId: workflowId, runId: runId))/cancel"
+    }
+}
+
+@MainActor
+struct WorkflowAPISendEnvironment {
+    var currentAccountID: () async -> String?
+    var currentProfile: () -> ServerProfile
+    var currentOfflineScope: () -> UUID
+    var currentTeamContext: () -> APIRequestTeamContext
+
+    static let live = Self(
+        currentAccountID: { await AuthManager.currentUserId() },
+        currentProfile: { ServerProfile.current() },
+        currentOfflineScope: { OfflineStore.shared.scopeGeneration },
+        currentTeamContext: {
+            APIRequestTeamContext(epoch: TeamWorkspaceContext.shared.contextEpoch,
+                                  teamID: TeamWorkspaceContext.shared.teamID)
+        }
+    )
+}
+
+struct WorkflowAPIOperationScope {
+    let accountID: String
+    let profile: ServerProfile
+    let offlineScope: UUID
+    let teamContext: APIRequestTeamContext
+
+    @MainActor
+    static func capture(accountID: String) -> Self {
+        Self(accountID: accountID, profile: ServerProfile.current(),
+             offlineScope: OfflineStore.shared.scopeGeneration,
+             teamContext: APIRequestTeamContext(epoch: TeamWorkspaceContext.shared.contextEpoch,
+                                                teamID: TeamWorkspaceContext.shared.teamID))
+    }
+
+    @MainActor
+    func check(environment: WorkflowAPISendEnvironment = .live) async throws {
+        func matchesContext() -> Bool {
+            let team = environment.currentTeamContext()
+            return environment.currentProfile() == profile &&
+                environment.currentOfflineScope() == offlineScope &&
+                team.epoch == teamContext.epoch && team.teamID == teamContext.teamID
+        }
+        guard matchesContext(), await environment.currentAccountID() == accountID,
+              matchesContext() else { throw CancellationError() }
     }
 }
 
@@ -75,48 +143,116 @@ actor WorkflowAPI {
         self.apiClient = apiClient
     }
 
-    func listWorkflows() async throws -> [WorkflowSummary] {
-        let response: WorkflowListResponse = try await apiClient.request(.get, path: WorkflowAPIRequestFactory.listPath())
+    private func request<T: Decodable & Sendable>(
+        _ method: HTTPMethod, path: String, scope: WorkflowAPIOperationScope,
+        body: (any Encodable & Sendable)? = nil, headers: [String: String]? = nil
+    ) async throws -> T {
+        try await scope.check()
+        let data: Data = try await apiClient.request(
+            method, path: path, serverProfile: scope.profile, body: body, headers: headers,
+            expectedAccountID: scope.accountID, expectedScope: scope.offlineScope,
+            expectedTeamContext: scope.teamContext
+        )
+        try await scope.check()
+        return try Self.decodeResponse(T.self, from: data)
+    }
+
+    // Workflow models have explicit snake_case CodingKeys, including graph/node
+    // fields. The shared client's camel-case conversion would drop those keys.
+    nonisolated static func decodeResponse<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        try JSONDecoder().decode(type, from: data)
+    }
+
+    func listWorkflows(scope: WorkflowAPIOperationScope) async throws -> [WorkflowSummary] {
+        let response: WorkflowListResponse = try await request(.get, path: WorkflowAPIRequestFactory.listPath(teamID: scope.teamContext.teamID), scope: scope)
         return response.workflows
     }
 
-    func getWorkflow(_ workflowId: String) async throws -> WorkflowDetail {
-        let response: WorkflowResponse = try await apiClient.request(.get, path: WorkflowAPIRequestFactory.workflowPath(workflowId))
+    func capabilities(scope: WorkflowAPIOperationScope) async throws -> [WorkflowCapability] {
+        let response: WorkflowCapabilitiesResponse = try await request(.get, path: WorkflowAPIRequestFactory.capabilitiesPath(), scope: scope)
+        return response.capabilities
+    }
+
+    func getWorkflow(_ workflowId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
+        let response: WorkflowResponse = try await request(.get, path: WorkflowAPIRequestFactory.workflowPath(workflowId, teamID: scope.teamContext.teamID), scope: scope)
         return response.workflow
     }
 
-    func createWorkflow(_ request: WorkflowCreateRequest) async throws -> WorkflowDetail {
-        let response: WorkflowResponse = try await apiClient.request(.post, path: WorkflowAPIRequestFactory.listPath(), body: request)
+    func createWorkflow(_ body: WorkflowCreateRequest, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
+        let response: WorkflowResponse = try await request(.post, path: WorkflowAPIRequestFactory.listPath(), scope: scope, body: body)
         return response.workflow
     }
 
-    func updateWorkflow(_ workflowId: String, request: WorkflowUpdateRequest) async throws -> WorkflowDetail {
-        let response: WorkflowResponse = try await apiClient.request(.patch, path: WorkflowAPIRequestFactory.workflowPath(workflowId), body: request)
+    func updateWorkflow(_ workflowId: String, request body: WorkflowUpdateRequest,
+                        scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
+        let response: WorkflowResponse = try await request(.patch, path: WorkflowAPIRequestFactory.workflowPath(workflowId), scope: scope, body: body)
         return response.workflow
     }
 
-    func enableWorkflow(_ workflowId: String) async throws -> WorkflowDetail {
-        let response: WorkflowResponse = try await apiClient.request(.post, path: WorkflowAPIRequestFactory.enablePath(workflowId))
+    func deleteWorkflow(_ workflowId: String, scope: WorkflowAPIOperationScope) async throws {
+        let _: WorkflowDeleteResponse = try await request(.delete, path: WorkflowAPIRequestFactory.workflowPath(workflowId), scope: scope)
+    }
+
+    func versions(workflowId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowVersionHistory {
+        try await request(.get, path: WorkflowAPIRequestFactory.versionsPath(workflowId), scope: scope)
+    }
+
+    func version(workflowId: String, versionId: String,
+                 scope: WorkflowAPIOperationScope) async throws -> WorkflowVersionDetail {
+        let response: WorkflowVersionResponse = try await request(.get, path: WorkflowAPIRequestFactory.versionPath(workflowId: workflowId, versionId: versionId), scope: scope)
+        return response.version
+    }
+
+    func restoreVersion(workflowId: String, versionId: String,
+                        scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
+        let response: WorkflowResponse = try await request(.post, path: WorkflowAPIRequestFactory.restoreVersionPath(workflowId: workflowId, versionId: versionId), scope: scope, body: [:] as [String: String])
         return response.workflow
     }
 
-    func disableWorkflow(_ workflowId: String) async throws -> WorkflowDetail {
-        let response: WorkflowResponse = try await apiClient.request(.post, path: WorkflowAPIRequestFactory.disablePath(workflowId))
+    func enableWorkflow(_ workflowId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
+        let response: WorkflowResponse = try await request(.post, path: WorkflowAPIRequestFactory.enablePath(workflowId), scope: scope)
         return response.workflow
     }
 
-    func runWorkflow(_ workflowId: String, request: WorkflowRunRequest) async throws -> WorkflowRunDetail {
-        let response: WorkflowRunResponse = try await apiClient.request(.post, path: WorkflowAPIRequestFactory.runPath(workflowId), body: request)
+    func disableWorkflow(_ workflowId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
+        let response: WorkflowResponse = try await request(.post, path: WorkflowAPIRequestFactory.disablePath(workflowId), scope: scope)
+        return response.workflow
+    }
+
+    func runWorkflow(_ workflowId: String, request body: WorkflowRunRequest,
+                     scope: WorkflowAPIOperationScope) async throws -> WorkflowRunDetail {
+        let response: WorkflowRunResponse = try await request(
+            .post, path: WorkflowAPIRequestFactory.runPath(workflowId), scope: scope, body: body,
+            headers: ["Idempotency-Key": "\(workflowId)-\(UUID().uuidString)"]
+        )
         return response.run
     }
 
-    func listRuns(workflowId: String) async throws -> [WorkflowRunDetail] {
-        let response: WorkflowRunsResponse = try await apiClient.request(.get, path: WorkflowAPIRequestFactory.runsPath(workflowId))
+    func listRuns(workflowId: String, scope: WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary] {
+        let response: WorkflowRunsResponse = try await request(.get, path: WorkflowAPIRequestFactory.runsPath(workflowId), scope: scope)
         return response.runs
     }
 
-    func runDetail(workflowId: String, runId: String) async throws -> WorkflowRunDetail {
-        let response: WorkflowRunResponse = try await apiClient.request(.get, path: WorkflowAPIRequestFactory.runDetailPath(workflowId: workflowId, runId: runId))
+    func runDetail(workflowId: String, runId: String,
+                   scope: WorkflowAPIOperationScope) async throws -> WorkflowRunDetail {
+        let response: WorkflowRunResponse = try await request(.get, path: WorkflowAPIRequestFactory.runDetailPath(workflowId: workflowId, runId: runId), scope: scope)
         return response.run
+    }
+
+    func cancelRun(workflowId: String, runId: String,
+                   scope: WorkflowAPIOperationScope) async throws -> String {
+        let response: WorkflowRunStatusResponse = try await request(
+            .post, path: WorkflowAPIRequestFactory.cancelRunPath(workflowId: workflowId, runId: runId),
+            scope: scope, body: [:] as [String: String]
+        )
+        return response.status
+    }
+
+    func deleteRun(workflowId: String, runId: String,
+                   scope: WorkflowAPIOperationScope) async throws -> String {
+        let response: WorkflowRunStatusResponse = try await request(
+            .delete, path: WorkflowAPIRequestFactory.runDetailPath(workflowId: workflowId, runId: runId), scope: scope
+        )
+        return response.status
     }
 }

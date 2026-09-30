@@ -51,18 +51,16 @@ final class ChatFlowParityUITests: XCTestCase {
         )
 
         XCTAssertTrue(app.descendants(matching: .any)["workspace-switcher"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["plans-nav-link"].exists,
+                       "The web header exposes Chat, Projects, Workflows and Tasks")
         openWorkspace("projects", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-projects"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-return-to-chats"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["projects-home-greeting"].waitForExistence(timeout: 5))
         let switcher = app.descendants(matching: .any)["workspace-switcher"]
         XCTAssertTrue(switcher.isEnabled)
         XCTAssertEqual(switcher.label, "Projects")
 
         openWorkspace("tasks", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-tasks"].waitForExistence(timeout: 5))
-
-        openWorkspace("plans", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-plans"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["tasks-workspace"].waitForExistence(timeout: 5))
 
         openWorkspace("workflows", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["workflows-home"].waitForExistence(timeout: 5))
@@ -72,6 +70,48 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Unauthenticated new-chat parity surface")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workspace-shell.nav.released-surfaces-visible
+    func testWideWorkspaceTabsUseEntireHighlightedSegment() throws {
+        #if os(iOS)
+        guard UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("Desktop workspace segments require the iPad wide layout")
+        }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-show-workspace-tabs"]
+        app.launch()
+        let ids = ["chats-nav-link", "projects-nav-link", "workflows-nav-link", "tasks-nav-link"]
+        let switcher = app.descendants(matching: .any)["workspace-switcher"]
+        XCTAssertTrue(switcher.waitForExistence(timeout: 10))
+        XCTAssertEqual(switcher.frame.width, 288, accuracy: 1)
+        XCTAssertFalse(app.descendants(matching: .any)["plans-nav-link"].exists)
+        var previousMaxX: CGFloat?
+        for id in ids {
+            let tab = app.buttons[id]
+            XCTAssertTrue(tab.exists)
+            XCTAssertEqual(tab.frame.width, 72, accuracy: 1)
+            XCTAssertEqual(tab.frame.height, 44.8, accuracy: 1)
+            if let previousMaxX { XCTAssertEqual(tab.frame.minX, previousMaxX, accuracy: 1) }
+            previousMaxX = tab.frame.maxX
+        }
+        for (id, destination) in [
+            ("projects-nav-link", "projects-home-greeting"),
+            ("workflows-nav-link", "workflows-home"),
+            ("tasks-nav-link", "tasks-workspace"),
+        ] {
+            let tab = app.buttons[id]
+            tab.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.15)).tap()
+            XCTAssertTrue(app.descendants(matching: .any)[destination].waitForExistence(timeout: 5),
+                          "The tab's padded corner must change workspaces")
+            tab.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.85)).tap()
+            XCTAssertTrue(app.descendants(matching: .any)[destination].exists,
+                          "The highlighted tab's full segment must stay interactive")
+        }
+        attachScreenshot(name: "Wide header with four full workspace hit regions")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

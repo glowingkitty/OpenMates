@@ -5,9 +5,13 @@
 //          frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/specifications/specification.yml
+// Assertions: contracts.diagrams.private-rendering, contracts.diagrams.revision-pinned-editing
 
 import SwiftUI
 
@@ -51,11 +55,11 @@ private struct SocialMediaPostPreview: View {
 
             Spacer(minLength: 0)
 
-            HStack(spacing: .spacing10) {
-                SocialMediaMetric(icon: "heart", value: post.likeCount.formatted())
-                SocialMediaMetric(icon: "chat", value: post.replyCount.formatted())
+            HStack(spacing: .spacing3) {
+                Text("\(post.likeCount.formatted()) likes")
+                Text("\(post.replyCount.formatted()) comments")
                 if post.repostCount > 0 {
-                    SocialMediaMetric(icon: "share", value: post.repostCount.formatted())
+                    Text("\(post.repostCount.formatted()) reposts")
                 }
                 Spacer(minLength: 0)
                 if let mediaURL = post.mediaURL {
@@ -66,10 +70,6 @@ private struct SocialMediaPostPreview: View {
             }
             .font(.omXxs)
             .foregroundStyle(Color.fontSecondary)
-            .padding(.top, .spacing3)
-            .overlay(alignment: .top) {
-                Rectangle().fill(Color.grey20).frame(height: 1)
-            }
         }
         .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -271,39 +271,50 @@ private struct WeatherDayPreview: View {
     let weather: WeatherDayValue
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing5) {
-            VStack(alignment: .leading, spacing: .spacing1) {
-                Text(weather.date ?? AppStrings.weatherDay)
-                    .font(.omSmall.weight(.semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(weather.dateTitle ?? AppStrings.weatherDay)
+                    .font(.custom("Lexend Deca", size: 15).weight(.semibold))
                     .foregroundStyle(Color.grey100)
                     .lineLimit(1)
-                Text(weather.displayCondition ?? AppStrings.weatherDay)
+                Text(weather.displayCondition ?? "—")
                     .font(.omXs)
                     .foregroundStyle(Color.grey70)
                     .lineLimit(1)
             }
 
-            HStack(spacing: .spacing5) {
-                WeatherConditionIcon(value: weather.iconAndCondition, size: 58)
+            Spacer(minLength: 0)
+            HStack(spacing: 10) {
+                WeatherConditionIcon(icon: weather.icon, condition: weather.condition, size: 82)
                 Spacer(minLength: 0)
                 Text(weather.temperatureRange)
-                    .font(.omXxl.weight(.semibold))
+                    .font(.custom("Lexend Deca", size: 25).weight(.semibold))
                     .foregroundStyle(Color.grey100)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
 
-            HStack(spacing: .spacing3) {
-                WeatherPill(text: "\(weather.rainChance.formatted())%")
+            Spacer(minLength: 0)
+            HStack(spacing: 6) {
+                WeatherPill(text: "\(weather.rainChance.formatted())% rain")
                 WeatherPill(text: "\(weather.precipitation.formatted()) mm")
-                WeatherPill(text: "\(weather.rainHours.formatted()) h")
+                WeatherPill(text: "\(weather.rainHours.formatted())h")
             }
         }
-        .padding(.spacing6)
+        .padding(12)
         .frame(maxWidth: .infinity, minHeight: 145, maxHeight: .infinity, alignment: .topLeading)
-        .background(LinearGradient.appWeather.opacity(0.14))
-        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-        .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+        .background {
+            LinearGradient.appWeather.opacity(0.14)
+                .overlay {
+                    LinearGradient.appWeather.opacity(0.28)
+                        .mask {
+                            RadialGradient(colors: [.black, .clear], center: UnitPoint(x: 0.18, y: 0.18), startRadius: 0, endRadius: 115)
+                        }
+                }
+                .background(Color.grey0)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay { RoundedRectangle(cornerRadius: 20).stroke(Color.grey20, lineWidth: 1) }
     }
 }
 
@@ -311,102 +322,145 @@ private struct WeatherDayFullscreen: View {
     let weather: WeatherDayValue
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
+    private var compact: Bool { horizontalSizeClass == .compact }
+
     var body: some View {
         ScrollView {
-            VStack(spacing: .spacing8) {
+            VStack(spacing: compact ? 12 : 18) {
                 summaryCard
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: horizontalSizeClass == .compact ? 135 : 180), spacing: .spacing6)], spacing: .spacing6) {
-                    WeatherMetricCard(icon: "weather", value: "\(weather.rainChance.formatted())%", detail: "\(weather.precipitation.formatted()) mm · \(weather.rainHours.formatted()) h")
-                    WeatherMetricCard(icon: "weather", value: weather.windText)
-                    WeatherMetricCard(icon: "cloud", value: weather.cloudText)
-                    WeatherMetricCard(icon: "weather", value: weather.humidityText)
-                }
-
-                VStack(alignment: .leading, spacing: .spacing6) {
-                    HStack {
-                        Text(AppStrings.weatherForecast).font(.omLg.weight(.bold)).foregroundStyle(Color.grey100)
-                        Spacer()
-                        Text(weather.hourly.count.formatted()).font(.omXs).foregroundStyle(Color.grey60)
-                    }
-                    if weather.hourly.isEmpty {
-                        Text(AppStrings.weatherDay).font(.omXs).foregroundStyle(Color.grey60)
-                    } else {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(spacing: .spacing5) {
-                                ForEach(weather.hourly) { hour in
-                                    VStack(spacing: .spacing3) {
-                                        Text(hour.time ?? "—").font(.omXxs.weight(.semibold)).foregroundStyle(Color.grey100)
-                                        WeatherConditionIcon(value: "\(hour.icon ?? weather.icon) \(hour.condition ?? weather.condition)", size: 34)
-                                        Text(hour.temperature.map { "\($0.formatted())°" } ?? "—")
-                                            .font(.omLg.weight(.bold)).foregroundStyle(Color.grey100)
-                                        Text("\((hour.rainChance ?? 0).formatted())%")
-                                        Text("\((hour.precipitation ?? 0).formatted()) mm")
-                                        Text(hour.wind.map { "\($0.formatted()) km/h" } ?? "—")
-                                    }
-                                    .font(.omXxs)
-                                    .foregroundStyle(Color.grey70)
-                                    .padding(.horizontal, .spacing5)
-                                    .padding(.vertical, .spacing6)
-                                    .frame(minWidth: 96)
-                                    .background(Color.grey10)
-                                    .clipShape(RoundedRectangle(cornerRadius: .radius7))
-                                    .overlay { RoundedRectangle(cornerRadius: .radius7).stroke(Color.grey20, lineWidth: 1) }
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(.spacing8)
-                .background(Color.grey0)
-                .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
-                .shadow(color: .black.opacity(0.07), radius: 16, x: 0, y: 6)
+                metricsGrid
+                hourlyCard
             }
-            .padding(.horizontal, horizontalSizeClass == .compact ? .spacing4 : .spacing8)
-            .padding(.vertical, .spacing10)
+            .padding(.horizontal, compact ? 8 : 16)
+            .padding(.top, compact ? 14 : 20)
+            .padding(.bottom, compact ? 96 : 120)
             .frame(maxWidth: 980)
             .frame(maxWidth: .infinity)
         }
     }
 
+    private var metricsGrid: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: compact ? 8 : 12), count: compact ? 2 : 4),
+            spacing: compact ? 8 : 12
+        ) {
+            WeatherMetricCard(label: "Rain chance", value: "\(weather.rainChance.formatted())%", detail: "\(weather.precipitation.formatted()) mm · \(weather.rainHours.formatted())h", compact: compact)
+            WeatherMetricCard(label: "Wind", value: weather.windText, detail: "Max speed", compact: compact)
+            WeatherMetricCard(label: "Clouds", value: weather.cloudText, detail: "Average cover", compact: compact)
+            WeatherMetricCard(label: "Humidity", value: weather.humidityText, detail: "Average", compact: compact)
+        }
+    }
+
+    private var hourlyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Hourly forecast").font(.omLg.weight(.bold)).foregroundStyle(Color.grey100)
+                Spacer()
+                Text("\(weather.hourly.count) entries").font(.omXs).foregroundStyle(Color.grey60)
+            }
+            if weather.hourly.isEmpty {
+                Text("No hourly data available.").font(.omXs).foregroundStyle(Color.grey60)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(weather.hourly) { hour in
+                            hourlyRow(hour)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(compact ? 12 : 16)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: compact ? 18 : 22))
+        .overlay { RoundedRectangle(cornerRadius: compact ? 18 : 22).stroke(Color.grey20, lineWidth: 1) }
+        .shadow(color: Color.grey100.opacity(0.07), radius: 16, x: 0, y: 6)
+    }
+
+    private func hourlyRow(_ hour: WeatherHourValue) -> some View {
+        VStack(spacing: 5) {
+            Text(hour.time ?? "—").font(.omXxs.weight(.semibold)).foregroundStyle(Color.grey100)
+            WeatherConditionIcon(icon: hour.icon ?? weather.icon, condition: hour.condition ?? weather.condition, size: 34)
+            Text(hour.temperature.map { "\($0.formatted())°" } ?? "—°")
+                .font(.custom("Lexend Deca", size: 18).weight(.bold)).foregroundStyle(Color.grey100)
+            Text("\((hour.rainChance ?? 0).formatted())% rain")
+            Text("\((hour.precipitation ?? 0).formatted()) mm")
+            Text(hour.wind.map { "\($0.formatted()) km/h" } ?? "—")
+        }
+        .font(compact ? .omTiny : .omXxs)
+        .foregroundStyle(Color.grey70)
+        .padding(.horizontal, compact ? 7 : 9)
+        .padding(.vertical, compact ? 9 : 11)
+        .frame(minWidth: compact ? 82 : 96)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: compact ? 15 : 18))
+        .overlay { RoundedRectangle(cornerRadius: compact ? 15 : 18).stroke(Color.grey20, lineWidth: 1) }
+    }
+
     private var summaryCard: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: .spacing12) {
-                weatherSummary
-                Spacer(minLength: .spacing8)
-                WeatherConditionIcon(value: weather.iconAndCondition, size: 142)
+        summaryLayout
+            .padding(compact ? 18 : 28)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: compact ? 0 : 245, alignment: .leading)
+            .background(summaryBackground)
+            .clipShape(RoundedRectangle(cornerRadius: compact ? 24 : 32))
+            .overlay {
+                RoundedRectangle(cornerRadius: compact ? 24 : 32)
+                    .stroke(Color.grey20, lineWidth: 1)
             }
-            VStack(alignment: .leading, spacing: .spacing3) {
-                weatherSummary
-                WeatherConditionIcon(value: weather.iconAndCondition, size: 108)
+            .shadow(color: Color.grey100.opacity(0.13), radius: 24, x: 0, y: 10)
+    }
+
+    @ViewBuilder
+    private var summaryLayout: some View {
+        Group {
+            if compact {
+                VStack(alignment: .leading, spacing: 6) {
+                    weatherSummary
+                    WeatherConditionIcon(icon: weather.icon, condition: weather.condition, size: 108)
+                }
+            } else {
+                HStack(spacing: 24) {
+                    weatherSummary
+                    Spacer(minLength: 0)
+                    WeatherConditionIcon(icon: weather.icon, condition: weather.condition, size: 142)
+                }
             }
         }
-        .padding(horizontalSizeClass == .compact ? .spacing8 : .spacing12)
-        .frame(maxWidth: .infinity, minHeight: horizontalSizeClass == .compact ? nil : 245, alignment: .leading)
-        .background(LinearGradient.appWeather.opacity(0.28))
-        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-        .overlay {
-            RoundedRectangle(cornerRadius: .radius8)
-                .stroke(Color.grey20, lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.13), radius: 24, x: 0, y: 10)
+    }
+
+    private var summaryBackground: some View {
+        LinearGradient.appWeather.opacity(0.28)
+            .overlay {
+                LinearGradient.appWeather.opacity(0.38)
+                    .mask {
+                        RadialGradient(
+                            colors: [.black, .clear],
+                            center: UnitPoint(x: 0.88, y: 0.22),
+                            startRadius: 0,
+                            endRadius: 145
+                        )
+                    }
+            }
+            .background(Color.grey0)
     }
 
     private var weatherSummary: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
-            Text(weather.date ?? AppStrings.weatherDay).font(.omSmall).foregroundStyle(Color.grey70)
+        VStack(alignment: .leading, spacing: 0) {
+            Text(weather.dateFull ?? AppStrings.weatherDay).font(compact ? .omXxs : .omSmall).foregroundStyle(Color.grey70)
             Text(weather.displayCondition ?? AppStrings.weatherDay)
-                .font(horizontalSizeClass == .compact ? .omXxxl.weight(.bold) : .omHero.weight(.bold))
+                .font(.custom("Lexend Deca", size: compact ? 38 : 54).weight(.bold))
                 .foregroundStyle(Color.grey100)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
+                .padding(.top, 8)
             if !weather.locationProvider.isEmpty {
-                Text(weather.locationProvider).font(.omSmall).foregroundStyle(Color.grey70)
+                Text(weather.locationProvider).font(compact ? .omXxs : .omSmall).foregroundStyle(Color.grey70)
             }
             Text(weather.temperatureRange)
-                .font(horizontalSizeClass == .compact ? .omXxxl.weight(.bold) : .omHero.weight(.bold))
+                .font(.custom("Lexend Deca", size: compact ? 48 : 64).weight(.bold))
                 .foregroundStyle(Color.grey100)
+                .padding(.top, compact ? 12 : 18)
         }
     }
 }
@@ -416,50 +470,56 @@ private struct WeatherPill: View {
 
     var body: some View {
         Text(text)
-            .font(.omXxs)
+            .font(.omXs)
             .foregroundStyle(Color.grey70)
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .background(Color.grey0.opacity(0.82))
             .clipShape(Capsule())
             .overlay { Capsule().stroke(Color.grey20, lineWidth: 1) }
+            .shadow(color: Color.grey100.opacity(0.06), radius: 7, x: 0, y: 4)
     }
 }
 
 private struct WeatherMetricCard: View {
-    let icon: String
+    let label: String
     let value: String
-    var detail: String? = nil
+    let detail: String
+    let compact: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            Icon(icon, size: .iconSizeSm).foregroundStyle(LinearGradient.appWeather)
-            Text(value).font(.omXl.weight(.bold)).foregroundStyle(Color.grey100)
-            if let detail { Text(detail).font(.omXs).foregroundStyle(Color.grey70) }
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label.uppercased())
+                .font(.custom("Lexend Deca", size: compact ? 10 : 12))
+                .foregroundStyle(Color.grey60)
+            Text(value)
+                .font(.custom("Lexend Deca", size: compact ? 18 : 22).weight(.bold))
+                .foregroundStyle(Color.grey100)
+            Text(detail)
+                .font(compact ? .omXxs : .omXs)
+                .foregroundStyle(Color.grey70)
         }
-        .padding(.spacing8)
+        .padding(compact ? 12 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.grey0)
-        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-        .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
-        .shadow(color: .black.opacity(0.07), radius: 16, x: 0, y: 6)
+        .clipShape(RoundedRectangle(cornerRadius: compact ? 18 : 22))
+        .overlay { RoundedRectangle(cornerRadius: compact ? 18 : 22).stroke(Color.grey20, lineWidth: 1) }
+        .shadow(color: Color.grey100.opacity(0.07), radius: 16, x: 0, y: 6)
     }
 }
 
 private struct WeatherConditionIcon: View {
-    let value: String
+    let icon: String
+    let condition: String
     let size: CGFloat
 
-    private var iconName: String {
-        let normalized = value.lowercased()
-        return normalized.contains("cloud") || normalized.contains("overcast") || normalized.contains("fog") ? "cloud" : "weather"
-    }
-
     var body: some View {
-        Icon(iconName, size: size)
-            .foregroundStyle(LinearGradient.appWeather)
+        Image("weather-condition-\(WeatherForecastSkillCard.meteoconSlug(icon: icon, condition: condition))")
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
             .frame(width: size, height: size)
-            .shadow(color: .black.opacity(0.16), radius: 9, x: 0, y: 4)
+            .shadow(color: Color.grey100.opacity(size <= 34 ? 0.14 : 0.18), radius: size <= 34 ? 8 : 18, x: 0, y: size <= 34 ? 4 : 8)
             .accessibilityHidden(true)
     }
 }
@@ -539,7 +599,7 @@ private struct WeatherDayValue {
     init(data: [String: AnyCodable]) {
         date = MiscEmbedValue.string(data, "date")
         location = MiscEmbedValue.string(data, "location_name")
-        provider = MiscEmbedValue.string(data, "provider") ?? ""
+        provider = MiscEmbedValue.string(data, "provider") ?? "Weather"
         condition = MiscEmbedValue.string(data, "condition") ?? ""
         icon = MiscEmbedValue.string(data, "icon") ?? ""
         minimum = MiscEmbedValue.number(data, "temperature_min_c")
@@ -556,7 +616,8 @@ private struct WeatherDayValue {
     var displayCondition: String? {
         condition.isEmpty ? nil : condition.replacingOccurrences(of: "[-_]", with: " ", options: .regularExpression).capitalized
     }
-    var iconAndCondition: String { "\(icon) \(condition)" }
+    var dateTitle: String? { formattedDate("EEEE, MMM d") }
+    var dateFull: String? { formattedDate("EEEE, MMMM d") }
     var locationProvider: String { [location, provider].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") }
     var temperatureRange: String {
         if let minimum, let maximum { return "\(minimum.rounded().formatted())° / \(maximum.rounded().formatted())°" }
@@ -567,6 +628,18 @@ private struct WeatherDayValue {
     var windText: String { wind.map { "\($0.formatted()) km/h" } ?? "—" }
     var cloudText: String { cloudCover.map { "\($0.formatted())%" } ?? "—" }
     var humidityText: String { humidity.map { "\($0.formatted())%" } ?? "—" }
+
+    private func formattedDate(_ format: String) -> String? {
+        guard let date else { return nil }
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyy-MM-dd"
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        guard let value = parser.date(from: date) else { return date }
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        formatter.locale = Locale.current
+        return formatter.string(from: value)
+    }
 
 }
 
@@ -650,46 +723,123 @@ struct MathPlotRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String? { data?["title"]?.value as? String }
-    private var svgData: String? { data?["svg_data"]?.value as? String }
+    private var plotSpec: String {
+        (data?["plot_spec"]?.value as? String)
+            ?? (data?["expression"]?.value as? String)
+            ?? ""
+    }
 
-    @State private var svgImage: Data?
+    private var formulas: [String] {
+        plotSpec.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+    }
 
     var body: some View {
         switch mode {
         case .preview:
-            VStack(spacing: .spacing3) {
-                if let svgData, let data = svgData.data(using: .utf8) {
-                    SVGImageView(svgData: data)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    Icon("diagram", size: 32)
-                        .foregroundStyle(Color.fontTertiary)
-                }
-                if let title {
-                    Text(title).font(.omSmall)
-                        .foregroundStyle(Color.fontPrimary).lineLimit(1)
+            VStack(alignment: .leading, spacing: .spacing3) {
+                ForEach(Array(formulas.prefix(4).enumerated()), id: \.offset) { _, formula in
+                    Text(formula)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
                 }
             }
-            .padding(.spacing3)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityIdentifier("math-plot-formulas")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                if let title {
-                    Text(title).font(.omH4).fontWeight(.medium).foregroundStyle(Color.fontPrimary)
+            VStack(spacing: .spacing8) {
+                VStack(spacing: .spacing4) {
+                    ForEach(Array(formulas.enumerated()), id: \.offset) { _, formula in
+                        Text(formula)
+                            .font(.omH3)
+                            .foregroundStyle(Color.fontPrimary)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
-                if let svgData, let data = svgData.data(using: .utf8) {
-                    SVGImageView(svgData: data)
-                        .frame(minHeight: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                } else {
-                    Icon("diagram", size: 48)
-                        .foregroundStyle(Color.fontTertiary)
-                        .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing8)
+                .padding(.horizontal, .spacing10)
+                .frame(maxWidth: .infinity)
+                .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
+                .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+
+                MathPlotGraph(formulas: formulas)
+                    .frame(minHeight: 300)
+                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                    .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+            }
+            .padding(.vertical, .spacing12)
+            .padding(.horizontal, .spacing8)
+            .accessibilityIdentifier("math-plot-fullscreen")
+        }
+    }
+}
+
+private struct MathPlotGraph: View {
+    let formulas: [String]
+    @State private var zoom: CGFloat = 1
+    @State private var dragOffset: CGSize = .zero
+    @State private var dragOrigin: CGSize = .zero
+
+    var body: some View {
+        Canvas { context, size in
+            let unit = min(size.width, size.height) / 12 * zoom
+            let center = CGPoint(x: size.width / 2 + dragOffset.width,
+                                 y: size.height / 2 + dragOffset.height)
+            var grid = Path()
+            for tick in -20...20 {
+                let x = center.x + CGFloat(tick) * unit
+                let y = center.y + CGFloat(tick) * unit
+                grid.move(to: CGPoint(x: x, y: 0))
+                grid.addLine(to: CGPoint(x: x, y: size.height))
+                grid.move(to: CGPoint(x: 0, y: y))
+                grid.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            context.stroke(grid, with: .color(Color.grey20), lineWidth: 1)
+            var axes = Path()
+            axes.move(to: CGPoint(x: center.x, y: 0))
+            axes.addLine(to: CGPoint(x: center.x, y: size.height))
+            axes.move(to: CGPoint(x: 0, y: center.y))
+            axes.addLine(to: CGPoint(x: size.width, y: center.y))
+            context.stroke(axes, with: .color(Color.grey60), lineWidth: 1)
+
+            let colors: [Color] = [.blue, .red, .green, .orange]
+            for (index, formula) in formulas.enumerated() {
+                let expression = formula.split(separator: "=", maxSplits: 1).last.map(String.init) ?? formula
+                var line = Path()
+                var isDrawing = false
+                for pixel in stride(from: CGFloat.zero, through: size.width, by: 2) {
+                    let x = Double((pixel - center.x) / unit)
+                    guard let value = evaluate(expression, x: x), value.isFinite else {
+                        isDrawing = false
+                        continue
+                    }
+                    let point = CGPoint(x: pixel, y: center.y - CGFloat(value) * unit)
+                    guard abs(point.y) < size.height * 4 else { isDrawing = false; continue }
+                    if isDrawing { line.addLine(to: point) } else { line.move(to: point); isDrawing = true }
                 }
+                context.stroke(line, with: .color(colors[index % colors.count]), lineWidth: 2)
             }
         }
+        .clipped()
+        .gesture(DragGesture().onChanged { dragOffset = CGSize(width: dragOrigin.width + $0.translation.width,
+                                                              height: dragOrigin.height + $0.translation.height) }
+            .onEnded { _ in dragOrigin = dragOffset })
+        .simultaneousGesture(MagnificationGesture().onChanged { zoom = min(max($0, 0.5), 4) })
+        .accessibilityLabel("Interactive function graph")
+    }
+
+    private func evaluate(_ expression: String, x: Double) -> Double? {
+        let source = expression.replacingOccurrences(of: " ", with: "").lowercased()
+        if source == "sin(x)" { return sin(x) }
+        if source == "cos(x)" { return cos(x) }
+        if source == "tan(x)" { return tan(x) }
+        if source == "x" { return x }
+        if source == "x^2" { return x * x }
+        if source == "x^3" { return x * x * x }
+        return Double(source)
     }
 }
 
@@ -697,76 +847,429 @@ struct MermaidDiagramRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
-    private var title: String { (data?["title"]?.value as? String) ?? "Mermaid Diagram" }
-    private var diagramKind: String { (data?["diagram_kind"]?.value as? String) ?? "mermaid" }
-    private var diagramCode: String { (data?["diagram_code"]?.value as? String) ?? "" }
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var renderStatus: MermaidRenderStatus = .loading
+    @State private var showSource = false
+    @State private var zoom = 1.2
+    @State private var resetToken = 0
+
+    private var content: MermaidDiagramContent {
+        MermaidDiagramContent(data: data)
+    }
 
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
-                HStack(spacing: .spacing2) {
-                    Icon("diagram", size: 22)
-                        .foregroundStyle(Color.buttonPrimary)
-                    Text(title)
-                        .font(.omSmall)
-                        .fontWeight(.medium)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(1)
-                }
-                Text(diagramKind)
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                MermaidSourcePreview(source: diagramCode, lineLimit: 5)
-            }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            preview
 
         case .fullscreen:
-            ScrollView {
-                VStack(alignment: .leading, spacing: .spacing5) {
-                    HStack(spacing: .spacing3) {
-                        Icon("diagram", size: 32)
-                            .foregroundStyle(Color.buttonPrimary)
-                        VStack(alignment: .leading, spacing: .spacing1) {
-                            Text(title)
-                                .font(.omH4)
-                                .fontWeight(.medium)
-                                .foregroundStyle(Color.fontPrimary)
-                            Text(diagramKind)
-                                .font(.omSmall)
-                                .foregroundStyle(Color.fontSecondary)
-                        }
-                    }
-                    MermaidSourcePreview(source: diagramCode, lineLimit: nil)
-                        .textSelection(.enabled)
+            fullscreen
+        }
+    }
+
+    private var preview: some View {
+        ZStack(alignment: .topLeading) {
+            if content.status == "processing" {
+                MermaidPlaceholder()
+            } else if content.code.isEmpty || !MermaidWebDocument.isAvailable || renderStatus == .failed {
+                MermaidSourcePreview(source: content.code, kind: content.kind, lineLimit: 5)
+                    .accessibilityIdentifier("mermaid-source-fallback")
+            } else {
+                MermaidCanvas(
+                    source: content.code,
+                    theme: colorScheme == .dark ? "dark" : "default",
+                    isPreview: true,
+                    zoom: 1,
+                    resetToken: 0,
+                    status: $renderStatus
+                )
+                .opacity(renderStatus == .ready ? 1 : 0)
+                .accessibilityLabel(content.title)
+                .accessibilityIdentifier("mermaid-rendered-preview")
+                if renderStatus == .loading {
+                    MermaidPlaceholder()
                 }
-                .padding(.spacing5)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .accessibilityIdentifier("mermaid-diagram-preview")
+        .onChange(of: content.code) { _, _ in renderStatus = .loading }
+    }
+
+    private var fullscreen: some View {
+        VStack(spacing: .spacing4) {
+            ZStack {
+                if content.code.isEmpty || !MermaidWebDocument.isAvailable || renderStatus == .failed {
+                    ScrollView([.horizontal, .vertical]) {
+                        MermaidSourcePreview(source: content.code, kind: content.kind, lineLimit: nil)
+                            .textSelection(.enabled)
+                    }
+                    .accessibilityIdentifier("mermaid-source-panel")
+                } else {
+                    // Keep WebKit visible beneath the opaque source panel. Hiding or
+                    // recreating its layer left a blank compositor frame on return.
+                    MermaidCanvas(
+                        source: content.code,
+                        theme: colorScheme == .dark ? "dark" : "default",
+                        isPreview: false,
+                        zoom: zoom,
+                        resetToken: resetToken,
+                        status: $renderStatus
+                    )
+                    .allowsHitTesting(renderStatus == .ready && !showSource)
+                    .accessibilityHidden(renderStatus != .ready || showSource)
+                    .accessibilityIdentifier("mermaid-rendered-panel")
+                    if showSource {
+                        ScrollView([.horizontal, .vertical]) {
+                            MermaidSourcePreview(source: content.code, kind: content.kind, lineLimit: nil)
+                                .textSelection(.enabled)
+                        }
+                        .background(Color.grey20)
+                        .accessibilityIdentifier("mermaid-source-panel")
+                    } else if renderStatus == .loading {
+                        MermaidPlaceholder()
+                    }
+                }
+                if renderStatus == .ready && !showSource {
+                    Color.clear.frame(width: 1, height: 1)
+                        .accessibilityElement()
+                        .accessibilityIdentifier("mermaid-render-ready")
+                        .allowsHitTesting(false)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            // Web uses min(72vh, 760px). The native embed lives inside a scrollable overlay.
+            .frame(height: 480)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+
+            VStack(spacing: .spacing3) {
+                HStack(spacing: .spacing5) {
+                    mermaidControl(icon: "minus", label: AppStrings.zoomOut, identifier: "mermaid-zoom-out", disabled: zoom <= 0.25) {
+                        zoom = max(0.25, (zoom / 1.2 * 1000).rounded() / 1000)
+                    }
+                    Button {
+                        zoom = 1.2
+                        resetToken += 1
+                    } label: {
+                        Text("\(Int((zoom * 100).rounded()))%")
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontPrimary)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing2)
+                            .background(Color.grey10)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.resetZoom)
+                    .accessibilityIdentifier("mermaid-fit")
+                    mermaidControl(icon: "plus", label: AppStrings.zoomIn, identifier: "mermaid-zoom-in", disabled: zoom >= 4) {
+                        zoom = min(4, (zoom * 1.2 * 1000).rounded() / 1000)
+                    }
+                }
+                Button {
+                    showSource.toggle()
+                } label: {
+                    Text(showSource ? AppStrings.preview : AppStrings.mindMapSource)
+                        .font(.omXs.weight(.medium))
+                        .foregroundStyle(Color.fontPrimary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing2)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                        .overlay(RoundedRectangle(cornerRadius: .radius7).stroke(Color.grey20))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("mermaid-toggle-source")
+            }
+        }
+        .onChange(of: content.code) { _, _ in
+            renderStatus = .loading
+            showSource = false
+            zoom = 1.2
+        }
+    }
+
+    private func mermaidControl(icon: String, label: String, identifier: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon(icon, size: 16)
+                .foregroundStyle(disabled ? Color.fontTertiary : Color.fontPrimary)
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+struct MermaidDiagramContent {
+    let title: String
+    let kind: String
+    let code: String
+    let status: String
+
+    init(data: [String: AnyCodable]?) {
+        let fields = data ?? [:]
+        code = Self.string(fields, keys: ["diagram_code", "code", "source"]) ?? ""
+        title = Self.string(fields, keys: ["title"]) ?? EmbedType.diagramsMermaid.displayName
+        kind = Self.string(fields, keys: ["diagram_kind"]) ?? code.split(separator: "\n").first.map(String.init) ?? "mermaid"
+        status = Self.string(fields, keys: ["status"]) ?? "finished"
+    }
+
+    private static func string(_ fields: [String: AnyCodable], keys: [String]) -> String? {
+        for key in keys {
+            if let value = fields[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+}
+
+private enum MermaidRenderStatus: Equatable {
+    case loading, ready, failed
+}
+
+private struct MermaidPlaceholder: View {
+    var body: some View {
+        HStack(spacing: .spacing3) {
+            ForEach(0..<3) { _ in
+                Rectangle()
+                    .fill(Color.grey40)
+                    .frame(height: 2)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey20)
+        .accessibilityLabel(AppStrings.loading)
     }
 }
 
 private struct MermaidSourcePreview: View {
     let source: String
+    let kind: String
     let lineLimit: Int?
 
     var body: some View {
-        Text(displaySource)
-            .font(.omMicro)
-            .foregroundStyle(Color.fontSecondary)
-            .padding(.spacing3)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: .radius3))
-            .lineLimit(lineLimit)
-    }
-
-    private var displaySource: String {
-        source.isEmpty ? "No Mermaid source available." : source
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(kind)
+                .font(.omSmall.weight(.semibold))
+            Text(source.isEmpty ? AppStrings.error : source)
+                .font(Font.omXs.monospaced())
+                .lineLimit(lineLimit)
+        }
+        .foregroundStyle(Color.fontPrimary)
+        .padding(.spacing3)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.grey20)
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
     }
 }
+
+/// The script is the same self-contained Mermaid distribution used by the web package.
+/// Source is base64 encoded before insertion; the document never interpolates source as HTML/JS.
+enum MermaidWebDocument {
+    static let runtime: String? = {
+        guard let url = Bundle.main.url(forResource: "mermaid.min", withExtension: "js", subdirectory: "MermaidRuntime") else {
+            return nil
+        }
+        return try? String(contentsOf: url, encoding: .utf8)
+    }()
+
+    static var isAvailable: Bool { runtime != nil }
+
+    static func make(source: String, theme: String, isPreview: Bool, zoom: Double) -> String? {
+        guard let runtime else { return nil }
+        let encoded = Data(source.utf8).base64EncodedString()
+        let safeTheme = theme == "dark" ? "dark" : "default"
+        let initialZoom = isPreview ? 0.72 : min(4, max(0.25, zoom))
+        let previewClass = isPreview ? "preview" : "fullscreen"
+        return """
+        <!doctype html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+        <style>
+        html,body,#viewport{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}
+        #viewport{touch-action:none;position:relative}
+        #diagram{width:max-content;min-width:100%;transform-origin:top left;will-change:transform}
+        .preview #diagram svg{display:block;max-width:none;min-width:420px}
+        .fullscreen #diagram{padding:16px;box-sizing:border-box}
+        .fullscreen #diagram svg{display:block;max-width:none}
+        </style></head><body class="\(previewClass)"><div id="viewport"><div id="diagram"></div></div>
+        <script>\(runtime)</script>
+        <script>
+        (() => {
+          'use strict';
+          const viewport = document.getElementById('viewport');
+          const diagram = document.getElementById('diagram');
+          const source = new TextDecoder().decode(Uint8Array.from(atob('\(encoded)'), c => c.charCodeAt(0)));
+          let zoom = \(initialZoom);
+          let offsetX = 0, offsetY = 0, dragX = 0, dragY = 0, originX = 0, originY = 0;
+          let dragging = false;
+          const notify = value => window.webkit.messageHandlers.mermaid.postMessage(value);
+          const apply = () => { diagram.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`; };
+          window.setDiagramZoom = value => { zoom = Math.min(4, Math.max(0.25, Number(value) || 1.2)); apply(); };
+          window.resetDiagramView = () => { offsetX = 0; offsetY = 0; apply(); };
+          if (document.body.classList.contains('fullscreen')) {
+            viewport.addEventListener('pointerdown', event => {
+              dragging = true; dragX = event.clientX; dragY = event.clientY;
+              originX = offsetX; originY = offsetY;
+              viewport.setPointerCapture(event.pointerId);
+              event.preventDefault();
+            });
+            viewport.addEventListener('pointermove', event => {
+              if (!dragging) return;
+              offsetX = originX + event.clientX - dragX;
+              offsetY = originY + event.clientY - dragY;
+              apply(); event.preventDefault();
+            });
+            const endDrag = () => { dragging = false; };
+            viewport.addEventListener('pointerup', endDrag);
+            viewport.addEventListener('pointercancel', endDrag);
+          }
+          function sanitize(svg) {
+            const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+            const root = doc.documentElement;
+            if (root.localName !== 'svg' || doc.querySelector('parsererror')) throw new Error('invalid SVG');
+            const forbidden = new Set(['script','foreignobject','iframe','object','embed','link','meta','animate','set']);
+            const elements = [root, ...root.querySelectorAll('*')];
+            for (const element of elements) {
+              if (forbidden.has(element.localName.toLowerCase())) { element.remove(); continue; }
+              if (element.localName.toLowerCase() === 'style') {
+                element.textContent = element.textContent.replace(/@import[^;]*;?/gi, '').replace(/url\\s*\\([^)]*\\)/gi, 'none');
+              }
+              for (const attr of [...element.attributes]) {
+                const name = attr.name.toLowerCase();
+                const value = attr.value.trim();
+                if (name.startsWith('on') || name === 'href' || name === 'xlink:href' || name === 'src' ||
+                    /(?:javascript:|data:|https?:|url\\s*\\()/i.test(value)) element.removeAttribute(attr.name);
+              }
+            }
+            return new XMLSerializer().serializeToString(root);
+          }
+          try {
+            mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:'\(safeTheme)',
+              flowchart:{htmlLabels:false},sequence:{useMaxWidth:false}});
+            mermaid.render('openmates-mermaid', source).then(result => {
+              diagram.innerHTML = sanitize(result.svg);
+              apply();
+              requestAnimationFrame(() => requestAnimationFrame(() => notify('ready')));
+            }).catch(() => notify('failed'));
+          } catch (_) { notify('failed'); }
+        })();
+        </script></body></html>
+        """
+    }
+}
+
+private struct MermaidCanvas {
+    let source: String
+    let theme: String
+    let isPreview: Bool
+    let zoom: Double
+    let resetToken: Int
+    @Binding var status: MermaidRenderStatus
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var status: Binding<MermaidRenderStatus>
+        var key = ""
+        var lastZoom = 0.0
+        var lastResetToken = 0
+        var active = true
+
+        init(status: Binding<MermaidRenderStatus>) { self.status = status }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard active, message.name == "mermaid", let value = message.body as? String else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.active else { return }
+                self.status.wrappedValue = value == "ready" ? .ready : .failed
+            }
+        }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                     decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+            // The diagram document has no external dependencies or navigation.
+            decisionHandler(navigationAction.request.url?.scheme == "about" ? .allow : .cancel)
+        }
+
+        func update(_ webView: WKWebView, source: String, theme: String, isPreview: Bool,
+                    zoom: Double, resetToken: Int, status: Binding<MermaidRenderStatus>) {
+            self.status = status
+            let nextKey = "\(source)\u{0}\(theme)\u{0}\(isPreview)"
+            if nextKey != key {
+                key = nextKey
+                lastZoom = zoom
+                lastResetToken = resetToken
+                if let html = MermaidWebDocument.make(source: source, theme: theme, isPreview: isPreview, zoom: zoom) {
+                    webView.loadHTMLString(html, baseURL: nil)
+                } else {
+                    DispatchQueue.main.async { status.wrappedValue = .failed }
+                }
+                return
+            }
+            if zoom != lastZoom {
+                lastZoom = zoom
+                webView.evaluateJavaScript("window.setDiagramZoom(\(zoom))", completionHandler: nil)
+            }
+            if resetToken != lastResetToken {
+                lastResetToken = resetToken
+                webView.evaluateJavaScript("window.resetDiagramView()", completionHandler: nil)
+            }
+        }
+    }
+
+    private func makeWebView(coordinator: Coordinator) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.add(coordinator, name: "mermaid")
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = coordinator
+        #if os(iOS)
+        webView.accessibilityIdentifier = isPreview ? "mermaid-rendered-preview" : "mermaid-rendered-panel"
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        #else
+        webView.setAccessibilityIdentifier(isPreview ? "mermaid-rendered-preview" : "mermaid-rendered-panel")
+        webView.setValue(false, forKey: "drawsBackground")
+        #endif
+        return webView
+    }
+}
+
+#if os(iOS)
+extension MermaidCanvas: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator(status: $status) }
+    func makeUIView(context: Context) -> WKWebView { makeWebView(coordinator: context.coordinator) }
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.update(webView, source: source, theme: theme, isPreview: isPreview,
+                                   zoom: zoom, resetToken: resetToken, status: $status)
+    }
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.active = false
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "mermaid")
+        webView.stopLoading()
+    }
+}
+#elseif os(macOS)
+extension MermaidCanvas: NSViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator(status: $status) }
+    func makeNSView(context: Context) -> WKWebView { makeWebView(coordinator: context.coordinator) }
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.update(webView, source: source, theme: theme, isPreview: isPreview,
+                                   zoom: zoom, resetToken: resetToken, status: $status)
+    }
+    static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.active = false
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "mermaid")
+        webView.stopLoading()
+    }
+}
+#endif
 
 // SVG rendering via WKWebView for plot data
 #if os(iOS)
@@ -884,16 +1387,76 @@ struct FocusModeRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
+    private var focusID: String { data?["focus_id"]?.value as? String ?? "" }
+    private var appID: String {
+        data?["app_id"]?.value as? String ?? String(focusID.split(separator: "-").first ?? "ai")
+    }
+    private var focusName: String {
+        data?["focus_mode_name"]?.value as? String ?? focusID
+    }
+
     var body: some View {
-        VStack(spacing: .spacing3) {
-            Icon("select", size: mode == .preview ? 28 : 36)
-                .foregroundStyle(Color.buttonPrimary)
-            Text(LocalizationManager.shared.text("embed.focus_mode_active"))
-                .font(mode == .preview ? .omSmall : .omP)
-                .foregroundStyle(Color.fontPrimary)
+        Group {
+            if mode == .preview {
+                HStack(spacing: .spacing5) {
+                    Circle()
+                        .fill(AppIconView.gradient(forAppId: appID))
+                        .frame(width: 61, height: 61)
+                        .overlay {
+                            Icon(AppIconView.iconName(forAppId: appID), size: 26)
+                                .foregroundStyle(.white)
+                        }
+                    Icon("insight", size: 29)
+                        .foregroundStyle(Color(hex: 0x5951D0))
+                    VStack(alignment: .leading, spacing: .spacing1) {
+                        Text(focusName)
+                            .font(.omP.weight(.semibold))
+                            .foregroundStyle(Color.grey100)
+                            .lineLimit(1)
+                        Text(AppStrings.focusModeActivated)
+                            .font(.omP.weight(.medium))
+                            .foregroundStyle(Color(hex: 0x34A853))
+                            .lineLimit(1)
+                    }
+                    .padding(.trailing, .spacing8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: 380, maxHeight: 61)
+                .background(Color.grey30)
+                .clipShape(RoundedRectangle(cornerRadius: 30))
+                .accessibilityIdentifier("focus-mode-bar")
+            } else {
+                VStack(spacing: .spacing5) {
+                    Circle()
+                        .fill(AppIconView.gradient(forAppId: "ai"))
+                        .frame(width: 72, height: 72)
+                        .overlay {
+                            Text("✓")
+                                .font(.omH2)
+                                .foregroundStyle(Color.fontButton)
+                        }
+                    Text(AppStrings.focusModeActiveBanner)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                    Text(focusName)
+                        .font(.omH2)
+                        .foregroundStyle(Color.fontPrimary)
+                    if !focusID.isEmpty {
+                        Text("\(AppStrings.focusModeFocusOn) \(focusID)")
+                            .font(.omP)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                .frame(maxWidth: 700, minHeight: 320)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: .radius8)
+                        .stroke(Color.grey20, lineWidth: 1)
+                }
+                .accessibilityIdentifier("focus-mode-activation-fullscreen")
+            }
         }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil)
     }
 }
 
@@ -958,6 +1521,107 @@ struct ProductSummaryEmbedRenderer: View {
             }
         }
         return nil
+    }
+}
+
+struct DesignIconResultEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var title: String {
+        for key in ["display_name", "name", "icon_id"] {
+            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return "Icon"
+    }
+
+    private var collection: String {
+        for key in ["collection_name", "prefix", "license_title"] {
+            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return "SVG icon"
+    }
+
+    private var sourceURL: URL? {
+        guard let value = data?["svg_path"]?.value as? String else { return nil }
+        return URL(string: value)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            HStack(spacing: .spacing3) {
+                iconArt(size: 58, markSize: 26)
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    Text(title).font(.omSmall).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
+                    Text(collection).font(.omXxs).foregroundStyle(Color.grey70)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("design-icon-result-preview")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing12) {
+                iconArt(size: 360, markSize: 56)
+                    .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    Text(title).font(.omLg).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
+                    if collection != "SVG icon" {
+                        Text(collection).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    }
+                    HStack(spacing: .spacing4) {
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            Text("Color").font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            Rectangle().fill(Color(red: 0.06, green: 0.08, blue: 0.12))
+                                .frame(width: 48, height: 32)
+                                .overlay(Rectangle().stroke(Color.grey30))
+                        }
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            Text("PNG size").font(.omSmall).foregroundStyle(Color.fontSecondary)
+                            Text("256").font(.omSmall).fontWeight(.semibold)
+                                .frame(width: 92, height: 32, alignment: .leading)
+                                .padding(.horizontal, .spacing3)
+                                .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius4))
+                                .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey30))
+                        }
+                    }
+                    HStack(spacing: .spacing4) {
+                        exportButton("Copy SVG")
+                        exportButton("Download SVG")
+                    }
+                    exportButton("Download PNG")
+                }
+            }
+            .padding(.spacing6)
+            .accessibilityIdentifier("design-icon-result-fullscreen")
+        }
+    }
+
+    private func iconArt(size: CGFloat, markSize: CGFloat) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: mode == .preview ? .radius4 : 24)
+                .fill(Color.grey10)
+            if let sourceURL {
+                AsyncImage(url: sourceURL) { image in image.resizable().scaledToFit() }
+                    placeholder: { Rectangle().fill(Color.grey50).frame(width: markSize, height: markSize) }
+                    .frame(width: markSize, height: markSize)
+            } else {
+                Rectangle().fill(Color.grey50).frame(width: markSize, height: markSize)
+            }
+        }
+        .frame(width: mode == .preview ? size : nil, height: size)
+        .overlay(RoundedRectangle(cornerRadius: mode == .preview ? .radius4 : 24).stroke(Color.grey20))
+    }
+
+    private func exportButton(_ title: String) -> some View {
+        Text(title)
+            .font(.omSmall).fontWeight(.medium)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.horizontal, .spacing5).padding(.vertical, .spacing3)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius4))
+            .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey30))
+            .opacity(sourceURL == nil ? 0.55 : 1)
     }
 }
 

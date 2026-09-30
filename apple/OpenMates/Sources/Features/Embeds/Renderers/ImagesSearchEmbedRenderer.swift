@@ -75,11 +75,13 @@ struct ImagesSearchEmbedPreviewDetails: View {
                 .foregroundStyle(Color.grey70)
                 .lineLimit(1)
 
-            SearchResultSourceSummary(
-                favicons: model.imageResults.compactMap(\.faviconURL),
-                totalCount: model.previewResultCount
-            )
-            .padding(.top, .spacing1)
+            if !model.imageResults.compactMap(\.faviconURL).isEmpty {
+                SearchResultSourceSummary(
+                    favicons: model.imageResults.compactMap(\.faviconURL),
+                    totalCount: model.previewResultCount
+                )
+                .padding(.top, .spacing1)
+            }
         }
         .padding(.top, .spacing5)
         .padding(.horizontal, .spacing10)

@@ -15,7 +15,6 @@ enum WatchUIContract {
     static let pairLoginIdentifiers = [
         "watch-pair-login",
         "watch-pair-confirm-iphone-title",
-        "watch-pair-confirm-iphone-description",
         "watch-pair-manual-fallback",
         "watch-pair-login-without-iphone-button",
         "watch-pair-token",
@@ -44,17 +43,19 @@ enum WatchUIContract {
         "watch-new-chat-button",
         "watch-audio-record-button",
         "watch-audio-send-button",
+        "watch-pending-audio-embed",
     ]
 
     static let audioComposerIdentifiers = [
         "watch-audio-record-button",
-        "watch-audio-stop-button",
         "watch-audio-recording-screen",
         "watch-audio-recording-duration",
         "watch-audio-cancel-button",
-        "watch-audio-transcribing",
         "watch-audio-send-button",
         "watch-audio-error",
+        "watch-audio-retry-button",
+        "watch-audio-back-button",
+        "watch-pending-audio-embed",
     ]
 
     static let embedPreviewIdentifiers = [
@@ -158,19 +159,21 @@ struct WatchPendingTextSend: Codable, Equatable, Identifiable, Sendable {
     let createdAt: String
     var preflightJSON: Data = Data()
     var inferenceJSON: Data = Data()
+    var encryptedPreparedTurn: String?
 
     init(id: String, chatId: String, messageId: String, encryptedContent: String,
          encryptedChatKey: String, createdAt: String, preflightJSON: Data = Data(),
-         inferenceJSON: Data = Data()) {
+         inferenceJSON: Data = Data(), encryptedPreparedTurn: String? = nil) {
         self.id = id; self.chatId = chatId; self.messageId = messageId
         self.encryptedContent = encryptedContent; self.encryptedChatKey = encryptedChatKey
         self.createdAt = createdAt; self.preflightJSON = preflightJSON
         self.inferenceJSON = inferenceJSON
+        self.encryptedPreparedTurn = encryptedPreparedTurn
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, chatId, messageId, encryptedContent, encryptedChatKey,
-             createdAt, preflightJSON, inferenceJSON
+             createdAt, preflightJSON, inferenceJSON, encryptedPreparedTurn
     }
 
     init(from decoder: Decoder) throws {
@@ -182,7 +185,8 @@ struct WatchPendingTextSend: Codable, Equatable, Identifiable, Sendable {
                   encryptedChatKey: try c.decode(String.self, forKey: .encryptedChatKey),
                   createdAt: try c.decode(String.self, forKey: .createdAt),
                   preflightJSON: try c.decodeIfPresent(Data.self, forKey: .preflightJSON) ?? Data(),
-                  inferenceJSON: try c.decodeIfPresent(Data.self, forKey: .inferenceJSON) ?? Data())
+                  inferenceJSON: try c.decodeIfPresent(Data.self, forKey: .inferenceJSON) ?? Data(),
+                  encryptedPreparedTurn: try c.decodeIfPresent(String.self, forKey: .encryptedPreparedTurn))
     }
 }
 
@@ -309,12 +313,27 @@ struct WatchPendingAudioEmbed: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+// Draft bodies use the account master key (Format D), never durable plaintext.
+struct WatchEncryptedDraft: Codable, Equatable, Sendable {
+    var encryptedMarkdown: String?
+    var encryptedPreview: String?
+    var serverVersion: Int = 0
+    var localRevision: UInt64 = 0
+    var needsSync: Bool = true
+    var clearedVersion: Int? = nil
+}
+
 struct WatchChatSnapshot: Codable, Equatable, Sendable {
     var chats: [WatchChatSummary]
     var messagesByChatId: [String: [WatchChatMessage]]
     var pendingTextSends: [WatchPendingTextSend]
     var pendingAudioEmbeds: [WatchPendingAudioEmbed]
     var savedAt: Date
+    var accountID: String?
+    var serverScope: String?
+    var encryptedDrafts: [String: WatchEncryptedDraft]
+    var pendingRecoveryJobs: [WatchRecoveryJob]
+    var pendingCompletions: [WatchPendingCompletion]
 
     static let empty = WatchChatSnapshot(
         chats: [],
@@ -329,13 +348,23 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         messagesByChatId: [String: [WatchChatMessage]],
         pendingTextSends: [WatchPendingTextSend] = [],
         pendingAudioEmbeds: [WatchPendingAudioEmbed] = [],
-        savedAt: Date
+        savedAt: Date,
+        accountID: String? = nil,
+        serverScope: String? = nil,
+        encryptedDrafts: [String: WatchEncryptedDraft] = [:],
+        pendingRecoveryJobs: [WatchRecoveryJob] = [],
+        pendingCompletions: [WatchPendingCompletion] = []
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
         self.pendingTextSends = pendingTextSends
         self.pendingAudioEmbeds = pendingAudioEmbeds
         self.savedAt = savedAt
+        self.accountID = accountID
+        self.serverScope = serverScope
+        self.encryptedDrafts = encryptedDrafts
+        self.pendingRecoveryJobs = pendingRecoveryJobs
+        self.pendingCompletions = pendingCompletions
     }
 
     init(from decoder: Decoder) throws {
@@ -345,6 +374,11 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         pendingTextSends = try container.decodeIfPresent([WatchPendingTextSend].self, forKey: .pendingTextSends) ?? []
         pendingAudioEmbeds = try container.decodeIfPresent([WatchPendingAudioEmbed].self, forKey: .pendingAudioEmbeds) ?? []
         savedAt = try container.decode(Date.self, forKey: .savedAt)
+        accountID = try container.decodeIfPresent(String.self, forKey: .accountID)
+        serverScope = try container.decodeIfPresent(String.self, forKey: .serverScope)
+        encryptedDrafts = try container.decodeIfPresent([String: WatchEncryptedDraft].self, forKey: .encryptedDrafts) ?? [:]
+        pendingRecoveryJobs = try container.decodeIfPresent([WatchRecoveryJob].self, forKey: .pendingRecoveryJobs) ?? []
+        pendingCompletions = try container.decodeIfPresent([WatchPendingCompletion].self, forKey: .pendingCompletions) ?? []
     }
 }
 
@@ -382,6 +416,38 @@ struct WatchChatKeyWrapperRecord: Decodable, Sendable {
     let wrapperVersion: Int?
     let createdAt: String?
 
+    private enum CodingKeys: String, CodingKey {
+        case id, hashedChatId, keyType, encryptedChatKey, wrapperVersion, createdAt
+    }
+
+    init(id: String?, hashedChatId: String, keyType: String,
+         encryptedChatKey: String, wrapperVersion: Int?, createdAt: String?) {
+        self.id = id
+        self.hashedChatId = hashedChatId
+        self.keyType = keyType
+        self.encryptedChatKey = encryptedChatKey
+        self.wrapperVersion = wrapperVersion
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
+        hashedChatId = try container.decode(String.self, forKey: .hashedChatId)
+        keyType = try container.decode(String.self, forKey: .keyType)
+        encryptedChatKey = try container.decode(String.self, forKey: .encryptedChatKey)
+        wrapperVersion = try container.decodeIfPresent(Int.self, forKey: .wrapperVersion)
+        if !container.contains(.createdAt) {
+            createdAt = nil
+        } else if try container.decodeNil(forKey: .createdAt) {
+            createdAt = nil
+        } else if let timestamp = try? container.decode(String.self, forKey: .createdAt) {
+            createdAt = timestamp
+        } else {
+            createdAt = String(try container.decode(Int.self, forKey: .createdAt))
+        }
+    }
+
     static func orderedMasterWrappers(_ wrappers: [Self], for chatId: String) -> [Self] {
         let hash = hashedChatId(for: chatId)
         return wrappers
@@ -411,6 +477,10 @@ struct WatchRemoteChat: Sendable {
     var messagesV: Int = 0
     var titleV: Int = 0
     var metadataV: Int = 0
+    var encryptedDraftMD: String? = nil
+    var encryptedDraftPreview: String? = nil
+    var draftV: Int? = nil
+    var clearedDraftV: Int? = nil
 }
 
 struct WatchRemoteMessage: Equatable, Sendable {
@@ -454,7 +524,26 @@ protocol WatchChatSyncSocket: AnyObject {
     func connect(session: WatchSyncSession, syncState: WatchSyncClientState)
     func disconnect()
     func sendTurn(_ pending: WatchPendingTextSend) async throws
+    func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws
     func setChangeHandler(_ handler: (@MainActor () -> Void)?)
+    var generation: Int { get }
+    func sendEvent(type: String, payload: [String: Any]) async throws
+    func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?)
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+                      matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any]
+}
+
+extension WatchChatSyncSocket {
+    var generation: Int { 0 }
+    func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws {
+        try await sendTurn(pending)
+    }
+    func sendEvent(type: String, payload: [String: Any]) async throws { throw WatchChatRuntimeError.socketUnavailable }
+    func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?) {}
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+                      matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any] {
+        throw WatchChatRuntimeError.socketUnavailable
+    }
 }
 
 @MainActor
@@ -463,8 +552,36 @@ protocol WatchChatCrypto: AnyObject {
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String
     func createChat() async throws -> WatchChatSummary
+    func createChat(withID id: String) async throws -> WatchChatSummary
+    func encryptDraft(_ text: String) async throws -> String
+    func decryptDraft(_ ciphertext: String) async throws -> String
+    func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef
+    func prepareEmbedStorage(payload: [String: Any], chat: WatchChatSummary, messageID: String) async throws -> (keys: [String: Any], embed: [String: Any])
     func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String
+    func decryptText(_ ciphertext: String, for chat: WatchChatSummary) async throws -> String
+    func openCompletion(_ sealed: String, job: WatchRecoveryJob, ownerID: String, chat: WatchChatSummary) async throws -> WatchRecoveredCompletion
     func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]]
+}
+
+extension WatchChatCrypto {
+    func createChat(withID id: String) async throws -> WatchChatSummary { throw WatchChatRuntimeError.missingChatKey }
+    func prepareEmbedStorage(payload: [String: Any], chat: WatchChatSummary, messageID: String) async throws -> (keys: [String: Any], embed: [String: Any]) { throw WatchChatRuntimeError.missingChatKey }
+    func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef { throw WatchChatRuntimeError.missingChatKey }
+    func decryptText(_ ciphertext: String, for chat: WatchChatSummary) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+    func openCompletion(_ sealed: String, job: WatchRecoveryJob, ownerID: String, chat: WatchChatSummary) async throws -> WatchRecoveredCompletion {
+        throw WatchChatRuntimeError.missingChatKey
+    }
+}
+
+extension WatchChatCrypto {
+    func encryptDraft(_ text: String) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+    func decryptDraft(_ ciphertext: String) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+}
+
+@MainActor
+enum WatchChatAccountLifecycle {
+    private(set) static var generation: UInt64 = 0
+    static func invalidate() { generation &+= 1 }
 }
 
 actor WatchChatOfflineCache {
@@ -489,7 +606,14 @@ actor WatchChatOfflineCache {
         return snapshot
     }
 
-    func saveSnapshot(_ snapshot: WatchChatSnapshot) throws {
+    func saveSnapshot(_ snapshot: WatchChatSnapshot, accountGeneration: UInt64? = nil, serverScope: String? = nil) async throws {
+        if let accountGeneration {
+            let valid = await MainActor.run {
+                accountGeneration == WatchChatAccountLifecycle.generation &&
+                (serverScope == nil || serverScope == WatchChatRuntime.currentServerScope)
+            }
+            guard valid else { throw CancellationError() }
+        }
         try FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -520,7 +644,33 @@ final class WatchChatRuntime: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var pendingAudioEmbeds: [WatchPendingAudioEmbed] = []
     @Published private(set) var unavailableChatCount = 0
+    @Published private(set) var hydratedEmbedPreviews: [String: WatchEmbedRef] = [:]
+    private var requestedEmbedPreviews: Set<String> = []
+    private var embedSocketGeneration: Int?
 
+    static var currentServerScope: String {
+        let profile = ServerProfile.current()
+        return profile.apiBaseURL.absoluteString + "|" + profile.webBaseURL.absoluteString
+    }
+    private let serverScope = WatchChatRuntime.currentServerScope
+    private let accountID: String?
+    var lifecycleGeneration: UInt64 = 0
+    private var stopped = false
+    private let accountLifecycleGeneration = WatchChatAccountLifecycle.generation
+    var isStopped: Bool {
+        get { stopped || accountLifecycleGeneration != WatchChatAccountLifecycle.generation || serverScope != Self.currentServerScope }
+        set { stopped = newValue }
+    }
+    private var transientChat: WatchChatSummary?
+    private var encryptedDrafts: [String: WatchEncryptedDraft] = [:]
+    @Published private(set) var composerDrafts: [String: String] = [:]
+    private var draftRevision: UInt64 = 0
+    private var draftLocalRevisions: [String: UInt64] = [:]
+    private var draftSaveTask: Task<Void, Never>?
+    private var inFlightDrafts: [String: WatchEncryptedDraft] = [:]
+    private var draftSocketGeneration: Int?
+    private var draftReconciledSocketGeneration: Int?
+    private var isPreviewFixture = false
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
     private let crypto: any WatchChatCrypto
@@ -528,6 +678,11 @@ final class WatchChatRuntime: ObservableObject {
     private let syncSession: WatchSyncSession?
     private var isSending = false
     private var pendingTextSends: [WatchPendingTextSend] = []
+    private var pendingRecoveryJobs: [WatchRecoveryJob] = []
+    private var pendingCompletions: [WatchPendingCompletion] = []
+    private var completionTask: Task<Void, Never>?
+    private var completionWorkInProgress = false
+    private var completionRetryAttempt = 0
     private static let incognitoChatIdPrefix = "incognito-"
     // Show the first page promptly, then fetch older chats for local search.
     // Some deployed servers ignore offset, so stop when a page repeats.
@@ -544,6 +699,7 @@ final class WatchChatRuntime: ObservableObject {
         syncSocket: (any WatchChatSyncSocket)? = WatchRealtimeSyncSocket(),
         syncSession: WatchSyncSession? = nil
     ) {
+        self.accountID = currentUserId
         self.api = api
         self.cache = cache
         self.crypto = crypto ?? WatchChatCryptoService(currentUserId: currentUserId)
@@ -552,10 +708,12 @@ final class WatchChatRuntime: ObservableObject {
     }
 
 #if DEBUG
-    init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String?) {
+    init(uiTestSnapshot snapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil) {
+        self.accountID = nil
+        self.isPreviewFixture = true
         self.api = APIClient.shared
         self.cache = WatchChatOfflineCache()
-        self.crypto = WatchChatCryptoService(currentUserId: nil)
+        self.crypto = WatchPreviewDraftCrypto()
         self.syncSocket = nil
         self.syncSession = nil
         self.chats = snapshot.chats
@@ -563,13 +721,29 @@ final class WatchChatRuntime: ObservableObject {
         self.pendingTextSends = snapshot.pendingTextSends
         self.pendingAudioEmbeds = snapshot.pendingAudioEmbeds
         self.selectedChatId = selectedChatId
+        if let selectedChatId, let initialDraft { composerDrafts[selectedChatId] = initialDraft }
+        if let selectedChatId, let chat = chats.first(where: { $0.id == selectedChatId }),
+           chat.title == "New chat", (messagesByChatId[selectedChatId] ?? []).isEmpty {
+            transientChat = chat
+            chats.removeAll { $0.id == selectedChatId }
+        }
     }
 #endif
 
     var selectedChat: WatchChatSummary? {
         guard let selectedChatId else { return nil }
-        return chats.first { $0.id == selectedChatId }
+        return chats.first { $0.id == selectedChatId } ?? (transientChat?.id == selectedChatId ? transientChat : nil)
     }
+
+#if DEBUG
+    func seedRemoteDraftPreview() async {
+        guard isPreviewFixture else { return }
+        guard let ciphertext = try? await crypto.encryptDraft("Berlin remote draft") else { return }
+        handleDraftSyncEvent(type: "phase_2_last_20_chats_ready", payload: ["context_epoch": 0,
+            "chats": [["chat_details": ["id": "watch-remote-draft", "draft_v": 2, "messages_v": 0,
+                "encrypted_draft_md": ciphertext, "encrypted_draft_preview": ciphertext]]]])
+    }
+#endif
 
     var selectedMessages: [WatchChatMessage] {
         guard let selectedChatId else { return [] }
@@ -577,16 +751,51 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func loadCachedSnapshot() async {
-        apply(await cache.loadSnapshot())
+        guard !isStopped else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
+        let snapshot = await cache.loadSnapshot()
+        guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current(), snapshot.accountID == accountID,
+              snapshot.serverScope == serverScope || (accountID == nil && snapshot.serverScope == nil) else { return }
+        apply(snapshot)
+        for cached in snapshot.chats {
+            let remote = WatchRemoteChat(id: cached.id, title: cached.title, lastMessageAt: cached.lastMessageAt,
+                updatedAt: nil, chatSummary: cached.preview, isPinned: cached.isPinned,
+                encryptedTitle: cached.encryptedTitle, encryptedChatSummary: cached.encryptedPreview,
+                encryptedChatKey: cached.encryptedChatKey, messagesV: cached.messagesV,
+                titleV: cached.titleV, metadataV: cached.metadataV)
+            if let decrypted = await crypto.decryptChat(remote), let index = chats.firstIndex(where: { $0.id == cached.id }) {
+                guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return }
+                chats[index] = decrypted
+            }
+            for message in snapshot.messagesByChatId[cached.id] ?? [] {
+                var decrypted = await crypto.decryptMessage(.init(id: message.id, chatId: message.chatId, role: message.role,
+                    content: message.content, encryptedContent: message.encryptedContent, embedRefs: message.embedRefs, createdAt: message.createdAt))
+                guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return }
+                decrypted.isPending = message.isPending
+                upsertCompletionMessage(decrypted)
+            }
+        }
+        for (chatID, draft) in encryptedDrafts {
+            guard let ciphertext = draft.encryptedMarkdown else { continue }
+            let text = try? await crypto.decryptDraft(ciphertext)
+            guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return }
+            if let text { composerDrafts[chatID] = text }
+        }
     }
 
     func refresh() async {
-        guard !isSyncing else { return }
+        guard !isSyncing, !isStopped else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
+        func current() -> Bool { !isStopped && generation == lifecycleGeneration && profile == ServerProfile.current() }
         isSyncing = true
+        defer { if current() { isSyncing = false } }
         errorMessage = nil
         if chats.isEmpty {
             await loadCachedSnapshot()
         }
+        guard current() else { return }
         var remote: [WatchChatSummary] = []
         var seenChatIds = Set<String>()
         var fetchedCount = 0
@@ -601,6 +810,7 @@ final class WatchChatRuntime: ObservableObject {
                     try await api.fetchRecentChats(limit: limit, offset: offset)
                 }
             } catch {
+                guard current() else { return }
                 if fetchedFirstPage && limit == Self.chatFetchLimit {
                     NativeDiagnostics.failure("large_page_failed", category: "watch_chat", level: .warning, error: error)
                     limit = Self.firstChatFetchLimit
@@ -609,6 +819,7 @@ final class WatchChatRuntime: ObservableObject {
                 fetchError = error
                 break
             }
+            guard current() else { return }
             fetchedFirstPage = true
             let unseen = page.filter { seenChatIds.insert($0.id).inserted }
             if !page.isEmpty && unseen.isEmpty {
@@ -617,7 +828,9 @@ final class WatchChatRuntime: ObservableObject {
                 break
             }
             fetchedCount += unseen.count
-            remote.append(contentsOf: await decryptChats(unseen))
+            let decryptedPage = await decryptChats(unseen)
+            guard current() else { return }
+            remote.append(contentsOf: decryptedPage)
             unavailableChatCount = fetchedCount - remote.count
             let remoteIds = Set(remote.map(\.id))
             let pendingChatIds = Set(pendingTextSends.map(\.chatId))
@@ -648,6 +861,7 @@ final class WatchChatRuntime: ObservableObject {
                 if chats.isEmpty { await loadCachedSnapshot() }
             }
         }
+        guard current() else { return }
         if fetchedFirstPage {
             NativeDiagnostics.event("refresh", category: "watch_chat", counts: [
                 "fetched": fetchedCount, "decrypted": remote.count,
@@ -660,7 +874,6 @@ final class WatchChatRuntime: ObservableObject {
                 NativeDiagnostics.failure("persist_failed", category: "watch_chat", level: .warning, error: error)
             }
         }
-        isSyncing = false
     }
 
     private static func isConnectivityError(_ error: Error) -> Bool {
@@ -670,28 +883,66 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func startRealtimeSync() async {
-        guard let syncSocket, let syncSession else { return }
+        guard !isStopped, let syncSocket, let syncSession else { return }
+        let generation = lifecycleGeneration
+        completionRetryAttempt = 0
         syncSocket.setChangeHandler { [weak self] in
-            guard let self else { return }
+            guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
             Task { await self.refreshSelectedChat() }
         }
+        syncSocket.setEventHandler { [weak self] type, payload in
+            guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
+            self.handleDraftSyncEvent(type: type, payload: payload)
+            Task { @MainActor in
+                guard self.lifecycleGeneration == generation, !self.isStopped else { return }
+                await self.handleCompletionEvent(type: type, payload: payload)
+                guard self.lifecycleGeneration == generation, !self.isStopped else { return }
+                await self.handleEmbedEvent(type: type, payload: payload)
+            }
+        }
         syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
+        await replayPendingDrafts()
+        await replayPendingTextSends()
+        await flushPendingCompletions()
+        await requestSelectedEmbedPreviews()
     }
 
     func openChat(_ chat: WatchChatSummary) async {
+        guard !isStopped else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
         selectedChatId = chat.id
         if messagesByChatId[chat.id] == nil {
             let snapshot = await cache.loadSnapshot()
-            messagesByChatId[chat.id] = snapshot.messagesByChatId[chat.id]
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+            if snapshot.accountID == accountID,
+               snapshot.serverScope == serverScope || (accountID == nil && snapshot.serverScope == nil) {
+                var cachedMessages: [WatchChatMessage] = []
+                for message in snapshot.messagesByChatId[chat.id] ?? [] {
+                    var decrypted = await crypto.decryptMessage(.init(id: message.id, chatId: message.chatId, role: message.role,
+                        content: message.content, encryptedContent: message.encryptedContent, embedRefs: message.embedRefs, createdAt: message.createdAt))
+                    guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+                    decrypted.isPending = message.isPending
+                    cachedMessages.append(decrypted)
+                }
+                messagesByChatId[chat.id] = Self.sortedMessages(cachedMessages)
+            }
         }
-        if chat.messagesV == 0 && messagesByChatId[chat.id] == [] { return }
+        // An omitted REST message version also decodes as zero. Only a known
+        // unsent draft can skip fetching; an empty cache is not authoritative.
+        let isDraftOnly = chat.messagesV == 0 && chat.titleV == 0 && chat.metadataV == 0
+            && (transientChat?.id == chat.id || encryptedDrafts[chat.id]?.encryptedMarkdown != nil)
+        if isDraftOnly, messagesByChatId[chat.id] == [] { return }
 
         do {
             let messages = try await fetchWithRetry {
                 try await api.fetchMessages(chatId: chat.id)
             }
-            messagesByChatId[chat.id] = Self.sortedMessages(await decryptMessages(messages))
+            let decrypted = Self.sortedMessages(await decryptMessages(messages))
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+            messagesByChatId[chat.id] = decrypted
             let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id)
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             if let index = chats.firstIndex(where: { $0.id == chat.id }) {
                 chats[index].messagesV = max(chats[index].messagesV, authoritativeVersion ?? messages.count)
             }
@@ -703,37 +954,411 @@ final class WatchChatRuntime: ObservableObject {
                 NativeDiagnostics.failure("persist_failed", category: "watch_chat", level: .warning, error: error)
             }
         } catch {
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             NativeDiagnostics.failure("messages_fetch_failed", category: "watch_chat", level: .warning, error: error)
             isOffline = Self.isConnectivityError(error)
             errorMessage = error.localizedDescription
         }
+        guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+        await requestSelectedEmbedPreviews()
+    }
+
+    func messageWithHydratedEmbeds(_ message: WatchChatMessage) -> WatchChatMessage {
+        var result = message
+        result.embedRefs = (message.embedRefs ?? []).map { hydratedEmbedPreviews[$0.id] ?? $0 }
+        return result
+    }
+
+    func requestSelectedEmbedPreviews() async {
+        guard !isStopped, let syncSocket, let chat = selectedChat else { return }
+        let generation = lifecycleGeneration
+        let socketGeneration = syncSocket.generation
+        let profile = ServerProfile.current()
+        if embedSocketGeneration != socketGeneration {
+            requestedEmbedPreviews.removeAll()
+            embedSocketGeneration = socketGeneration
+        }
+        var ids = Set(selectedMessages.flatMap { ($0.embedRefs ?? []).map(\.id) })
+        for ref in selectedMessages.flatMap({ $0.embedRefs ?? [] }) {
+            let hydrated = hydratedEmbedPreviews[ref.id] ?? ref
+            ids.formUnion(WatchEmbedPreviewMapper.embedRecord(from: hydrated).childEmbedIds)
+        }
+        for embedID in ids {
+            guard generation == lifecycleGeneration, socketGeneration == syncSocket.generation, profile == ServerProfile.current(),
+                  !isStopped, selectedChatId == chat.id else { return }
+            guard hydratedEmbedPreviews[embedID] == nil, requestedEmbedPreviews.insert(embedID).inserted else { continue }
+            do { try await syncSocket.sendEvent(type: "request_embed", payload: ["embed_id": embedID]) }
+            catch { requestedEmbedPreviews.remove(embedID) }
+        }
+    }
+
+    func handleEmbedEvent(type: String, payload: [String: Any]) async {
+        guard type == "send_embed_data", !isStopped,
+              let embedID = payload["embed_id"] as? String else { return }
+        let generation = lifecycleGeneration
+        let socketGeneration = syncSocket?.generation
+        let profile = ServerProfile.current()
+        // Attach only to an embed referenced by a chat already opened/decrypted here.
+        guard let owner = embedOwner(embedID: embedID) else { return }
+        let chat = owner.chat
+        do {
+            let ref = try await crypto.hydrateEmbed(payload: payload, chat: chat)
+            guard generation == lifecycleGeneration, socketGeneration == syncSocket?.generation, profile == ServerProfile.current(),
+                  !isStopped else { return }
+            hydratedEmbedPreviews[embedID] = ref
+            requestedEmbedPreviews.remove(embedID)
+            if payload["already_encrypted"] as? Bool != true, payload["encryption_mode"] as? String != "client" {
+                let prepared = try await crypto.prepareEmbedStorage(payload: payload, chat: chat, messageID: owner.message.id)
+                guard generation == lifecycleGeneration, socketGeneration == syncSocket?.generation,
+                      profile == ServerProfile.current(), !isStopped else { return }
+                for (event, wire) in [("store_embed_keys", prepared.keys), ("store_embed", prepared.embed)] {
+                    guard let requestID = wire["request_id"] as? String else { throw WatchChatRuntimeError.invalidPendingTurn }
+                    pendingCompletions.append(WatchPendingCompletion(id: requestID, chatId: chat.id, eventType: event,
+                        encryptedPayload: try JSONSerialization.data(withJSONObject: wire)))
+                }
+                try await persistSnapshot() // Only ciphertext/wrappers/metadata cross the durable boundary.
+                await flushPendingCompletions()
+            }
+            await requestSelectedEmbedPreviews()
+        } catch {
+            if generation == lifecycleGeneration { requestedEmbedPreviews.remove(embedID) }
+        }
+    }
+
+    private func embedOwner(embedID: String) -> (chat: WatchChatSummary, message: WatchChatMessage)? {
+        for chat in chats {
+            for message in messagesByChatId[chat.id] ?? [] {
+                if (message.embedRefs ?? []).contains(where: { ref in
+                    if ref.id == embedID { return true }
+                    let hydrated = hydratedEmbedPreviews[ref.id] ?? ref
+                    return WatchEmbedPreviewMapper.embedRecord(from: hydrated).childEmbedIds.contains(embedID)
+                }) { return (chat, message) }
+            }
+        }
+        return nil
     }
 
     func createNewChat() async {
+        let generation = lifecycleGeneration
         do {
             let chat = try await crypto.createChat()
-            chats.insert(chat, at: 0)
-            messagesByChatId[chat.id] = []
+            guard generation == lifecycleGeneration, !isStopped else { return }
+            // Navigation creates only an in-memory identity. First content promotes it.
+            transientChat = chat
             selectedChatId = chat.id
             errorMessage = nil
-            try await persistSnapshot()
-        } catch {
-            errorMessage = error.localizedDescription
+        } catch { if generation == lifecycleGeneration { errorMessage = error.localizedDescription } }
+    }
+
+    func updateComposerDraft(_ text: String, chatId: String) {
+        guard !isStopped else { return }
+        composerDrafts[chatId] = text
+        draftRevision &+= 1
+        let revision = draftRevision
+        draftLocalRevisions[chatId] = revision
+        let generation = lifecycleGeneration
+        draftSaveTask?.cancel()
+        draftSaveTask = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
+            await self?.saveComposerDraft(text, chatId: chatId, revision: revision, generation: generation)
         }
+    }
+
+    func leaveChat() async {
+        guard let chatId = selectedChatId else { return }
+        draftSaveTask?.cancel()
+        await saveComposerDraft(composerDrafts[chatId] ?? "", chatId: chatId,
+                                revision: currentDraftRevision(for: chatId), generation: lifecycleGeneration)
+        selectedChatId = nil
+        if transientChat?.id == chatId { transientChat = nil }
+    }
+
+    private func currentDraftRevision(for chatId: String) -> UInt64 {
+        draftLocalRevisions[chatId] ?? encryptedDrafts[chatId]?.localRevision ?? 0
+    }
+
+    private func saveComposerDraft(_ text: String, chatId: String, revision: UInt64, generation: UInt64) async {
+        guard generation == lifecycleGeneration, !isStopped, revision == currentDraftRevision(for: chatId) else { return }
+        if encryptedDrafts[chatId]?.localRevision == revision {
+            // Back and backgrounding flush edits, not an already saved revision.
+            // Keep an acknowledged or superseded write retired; dirty retries
+            // reuse the exact existing ciphertext through the queue.
+            await replayPendingDrafts()
+            return
+        }
+        do {
+            let hasContent = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let encrypted = hasContent ? try await crypto.encryptDraft(text) : nil
+            let preview = hasContent ? try await crypto.encryptDraft(String(text.prefix(160))) : nil
+            guard generation == lifecycleGeneration, !isStopped, revision == currentDraftRevision(for: chatId) else { return }
+            if hasContent, let chat = transientChat, chat.id == chatId { promoteDraftChatForSending(chat) }
+            if !hasContent, (messagesByChatId[chatId] ?? []).isEmpty,
+               (chats.first { $0.id == chatId }?.messagesV ?? 0) == 0,
+               encryptedDrafts[chatId] != nil || transientChat?.id == chatId {
+                chats.removeAll { $0.id == chatId }
+                messagesByChatId.removeValue(forKey: chatId)
+            }
+            // A tombstone remains until receipt so a delayed remote echo cannot resurrect content.
+            let old = encryptedDrafts[chatId]
+            if hasContent || old != nil {
+                encryptedDrafts[chatId] = WatchEncryptedDraft(encryptedMarkdown: encrypted,
+                    encryptedPreview: preview, serverVersion: old?.serverVersion ?? 0,
+                    localRevision: revision, needsSync: true, clearedVersion: old?.clearedVersion)
+                try await persistSnapshot()
+                await replayPendingDrafts()
+            }
+        } catch { if generation == lifecycleGeneration { errorMessage = error.localizedDescription } }
+    }
+
+    func promoteDraftChatForSending(_ chat: WatchChatSummary) {
+        if !chats.contains(where: { $0.id == chat.id }) { chats.insert(chat, at: 0) }
+        if messagesByChatId[chat.id] == nil { messagesByChatId[chat.id] = [] }
+    }
+
+    func clearDraftAfterSending(chatId: String) async {
+        draftSaveTask?.cancel()
+        draftRevision &+= 1
+        draftLocalRevisions[chatId] = draftRevision
+        composerDrafts[chatId] = ""
+        if encryptedDrafts[chatId] != nil {
+            encryptedDrafts[chatId]?.encryptedMarkdown = nil
+            encryptedDrafts[chatId]?.encryptedPreview = nil
+            encryptedDrafts[chatId]?.localRevision = draftRevision
+            encryptedDrafts[chatId]?.needsSync = true
+            try? await persistSnapshot()
+            await replayPendingDrafts()
+        }
+        if transientChat?.id == chatId { transientChat = nil }
+    }
+
+    func replayPendingDrafts() async {
+        guard let syncSocket, !isStopped else { return }
+        if draftSocketGeneration != syncSocket.generation {
+            inFlightDrafts.removeAll()
+            draftSocketGeneration = syncSocket.generation
+        }
+        let generation = lifecycleGeneration
+        for (chatId, draft) in encryptedDrafts where draft.needsSync && inFlightDrafts[chatId] == nil
+            && (draftLocalRevisions[chatId] ?? 0) <= draft.localRevision {
+            guard generation == lifecycleGeneration, !isStopped else { return }
+            var payload: [String: Any] = ["chat_id": chatId]
+            if let markdown = draft.encryptedMarkdown {
+                payload["encrypted_draft_md"] = markdown
+                payload["encrypted_draft_preview"] = draft.encryptedPreview
+            }
+            inFlightDrafts[chatId] = draft
+            do { try await syncSocket.sendEvent(type: draft.encryptedMarkdown == nil ? "delete_draft" : "update_draft", payload: payload) }
+            catch { inFlightDrafts.removeValue(forKey: chatId); return } // Keep ciphertext and retry when the connection returns.
+        }
+    }
+
+    func requestDraftVersions() async {
+        guard !isStopped, let syncSocket, draftReconciledSocketGeneration != syncSocket.generation else { return }
+        draftReconciledSocketGeneration = syncSocket.generation
+        let ids = Set(chats.map(\.id)).union(encryptedDrafts.keys).sorted()
+        guard !ids.isEmpty else { return }
+        let generation = lifecycleGeneration
+        for offset in stride(from: 0, to: ids.count, by: 100) {
+            guard generation == lifecycleGeneration, !isStopped else { return }
+            let slice = ids[offset..<min(offset + 100, ids.count)]
+            let entries: [[String: Any]] = slice.map { ["chat_id": $0, "client_draft_v": encryptedDrafts[$0]?.serverVersion ?? 0] }
+            do { try await syncSocket.sendEvent(type: "get_draft_versions", payload: ["chats": entries]) }
+            catch { draftReconciledSocketGeneration = nil; return }
+        }
+    }
+
+    private func reconcileDraftVersions(_ payload: [String: Any]) async {
+        guard !isStopped, let syncSocket, let versions = payload["versions"] as? [String: Int] else { return }
+        let unavailable = Set(payload["unavailable_chat_ids"] as? [String] ?? [])
+        let tombstones = payload["tombstone_versions"] as? [String: Int] ?? [:]
+        var refreshIDs: [String] = []
+        for (id, version) in versions where !unavailable.contains(id) {
+            let local = encryptedDrafts[id]
+            if version == 0 {
+                // A missing Redis/Directus row is not an authoritative deletion.
+                if let tombstone = tombstones[id], tombstone > 0 {
+                    handleDraftSyncEvent(type: "draft_deleted", payload: ["chat_id": id, "draft_v": tombstone])
+                }
+            } else if version > (local?.serverVersion ?? 0), local?.needsSync != true,
+                      (draftLocalRevisions[id] ?? 0) <= (local?.localRevision ?? 0) { refreshIDs.append(id) }
+        }
+        guard !refreshIDs.isEmpty else { return }
+        // The backend phase2 refresh path supports explicit IDs outside the recent page.
+        // get_chat_details is not implemented on this backend.
+        let generation = lifecycleGeneration
+        let socketGeneration = syncSocket.generation
+        for offset in stride(from: 0, to: refreshIDs.count, by: 50) {
+            guard generation == lifecycleGeneration, socketGeneration == syncSocket.generation, !isStopped else { return }
+            var request = makeSyncClientState().phasedSyncPayload
+            request["phase"] = "phase2"
+            request["refresh_chat_ids"] = Array(refreshIDs[offset..<min(offset + 50, refreshIDs.count)])
+            try? await syncSocket.sendEvent(type: "phased_sync_request", payload: request)
+        }
+    }
+
+    private func applyDraftDetails(_ details: [String: Any]) {
+        guard let id = (details["id"] as? String) ?? (details["chat_id"] as? String),
+              let draftVersion = details["draft_v"] as? Int else { return }
+        let hasMarkdownField = details.keys.contains("encrypted_draft_md")
+        let incoming = details["encrypted_draft_md"] as? String
+        let cleared = details["cleared_draft_v"] as? Int ?? 0
+        if hasMarkdownField, incoming == nil {
+            handleDraftSyncEvent(type: "draft_deleted", payload: ["chat_id": id, "draft_v": max(draftVersion, cleared)])
+        } else if let incoming {
+            var payload = details
+            payload["chat_id"] = id
+            payload["draft_v"] = draftVersion
+            payload["encrypted_draft_md"] = incoming
+            handleDraftSyncEvent(type: "chat_draft_updated", payload: payload)
+        }
+    }
+
+    func handleDraftSyncEvent(type: String, payload: [String: Any]) {
+        guard !isStopped else { return }
+        if let teamID = payload["team_id"], !(teamID is NSNull) { return }
+        if let epoch = payload["context_epoch"] as? Int, epoch != 0 { return }
+        if type == "draft_versions_response" {
+            Task { [weak self] in await self?.reconcileDraftVersions(payload) }; return
+        }
+        if type == "phased_sync_complete" {
+            Task { [weak self] in await self?.requestDraftVersions() }; return
+        }
+        if type == "chat_details" {
+            applyDraftDetails(payload["chat_details"] as? [String: Any] ?? payload); return
+        }
+        if ["phase_1_last_chat_ready", "phase_2_last_20_chats_ready", "load_more_chats_response", "sync_metadata_chats_response"].contains(type) {
+            if let details = payload["chat_details"] as? [String: Any] { applyDraftDetails(details) }
+            for details in payload["recent_chat_metadata"] as? [[String: Any]] ?? [] { applyDraftDetails(details) }
+            for wrapper in payload["chats"] as? [[String: Any]] ?? [] {
+                applyDraftDetails(wrapper["chat_details"] as? [String: Any] ?? wrapper)
+            }
+            return
+        }
+        guard let chatId = payload["chat_id"] as? String else { return }
+        guard ["draft_update_receipt", "draft_delete_receipt", "chat_draft_updated", "chat_draft_deleted", "draft_deleted"].contains(type) else { return }
+        if type.hasSuffix("_receipt"), payload["success"] as? Bool == false {
+            inFlightDrafts.removeValue(forKey: chatId)
+            return
+        }
+        let versions = payload["versions"] as? [String: Any]
+        guard let version = (payload["draft_v"] as? Int) ?? (versions?["draft_v"] as? Int) else { return }
+        let previous = encryptedDrafts[chatId]
+        guard version >= (previous?.serverVersion ?? 0) else { return }
+        let receipt = type.hasSuffix("_receipt")
+        let data = payload["data"] as? [String: Any] ?? payload
+        var incoming = data["encrypted_draft_md"] as? String
+        var incomingPreview = data["encrypted_draft_preview"] as? String
+        if receipt {
+            guard let sent = inFlightDrafts.removeValue(forKey: chatId), payload["success"] as? Bool == true else { return }
+            // Socket serializes one outstanding write per chat: old receipts update
+            // only the version while a newer edit remains dirty and is sent next.
+            if sent.localRevision != previous?.localRevision || (draftLocalRevisions[chatId] ?? 0) > sent.localRevision {
+                encryptedDrafts[chatId]?.serverVersion = version
+                Task { [weak self] in await self?.replayPendingDrafts() }
+                return
+            }
+            if payload["superseded"] as? Bool == true {
+                // The attempted write lost to another device. Retire only this
+                // revision; its allocated version does not acknowledge its ciphertext.
+                encryptedDrafts[chatId]?.needsSync = false
+                let generation = lifecycleGeneration
+                let socketGeneration = syncSocket?.generation
+                Task { [weak self] in
+                    // Persist the retired queue even if the transport reconnects;
+                    // snapshot writes still validate account, profile and lifecycle.
+                    guard let self, generation == self.lifecycleGeneration, !self.isStopped else { return }
+                    try? await self.persistSnapshot()
+                    guard generation == self.lifecycleGeneration, !self.isStopped,
+                          socketGeneration == self.syncSocket?.generation, let socket = self.syncSocket else { return }
+                    // Force the supported detail path even if version discovery
+                    // already ran on this socket or the winning broadcast was missed.
+                    var request = self.makeSyncClientState().phasedSyncPayload
+                    request["phase"] = "phase2"
+                    request["refresh_chat_ids"] = [chatId]
+                    try? await socket.sendEvent(type: "phased_sync_request", payload: request)
+                }
+                return
+            }
+            incoming = sent.encryptedMarkdown
+            incomingPreview = sent.encryptedPreview
+        } else if previous?.needsSync == true || (draftLocalRevisions[chatId] ?? 0) > (previous?.localRevision ?? 0) {
+            // Unsent local content and deletion tombstones win until acknowledged.
+            return
+        }
+        let explicitNull = data.keys.contains("encrypted_draft_md") && incoming == nil
+        let isDeletion = type == "chat_draft_deleted" || type == "draft_deleted" || type == "draft_delete_receipt" || explicitNull
+        guard isDeletion || incoming != nil else { return } // Positive metadata omission preserves content.
+        if !isDeletion, version <= (previous?.clearedVersion ?? 0) { return }
+        if !receipt, !isDeletion, version == previous?.serverVersion,
+           previous?.encryptedMarkdown != nil, incoming != previous?.encryptedMarkdown { return }
+        encryptedDrafts[chatId] = WatchEncryptedDraft(encryptedMarkdown: isDeletion ? nil : incoming,
+            encryptedPreview: incomingPreview, serverVersion: version,
+            localRevision: previous?.localRevision ?? 0, needsSync: false,
+            clearedVersion: isDeletion ? max(version, previous?.clearedVersion ?? 0) : previous?.clearedVersion)
+        let generation = lifecycleGeneration
+        let socketGeneration = syncSocket?.generation
+        let revision = encryptedDrafts[chatId]?.localRevision
+        Task { [weak self] in
+            guard let self else { return }
+            let decoded = isDeletion ? "" : (try? await self.crypto.decryptDraft(incoming!))
+            guard generation == self.lifecycleGeneration, socketGeneration == self.syncSocket?.generation, !self.isStopped,
+                  self.encryptedDrafts[chatId]?.serverVersion == version,
+                  self.encryptedDrafts[chatId]?.localRevision == revision,
+                  (self.draftLocalRevisions[chatId] ?? 0) <= (revision ?? 0),
+                  self.encryptedDrafts[chatId]?.needsSync == false else { return }
+            guard let decoded else { return }
+            self.composerDrafts[chatId] = decoded
+            if !decoded.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               !self.chats.contains(where: { $0.id == chatId }) {
+                self.chats.insert(WatchChatSummary(id: chatId, title: nil,
+                    lastMessageAt: nil, preview: nil, isPinned: false,
+                    encryptedTitle: payload["encrypted_title"] as? String, encryptedPreview: nil,
+                    encryptedChatKey: payload["encrypted_chat_key"] as? String,
+                    messagesV: payload["messages_v"] as? Int ?? 0, titleV: payload["title_v"] as? Int ?? 0,
+                    metadataV: payload["metadata_v"] as? Int ?? 0), at: 0)
+                self.messagesByChatId[chatId] = []
+            } else if isDeletion, let chat = self.chats.first(where: { $0.id == chatId }),
+                      chat.messagesV == 0, (self.messagesByChatId[chatId] ?? []).isEmpty {
+                self.chats.removeAll { $0.id == chatId }
+                self.messagesByChatId.removeValue(forKey: chatId)
+                if self.selectedChatId == chatId { self.selectedChatId = nil }
+            }
+            try? await self.persistSnapshot()
+        }
+    }
+
+    func stopRealtimeSync() {
+        lifecycleGeneration &+= 1
+        isStopped = true
+        draftSaveTask?.cancel()
+        completionTask?.cancel()
+        inFlightDrafts.removeAll()
+        syncSocket?.disconnect()
+    }
+
+    func flushDraftAndStop() async {
+        draftSaveTask?.cancel()
+        if let chatId = selectedChatId {
+            await saveComposerDraft(composerDrafts[chatId] ?? "", chatId: chatId,
+                                    revision: currentDraftRevision(for: chatId), generation: lifecycleGeneration)
+        }
+        stopRealtimeSync()
     }
 
     @discardableResult
     func sendText(_ content: String) async -> Bool {
-        guard let chat = selectedChat else {
+        guard var chat = selectedChat else {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
             return false
         }
+        do { chat = try await prepareDraftChatForSending(chat) }
+        catch { if !isStopped { errorMessage = error.localizedDescription }; return false }
         return await send(content: content, chat: chat, embed: nil)
     }
 
     @discardableResult
     func sendAudioRecording(data: Data, filename: String, duration: TimeInterval) async -> Bool {
-        guard let chat = selectedChat else {
+        guard var chat = selectedChat else {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
             return false
         }
@@ -741,9 +1366,14 @@ final class WatchChatRuntime: ObservableObject {
             errorMessage = WatchChatRuntimeError.invalidRecording.localizedDescription
             return false
         }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
         do {
+            chat = try await prepareDraftChatForSending(chat)
             let upload = try await api.uploadAudioRecording(data: data, filename: filename, chatId: chat.id)
+            guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return false }
             let transcription = try await api.transcribeAudioRecording(upload, chatId: chat.id)
+            guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return false }
             let embed = WatchPendingAudioEmbed.from(upload: upload, transcription: transcription, duration: duration)
             return await send(content: embed.markdownReference, chat: chat, embed: embed)
         } catch {
@@ -752,7 +1382,26 @@ final class WatchChatRuntime: ObservableObject {
         }
     }
 
+    private func prepareDraftChatForSending(_ original: WatchChatSummary) async throws -> WatchChatSummary {
+        guard original.encryptedChatKey == nil, original.encryptedTitle == nil,
+              original.messagesV == 0, original.titleV == 0, original.metadataV == 0,
+              encryptedDrafts[original.id]?.encryptedMarkdown != nil,
+              (messagesByChatId[original.id] ?? []).isEmpty else { return original }
+        let generation = lifecycleGeneration
+        let prepared = try await crypto.createChat(withID: original.id)
+        guard generation == lifecycleGeneration, !isStopped, prepared.id == original.id else { throw CancellationError() }
+        if let index = chats.firstIndex(where: { $0.id == original.id }) { chats[index] = prepared }
+        return prepared
+    }
+
     private func send(content: String, chat: WatchChatSummary, embed: WatchPendingAudioEmbed?) async -> Bool {
+        guard !isStopped else { return false }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
+        func validate() throws {
+            guard !Task.isCancelled, generation == lifecycleGeneration, !isStopped,
+                  profile == ServerProfile.current() else { throw WatchChatRuntimeError.socketUnavailable }
+        }
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             errorMessage = WatchChatRuntimeError.noSelectedChat.localizedDescription
@@ -787,6 +1436,7 @@ final class WatchChatRuntime: ObservableObject {
             let turnId = UUID().uuidString.lowercased()
             let encryptedContent = try await crypto.encryptText(trimmed, for: chat)
             let recoveryPublicKey = try await crypto.recoveryPublicKey(for: chat)
+            try validate()
             let existing = messagesByChatId[chat.id] ?? []
             let expectedVersion = max(chat.messagesV, existing.filter { !$0.isPending }.count)
             let titleVersion = max(chat.titleV, chat.title?.isEmpty == false ? 1 : 0)
@@ -842,13 +1492,16 @@ final class WatchChatRuntime: ObservableObject {
                     "created_at": createdAtUnix, "updated_at": createdAtUnix
                 ]
             }
+            let prepared = try JSONSerialization.data(withJSONObject: ["preflight": preflight, "inference": inference])
+            guard let preparedText = String(data: prepared, encoding: .utf8) else { throw WatchChatRuntimeError.invalidPendingTurn }
+            let encryptedPrepared = try await crypto.encryptText(preparedText, for: chat)
+            try validate()
             let pending = WatchPendingTextSend(
                 id: turnId, chatId: chat.id, messageId: messageId,
                 encryptedContent: encryptedContent, encryptedChatKey: encryptedChatKey,
-                createdAt: createdAt,
-                preflightJSON: try JSONSerialization.data(withJSONObject: preflight),
-                inferenceJSON: try JSONSerialization.data(withJSONObject: inference)
+                createdAt: createdAt, encryptedPreparedTurn: encryptedPrepared
             )
+            promoteDraftChatForSending(chat)
             var local = messagesByChatId[chat.id] ?? []
             local.append(WatchChatMessage(
                 id: messageId, chatId: chat.id, role: .user, content: trimmed,
@@ -860,12 +1513,22 @@ final class WatchChatRuntime: ObservableObject {
             pendingTextSends.append(pending)
             queued = true
             try await persistSnapshot()
+            try validate()
+            await clearDraftAfterSending(chatId: chat.id)
+            try validate()
             syncSocket.connect(session: syncSession!, syncState: makeSyncClientState())
-            try await syncSocket.sendTurn(pending)
+            let socketGeneration = syncSocket.generation
+            try await syncSocket.sendTurn(try await preparedTurn(pending, chat: chat), encryptMetadata: { text in
+                try validate()
+                return try await self.crypto.encryptText(text, for: chat)
+            })
+            try validate()
+            guard socketGeneration == syncSocket.generation else { throw WatchChatRuntimeError.socketUnavailable }
             pendingTextSends.removeAll { $0.id == turnId }
             markPendingMessageSent(messageId: messageId, chatId: chat.id)
             errorMessage = nil
             try await persistSnapshot()
+            await flushPendingCompletions()
             await refreshSelectedChat()
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(3))
@@ -873,6 +1536,7 @@ final class WatchChatRuntime: ObservableObject {
             }
             return true
         } catch {
+            guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return queued }
             errorMessage = error.localizedDescription
             try? await persistSnapshot()
             return queued
@@ -898,14 +1562,18 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     private func refreshSelectedChat() async {
-        guard let chat = selectedChat else { return }
+        guard !isStopped, let chat = selectedChat else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
         do {
             let remote = try await api.fetchMessages(chatId: chat.id)
             let decrypted = Self.sortedMessages(await decryptMessages(remote))
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             let remoteIds = Set(decrypted.map(\.id))
             let localOnly = (messagesByChatId[chat.id] ?? []).filter { !remoteIds.contains($0.id) }
             messagesByChatId[chat.id] = Self.sortedMessages(decrypted + localOnly)
             let authoritativeVersion = try? await api.fetchMessagesVersion(chatId: chat.id)
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
             if let index = chats.firstIndex(where: { $0.id == chat.id }) {
                 chats[index].messagesV = max(chats[index].messagesV, authoritativeVersion ?? remote.count)
             }
@@ -913,24 +1581,71 @@ final class WatchChatRuntime: ObservableObject {
         } catch {
             // An unsaved local chat may not exist on the server until its first turn.
         }
+        guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { return }
+        await requestSelectedEmbedPreviews()
     }
 
     private func apply(_ snapshot: WatchChatSnapshot) {
+        encryptedDrafts = snapshot.encryptedDrafts
+        draftRevision = encryptedDrafts.values.map(\.localRevision).max() ?? 0
         chats = Self.sortedChats(snapshot.chats)
         messagesByChatId = snapshot.messagesByChatId.mapValues(Self.sortedMessages)
         pendingTextSends = snapshot.pendingTextSends
+        pendingRecoveryJobs = snapshot.pendingRecoveryJobs
+        pendingCompletions = snapshot.pendingCompletions
         pendingAudioEmbeds = []
     }
 
     private func persistSnapshot() async throws {
+        guard !isStopped, !isPreviewFixture else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
+        func validate() throws {
+            guard !isStopped, generation == lifecycleGeneration, profile == ServerProfile.current() else { throw CancellationError() }
+        }
+        var encryptedChats: [WatchChatSummary] = []
+        var encryptedMessages: [String: [WatchChatMessage]] = [:]
+        for chat in chats {
+            var storedChat = chat
+            if let title = chat.title, storedChat.encryptedTitle == nil { storedChat.encryptedTitle = try await crypto.encryptText(title, for: chat) }
+            if let preview = chat.preview, storedChat.encryptedPreview == nil { storedChat.encryptedPreview = try await crypto.encryptText(preview, for: chat) }
+            storedChat.title = nil
+            storedChat.preview = nil
+            encryptedChats.append(storedChat)
+            for message in messagesByChatId[chat.id] ?? [] {
+                var storedMessage = message
+                if storedMessage.encryptedContent == nil, let content = storedMessage.content {
+                    storedMessage.encryptedContent = try await crypto.encryptText(content, for: chat)
+                }
+                storedMessage.content = nil
+                storedMessage.embedRefs = nil
+                encryptedMessages[chat.id, default: []].append(storedMessage)
+            }
+            try validate()
+        }
+        // Migrate legacy prepared JSON on the next save; queued inference and
+        // history remain encrypted on disk even when an offline retry is pending.
+        for pending in pendingTextSends where pending.encryptedPreparedTurn == nil {
+            guard let chat = chats.first(where: { $0.id == pending.chatId }), !pending.preflightJSON.isEmpty else { continue }
+            let data = try JSONSerialization.data(withJSONObject: ["preflight": WatchCanonicalStorage.object(pending.preflightJSON),
+                                                                   "inference": WatchCanonicalStorage.object(pending.inferenceJSON)])
+            let encrypted = try await crypto.encryptText(String(decoding: data, as: UTF8.self), for: chat)
+            try validate()
+            guard let index = pendingTextSends.firstIndex(where: { $0.id == pending.id && $0.encryptedPreparedTurn == nil }) else { continue }
+            pendingTextSends[index].encryptedPreparedTurn = encrypted
+            pendingTextSends[index].preflightJSON = Data()
+            pendingTextSends[index].inferenceJSON = Data()
+        }
+        try validate()
         try await cache.saveSnapshot(
             WatchChatSnapshot(
-                chats: chats,
-                messagesByChatId: messagesByChatId,
+                chats: encryptedChats,
+                messagesByChatId: encryptedMessages,
                 pendingTextSends: pendingTextSends,
                 pendingAudioEmbeds: [],
-                savedAt: Date()
-            )
+                savedAt: Date(), accountID: accountID, serverScope: serverScope, encryptedDrafts: encryptedDrafts,
+                pendingRecoveryJobs: pendingRecoveryJobs, pendingCompletions: pendingCompletions
+            ), accountGeneration: accountLifecycleGeneration, serverScope: serverScope
         )
     }
 
@@ -966,6 +1681,14 @@ final class WatchChatRuntime: ObservableObject {
         var result: [WatchChatSummary] = []
         result.reserveCapacity(remoteChats.count)
         for chat in remoteChats {
+            if let version = chat.draftV {
+                var details: [String: Any] = ["id": chat.id, "draft_v": version, "messages_v": chat.messagesV]
+                if let ciphertext = chat.encryptedDraftMD { details["encrypted_draft_md"] = ciphertext }
+                else if chat.clearedDraftV != nil { details["encrypted_draft_md"] = NSNull() }
+                if let preview = chat.encryptedDraftPreview { details["encrypted_draft_preview"] = preview }
+                if let cleared = chat.clearedDraftV { details["cleared_draft_v"] = cleared }
+                applyDraftDetails(details)
+            }
             if let decrypted = await crypto.decryptChat(chat) {
                 result.append(decrypted)
             }
@@ -983,13 +1706,25 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     private func replayPendingTextSends() async {
-        guard let syncSocket, let syncSession, !pendingTextSends.isEmpty, !isSending else { return }
+        guard !isStopped, let syncSocket, let syncSession, !pendingTextSends.isEmpty, !isSending else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
         isSending = true
         defer { isSending = false }
         syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
         for pending in pendingTextSends {
             do {
-                try await syncSocket.sendTurn(pending)
+                guard let chat = chats.first(where: { $0.id == pending.chatId }) else { throw WatchChatRuntimeError.noSelectedChat }
+                let socketGeneration = syncSocket.generation
+                let prepared = try await preparedTurn(pending, chat: chat)
+                guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current(),
+                      socketGeneration == syncSocket.generation else { return }
+                try await syncSocket.sendTurn(prepared, encryptMetadata: { text in
+                    guard !self.isStopped, self.lifecycleGeneration == generation, ServerProfile.current() == profile else { throw CancellationError() }
+                    return try await self.crypto.encryptText(text, for: chat)
+                })
+                guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current(),
+                      socketGeneration == syncSocket.generation else { return }
                 pendingTextSends.removeAll { $0.id == pending.id }
                 markPendingMessageSent(messageId: pending.messageId, chatId: pending.chatId)
             } catch {
@@ -1001,10 +1736,252 @@ final class WatchChatRuntime: ObservableObject {
         try? await persistSnapshot()
     }
 
+    private func preparedTurn(_ pending: WatchPendingTextSend, chat: WatchChatSummary) async throws -> WatchPendingTextSend {
+        guard let ciphertext = pending.encryptedPreparedTurn else { return pending }
+        let plaintext = try await crypto.decryptText(ciphertext, for: chat)
+        let value = try WatchCanonicalStorage.object(Data(plaintext.utf8))
+        guard let preflight = value["preflight"] as? [String: Any], let inference = value["inference"] as? [String: Any] else { throw WatchChatRuntimeError.invalidPendingTurn }
+        var transient = pending
+        transient.preflightJSON = try JSONSerialization.data(withJSONObject: preflight)
+        transient.inferenceJSON = try JSONSerialization.data(withJSONObject: inference)
+        return transient
+    }
+
+    private func handleCompletionEvent(type: String, payload: [String: Any]) async {
+        guard !isStopped else { return }
+        let generation = lifecycleGeneration
+        let profile = ServerProfile.current()
+        func current() -> Bool { generation == lifecycleGeneration && !isStopped && profile == ServerProfile.current() }
+        if type == "recovery_jobs_available", let jobs = payload["jobs"] as? [[String: Any]] {
+            for job in jobs {
+                guard let id = job["job_id"] as? String, let chat = job["chat_id"] as? String,
+                      let message = job["assistant_message_id"] as? String, !chat.hasPrefix(Self.incognitoChatIdPrefix) else { continue }
+                let version = job["chat_key_version"] as? Int ?? 1
+                guard version > 0, version <= Int(UInt32.max) else { continue }
+                if !pendingRecoveryJobs.contains(where: { $0.id == id }) {
+                    pendingRecoveryJobs.append(.init(id: id, chatId: chat, messageId: message,
+                        turnId: job["turn_id"] as? String, keyVersion: UInt32(version)))
+                }
+            }
+        } else if ["ai_message_update", "ai_background_response_completed", "pending_ai_response"].contains(type) {
+            if type == "ai_message_update", payload["is_final_chunk"] as? Bool != true { return }
+            let body = payload["message"] as? [String: Any] ?? payload
+            guard let chatID = (payload["chat_id"] ?? body["chat_id"]) as? String,
+                  !chatID.hasPrefix(Self.incognitoChatIdPrefix),
+                  let messageID = (payload["message_id"] ?? body["message_id"]) as? String,
+                  let chat = chats.first(where: { $0.id == chatID }) else { return }
+            if let jobID = payload["recovery_job_id"] as? String, !jobID.isEmpty {
+                if !pendingRecoveryJobs.contains(where: { $0.id == jobID }) {
+                    pendingRecoveryJobs.append(.init(id: jobID, chatId: chatID, messageId: messageID,
+                        turnId: payload["turn_id"] as? String, keyVersion: 1))
+                }
+            } else if (payload["recovery_protocol_version"] as? Int ?? 0) < 1 {
+                guard let content = (payload["full_content_so_far"] ?? payload["full_content"] ?? body["content"]) as? String else { return }
+                let ciphertext = try? await crypto.encryptText(content, for: chat)
+                guard current(), let ciphertext else { return }
+                let now = Int(Date().timeIntervalSince1970)
+                var message: [String: Any] = ["message_id": messageID, "chat_id": chatID, "role": "assistant",
+                    "encrypted_content": ciphertext, "created_at": now, "status": "synced"]
+                if let userID = payload["user_message_id"] as? String { message["user_message_id"] = userID }
+                for (source, target) in [("category", "encrypted_category"), ("model_name", "encrypted_model_name")] {
+                    if let text = payload[source] as? String, let encrypted = try? await crypto.encryptText(text, for: chat) { message[target] = encrypted }
+                }
+                guard current() else { return }
+                let wire: [String: Any] = ["chat_id": chatID, "message": message,
+                    "versions": ["messages_v": chat.messagesV + 1, "last_edited_overall_timestamp": now]]
+                if let data = try? JSONSerialization.data(withJSONObject: wire), !pendingCompletions.contains(where: { $0.id == messageID }) {
+                    pendingCompletions.append(.init(id: messageID, chatId: chatID, eventType: "ai_response_completed", encryptedPayload: data))
+                    upsertCompletionMessage(.init(id: messageID, chatId: chatID, role: .assistant, content: content,
+                        encryptedContent: ciphertext, createdAt: ISO8601DateFormatter().string(from: Date()), isPending: true))
+                }
+            }
+        } else if ["ai_task_initiated", "ai_typing_started", "post_processing_completed"].contains(type) {
+            guard let chatID = payload["chat_id"] as? String, let chat = chats.first(where: { $0.id == chatID }) else { return }
+            let metadata = payload["chat_metadata"] as? [String: Any] ?? payload
+            guard let wrappedKey = chat.encryptedChatKey else { return }
+            var wire: [String: Any] = ["chat_id": chatID, "encrypted_chat_key": wrappedKey]
+            let mappings = type == "post_processing_completed"
+                ? [("updated_chat_title", "encrypted_title"), ("chat_summary", "encrypted_chat_summary")]
+                : [("title", "encrypted_title"), ("category", "encrypted_chat_category")]
+            for (source, target) in mappings {
+                guard let text = metadata[source] as? String, !text.isEmpty else { continue }
+                if target == "encrypted_title" {
+                    if type == "post_processing_completed", let version = metadata["source_title_v"] as? Int,
+                       chat.titleV > version { continue }
+                    if type != "post_processing_completed", chat.title?.isEmpty == false { continue }
+                }
+                if target == "encrypted_chat_summary", let version = metadata["source_metadata_v"] as? Int,
+                   chat.metadataV > version, chat.encryptedPreview != nil { continue }
+                if let encrypted = try? await crypto.encryptText(text, for: chat) { wire[target] = encrypted }
+            }
+            if type != "post_processing_completed", wire["encrypted_title"] != nil {
+                let category = metadata["category"] as? String ?? "ai"
+                let icon = (metadata["icon_names"] as? [String])?.first ?? WatchCanonicalStorage.iconFallback(category)
+                if let encryptedIcon = try? await crypto.encryptText(icon, for: chat),
+                   let encryptedCategory = try? await crypto.encryptText(category, for: chat) {
+                    wire["encrypted_icon"] = encryptedIcon
+                    wire["encrypted_chat_category"] = encryptedCategory
+                } else { return }
+            }
+            if type == "post_processing_completed" {
+                for (source, target) in [("follow_up_request_suggestions", "encrypted_follow_up_suggestions"), ("chat_tags", "encrypted_chat_tags")] {
+                    if let values = metadata[source] as? [String], let json = try? JSONSerialization.data(withJSONObject: values),
+                       let text = String(data: json, encoding: .utf8), let encrypted = try? await crypto.encryptText(text, for: chat) { wire[target] = encrypted }
+                }
+                wire["versions"] = ["messages_v": chat.messagesV,
+                    "title_v": wire["encrypted_title"] == nil ? chat.titleV : max(chat.titleV, metadata["source_title_v"] as? Int ?? 0) + 1,
+                    "metadata_v": max(chat.metadataV, chat.titleV)]
+            }
+            guard current(), wire.keys.contains(where: { $0 != "chat_id" && $0 != "encrypted_chat_key" }),
+                  let data = try? JSONSerialization.data(withJSONObject: wire) else { return }
+            let id = "metadata-\(chatID)-\(type)-\(payload["task_id"] as? String ?? "")"
+            pendingCompletions.removeAll { $0.id == id }
+            pendingCompletions.append(.init(id: id, chatId: chatID,
+                eventType: type == "post_processing_completed" ? "update_post_processing_metadata" : "encrypted_chat_metadata", encryptedPayload: data))
+        } else if ["encrypted_metadata_stored", "post_processing_metadata_stored"].contains(type) {
+            applyAcceptedVersions(payload)
+        } else if type == "phased_sync_complete" {
+            completionRetryAttempt = 0
+            await replayPendingDrafts()
+        } else { return }
+        guard current() else { return }
+        try? await persistSnapshot()
+        await flushPendingCompletions()
+    }
+
+    private func flushPendingCompletions() async {
+        guard !isStopped, !completionWorkInProgress, let syncSocket else { return }
+        completionWorkInProgress = true
+        defer { completionWorkInProgress = false }
+        let generation = lifecycleGeneration
+        let socketGeneration = syncSocket.generation
+        let profile = ServerProfile.current()
+        func validate() throws {
+            guard !isStopped, !Task.isCancelled, generation == lifecycleGeneration,
+                  socketGeneration == syncSocket.generation, profile == ServerProfile.current() else { throw WatchChatRuntimeError.socketUnavailable }
+        }
+        var failed = false
+        for entry in pendingCompletions {
+            do {
+                try validate()
+                let payload = try WatchCanonicalStorage.object(entry.encryptedPayload)
+                let acknowledgementType: String
+                switch entry.eventType {
+                case "store_embed_keys": acknowledgementType = "store_embed_keys_confirmed"
+                case "store_embed": acknowledgementType = "store_embed_confirmed"
+                case "ai_response_completed": acknowledgementType = "ai_response_storage_confirmed"
+                case "update_post_processing_metadata": acknowledgementType = "post_processing_metadata_stored"
+                default: acknowledgementType = "encrypted_metadata_stored"
+                }
+                let embedStorage = entry.eventType == "store_embed" || entry.eventType == "store_embed_keys"
+                let types: Set<String> = [acknowledgementType, "incomplete_chat_metadata", "chat_key_mismatch"]
+                let acknowledgement = try await syncSocket.requestEvent(type: entry.eventType, payload: payload, responseTypes: types, matching: {
+                    if embedStorage { return $0["request_id"] as? String == entry.id }
+                    guard $0["chat_id"] as? String == entry.chatId else { return false }
+                    return entry.eventType == "ai_response_completed" ? $0["message_id"] as? String == entry.id : ($0["message_id"] as? String) == nil
+                })
+                try validate()
+                guard acknowledgement["code"] == nil else { throw WatchChatRuntimeError.preflightRejected }
+                if embedStorage {
+                    try WatchCanonicalStorage.validateEmbedStorageAcknowledgement(type: entry.eventType, payload: payload,
+                        acknowledgement: acknowledgement, requestID: entry.id)
+                    pendingCompletions.removeAll { $0.id == entry.id }
+                    try await persistSnapshot()
+                    continue
+                }
+                applyAcceptedVersions(acknowledgement)
+                if let index = chats.firstIndex(where: { $0.id == entry.chatId }),
+                   let versions = acknowledgement["versions"] as? [String: Any] {
+                    if let ciphertext = payload["encrypted_title"] as? String,
+                       let version = versions["title_v"] as? Int, version >= chats[index].titleV {
+                        let title = try await crypto.decryptText(ciphertext, for: chats[index])
+                        try validate()
+                        if let currentIndex = chats.firstIndex(where: { $0.id == entry.chatId }), chats[currentIndex].titleV <= version {
+                            chats[currentIndex].encryptedTitle = ciphertext
+                            chats[currentIndex].title = title
+                        }
+                    }
+                    if let ciphertext = payload["encrypted_chat_summary"] as? String,
+                       let version = versions["metadata_v"] as? Int,
+                       let summaryChat = chats.first(where: { $0.id == entry.chatId }), version >= summaryChat.metadataV {
+                        let summary = try await crypto.decryptText(ciphertext, for: summaryChat)
+                        try validate()
+                        if let currentIndex = chats.firstIndex(where: { $0.id == entry.chatId }), chats[currentIndex].metadataV <= version {
+                            chats[currentIndex].encryptedPreview = ciphertext
+                            chats[currentIndex].preview = summary
+                        }
+                    }
+                }
+                if entry.eventType == "ai_response_completed" { markPendingMessageSent(messageId: entry.id, chatId: entry.chatId) }
+                pendingCompletions.removeAll { $0.id == entry.id }
+                try await persistSnapshot()
+            } catch { failed = true; break }
+        }
+        if let owner = accountID {
+            for job in pendingRecoveryJobs {
+                do {
+                    try validate()
+                    guard var chat = chats.first(where: { $0.id == job.chatId }) else { throw WatchChatRuntimeError.noSelectedChat }
+                    if let authoritative = try await api.fetchMessagesVersion(chatId: chat.id) { chat.messagesV = authoritative }
+                    try validate()
+                    let result = try await WatchCanonicalStorage.recover(job, chat: chat, ownerID: owner,
+                        request: { type, payload, responses, matching in
+                            try validate()
+                            return try await syncSocket.requestEvent(type: type, payload: payload, responseTypes: responses, matching: matching)
+                        }, open: { sealed, boundJob, owner in
+                            try await self.crypto.openCompletion(sealed, job: boundJob, ownerID: owner, chat: chat)
+                        }, encrypt: { try await self.crypto.encryptText($0, for: chat) }, validate: validate)
+                    try validate()
+                    if result.requiresHydration {
+                        let remote = try await api.fetchMessages(chatId: chat.id)
+                        let hydrated = await decryptMessages(remote)
+                        let version = try await api.fetchMessagesVersion(chatId: chat.id)
+                        try validate()
+                        guard (version ?? -1) >= result.version,
+                              hydrated.contains(where: { $0.id == job.messageId && $0.encryptedContent?.isEmpty == false }) else { throw WatchChatRuntimeError.historyUnavailable }
+                        for message in hydrated { upsertCompletionMessage(message) }
+                    } else if let message = result.message { upsertCompletionMessage(message) }
+                    if let index = chats.firstIndex(where: { $0.id == chat.id }) { chats[index].messagesV = max(chats[index].messagesV, result.version) }
+                    pendingRecoveryJobs.removeAll { $0.id == job.id }
+                    try await persistSnapshot()
+                } catch { failed = true }
+            }
+        }
+        let retryDelays: [Duration] = [.seconds(1), .seconds(3), .seconds(10), .seconds(20), .seconds(30), .seconds(65)]
+        if failed, !isStopped, generation == lifecycleGeneration, completionRetryAttempt < retryDelays.count {
+            let delay = retryDelays[completionRetryAttempt]
+            completionRetryAttempt += 1
+            completionTask?.cancel()
+            completionTask = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: delay) } catch { return }
+                guard let self, !self.isStopped, self.lifecycleGeneration == generation else { return }
+                await self.flushPendingCompletions()
+            }
+        }
+    }
+
+    private func upsertCompletionMessage(_ message: WatchChatMessage) {
+        var messages = messagesByChatId[message.chatId] ?? []
+        if let index = messages.firstIndex(where: { $0.id == message.id }) { messages[index] = message }
+        else { messages.append(message) }
+        messagesByChatId[message.chatId] = Self.sortedMessages(messages)
+    }
+
+    private func applyAcceptedVersions(_ payload: [String: Any]) {
+        guard let chatID = payload["chat_id"] as? String, let versions = payload["versions"] as? [String: Any],
+              let index = chats.firstIndex(where: { $0.id == chatID }) else { return }
+        if let version = versions["messages_v"] as? Int { chats[index].messagesV = max(chats[index].messagesV, version) }
+        if let version = versions["title_v"] as? Int { chats[index].titleV = max(chats[index].titleV, version) }
+        if let version = versions["metadata_v"] as? Int { chats[index].metadataV = max(chats[index].metadataV, version) }
+    }
+
     private func makeSyncClientState() -> WatchSyncClientState {
         let syncableChats = chats.filter { !$0.id.hasPrefix(Self.incognitoChatIdPrefix) }
         return WatchSyncClientState(
-            clientChatVersions: [:],
+            clientChatVersions: Dictionary(uniqueKeysWithValues: syncableChats.map { chat in
+                (chat.id, ["messages_v": chat.messagesV, "title_v": chat.titleV,
+                    "metadata_v": chat.metadataV, "draft_v": encryptedDrafts[chat.id]?.serverVersion ?? 0])
+            }),
             clientChatIds: syncableChats.map(\.id),
             clientSuggestionsCount: 0,
             clientEmbedIds: []
@@ -1137,6 +2114,10 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     private var changeHandler: (@MainActor () -> Void)?
     private var inbox: [(type: String, payload: [String: Any])] = []
     private var receiveTask: Task<Void, Never>?
+    private var connectionTask: Task<Void, Never>?
+    private var connectionGeneration = 0
+    var generation: Int { connectionGeneration }
+    private var eventHandler: (@MainActor (String, [String: Any]) -> Void)?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
@@ -1146,15 +2127,21 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }()
 
     func setChangeHandler(_ handler: (@MainActor () -> Void)?) { changeHandler = handler }
+    func setEventHandler(_ handler: (@MainActor (String, [String: Any]) -> Void)?) { eventHandler = handler }
 
     func connect(session syncSession: WatchSyncSession, syncState: WatchSyncClientState) {
         guard webSocketTask == nil, !isConnecting else { return }
         isConnecting = true
         isReady = false
-        Task {
-            defer { self.isConnecting = false }
-            let baseURL = await APIClient.shared.baseURL
-            let origin = await APIClient.shared.webAppURL.absoluteString
+        connectionGeneration += 1
+        let expectedGeneration = connectionGeneration
+        let profile = ServerProfile.current()
+        connectionTask = Task {
+            defer { if self.connectionGeneration == expectedGeneration { self.isConnecting = false } }
+            let baseURL = profile.apiBaseURL
+            let origin = profile.webBaseURL.absoluteString
+            guard !Task.isCancelled, self.connectionGeneration == expectedGeneration,
+                  ServerProfile.current() == profile else { return }
             let hasRefreshCookie = OpenMatesSharedEnvironment.cookieStorage.cookies(for: baseURL)?.contains {
                 $0.name == "auth_refresh_token"
             } == true
@@ -1183,6 +2170,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
             task.resume()
             self.receiveTask = Task { await self.receiveLoop(task) }
             guard await self.waitForOpenSocket(task) else {
+                guard self.webSocketTask === task, self.connectionGeneration == expectedGeneration else { return }
                 NativeDiagnostics.event(
                     "open_failed", category: "watch_chat_socket", level: .warning,
                     counts: ["close_code": task.closeCode.rawValue]
@@ -1191,11 +2179,15 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 return
             }
             NativeDiagnostics.event("connected", category: "watch_chat_socket")
+            guard self.webSocketTask === task, self.connectionGeneration == expectedGeneration,
+                  !Task.isCancelled, ServerProfile.current() == profile else { return }
             let sync = WatchWSOutboundMessage(type: "phased_sync_request", payload: syncState.phasedSyncPayload)
             do {
                 try await self.send(sync, on: task)
+                guard self.webSocketTask === task, self.connectionGeneration == expectedGeneration else { return }
                 self.isReady = true
             } catch {
+                guard self.webSocketTask === task, self.connectionGeneration == expectedGeneration else { return }
                 NativeDiagnostics.failure(
                     "initial_sync_failed", category: "watch_chat_socket", level: .warning, error: error
                 )
@@ -1216,6 +2208,10 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }
 
     func disconnect() {
+        connectionGeneration += 1
+        connectionTask?.cancel()
+        connectionTask = nil
+        isConnecting = false
         receiveTask?.cancel()
         receiveTask = nil
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
@@ -1225,30 +2221,43 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }
 
     func sendTurn(_ pending: WatchPendingTextSend) async throws {
-        guard !pending.preflightJSON.isEmpty, !pending.inferenceJSON.isEmpty else {
-            throw WatchChatRuntimeError.invalidPendingTurn
-        }
-        let preflight = try JSONSerialization.jsonObject(with: pending.preflightJSON) as? [String: Any]
-        let inference = try JSONSerialization.jsonObject(with: pending.inferenceJSON) as? [String: Any]
-        guard let preflight, let inference,
-              preflight["inference_request"] != nil,
-              let turnId = preflight["turn_id"] as? String,
-              turnId == pending.id else { throw WatchChatRuntimeError.invalidPendingTurn }
+        try await sendTurn(pending, encryptMetadata: { _ in throw WatchChatRuntimeError.missingChatKey })
+    }
+
+    func sendTurn(_ pending: WatchPendingTextSend, encryptMetadata: @escaping @MainActor (String) async throws -> String) async throws {
+        let expected = connectionGeneration
+        let profile = ServerProfile.current()
+        try await WatchCanonicalStorage.sendTurn(pending, request: { type, payload, responses, matching in
+            try await self.requestEvent(type: type, payload: payload, responseTypes: responses, matching: matching)
+        }, encryptMetadata: encryptMetadata, validate: {
+            guard !Task.isCancelled, self.connectionGeneration == expected,
+                  ServerProfile.current() == profile else { throw WatchChatRuntimeError.socketUnavailable }
+        })
+    }
+
+    func sendEvent(type: String, payload: [String: Any]) async throws {
+        let expected = connectionGeneration
         let task = try await connectedTask()
-        try await send(WatchWSOutboundMessage(type: "chat_turn_preflight", payload: preflight), on: task)
-        let ack = try await waitForEvent(type: "chat_turn_preflight_ack", turnId: turnId)
-        guard let state = ack["state"] as? String,
-              let preflightId = ack["preflight_id"] as? String, !preflightId.isEmpty else {
-            throw WatchChatRuntimeError.preflightRejected
+        guard expected == connectionGeneration, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
+        if !type.isEmpty { try await send(WatchWSOutboundMessage(type: type, payload: payload), on: task) }
+    }
+
+    func requestEvent(type: String, payload: [String: Any], responseTypes: Set<String>,
+                      matching: @escaping @MainActor ([String: Any]) -> Bool) async throws -> [String: Any] {
+        let expected = connectionGeneration
+        let task = try await connectedTask()
+        guard expected == connectionGeneration, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
+        if !type.isEmpty { try await send(WatchWSOutboundMessage(type: type, payload: payload), on: task) }
+        for _ in 0..<200 {
+            guard expected == connectionGeneration, webSocketTask === task, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
+            if let index = inbox.firstIndex(where: { (responseTypes.contains($0.type) || $0.type == "error") && matching($0.payload) }) {
+                let event = inbox.remove(at: index)
+                if event.type == "error" { throw WatchChatRuntimeError.preflightRejected }
+                return event.payload
+            }
+            try await Task.sleep(for: .milliseconds(100))
         }
-        if state == "ENQUEUED" || state == "RUNNING" || state == "TERMINAL" { return }
-        guard state == "PREPARED" || state == "LEGACY" else { throw WatchChatRuntimeError.preflightRejected }
-        var commit = inference
-        commit["protocol_version"] = 1
-        commit["preflight_id"] = preflightId
-        try await send(WatchWSOutboundMessage(type: "chat_message_added", payload: commit), on: task)
-        let receipt = try await waitForEvent(type: "ai_task_initiated", turnId: turnId, messageId: pending.messageId)
-        if receipt["code"] as? String != nil { throw WatchChatRuntimeError.inferenceRejected }
+        throw WatchChatRuntimeError.socketUnavailable
     }
 
     private func connectedTask() async throws -> URLSessionWebSocketTask {
@@ -1262,6 +2271,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
     }
 
     private func send(_ message: WatchWSOutboundMessage, on task: URLSessionWebSocketTask) async throws {
+        guard webSocketTask === task, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
         let data = try JSONEncoder().encode(message)
         guard let json = String(data: data, encoding: .utf8) else { throw WatchChatRuntimeError.socketUnavailable }
         try await task.send(.string(json))
@@ -1271,6 +2281,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
         while !Task.isCancelled {
             do {
                 let value = try await task.receive()
+                guard webSocketTask === task, !Task.isCancelled else { return }
                 let data: Data
                 switch value {
                 case .string(let text): data = Data(text.utf8)
@@ -1278,10 +2289,12 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 @unknown default: continue
                 }
                 guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let type = object["type"] as? String else { continue }
-                let payload = object["payload"] as? [String: Any] ?? [:]
+                      let type = (object["type"] ?? object["event"]) as? String else { continue }
+                // Draft broadcasts put chat identity and versions beside data.
+                let payload = object["payload"] as? [String: Any] ?? object
                 inbox.append((type, payload))
                 if inbox.count > 100 { inbox.removeFirst(inbox.count - 100) }
+                eventHandler?(type, payload)
                 if ["new_chat_message", "chat_message_added", "chat_message_confirmed", "ai_response_storage_confirmed", "phased_sync_complete"].contains(type) {
                     changeHandler?()
                 }
@@ -1343,7 +2356,10 @@ private final class WatchChatCryptoService: WatchChatCrypto {
     func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
         guard let resolved = await loadChatKey(chatId: chat.id, wrappers: chat.chatKeyWrappers,
                                                encryptedChatKey: chat.encryptedChatKey) else {
-            return nil
+            guard chat.messagesV == 0, let ciphertext = chat.encryptedDraftMD,
+                  let text = try? await decryptDraft(ciphertext), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return WatchChatSummary(id: chat.id, title: nil, lastMessageAt: chat.lastMessageAt ?? chat.updatedAt,
+                preview: nil, isPinned: chat.isPinned, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: nil)
         }
         let key = resolved.key
         let title = await decrypt(chat.encryptedTitle, key: key) ?? chat.title
@@ -1382,12 +2398,47 @@ private final class WatchChatCryptoService: WatchChatCrypto {
         return try await CryptoManager.shared.encryptContent(text, key: key)
     }
 
+    func hydrateEmbed(payload: [String: Any], chat: WatchChatSummary) async throws -> WatchEmbedRef {
+        guard let currentUserId,
+              let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUserId),
+              let embedID = payload["embed_id"] as? String else { throw WatchChatRuntimeError.missingChatKey }
+        let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+        return try WatchEmbedHydration.open(payload: payload, embedID: embedID, chatID: chat.id,
+            accountID: currentUserId, masterKey: masterKey, chatKey: key)
+    }
+
+    func prepareEmbedStorage(payload: [String: Any], chat: WatchChatSummary, messageID: String) async throws -> (keys: [String: Any], embed: [String: Any]) {
+        guard let currentUserId,
+              let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUserId),
+              let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey),
+              let embedID = payload["embed_id"] as? String else { throw WatchChatRuntimeError.missingChatKey }
+        return try WatchEmbedHydration.prepareStorage(payload: payload, embedID: embedID, chatID: chat.id,
+            messageID: messageID, accountID: currentUserId, masterKey: masterKey, chatKey: key)
+    }
+
+    func encryptDraft(_ text: String) async throws -> String {
+        guard let currentUserId, let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUserId) else {
+            throw WatchChatRuntimeError.missingChatKey
+        }
+        return try await CryptoManager.shared.encryptWithMasterKey(text, masterKey: masterKey)
+    }
+
+    func decryptDraft(_ ciphertext: String) async throws -> String {
+        guard let currentUserId, let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUserId) else {
+            throw WatchChatRuntimeError.missingChatKey
+        }
+        return try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: masterKey)
+    }
+
     func createChat() async throws -> WatchChatSummary {
+        try await createChat(withID: UUID().uuidString.lowercased())
+    }
+
+    func createChat(withID id: String) async throws -> WatchChatSummary {
         guard let currentUserId,
               let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUserId) else {
             throw WatchChatRuntimeError.missingChatKey
         }
-        let id = UUID().uuidString.lowercased()
         let key = await CryptoManager.shared.generateChatKey()
         let wrapped = try await CryptoManager.shared.wrapChatKey(key, masterKey: masterKey)
         let encryptedTitle = try await CryptoManager.shared.encryptContent("", key: key)
@@ -1404,6 +2455,17 @@ private final class WatchChatCryptoService: WatchChatCrypto {
         return try await CryptoManager.shared.deriveRecoveryKeyPair(
             chatKey: key, chatId: chat.id, keyVersion: 1
         ).publicKey
+    }
+
+    func decryptText(_ ciphertext: String, for chat: WatchChatSummary) async throws -> String {
+        guard let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey) else { throw WatchChatRuntimeError.missingChatKey }
+        return try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: key)
+    }
+
+    func openCompletion(_ sealed: String, job: WatchRecoveryJob, ownerID: String, chat: WatchChatSummary) async throws -> WatchRecoveredCompletion {
+        guard currentUserId == ownerID,
+              let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey) else { throw WatchChatRuntimeError.missingChatKey }
+        return try await WatchCanonicalStorage.openRecovery(sealed, job: job, ownerID: ownerID, key: key)
     }
 
     func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] {
@@ -1566,6 +2628,10 @@ struct WatchChatDTO: Decodable {
     let messagesV: Int
     let titleV: Int
     let metadataV: Int
+    let encryptedDraftMD: String?
+    let encryptedDraftPreview: String?
+    let draftV: Int?
+    let clearedDraftV: Int?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -1592,10 +2658,22 @@ struct WatchChatDTO: Decodable {
         case messagesVSnake = "messages_v"
         case titleVSnake = "title_v"
         case metadataVSnake = "metadata_v"
+        case encryptedDraftMD = "encryptedDraftMd"
+        case encryptedDraftMDSnake = "encrypted_draft_md"
+        case encryptedDraftPreview
+        case encryptedDraftPreviewSnake = "encrypted_draft_preview"
+        case draftV
+        case draftVSnake = "draft_v"
+        case clearedDraftV
+        case clearedDraftVSnake = "cleared_draft_v"
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        encryptedDraftMD = try container.decodeIfPresent(String.self, forKey: .encryptedDraftMD) ?? container.decodeIfPresent(String.self, forKey: .encryptedDraftMDSnake)
+        encryptedDraftPreview = try container.decodeIfPresent(String.self, forKey: .encryptedDraftPreview) ?? container.decodeIfPresent(String.self, forKey: .encryptedDraftPreviewSnake)
+        draftV = try container.decodeIfPresent(Int.self, forKey: .draftV) ?? container.decodeIfPresent(Int.self, forKey: .draftVSnake)
+        clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV) ?? container.decodeIfPresent(Int.self, forKey: .clearedDraftVSnake)
         id = try container.decodeIfPresent(String.self, forKey: .id)
             ?? container.decode(String.self, forKey: .chatId)
         title = try container.decodeIfPresent(String.self, forKey: .title)
@@ -1680,7 +2758,9 @@ extension WatchRemoteChat {
             encryptedChatSummary: dto.encryptedChatSummary,
             encryptedChatKey: dto.encryptedChatKey,
             chatKeyWrappers: dto.chatKeyWrappers,
-            messagesV: dto.messagesV, titleV: dto.titleV, metadataV: dto.metadataV
+            messagesV: dto.messagesV, titleV: dto.titleV, metadataV: dto.metadataV,
+            encryptedDraftMD: dto.encryptedDraftMD, encryptedDraftPreview: dto.encryptedDraftPreview,
+            draftV: dto.draftV, clearedDraftV: dto.clearedDraftV
         )
     }
 }
@@ -1698,3 +2778,36 @@ private extension WatchRemoteMessage {
         )
     }
 }
+
+#if DEBUG
+@MainActor
+private final class WatchPreviewDraftCrypto: WatchChatCrypto {
+    private let masterKey = SymmetricKey(size: .bits256)
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? { nil }
+    func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
+        WatchChatMessage(id: message.id, chatId: message.chatId, role: message.role,
+            content: message.content, encryptedContent: message.encryptedContent,
+            createdAt: message.createdAt, isPending: false)
+    }
+    func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String {
+        try await CryptoManager.shared.encryptContent(text, key: masterKey)
+    }
+    func encryptDraft(_ text: String) async throws -> String {
+        try await CryptoManager.shared.encryptWithMasterKey(text, masterKey: masterKey)
+    }
+    func decryptDraft(_ ciphertext: String) async throws -> String {
+        try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: masterKey)
+    }
+    func createChat() async throws -> WatchChatSummary {
+        WatchChatSummary(id: UUID().uuidString.lowercased(), title: nil, lastMessageAt: nil,
+            preview: nil, isPinned: false, encryptedTitle: nil, encryptedPreview: nil,
+            encryptedChatKey: try await CryptoManager.shared.wrapChatKey(masterKey, masterKey: masterKey))
+    }
+    func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String {
+        try await CryptoManager.shared.deriveRecoveryKeyPair(chatKey: masterKey, chatId: chat.id, keyVersion: 1).publicKey
+    }
+    func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] {
+        throw WatchChatRuntimeError.socketUnavailable
+    }
+}
+#endif

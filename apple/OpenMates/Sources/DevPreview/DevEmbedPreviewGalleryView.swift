@@ -335,6 +335,12 @@ struct DevEmbedSharePreviewView: View {
 
 struct DevEmbedPreviewGalleryView: View {
     @State private var selectedApp: DevEmbedPreviewApp
+    @State private var isPreviewPIIRevealed = false
+
+    private var previewPIIMappings: [PIIMapping] {
+        guard ProcessInfo.processInfo.arguments.contains("--dev-pii-embed-preview") else { return [] }
+        return [PIIMapping(placeholder: "[HTML_NAME]", original: "OpenMates preview", type: "name")]
+    }
 
     private enum CanonicalSurface: String {
         case preview
@@ -365,7 +371,17 @@ struct DevEmbedPreviewGalleryView: View {
 
     var body: some View {
         Group {
-            if let request = CanonicalRequest.current {
+            if ProcessInfo.processInfo.arguments.contains("--dev-owner-pii-navigation-preview") {
+                DevEmbedOwnerPIINavigationPreviewView()
+            } else if ProcessInfo.processInfo.arguments.contains("--dev-youtube-search-route-preview"),
+                      let skill = DevEmbedPreviewFixtures.skills(for: .web).first(where: { $0.id == "web-search-youtube" }) {
+                DevEmbedFullscreenRouteHarness(skill: skill)
+                    .padding(.spacing8)
+            } else if ProcessInfo.processInfo.arguments.contains("--dev-health-search-route-preview"),
+                      let skill = DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: EmbedType.healthSearch.rawValue) {
+                DevEmbedFullscreenRouteHarness(skill: skill)
+                    .padding(.spacing8)
+            } else if let request = CanonicalRequest.current {
                 canonicalSurface(request)
             } else {
                 VStack(spacing: 0) {
@@ -386,36 +402,66 @@ struct DevEmbedPreviewGalleryView: View {
         }
         .background(Color.grey0.ignoresSafeArea())
         .environment(\.colorScheme, .light)
+        .environment(\.embedChatID,
+                     ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
+                        ? "dev-embed-preview-chat" : nil)
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview") {
+                CodeRunOutputStore.shared.seedPreviewOutput(
+                    chatId: "dev-embed-preview-chat", embedId: "preview-code-1",
+                    output: "Preparing sandbox\nRendered index.html\nRun complete\n"
+                )
+            }
+        }
     }
 
     @ViewBuilder
     private func canonicalSurface(_ request: CanonicalRequest) -> some View {
-        if let skill = DevEmbedPreviewFixtures.skill(forRegistryKey: request.registryKey) {
+        if let skill = request.surface == .fullscreen
+            ? DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: request.registryKey)
+            : DevEmbedPreviewFixtures.skill(forRegistryKey: request.registryKey) {
             switch request.surface {
             case .preview:
                 VStack {
-                    EmbedPreviewCard(
-                        embed: skill.primaryEmbed,
-                        allEmbedRecords: skill.allRecords,
-                        variant: .compact
-                    ) {}
-                    .frame(width: 300, height: 200)
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .accessibilityElement()
+                        .accessibilityIdentifier("dev-embed-canonical-preview")
+                        .accessibilityValue("\(request.registryKey)|default")
+                    if request.registryKey == EmbedType.focusModeActivation.rawValue {
+                        FocusModeRenderer(data: skill.primaryEmbed.rawData, mode: .preview)
+                            .frame(maxWidth: 326)
+                    } else {
+                        EmbedPreviewCard(
+                            embed: skill.primaryEmbed,
+                            allEmbedRecords: skill.allRecords,
+                            variant: .compact
+                        ) {}
+                        .frame(width: 300, height: 200)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("dev-embed-canonical-preview")
-                .accessibilityValue("\(request.registryKey)|default")
 
             case .fullscreen:
                 EmbedFullscreenContainer(
                     embeds: [skill.primaryEmbed],
                     initialEmbedId: skill.primaryEmbed.id,
                     allEmbedRecords: skill.allRecords,
-                    chatId: nil
+                    chatId: ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
+                        ? "dev-embed-preview-chat" : nil,
+                    hasPIIMappings: !previewPIIMappings.isEmpty,
+                    piiMappings: previewPIIMappings,
+                    isPIIRevealed: isPreviewPIIRevealed,
+                    onTogglePII: { isPreviewPIIRevealed.toggle() }
                 )
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("dev-embed-canonical-fullscreen")
-                .accessibilityValue("\(request.registryKey)|default")
+                .overlay(alignment: .topLeading) {
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .accessibilityElement()
+                        .accessibilityIdentifier("dev-embed-canonical-fullscreen")
+                        .accessibilityValue("\(request.registryKey)|default")
+                        .offset(x: 8)
+                }
             }
         } else {
             VStack(alignment: .leading, spacing: .spacing4) {
@@ -452,6 +498,57 @@ struct DevEmbedPreviewGalleryView: View {
     private var skillCountLabel: String {
         let count = DevEmbedPreviewFixtures.skills(for: selectedApp).count
         return count == 1 ? "1 skill" : "\(count) skills"
+    }
+}
+
+/// Two embeds intentionally reuse one placeholder so the navigation test can
+/// prove owner-only mappings never cross from the previous selection.
+private struct DevEmbedOwnerPIINavigationPreviewView: View {
+    private let chatId = "dev-embed-preview-chat"
+    private let firstID = "preview-owner-pii-a"
+    private let secondID = "preview-owner-pii-b"
+
+    private var embeds: [EmbedRecord] {
+        [makeEmbed(id: firstID), makeEmbed(id: secondID)]
+    }
+
+    var body: some View {
+        VStack(spacing: .spacing4) {
+            Button("Load second embed mapping") {
+                OwnerEmbedPIIStore.shared.seedPreviewMappings(
+                    chatId: chatId, embedId: secondID,
+                    mappings: [PIIMapping(placeholder: "[COUNTERPARTY_1]", original: "Owner B", type: "COUNTERPARTY")]
+                )
+            }
+            .accessibilityIdentifier("dev-owner-pii-load-b")
+
+            EmbedFullscreenContainer(
+                embeds: embeds,
+                initialEmbedId: firstID,
+                allEmbedRecords: EmbedRecord.dictionaryById(embeds, context: "devOwnerPIINavigation"),
+                chatId: chatId,
+                isPIIRevealed: true
+            )
+        }
+        .onAppear {
+            OwnerEmbedPIIStore.shared.seedPreviewMappings(
+                chatId: chatId, embedId: firstID,
+                mappings: [PIIMapping(placeholder: "[COUNTERPARTY_1]", original: "Owner A", type: "COUNTERPARTY")]
+            )
+        }
+    }
+
+    private func makeEmbed(id: String) -> EmbedRecord {
+        EmbedRecord(
+            id: id, type: EmbedType.codeCode.rawValue, status: .finished,
+            data: .raw([
+                "code": AnyCodable("let counterparty = \"[COUNTERPARTY_1]\""),
+                "language": AnyCodable("swift"),
+                "filename": AnyCodable("owner.swift")
+            ]),
+            parentEmbedId: nil, appId: "code", skillId: "code",
+            embedIds: nil, createdAt: nil
+        )
     }
 }
 

@@ -171,19 +171,29 @@ actor AudioRealtimeTranscriptionClient {
         authManager: AuthManager,
         eventHandler: @escaping EventHandler
     ) -> AudioRealtimeTranscriptionClient {
-        AudioRealtimeTranscriptionClient(
+        let owner = authManager.currentUser?.id
+        let scope = CodeRunScopeFence(store: OfflineStore.shared)
+        let profile = ServerProfile.current()
+        return AudioRealtimeTranscriptionClient(
             authenticationProvider: { @MainActor [weak authManager] forceRefresh in
-                guard let authManager else { throw AudioRealtimeTranscriptionError.authenticationUnavailable }
+                guard let authManager, owner != nil,
+                      authManager.currentUser?.id == owner,
+                      scope.isCurrent(in: OfflineStore.shared),
+                      ServerProfile.current().apiBaseURL == profile.apiBaseURL else {
+                    throw AudioRealtimeTranscriptionError.authenticationUnavailable
+                }
                 if forceRefresh || tokenNeedsRefresh(authManager.webSocketToken) {
                     await authManager.validateSessionAfterOfflineBootstrap()
                 }
                 guard authManager.state == .authenticated,
+                      authManager.currentUser?.id == owner,
+                      scope.isCurrent(in: OfflineStore.shared),
+                      ServerProfile.current().apiBaseURL == profile.apiBaseURL,
                       authManager.sessionValidationState == .onlineAuthenticated,
                       let token = authManager.webSocketToken,
                       !tokenNeedsRefresh(token) else {
                     throw AudioRealtimeTranscriptionError.authenticationUnavailable
                 }
-                let profile = ServerProfile.current()
                 return Authentication(
                     apiBaseURL: profile.apiBaseURL,
                     webOrigin: profile.webBaseURL.absoluteString,
@@ -200,10 +210,14 @@ actor AudioRealtimeTranscriptionClient {
         phase = .connecting
         pendingChatID = chatID
         await eventHandler(.status(.connecting))
+        try await requireActiveStart()
 
         let authentication: Authentication
         do {
             authentication = try await authenticationProvider(false)
+        } catch is CancellationError {
+            await cancel()
+            throw CancellationError()
         } catch let error as AudioRealtimeTranscriptionError {
             await fail(error)
             throw error
@@ -213,20 +227,38 @@ actor AudioRealtimeTranscriptionClient {
         }
 
         do {
+            try await requireActiveStart()
             let request = try Self.makeRequest(authentication: authentication)
             let activeTransport = transportFactory()
             transport = activeTransport
             try await activeTransport.connect(request)
+            guard canContinueAuthenticationRetry else {
+                // A suspended connect can complete after cancel() closed the
+                // transport. Close the late connection before any audio flows.
+                await activeTransport.close(code: 1_000, reason: Data("start cancelled".utf8))
+                await cancel()
+                throw CancellationError()
+            }
             receiveTask = Task { [weak self] in
                 await self?.receiveLoop()
             }
             scheduleReadinessTimeout()
+        } catch is CancellationError {
+            await cancel()
+            throw CancellationError()
         } catch let error as AudioRealtimeTranscriptionError {
             await fail(error)
             throw error
         } catch {
             await fail(.connectionEndedEarly)
             throw AudioRealtimeTranscriptionError.connectionEndedEarly
+        }
+    }
+
+    private func requireActiveStart() async throws {
+        guard canContinueAuthenticationRetry else {
+            if Task.isCancelled { await cancel() }
+            throw CancellationError()
         }
     }
 

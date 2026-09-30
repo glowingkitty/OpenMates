@@ -481,7 +481,12 @@ class ConnectionManager:
 
     def has_foreground_connection_for_chat(self, user_id: str, chat_id: str) -> bool:
         """True when a fresh foreground connection is actively viewing this chat."""
-        for device_fingerprint_hash in self.active_connections.get(user_id, {}):
+        for device_fingerprint_hash, websocket in self.active_connections.get(user_id, {}).items():
+            # Recovery/storage intentionally retain sockets during disconnect
+            # grace. A retained session cannot visibly consume a notification.
+            connection_key = (user_id, device_fingerprint_hash)
+            if connection_key in self.grace_period_tasks or not _ws_is_live(websocket):
+                continue
             if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
                 continue
             if self.get_active_chat(user_id, device_fingerprint_hash) == chat_id:

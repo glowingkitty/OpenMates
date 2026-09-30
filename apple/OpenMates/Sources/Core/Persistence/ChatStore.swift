@@ -625,7 +625,9 @@ private extension Chat {
         let acceptsIncomingMetadata = (incoming.metadataV ?? 0) >= (metadataV ?? 0)
         let acceptsIncomingSummary = (incoming.metadataV ?? 0) > (metadataV ?? 0)
             || ((incoming.metadataV ?? 0) == (metadataV ?? 0)
-                && chatSummary == nil && encryptedChatSummary == nil)
+                && chatSummary == nil
+                && (encryptedChatSummary == nil
+                    || (incoming.chatSummary != nil && encryptedChatSummary == incoming.encryptedChatSummary)))
         let incomingTitleVersion = incoming.titleV ?? 0
         let currentTitleVersion = titleV ?? 0
         let acceptsNewerTitleRevision = incomingTitleVersion > currentTitleVersion

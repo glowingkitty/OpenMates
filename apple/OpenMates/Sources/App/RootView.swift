@@ -18,6 +18,8 @@ import AppKit
 struct RootView: View {
     let launchCommand: AppWindowLaunchCommand?
 
+    @State private var workspaceViewportWidth: CGFloat = 0
+
     @EnvironmentObject var authManager: AuthManager
     #if os(iOS)
     @Environment(\.isExternalDisplayScene) private var isExternalDisplayScene
@@ -46,6 +48,8 @@ struct RootView: View {
             rootContent
             #endif
         }
+        .environment(\.workspaceViewportWidth, workspaceViewportWidth)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { workspaceViewportWidth = $0 }
         #if os(iOS)
         .overlay {
             if !isExternalDisplayScene && externalDisplayCoordinator.shouldShowPhoneController {
@@ -143,7 +147,9 @@ private struct MacWindowChromeConfigurator: NSViewRepresentable {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(named: "grey-0", bundle: .main) ?? .black
-        window.isMovableByWindowBackground = true
+        // Product content includes selectable text and frameless editors. A
+        // background window-drag region can consume their pointer gestures.
+        window.isMovableByWindowBackground = false
     }
 }
 #endif

@@ -51,6 +51,30 @@ enum AppStrings {
     static var socialMedia: String { L("apps.social_media") }
     static var weatherDay: String { L("apps.weather.day") }
     static var weatherForecast: String { L("apps.weather.forecast") }
+    static var weatherForecastRain: String { L("embeds.weather.forecast.rain") }
+    static var financeCheckAccounts: String { L("app_skills.finance.check_accounts") }
+    static var focusModeActivated: String { L("embeds.focus_mode.activated") }
+    static var focusModeActiveBanner: String { L("embeds.focus_mode.active_banner") }
+    static var focusModeFocusOn: String { L("embeds.focus_mode.focus_on") }
+    static var financeNetCashFlow: String { L("embeds.finance.check_accounts.net_cash_flow") }
+    static var financeCashBalance: String { L("embeds.finance.check_accounts.cash_balance") }
+    static var financeAccounts: String { L("embeds.finance.check_accounts.accounts") }
+    static var financeTransactions: String { L("embeds.finance.check_accounts.transactions") }
+    static var financeIncome: String { L("embeds.finance.check_accounts.income") }
+    static var financeExpenses: String { L("embeds.finance.check_accounts.expenses") }
+    static var financeFilters: String { L("embeds.finance.check_accounts.filters") }
+    static var financeAccount: String { L("embeds.finance.check_accounts.account") }
+    static var financeSource: String { L("embeds.finance.check_accounts.source") }
+    static var financeCategory: String { L("embeds.finance.check_accounts.category") }
+    static var financeDirection: String { L("embeds.finance.check_accounts.direction") }
+    static var financeState: String { L("embeds.finance.check_accounts.state") }
+    static var financePlaceholder: String { L("embeds.finance.check_accounts.placeholder") }
+    static var financeFrom: String { L("embeds.finance.check_accounts.from") }
+    static var financeTo: String { L("embeds.finance.check_accounts.to") }
+    static var financeAll: String { L("embeds.finance.check_accounts.all") }
+    static var financeNoMatches: String { L("embeds.finance.check_accounts.no_matches") }
+    static var travelFlightDiverted: String { L("embeds.travel.flight.diverted") }
+    static var travelFlightTrackAvailable: String { L("embeds.travel.flight.track_available") }
     static var guest: String { L("settings.guest") }
     static var newWindow: String { L("common.new_window") }
     static var chat: String { L("common.chat") }
@@ -58,6 +82,111 @@ enum AppStrings {
     static var plans: String { L("navigation.plans") }
     static var workflows: String { L("navigation.workflows") }
     static var tasks: String { L("navigation.tasks") }
+    // MARK: - Tasks workspace
+    static var tasksGreeting: String { L("tasks.workspace.greeting") }
+    static var tasksNext: String { L("tasks.workspace.next") }
+    static var tasksSearch: String { L("tasks.workspace.search") }
+    static var tasksFilters: String { L("tasks.workspace.filters") }
+    static var tasksPrompt: String { L("tasks.workspace.prompt") }
+    static var tasksPromptCompact: String { L("tasks.workspace.prompt_compact") }
+    static var tasksSaving: String { L("tasks.workspace.saving") }
+    static var tasksEmpty: String { L("tasks.workspace.empty") }
+    static var tasksNoMatches: String { L("tasks.workspace.no_matches") }
+    static var tasksLoadError: String { L("tasks.workspace.load_error") }
+    static var tasksNew: String { L("tasks.workspace.new_task") }
+    static var tasksAdd: String { L("tasks.workspace.add") }
+    static var tasksNewPlan: String { L("tasks.workspace.new_plan") }
+    static var tasksPlanRequiresProject: String { L("tasks.workspace.plan_requires_project") }
+    static var tasksOpenTask: String { L("tasks.workspace.open_task") }
+    static var tasksOpenPlan: String { L("tasks.workspace.open_plan") }
+    static var tasksOpenChat: String { L("tasks.workspace.open_chat") }
+    static var tasksShowMore: String { L("tasks.workspace.show_more") }
+    static var tasksBacklog: String { L("tasks.workspace.backlog") }
+    static var tasksTodo: String { L("tasks.workspace.todo") }
+    static var tasksInProgress: String { L("tasks.workspace.in_progress") }
+    static var tasksBlocked: String { L("tasks.workspace.blocked") }
+    static var tasksDone: String { L("tasks.workspace.done") }
+    static var tasksStatus: String { L("tasks.workspace.status") }
+    static var tasksAssignee: String { L("tasks.workspace.assignee") }
+    static var tasksMe: String { L("tasks.workspace.me") }
+    static var tasksUnassigned: String { L("tasks.workspace.unassigned") }
+    static var tasksDescription: String { L("tasks.workspace.description") }
+    static var tasksNoDescription: String { L("tasks.workspace.no_description") }
+    static var tasksDue: String { L("tasks.workspace.due") }
+    static var tasksNoDue: String { L("tasks.workspace.no_due") }
+    static var tasksProjects: String { L("tasks.workspace.projects") }
+    static var tasksNoProject: String { L("tasks.workspace.no_project") }
+    static var tasksPlan: String { L("tasks.workspace.plan") }
+    static var tasksNoPlan: String { L("tasks.workspace.no_plan") }
+    static var tasksDependencies: String { L("tasks.workspace.dependencies") }
+    static var tasksNoDependencies: String { L("tasks.workspace.no_dependencies") }
+    static var tasksTags: String { L("tasks.workspace.tags") }
+    static var tasksNoTags: String { L("tasks.workspace.no_tags") }
+    static var tasksChat: String { L("tasks.workspace.chat") }
+    static var tasksNoChat: String { L("tasks.workspace.no_chat") }
+    static var tasksActivity: String { L("tasks.activity.title") }
+    static var tasksCommentPlaceholder: String { L("tasks.activity.placeholder") }
+    static var tasksSend: String { L("tasks.activity.send") }
+    static var tasksNoActivity: String { L("tasks.activity.empty") }
+    static var tasksBlockedReason: String { L("tasks.blocked_heading") }
+    static var tasksDeleteConfirmation: String { L("tasks.workspace.delete_confirmation") }
+    static var tasksAssignAI: String { L("tasks.workspace.assign_ai") }
+    static var tasksMove: String { L("tasks.workspace.move") }
+    static var tasksComplete: String { L("tasks.workspace.complete") }
+    static var tasksSkip: String { L("tasks.workspace.skip") }
+    static var tasksPlanGoal: String { L("tasks.workspace.plan_goal") }
+    static var tasksPlanAssumptions: String { L("tasks.workspace.plan_assumptions") }
+    static var tasksPlanCriteria: String { L("tasks.workspace.plan_criteria") }
+    static var tasksPlanChecks: String { L("tasks.workspace.plan_checks") }
+    static var tasksPlanPatterns: String { L("tasks.workspace.plan_patterns") }
+    static var tasksPlanOpenAssumptions: String { L("tasks.plan.open_assumptions") }
+    static var tasksPlanUncoveredCriteria: String { L("tasks.plan.uncovered_criteria") }
+    static var tasksPlanFailedChecks: String { L("tasks.plan.failed_checks") }
+    static var tasksPlanAssumptionPlaceholder: String { L("tasks.plan.assumption_placeholder") }
+    static var tasksPlanAddAssumption: String { L("tasks.plan.add_assumption") }
+    static var tasksPlanCriterionPlaceholder: String { L("tasks.plan.criterion_placeholder") }
+    static var tasksPlanAddCriterion: String { L("tasks.plan.add_criterion") }
+    static var tasksPlanCheckDescription: String { L("tasks.plan.check_description") }
+    static var tasksPlanOptionalCommand: String { L("tasks.plan.optional_command") }
+    static var tasksPlanAddCheck: String { L("tasks.plan.add_check") }
+    static var tasksPlanActivate: String { L("tasks.workspace.plan_activate") }
+    static var tasksPlanComplete: String { L("tasks.workspace.plan_complete") }
+    static var tasksWorkflowRunID: String { L("tasks.workspace.workflow_run_id") }
+    static var tasksNoWorkflowRunID: String { L("tasks.workspace.no_workflow_run_id") }
+    static var tasksWorkflowNodeStatus: String { L("tasks.workspace.workflow_node_status") }
+    static var tasksOpenWorkflowRun: String { L("tasks.workspace.open_workflow_run") }
+    static var tasksInspirationNextAction: String { L("tasks.workspace.inspiration_next_action") }
+    static var tasksInspirationNextActionTitle: String { L("tasks.workspace.inspiration_next_action_title") }
+    static var tasksInspirationPriorities: String { L("tasks.workspace.inspiration_priorities") }
+    static var tasksInspirationPrioritiesTitle: String { L("tasks.workspace.inspiration_priorities_title") }
+    static var tasksInspirationFinishLine: String { L("tasks.workspace.inspiration_finish_line") }
+    static var tasksInspirationFinishLineTitle: String { L("tasks.workspace.inspiration_finish_line_title") }
+    static var plansInspirationTimeline: String { L("tasks.workspace.plans_inspiration_timeline") }
+    static var plansInspirationTimelineTitle: String { L("tasks.workspace.plans_inspiration_timeline_title") }
+    static var tasksInspirationCTA: String { L("tasks.workspace.inspiration_create_task") }
+    static var plansInspirationCTA: String { L("tasks.workspace.inspiration_create_plan") }
+    static var tasksMicUnavailable: String { L("tasks.workspace.voice_input_unavailable") }
+    static var tasksPriorityNone: String { L("tasks.detail.priority_none") }
+    static var tasksPriorityLow: String { L("tasks.detail.priority_low") }
+    static var tasksPriorityMedium: String { L("tasks.detail.priority_medium") }
+    static var tasksPriorityHigh: String { L("tasks.detail.priority_high") }
+    static var tasksPriorityUrgent: String { L("tasks.detail.priority_urgent") }
+    static var tasksCreatorYou: String { L("tasks.detail.creator_you") }
+    static var tasksCreatedSecondsAgo: String { L("tasks.detail.created_seconds_ago") }
+    static func tasksCreatedMinutesAgo(_ count: Int) -> String {
+        LocalizationManager.shared.text(
+            count == 1 ? "tasks.detail.created_minute_ago" : "tasks.detail.created_minutes_ago",
+            replacements: ["count": "\(count)"])
+    }
+    static func tasksCreatedOn(_ date: String) -> String {
+        LocalizationManager.shared.text("tasks.detail.created_on", replacements: ["date": date])
+    }
+    static func tasksCreatedBy(_ created: String, creator: String) -> String {
+        LocalizationManager.shared.text("tasks.detail.created_by",
+                                        replacements: ["created": created, "creator": creator])
+    }
+    static var reportIssue: String { L("header.report_issue") }
+    static var mapShowAllResults: String { L("embeds.maps.show_all_results") }
     static var models3d: String { L("apps.models3d") }
     static var workspacePreviewEyebrow: String { L("navigation.workspace_preview.eyebrow") }
     static var workspacePreviewReturnToChats: String { L("navigation.workspace_preview.return_to_chats") }
@@ -74,6 +203,17 @@ enum AppStrings {
     static var newChat: String { L("chat.new_chat") }
     static var noChats: String { L("activity.no_chats") }
     static var loadingChats: String { L("activity.loading_chats") }
+    static var subChatBatchLoading: String { L("chats.chat.sub_chats.batch_loading") }
+    static var subChatAutonomousTask: String { L("chats.chat.sub_chats.autonomous_task") }
+    static var subChatTapToOpen: String { L("chats.chat.sub_chats.tap_to_open") }
+    static var subChatCompleted: String { L("chats.chat.sub_chats.status_completed") }
+    static var subChatNeedsAttention: String { L("chats.chat.sub_chats.status_needs_attention") }
+    static var subChatStopped: String { L("chats.chat.sub_chats.status_stopped") }
+    static var subChatWaiting: String { L("chats.chat.sub_chats.status_waiting") }
+    static var subChatQueued: String { L("chats.chat.sub_chats.status_queued") }
+    static func subChatThinking(_ name: String) -> String {
+        LocalizationManager.shared.text("chats.chat.sub_chats.status_thinking", replacements: ["name": name])
+    }
     static var syncing: String { L("activity.syncing") }
     static var syncComplete: String { L("activity.sync_complete") }
     static var incognito: String { L("activity.incognito") }
@@ -636,6 +776,7 @@ enum AppStrings {
     static var reportIssueError: String { L("settings.report_issue_error") }
 
     // MARK: - Connection banners
+    static var offlineNotificationTitle: String { L("notifications.connection.offline_banner.title") }
     static var offlineBanner: String { L("notifications.connection.offline_banner") }
     static var reconnectingBanner: String { L("notifications.connection.reconnecting") }
 
@@ -844,6 +985,10 @@ enum AppStrings {
     static var copy: String { L("common.copy") }
     static var download: String { L("common.download") }
     static var suggestionsExploreNext: String { L("chat.suggestions.explore_next") }
+    static var composerSearchEmbed: String { L("chat.suggestions.embed_result") }
+    static var composerSearchSkillResult: String { L("chat.suggestions.skill_result") }
+    static var composerRelatedChats: String { L("chat.suggestions.related_chats") }
+    static var composerSuggestionsNoMatch: String { L("chat.suggestions.filter_no_match") }
     static var suggestionsHeader: String { L("chat.suggestions.header_tap") }
     static var codeRun: String { L("app_skills.code.run") }
     static var codeSearchRepos: String { L("app_skills.code.search_repos") }
@@ -950,6 +1095,29 @@ enum AppStrings {
     static var sketchClear: String { L("sketchview.clear") }
     static var sketchDone: String { L("sketchview.done") }
     static var mindMap: String { L("embeds.mindmaps.mindmap") }
+    static var resultsViewMap: String { L("embeds.results_view.map") }
+    static var resultsViewCalendar: String { L("embeds.results_view.calendar") }
+    static var resultsViewFilter: String { L("embeds.results_view.filter") }
+    static var resultsViewMinimum: String { L("embeds.results_view.minimum") }
+    static var resultsViewMaximum: String { L("embeds.results_view.maximum") }
+    static var resultsViewPreviousWeek: String { L("embeds.results_view.previous_week") }
+    static var resultsViewNextWeek: String { L("embeds.results_view.next_week") }
+    static func resultsViewWeekNumber(week: Int, year: Int) -> String {
+        LocalizationManager.shared.text("embeds.results_view.week_number", replacements: ["week": "\(week)", "year": "\(year)"])
+    }
+    static var resultsViewAll: String { L("embeds.results_view.all") }
+    static var resultsViewType: String { L("embeds.results_view.type") }
+    static var resultsViewClearFilters: String { L("embeds.results_view.clear_filters") }
+    static var resultsViewDepartureTime: String { L("embeds.results_view.departure_time") }
+    static var resultsViewArrivalTime: String { L("embeds.results_view.arrival_time") }
+    static var resultsViewDuration: String { L("embeds.results_view.duration") }
+    static var resultsViewTransferTime: String { L("embeds.results_view.transfer_time") }
+    static var resultsViewPrice: String { L("embeds.results_view.price") }
+    static var resultsViewCarrier: String { L("embeds.results_view.carrier") }
+    static var resultsViewProvider: String { L("embeds.results_view.provider") }
+    static func resultsViewRemaining(visible: Int, total: Int) -> String {
+        LocalizationManager.shared.text("embeds.results_view.remaining", replacements: ["visible": "\(visible)", "total": "\(total)"])
+    }
     static var mindMapInvalidJSON: String { L("embeds.mindmaps.invalid_json") }
     static var mindMapInvalidContent: String { L("embeds.mindmaps.invalid_content") }
     static var mindMapValidationWarnings: String { L("embeds.mindmaps.validation_warnings") }
@@ -1107,5 +1275,291 @@ enum AppStrings {
 
     private static func L(_ key: String) -> String {
         LocalizationManager.shared.text(key)
+    }
+}
+
+// MARK: - Workflow workspace
+extension AppStrings {
+    enum WorkflowBuilderCopy: String {
+        case action_question, add_check, add_description, add_trigger, ask_ai_question
+        case check, check_question, check_required, close, created, date_range, date_time
+        case check_mode, exact_rule, ai_judgment, ai_check_question, ai_check_placeholder
+        case select_output, compare_type, compare_value, `if`
+        case operator_eq, operator_ne, operator_gt, operator_gte
+        case operator_lt, operator_lte, operator_contains
+        case delete_workflow, delete_run, delete_node, confirm_delete_node
+        case `else`, `false`, draft, do_nothing, do_nothing_add_step
+        case if_true, if_unsure, input, next_result, next_run, next_seven_days
+        case new_workflow_placeholder, output, output_empty_list, output_type_object
+        case show_output_fields, hide_output_fields, example, test_output
+        case previous_result, result_position, run_history, save, save_failed
+        case send_message, show_all_fields, show_basic_fields, specific_dates, step_in_use
+        case then, time_trigger, today, `true`, unavailable, use_app_skill
+        case `repeat`, once, hourly, daily, weekly, minute, timezone
+        case monday, tuesday, wednesday, thursday, friday, saturday, sunday
+        case workflow, workflow_name, workflow_off, workflow_on, description
+        case ai_create_submit, ai_create_submitting, ai_edit_placeholder
+        case ai_edit_submit, ai_edit_submitting, ai_undo, ai_changes_saved
+        case ai_removed, ai_added_nodes, ai_edited_nodes, ai_check_status
+        case move_up, move_down, processing, stop, test_again, test_action
+        case variable_cost, preview_message
+        case sharing_soon, share, run_now
+        case to, existing_chat, chat_title, message_question, title_required
+        case earlier_action_variable_required
+        case trigger_question, app_question, skill_question, use_app, choose_skill
+        case add_action, ask_ai, ask_ai_unavailable, back
+        case ask_ai_placeholder, ask_ai_app_warning, ask_ai_validation_unavailable
+        case ask_ai_instruction_required, checking_instruction
+    }
+
+    enum WorkflowRunCopy: String {
+        case run, next, cancel, cancel_title, cancel_explanation
+        case content_unavailable, empty, execution_failed, loading, time_unavailable
+        case status_completed, status_failed, status_cancelled, status_skipped
+        case status_queued, status_planned, status_running, status_waiting
+        case status_cancellation_requested, status_unavailable
+    }
+
+    static func workflowBuilder(_ key: WorkflowBuilderCopy) -> String {
+        localized("workflows.builder.\(key.rawValue)")
+    }
+    static func workflowRun(_ key: WorkflowRunCopy) -> String {
+        localized("workflows.runs.\(key.rawValue)")
+    }
+    static func workflowResultPosition(current: Int, total: Int) -> String {
+        LocalizationManager.shared.text("workflows.builder.result_position", replacements: [
+            "current": String(current), "total": String(total)
+        ])
+    }
+    static func workflowStepInUse(_ steps: String) -> String {
+        LocalizationManager.shared.text("workflows.builder.step_in_use", replacements: ["steps": steps])
+    }
+    static var workflowVersionHistory: String { localized("workflows.version_history.title") }
+    static var workflowVersionRestore: String { localized("workflows.version_history.restore_as_new") }
+    static var workflowSidebarLoading: String { localized("workflows.sidebar.loading") }
+    static var workflowSidebarEmpty: String { localized("workflows.sidebar.empty") }
+    static var workflowSidebarManual: String { localized("workflows.sidebar.manual") }
+    static func workflowHomeGreeting(_ name: String) -> String {
+        LocalizationManager.shared.text("workflows.home.greeting", replacements: ["name": name])
+    }
+    static var workflowHomeFallbackName: String { localized("workflows.home.fallback_name") }
+    static var workflowHomeSubtitle: String { localized("workflows.home.subtitle") }
+    static var workflowHomeShowAll: String { localized("workflows.home.show_all") }
+    static var workflowHomeBackToRecent: String { localized("workflows.home.back_to_recent") }
+    static var workflowHomeSearch: String { localized("workflows.home.search") }
+    static var workflowHomeSearchUnavailable: String { localized("workflows.home.search_unavailable") }
+    static var workflowHomeRetentionNone: String { localized("workflows.home.retention_none") }
+    static var workflowHomeRetentionLast5: String { localized("workflows.home.retention_last5") }
+    static var workflowHomeBadgeNew: String { localized("workflows.home.badge_new") }
+    static var workflowHomeBadgeEnabled: String { localized("workflows.home.badge_enabled") }
+    static var workflowHomeBadgePaused: String { localized("workflows.home.badge_paused") }
+    static var workflowStarterBadge: String { localized("workflows.home.starter_badge") }
+    static var workflowStarterRainTitle: String { localized("workflows.home.starter_rain_title") }
+    static var workflowStarterRainSummary: String { localized("workflows.home.starter_rain_summary") }
+    static var workflowStarterNewsTitle: String { localized("workflows.home.starter_news_title") }
+    static var workflowStarterNewsSummary: String { localized("workflows.home.starter_news_summary") }
+    static var workflowStarterApartmentsTitle: String { localized("workflows.home.starter_apartments_title") }
+    static var workflowStarterApartmentsSummary: String { localized("workflows.home.starter_apartments_summary") }
+    static var workflowInspirationPhrase: String { localized("workflows.home.inspiration_phrase") }
+    static var workflowInspirationTitle: String { localized("workflows.home.inspiration_title") }
+    static var workflowInspirationFeatureTitle: String { localized("workflows.home.inspiration_feature_title") }
+    static var workflowInspirationFeatureDescription: String { localized("workflows.home.inspiration_feature_description") }
+}
+
+// MARK: - Health, home, nutrition and shopping result embeds
+// MARK: - Projects workspace and transient reviews
+extension AppStrings {
+    static var projectTagline: String { localized("projects.workspace_tagline") }
+    static var projectNew: String { localized("projects.workspace_new_project") }
+    static var projectNone: String { localized("projects.workspace_no_projects") }
+    static var projectCreate: String { localized("projects.workspace_create_project") }
+    static var projectLoading: String { localized("projects.workspace_loading") }
+    static var projectSettings: String { localized("projects.workspace_project_settings") }
+    static var projectEdit: String { localized("projects.workspace_edit_project") }
+    static var projectDelete: String { localized("projects.workspace_delete_project") }
+    static var projectDeletePrompt: String { localized("projects.workspace_delete_prompt") }
+    static var projectDeleteExplanation: String { localized("projects.workspace_delete_explanation") }
+    static var projectLabel: String { localized("projects.workspace_project") }
+    static var projectOverview: String { localized("projects.workspace_overview") }
+    static var projectFiles: String { localized("projects.workspace_files") }
+    static var projectTasks: String { localized("projects.workspace_tasks") }
+    static var projectOverviewLoading: String { localized("projects.workspace_overview_loading") }
+    static var projectOverviewTruncated: String { localized("projects.workspace_overview_truncated") }
+    static var projectOverviewEmpty: String { localized("projects.workspace_overview_empty") }
+    static var projectUpload: String { localized("projects.workspace_upload") }
+    static var projectCreateAction: String { localized("projects.workspace_create") }
+    static var projectSourceNeeded: String { localized("projects.workspace_source_needed") }
+    static var projectOverviewFailed: String { localized("projects.workspace_overview_failed") }
+    static var projectTasksHeading: String { localized("projects.workspace_project_tasks") }
+    static var projectOpenTasks: String { localized("projects.workspace_open_tasks") }
+    static var projectShowNewest: String { localized("projects.workspace_show_newest") }
+    static var projectShowOldest: String { localized("projects.workspace_show_oldest") }
+    static var projectSortName: String { localized("projects.workspace_sort_name") }
+    static var projectSortNewest: String { localized("projects.workspace_sort_newest") }
+    static var projectSortOldest: String { localized("projects.workspace_sort_oldest") }
+    static var projectSearchFiles: String { localized("projects.workspace_search_files") }
+    static func projectGreeting(_ name: String) -> String {
+        LocalizationManager.shared.text("projects.workspace_greeting", replacements: ["name": name])
+    }
+    static var projectNamePrompt: String { localized("projects.workspace_name_prompt") }
+    static var projectVoiceInput: String { localized("projects.workspace_voice_input") }
+    static var projectVoiceUnavailable: String { localized("projects.workspace_voice_unavailable") }
+    static var projectInspirationBrief: String { localized("projects.workspace_inspiration_brief") }
+    static var projectInspirationBriefTitle: String { localized("projects.workspace_inspiration_brief_title") }
+    static var projectInspirationBriefFeatureTitle: String { localized("projects.workspace_inspiration_brief_feature_title") }
+    static var projectInspirationBriefFeatureDescription: String { localized("projects.workspace_inspiration_brief_feature_description") }
+    static var projectInspirationMilestones: String { localized("projects.workspace_inspiration_milestones") }
+    static var projectInspirationMilestonesTitle: String { localized("projects.workspace_inspiration_milestones_title") }
+    static var projectInspirationMilestonesFeatureTitle: String { localized("projects.workspace_inspiration_milestones_feature_title") }
+    static var projectInspirationMilestonesFeatureDescription: String { localized("projects.workspace_inspiration_milestones_feature_description") }
+    static var projectInspirationAssets: String { localized("projects.workspace_inspiration_assets") }
+    static var projectInspirationAssetsTitle: String { localized("projects.workspace_inspiration_assets_title") }
+    static var projectInspirationAssetsFeatureTitle: String { localized("projects.workspace_inspiration_assets_feature_title") }
+    static var projectInspirationAssetsFeatureDescription: String { localized("projects.workspace_inspiration_assets_feature_description") }
+    static var projectInspirationCTA: String { localized("daily_inspiration.tap_to_open_settings") }
+    static var projectSearchCurrent: String { localized("projects.search_current_folder") }
+    static func projectSearchAcross(_ name: String) -> String {
+        LocalizationManager.shared.text("projects.search_across_project", replacements: ["project": name])
+    }
+    static var projectSearching: String { localized("projects.workspace_searching") }
+    static var projectSearchCurrentEmpty: String { localized("projects.workspace_search_current_empty") }
+    static var projectSearchAcrossEmpty: String { localized("projects.workspace_search_across_empty") }
+    static var projectSearchPartialFailure: String { localized("projects.workspace_search_partial_failure") }
+    static var projectPrevious: String { localized("projects.workspace_previous") }
+    static var projectNext: String { localized("projects.workspace_next") }
+    static var projectTile: String { localized("projects.workspace_tile") }
+    static var projectList: String { localized("projects.workspace_list") }
+    static var projectCreateFolder: String { localized("projects.workspace_create_folder") }
+    static var projectNewWorkflow: String { localized("projects.workspace_new_workflow") }
+    static var projectNewPlan: String { localized("projects.workspace_new_plan") }
+    static var projectFilesLoading: String { localized("projects.workspace_files_loading") }
+    static var projectStoredRemotely: String { localized("projects.workspace_stored_remotely") }
+    static var projectConnectedSource: String { localized("projects.workspace_connected_source") }
+    static var projectRemoteOpening: String { localized("projects.workspace_remote_opening") }
+    static var projectRemoteOnDemand: String { localized("projects.workspace_remote_on_demand") }
+    static var projectRemoteLimited: String { localized("projects.workspace_remote_limited") }
+    static var projectNameField: String { localized("projects.workspace_project_name") }
+    static var projectWritePermission: String { localized("projects.workspace_write_permission") }
+    static var projectWritePrompt: String { localized("projects.workspace_write_prompt") }
+    static var projectFolderName: String { localized("projects.workspace_folder_name") }
+    static var projectDescriptionField: String { localized("projects.workspace_description") }
+    static var projectApplyAndShow: String { localized("settings.projects.write_mode_apply_and_show") }
+    static var projectAlwaysAsk: String { localized("settings.projects.write_mode_always_ask") }
+    static var projectFileApplied: String { localized("projects.file_change_applied") }
+    static var projectReadApprovalTitle: String { localized("projects.ignored_read_approval_title") }
+    static var projectWriteApprovalTitle: String { localized("projects.file_write_approval_title") }
+    static var projectReadApprovalDescription: String { localized("projects.ignored_read_approval_description") }
+    static var projectReviewChanges: String { localized("projects.file_change_review") }
+    static var projectApproveRead: String { localized("projects.file_read_approve") }
+    static var projectApproveWrite: String { localized("projects.file_write_approve") }
+    static var projectReject: String { localized("projects.file_approval_reject") }
+    static var projectCommandTitle: String { localized("projects.remote_command_title") }
+    static var projectCommandEffects: String { localized("projects.remote_command_effects") }
+    static var projectCommandRisks: String { localized("projects.remote_command_risks") }
+    static var projectCommandUncertainty: String { localized("projects.remote_command_uncertainty") }
+    static var projectCommandArguments: String { localized("projects.remote_command_exact_arguments") }
+    static var projectCommandDirectory: String { localized("projects.remote_command_directory") }
+    static var projectCommandAccess: String { localized("projects.remote_command_source_access") }
+    static var projectCommandMode: String { localized("projects.remote_command_mode") }
+    static var projectCommandNetwork: String { localized("projects.remote_command_network") }
+    static var projectCommandWritable: String { localized("projects.remote_command_writable") }
+    static var projectCommandCredentials: String { localized("projects.remote_command_credentials") }
+    static var projectCommandLimit: String { localized("projects.remote_command_time_limit") }
+    static var projectCommandNone: String { localized("projects.remote_command_none") }
+    static var projectCommandOutput: String { localized("projects.remote_command_output") }
+    static var projectCommandFailed: String { localized("projects.remote_command_failed") }
+    static var projectCommandApprove: String { localized("projects.remote_command_approve") }
+    static var projectCommandStop: String { localized("projects.remote_command_stop") }
+    static var projectCommandReadOnly: String { localized("projects.remote_command_access_read_only") }
+    static var projectCommandReadWrite: String { localized("projects.remote_command_access_read_write") }
+    static var projectCommandForeground: String { localized("projects.remote_command_mode_foreground") }
+    static var projectCommandBackground: String { localized("projects.remote_command_mode_background") }
+
+    static func projectCommandStatus(_ status: String) -> String {
+        let allowed: Set<String> = ["pending", "preparing", "waiting_for_executor", "authorizing",
+                                    "running", "stop_requested", "succeeded", "failed", "stopped",
+                                    "timed_out", "rejected", "error"]
+        return localized("projects.remote_command_status_\(allowed.contains(status) ? status : "error")")
+    }
+    static func projectCount(_ count: Int, key: String) -> String {
+        LocalizationManager.shared.text("projects.\(key)", replacements: ["count": String(count)])
+    }
+    static func projectBrowserCount(folders: Int, files: Int) -> String {
+        LocalizationManager.shared.text("projects.workspace_folder_files_count",
+            replacements: ["folders": String(folders), "files": String(files)])
+    }
+    static func projectStarted(_ date: String) -> String {
+        LocalizationManager.shared.text("projects.workspace_started", replacements: ["date": date])
+    }
+    static func projectStartedToday(_ time: String) -> String {
+        LocalizationManager.shared.text("projects.workspace_started_today", replacements: ["time": time])
+    }
+}
+
+// MARK: - Health, home, nutrition and shopping result embeds
+extension AppStrings {
+    static func fitnessOpenProvider(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.fitness.open_provider", replacements: ["provider": provider])
+    }
+    static var domainLocation: String { localized("common.location") }
+    static var domainProvider: String { localized("common.provider") }
+    static var domainFrom: String { localized("embeds.from") }
+    static var domainListing: String { localized("embeds.search_domain.listing") }
+    static var domainRoom: String { localized("embeds.search_domain.room") }
+    static var domainRooms: String { localized("embeds.search_domain.rooms") }
+    static var domainDelivery: String { localized("embeds.search_domain.delivery") }
+    static var domainCategory: String { localized("embeds.search_domain.category") }
+    static var domainRent: String { localized("embeds.search_domain.rent") }
+    static var domainBuy: String { localized("embeds.search_domain.buy") }
+    static var domainEasy: String { localized("embeds.search_domain.easy") }
+    static var domainMedium: String { localized("embeds.search_domain.medium") }
+    static var domainHard: String { localized("embeds.search_domain.hard") }
+    static var domainBio: String { localized("embeds.search_domain.bio") }
+    static var domainVegan: String { localized("embeds.search_domain.vegan") }
+    static var domainVegetarian: String { localized("embeds.search_domain.vegetarian") }
+    static var domainDairyFree: String { localized("embeds.search_domain.dairy_free") }
+    static var domainGlutenFree: String { localized("embeds.search_domain.gluten_free") }
+    static var domainRegional: String { localized("embeds.search_domain.regional") }
+    static var domainInsurancePublic: String { localized("embeds.search_domain.insurance_public") }
+    static var domainInsurancePrivate: String { localized("embeds.search_domain.insurance_private") }
+    static var domainNutritionRecipe: String { localized("embeds.nutrition.recipe") }
+    static var domainNutritionRecipes: String { localized("embeds.nutrition.recipes") }
+    static var domainNutritionServings: String { localized("embeds.nutrition.servings") }
+    static var domainNutritionIngredients: String { localized("embeds.nutrition.ingredients") }
+    static var domainNutritionInstructions: String { localized("embeds.nutrition.instructions") }
+    static var domainNutritionInfo: String { localized("embeds.nutrition.nutrition_info") }
+    static var domainNutritionHealthScore: String { localized("embeds.nutrition.health_score") }
+    static var domainNutritionProtein: String { localized("embeds.nutrition.protein") }
+    static var domainNutritionFat: String { localized("embeds.nutrition.fat") }
+    static var domainNutritionCarbs: String { localized("embeds.nutrition.carbs") }
+    static var domainNutritionViewSource: String { localized("embeds.nutrition.view_source") }
+    static var domainShoppingProduct: String { localized("embeds.shopping.product") }
+    static var domainShoppingProducts: String { localized("embeds.shopping.products") }
+    static var domainShoppingPriceUnavailable: String { localized("embeds.shopping.price_unavailable") }
+    static var domainShoppingProductID: String { localized("embeds.shopping.product_id") }
+    static var domainShoppingNew: String { localized("embeds.shopping.new") }
+    static var domainHealthAppointmentAvailable: String { localized("embeds.health.appointment_available") }
+    static var domainHealthAppointmentsAvailable: String { localized("embeds.health.appointments_available") }
+    static var domainHealthAppointment: String { localized("embeds.health.appointment") }
+    static var domainHealthSearchAppointments: String { localized("app_skills.health.search_appointments") }
+    static var domainHealthAlsoAvailable: String { localized("embeds.health.also_available") }
+    static func domainHealthReviewCount(_ count: Int) -> String { "(\(count) \(localized("embeds.health.reviews")))" }
+    static var domainHealthTelehealth: String { localized("embeds.health.telehealth") }
+    static func domainHealthInsuranceVerify(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.health.insurance_verify_on_provider", replacements: ["provider": provider])
+    }
+    static func domainHealthSlotsOutdated(_ provider: String) -> String {
+        LocalizationManager.shared.text("embeds.health.slots_may_be_outdated", replacements: ["provider": provider])
+    }
+    static func domainMinutes(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.search_domain.minutes", replacements: ["count": "\(count)"])
+    }
+    static func domainHours(_ count: Int) -> String {
+        LocalizationManager.shared.text("embeds.search_domain.hours", replacements: ["count": "\(count)"])
+    }
+    static func domainHoursMinutes(hours: Int, minutes: Int) -> String {
+        LocalizationManager.shared.text("embeds.search_domain.hours_minutes", replacements: [
+            "hours": "\(hours)", "minutes": "\(minutes)"
+        ])
     }
 }

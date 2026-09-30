@@ -9,6 +9,7 @@ import asyncio
 import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
+from starlette.websockets import WebSocketState
 
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
@@ -195,7 +196,7 @@ def test_foreground_chat_visibility_is_chat_specific():
     device_hash = "device-123"
     connection_key = (user_id, device_hash)
 
-    manager.active_connections[user_id] = {device_hash: object()}
+    manager.active_connections[user_id] = {device_hash: SimpleNamespace(application_state=WebSocketState.CONNECTED)}
     manager.active_chat_per_connection[connection_key] = other_chat_id
     manager.connection_foreground_state[connection_key] = True
 
@@ -211,7 +212,7 @@ def test_hidden_connection_does_not_suppress_chat_notifications():
     device_hash = "device-123"
     connection_key = (user_id, device_hash)
 
-    manager.active_connections[user_id] = {device_hash: object()}
+    manager.active_connections[user_id] = {device_hash: SimpleNamespace(application_state=WebSocketState.CONNECTED)}
     manager.active_chat_per_connection[connection_key] = chat_id
     manager.connection_foreground_state[connection_key] = True
 
@@ -221,6 +222,50 @@ def test_hidden_connection_does_not_suppress_chat_notifications():
 
     assert manager.has_foreground_connection_for_chat(user_id, chat_id) is False
     assert manager.is_user_completion_capable_active(user_id) is False
+
+
+# contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,apple-notifications.delivery.idempotent-visible
+def test_stale_foreground_socket_in_disconnect_grace_does_not_suppress_push():
+    async def scenario():
+        manager = ConnectionManager()
+        user, device, chat = "user-123", "device-123", "chat-123"
+        # A remote receive disconnect can leave application_state CONNECTED
+        # until the server sends/closes; explicit grace must still exclude it.
+        socket = SimpleNamespace(accept=AsyncMock(), application_state=WebSocketState.CONNECTED)
+        await manager.connect(socket, user, device)
+        manager.set_active_chat(user, device, chat)
+        manager.set_connection_foreground(user, device, True)
+        assert manager.has_foreground_connection_for_chat(user, chat) is True
+
+        manager.disconnect(socket, reason="test remote disconnect")
+        grace = manager.grace_period_tasks[(user, device)]
+        try:
+            assert manager.has_foreground_connection_for_chat(user, chat) is False
+            assert manager.is_user_active(user) is True
+            assert manager.is_user_completion_capable_active(user) is True
+            assert manager.get_active_chat(user, device) == chat
+
+            # Replacement within grace is immediately visible again.
+            replacement = SimpleNamespace(accept=AsyncMock(), application_state=WebSocketState.CONNECTED)
+            await manager.connect(replacement, user, device)
+            manager.set_active_chat(user, device, chat)
+            assert manager.has_foreground_connection_for_chat(user, chat) is True
+        finally:
+            grace.cancel()
+            await asyncio.gather(grace, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+def test_closed_foreground_socket_never_suppresses_push_even_before_grace_starts():
+    manager = ConnectionManager()
+    manager.active_connections["user-123"] = {
+        "device-123": SimpleNamespace(application_state=WebSocketState.DISCONNECTED)
+    }
+    manager.active_chat_per_connection[("user-123", "device-123")] = "chat-123"
+    manager.connection_foreground_state[("user-123", "device-123")] = True
+    assert manager.has_foreground_connection_for_chat("user-123", "chat-123") is False
 
 
 # contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,apple-notifications.delivery.idempotent-visible

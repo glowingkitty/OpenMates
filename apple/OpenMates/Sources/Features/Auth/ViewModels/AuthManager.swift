@@ -648,6 +648,7 @@ final class AuthManager: ObservableObject {
 
     func forceLocalLogout(reason: String) async {
         validationGeneration = UUID()
+        PushNotificationManager.shared.invalidateRegistration()
         print("[Auth] Forced local logout reason=\(reason)")
         AppSessionCoordinator.shared.resetTransientRuntime()
         await clearComposerDraftsForLogout()
@@ -903,6 +904,7 @@ final class AuthManager: ObservableObject {
         let store = OfflineStore.shared
         let scope = OfflineStore.scopeId(userId: user.id, apiBaseURL: apiBaseURL)
         if store.activeScopeId != scope {
+            PushNotificationManager.shared.invalidateRegistration()
             AppSessionCoordinator.shared.resetTransientRuntime()
             ChatKeyManager.shared.clearAll()
             EmbedKeyManager.shared.clearAll()

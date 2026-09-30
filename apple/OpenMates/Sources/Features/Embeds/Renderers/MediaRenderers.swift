@@ -8,6 +8,8 @@
 //          frontend/packages/ui/src/components/embeds/audio/AudioGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
@@ -15,13 +17,16 @@
 // Tokens:  ColorTokens.generated.swift, GradientTokens.generated.swift,
 //          SpacingTokens.generated.swift, TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
-// Specification: specifications/features/app-skills/videos-get-transcript/specification.yml
+// Specification: specifications/features/chats/specification.yml
+//                specifications/features/app-skills/videos-get-transcript/specification.yml
 //                specifications/features/app-skills/audio-generate/specification.yml
 //                specifications/features/app-skills/audio-speak/specification.yml
-// Assertions: videos.transcript.surface-parity, audio-generate.surface-parity,
-//             audio-speak.surface-parity
+//                specifications/features/app-skills/web-search/specification.yml
+// Assertions: chats.surface.semantic-parity, videos.transcript.surface-parity, audio-generate.surface-parity,
+//             audio-speak.surface-parity, web-search.surface-parity
 
 import SwiftUI
+import WebKit
 #if os(iOS)
 import PDFKit
 import UIKit
@@ -34,6 +39,98 @@ import AVFoundation
 
 // MARK: - Generated audio app skills
 
+private enum GeneratedAudioWaveformSamples {
+    static let values: [CGFloat] = [22, 38, 28, 52, 45, 74, 58, 86, 64, 49, 72, 56, 41, 68, 84, 62, 46, 33, 54, 39, 25, 34, 21, 16]
+}
+
+@MainActor
+final class GeneratedAudioPreviewController: ObservableObject {
+    @Published private(set) var isPlaying = false
+    @Published private(set) var isLoading = false
+    @Published private(set) var loadFailed = false
+    @Published private(set) var elapsed: TimeInterval = 0
+    private var player: AVAudioPlayer?
+
+    func toggle(data: [String: AnyCodable]?) {
+        if let player {
+            if player.isPlaying { player.pause() } else { player.play() }
+            isPlaying = player.isPlaying
+            return
+        }
+        let payload = GeneratedAudioSkillPayload(data)
+        guard payload.hasPlayableMedia, !isLoading else { return }
+        isLoading = true
+        loadFailed = false
+        Task {
+            do {
+                let bytes = try await payload.loadAudio()
+                #if os(iOS)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                #endif
+                let newPlayer = try AVAudioPlayer(data: bytes)
+                newPlayer.prepareToPlay()
+                newPlayer.play()
+                player = newPlayer
+                isPlaying = true
+            } catch {
+                loadFailed = true
+            }
+            isLoading = false
+        }
+    }
+
+    func refreshElapsed() {
+        guard let player else { return }
+        elapsed = player.currentTime
+        if !player.isPlaying { isPlaying = false }
+    }
+}
+
+private struct GeneratedAudioPreviewControllerKey: EnvironmentKey {
+    static let defaultValue: GeneratedAudioPreviewController? = nil
+}
+
+extension EnvironmentValues {
+    var generatedAudioPreviewController: GeneratedAudioPreviewController? {
+        get { self[GeneratedAudioPreviewControllerKey.self] }
+        set { self[GeneratedAudioPreviewControllerKey.self] = newValue }
+    }
+}
+
+struct GeneratedAudioPreviewPlayButton: View {
+    @ObservedObject var controller: GeneratedAudioPreviewController
+    let data: [String: AnyCodable]?
+    let skillId: String
+
+    static func hasPlayableMedia(data: [String: AnyCodable]?) -> Bool {
+        GeneratedAudioSkillPayload(data).hasPlayableMedia
+    }
+
+    var body: some View {
+        let payload = GeneratedAudioSkillPayload(data)
+        if payload.hasPlayableMedia {
+            Button { controller.toggle(data: data) } label: {
+                Group {
+                    if controller.isLoading {
+                        ProgressView().tint(Color.grey0)
+                    } else {
+                        Icon(controller.isPlaying ? "pause" : "play", size: 16)
+                            .foregroundStyle(Color.grey0)
+                    }
+                }
+                .frame(width: 36, height: 36)
+                .background(LinearGradient.appAudio)
+                .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(controller.isLoading)
+            .accessibilityLabel(controller.isPlaying ? AppStrings.localized("audio.pause") : AppStrings.localized("audio.play"))
+            .accessibilityIdentifier("audio-\(skillId)-preview-play-button")
+        }
+    }
+}
+
 struct GeneratedAudioSkillEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let status: EmbedStatus
@@ -45,6 +142,8 @@ struct GeneratedAudioSkillEmbedRenderer: View {
     @State private var isLoading = false
     @State private var elapsed: TimeInterval = 0
     @State private var loadFailed = false
+    @Environment(\.generatedAudioPreviewController) private var previewController
+    @StateObject private var fallbackPreviewController = GeneratedAudioPreviewController()
 
     private var payload: GeneratedAudioSkillPayload { GeneratedAudioSkillPayload(data) }
     private var identifierPrefix: String { skillId == "speak" ? "audio-speak" : "audio-generate" }
@@ -55,57 +154,88 @@ struct GeneratedAudioSkillEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing5) {
-                HStack(spacing: .spacing4) {
-                    playbackButton(compact: true)
-                    VStack(alignment: .leading, spacing: .spacing1) {
-                        Text(skillName)
-                            .font(.omP)
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color.fontPrimary)
-                        Text(payload.metadata)
-                            .font(.omXs)
-                            .foregroundStyle(Color.fontSecondary)
-                            .lineLimit(1)
-                    }
-                }
-
+            VStack(alignment: .leading, spacing: .spacing4) {
+                GeneratedAudioPreviewWaveform(
+                    controller: previewController ?? fallbackPreviewController,
+                    duration: payload.duration
+                )
                 VStack(alignment: .leading, spacing: .spacing2) {
                     Text(AppStrings.localized("embeds.music_generate.prompt_label"))
-                        .font(.omMicro)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontTertiary)
-                    Text(payload.prompt ?? skillName)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(3)
+                        .font(.omTiny)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.grey50)
+                    Text(payload.prompt ?? payload.modeLabel ?? (skillId == "speak" ? "Speech" : "Sound effect"))
+                        .font(.omXxs)
+                        .foregroundStyle(Color.grey70)
+                        .lineLimit(4)
+                    Text(payload.metadata)
+                        .font(.omTiny)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.grey50)
+                        .lineLimit(1)
+                }
+                if status != .finished || !payload.hasPlayableMedia {
+                    Capsule().fill(Color.grey10).frame(height: .spacing4)
                 }
             }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing6 + .spacing1)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("\(identifierPrefix)-preview")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing8) {
-                HStack(spacing: .spacing8) {
-                    playbackButton(compact: false)
-                    VStack(alignment: .leading, spacing: .spacing3) {
-                        audioProgress
-                        Text("\(Self.duration(elapsed)) / \(Self.duration(effectiveDuration))")
+            VStack(alignment: .leading, spacing: 0) {
+                Group {
+                    if !payload.hasPlayableMedia && status == .finished {
+                        Text("Audio unavailable")
                             .font(.omXs)
-                            .foregroundStyle(Color.fontSecondary)
+                            .foregroundStyle(Color.error)
+                            .padding(.vertical, .spacing4)
+                    } else if !payload.hasPlayableMedia && status == .error {
+                        Text(AppStrings.genericProcessingError)
+                            .font(.omXs)
+                            .foregroundStyle(Color.error)
+                            .padding(.vertical, .spacing4)
+                    } else if !payload.hasPlayableMedia && status == .processing {
+                        HStack(spacing: .spacing8) {
+                            Circle().fill(Color.grey20).frame(width: 48, height: 48)
+                            VStack(alignment: .leading, spacing: .spacing4) {
+                                Capsule().fill(Color.grey20).frame(height: .spacing5)
+                                Capsule().fill(Color.grey20).frame(maxWidth: 180).frame(height: .spacing5)
+                            }
+                        }
+                        .accessibilityIdentifier("\(identifierPrefix)-fullscreen-loading")
+                    } else {
+                        HStack(spacing: .spacing8) {
+                            playbackButton(compact: false)
+                            VStack(alignment: .leading, spacing: .spacing3) {
+                                audioProgress
+                                Text("\(Self.duration(elapsed)) / \(Self.duration(effectiveDuration))")
+                                    .font(.omXxs)
+                                    .foregroundStyle(Color.grey50)
+                            }
+                        }
                     }
                 }
-                .padding(.spacing10)
-                .background(Color.grey0)
+                .padding(.top, .spacing2)
+                .padding(.horizontal, .spacing8)
+                .padding(.bottom, .spacing10)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .bottom) { Rectangle().fill(Color.grey20).frame(height: 1) }
 
                 VStack(alignment: .leading, spacing: .spacing6) {
-                    detail(AppStrings.localized("embeds.music_generate.prompt_label"), payload.prompt ?? skillName)
-                    detail(AppStrings.localized("embeds.music_generate.model_label"), payload.model ?? "ElevenLabs")
-                    detail(AppStrings.localized("embeds.music_generate.duration"), Self.duration(effectiveDuration))
+                    detail(AppStrings.localized("embeds.music_generate.prompt_label"), payload.prompt ?? payload.modeLabel ?? skillName)
+                    detail("Mode", payload.modeLabel ?? (skillId == "speak" ? "Speech" : "Sound effect"))
+                    detail(AppStrings.localized("embeds.music_generate.model_label"), payload.modelDisplayName)
+                    if effectiveDuration > 0 {
+                        detail(AppStrings.localized("embeds.music_generate.duration"), Self.duration(effectiveDuration))
+                    }
                 }
-                .padding(.spacing10)
+                .padding(.top, .spacing12)
+                .padding(.horizontal, .spacing8)
+                .padding(.bottom, .spacing6)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .accessibilityElement(children: .contain)
@@ -151,9 +281,17 @@ struct GeneratedAudioSkillEmbedRenderer: View {
     private var audioProgress: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.grey20)
-                Capsule().fill(LinearGradient.appAudio)
-                    .frame(width: proxy.size.width * progress)
+                HStack(alignment: .center, spacing: 2) {
+                    ForEach(GeneratedAudioWaveformSamples.values.indices, id: \.self) { index in
+                        Capsule()
+                            .fill(Color.grey100.opacity(0.82))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48 * GeneratedAudioWaveformSamples.values[index] / 100)
+                    }
+                }
+                Capsule().fill(Color.grey100.opacity(0.95))
+                    .frame(width: 2, height: 48)
+                    .offset(x: max(0, proxy.size.width * progress - 1))
             }
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { value in
@@ -161,7 +299,7 @@ struct GeneratedAudioSkillEmbedRenderer: View {
                 seek(value.location.x / proxy.size.width)
             })
         }
-        .frame(height: 10)
+        .frame(height: 48)
         .accessibilityElement()
         .accessibilityLabel(AppStrings.localized("audio.playback_progress"))
         .accessibilityValue("\(Int(progress * 100))%")
@@ -225,8 +363,45 @@ struct GeneratedAudioSkillEmbedRenderer: View {
     }
 }
 
+private struct GeneratedAudioPreviewWaveform: View {
+    @ObservedObject var controller: GeneratedAudioPreviewController
+    let duration: Double?
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                HStack(alignment: .center, spacing: 1) {
+                    ForEach(GeneratedAudioWaveformSamples.values.indices, id: \.self) { index in
+                        Capsule()
+                            .fill(Color.grey100.opacity(0.78))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 30 * GeneratedAudioWaveformSamples.values[index] / 100)
+                    }
+                }
+                Capsule().fill(Color.grey100.opacity(0.95))
+                    .frame(width: 2, height: 30)
+                    .offset(x: max(0, geometry.size.width * progress - 1))
+            }
+        }
+        .frame(height: 30)
+        .accessibilityHidden(true)
+        .task(id: controller.isPlaying) {
+            while !Task.isCancelled && controller.isPlaying {
+                controller.refreshElapsed()
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+        }
+    }
+
+    private var progress: CGFloat {
+        guard let duration, duration > 0 else { return 0 }
+        return CGFloat(min(max(controller.elapsed / duration, 0), 1))
+    }
+}
+
 private struct GeneratedAudioSkillPayload {
     let prompt: String?
+    let modeLabel: String?
     let model: String?
     let duration: Double?
     let directURL: String?
@@ -236,9 +411,20 @@ private struct GeneratedAudioSkillPayload {
     let aesNonce: String?
     let encryption: String?
 
+    private static let modelNames: [String: String] = {
+        guard let catalog = try? NativeModelCatalog.load(bundle: .main) else { return [:] }
+        return Dictionary(uniqueKeysWithValues: catalog.models.map { ($0.id, $0.name) })
+    }()
+
     init(_ data: [String: AnyCodable]?) {
         let raw = Self.flattened(data)
         prompt = Self.string(raw, ["prompt", "text_preview", "text"])
+        if let mode = Self.string(raw, ["mode", "generation_type", "voice"])?
+            .replacingOccurrences(of: "_", with: " ") {
+            modeLabel = mode.prefix(1).uppercased() + String(mode.dropFirst())
+        } else {
+            modeLabel = nil
+        }
         model = Self.string(raw, ["model"])
         let original = Self.dictionary(Self.dictionary(raw?["files"]?.value)?["original"])
         duration = Self.number(raw?["duration_seconds"]?.value) ?? Self.number(original?["duration_seconds"])
@@ -256,10 +442,12 @@ private struct GeneratedAudioSkillPayload {
     }
 
     var metadata: String {
-        [model ?? "ElevenLabs", duration.map { GeneratedAudioSkillEmbedRenderer.duration($0) }]
+        [modelDisplayName, duration.map { GeneratedAudioSkillEmbedRenderer.duration($0) }]
             .compactMap { $0 }
-            .joined(separator: " · ")
+            .joined(separator: " - ")
     }
+
+    var modelDisplayName: String { model.map { Self.modelNames[$0] ?? $0 } ?? "ElevenLabs" }
 
     var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
 
@@ -324,20 +512,27 @@ private struct GeneratedAudioSkillPayload {
 struct CachedRemoteImage<Content: View, Placeholder: View>: View {
     let url: URL
     let onFailure: (() -> Void)?
+    let onSuccess: (() -> Void)?
+    let svgContentMode: ContentMode
     let content: (Image) -> Content
     let placeholder: () -> Placeholder
 
     @State private var loadedImage: Image?
+    @State private var loadedSVG: StaticSVGImageSource?
     @State private var loadedURL: URL?
 
     init(
         url: URL,
         onFailure: (() -> Void)? = nil,
+        onSuccess: (() -> Void)? = nil,
+        svgContentMode: ContentMode = .fit,
         @ViewBuilder content: @escaping (Image) -> Content,
         @ViewBuilder placeholder: @escaping () -> Placeholder
     ) {
         self.url = url
         self.onFailure = onFailure
+        self.onSuccess = onSuccess
+        self.svgContentMode = svgContentMode
         self.content = content
         self.placeholder = placeholder
     }
@@ -346,6 +541,12 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
         Group {
             if loadedURL == url, let image = loadedImage {
                 content(image)
+            } else if loadedURL == url, let source = loadedSVG {
+                StaticSVGRemoteImageView(source: source, contentMode: svgContentMode,
+                    onSuccess: { if loadedURL == url { onSuccess?() } },
+                    onFailure: { if loadedURL == url { onFailure?() } })
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             } else {
                 placeholder()
             }
@@ -353,20 +554,26 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
         .task(id: url.absoluteString) {
             guard !Task.isCancelled else { return }
             let requestedURL = url
-            guard loadedURL != requestedURL || loadedImage == nil else { return }
+            guard loadedURL != requestedURL || (loadedImage == nil && loadedSVG == nil) else { return }
             loadedImage = nil
+            loadedSVG = nil
             loadedURL = nil
             do {
-                let data = try await RemoteImageCache.shared.fetch(requestedURL.absoluteString)
+                let data = try await RemoteImageCache.shared.fetch(requestedURL.absoluteString, allowStaticSVG: true)
                 guard !Task.isCancelled else { return }
-                guard let image = platformImage(from: data) else {
+                if let image = platformImage(from: data) {
+                    loadedImage = image
+                    loadedURL = requestedURL
+                    onSuccess?()
+                } else if let source = StaticSVGImageSource(data: data) {
+                    loadedSVG = source
+                    loadedURL = requestedURL
+                    // Success is published after the inert image document loads.
+                } else {
                     onFailure?()
-                    return
                 }
                 // Decode once per URL, not on every chat scroll/body evaluation.
                 // A cancelled old task must not publish into a reused image view.
-                loadedImage = image
-                loadedURL = requestedURL
             } catch {
                 if !Task.isCancelled { onFailure?() }
             }
@@ -385,6 +592,101 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
     }
     #endif
 }
+
+/// Uses the existing WebKit image stack for validated SVGs. The data image has
+/// no browsing context, scripts or remote resources; the native image URL is
+/// fetched only by RemoteImageCache with its existing request privacy rules.
+@MainActor
+private struct StaticSVGRemoteImageView {
+    let source: StaticSVGImageSource
+    let contentMode: ContentMode
+    let onSuccess: () -> Void
+    let onFailure: () -> Void
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var data: Data?
+        var currentNavigation: WKNavigation?
+        var onSuccess: (() -> Void)?
+        var onFailure: (() -> Void)?
+        var active = true
+
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+            decisionHandler(action.navigationType == .other && action.request.url?.absoluteString == "about:blank"
+                ? .allow : .cancel)
+        }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard active, navigation === currentNavigation else { return }
+            onSuccess?()
+        }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            guard active, navigation === currentNavigation else { return }
+            onFailure?()
+        }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            guard active, navigation === currentNavigation else { return }
+            onFailure?()
+        }
+    }
+
+    func update(_ view: WKWebView, coordinator: Coordinator) {
+        coordinator.onSuccess = onSuccess
+        coordinator.onFailure = onFailure
+        guard coordinator.data != source.data else { return }
+        coordinator.data = source.data
+        let fit = contentMode == .fill ? "cover" : "contain"
+        let html = """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+        <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}img{display:block;width:100%;height:100%;object-fit:\(fit)}</style>
+        </head><body><img alt="" src="data:image/svg+xml;base64,\(source.data.base64EncodedString())"></body></html>
+        """
+        coordinator.currentNavigation = view.loadHTMLString(html, baseURL: nil)
+    }
+
+    func makeView(coordinator: Coordinator) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = false
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        view.navigationDelegate = coordinator
+        #if os(iOS)
+        view.isOpaque = false
+        view.backgroundColor = .clear
+        view.scrollView.isScrollEnabled = false
+        view.scrollView.contentInsetAdjustmentBehavior = .never
+        #elseif os(macOS)
+        view.setValue(false, forKey: "drawsBackground")
+        #endif
+        update(view, coordinator: coordinator)
+        return view
+    }
+
+    static func dismantle(_ view: WKWebView, coordinator: Coordinator) {
+        coordinator.active = false
+        coordinator.onSuccess = nil
+        coordinator.onFailure = nil
+        view.stopLoading()
+        view.navigationDelegate = nil
+    }
+}
+
+#if os(iOS)
+extension StaticSVGRemoteImageView: UIViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> WKWebView { makeView(coordinator: context.coordinator) }
+    func updateUIView(_ view: WKWebView, context: Context) { update(view, coordinator: context.coordinator) }
+    static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) { dismantle(view, coordinator: coordinator) }
+}
+#elseif os(macOS)
+extension StaticSVGRemoteImageView: NSViewRepresentable {
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> WKWebView { makeView(coordinator: context.coordinator) }
+    func updateNSView(_ view: WKWebView, context: Context) { update(view, coordinator: context.coordinator) }
+    static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) { dismantle(view, coordinator: coordinator) }
+}
+#endif
 
 // MARK: - Encrypted image loader (shared by image embeds)
 
@@ -453,49 +755,145 @@ struct EncryptedImageView: View {
     #endif
 }
 
+enum NativeImagePreviewFile {
+    private static var root: URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("openmates-image-preview", isDirectory: true)
+    }
+
+    static func create(
+        _ data: Data,
+        suggestedFilename: String?,
+        attributeWriter: (([FileAttributeKey: Any], String) throws -> Void)? = nil,
+        protectionReader: ((URL) throws -> URLFileProtection?)? = nil
+    ) throws -> URL {
+        let rawName = suggestedFilename?.isEmpty == false ? suggestedFilename! : "image"
+        let lastComponent = rawName.replacingOccurrences(of: "\\", with: "/")
+            .split(separator: "/").last.map(String.init) ?? "image"
+        let safeName = String(lastComponent.unicodeScalars.filter {
+            !CharacterSet.controlCharacters.contains($0) && $0 != ":"
+        })
+        let name = safeName.isEmpty || safeName == "." || safeName == ".." ? "image" : safeName
+        let filename = URL(fileURLWithPath: name).pathExtension.isEmpty ? "\(name).jpg" : name
+        let directory = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var url = directory.appendingPathComponent(filename)
+        do {
+            #if os(iOS)
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
+            let protectedAttributes: [FileAttributeKey: Any] = [
+                .protectionKey: FileProtectionType.complete,
+                .posixPermissions: 0o600,
+            ]
+            if let attributeWriter {
+                try attributeWriter(protectedAttributes, url.path)
+            } else {
+                try FileManager.default.setAttributes(protectedAttributes, ofItemAtPath: url.path)
+            }
+            #else
+            try data.write(to: url, options: .atomic)
+            #endif
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try url.setResourceValues(values)
+            try requireCompleteProtectionOnDevice(at: url, readback: protectionReader)
+            return url
+        } catch {
+            try? FileManager.default.removeItem(at: directory)
+            throw error
+        }
+    }
+
+    static func requireCompleteProtectionOnDevice(
+        at url: URL,
+        readback: ((URL) throws -> URLFileProtection?)? = nil
+    ) throws {
+        #if os(iOS)
+        if let readback {
+            try requireCompleteProtection(readback(url))
+            return
+        }
+        #if !targetEnvironment(simulator)
+        try requireCompleteProtection(url.resourceValues(forKeys: [.fileProtectionKey]).fileProtection)
+        #endif
+        #endif
+    }
+
+    private static func requireCompleteProtection(_ observed: URLFileProtection?) throws {
+        guard observed == .complete else { throw CocoaError(.fileWriteNoPermission) }
+    }
+
+    static func remove(_ url: URL?) {
+        guard let url, url.deletingLastPathComponent().deletingLastPathComponent() == root else { return }
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
+    static func removeStaleFiles() {
+        try? FileManager.default.removeItem(at: root)
+    }
+}
+
 @MainActor
 final class NativeImagePreviewer: NSObject {
     static let shared = NativeImagePreviewer()
 
     private var previewURL: URL?
+    private var previewGeneration = UUID()
+    #if os(iOS)
+    private var previewController: QLPreviewController?
+    #endif
+
+    override private init() {
+        super.init()
+        NativeImagePreviewFile.removeStaleFiles()
+    }
 
     func previewRemoteImage(_ url: URL, suggestedFilename: String? = nil) {
+        let generation = previewGeneration
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
         Task {
             do {
-                let (data, _) = try await URLSession.shared.data(from: url)
+                let data = try await RemoteImageCache.shared.fetch(url.absoluteString)
+                guard !Task.isCancelled,
+                      previewGeneration == generation,
+                      OfflineStore.shared.scopeGeneration == scopeGeneration else { return }
                 previewImageData(data, suggestedFilename: suggestedFilename ?? url.lastPathComponent)
             } catch {
-                ToastManager.shared.show(error.localizedDescription, type: .error)
+                if previewGeneration == generation {
+                    ToastManager.shared.show("Failed to open image", type: .error)
+                }
             }
         }
     }
 
     func previewImageData(_ data: Data, suggestedFilename: String? = nil) {
+        dismissAndClear()
         do {
-            let fileURL = try writeTemporaryImage(data, suggestedFilename: suggestedFilename)
+            let fileURL = try NativeImagePreviewFile.create(data, suggestedFilename: suggestedFilename)
             previewURL = fileURL
             openPreview()
         } catch {
-            ToastManager.shared.show(error.localizedDescription, type: .error)
+            ToastManager.shared.show("Failed to open image", type: .error)
         }
     }
 
-    private func writeTemporaryImage(_ data: Data, suggestedFilename: String?) throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-image-preview", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let sanitizedName = (suggestedFilename?.isEmpty == false ? suggestedFilename! : "image")
-            .replacingOccurrences(of: "/", with: "-")
-        let hasExtension = URL(fileURLWithPath: sanitizedName).pathExtension.isEmpty == false
-        let filename = hasExtension ? sanitizedName : "\(sanitizedName).jpg"
-        let fileURL = directory.appendingPathComponent("\(UUID().uuidString)-\(filename)")
-        try data.write(to: fileURL, options: .atomic)
-        return fileURL
+    func dismissAndClear() {
+        previewGeneration = UUID()
+        #if os(iOS)
+        previewController?.dismiss(animated: false)
+        previewController = nil
+        #elseif os(macOS)
+        if let panel = QLPreviewPanel.shared(), panel.isVisible { panel.orderOut(nil) }
+        #endif
+        NativeImagePreviewFile.remove(previewURL)
+        previewURL = nil
     }
 
     private func openPreview() {
         #if os(iOS)
         let controller = QLPreviewController()
         controller.dataSource = self
+        controller.delegate = self
         controller.modalPresentationStyle = .fullScreen
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let root = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
@@ -503,7 +901,10 @@ final class NativeImagePreviewer: NSObject {
             while let presented = presenter.presentedViewController {
                 presenter = presented
             }
+            previewController = controller
             presenter.present(controller, animated: true)
+        } else {
+            dismissAndClear()
         }
         #elseif os(macOS)
         if let panel = QLPreviewPanel.shared() {
@@ -511,21 +912,31 @@ final class NativeImagePreviewer: NSObject {
             panel.delegate = self
             panel.reloadData()
             panel.makeKeyAndOrderFront(nil)
-        } else if let previewURL {
-            NSWorkspace.shared.open(previewURL)
+        } else {
+            dismissAndClear()
+            ToastManager.shared.show("Failed to open image", type: .error)
         }
         #endif
     }
 }
 
 #if os(iOS)
-extension NativeImagePreviewer: QLPreviewControllerDataSource {
+extension NativeImagePreviewer: QLPreviewControllerDataSource, QLPreviewControllerDelegate {
     nonisolated func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
         MainActor.assumeIsolated { previewURL == nil ? 0 : 1 }
     }
 
     nonisolated func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
-        MainActor.assumeIsolated { previewURL! as NSURL }
+        MainActor.assumeIsolated { (previewURL ?? URL(fileURLWithPath: "/dev/null")) as NSURL }
+    }
+
+    nonisolated func previewControllerDidDismiss(_ controller: QLPreviewController) {
+        let dismissedID = ObjectIdentifier(controller)
+        Task { @MainActor in
+            guard let previewController,
+                  ObjectIdentifier(previewController) == dismissedID else { return }
+            dismissAndClear()
+        }
     }
 }
 #elseif os(macOS)
@@ -535,7 +946,14 @@ extension NativeImagePreviewer: QLPreviewPanelDataSource, QLPreviewPanelDelegate
     }
 
     nonisolated func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
-        MainActor.assumeIsolated { previewURL! as NSURL }
+        MainActor.assumeIsolated { previewURL as NSURL? }
+    }
+
+    nonisolated func windowWillClose(_ notification: Notification) {
+        Task { @MainActor in
+            guard QLPreviewPanel.shared()?.isVisible == false else { return }
+            dismissAndClear()
+        }
     }
 }
 #endif
@@ -615,91 +1033,355 @@ struct TappableEncryptedImageView: View {
 
 // MARK: - Video
 
-struct VideoRenderer: View {
-    let data: [String: AnyCodable]?
+/// VideosSearchEmbedPreview/Fullscreen: parent summary and full video cards.
+/// Child cards retain the same tap route as the generic search parent.
+struct VideosSearchEmbedRenderer: View {
+    let model: SearchSkillPreviewModel
     let mode: EmbedDisplayMode
+    let onOpenEmbed: (EmbedRecord) -> Void
 
-    private var title: String { data?["title"]?.value as? String ?? "Video" }
-    private var thumbnailUrl: String? { data?["thumbnail_url"]?.value as? String }
-    private var channel: String? { data?["channel"]?.value as? String }
-    private var duration: String? { data?["duration"]?.value as? String }
-    private var url: String? { data?["url"]?.value as? String }
+    private var channelThumbnails: [String] {
+        model.childEmbeds.compactMap { child in
+            EmbedFieldReader.proxiedImageURL(
+                EmbedFieldReader.string(child.rawData ?? [:], keys: [
+                    "meta_url_profile_image", "channelThumbnail", "meta_url.profile_image"
+                ]), maxWidth: 64
+            )
+        }
+    }
 
     var body: some View {
         switch mode {
         case .preview:
-            ZStack {
-                if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
-                    CachedRemoteImage(url: imgURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: { Color.grey20 }
-                } else {
-                    Color.grey20
-                }
-
-                // Play button overlay
-                Icon("play", size: 36)
-                    .foregroundStyle(.white.opacity(0.9))
-                    .shadow(radius: 4)
-
-                VStack {
-                    Spacer()
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(title)
-                                .font(.omXs).fontWeight(.medium)
-                                .foregroundStyle(.white).lineLimit(2)
-                            if let channel {
-                                Text(channel)
-                                    .font(.omTiny).foregroundStyle(.white.opacity(0.8))
-                            }
-                        }
-                        Spacer()
-                        if let duration {
-                            Text(duration)
-                                .font(.omTiny).fontWeight(.medium).foregroundStyle(.white)
-                                .padding(.horizontal, .spacing2).padding(.vertical, 2)
-                                .background(.black.opacity(0.6))
-                                .clipShape(RoundedRectangle(cornerRadius: .radius1))
-                        }
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(model.query)
+                    .font(.omP).fontWeight(.semibold)
+                    .foregroundStyle(Color.grey100).lineLimit(3)
+                Text("\(AppStrings.via) \(model.provider)")
+                    .font(.omSmall).foregroundStyle(Color.grey70).lineLimit(1)
+                if model.status == .finished {
+                    if EmbedFieldReader.int(model.embed.rawData ?? [:], keys: ["result_count"]) == 0 {
+                        Text(AppStrings.localized("embeds.search_no_results"))
+                            .font(.omXs).foregroundStyle(Color.grey60)
+                    } else if model.previewResultCount == 0, model.childEmbeds.isEmpty {
+                        Text(AppStrings.localized("embeds.search_preview_open_to_view_results"))
+                            .font(.omXs).foregroundStyle(Color.grey60)
+                    } else {
+                        SearchResultSourceSummary(
+                            favicons: channelThumbnails,
+                            totalCount: model.previewResultCount
+                        )
+                        .padding(.top, .spacing1)
                     }
-                    .padding(.spacing3)
-                    .background(.linearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+                } else if model.status == .error {
+                    Text(AppStrings.searchFailed)
+                        .font(.omXs).foregroundStyle(Color.error)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .accessibilityIdentifier("videos-search-preview-details")
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                // In-app video player for direct URLs
-                if let url, let videoURL = URL(string: url) {
-                    VideoPlayerView(url: videoURL)
-                        .frame(minHeight: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                } else if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
-                    CachedRemoteImage(url: imgURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
-                    } placeholder: { ProgressView() }
-                    .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            SearchResultsGrid(
+                status: model.status,
+                query: model.query,
+                results: model.childEmbeds,
+                emptyText: AppStrings.searchNoResults(for: model.query),
+                webLayout: true
+            ) { child in
+                EmbedPreviewCard(embed: child, variant: .compact) {
+                    onOpenEmbed(child)
                 }
-
-                Text(title).font(.omP).fontWeight(.medium).foregroundStyle(Color.fontPrimary)
-
-                if let channel {
-                    Text(channel).font(.omSmall).foregroundStyle(Color.fontSecondary)
-                }
-                if let duration {
-                    Label { Text(duration).font(.omSmall) } icon: { Icon("time", size: 14) }
-                        .foregroundStyle(Color.fontTertiary)
-                }
-                if let url, let videoURL = URL(string: url) {
-                    Link(AppStrings.openInBrowser, destination: videoURL)
-                        .font(.omSmall).foregroundStyle(Color.buttonPrimary)
-                }
+                .frame(width: 300)
+                .accessibilityIdentifier("videos-search-result-\(child.id)")
+                .accessibilityValue(EmbedFieldReader.string(child.rawData ?? [:], keys: ["title"]) ?? "")
             }
+            .accessibilityIdentifier("videos-search-fullscreen-results")
         }
     }
 }
+
+struct VideoRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+    @State private var isPlayingYouTube = false
+    @State private var thumbnailFailed = false
+
+    private var title: String { data?["title"]?.value as? String ?? (youtubeID == nil ? "Video" : "YouTube Video") }
+    private var rawThumbnailURL: String? {
+        EmbedFieldReader.string(data ?? [:], keys: ["thumbnail_url", "thumbnail", "preview_image_url", "thumbnail_original", "image_url"])
+            ?? youtubeID.map { "https://img.youtube.com/vi/\($0)/hqdefault.jpg" }
+    }
+    private var thumbnailUrl: String? {
+        thumbnailFailed ? nil : EmbedFieldReader.proxiedImageURL(rawThumbnailURL, maxWidth: 640)
+    }
+    private var fullscreenThumbnailURL: String? {
+        thumbnailFailed ? nil : EmbedFieldReader.proxiedImageURL(rawThumbnailURL, maxWidth: 1560)
+    }
+    private var channel: String? { EmbedFieldReader.string(data ?? [:], keys: ["channel", "channel_name"]) }
+    private var url: String? { data?["url"]?.value as? String }
+    private var description: String? { EmbedFieldReader.string(data ?? [:], keys: ["description"]) }
+    private var viewCount: Int? { EmbedFieldReader.int(data ?? [:], keys: ["view_count"]) }
+    private var likeCount: Int? { EmbedFieldReader.int(data ?? [:], keys: ["like_count"]) }
+    private var publishedAt: String? { EmbedFieldReader.string(data ?? [:], keys: ["published_at"]) }
+    private var channelThumbnailURL: URL? {
+        EmbedFieldReader.proxiedImageURL(
+            EmbedFieldReader.string(data ?? [:], keys: ["channel_thumbnail"]), maxWidth: 64
+        ).flatMap(URL.init(string:))
+    }
+    private var youtubeID: String? {
+        guard let url, let id = YouTubeVideoURL.videoID(from: url) else { return nil }
+        return id
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            Group {
+                if let thumbnailUrl, let imgURL = URL(string: thumbnailUrl) {
+                    CachedRemoteImage(url: imgURL, onFailure: { thumbnailFailed = true }) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: { Color.grey20 }
+                } else if let url, let parsedURL = URL(string: url) {
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        Text(parsedURL.host ?? url)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.grey70)
+                        let path = parsedURL.path + (parsedURL.query.map { "?\($0)" } ?? "")
+                        if path != "/", !path.isEmpty {
+                            Text(path)
+                                .font(.omXxs)
+                                .foregroundStyle(Color.grey60)
+                                .lineLimit(2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing3)
+                } else {
+                    Color.grey20
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+            .accessibilityIdentifier(youtubeID == nil ? "video-preview" : "youtube-video-preview")
+            .task(id: rawThumbnailURL) { thumbnailFailed = false }
+
+        case .fullscreen:
+            VStack(spacing: .spacing8) {
+                if let youtubeID {
+                    if isPlayingYouTube {
+                        YouTubeEmbedPlayer(videoID: youtubeID)
+                            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                            .frame(maxWidth: 780)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                            .accessibilityIdentifier("youtube-video-player")
+                    } else {
+                        Button { isPlayingYouTube = true } label: {
+                            ZStack {
+                                if let fullscreenThumbnailURL, let imageURL = URL(string: fullscreenThumbnailURL) {
+                                    CachedRemoteImage(url: imageURL, onFailure: { thumbnailFailed = true }) { image in
+                                        image.resizable().aspectRatio(contentMode: .fill)
+                                    } placeholder: { Color.grey20 }
+                                } else {
+                                    Color.grey20
+                                }
+                                Circle().fill(Color.black.opacity(0.7))
+                                    .frame(width: 80, height: 80)
+                                Icon("play", size: 48).foregroundStyle(Color.white)
+                            }
+                            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                            .frame(maxWidth: 780)
+                            .clipped()
+                        }
+                        .buttonStyle(.plain)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                        .shadow(color: .black.opacity(0.16), radius: 8, y: 4)
+                        .accessibilityLabel(AppStrings.play)
+                        .accessibilityIdentifier("youtube-video-play")
+                    }
+                } else if let url, let videoURL = URL(string: url) {
+                    // AVPlayer is for direct media URLs, not YouTube watch pages.
+                    VideoPlayerView(url: videoURL)
+                        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                        .frame(maxWidth: 780)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                } else if let fullscreenThumbnailURL, let imgURL = URL(string: fullscreenThumbnailURL) {
+                    CachedRemoteImage(url: imgURL, onFailure: { thumbnailFailed = true }) { image in
+                        image.resizable().aspectRatio(contentMode: .fit)
+                    } placeholder: { ProgressView() }
+                    .frame(maxWidth: 780)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                }
+
+                if !isPlayingYouTube {
+                    if (viewCount ?? 0) > 0 || (likeCount ?? 0) > 0 {
+                        HStack(spacing: .spacing4) {
+                            if let viewCount, viewCount > 0 {
+                                Icon("visible", size: 16)
+                                Text(LocalizationManager.shared.text("embeds.video_views", replacements: ["count": Self.compactCount(viewCount)]))
+                            }
+                            if (viewCount ?? 0) > 0 && (likeCount ?? 0) > 0 {
+                                Text("•").foregroundStyle(Color.grey40)
+                            }
+                            if let likeCount, likeCount > 0 {
+                                Icon("thumbsup", size: 16)
+                                Text(LocalizationManager.shared.text("embeds.video_likes", replacements: ["count": Self.compactCount(likeCount)]))
+                            }
+                        }
+                        .font(.omXs)
+                        .foregroundStyle(Color.grey60)
+                        .frame(maxWidth: 780)
+                        .padding(.top, .spacing8)
+                    }
+                    HStack(spacing: .spacing6) {
+                        if let channelThumbnailURL {
+                            CachedRemoteImage(url: channelThumbnailURL) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: { Color.grey20 }
+                            .frame(width: 29, height: 29)
+                            .clipShape(Circle())
+                        }
+                        Text(title)
+                            .font(.omH3)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxWidth: 780)
+
+                    if channel != nil || publishedAt != nil {
+                        Text(videoMetadataLabel)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.grey60)
+                            .frame(maxWidth: 780)
+                    }
+                    if let description {
+                        Text(description)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.grey70)
+                            .lineLimit(4)
+                            .frame(maxWidth: 780, alignment: .leading)
+                            .padding(.horizontal, .spacing5)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            // The web video fullscreen is edge to edge; the shared Apple
+            // fullscreen shell adds a 12pt content inset for other embeds.
+            .padding(.horizontal, -.spacing8)
+            .padding(.top, .spacing8)
+            .onChange(of: youtubeID) { _, _ in isPlayingYouTube = false }
+            .task(id: rawThumbnailURL) { thumbnailFailed = false }
+        }
+    }
+
+    private var videoMetadataLabel: String {
+        var parts: [String] = []
+        if let channel { parts.append("\(AppStrings.localized("embeds.video_by")) \(channel)") }
+        if let publishedAt, let label = Self.relativeDate(publishedAt) {
+            parts.append("\(label) \(AppStrings.localized("embeds.video_uploaded"))")
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    private static func compactCount(_ count: Int) -> String {
+        if count >= 1_000_000_000 { return String(format: "%.1fB", Double(count) / 1_000_000_000) }
+        if count >= 1_000_000 { return String(format: "%.1fM", Double(count) / 1_000_000) }
+        if count >= 1_000 { return String(format: "%.1fK", Double(count) / 1_000) }
+        return String(count)
+    }
+
+    private static func relativeDate(_ raw: String) -> String? {
+        guard let date = try? Date(raw, strategy: .iso8601) else { return nil }
+        let days = max(0, Int(Date().timeIntervalSince(date) / 86_400))
+        if days == 0 { return AppStrings.localized("common.today") }
+        if days == 1 { return AppStrings.localized("common.yesterday") }
+        let key: String
+        let count: Int
+        if days < 7 { key = "embeds.date_days_ago"; count = days }
+        else if days < 30 { key = "embeds.date_weeks_ago"; count = days / 7 }
+        else if days < 365 { key = "embeds.date_months_ago"; count = days / 30 }
+        else { key = "embeds.date_years_ago"; count = days / 365 }
+        return LocalizationManager.shared.text(key, replacements: ["count": String(count)])
+    }
+}
+
+enum YouTubeVideoURL {
+    static func videoID(from rawURL: String) -> String? {
+        guard let url = URLComponents(string: rawURL),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              let host = url.host?.lowercased() else { return nil }
+        let id: String?
+        if host == "youtu.be" {
+            id = url.path.split(separator: "/").first.map(String.init)
+        } else if ["youtube.com", "www.youtube.com", "m.youtube.com"].contains(host) {
+            let parts = url.path.split(separator: "/")
+            if parts.count == 1, parts[0] == "watch" {
+                id = url.queryItems?.first(where: { $0.name == "v" })?.value
+            } else if parts.count == 2, ["embed", "shorts", "v"].contains(String(parts[0])) {
+                id = String(parts[1])
+            } else {
+                id = nil
+            }
+        } else {
+            id = nil
+        }
+        guard let id, id.count == 11,
+              id.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-").contains($0) }) else {
+            return nil
+        }
+        return id
+    }
+
+    static func privacyEmbedURL(videoID: String) -> URL? {
+        guard videoID.count == 11,
+              videoID.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-").contains($0) }) else { return nil }
+        return URL(string: "https://www.youtube-nocookie.com/embed/\(videoID)?modestbranding=1&rel=0&iv_load_policy=3&fs=1&autoplay=1&enablejsapi=0")
+    }
+}
+
+#if os(iOS)
+private struct YouTubeEmbedPlayer: UIViewRepresentable {
+    let videoID: String
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        config.allowsInlineMediaPlayback = true
+        let view = WKWebView(frame: .zero, configuration: config)
+        view.navigationDelegate = context.coordinator
+        if let url = YouTubeVideoURL.privacyEmbedURL(videoID: videoID) { view.load(URLRequest(url: url)) }
+        return view
+    }
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func makeCoordinator() -> NavigationGuard { NavigationGuard() }
+    final class NavigationGuard: NSObject, WKNavigationDelegate {
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
+            let host = action.request.url?.host?.lowercased()
+            return host == "www.youtube-nocookie.com" || host == "youtube-nocookie.com" ? .allow : .cancel
+        }
+    }
+}
+#elseif os(macOS)
+private struct YouTubeEmbedPlayer: NSViewRepresentable {
+    let videoID: String
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        let view = WKWebView(frame: .zero, configuration: config)
+        view.navigationDelegate = context.coordinator
+        if let url = YouTubeVideoURL.privacyEmbedURL(videoID: videoID) { view.load(URLRequest(url: url)) }
+        return view
+    }
+    func updateNSView(_ webView: WKWebView, context: Context) {}
+    func makeCoordinator() -> NavigationGuard { NavigationGuard() }
+    final class NavigationGuard: NSObject, WKNavigationDelegate {
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
+            let host = action.request.url?.host?.lowercased()
+            return host == "www.youtube-nocookie.com" || host == "youtube-nocookie.com" ? .allow : .cancel
+        }
+    }
+}
+#endif
 
 // MARK: - Generated music
 
@@ -729,29 +1411,36 @@ struct MusicGenerateEmbedRenderer: View {
             .accessibilityIdentifier("music-generate-preview")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing8) {
+            VStack(alignment: .leading, spacing: 18) {
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: .spacing10) { musicCover(size: 180); musicPlayer }
-                    VStack(spacing: .spacing8) { musicCover(size: 180); musicPlayer }
+                    HStack(spacing: 22) { musicCover(size: 220); musicPlayer }
+                        .frame(minWidth: 640)
+                    VStack(spacing: 14) { musicCover(size: 220); musicPlayer }
+                        .frame(maxWidth: .infinity)
                 }
-                .padding(.spacing10)
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.grey0)
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
                 .shadow(color: .black.opacity(0.12), radius: 15, x: 0, y: 8)
 
-                VStack(alignment: .leading, spacing: .spacing6) {
+                VStack(alignment: .leading, spacing: 14) {
                     if let prompt = payload.prompt { detail(GeneratedMediaText.prompt, prompt) }
-                    detail(GeneratedMediaText.model, payload.model ?? "Lyria")
+                    detail(GeneratedMediaText.model, payload.modelDisplayName ?? "Lyria")
                     if let duration = payload.duration { detail(GeneratedMediaText.duration, Self.duration(duration)) }
-                    if let generatedAt = payload.generatedAt { detail(GeneratedMediaText.generated, generatedAt) }
+                    if let generatedAt = payload.generatedAt { detail(GeneratedMediaText.generated, Self.localizedTimestamp(generatedAt)) }
                     if let watermarking = payload.watermarking { detail(GeneratedMediaText.watermarking, watermarking) }
                 }
-                .padding(.spacing10)
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color.grey0)
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
                 .shadow(color: .black.opacity(0.12), radius: 15, x: 0, y: 8)
             }
-            .padding(.spacing10)
+            // EmbedFullscreenContainer contributes 16pt horizontal and 20pt
+            // vertical gutters; the web component's own outer gutter is 22pt.
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
             .frame(maxWidth: 980, alignment: .leading)
             .accessibilityIdentifier("music-generate-fullscreen")
         }
@@ -776,21 +1465,22 @@ struct MusicGenerateEmbedRenderer: View {
             } else if payload.status == "finished" {
                 GeneratedAudioControl(payload: payload, compact: false)
             } else {
-                HStack(spacing: .spacing3) {
-                    ProgressView().tint(Color.buttonPrimary)
-                    Text(GeneratedMediaText.loadingAudio).font(.omSmall).foregroundStyle(Color.fontSecondary)
-                }
+                Text(GeneratedMediaText.loadingAudio).font(.omSmall).foregroundStyle(Color.fontSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func musicCover(size: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: .radius6)
+        RoundedRectangle(cornerRadius: size > 100 ? .radius8 : .radius6)
             .fill(LinearGradient.appMusic)
             .frame(width: size, height: size)
-            .overlay(Icon("music", size: size > 100 ? 72 : 34).foregroundStyle(Color.grey0))
-            .shadow(color: .black.opacity(0.18), radius: 11, x: 0, y: 8)
+            .overlay {
+                Text("♪")
+                    .font(.system(size: size > 100 ? 48 : 32, weight: .bold))
+                    .foregroundStyle(Color.grey0)
+            }
+            .shadow(color: .black.opacity(size > 100 ? 0 : 0.18), radius: 11, x: 0, y: 8)
     }
 
     private func detail(_ label: String, _ value: String) -> some View {
@@ -802,6 +1492,19 @@ struct MusicGenerateEmbedRenderer: View {
 
     fileprivate static func duration(_ seconds: Double) -> String {
         "\(Int(seconds) / 60):\(String(format: "%02d", Int(seconds) % 60))"
+    }
+
+    private static func localizedTimestamp(_ raw: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        let date = formatter.date(from: raw) ?? {
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: raw)
+        }()
+        guard let date else { return raw }
+        let display = DateFormatter()
+        display.locale = .current
+        display.dateFormat = "M/d/yyyy, h:mm:ss a"
+        return display.string(from: date)
     }
 }
 
@@ -819,8 +1522,16 @@ struct VideoGenerateEmbedRenderer: View {
             Group {
                 if payload.status == "finished" {
                     GeneratedVideoPlayer(payload: payload)
+                } else if payload.status == "error" {
+                    Text(payload.error ?? GeneratedMediaText.videoError)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.error)
+                        .multilineTextAlignment(.center)
                 } else {
-                    statusPlaceholder
+                    Text(payload.prompt ?? GeneratedMediaText.generatingVideo)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .multilineTextAlignment(.center)
                 }
             }
             .padding(.spacing6)
@@ -828,53 +1539,41 @@ struct VideoGenerateEmbedRenderer: View {
             .accessibilityIdentifier("video-generate-preview")
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing8) {
-                Group {
-                    if payload.status == "finished" {
-                        GeneratedVideoPlayer(payload: payload)
-                    } else {
-                        statusPlaceholder
-                    }
+            VStack(alignment: .leading, spacing: 16) {
+                if payload.mediaURL != nil {
+                    GeneratedVideoPlayer(payload: payload)
+                        .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                        .background(Color.grey100)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                } else if let error = payload.error {
+                    Text(error)
+                        .font(.omP)
+                        .padding(.top, 16)
+                } else {
+                    Text("Loading video...")
+                        .font(.omP)
+                        .fontWeight(.semibold)
+                        .padding(.top, 16)
                 }
-                .frame(minHeight: 240)
-                .background(Color.grey100)
-                .clipShape(RoundedRectangle(cornerRadius: .radius7))
 
-                VStack(alignment: .leading, spacing: .spacing6) {
-                    if let prompt = payload.prompt { detail(GeneratedMediaText.prompt, prompt) }
-                    HStack(alignment: .top, spacing: .spacing10) {
-                        if let model = payload.model { detail(GeneratedMediaText.model, model) }
-                        if let resolution = payload.resolution { detail(GeneratedMediaText.resolution, resolution) }
-                        if let duration = payload.duration { detail(GeneratedMediaText.duration, MusicGenerateEmbedRenderer.duration(duration)) }
+                if payload.prompt != nil || payload.model != nil || payload.resolution != nil {
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                        if let prompt = payload.prompt { detailRow(GeneratedMediaText.prompt, prompt) }
+                        if let model = payload.model { detailRow(GeneratedMediaText.model, model) }
+                        if let resolution = payload.resolution { detailRow(GeneratedMediaText.resolution, resolution) }
                     }
                 }
-                .padding(.spacing8)
-                .background(Color.grey0)
-                .clipShape(RoundedRectangle(cornerRadius: .radius7))
             }
-            .padding(.spacing12)
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("video-generate-fullscreen")
         }
     }
 
-    private var statusPlaceholder: some View {
-        VStack(spacing: .spacing4) {
-            Icon("videos", size: 34)
-                .foregroundStyle(payload.status == "error" ? Color.error : Color.fontTertiary)
-            Text(payload.status == "error" ? payload.error ?? GeneratedMediaText.videoError : payload.prompt ?? GeneratedMediaText.generatingVideo)
-                .font(.omSmall).fontWeight(.medium)
-                .foregroundStyle(payload.status == "error" ? Color.error : Color.fontPrimary)
-                .multilineTextAlignment(.center).lineLimit(3)
-            if payload.status != "error" { ProgressView().tint(Color.buttonPrimary) }
-        }
-        .padding(.spacing8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func detail(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text(label).font(.omXs).fontWeight(.bold).foregroundStyle(Color.fontSecondary)
+    private func detailRow(_ label: String, _ value: String) -> some View {
+        GridRow {
+            Text(label).font(.omP).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
             Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
         }
     }
@@ -1010,6 +1709,11 @@ private struct GeneratedMediaPayload {
     let aesNonce: String?
     let encryption: String?
 
+    private static let modelNames: [String: String] = {
+        guard let catalog = try? NativeModelCatalog.load(bundle: .main) else { return [:] }
+        return Dictionary(uniqueKeysWithValues: catalog.models.map { ($0.id, $0.name) })
+    }()
+
     init(_ data: [String: AnyCodable]?) {
         prompt = EmbedMediaPayload.string(data, keys: ["prompt"])
         model = EmbedMediaPayload.string(data, keys: ["model"])
@@ -1032,6 +1736,8 @@ private struct GeneratedMediaPayload {
         guard let mode, !mode.isEmpty else { return nil }
         return mode.replacingOccurrences(of: "_", with: " ").capitalized
     }
+
+    var modelDisplayName: String? { model.map { Self.modelNames[$0] ?? $0 } }
 
     private static func number(_ value: Any?) -> Double? {
         if let value = value as? Double { return value }
@@ -1057,7 +1763,7 @@ private enum GeneratedMediaText {
     static var generated: String { LocalizationManager.shared.text("embeds.music_generate.generated_at") }
     static var watermarking: String { LocalizationManager.shared.text("embeds.music_generate.watermarking") }
     static var resolution: String { LocalizationManager.shared.text("embeds.image_generate.resolution") }
-    static var generatingVideo: String { LocalizationManager.shared.text("app_skills.videos.generate") }
+    static var generatingVideo: String { "Generating video..." }
     static var videoError: String { AppStrings.error }
     static var generatedMusic: String { LocalizationManager.shared.text("app_skills.music.generate") }
 }
@@ -1067,6 +1773,11 @@ private enum GeneratedMediaText {
 struct RecordingRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+
+    private static let modelNames: [String: String] = {
+        guard let catalog = try? NativeModelCatalog.load(bundle: .main) else { return [:] }
+        return Dictionary(uniqueKeysWithValues: catalog.models.map { ($0.id, $0.name) })
+    }()
 
     private var status: String { EmbedMediaPayload.string(data, keys: ["status"]) ?? "finished" }
     private var duration: Double? { Self.normalizedDuration(data) }
@@ -1111,7 +1822,8 @@ struct RecordingRenderer: View {
                 recordingPreview
             case .fullscreen:
                 recordingContent(compact: false)
-                    .padding(.spacing12)
+                    .padding(.horizontal, .spacing16)
+                    .padding(.top, .spacing12)
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("recording-fullscreen")
             }
@@ -1129,9 +1841,9 @@ struct RecordingRenderer: View {
                 }
 
                 if let activeTranscript, !activeTranscript.isEmpty {
-                    Text(activeTranscript)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontPrimary)
+                    Text(Self.transcriptPreview(activeTranscript))
+                        .font(.omXxs)
+                        .foregroundStyle(Color.grey70)
                         .lineLimit(4)
                         .textSelection(.disabled)
                         .accessibilityIdentifier("recording-transcript")
@@ -1155,7 +1867,7 @@ struct RecordingRenderer: View {
                 subtitle: Self.formatDuration(effectiveDuration),
                 faviconURL: nil,
                 showSkillIcon: false,
-                trailingAction: AnyView(recordingPreviewPlayButton)
+                trailingAction: hasPlayableMetadata ? AnyView(recordingPreviewPlayButton) : nil
             )
             .accessibilityIdentifier("recording-preview-info-bar")
         }
@@ -1195,26 +1907,14 @@ struct RecordingRenderer: View {
 
     private func recordingContent(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: compact ? .spacing4 : .spacing8) {
-            HStack(alignment: .center, spacing: .spacing4) {
-                AppIconView(appId: "audio", size: compact ? 32 : 48)
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(AppStrings.localized("app_skills.audio.transcribe.audio_recording"))
-                        .font(compact ? .omSmall : .omP)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontPrimary)
-                    Text(statusLabel)
-                        .font(.omXs)
-                        .foregroundStyle(isError ? Color.error : Color.fontSecondary)
-                }
-                Spacer(minLength: 0)
-            }
-
             if isProcessing {
                 processingState
             } else if isError {
                 errorState(message: rawError ?? AppStrings.localized("common.upload_failed"))
             } else {
-                playbackControls(compact: compact)
+                if hasPlayableMetadata {
+                    playbackControls(compact: compact)
+                }
                 transcriptContent(compact: compact)
             }
 
@@ -1320,15 +2020,6 @@ struct RecordingRenderer: View {
             .accessibilityIdentifier("recording-correction-state")
         }
 
-        if let model {
-            Text(AppStrings.localized("app_skills.audio.transcribe.transcribed_by")
-                .replacingOccurrences(of: "{model}", with: model))
-                .font(.omMicro)
-                .fontWeight(.medium)
-                .foregroundStyle(Color.fontSecondary)
-                .accessibilityIdentifier("recording-model")
-        }
-
         if let activeTranscript, !activeTranscript.isEmpty {
             let transcript = Text(activeTranscript)
                 .font(compact ? .omXs : .omP)
@@ -1350,6 +2041,18 @@ struct RecordingRenderer: View {
                 .italic()
                 .accessibilityIdentifier(compact ? "recording-transcript" : "recording-fullscreen-transcript")
         }
+        if let model {
+            Text("Transcribed via \(Self.modelNames[model] ?? model)")
+                .font(.omTiny)
+                .italic()
+                .foregroundStyle(Color.grey50)
+                .padding(.top, .spacing3)
+                .accessibilityIdentifier("recording-model")
+        }
+    }
+
+    private static func transcriptPreview(_ transcript: String) -> String {
+        transcript.count > 120 ? String(transcript.prefix(119)) + "…" : transcript
     }
 
     private var hasPlayableMetadata: Bool {
@@ -1520,6 +2223,17 @@ struct PDFRenderer: View {
     private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
     private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
     private var encryption: String? { EmbedMediaPayload.encryption(from: data) }
+    private var screenshotKeys: [(page: Int, key: String)] {
+        let raw = data?["screenshot_s3_keys"]?.value
+        let values = (raw as? [String: String])
+            ?? (raw as? [String: Any])?.compactMapValues { $0 as? String }
+            ?? (raw as? [String: AnyCodable])?.compactMapValues { $0.value as? String }
+            ?? [:]
+        return values.compactMap { page, key in
+            guard let number = Int(page), number > 0, !key.isEmpty else { return nil }
+            return (page: number, key: key)
+        }.sorted { $0.page < $1.page }
+    }
 
     @State private var pdfData: Data?
     @State private var isLoading = false
@@ -1528,39 +2242,44 @@ struct PDFRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(spacing: .spacing3) {
-                Icon("pdf", size: 32)
-                    .foregroundStyle(Color(hex: 0xE84545))
-                if let filename {
-                    Text(filename).font(.omXs).foregroundStyle(Color.fontPrimary).lineLimit(1)
-                }
-                if let pageCount {
-                    Text("\(pageCount) pages").font(.omTiny).foregroundStyle(Color.fontTertiary)
+            Group {
+                if let firstPage = screenshotKeys.first, aesKey != nil {
+                    EncryptedImageView(
+                        s3Url: s3Url ?? "", s3Key: firstPage.key, aesKey: aesKey,
+                        aesNonce: aesNonce, encryption: encryption, contentMode: .fill
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                } else {
+                    pdfIcon(size: 52, glyphSize: 26)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .padding(.spacing4)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
         case .fullscreen:
-            VStack(alignment: .leading, spacing: .spacing4) {
-                HStack {
-                    if let filename {
-                        Label(filename, systemImage: "doc.richtext")
-                            .font(.omP).foregroundStyle(Color.fontPrimary)
+            Group {
+                if !screenshotKeys.isEmpty, aesKey != nil {
+                    ScrollView {
+                        LazyVStack(spacing: .spacing12) {
+                            ForEach(screenshotKeys.indices, id: \.self) { index in
+                                let page = screenshotKeys[index]
+                                EncryptedImageView(
+                                    s3Url: s3Url ?? "", s3Key: page.key, aesKey: aesKey,
+                                    aesNonce: aesNonce, encryption: encryption, contentMode: .fit
+                                )
+                                .aspectRatio(1 / 1.414, contentMode: .fit)
+                                .background(Color.grey10)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                                .shadow(color: .black.opacity(0.12), radius: 12, y: 2)
+                                .accessibilityIdentifier("pdf-page-image")
+                            }
+                        }
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing12)
                     }
-                    Spacer()
-                    if let pageCount {
-                        Text("\(pageCount) pages").font(.omSmall).foregroundStyle(Color.fontTertiary)
-                    }
-                }
-
-                if isLoading {
-                    ProgressView(AppStrings.decryptingPDF)
-                } else if let loadError {
-                    Text(loadError).font(.omSmall).foregroundStyle(Color.error)
-                } else if pdfData != nil {
+                } else if let pdfData {
                     #if os(iOS)
-                    PDFKitView(data: pdfData!)
+                    PDFKitView(data: pdfData)
                         .frame(minHeight: 500)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                     #else
@@ -1568,11 +2287,45 @@ struct PDFRenderer: View {
                         .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     #endif
                 } else {
-                    Button(AppStrings.loadPDF) { loadPDF() }
-                        .buttonStyle(OMPrimaryButtonStyle())
+                    VStack(spacing: .spacing8) {
+                        pdfIcon(size: 80, glyphSize: 40)
+                            .padding(.bottom, .spacing4)
+                        Text(filename ?? "document.pdf")
+                            .font(.omH3)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.fontPrimary)
+                            .multilineTextAlignment(.center)
+                        if let pageCount, pageCount > 0 {
+                            Text(pageCount == 1 ? "1 page" : "\(pageCount) pages")
+                                .font(.omSmall)
+                                .foregroundStyle(Color.grey60)
+                        }
+                        Text(loadError ?? "Ask the AI to read, search, or view pages of this PDF.")
+                            .font(.omSmall)
+                            .foregroundStyle(loadError == nil ? Color.grey50 : Color.error)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(3)
+                            .padding(.top, .spacing4)
+                        if s3Url != nil {
+                            Button(isLoading ? AppStrings.decryptingPDF : AppStrings.loadPDF) { loadPDF() }
+                                .buttonStyle(OMPrimaryButtonStyle())
+                                .disabled(isLoading)
+                        }
+                    }
+                    .padding(.horizontal, .spacing12)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 600)
                 }
             }
+            .frame(maxWidth: .infinity)
         }
+    }
+
+    private func pdfIcon(size: CGFloat, glyphSize: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: size >= 80 ? .radius8 : .radius6)
+            .fill(AppIconView.gradient(forAppId: "pdf"))
+            .frame(width: size, height: size)
+            .overlay { Icon("pdf", size: glyphSize).foregroundStyle(Color.grey0) }
     }
 
     private func loadPDF() {
@@ -1927,7 +2680,7 @@ struct TranscriptRenderer: View {
                         .foregroundStyle(Color.fontSecondary)
                         .accessibilityIdentifier("video-transcript-fullscreen-empty")
                 } else {
-                    Text(payload.transcript)
+                    SourceQuoteTextDocument(text: payload.transcript, locationPrefix: "video-transcript-paragraph")
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                         .textSelection(.enabled)

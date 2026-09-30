@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import plistlib
 import sys
 from pathlib import Path
@@ -103,6 +104,8 @@ def test_commands_pin_one_build_and_do_not_delete_simulators(tmp_path: Path) -> 
     assert all_text.count("CURRENT_PROJECT_VERSION=74") == 2
     assert "OpenMates_iOS" in ios
     assert "OpenMates_macOS" in macos
+    assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in ios
+    assert "ENABLE_USER_SCRIPT_SANDBOXING=NO" in macos
     assert "ARCHS=arm64 x86_64" in macos
     assert macos[macos.index("-jobs") + 1] == "1"
     assert "simctl" not in all_text
@@ -206,6 +209,10 @@ def test_macos_stamping_signs_extension_before_parent_app(tmp_path: Path, monkey
     assert "aps-environment" not in app_entitlements
     assert app_entitlements["keychain-access-groups"] == ["TEAMID.org.openmates.app"] * 2
     assert "$(OPENMATES_DEV_WEBCREDENTIALS)" not in app_entitlements["com.apple.developer.associated-domains"]
+    assert "webcredentials:app.dev.openmates.org" in app_entitlements["com.apple.developer.associated-domains"]
+    assert {"applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org"}.issubset(
+        app_entitlements["com.apple.developer.associated-domains"]
+    )
     assert share_entitlements["keychain-access-groups"] == [
         "TEAMID.org.openmates.app.sharemacos", "TEAMID.org.openmates.app"
     ]
@@ -217,7 +224,14 @@ def test_macos_archive_rejects_missing_or_unresolved_apns_entitlement(tmp_path: 
 
     def signed_entitlements(bundle: Path) -> dict:
         if bundle.name == "OpenMates.app":
-            return {"com.apple.security.app-sandbox": True, "com.apple.developer.aps-environment": environment}
+            return {
+                "com.apple.security.app-sandbox": True,
+                "com.apple.developer.aps-environment": environment,
+                "com.apple.developer.associated-domains": [
+                    "webcredentials:app.dev.openmates.org",
+                    "applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org",
+                ],
+            }
         return {"com.apple.security.app-sandbox": True}
 
     monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
@@ -226,6 +240,87 @@ def test_macos_archive_rejects_missing_or_unresolved_apns_entitlement(tmp_path: 
             release.validate_release_entitlements(archive, "macos")
     environment = "production"
     release.validate_release_entitlements(archive, "macos")
+
+
+def test_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path, monkeypatch) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+
+    def signed_entitlements(bundle: Path) -> dict:
+        if bundle.name == "OpenMates.app":
+            return {
+                "com.apple.security.app-sandbox": True,
+                "com.apple.developer.aps-environment": "production",
+                "com.apple.developer.associated-domains": ["webcredentials:openmates.org"],
+            }
+        return {"com.apple.security.app-sandbox": True}
+
+    monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
+    with pytest.raises(release.ReleaseError, match="dev passkey associated domain"):
+        release.validate_release_entitlements(archive, "macos")
+
+
+def test_resumed_macos_archive_rejects_missing_dev_passkey_domain(tmp_path: Path, monkeypatch) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, "macos")
+    identity = {"tree_sha256": "unchanged"}
+    monkeypatch.setattr(release, "validate_archive", lambda *args: identity)
+
+    def signed_entitlements(bundle: Path) -> dict:
+        if bundle.name == "OpenMates.app":
+            return {
+                "com.apple.security.app-sandbox": True,
+                "com.apple.developer.aps-environment": "production",
+                "com.apple.developer.associated-domains": ["webcredentials:openmates.org"],
+            }
+        return {"com.apple.security.app-sandbox": True}
+
+    monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
+    with pytest.raises(release.ReleaseError, match="dev passkey associated domain"):
+        release.validate_resumed_archive(
+            archive, "macos", "0.23.0", 84, {"archive_identity": identity},
+        )
+
+
+@pytest.mark.parametrize("platform", ["ios", "macos"])
+def test_archive_rejects_missing_shared_link_domains(tmp_path: Path, monkeypatch, platform: str) -> None:
+    release = load_module()
+    archive = make_archive(tmp_path, platform)
+    associated = ["webcredentials:openmates.org", "webcredentials:app.dev.openmates.org"]
+
+    def signed_entitlements(bundle: Path) -> dict:
+        if bundle.name == "OpenMates.app":
+            return {
+                "com.apple.security.app-sandbox": True,
+                "com.apple.developer.aps-environment": "production",
+                "com.apple.security.application-groups": ["group.org.openmates.app.shared"],
+                "com.apple.developer.associated-domains": associated,
+            }
+        return {"com.apple.security.app-sandbox": True}
+
+    monkeypatch.setattr(release, "signed_entitlements", signed_entitlements)
+    with pytest.raises(release.ReleaseError, match="shared-link associated domains"):
+        release.validate_release_entitlements(archive, platform)
+    associated.extend(["applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org"])
+    release.validate_release_entitlements(archive, platform)
+
+
+def test_universal_links_claim_only_short_shares_and_workflow_recipients() -> None:
+    root = SCRIPT.parent.parent
+    association = json.loads((root / "frontend/apps/web_app/static/.well-known/apple-app-site-association").read_text())
+    assert association["webcredentials"]["apps"] == ["Z9B2YFKN2X.org.openmates.app"]
+    detail = association["applinks"]["details"][0]
+    assert detail["appIDs"] == ["Z9B2YFKN2X.org.openmates.app"]
+    assert {component["/"] for component in detail["components"]} == {
+        "/s", "/s/*", "/share/workflow-template/*",
+    }
+    for name in ["OpenMatesPasskey.entitlements", "OpenMatesMacOS.entitlements"]:
+        source = root / "apple/OpenMates/Resources" / name
+        with source.open("rb") as handle:
+            entitlements = plistlib.load(handle)
+        assert {"applinks:openmates.org", "applinks:app.openmates.org", "applinks:app.dev.openmates.org"}.issubset(
+            entitlements["com.apple.developer.associated-domains"]
+        )
 
 
 def test_platform_processing_requires_both_platform_records() -> None:

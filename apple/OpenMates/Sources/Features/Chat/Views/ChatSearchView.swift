@@ -4,6 +4,9 @@
 // query/content is sent to the backend, and the derived index stays in memory for
 // this view only. Results carry message IDs so snippet taps can open and scroll
 // to the matching message like the web sidebar search flow.
+// Specification: specifications/features/message-input/specification.yml
+// Assertions: message-input.suggestions.contextual
+// The shared engine also backs typed-message composer suggestions.
 
 import Foundation
 import SwiftUI
@@ -95,12 +98,16 @@ struct ChatSearchView: View {
                 .accessibilityIdentifier("search-input")
 
             Button {
+                isFocused = false
                 query = ""
                 results = .empty
                 onClose()
             } label: {
                 Icon("close", size: 20)
                     .foregroundStyle(Color.fontTertiary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .padding(-12)
             }
             .buttonStyle(.plain)
             .help(Text(AppStrings.close))
@@ -314,20 +321,20 @@ struct ChatSearchView: View {
     }
 }
 
-private struct ChatSearchResults {
+struct ChatSearchResults {
     let groups: [ChatSearchResultGroup]
     let totalCount: Int
 
     static let empty = ChatSearchResults(groups: [], totalCount: 0)
 }
 
-private struct ChatSearchResultGroup: Identifiable {
+struct ChatSearchResultGroup: Identifiable {
     let id: String
     let title: String
     let items: [ChatSearchResult]
 }
 
-private struct ChatSearchResult: Identifiable {
+struct ChatSearchResult: Identifiable {
     let id: String
     let chat: Chat
     let decryptedTitle: String?
@@ -337,7 +344,7 @@ private struct ChatSearchResult: Identifiable {
     let sortDate: Date
 }
 
-private struct ChatSearchSnippet: Identifiable {
+struct ChatSearchSnippet: Identifiable {
     let id: String
     let messageId: String
     let text: String
@@ -345,13 +352,13 @@ private struct ChatSearchSnippet: Identifiable {
     let sortDate: Date
 }
 
-private struct ChatMetadataSnippet: Identifiable {
+struct ChatMetadataSnippet: Identifiable {
     let id: String
     let text: String
     let sourceLabel: String
 }
 
-private enum ChatSearchEngine {
+enum ChatSearchEngine {
     private static let snippetContextCharacters = 50
     private static let maxSnippetsPerChat = 5
     private static let maxSnippetsPerMessage = 2

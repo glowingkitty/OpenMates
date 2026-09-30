@@ -513,6 +513,38 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(offlineStore.loadChat(id: current.id)?.encryptedChatSummary, "current-cipher")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
+    func testSameMetadataRevisionHydratesMatchingSummaryCipherInMemoryAndOffline() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("SummaryHydrationTests", schema: schema, isStoredInMemoryOnly: true)
+        let offline = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offline))
+        store.upsertChat(makeChat(id: "summary-hydration", title: "Synthetic", metadataV: 8,
+                                 encryptedChatSummary: "matching-cipher"))
+        store.upsertChat(makeChat(id: "summary-hydration", title: "Synthetic", metadataV: 8,
+                                 chatSummary: "Hydrated summary", encryptedChatSummary: "matching-cipher"))
+        XCTAssertEqual(store.chat(for: "summary-hydration")?.chatSummary, "Hydrated summary")
+        XCTAssertEqual(offline.loadChat(id: "summary-hydration")?.chatSummary, "Hydrated summary")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence,chats.surface.semantic-parity
+    func testSameMetadataRevisionRejectsSummaryFromDifferentCipher() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("SummaryCipherFenceTests", schema: schema, isStoredInMemoryOnly: true)
+        let offline = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        let store = ChatStore()
+        store.setBridge(OfflineSyncBridge(chatStore: store, offlineStore: offline))
+        store.upsertChat(makeChat(id: "summary-fence", title: "Synthetic", metadataV: 8,
+                                 encryptedChatSummary: "current-cipher"))
+        store.upsertChat(makeChat(id: "summary-fence", title: "Synthetic", metadataV: 8,
+                                 chatSummary: "Wrong revision", encryptedChatSummary: "different-cipher"))
+        XCTAssertNil(store.chat(for: "summary-fence")?.chatSummary)
+        XCTAssertEqual(store.chat(for: "summary-fence")?.encryptedChatSummary, "current-cipher")
+        XCTAssertNil(offline.loadChat(id: "summary-fence")?.chatSummary)
+        XCTAssertEqual(offline.loadChat(id: "summary-fence")?.encryptedChatSummary, "current-cipher")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chat-navigation.open.local-first-coherent
     func testContinuationUsesActualWireDraftPresenceInsteadOfVersion() throws {
         let decoder = JSONDecoder()
@@ -789,6 +821,23 @@ final class ChatSyncParityTests: XCTestCase {
         let ordered = ChatKeyWrapperRecord.orderedMasterWrappers(wrappers, for: "chat-1")
 
         XCTAssertEqual(ordered.map(\.id), ["new", "old"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.sync.key-gated-recovery
+    func testContentBatchAcceptsNumericChatKeyWrapperTimestamp() throws {
+        let fields: [String: Any] = [
+            "messages_by_chat_id": ["chat-1": []],
+            "versions_by_chat_id": ["chat-1": ["messages_v": 1]],
+            "embeds": [], "embed_keys": [],
+            "chat_key_wrappers": [[
+                "id": "wrapper-numeric",
+                "hashed_chat_id": ChatKeyWrapperRecord.hashedChatId(for: "chat-1"),
+                "key_type": "master", "encrypted_chat_key": "wrapped-key",
+                "wrapper_version": 2, "created_at": 1_770_000_000,
+            ]],
+        ]
+        let payload = try ChatContentBatchPayload.decode(fields)
+        XCTAssertEqual(payload.chatKeyWrappers.first?.createdAt, "1770000000")
     }
 
     // contract-test: direct surface=gui.apple assertions=chat-navigation.open.local-first-coherent

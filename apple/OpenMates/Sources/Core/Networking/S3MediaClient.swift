@@ -6,15 +6,34 @@ import Foundation
 import CryptoKit
 import ImageIO
 
+enum S3MediaCachePolicy {
+    case persistent
+    /// Private document pages may only exist in the caller and an in-flight task.
+    /// This path never reads or writes the shared decrypted media disk cache.
+    case memoryOnly
+}
+
 actor S3MediaClient {
     static let shared = S3MediaClient()
     static let noncePrefixedEncryption = "aes-gcm-nonce-prefixed-v1"
 
     private var cache: [String: Data] = [:]
     private var inFlight: [String: Task<Data, Error>] = [:]
-    private let diskCache = MediaDiskCache(directoryName: "s3-media")
+    private let diskCache: MediaDiskCache
+    private let encryptedDataLoader: @Sendable (String, String?) async throws -> Data
 
-    private init() {}
+    private init() {
+        diskCache = MediaDiskCache(directoryName: "s3-media")
+        encryptedDataLoader = Self.downloadFromS3
+    }
+
+    // Isolated test seam: a real encrypted payload exercises the cache policy
+    // without an API request or persistent user media.
+    init(diskCache: MediaDiskCache,
+         encryptedDataLoader: @escaping @Sendable (String, String?) async throws -> Data) {
+        self.diskCache = diskCache
+        self.encryptedDataLoader = encryptedDataLoader
+    }
 
     func fetchAndDecrypt(
         s3Url: String,
@@ -22,25 +41,29 @@ actor S3MediaClient {
         aesNonceHex: String?,
         encryption: String? = nil,
         s3Key: String? = nil,
-        cacheNamespace: String? = nil
+        cacheNamespace: String? = nil,
+        cachePolicy: S3MediaCachePolicy = .persistent
     ) async throws -> Data {
         let cacheKey = Self.cacheKey(s3Url: s3Url, aesKey: aesKeyHex, nonce: aesNonceHex,
                                      encryption: encryption, s3Key: s3Key, namespace: cacheNamespace)
+        let flightKey = (cachePolicy == .memoryOnly ? "memory:" : "persistent:") + cacheKey
 
-        if let cached = cache[cacheKey] {
-            return cached
-        }
-        if let cached = try? diskCache.load(cacheKey: cacheKey) {
-            cache[cacheKey] = cached
-            return cached
+        if cachePolicy == .persistent {
+            if let cached = cache[cacheKey] {
+                return cached
+            }
+            if let cached = try? diskCache.load(cacheKey: cacheKey) {
+                cache[cacheKey] = cached
+                return cached
+            }
         }
 
-        if let existing = inFlight[cacheKey] {
+        if let existing = inFlight[flightKey] {
             return try await existing.value
         }
 
         let task = Task<Data, Error> {
-            let encryptedData = try await Self.downloadFromS3(url: s3Url, s3Key: s3Key)
+            let encryptedData = try await encryptedDataLoader(s3Url, s3Key)
             return try Self.decryptAESGCM(
                 data: encryptedData,
                 encodedKey: aesKeyHex,
@@ -49,15 +72,17 @@ actor S3MediaClient {
             )
         }
 
-        inFlight[cacheKey] = task
+        inFlight[flightKey] = task
         do {
             let decrypted = try await task.value
-            cache[cacheKey] = decrypted
-            try? diskCache.save(decrypted, cacheKey: cacheKey)
-            inFlight.removeValue(forKey: cacheKey)
+            if cachePolicy == .persistent {
+                cache[cacheKey] = decrypted
+                try? diskCache.save(decrypted, cacheKey: cacheKey)
+            }
+            inFlight.removeValue(forKey: flightKey)
             return decrypted
         } catch {
-            inFlight.removeValue(forKey: cacheKey)
+            inFlight.removeValue(forKey: flightKey)
             throw error
         }
     }
@@ -257,47 +282,48 @@ enum EmbedMediaPayload {
 actor RemoteImageCache {
     static let shared = RemoteImageCache()
 
-    private var memoryCache: [String: Data] = [:]
+    private struct CachedPayload { let data: Data; let isRaster: Bool }
+    private var memoryCache: [String: CachedPayload] = [:]
     private var inFlight: [String: Task<Data, Error>] = [:]
     private let diskCache = MediaDiskCache(directoryName: "remote-images")
 
     private init() {}
 
-    func data(for urlString: String) async -> Data? {
-        if let cached = memoryCache[urlString] {
-            // Only decoded/validated bytes enter this process's memory cache.
-            return cached
+    func data(for urlString: String, allowStaticSVG: Bool = false) async -> Data? {
+        if let cached = memoryCache[urlString], cached.isRaster || allowStaticSVG {
+            return cached.data
         }
         if let cached = try? diskCache.load(cacheKey: urlString) {
-            // Earlier builds could persist SVG or an error body as image data.
-            guard Self.isDecodableImageData(cached) else {
+            let isRaster = Self.isDecodableImageData(cached)
+            guard isRaster || (allowStaticSVG && StaticSVGImageSource(data: cached) != nil) else {
                 return nil
             }
-            memoryCache[urlString] = cached
+            memoryCache[urlString] = CachedPayload(data: cached, isRaster: isRaster)
             return cached
         }
         return nil
     }
 
-    func fetch(_ urlString: String) async throws -> Data {
-        if let cached = await data(for: urlString) {
+    func fetch(_ urlString: String, allowStaticSVG: Bool = false) async throws -> Data {
+        if let cached = await data(for: urlString, allowStaticSVG: allowStaticSVG) {
             return cached
         }
-        if let existing = inFlight[urlString] {
+        let requestKey = allowStaticSVG ? "static-svg:\(urlString)" : urlString
+        if let existing = inFlight[requestKey] {
             return try await existing.value
         }
         let task = Task<Data, Error> {
-            try await Self.download(urlString)
+            try await Self.download(urlString, allowStaticSVG: allowStaticSVG)
         }
-        inFlight[urlString] = task
+        inFlight[requestKey] = task
         do {
             let data = try await task.value
-            memoryCache[urlString] = data
+            memoryCache[urlString] = CachedPayload(data: data, isRaster: Self.isDecodableImageData(data))
             try? diskCache.save(data, cacheKey: urlString)
-            inFlight.removeValue(forKey: urlString)
+            inFlight.removeValue(forKey: requestKey)
             return data
         } catch {
-            inFlight.removeValue(forKey: urlString)
+            inFlight.removeValue(forKey: requestKey)
             throw error
         }
     }
@@ -312,15 +338,31 @@ actor RemoteImageCache {
 
     typealias ImageTransport = @Sendable (URL) async throws -> (Data, URLResponse)
 
+    static func request(for url: URL, appWebURL: URL = ServerProfile.current().webBaseURL) -> URLRequest {
+        var request = URLRequest(url: url)
+        // The public preview service validates the web app's Referer. Send only
+        // its origin, and only to that service's image endpoints. Other remote
+        // image hosts must not learn the user's selected app domain or path.
+        let imageEndpoints = ["/api/v1/image", "/api/v1/favicon"]
+        if url.scheme == "https", url.host == "preview.openmates.org",
+           imageEndpoints.contains(url.path),
+           appWebURL.scheme == "https", let appHost = appWebURL.host,
+           appHost == "openmates.org" || appHost.hasSuffix(".openmates.org") {
+            request.setValue("https://\(appHost)/", forHTTPHeaderField: "Referer")
+        }
+        return request
+    }
+
     static func download(
         _ urlString: String,
-        transport: ImageTransport = { try await URLSession.shared.data(from: $0) }
+        allowStaticSVG: Bool = false,
+        transport: ImageTransport = { try await URLSession.shared.data(for: RemoteImageCache.request(for: $0)) }
     ) async throws -> Data {
         guard let url = URL(string: urlString) else { throw S3Error.invalidURL }
         let (data, response) = try await transport(url)
         guard let response = response as? HTTPURLResponse,
               (200...299).contains(response.statusCode),
-              isDecodableImageData(data) else {
+              isDecodableImageData(data) || (allowStaticSVG && StaticSVGImageSource(data: data) != nil) else {
             // Public preview proxy failure must never expose the user's IP by
             // retrying its `url` parameter against the third-party origin.
             throw S3Error.downloadFailed
@@ -340,6 +382,81 @@ actor RemoteImageCache {
             [kCGImageSourceShouldCache: false] as CFDictionary) != nil
     }
 
+}
+
+/// Bounded static SVGs for public image rendering. The XML allowlist is applied
+/// before bytes enter the opt-in cache; raster-only consumers retain their
+/// existing validation contract. WebKit renders these as an inert data image.
+struct StaticSVGImageSource {
+    let data: Data
+
+    init?(data: Data) {
+        guard !data.isEmpty, data.count <= 2_000_000,
+              let text = String(data: data, encoding: .utf8),
+              text.range(of: #"<!\s*(DOCTYPE|ENTITY)\b"#,
+                         options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
+        let delegate = StaticSVGXMLValidator()
+        let parser = XMLParser(data: data)
+        parser.shouldProcessNamespaces = true
+        parser.shouldResolveExternalEntities = false
+        parser.delegate = delegate
+        guard parser.parse(), delegate.valid, delegate.sawRoot, delegate.depth == 0 else { return nil }
+        self.data = data
+    }
+}
+
+private final class StaticSVGXMLValidator: NSObject, XMLParserDelegate {
+    var valid = true
+    var sawRoot = false
+    var depth = 0
+    private var elementCount = 0
+    private let elements: Set<String> = ["svg", "g", "path", "rect", "circle", "ellipse", "line",
+        "polyline", "polygon", "defs", "lineargradient", "radialgradient", "stop", "clippath",
+        "mask", "title", "desc", "text", "tspan", "use"]
+    private let attributes: Set<String> = ["xmlns", "xmlns:xlink", "id", "viewbox", "width", "height",
+        "x", "y", "x1", "x2", "y1", "y2", "cx", "cy", "r", "rx", "ry", "fx", "fy", "fr",
+        "d", "points", "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width",
+        "stroke-opacity", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
+        "stroke-dasharray", "stroke-dashoffset", "opacity", "transform", "gradienttransform",
+        "gradientunits", "spreadmethod", "offset", "stop-color", "stop-opacity", "clip-path",
+        "clip-rule", "clippathunits", "mask", "maskunits", "maskcontentunits", "preserveaspectratio",
+        "href", "xlink:href", "font-family", "font-size", "font-weight", "text-anchor", "dx", "dy"]
+
+    private func reject(_ parser: XMLParser) { valid = false; parser.abortParsing() }
+
+    func parser(_ parser: XMLParser, didStartElement name: String, namespaceURI: String?,
+                qualifiedName: String?, attributes values: [String: String]) {
+        depth += 1
+        elementCount += 1
+        guard depth <= 32, elementCount <= 4096, values.count <= 64,
+              namespaceURI == "http://www.w3.org/2000/svg", elements.contains(name.lowercased()) else {
+            reject(parser); return
+        }
+        if depth == 1 {
+            guard !sawRoot, name.lowercased() == "svg" else { reject(parser); return }
+            sawRoot = true
+        }
+        for (name, value) in values {
+            let name = name.lowercased()
+            guard attributes.contains(name), value.utf8.count <= 262_144 else { reject(parser); return }
+            if name == "href" || name == "xlink:href" {
+                guard value.range(of: #"^#[A-Za-z0-9_.:-]+$"#, options: .regularExpression) != nil else {
+                    reject(parser); return
+                }
+            }
+            // Only local paint/clip references are allowed. No CSS escape or
+            // external resource URL can enter an attribute through url().
+            let remainder = value.replacingOccurrences(of: #"url\(\s*#[A-Za-z0-9_.:-]+\s*\)"#,
+                with: "", options: [.regularExpression, .caseInsensitive])
+            if remainder.range(of: #"url\s*\(|\\"#, options: [.regularExpression, .caseInsensitive]) != nil {
+                reject(parser); return
+            }
+        }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement: String, namespaceURI: String?, qualifiedName: String?) { depth -= 1 }
+    func parser(_ parser: XMLParser, foundProcessingInstructionWithTarget: String, data: String?) { reject(parser) }
+    func parser(_ parser: XMLParser, parseErrorOccurred: Error) { valid = false }
 }
 
 struct EmbedMediaOfflineCache {
@@ -393,8 +510,9 @@ struct EmbedMediaOfflineCache {
     }
 }
 
-private struct MediaDiskCache {
+struct MediaDiskCache {
     let directoryName: String
+    var baseDirectory: URL? = nil
 
     func load(cacheKey: String) throws -> Data? {
         let url = try fileURL(cacheKey: cacheKey)
@@ -413,7 +531,7 @@ private struct MediaDiskCache {
     }
 
     private func cacheDirectory() throws -> URL {
-        let base = try FileManager.default.url(
+        let base = try baseDirectory ?? FileManager.default.url(
             for: .cachesDirectory,
             in: .userDomainMask,
             appropriateFor: nil,

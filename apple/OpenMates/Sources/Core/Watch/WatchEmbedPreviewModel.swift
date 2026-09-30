@@ -5,6 +5,7 @@
 // Watch UI and deterministic unit tests.
 
 import Foundation
+import CryptoKit
 
 enum WatchEmbedPreviewFamily: String, CaseIterable, Sendable {
     case website
@@ -20,6 +21,12 @@ enum WatchEmbedPreviewFamily: String, CaseIterable, Sendable {
     case shoppingProduct
     case weather
     case reminder
+    case event
+    case document
+    case spreadsheet
+    case mindmap
+    case audio
+    case application
     case unsupported
 }
 
@@ -105,6 +112,18 @@ struct WatchEmbedPreviewModel: Equatable, Identifiable, Sendable {
     let continuation: WatchEmbedContinuation
 
     var isSupported: Bool { family != .unsupported }
+    var iconName: String {
+        switch appId {
+        case "mindmaps": return "workflow"
+        case "tasks": return "task"
+        case "workflows": return "workflow"
+        case "electronics": return "pcbdesign"
+        case "models3d": return "3dmodels"
+        case "file": return "files"
+        case "photos": return "image"
+        default: return appId
+        }
+    }
 }
 
 enum WatchEmbedPreviewMapper {
@@ -125,7 +144,14 @@ enum WatchEmbedPreviewMapper {
         let embedType = EmbedType.normalized(rawValue: embedRef.type)
         let appId = string(raw, keys: ["app_id", "appId"]) ?? embedType?.appId
         let skillId = string(raw, keys: ["skill_id", "skillId"])
-        let embedIds = string(raw, keys: ["embed_ids", "embedIds"])
+        // Live and stored WebSocket envelopes carry an array; encoded embed
+        // content can carry the same IDs as a pipe-separated string.
+        let embedIds: String?
+        if let ids = (raw["embed_ids"] ?? raw["embedIds"])?.value as? [String] {
+            embedIds = ids.joined(separator: "|")
+        } else {
+            embedIds = string(raw, keys: ["embed_ids", "embedIds"])
+        }
         return EmbedRecord(
             id: embedRef.id,
             type: embedType?.rawValue ?? embedRef.type,
@@ -144,7 +170,11 @@ enum WatchEmbedPreviewMapper {
         chatId: String?,
         allEmbedRecords: [String: EmbedRecord] = [:]
     ) -> WatchEmbedPreviewModel {
-        let embedType = EmbedType(rawValue: embed.type)
+        let inferredSkill: EmbedType?
+        if embed.isAppSkillUse, let appId = embed.appId, let skillId = embed.skillId {
+            inferredSkill = EmbedType(rawValue: "app:\(appId):\(skillId)")
+        } else { inferredSkill = nil }
+        let embedType = inferredSkill ?? EmbedType.normalized(rawValue: embed.type)
         let family = family(for: embed, embedType: embedType)
         let raw = embed.rawData ?? [:]
         let appId = embed.appId ?? embedType?.appId ?? appId(for: family)
@@ -202,9 +232,9 @@ enum WatchEmbedPreviewMapper {
             return .image
         case .recording:
             return .audioRecording
-        case .codeCode, .codeGetDocs:
+        case .codeCode, .codeGetDocs, .codeRepo, .codeNotebook, .codeApplication:
             return .code
-        case .pdf, .docsDoc:
+        case .pdf:
             return .pdf
         case .maps, .mapsPlace:
             return .mapPlace
@@ -220,7 +250,14 @@ enum WatchEmbedPreviewMapper {
             return .weather
         case .reminderSet, .reminderList, .reminderCancel:
             return .reminder
+        case .eventsEvent: return .event
+        case .docsDoc: return .document
+        case .sheetsSheet: return .spreadsheet
+        case .mindmapsMindmap: return .mindmap
+        case .audioGenerate, .audioSpeak: return .audio
         default:
+            if embedType.childType != nil { return .searchResults }
+            if embedType.appId != nil { return .application }
             return nil
         }
     }
@@ -291,6 +328,14 @@ enum WatchEmbedPreviewMapper {
             title = string(raw, keys: ["title", "text", "name"]) ?? fallback
             subtitle = string(raw, keys: ["due_at", "due", "date", "time"])
             detail = string(raw, keys: ["status", "list", "recurrence"])
+        case .event:
+            title = string(raw, keys: ["name", "title"]) ?? fallback
+            subtitle = string(raw, keys: ["date_start", "start_time", "date", "venue_name", "location"])
+            detail = string(raw, keys: ["price", "provider"])
+        case .document, .spreadsheet, .mindmap, .audio, .application:
+            title = string(raw, keys: ["title", "name", "filename", "query", "prompt"]) ?? fallback
+            subtitle = string(raw, keys: ["description", "summary", "skill_id", "format"]).flatMap(cleanText)
+            detail = string(raw, keys: ["duration", "row_count", "node_count", "page_count"])
         case .unsupported:
             title = "Unsupported preview"
             subtitle = nil
@@ -390,6 +435,12 @@ enum WatchEmbedPreviewMapper {
         case .shoppingProduct: return "shopping"
         case .weather: return "weather"
         case .reminder: return "reminder"
+        case .event: return "events"
+        case .document: return "docs"
+        case .spreadsheet: return "sheets"
+        case .mindmap: return "mindmaps"
+        case .audio: return "audio"
+        case .application: return "ai"
         case .unsupported: return "web"
         }
     }
@@ -456,7 +507,7 @@ enum WatchMessageContentSanitizer {
 
     private static func previewSafeInlineData(from object: [String: Any]) -> [String: AnyCodable] {
         let allowedKeys = Set([
-            "app_id", "appId", "embed_id", "embedId", "type", "status", "title", "name",
+            "app_id", "appId", "skill_id", "skillId", "embed_ids", "embedIds", "embed_ref", "embed_id", "embedId", "type", "status", "title", "name",
             "filename", "duration", "duration_seconds",
             "page_count", "line_count", "language", "query", "result_count", "provider",
         ])
@@ -605,5 +656,152 @@ extension WatchChatMessage {
 
     var watchDisplayContent: String? {
         WatchMessageContentSanitizer.displayText(content: content, embedRefs: embedRefs)
+    }
+}
+
+// Compact semantic blocks preserve Markdown structure on the small Watch screen.
+struct WatchMarkdownBlock: Equatable, Identifiable, Sendable {
+    enum Kind: Equatable, Sendable { case paragraph, heading(Int), list(String), quote, code(String?), divider }
+    let id: Int
+    let kind: Kind
+    let text: String
+}
+
+enum WatchMarkdownParser {
+    static func blocks(_ markdown: String) -> [WatchMarkdownBlock] {
+        var result: [WatchMarkdownBlock] = []
+        var paragraph: [String] = []
+        var code: [String]? = nil
+        var language: String?
+        var fenceMarker: String?
+        func append(_ kind: WatchMarkdownBlock.Kind, _ text: String) {
+            result.append(WatchMarkdownBlock(id: result.count, kind: kind, text: text))
+        }
+        func flush() {
+            if !paragraph.isEmpty { append(.paragraph, paragraph.joined(separator: "\n")); paragraph = [] }
+        }
+        for line in markdown.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if let marker = fenceMarker {
+                if trimmed.hasPrefix(marker) {
+                    append(.code(language), (code ?? []).joined(separator: "\n"))
+                    code = nil; fenceMarker = nil; language = nil
+                } else { code?.append(line) }
+                continue
+            }
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                flush(); fenceMarker = String(trimmed.prefix(3)); code = []
+                let label = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                language = label.isEmpty ? nil : label
+            } else if trimmed.isEmpty { flush() }
+            else if trimmed == "---" || trimmed == "***" || trimmed == "___" { flush(); append(.divider, "") }
+            else if trimmed.hasPrefix("> ") { flush(); append(.quote, String(trimmed.dropFirst(2))) }
+            else if let match = trimmed.range(of: #"^#{1,6} "#, options: .regularExpression) {
+                flush(); let count = trimmed.distance(from: trimmed.startIndex, to: match.upperBound) - 1
+                append(.heading(count), String(trimmed[match.upperBound...]))
+            } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("+ ") {
+                flush(); append(.list("•"), String(trimmed.dropFirst(2)))
+            } else if let match = trimmed.range(of: #"^[0-9]+[.)] "#, options: .regularExpression) {
+                flush(); append(.list(String(trimmed[..<match.upperBound]).trimmingCharacters(in: .whitespaces)), String(trimmed[match.upperBound...]))
+            } else { paragraph.append(line) }
+        }
+        flush()
+        if let code { append(.code(language), code.joined(separator: "\n")) }
+        return result
+    }
+}
+
+// Opens only the exact referenced embed using a wrapper bound to this chat/account.
+// Hydrated preview fields remain in memory; they are not added to the disk snapshot.
+enum WatchEmbedHydration {
+    static func open(payload: [String: Any], embedID: String, chatID: String,
+                     accountID: String, masterKey: SymmetricKey, chatKey: SymmetricKey?) throws -> WatchEmbedRef {
+        guard payload["embed_id"] as? String == embedID,
+              payload["user_id"] as? String == accountID,
+              let content = payload["content"] as? String else { throw WatchChatRuntimeError.missingChatKey }
+        let rawType = payload["type"] as? String ?? "app_skill_use"
+        let plaintext: String
+        let type: String
+        if payload["already_encrypted"] as? Bool == true || payload["encryption_mode"] as? String == "client" {
+            let wrappers = payload["embed_keys"] as? [[String: Any]] ?? []
+            let hashedEmbedID = hash(embedID)
+            let hashedChatID = hash(chatID)
+            let hashedAccountID = hash(accountID)
+            var openedKey: SymmetricKey?
+            for row in wrappers {
+                guard row["hashed_embed_id"] as? String == hashedEmbedID,
+                      let encryptedKey = row["encrypted_embed_key"] as? String else { continue }
+                let wrappingKey: SymmetricKey?
+                switch row["key_type"] as? String {
+                case "master":
+                    guard row["hashed_user_id"] as? String == hashedAccountID else { continue }
+                    wrappingKey = masterKey
+                case "chat":
+                    guard row["hashed_chat_id"] as? String == hashedChatID else { continue }
+                    wrappingKey = chatKey
+                default: continue
+                }
+                guard let wrappingKey,
+                      let key = try? ComposerEmbedCrypto.unwrapKey(encryptedKey, using: wrappingKey),
+                      key.withUnsafeBytes({ $0.count }) == 32 else { continue }
+                openedKey = key; break
+            }
+            guard let key = openedKey else { throw WatchChatRuntimeError.missingChatKey }
+            plaintext = try ComposerEmbedCrypto.decryptContent(content, using: key)
+            if let decryptedType = try? ComposerEmbedCrypto.decryptContent(rawType, using: key) { type = decryptedType }
+            else if rawType == "app_skill_use" || rawType == "app-skill-use" || EmbedType.normalized(rawValue: rawType) != nil { type = rawType }
+            else { throw WatchChatRuntimeError.missingChatKey }
+        } else {
+            // The existing live skill transport delivers transient plaintext only.
+            guard let ownerChatID = payload["chat_id"] as? String,
+                  ownerChatID == chatID || ownerChatID == hash(chatID) else { throw WatchChatRuntimeError.missingChatKey }
+            plaintext = content; type = rawType
+        }
+        var fields = EmbedRecord.parseContent(plaintext)
+        guard !fields.isEmpty else { throw WatchChatRuntimeError.historyUnavailable }
+        fields["type"] = type
+        fields["embed_id"] = embedID
+        if let embedIDs = payload["embed_ids"] { fields["embed_ids"] = embedIDs }
+        if let parentID = payload["parent_embed_id"] { fields["parent_embed_id"] = parentID }
+        return WatchEmbedRef(id: embedID, type: type, status: payload["status"] as? String ?? "finished",
+                             data: fields.mapValues(AnyCodable.init))
+    }
+
+    static func prepareStorage(payload: [String: Any], embedID: String, chatID: String, messageID: String,
+                               accountID: String, masterKey: SymmetricKey, chatKey: SymmetricKey,
+                               now: Int = Int(Date().timeIntervalSince1970)) throws -> (keys: [String: Any], embed: [String: Any]) {
+        guard payload["already_encrypted"] as? Bool != true, payload["encryption_mode"] as? String != "client" else {
+            throw WatchChatRuntimeError.invalidPendingTurn
+        }
+        let ref = try open(payload: payload, embedID: embedID, chatID: chatID, accountID: accountID,
+                           masterKey: masterKey, chatKey: chatKey)
+        guard let plaintext = payload["content"] as? String else { throw WatchChatRuntimeError.historyUnavailable }
+        let embedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: embedID)
+        let wrappers: [[String: Any]] = [
+            ["hashed_embed_id": hash(embedID), "key_type": "master", "hashed_chat_id": NSNull(),
+             "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey),
+             "hashed_user_id": hash(accountID), "created_at": now],
+            ["hashed_embed_id": hash(embedID), "key_type": "chat", "hashed_chat_id": hash(chatID),
+             "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey),
+             "hashed_user_id": hash(accountID), "created_at": now]
+        ]
+        var embed: [String: Any] = ["request_id": UUID().uuidString.lowercased(), "embed_id": embedID,
+            "encrypted_type": try ComposerEmbedCrypto.encryptContent(ref.type, using: embedKey),
+            "encrypted_content": try ComposerEmbedCrypto.encryptContent(plaintext, using: embedKey),
+            "status": ref.status ?? "finished", "hashed_chat_id": hash(chatID), "hashed_message_id": hash(messageID),
+            "hashed_user_id": hash(accountID), "created_at": now, "updated_at": now,
+            "is_private": payload["is_private"] as? Bool ?? false, "is_shared": payload["is_shared"] as? Bool ?? false,
+            "embed_ids": WatchEmbedPreviewMapper.embedRecord(from: ref).childEmbedIds]
+        if let preview = payload["text_preview"] as? String {
+            embed["encrypted_text_preview"] = try ComposerEmbedCrypto.encryptContent(preview, using: embedKey)
+        }
+        for field in ["parent_embed_id", "hashed_task_id", "version_number", "file_path", "content_hash", "text_length_chars"] {
+            if let value = payload[field], !(value is NSNull) { embed[field] = value }
+        }
+        return (["request_id": UUID().uuidString.lowercased(), "keys": wrappers], embed)
+    }
+
+    private static func hash(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }

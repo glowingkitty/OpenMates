@@ -491,7 +491,7 @@ struct Message: Identifiable, Decodable, Sendable {
         self.encryptedThinkingSignature = encryptedThinkingSignature
         self.thinkingTokenCount = thinkingTokenCount
         self.renderDocument = renderDocument
-        if self.renderDocument == nil {
+        if self.renderDocument?.version != ChatHistoryRenderDocument.schemaVersion {
             self.renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }
@@ -541,7 +541,7 @@ struct Message: Identifiable, Decodable, Sendable {
         thinkingTokenCount = try container.decodeIfPresent(Int.self, forKey: .thinkingTokenCount)
             ?? container.decodeIfPresent(Int.self, forKey: .thinkingTokenCountSnake)
         renderDocument = try container.decodeIfPresent(ChatHistoryRenderDocument.self, forKey: .renderDocument)
-        if renderDocument == nil {
+        if renderDocument?.version != ChatHistoryRenderDocument.schemaVersion {
             renderDocument = ChatHistoryRenderDocument.build(for: self)
         }
     }

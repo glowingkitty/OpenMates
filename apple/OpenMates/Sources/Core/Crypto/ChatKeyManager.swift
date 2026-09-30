@@ -3,6 +3,8 @@
 // that is stored on the server wrapped (encrypted) with the user's master key.
 // At load time, we unwrap each chat's key and cache it here for fast decryption
 // of messages, titles, and embeds within that chat.
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 
 import Foundation
 import CryptoKit
@@ -50,6 +52,7 @@ final class ChatKeyManager: ObservableObject {
               let currentKey = chatKeys[chatId], Self.keysEqual(currentKey, key) else { return nil }
         if let existing = encryptedKeys[chatId] { return existing }
         rememberEncryptedKey(encryptedKey, for: chatId)
+        notifyEmbedKeyMaterialAvailable()
         return encryptedKey
     }
 
@@ -65,6 +68,7 @@ final class ChatKeyManager: ObservableObject {
             chatKeys[chatId] = key
         }
         rememberEncryptedKey(encryptedKey, for: chatId)
+        notifyEmbedKeyMaterialAvailable()
         return encryptedKey
     }
 
@@ -73,6 +77,7 @@ final class ChatKeyManager: ObservableObject {
         chatKeys[chatId] = key
         encryptedKeys.removeValue(forKey: chatId)
         encryptedKeyFingerprints.removeValue(forKey: chatId)
+        notifyEmbedKeyMaterialAvailable()
     }
 
     /// Create or return the originating-device key for a new chat.
@@ -90,6 +95,7 @@ final class ChatKeyManager: ObservableObject {
         if let existing = chatKeys[chatId] { return existing }
         if capturedGeneration == generation && !Task.isCancelled {
             chatKeys[chatId] = key
+            notifyEmbedKeyMaterialAvailable()
         }
         return key
     }
@@ -128,6 +134,7 @@ final class ChatKeyManager: ObservableObject {
                 guard capturedGeneration == generation, !Task.isCancelled else { return }
                 chatKeys[chatId] = chatKey
                 rememberEncryptedKey(encryptedChatKey, for: chatId)
+                notifyEmbedKeyMaterialAvailable()
                 if NativeSyncPerfLog.verboseCrypto {
                     print("[ChatKeyManager] loaded key chat=\(chatId.prefix(8))")
                 }
@@ -157,6 +164,7 @@ final class ChatKeyManager: ObservableObject {
             guard capturedGeneration == generation, !Task.isCancelled else { return false }
             chatKeys[chatId] = chatKey
             rememberEncryptedKey(encryptedChatKey, for: chatId)
+            notifyEmbedKeyMaterialAvailable()
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] loaded single key chat=\(chatId.prefix(8)) cached=\(chatKeys.count)")
             }
@@ -246,6 +254,16 @@ final class ChatKeyManager: ObservableObject {
         isReady = false
     }
 
+    private func notifyEmbedKeyMaterialAvailable() {
+        let expectedScope = OfflineStore.shared.scopeGeneration
+        Task { @MainActor in
+            guard expectedScope == OfflineStore.shared.scopeGeneration else { return }
+            NotificationCenter.default.post(name: .chatKeyMaterialAvailable, object: nil,
+                                            userInfo: ["accountScope": expectedScope])
+            await CodeRunOutputStore.shared.handleEmbedKeysAvailable()
+        }
+    }
+
     private static func fingerprint(_ encryptedChatKey: String) -> String {
         SHA256.hash(data: Data(encryptedChatKey.utf8)).map { String(format: "%02x", $0) }.joined()
     }
@@ -257,6 +275,10 @@ final class ChatKeyManager: ObservableObject {
     }
 }
 
+extension Notification.Name {
+    static let chatKeyMaterialAvailable = Notification.Name("openmates.chatKeyMaterialAvailable")
+}
+
 struct ChatKeyWrapperRecord: Decodable, Sendable {
     let id: String?
     let hashedChatId: String
@@ -264,6 +286,28 @@ struct ChatKeyWrapperRecord: Decodable, Sendable {
     let encryptedChatKey: String
     let wrapperVersion: Int?
     let createdAt: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, hashedChatId, keyType, encryptedChatKey, wrapperVersion, createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(String.self, forKey: .id)
+        hashedChatId = try values.decode(String.self, forKey: .hashedChatId)
+        keyType = try values.decode(String.self, forKey: .keyType)
+        encryptedChatKey = try values.decode(String.self, forKey: .encryptedChatKey)
+        wrapperVersion = try values.decodeIfPresent(Int.self, forKey: .wrapperVersion)
+        if let text = try? values.decode(String.self, forKey: .createdAt) {
+            createdAt = text
+        } else if let seconds = try? values.decode(Int64.self, forKey: .createdAt) {
+            createdAt = String(seconds)
+        } else if let seconds = try? values.decode(Double.self, forKey: .createdAt) {
+            createdAt = String(Int64(seconds))
+        } else {
+            createdAt = nil
+        }
+    }
 
     static func orderedMasterWrappers(
         _ wrappers: [ChatKeyWrapperRecord],
@@ -313,6 +357,11 @@ final class EmbedKeyManager {
             entriesByHashedEmbedId[entry.hashedEmbedId] = existing
         }
         print("[EmbedKeyManager] stored source=\(source) entries=\(entries.count) hashedEmbeds=\(entriesByHashedEmbedId.count)")
+        let expectedScope = OfflineStore.shared.scopeGeneration
+        Task { @MainActor in
+            guard expectedScope == OfflineStore.shared.scopeGeneration else { return }
+            await CodeRunOutputStore.shared.handleEmbedKeysAvailable()
+        }
     }
 
     func key(
@@ -430,4 +479,100 @@ final class EmbedKeyManager {
         let digest = SHA256.hash(data: Data(value.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
+}
+
+/// Owner-only Finance reveal data. Canonical embeds and WebSocket sync never
+/// carry these originals; the scoped disk row contains master-key ciphertext.
+@MainActor
+final class OwnerEmbedPIIStore: ObservableObject {
+    static let shared = OwnerEmbedPIIStore()
+
+    @Published private(set) var mappingsByEmbedKey: [String: [PIIMapping]] = [:]
+    private var scopeGeneration = OfflineStore.shared.scopeGeneration
+    private init() {}
+
+    private static func key(chatId: String, embedId: String) -> String { "\(chatId):\(embedId)" }
+
+    private func resetIfScopeChanged() {
+        let current = OfflineStore.shared.scopeGeneration
+        guard current != scopeGeneration else { return }
+        scopeGeneration = current
+        mappingsByEmbedKey.removeAll()
+    }
+
+    func mappings(chatId: String, embedId: String) -> [PIIMapping] {
+        resetIfScopeChanged()
+        return mappingsByEmbedKey[Self.key(chatId: chatId, embedId: embedId)] ?? []
+    }
+
+    func remove(chatId: String) {
+        resetIfScopeChanged()
+        mappingsByEmbedKey = mappingsByEmbedKey.filter { !$0.key.hasPrefix("\(chatId):") }
+    }
+
+    func clearAll() {
+        mappingsByEmbedKey.removeAll()
+    }
+
+    #if DEBUG
+    /// UI previews can exercise reveal/navigation without writing owner secrets.
+    func seedPreviewMappings(chatId: String, embedId: String, mappings: [PIIMapping]) {
+        resetIfScopeChanged()
+        mappingsByEmbedKey[Self.key(chatId: chatId, embedId: embedId)] = mappings
+    }
+    #endif
+
+    func persist(_ mappings: [PIIMapping], chatId: String, embedId: String,
+                 ownerUserId: String, masterKey: SymmetricKey) async throws {
+        resetIfScopeChanged()
+        let fence = CodeRunScopeFence(store: OfflineStore.shared)
+        let deletionVersion = OfflineStore.shared.chatDeletionVersion(chatId)
+        guard fence.isCurrent(in: OfflineStore.shared), !mappings.isEmpty,
+              mappings.allSatisfy({ !$0.placeholder.isEmpty && !$0.original.isEmpty && $0.type == "COUNTERPARTY" })
+        else { throw OwnerEmbedPIIError.invalidContext }
+        guard let plaintext = String(data: try JSONEncoder().encode(mappings), encoding: .utf8) else {
+            throw OwnerEmbedPIIError.invalidPayload
+        }
+        let encrypted = try await CryptoManager.shared.encryptWithMasterKey(plaintext, masterKey: masterKey)
+        let currentUserId = await AuthManager.currentUserId()
+        guard fence.isCurrent(in: OfflineStore.shared), currentUserId == ownerUserId,
+              OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion else {
+            throw OwnerEmbedPIIError.invalidContext
+        }
+        try OfflineStore.shared.persistOwnerEmbedPII(PersistedOwnerEmbedPII(
+            embedId: embedId, chatId: chatId, ownerUserId: ownerUserId,
+            encryptedMappings: encrypted, createdAt: Date().timeIntervalSince1970
+        ))
+        guard fence.isCurrent(in: OfflineStore.shared) else { throw OwnerEmbedPIIError.invalidContext }
+        mappingsByEmbedKey[Self.key(chatId: chatId, embedId: embedId)] = mappings
+    }
+
+    func load(chatId: String, embedId: String) async -> [PIIMapping] {
+        resetIfScopeChanged()
+        let fence = CodeRunScopeFence(store: OfflineStore.shared)
+        let deletionVersion = OfflineStore.shared.chatDeletionVersion(chatId)
+        guard fence.isCurrent(in: OfflineStore.shared) else { return [] }
+        let cacheKey = Self.key(chatId: chatId, embedId: embedId)
+        if let cached = mappingsByEmbedKey[cacheKey] { return cached }
+        guard let row = try? OfflineStore.shared.loadOwnerEmbedPII(chatId: chatId, embedId: embedId) else { return [] }
+        guard let userId = await AuthManager.currentUserId(),
+              userId == row.ownerUserId,
+              let key = try? await CryptoManager.shared.loadMasterKey(for: userId),
+              fence.isCurrent(in: OfflineStore.shared),
+              let plaintext = try? await CryptoManager.shared.decryptContent(
+                base64String: row.encryptedMappings, key: key
+              ),
+              let data = plaintext.data(using: .utf8),
+              let mappings = try? JSONDecoder().decode([PIIMapping].self, from: data),
+              mappings.allSatisfy({ !$0.placeholder.isEmpty && !$0.original.isEmpty && $0.type == "COUNTERPARTY" }),
+              fence.isCurrent(in: OfflineStore.shared),
+              OfflineStore.shared.chatDeletionVersion(chatId) == deletionVersion else { return [] }
+        mappingsByEmbedKey[cacheKey] = mappings
+        return mappings
+    }
+}
+
+enum OwnerEmbedPIIError: Error {
+    case invalidContext
+    case invalidPayload
 }

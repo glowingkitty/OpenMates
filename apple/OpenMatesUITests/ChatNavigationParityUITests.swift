@@ -74,6 +74,43 @@ final class ChatNavigationParityUITests: XCTestCase {
         XCTAssertEqual(title.label, expected)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.order.sidebar-header-match
+    func testGlobalSearchFromWorkflowRestoresCurrentChatOnCancel() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation",
+                               "--ui-test-workflows-fixture", "home",
+                               "--ui-test-workspace-search"]
+        app.launchEnvironment["UI_TEST_AUTHENTICATED_CHAT_NAVIGATION"] = "1"
+        app.launch()
+        // SwiftUI exposes the identifier on an enclosing Other element; read
+        // the static text, as the existing navigation case does.
+        let metrics = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "chat-navigation-order="))
+            .firstMatch
+        XCTAssertTrue(metrics.waitForExistence(timeout: 12))
+        XCTAssertEqual(try waitForMetric("selected-workspace", equals: "workflows", in: metrics), "workflows")
+        let before = try XCTUnwrap(Int(try stringMetric("active-chat-revision", in: metrics.label)))
+        app.buttons["workspace-search-ui-test"].tap()
+        XCTAssertTrue(app.textFields["search-input"].waitForExistence(timeout: 5))
+        app.buttons["search-close-button"].tap()
+        let searchClosed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: app.textFields["search-input"])
+        XCTAssertEqual(XCTWaiter.wait(for: [searchClosed], timeout: 5), .completed,
+                       "Closing Search must remove its input before returning to the chat history.")
+        let sidebarClose = app.buttons["chat-sidebar-close"]
+        if sidebarClose.waitForExistence(timeout: 3), sidebarClose.isHittable { sidebarClose.tap() }
+        try assertHeaderTitle("Current Chat", in: app)
+        XCTAssertEqual(try waitForMetric("selected-workspace", equals: "chat", in: metrics), "chat")
+        XCTAssertEqual(try waitForMetric("active-chat-id", equals: "ui-test-current-chat", in: metrics), "ui-test-current-chat")
+        let announced = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in
+                (self.metric("active-chat-revision", in: metrics.label).flatMap(Int.init) ?? 0) > before
+            }, object: metrics)
+        XCTAssertEqual(XCTWaiter.wait(for: [announced], timeout: 5), .completed,
+                       "Returning from a workspace through Search must reannounce the unchanged chat.")
+    }
+
     private func assertSidebarRowsInOrder(_ titles: [String], in app: XCUIApplication) throws {
         let rows = titles.map { title in
             app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch

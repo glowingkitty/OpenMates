@@ -14,6 +14,62 @@ import AppKit
 
 @MainActor
 final class SettingsFullParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.contextual-availability
+    func testSettingsDeepLinkKeepsChildRouteAndAccountRoleGates() {
+        let language = SettingsDeepLinkRoute("#/settings/interface/language/")
+        XCTAssertEqual(language.path, "interface/language")
+        XCTAssertEqual(language.childPath, "language")
+        XCTAssertTrue(language.hasNativeChild)
+        XCTAssertTrue(language.canOpen(authenticated: false, admin: false))
+
+        for path in ["account/security/password", "privacy/connected-accounts", "billing/invoices",
+                     "developers/api-keys/create", "account/storage/images"] {
+            let route = SettingsDeepLinkRoute(path)
+            XCTAssertTrue(route.hasNativeChild, path)
+            XCTAssertFalse(route.canOpen(authenticated: false, admin: false), path)
+            XCTAssertTrue(route.canOpen(authenticated: true, admin: false), path)
+        }
+        let admin = SettingsDeepLinkRoute("server/stats")
+        XCTAssertFalse(admin.canOpen(authenticated: true, admin: false))
+        XCTAssertTrue(admin.canOpen(authenticated: true, admin: true))
+        XCTAssertFalse(SettingsDeepLinkRoute("billing/buy-credits/confirmation").hasNativeChild,
+                       "An incoming link cannot fabricate a completed purchase")
+        XCTAssertFalse(SettingsDeepLinkRoute("interface/unknown").hasNativeChild)
+        XCTAssertTrue(SettingsDeepLinkRoute("apps/web/skills/search").hasNativeChild)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing
+    func testProjectSettingsDeepLinkRoutesStayWithinSelectedTeamAndReloadScope() {
+        let personal = SettingsProjectsRoute(teamID: nil)
+        XCTAssertEqual(personal.list, "/v1/projects")
+        XCTAssertEqual(personal.sources("project-1"), "/v1/projects/project-1/sources")
+
+        let team = SettingsProjectsRoute(teamID: "team/with space")
+        XCTAssertEqual(team.list, "/v1/projects?team_id=team%2Fwith%20space")
+        XCTAssertEqual(team.settings("project/1"),
+                       "/v1/projects/project%2F1/settings?team_id=team%2Fwith%20space")
+
+        let scope = UUID()
+        let current = SettingsProjectsLoadIdentity(accountID: "account-a", teamID: "team-a",
+                                                   projectID: "project-1", serverURL: "https://api.dev.example",
+                                                   scope: scope)
+        XCTAssertNotEqual(current, SettingsProjectsLoadIdentity(accountID: "account-a", teamID: "team-b",
+                                                                 projectID: "project-1", serverURL: current.serverURL,
+                                                                 scope: scope))
+        XCTAssertNotEqual(current, SettingsProjectsLoadIdentity(accountID: "account-a", teamID: "team-a",
+                                                                 projectID: "project-2", serverURL: current.serverURL,
+                                                                 scope: scope))
+        XCTAssertNotEqual(current, SettingsProjectsLoadIdentity(accountID: "account-a", teamID: "team-a",
+                                                                 projectID: "project-1", serverURL: current.serverURL,
+                                                                 scope: UUID()))
+        XCTAssertNotEqual(current, SettingsProjectsLoadIdentity(accountID: "account-b", teamID: "team-a",
+                                                                 projectID: "project-1", serverURL: current.serverURL,
+                                                                 scope: scope))
+        XCTAssertNotEqual(current, SettingsProjectsLoadIdentity(accountID: "account-a", teamID: "team-a",
+                                                                 projectID: "project-1", serverURL: "https://api.example",
+                                                                 scope: scope))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testMessageModelSettingsTargetResolvesCanonicalDetail() {
         XCTAssertEqual(
@@ -562,6 +618,40 @@ final class SettingsFullParityTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testReconnectBannerHasDebounceBeforeUserFacingWarning() {
         XCTAssertGreaterThanOrEqual(NetworkStatusBanner.reconnectDelayNanoseconds, 1_000_000_000)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    @MainActor
+    func testNotificationStackRetainsNewestThreeAndIndependentTimers() async throws {
+        let manager = ToastManager()
+        defer { manager.dismissAll() }
+        manager.show("Oldest retained", duration: 0)
+        manager.show("Timed middle", duration: 0.01)
+        manager.show("Persistent connection", type: .connection, duration: 0, dedupeKey: "connection")
+        let connectionID = manager.currentToast?.id
+        manager.show("Latest", duration: 0)
+        XCTAssertEqual(manager.visibleNotifications.map(\.message), ["Latest", "Persistent connection", "Timed middle"])
+        manager.show("Connection updated", type: .connection, duration: 0, isProcessing: true, dedupeKey: "connection")
+        XCTAssertEqual(manager.notifications.first(where: { $0.dedupeKey == "connection" })?.id, connectionID)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(manager.visibleNotifications.map(\.message), ["Latest", "Connection updated", "Oldest retained"])
+        manager.dismiss()
+        XCTAssertEqual(manager.currentToast?.message, "Connection updated")
+        XCTAssertEqual(manager.notifications.count, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    @MainActor
+    func testSupersededNotificationTimerCannotDismissPersistentReplacement() async throws {
+        let manager = ToastManager()
+        defer { manager.dismissAll() }
+        manager.show("Synthetic timed notice", duration: 0.01, dedupeKey: "connection")
+        manager.show("Synthetic persistent notice", type: .connection, duration: 0, dedupeKey: "connection")
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(manager.currentToast?.message, "Synthetic persistent notice")
+        XCTAssertEqual(manager.currentToast?.duration, 0)
+        manager.dismiss()
+        XCTAssertNil(manager.currentToast)
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell

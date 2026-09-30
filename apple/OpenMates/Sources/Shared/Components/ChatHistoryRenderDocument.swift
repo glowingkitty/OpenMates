@@ -8,12 +8,13 @@
 // TypeScript: frontend/packages/ui/src/message_parsing/parse_message.ts
 //             frontend/packages/ui/src/message_parsing/embedParsing.ts
 //             frontend/packages/ui/src/message_parsing/types.ts
+// Svelte:     frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
 // ────────────────────────────────────────────────────────────────────
 
 import Foundation
 
 struct ChatHistoryRenderDocument: Codable, Equatable, Sendable {
-    static let schemaVersion = 1
+    static let schemaVersion = 3
 
     let version: Int
     let messageId: String
@@ -80,6 +81,8 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
         case orderedList
         case table
         case embedGroup
+        case resultsView
+        case subChatBatch
         case interactiveQuestion
         case interactiveQuestionFallback
         case hiddenProtocol
@@ -96,6 +99,8 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
     let tableHeaders: [String]
     let tableRows: [[String]]
     let embedReferences: [ChatHistoryEmbedReference]
+    let resultsView: AppleResultsViewDescriptor?
+    let subChatBatch: SubChatBatchDescriptor?
     let inlineEntities: [ChatHistoryInlineEntity]
 
     init(
@@ -115,6 +120,8 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
         var resolvedTableHeaders: [String] = []
         var resolvedTableRows: [[String]] = []
         var resolvedEmbedReferences: [ChatHistoryEmbedReference] = []
+        var resolvedResultsView: AppleResultsViewDescriptor? = nil
+        var resolvedSubChatBatch: SubChatBatchDescriptor? = nil
 
         switch markdownBlock {
         case .paragraph(let text):
@@ -154,6 +161,12 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
             resolvedEmbedReferences = references.map { reference in
                 Self.embedReference(reference, embedRefsById: embedRefsById)
             }
+        case .resultsView(let descriptor):
+            resolvedKind = .resultsView
+            resolvedResultsView = descriptor
+        case .subChatBatch(let descriptor):
+            resolvedKind = .subChatBatch
+            resolvedSubChatBatch = descriptor
         case .interactiveQuestion:
             resolvedKind = .interactiveQuestion
         case .interactiveQuestionFallback:
@@ -172,6 +185,8 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
         tableHeaders = resolvedTableHeaders
         tableRows = resolvedTableRows
         embedReferences = resolvedEmbedReferences
+        resultsView = resolvedResultsView
+        subChatBatch = resolvedSubChatBatch
         inlineEntities = ChatHistoryInlineEntity.parse(
             [resolvedText, resolvedItems.joined(separator: "\n")]
                 .compactMap { $0 }

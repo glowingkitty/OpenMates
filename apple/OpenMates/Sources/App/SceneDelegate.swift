@@ -12,10 +12,39 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import Combine
 import SwiftUI
 #if os(iOS)
 import UIKit
 #endif
+
+/// Scene events can arrive before MainAppView subscribes. Retain the latest URL
+/// until one app window consumes it; publishing also delivers warm scene events.
+@MainActor
+final class ExternalLinkDeliveryCenter: ObservableObject {
+    static let shared = ExternalLinkDeliveryCenter()
+
+    @Published private(set) var pendingURL: URL?
+    let didReceiveURL = PassthroughSubject<Void, Never>()
+
+    func receive(_ url: URL) {
+        pendingURL = url
+        didReceiveURL.send(())
+    }
+
+    func takePendingURL() -> URL? {
+        let url = pendingURL
+        pendingURL = nil
+        return url
+    }
+}
+
+enum SceneExternalURLRouting {
+    static func browsingWebURL(from activity: NSUserActivity) -> URL? {
+        guard activity.activityType == NSUserActivityTypeBrowsingWeb else { return nil }
+        return activity.webpageURL
+    }
+}
 
 #if os(iOS)
 extension AppQuickAction {
@@ -56,9 +85,14 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
             windowScene.sizeRestrictions?.maximumSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         }
 
-        // Handle Handoff activities that arrived at launch
+        // Handle Handoff and universal-link activities that arrived at launch.
         for activity in connectionOptions.userActivities {
             handleUserActivity(activity)
+        }
+
+        // A custom-scheme URL may also be delivered only in launch options.
+        for context in connectionOptions.urlContexts {
+            ExternalLinkDeliveryCenter.shared.receive(context.url)
         }
 
         if let shortcutItem = connectionOptions.shortcutItem,
@@ -69,11 +103,7 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         for context in URLContexts {
-            NotificationCenter.default.post(
-                name: .deepLinkReceived,
-                object: nil,
-                userInfo: ["url": context.url]
-            )
+            ExternalLinkDeliveryCenter.shared.receive(context.url)
         }
     }
 
@@ -96,6 +126,10 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
     // MARK: - Handoff handler
 
     private func handleUserActivity(_ activity: NSUserActivity) {
+        if let url = SceneExternalURLRouting.browsingWebURL(from: activity) {
+            ExternalLinkDeliveryCenter.shared.receive(url)
+            return
+        }
         switch activity.activityType {
         case HandoffManager.viewChatActivityType:
             if let chatId = activity.userInfo?["chatId"] as? String {

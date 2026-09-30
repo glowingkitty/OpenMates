@@ -11,6 +11,229 @@ import CryptoKit
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testBackgroundLifecycleTimeoutClosesCurrentSocketAndEndsExecutionOnce() async {
+        let context = NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: UUID(),
+            socketGeneration: 1, scene: .background, applicationIsBackground: true)
+        var disconnects = 0
+        var ended = 0
+        let attempt = NativeLifecycleAcknowledgementAttempt(captured: context, current: { context },
+            disconnect: { disconnects += 1 })
+        attempt.attachBackgroundExecutionEnd { ended += 1 }
+        await attempt.waitForAcknowledgement { throw URLError(.timedOut) }
+        attempt.expire()
+        attempt.cancel()
+        XCTAssertEqual(disconnects, 1)
+        XCTAssertEqual(ended, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testBackgroundLifecycleTimeoutCannotCloseForegroundOrReplacementSession() async {
+        let scope = UUID()
+        let captured = NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: scope,
+            socketGeneration: 1, scene: .background, applicationIsBackground: true)
+        let replacements = [
+            NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: scope,
+                socketGeneration: 1, scene: .active, applicationIsBackground: false),
+            NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: scope,
+                socketGeneration: 1, scene: .background, applicationIsBackground: false),
+            NativeLifecycleDeliveryContext(accountID: "replacement", profile: .development, scope: scope,
+                socketGeneration: 1, scene: .background, applicationIsBackground: true),
+            NativeLifecycleDeliveryContext(accountID: "owner", profile: .production, scope: scope,
+                socketGeneration: 1, scene: .background, applicationIsBackground: true),
+            NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: UUID(),
+                socketGeneration: 1, scene: .background, applicationIsBackground: true),
+            NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: scope,
+                socketGeneration: 2, scene: .background, applicationIsBackground: true)
+        ]
+        for replacement in replacements {
+            var disconnects = 0
+            var ended = 0
+            let attempt = NativeLifecycleAcknowledgementAttempt(captured: captured, current: { replacement },
+                disconnect: { disconnects += 1 })
+            attempt.attachBackgroundExecutionEnd { ended += 1 }
+            await attempt.waitForAcknowledgement { throw URLError(.timedOut) }
+            XCTAssertEqual(disconnects, 0)
+            XCTAssertEqual(ended, 1)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testBackgroundLifecycleKeepsExecutionUntilServerAcknowledgement() async {
+        let context = NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: UUID(),
+            socketGeneration: 1, scene: .background, applicationIsBackground: true)
+        var continuation: CheckedContinuation<Void, Never>?
+        var ended = 0
+        var disconnects = 0
+        let sent = expectation(description: "waiting for lifecycle acknowledgement")
+        let attempt = NativeLifecycleAcknowledgementAttempt(captured: context, current: { context },
+            disconnect: { disconnects += 1 })
+        attempt.attachBackgroundExecutionEnd { ended += 1 }
+        let waiting = Task { @MainActor in
+            await attempt.waitForAcknowledgement {
+                await withCheckedContinuation { continuation = $0; sent.fulfill() }
+            }
+        }
+        await fulfillment(of: [sent], timeout: 1)
+        XCTAssertEqual(ended, 0)
+        continuation?.resume()
+        await waiting.value
+        attempt.expire()
+        XCTAssertEqual(ended, 1)
+        XCTAssertEqual(disconnects, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testBackgroundLifecycleOSExpirationCancelsWaitAndCleansUpOnce() async {
+        let context = NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: UUID(),
+            socketGeneration: 1, scene: .background, applicationIsBackground: true)
+        var disconnects = 0
+        var ended = 0
+        let sent = expectation(description: "in-flight lifecycle acknowledgement")
+        let attempt = NativeLifecycleAcknowledgementAttempt(captured: context, current: { context },
+            disconnect: { disconnects += 1 })
+        attempt.attachBackgroundExecutionEnd { ended += 1 }
+        let waiting = Task { @MainActor in
+            await attempt.waitForAcknowledgement {
+                sent.fulfill()
+                try await Task.sleep(for: .seconds(60))
+            }
+        }
+        await fulfillment(of: [sent], timeout: 1)
+        attempt.expire()
+        attempt.expire()
+        await waiting.value
+        XCTAssertEqual(disconnects, 1)
+        XCTAssertEqual(ended, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testForegroundLifecycleCancelsOldTimeoutEvenAfterNextBackgroundTransition() async {
+        let context = NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: UUID(),
+            socketGeneration: 1, scene: .background, applicationIsBackground: true)
+        let coordinator = NativeLifecycleAcknowledgementCoordinator()
+        var disconnects = 0
+        var ended = 0
+        let old = coordinator.begin(captured: context, current: { context }, disconnect: { disconnects += 1 })
+        old.attachBackgroundExecutionEnd { ended += 1 }
+        coordinator.cancelPending()
+        let next = coordinator.begin(captured: context, current: { context }, disconnect: { disconnects += 1 })
+        next.attachBackgroundExecutionEnd { ended += 1 }
+        old.expire()
+        XCTAssertEqual(disconnects, 0)
+        XCTAssertEqual(ended, 1)
+        await next.waitForAcknowledgement { }
+        XCTAssertEqual(ended, 2)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
+    func testPushRegistrationRetriesFailedAcknowledgementsAndDeduplicatesToken() async {
+        let context = PushRegistrationContext(accountID: "owner", profile: .development, scope: UUID())
+        var calls = 0
+        var delays: [Duration] = []
+        var states: [Bool] = []
+        let acknowledged = expectation(description: "registration acknowledged after transient failures")
+        let registration = PushDeviceRegistration(context: { context }, register: { token, captured in
+            XCTAssertEqual(token, "synthetic-installation-token")
+            XCTAssertEqual(captured, context)
+            calls += 1
+            if calls < 3 { throw URLError(.notConnectedToInternet) }
+        }, sleep: { delays.append($0) }, retryDelays: [.seconds(1), .seconds(4), .seconds(16)], acknowledge: { value in
+            states.append(value)
+            if value { acknowledged.fulfill() }
+        })
+        registration.refresh(token: "synthetic-installation-token")
+        registration.refresh(token: "synthetic-installation-token")
+        await fulfillment(of: [acknowledged], timeout: 1)
+        registration.refresh(token: "synthetic-installation-token")
+        XCTAssertEqual(calls, 3)
+        XCTAssertEqual(delays, [.seconds(1), .seconds(4)])
+        XCTAssertEqual(states.filter { $0 }.count, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
+    func testPushCachedTokenWaitsForVerifiedOnlineContextAndResumesAfterBoundedFailures() async {
+        let online = PushRegistrationContext(accountID: "owner", profile: .development, scope: UUID())
+        var context: PushRegistrationContext?
+        var calls = 0
+        let exhausted = expectation(description: "bounded registration burst exhausted")
+        let acknowledged = expectation(description: "next online transition retried cached token")
+        let registration = PushDeviceRegistration(context: { context }, register: { token, _ in
+            XCTAssertEqual(token, "cached-installation-token")
+            calls += 1
+            if calls <= 4 { throw URLError(.timedOut) }
+        }, sleep: { _ in }, retryDelays: [.seconds(1), .seconds(4), .seconds(16)], acknowledge: { value in
+            if calls == 4, !value { exhausted.fulfill() }
+            if value { acknowledged.fulfill() }
+        })
+        registration.refresh(token: "cached-installation-token")
+        await Task.yield()
+        XCTAssertEqual(calls, 0, "An offline account must not register through the current cookie jar")
+        context = online
+        registration.refresh(token: "cached-installation-token")
+        await fulfillment(of: [exhausted], timeout: 1)
+        context = nil
+        registration.invalidate()
+        context = online
+        registration.refresh(token: "cached-installation-token")
+        await fulfillment(of: [acknowledged], timeout: 1)
+        XCTAssertEqual(calls, 5)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
+    func testPushOldProfileAcknowledgementCannotMarkReplacementAccountRegistered() async {
+        let oldContext = PushRegistrationContext(accountID: "owner", profile: .development, scope: UUID())
+        let replacement = PushRegistrationContext(accountID: "replacement", profile: .production, scope: UUID())
+        var current = oldContext
+        var continuation: CheckedContinuation<Void, Never>?
+        var requests: [PushRegistrationContext] = []
+        var acknowledgements = 0
+        let suspended = expectation(description: "old request in flight")
+        let completed = expectation(description: "replacement registration acknowledged")
+        let registration = PushDeviceRegistration(context: { current }, register: { _, captured in
+            requests.append(captured)
+            if captured == oldContext {
+                await withCheckedContinuation {
+                    continuation = $0
+                    suspended.fulfill()
+                }
+            }
+        }, sleep: nil, retryDelays: [.seconds(1), .seconds(4), .seconds(16)], acknowledge: { value in
+            if value { acknowledgements += 1; completed.fulfill() }
+        })
+        registration.refresh(token: "synthetic-token")
+        await fulfillment(of: [suspended], timeout: 1)
+        registration.invalidate()
+        current = replacement
+        continuation?.resume()
+        await Task.yield()
+        XCTAssertEqual(acknowledgements, 0)
+        registration.refresh(token: "synthetic-token")
+        await fulfillment(of: [completed], timeout: 1)
+        XCTAssertEqual(requests, [oldContext, replacement])
+        XCTAssertEqual(acknowledgements, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.registration.lifecycle
+    func testPushRetryDropsOldOfflineScopeAndTokenRotationStartsFreshRequest() async {
+        var current = PushRegistrationContext(accountID: "owner", profile: .development, scope: UUID())
+        var tokens: [String] = []
+        let changed = expectation(description: "account scope changed during retry backoff")
+        let completed = expectation(description: "rotated token acknowledged in fresh scope")
+        let registration = PushDeviceRegistration(context: { current }, register: { token, _ in
+            tokens.append(token)
+            if token == "old-token" { throw URLError(.timedOut) }
+        }, sleep: { _ in
+            current = PushRegistrationContext(accountID: "owner", profile: .development, scope: UUID())
+            changed.fulfill()
+        }, retryDelays: [.seconds(1), .seconds(4), .seconds(16)], acknowledge: { if $0 { completed.fulfill() } })
+        registration.refresh(token: "old-token")
+        await fulfillment(of: [changed], timeout: 1)
+        registration.refresh(token: "rotated-token")
+        await fulfillment(of: [completed], timeout: 1)
+        XCTAssertEqual(tokens, ["old-token", "rotated-token"])
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
     func testSharedSocketReconnectWorkHasOneWindowOwnerAndMigratesOnClose() {
         var ownership = SharedSocketWindowOwnership()

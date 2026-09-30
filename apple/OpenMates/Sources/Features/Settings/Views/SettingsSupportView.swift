@@ -7,6 +7,11 @@ import SwiftUI
 struct SettingsSupportView: View {
     @State private var destination: SupportDestination?
 
+    init(deepLinkPath: String? = nil) {
+        _destination = State(initialValue: deepLinkPath == "one-time" ? .oneTime
+            : deepLinkPath == "monthly" ? .monthly : nil)
+    }
+
     var body: some View {
         if let destination {
             switch destination {

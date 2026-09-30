@@ -1,6 +1,17 @@
 // Wikipedia/wiki embed renderers — inline wiki links and fullscreen article view.
 // Mirrors the web app's embeds/wiki/WikiInlineLink.svelte + WikipediaFullscreen.svelte.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+//         frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+//         frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+// CSS: WikipediaFullscreen.svelte .wiki-description, .wiki-extract
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
+
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -157,7 +168,7 @@ struct WikiRenderer: View {
                     .foregroundStyle(Color.fontPrimary)
 
                 if let description = resolvedDescription, !description.isEmpty {
-                    Text(description)
+                    SourceQuoteHighlightedText(text: description, locationID: "wiki-description")
                         .font(.omP)
                         .fontWeight(.semibold)
                         .italic()
@@ -165,7 +176,7 @@ struct WikiRenderer: View {
                 }
 
                 if let extract = resolvedExtract, !extract.isEmpty {
-                    Text(extract)
+                    SourceQuoteTextDocument(text: extract, locationPrefix: "wiki-extract-paragraph")
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                         .textSelection(.enabled)

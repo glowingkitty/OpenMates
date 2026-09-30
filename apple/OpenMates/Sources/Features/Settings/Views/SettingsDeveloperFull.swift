@@ -19,6 +19,12 @@ import SwiftUI
 struct SettingsDeveloperView: View {
     @State private var destination: Destination?
 
+    init(deepLinkPath: String? = nil) {
+        let routes: [String: Destination] = ["api-keys": .apiKeys, "api-keys/create": .apiKeys,
+            "devices": .devices, "webhooks": .webhooks]
+        _destination = State(initialValue: routes[deepLinkPath ?? ""])
+    }
+
     var body: some View {
         if let destination {
             VStack(spacing: 0) {

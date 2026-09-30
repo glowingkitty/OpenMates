@@ -311,6 +311,83 @@ final class AudioRealtimeTranscriptionClientTests: XCTestCase {
         XCTAssertFalse(events.contains { if case .status(.failed) = $0 { true } else { false } })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testCancelDuringInitialAuthenticationDoesNotCreateSocket() async throws {
+        let gate = AudioRealtimeSuspensionGate()
+        let transports = AudioRealtimeTransportSequence([FakeAudioRealtimeTransport()])
+        let recorder = AudioRealtimeEventRecorder()
+        let authentication = AudioRealtimeTranscriptionClient.Authentication(
+            apiBaseURL: URL(string: "https://api.example.test")!,
+            webOrigin: "https://example.test", sessionID: "native-session",
+            webSocketToken: "development-token")
+        let client = AudioRealtimeTranscriptionClient(
+            authenticationProvider: { _ in await gate.suspend(); return authentication },
+            transportFactory: { transports.next() },
+            eventHandler: { await recorder.record($0) })
+        let starting = Task { try await client.start() }
+        await gate.waitForEntry()
+        await client.cancel()
+        await gate.release()
+        do {
+            try await starting.value
+            XCTFail("A cancelled start must not connect")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertEqual(transports.callCount(), 0)
+        let events = await recorder.events()
+        XCTAssertEqual(events.filter { $0 == .status(.cancelled) }.count, 1)
+        XCTAssertFalse(events.contains { if case .status(.failed) = $0 { true } else { false } })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testCallerCancellationDuringAuthenticationDoesNotCreateSocket() async throws {
+        let gate = AudioRealtimeSuspensionGate()
+        let transports = AudioRealtimeTransportSequence([FakeAudioRealtimeTransport()])
+        let recorder = AudioRealtimeEventRecorder()
+        let authentication = AudioRealtimeTranscriptionClient.Authentication(
+            apiBaseURL: URL(string: "https://api.example.test")!,
+            webOrigin: "https://example.test", sessionID: "native-session",
+            webSocketToken: "development-token")
+        let client = AudioRealtimeTranscriptionClient(
+            authenticationProvider: { _ in await gate.suspend(); return authentication },
+            transportFactory: { transports.next() },
+            eventHandler: { await recorder.record($0) })
+        let starting = Task { try await client.start() }
+        await gate.waitForEntry()
+        starting.cancel()
+        await gate.release()
+        do {
+            try await starting.value
+            XCTFail("Caller cancellation must prevent connection")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertEqual(transports.callCount(), 0)
+        let events = await recorder.events()
+        XCTAssertEqual(events.filter { $0 == .status(.cancelled) }.count, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testCancelDuringConnectClosesLateConnectionWithoutSendingAudio() async throws {
+        let gate = AudioRealtimeSuspensionGate()
+        let transport = FakeAudioRealtimeTransport(connectGate: gate)
+        let recorder = AudioRealtimeEventRecorder()
+        let client = makeClient(transport: transport, recorder: recorder)
+        let starting = Task { try await client.start() }
+        await gate.waitForEntry()
+        try await client.append(samples: [0.25], sourceSampleRate: 16_000)
+        await client.cancel()
+        await gate.release()
+        do {
+            try await starting.value
+            XCTFail("A late connection must remain cancelled")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        let closeCalls = await transport.closeCalls()
+        let sent = await transport.sentMessages()
+        XCTAssertEqual(closeCalls, 2)
+        XCTAssertTrue(sent.isEmpty)
+        let events = await recorder.events()
+        XCTAssertEqual(events.filter { $0 == .status(.cancelled) }.count, 1)
+        XCTAssertFalse(events.contains { if case .status(.failed) = $0 { true } else { false } })
+    }
+
     private func makeClient(
         transport: FakeAudioRealtimeTransport,
         recorder: AudioRealtimeEventRecorder
@@ -340,6 +417,7 @@ final class AudioRealtimeTranscriptionClientTests: XCTestCase {
 }
 
 private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
+    private let connectGate: AudioRealtimeSuspensionGate?
     private var request: URLRequest?
     private var sent: [String] = []
     private var incoming: [String] = []
@@ -348,8 +426,11 @@ private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
     private var sendWaiters: [(Int, CheckedContinuation<Void, Never>)] = []
     private var closes = 0
 
-    func connect(_ request: URLRequest) {
+    init(connectGate: AudioRealtimeSuspensionGate? = nil) { self.connectGate = connectGate }
+
+    func connect(_ request: URLRequest) async {
         self.request = request
+        await connectGate?.suspend()
     }
 
     func send(_ text: String) {
@@ -398,6 +479,30 @@ private actor FakeAudioRealtimeTransport: AudioRealtimeSocketTransport {
         await withCheckedContinuation { continuation in
             sendWaiters.append((count, continuation))
         }
+    }
+}
+
+private actor AudioRealtimeSuspensionGate {
+    private var entered = false
+    private var released = false
+    private var entryWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+    func suspend() async {
+        entered = true
+        entryWaiters.forEach { $0.resume() }
+        entryWaiters.removeAll()
+        if !released { await withCheckedContinuation { releaseWaiter = $0 } }
+    }
+
+    func waitForEntry() async {
+        if !entered { await withCheckedContinuation { entryWaiters.append($0) } }
+    }
+
+    func release() {
+        released = true
+        releaseWaiter?.resume()
+        releaseWaiter = nil
     }
 }
 

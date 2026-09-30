@@ -12,6 +12,45 @@ final class SettingsFullParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.parent-return
+    func testInternalSettingsLinkOpensLanguageChildAndReturns() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        app.launch()
+        let link = app.descendants(matching: .any)["ui-test-settings-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 15))
+        XCTAssertTrue(link.isHittable)
+        link.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-language-page"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.webViews.firstMatch.exists, "An app settings link must remain native")
+        attachScreenshot(name: "Native app link opened Language settings child")
+        app.buttons["settings-language-back"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-interface-language-row"].waitForExistence(timeout: 5))
+        app.buttons["settings-destination-back"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForExistence(timeout: 5))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,settings-ui.shell.lifecycle-and-routing
+    func testInternalMessageLinkPrefillsDraftWithoutSubmitting() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        app.launch()
+        let link = app.descendants(matching: .any)["ui-test-message-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 15))
+        XCTAssertTrue(link.isHittable)
+        link.tap()
+        let editor = app.descendants(matching: .any)["message-editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        let filled = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value CONTAINS %@", "Synthetic linked draft"), object: editor)
+        XCTAssertEqual(XCTWaiter.wait(for: [filled], timeout: 10), .completed)
+        XCTAssertTrue(app.buttons["send-button"].exists, "The linked text must remain editable before Send")
+        XCTAssertFalse(app.descendants(matching: .any)["chat-history"].exists,
+                       "Following a prefill link must leave the draft in the welcome composer")
+        XCTAssertFalse(app.webViews.firstMatch.exists)
+        attachScreenshot(name: "Internal app link populated an unsent native draft")
+    }
+
     // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
     func testGuestPublicSettingsSubmenusOpenAndReturn() throws {
         let app = XCUIApplication()

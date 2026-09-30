@@ -69,6 +69,7 @@ final class WatchAuthStore: ObservableObject {
         guard result.loginResponse.success, let user = result.loginResponse.user else {
             throw AuthError.invalidCredentials
         }
+        WatchChatAccountLifecycle.invalidate()
         ServerConfiguration.current = result.serverProfile.endpointConfiguration
         WatchServerProfileStore().saveSuccessfulProfile(result.serverProfile)
         PairPendingAckStore.mark(userID: user.id)
@@ -117,6 +118,7 @@ final class WatchAuthStore: ObservableObject {
                 NativeDiagnostics.event("session_restore_revoked", category: Self.diagnosticsCategory, level: .warning)
                 return .revoked
             }
+            if currentUser?.id != user.id { WatchChatAccountLifecycle.invalidate() }
             currentUser = user
             webSocketToken = response.wsToken
             cacheAuthenticatedUser(user)
@@ -135,6 +137,7 @@ final class WatchAuthStore: ObservableObject {
     }
 
     private func clearRevokedSession(for userId: String) async {
+        WatchChatAccountLifecycle.invalidate()
         try? await CryptoManager.shared.deleteMasterKey(for: userId)
         try? await WatchChatOfflineCache().removeSnapshot()
         UserDefaults.standard.removeObject(forKey: Self.cachedUserDefaultsKey)

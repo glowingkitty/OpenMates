@@ -23,6 +23,16 @@ struct SettingsPrivacyContentView: View {
     @State private var chatAutoDeletionPeriod: AutoDeletionPeriod = .ninetyDays
 
     private let diagnosticsPreferences = PrivacyDiagnosticsPreferences()
+    private let deepLinkPath: String?
+
+    init(deepLinkPath: String? = nil) {
+        self.deepLinkPath = deepLinkPath
+        let routes: [String: Destination] = ["connected-accounts": .connectedAccounts,
+            "hide-personal-data": .hidePersonalData, "auto-deletion/chats": .chatAutoDeletion,
+            "share-debug-logs": .debugSession]
+        _destination = State(initialValue: deepLinkPath?.hasPrefix("hide-personal-data/") == true
+            ? .hidePersonalData : routes[deepLinkPath ?? ""])
+    }
 
     var body: some View {
         if let destination {
@@ -30,6 +40,9 @@ struct SettingsPrivacyContentView: View {
                 subpageHeader(destination.title)
                 destinationView(destination)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onAppear {
+                        chatAutoDeletionPeriod = AutoDeletionPeriod.from(days: authManager.currentUser?.autoDeleteChatsAfterDays)
+                    }
             }
             .background(Color.grey0)
         } else {
@@ -215,7 +228,15 @@ struct SettingsPrivacyContentView: View {
     private func destinationView(_ destination: Destination) -> some View {
         switch destination {
         case .policy: LegalChatView(documentType: .privacy)
-        case .hidePersonalData: SettingsHidePersonalDataView()
+        case .hidePersonalData: SettingsHidePersonalDataView(initialEntryType: {
+            switch deepLinkPath?.split(separator: "/").last {
+            case "add-name": return .name
+            case "add-address": return .address
+            case "add-birthday": return .birthday
+            case "add-custom": return .custom
+            default: return nil
+            }
+        }())
         case .connectedAccounts: SettingsConnectedAccountsView()
         case .chatAutoDeletion: SettingsAutoDeletionView(selectedPeriod: $chatAutoDeletionPeriod)
         case .debugSession: SettingsShareDebugLogsView()

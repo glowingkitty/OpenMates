@@ -588,6 +588,11 @@ struct SettingsHidePersonalDataView: View {
     @State private var showAddEntrySheet = false
     @State private var pendingDeleteEntry: ApplePrivacyPersonalDataEntry?
 
+    init(initialEntryType: ApplePersonalDataType? = nil) {
+        _addEntryType = State(initialValue: initialEntryType ?? .custom)
+        _showAddEntrySheet = State(initialValue: initialEntryType != nil)
+    }
+
     var body: some View {
         ZStack {
             OMSettingsPage(

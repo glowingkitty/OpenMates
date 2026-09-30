@@ -15,6 +15,13 @@ import SwiftUI
 struct SettingsServerView: View {
     @State private var destination: Destination?
 
+    init(deepLinkPath: String? = nil) {
+        let routes: [String: Destination] = ["software-update": .softwareUpdate, "stats": .stats,
+            "gift-cards": .giftCards, "free-testing-credits": .freeTestingCredits,
+            "anonymous-free-usage": .anonymousFreeUsage, "tests": .tests]
+        _destination = State(initialValue: routes[deepLinkPath ?? ""])
+    }
+
     var body: some View {
         if let destination {
             VStack(spacing: 0) {

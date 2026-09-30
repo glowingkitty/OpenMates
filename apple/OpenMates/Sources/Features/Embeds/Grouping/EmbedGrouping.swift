@@ -1,6 +1,9 @@
 // Embed grouping system — groups consecutive same-type embeds into carousels.
 // Mirrors the web app's GroupRenderer + groupHandlers.
 // Groups search results horizontally, code blocks vertically, etc.
+// Web: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+//      frontend/packages/ui/src/message_parsing/groupHandlers.ts
+//      frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
 
 import SwiftUI
 
@@ -25,7 +28,7 @@ struct EmbedGroup: Identifiable {
         switch type {
         case .webWebsite, .videosVideo, .imagesImageResult, .mapsPlace,
              .travelConnection, .travelStay, .shoppingProduct, .nutritionRecipe,
-             .eventsEvent, .homeListing, .healthAppointment:
+             .eventsEvent, .homeListing, .healthAppointment, .sheetsSheet:
             return true
         default:
             return false
@@ -145,9 +148,7 @@ enum EmbedGrouper {
     }
 
     private static func groupKey(for embed: EmbedRecord) -> String {
-        if let data = embed.data,
-           case .raw(let dict) = data,
-           (dict["type"]?.value as? String) == "app_skill_use" {
+        if embed.isAppSkillUse {
             return appSkillUseGroupKey
         }
         return embed.type
@@ -191,12 +192,13 @@ struct GroupedEmbedView: View {
 
     private var horizontalCarousel: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: .spacing3) {
+            LazyHStack(spacing: .spacing6) {
                 ForEach(Array(group.embeds.reversed())) { embed in
                     EmbedPreviewCard(embed: embed, allEmbedRecords: allEmbedRecords) {
                         onEmbedTap(embed)
                     }
                     .frame(width: 300, height: 200)
+                    .accessibilityIdentifier("embed-preview-\(embed.id)")
                 }
             }
         }

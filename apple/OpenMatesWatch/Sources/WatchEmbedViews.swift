@@ -41,8 +41,7 @@ struct WatchEmbedPreviewCard: View {
             ZStack {
                 Rectangle()
                     .fill(gradient(forAppId: model.appId))
-                Image(systemName: "chevron.left.forwardslash.chevron.right")
-                    .font(.system(size: 22, weight: .bold))
+                Icon("code", size: 22)
                     .foregroundStyle(LinearGradient.appCode)
                     .frame(width: 28, height: 25)
                     .background(Color.grey0, in: RoundedRectangle(cornerRadius: 2))
@@ -87,6 +86,7 @@ struct WatchEmbedPreviewCard: View {
                 Circle()
                     .fill(gradient(forAppId: model.appId))
                     .frame(width: .spacing5, height: .spacing5)
+                    .overlay { Icon(model.iconName, size: 12).foregroundStyle(Color.grey0) }
                     .accessibilityHidden(true)
 
                 Text(model.typeLabel)
@@ -143,9 +143,27 @@ struct WatchEmbedPreviewCard: View {
         case "shopping": return .appShopping
         case "weather": return .appWeather
         case "reminder": return .appReminder
-        case "images", "photos": return .appPhotos
+        case "images": return .appImages
+        case "photos": return .appPhotos
         case "audio": return .appAudio
         case "pdf": return .appPdf
+        case "events": return .appEvents
+        case "docs": return .appDocs
+        case "sheets": return .appSheets
+        case "mindmaps": return .appMindmaps
+        case "news": return .appNews
+        case "health": return .appHealth
+        case "nutrition": return .appNutrition
+        case "fitness": return .appFitness
+        case "design": return .appDesign
+        case "electronics": return .appElectronics
+        case "home": return .appHome
+        case "business": return .appBusiness
+        case "finance": return .appFinance
+        case "social_media": return .appSocial_media
+        case "models3d": return .app3dmodels
+        case "calendar": return .appCalendar
+        case "mail": return .appMail
         default: return .primary
         }
     }

@@ -29,6 +29,11 @@ from backend.core.api.app.services.push_subscription_targets import (
     remove_push_subscription_target,
     remove_push_subscription_targets,
 )
+from backend.core.api.app.services.push_subscription_lock import (
+    PushSubscriptionLockUnavailable,
+    push_subscription_write_lock,
+    require_push_subscription_lock,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -134,21 +139,24 @@ async def subscribe_push(
     }
 
     try:
-        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
-        subscription_json = merge_push_subscription_target(existing_subscription_json, target)
-        updated = await directus_service.update_user(user_id, {
-            "push_notification_enabled": True,
-            "push_notification_subscription": subscription_json,
-        })
-        if not updated:
-            raise HTTPException(status_code=500, detail="Failed to save subscription")
+        async with push_subscription_write_lock(cache_service, user_id) as lock:
+            existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+            subscription_json = merge_push_subscription_target(existing_subscription_json, target)
+            await require_push_subscription_lock(lock)
+            updated = await directus_service.update_user(user_id, {
+                "push_notification_enabled": True,
+                "push_notification_subscription": subscription_json,
+            })
+            if not updated:
+                raise HTTPException(status_code=500, detail="Failed to save subscription")
 
-        # Invalidate cached user so next fetch returns the updated subscription
-        await cache_service.delete_user_cache(user_id)
+            await cache_service.delete_user_cache(user_id)
         logger.info(f"[PushRoutes] Saved push subscription for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Subscription saved")
     except HTTPException:
         raise
+    except PushSubscriptionLockUnavailable as exc:
+        raise HTTPException(status_code=503, detail="Push subscription temporarily unavailable") from exc
     except Exception as e:
         logger.error(f"[PushRoutes] Failed to save push subscription for {user_id[:6]}...: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -173,22 +181,26 @@ async def unregister_native_device(
         raise HTTPException(status_code=400, detail="Missing native device identity")
 
     try:
-        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
-        subscription_json, push_enabled = remove_push_subscription_target(
-            existing_subscription_json,
-            {"type": "apns", "token": token, "device_id": device_id},
-        )
-        updated = await directus_service.update_user(user_id, {
-            "push_notification_enabled": push_enabled,
-            "push_notification_subscription": subscription_json,
-        })
-        if not updated:
-            raise HTTPException(status_code=500, detail="Failed to remove device token")
-        await cache_service.delete_user_cache(user_id)
+        async with push_subscription_write_lock(cache_service, user_id) as lock:
+            existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+            subscription_json, push_enabled = remove_push_subscription_target(
+                existing_subscription_json,
+                {"type": "apns", "token": token, "device_id": device_id},
+            )
+            await require_push_subscription_lock(lock)
+            updated = await directus_service.update_user(user_id, {
+                "push_notification_enabled": push_enabled,
+                "push_notification_subscription": subscription_json,
+            })
+            if not updated:
+                raise HTTPException(status_code=500, detail="Failed to remove device token")
+            await cache_service.delete_user_cache(user_id)
         logger.info("[PushRoutes] Removed one native APNs installation for user %s...", user_id[:6])
         return PushSubscribeResponse(success=True, message="Device unregistered")
     except HTTPException:
         raise
+    except PushSubscriptionLockUnavailable as exc:
+        raise HTTPException(status_code=503, detail="Push subscription temporarily unavailable") from exc
     except Exception as exc:
         logger.error(
             "[PushRoutes] Failed to remove native installation for user %s...: %s",
@@ -212,20 +224,24 @@ async def unsubscribe_push(
     user_id = str(current_user.id)
 
     try:
-        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
-        subscription_json, push_enabled = remove_push_subscription_targets(existing_subscription_json, "web")
-        updated = await directus_service.update_user(user_id, {
-            "push_notification_enabled": push_enabled,
-            "push_notification_subscription": subscription_json,
-        })
-        if not updated:
-            raise HTTPException(status_code=500, detail="Failed to remove subscription")
+        async with push_subscription_write_lock(cache_service, user_id) as lock:
+            existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+            subscription_json, push_enabled = remove_push_subscription_targets(existing_subscription_json, "web")
+            await require_push_subscription_lock(lock)
+            updated = await directus_service.update_user(user_id, {
+                "push_notification_enabled": push_enabled,
+                "push_notification_subscription": subscription_json,
+            })
+            if not updated:
+                raise HTTPException(status_code=500, detail="Failed to remove subscription")
 
-        await cache_service.delete_user_cache(user_id)
+            await cache_service.delete_user_cache(user_id)
         logger.info(f"[PushRoutes] Removed push subscription for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Subscription removed")
     except HTTPException:
         raise
+    except PushSubscriptionLockUnavailable as exc:
+        raise HTTPException(status_code=503, detail="Push subscription temporarily unavailable") from exc
     except Exception as e:
         logger.error(f"[PushRoutes] Failed to remove push subscription for {user_id[:6]}...: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -269,20 +285,24 @@ async def register_native_device(
     }
 
     try:
-        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
-        subscription_json = merge_push_subscription_target(existing_subscription_json, target)
-        updated = await directus_service.update_user(user_id, {
-            "push_notification_enabled": True,
-            "push_notification_subscription": subscription_json,
-        })
-        if not updated:
-            raise HTTPException(status_code=500, detail="Failed to save device token")
+        async with push_subscription_write_lock(cache_service, user_id) as lock:
+            existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+            subscription_json = merge_push_subscription_target(existing_subscription_json, target)
+            await require_push_subscription_lock(lock)
+            updated = await directus_service.update_user(user_id, {
+                "push_notification_enabled": True,
+                "push_notification_subscription": subscription_json,
+            })
+            if not updated:
+                raise HTTPException(status_code=500, detail="Failed to save device token")
 
-        await cache_service.delete_user_cache(user_id)
+            await cache_service.delete_user_cache(user_id)
         logger.info(f"[PushRoutes] Saved native APNs token for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Device registered")
     except HTTPException:
         raise
+    except PushSubscriptionLockUnavailable as exc:
+        raise HTTPException(status_code=503, detail="Push subscription temporarily unavailable") from exc
     except Exception as e:
         logger.error(f"[PushRoutes] Failed to save native token for {user_id[:6]}...: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -113,6 +113,8 @@ final class WatchChatLayoutUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["What do you want to learn or need help with?"].exists)
         XCTAssertTrue(app.buttons["watch-chat-back"].isHittable)
         XCTAssertTrue(app.textFields["watch-message-input"].exists)
+        XCTAssertTrue(app.textFields["watch-message-input"].isHittable)
+        XCTAssertLessThanOrEqual(app.textFields["watch-message-input"].frame.height, 39, "Native text entry must fit within the 38pt composer capsule")
         XCTAssertTrue(app.buttons["watch-audio-record-button"].isHittable)
 
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -147,5 +149,89 @@ final class WatchChatLayoutUITests: XCTestCase {
 
         cancel.tap()
         XCTAssertTrue(app.textFields["watch-message-input"].waitForExistence(timeout: 5))
+    }
+}
+
+extension WatchChatLayoutUITests {
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply,drafts.draft-only.lifecycle
+    func testNewChatBackDoesNotCreateAnEmptyChat() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-new"]
+        app.launch()
+        XCTAssertTrue(app.buttons["watch-chat-back"].waitForExistence(timeout: 12))
+        app.buttons["watch-chat-back"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-chat-list"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["watch-chat-row-watch-ui-test-chat"].exists)
+        XCTAssertTrue(app.staticTexts["watch-chat-empty"].exists)
+        app.buttons["watch-new-chat-button"].tap()
+        XCTAssertTrue(app.textFields["watch-message-input"].waitForExistence(timeout: 5))
+        app.buttons["watch-chat-back"].tap()
+        XCTAssertTrue(app.staticTexts["watch-chat-empty"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted,apple-watch.chats.new-text-reply
+    func testContentBearingDraftSurvivesBackAndReopensSameChat() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-draft"]
+        app.launch()
+        let input = app.textFields["watch-message-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 12))
+        XCTAssertEqual(input.value as? String, "Berlin meetup draft")
+        app.buttons["watch-chat-back"].tap()
+        let row = app.buttons["watch-chat-row-watch-ui-test-chat"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "Berlin meetup draft")
+    }
+
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=apple-watch.chats.compact-layout
+    func testMarkdownAndEventsSkillPreviewRenderSemanticContent() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-markdown"]
+        app.launch()
+        let heading = app.descendants(matching: .any)["watch-markdown-heading-0"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 12))
+        XCTAssertTrue(app.staticTexts["Berlin Meetup"].exists)
+        XCTAssertFalse(app.staticTexts["## Berlin **Meetup**"].exists)
+        let preview = app.buttons["watch-embed-preview-searchResults"]
+        for _ in 0..<4 where !preview.isHittable { app.swipeUp() }
+        XCTAssertTrue(preview.exists)
+        XCTAssertTrue(app.staticTexts["Berlin meetups"].exists)
+        XCTAssertEqual(preview.frame.width, 156, accuracy: 1)
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "Watch Markdown and Events preview"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}
+
+extension WatchChatLayoutUITests {
+    @MainActor
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle,apple-watch.chats.browse-search-open
+    func testRemotePhasedDraftAppearsAndReopensItsComposer() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-remote-draft"]
+        app.launch()
+        let row = app.buttons["watch-chat-row-watch-remote-draft"]
+        XCTAssertTrue(row.waitForExistence(timeout: 12))
+        row.tap()
+        let input = app.textFields["watch-message-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "Berlin remote draft")
+        XCTAssertTrue(input.isHittable)
+        XCTAssertLessThanOrEqual(input.frame.height, 39, "Restored draft entry must fit within the composer capsule")
+        app.buttons["watch-chat-back"].tap()
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        row.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "Berlin remote draft")
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "Watch restored remote draft"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }
