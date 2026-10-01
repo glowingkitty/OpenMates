@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import pytest
 import json
+import httpx
 
 from backend.core.api.app.routes.handlers.websocket_handlers import workflow_chat_delivery_handlers
 from backend.core.api.app.services.workflow_chat_delivery_service import WorkflowChatDeliveryService
+from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistoryError
 
 
 class FakeManager:
@@ -78,6 +80,44 @@ class FakeVaultEnvelopeCipher:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("status_code,code,expected_status", [
+    (400, "selected_embeds_required", "failed"),
+    (400, "unknown_validation", "claimed"),
+    (409, "delivery_conflict", "claimed"),
+])
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced,workflows.chat-delivery.client-encrypted
+async def test_permanent_client_ciphertext_rejection_fails_only_current_claim(
+    monkeypatch, status_code: int, code: str, expected_status: str,
+) -> None:
+    service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
+    delivery = service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200,
+                                       workflow_id="workflow-1", run_id="run-1", node_id="send")
+    claim = service.claim_new_chat_delivery(delivery_id=delivery.delivery_id, owner_id="alice", device_id="device-hash")
+    request = httpx.Request("POST", "http://directus.example/workflow-runtime-transaction")
+    response = httpx.Response(status_code, request=request, json={"error": {"code": code}})
+
+    def reject(**kwargs):
+        del kwargs
+        raise WorkflowDeliveryHistoryError("Workflow delivery transaction was rejected") from httpx.HTTPStatusError(
+            "Rejected", request=request, response=response,
+        )
+
+    monkeypatch.setattr(service, "persist_client_ciphertext", reject)
+    monkeypatch.setattr(workflow_chat_delivery_handlers, "_service", lambda directus_service: service)
+    manager = FakeManager()
+    await workflow_chat_delivery_handlers.handle_workflow_chat_delivery_persist(
+        manager=manager, directus_service=object(), user_id="alice", device_fingerprint_hash="device-hash",
+        payload={"delivery_id": delivery.delivery_id, "claim_token": claim.token,
+                 "claim_generation": claim.generation, "claim_issued_at": claim.issued_at,
+                 "claim_expires_at": claim.expires_at, "encrypted_chat_metadata": "ciphertext",
+                 "encrypted_message": "ciphertext"},
+    )
+    assert service.get_delivery(delivery_id=delivery.delivery_id, owner_id="alice").status == expected_status
+    assert manager.messages[-1]["message"]["payload"]["code"] == "workflow_chat_delivery_rejected"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private
+@pytest.mark.asyncio
 async def test_reconnect_advertises_owner_authorized_pending_deliveries(monkeypatch) -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
     service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200)
@@ -99,6 +139,7 @@ async def test_reconnect_advertises_owner_authorized_pending_deliveries(monkeypa
     assert message["payload"]["deliveries"][0]["encrypted_payload"].startswith("vault:")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.claim-fenced,workflows.chat-delivery.client-encrypted
 @pytest.mark.asyncio
 async def test_claim_persist_and_ack_use_authenticated_device(monkeypatch) -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultEnvelopeCipher(), clock=lambda: 100)

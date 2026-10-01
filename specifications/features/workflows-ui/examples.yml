@@ -108,56 +108,18 @@ workflow_identity:
     resolved_category: general_knowledge
     gradient_source: existing_category_gradients.general_knowledge
     resolved_icon: calendar
-workspace_start:
+workspace_start_layout:
 - id: desktop-recommendation-led-layout
-  given:
-    route: /workflows
-    viewport: 1440x900
-    authenticated: true
-    recent_workflows:
-    - weather
-    - invoices
-    starter_examples:
-    - rain
-    - news
-  expect:
-    vertical_regions:
-    - recommendation_banner
-    - workflow_identity_space
-    - workflow_card_carousel
-    - browse_controls
-    - bottom_composer
-    ordered_cards:
-    - weather
-    - invoices
-    - rain
-    - news
-    faint_centered_workflow_icon: true
-    horizontal_cards: true
-    show_all_and_search_centered: true
-    show_all_label: Show all
-    show_all_count_suffix: false
-    large_card_gradient_source: workflow_category
-    large_card_schedule_or_status_detail_visible: true
-    composer_floating_at_bottom: true
-    composer_placeholder: Enter a name for a new workflow
-    placeholder_centered_horizontally_and_vertically: true
-    extra_top_right_blank_workflow_button: false
+  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
+  given: Alice opens Workflows on a desktop screen with two owned Workflows and a Daily Inspiration banner.
+  when: The start view renders its continuation area.
+  then: The banner stays above the centered Workflow identity and owned continuation cards. Show my workflows, Show templates and Search sit above the floating composer. Large cards use the Workflow category gradient and useful schedule detail when enough content space is available.
 - id: mobile-retains-start-hierarchy
-  given:
-    route: /workflows
-    viewport: 390x844
-    authenticated: true
-  expect:
-    recommendation_banner_compact: true
-    identity_and_greeting_centered: true
-    recommendation_and_start_content_overlap: false
-    workflow_cards_horizontally_reachable: true
-    compact_card_content: [assigned_workflow_icon, one_line_ellipsized_title, chevron]
-    compact_badge_schedule_status_retention_detail_visible: false
-    show_all_label: Show all
-    search_visible: true
-    composer_above_safe_area: true
+  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
+  given: Bob opens Workflows on a narrow phone or a laptop whose tall inspiration banner leaves limited content space.
+  when: The continuation area chooses its card size.
+  then: Compact cards show the assigned icon, one ellipsized title line and chevron, without badges or schedule detail. The greeting stays below inspiration, the browse links remain visible above the composer, and the composer stays above the safe area.
+workspace_start:
 - id: valid-title-creates-disabled-draft
   given:
     composer_text: Daily weather check
@@ -561,3 +523,26 @@ website_changes:
   given: "Alice has added Read website for events.ccc.de before a Check."
   when: "She selects its Has changed output or inserts its Changes output into an AI question."
   then: "The existing Check controls remain available, readable output labels appear, and guidance explains the first silent baseline and failed-read behavior."
+
+workflow_continue_priority:
+- id: continue-prioritizes-recent-edits-and-upcoming-runs
+  assertion_ids: [workflows-ui.workspace.continue-priority]
+  given: Alice has a Workflow edited ten minutes ago, one last edited three days ago running in five minutes, one edited three hours ago, one last edited last week running tomorrow morning within 24 hours, and an older paused Workflow.
+  when: She opens Workflows.
+  then: Continue where you left off shows those five Workflows in that order. Workflows in the same edit group show newest first, and Workflows in the same scheduled group show the soonest future run first.
+- id: elapsed-and-paused-runs-are-not-upcoming
+  assertion_ids: [workflows-ui.workspace.continue-priority]
+  given: Bob has paused a Workflow whose old next-run time is five minutes away and has another Workflow with an elapsed next-run time.
+  when: He leaves the Workflows workspace visible across a priority boundary.
+  then: Neither Workflow is treated as an upcoming scheduled run; the ordering updates using the current time and each Workflow's latest creation or update time.
+workflow_library_templates:
+- id: owned-grid-sort-choice
+  assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
+  given: Alice owns a newly edited paused Workflow and two older enabled Workflows scheduled in ten minutes and two hours.
+  when: She selects Show my workflows, then changes Last updated to Running next first.
+  then: The grid initially shows the newly edited Workflow first, then switches to the ten-minute run, the two-hour run, and the paused Workflow. No built-in template is mixed into that grid.
+- id: templates-create-disabled-copies
+  assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
+  given: Bob is on the Workflows start screen with no Workflows of his own.
+  when: He opens Show templates and selects a built-in planning template.
+  then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where you left off.

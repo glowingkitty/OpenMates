@@ -313,7 +313,9 @@
         "workflow-template-sharing.spec.ts",
         "components/settings-teams-icons.spec.ts",
         "components/image-result-fullscreen-proxy.spec.ts",
-        "components/music-fullscreen-responsive.spec.ts"
+        "components/music-fullscreen-responsive.spec.ts",
+        "components/workflow-send-delivery-status.spec.ts",
+        "components/workspace-home-responsive.spec.ts"
       ]
     },
     "synthetic_artifact": {

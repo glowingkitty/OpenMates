@@ -53,6 +53,29 @@ def scheduled_graph() -> dict[str, object]:
 
 # contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
 @pytest.mark.anyio
+async def test_scheduler_advances_occurrence_after_a_stale_run_was_terminalized() -> None:
+    runtime = FakeRuntime({
+        "accepted": True, "run_id": "run-1", "workflow_id": "workflow-1", "version_id": "version-1",
+        "owner_user_id": "alice", "encrypted_schedule_config_ref": "blob-schedule-1",
+        "claim_token": "claim-token", "claim_generation": 2,
+    }, {"started": False, "status": "failed"})
+
+    async def no_execution(*_args: object) -> None:
+        raise AssertionError("terminal run must not execute again")
+
+    async def next_occurrence(_owner: str, _ref: str) -> int:
+        return 1_800_000_000
+
+    result = await WorkflowSchedulerService(runtime).execute_due_trigger(
+        "trigger-1", next_occurrence, no_execution,
+    )
+
+    assert result["status"] == "failed"
+    assert [name for name, _ in runtime.calls] == ["claim_due_trigger", "start_claimed_run", "advance_claimed_trigger"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+@pytest.mark.anyio
 async def test_scheduler_fences_claim_and_advances_recurrence_before_side_effects() -> None:
     runtime = FakeRuntime(
         {

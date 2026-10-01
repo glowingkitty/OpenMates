@@ -12,6 +12,38 @@ function db() { return fakeDatabase({workflows:[{id:'w',workflow_id:'workflow-1'
 function reserve(run='run-1',delivery='delivery-1') { return {...base,action:'reserve',run_id:run,node_id:'send',delivery_id:delivery,destination_hash:'b'.repeat(64),candidates:[{index:0,fingerprint:'c'.repeat(64),only_new:true}],expires_at:Math.floor(now/1000)+1000}; }
 const execute=(database,body)=>executeOperation(database,'delivery_history',JSON.parse(JSON.stringify(body)),now);
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+test('a late worker checkpoint cannot revive a terminal run', async()=>{
+  const database=db();
+  database.rows.workflow_runs[0].status='failed';
+  const write={...base,action:'save_run',run_id:'run-1',run:{run_id:'run-1',workflow_id:'workflow-1',hashed_user_id:owner,status:'running'}};
+  await assert.rejects(execute(database,write),/run_terminal/);
+  assert.equal(database.rows.workflow_runs[0].status,'failed');
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained,workflows.execution.lifecycle-visible
+test('terminal content pruning clears only matching refs and leaves status and results fenced', async()=>{
+  const database=db();
+  const ref='vault://workflows/workflow_run_content/old';
+  const run=database.rows.workflow_runs[0];
+  run.status='completed';
+  run.encrypted_output_summary=ref;
+  run.content_available=true;
+  run.content_storage='durable';
+  run.record_json={id:'run-1',status:'completed',node_statuses:[{node_id:'send',status:'completed'}],
+    encrypted_content_ref:ref,content_available:true,content_storage:'durable'};
+  assert.deepEqual(await execute(database,{...base,action:'prune_run_content',run_id:'run-1',content_ref:'vault://workflows/workflow_run_content/other'}),{pruned:false});
+  assert.equal(database.rows.workflow_runs[0].encrypted_output_summary,ref);
+  assert.deepEqual(await execute(database,{...base,action:'prune_run_content',run_id:'run-1',content_ref:ref}),{pruned:true});
+  const pruned=database.rows.workflow_runs[0];
+  assert.equal(pruned.status,'completed');
+  assert.equal(pruned.record_json.status,'completed');
+  assert.deepEqual(pruned.record_json.node_statuses,[{node_id:'send',status:'completed'}]);
+  assert.equal(pruned.record_json.encrypted_content_ref,null);
+  assert.equal(pruned.content_storage,'deleted');
+  await assert.rejects(execute(database,{...base,action:'save_run',run_id:'run-1',run:{run_id:'run-1',workflow_id:'workflow-1',hashed_user_id:owner,status:'running'}}),/run_terminal/);
+});
+
 // contract-test: supporting surface=rest_api assertions=workflows.history.delivered-membership
 test('concurrent result reservations are batched and destination-scoped; deletion forgets and fences late writes', async()=>{
   const database=db();
@@ -62,6 +94,25 @@ test('client ciphertext transaction commits normal message before ACK and rolls 
   await execute(database,{...base,action:'delete_run',run_id:'run-1'});
   assert.equal(database.rows.messages.length,1);
   await assert.rejects(execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:persisted}),/run_deleted/);
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.client-encrypted,workflows.history.delivery-reservations
+test('only the current unpersisted claim can fail permanently rejected ciphertext and release reservations', async()=>{
+  const database=db();
+  await execute(database,reserve());
+  let {delivery}=await execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:pending()});
+  ({delivery}=await execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:{...delivery,id:undefined,status:'claimed',claim_generation:1,claim_token_hash:'current-token',claim_device_id:'current-device',claim_expires_at:Math.floor(now/1000)+60}}));
+  const failed={...delivery,id:undefined,status:'failed',encrypted_payload:''};
+  await assert.rejects(execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:{...failed,claim_token_hash:'stale-token'}}),/delivery_claim_expired/);
+  assert.equal(database.rows.workflow_chat_deliveries[0].status,'claimed');
+  assert.equal(database.rows.workflow_delivery_history.length,1);
+  await assert.rejects(execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:{...failed,claim_device_id:'other-device'}}),/delivery_claim_expired/);
+  ({delivery}=await execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:failed}));
+  assert.equal(delivery.status,'failed');
+  assert.equal(delivery.encrypted_payload,'');
+  assert.equal(delivery.claim_token_hash,null);
+  assert.equal(database.rows.workflow_delivery_history.length,0);
+  await assert.rejects(execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:{...failed,status:'claimed'}}),/delivery_conflict|delivery_terminal/);
 });
 
 // contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.key-recovery

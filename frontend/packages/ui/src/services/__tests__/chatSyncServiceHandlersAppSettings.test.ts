@@ -113,6 +113,8 @@ import {
   saveAppSettingsMemoriesRequestMessage,
   handleWorkflowChatDeliveriesAvailableImpl,
   handleWorkflowChatDeliveryClaimedImpl,
+  handleWorkflowChatDeliveryAcknowledgedImpl,
+  notifyCommittedWorkflowDelivery,
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
@@ -129,6 +131,7 @@ describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
 
   // contract-test: direct surface=gui.web assertions=workflows.chat-delivery.claim-fenced
   it("claims only pending workflow chat deliveries", async () => {
+    vi.useFakeTimers();
     await handleWorkflowChatDeliveriesAvailableImpl({
       deliveries: [
         {
@@ -150,6 +153,7 @@ describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
           created_at: 100,
           expires_at: 200,
           claim_generation: 1,
+          claim_expires_at: Math.floor(Date.now() / 1000) + 60,
         },
         {
           delivery_id: "persisted-delivery",
@@ -185,6 +189,39 @@ describe("run-linked workflow destination key persistence", () => {
     claim_expires_at: 160,
   };
   beforeEach(() => { resetHoistedMocks(); });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.sync-projection
+  it("notifies the claiming device once for a persisted background message and preserves the chat target", () => {
+    const notification = { ...payload, delivery_id: "notification-delivery-1", message: "Result ready\n\n[View workflow run](/workflows#workflow-id=1)" };
+    notifyCommittedWorkflowDelivery(notification);
+    notifyCommittedWorkflowDelivery(notification);
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
+      "new-workflow-chat", "Private report", "Result ready", undefined, "openmates_official",
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.sync-projection
+  it("does not notify when the delivered chat is already visible", () => {
+    window.location.hash = "chat-id=new-workflow-chat";
+    try {
+      notifyCommittedWorkflowDelivery({ ...payload, delivery_id: "notification-delivery-2" });
+      expect(mocks.notificationStore.chatMessage).not.toHaveBeenCalled();
+    } finally {
+      window.location.hash = "";
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.sync-projection
+  it("notifies after an acknowledged reconnect recovery without repeating a prior toast", () => {
+    const acknowledged = { ...payload, delivery_id: "notification-delivery-3", status: "acknowledged" };
+    handleWorkflowChatDeliveryAcknowledgedImpl(acknowledged);
+    handleWorkflowChatDeliveryAcknowledgedImpl(acknowledged);
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.notificationStore.chatMessage).toHaveBeenCalledWith(
+      "new-workflow-chat", "Workflow message", "New workflow message ready", undefined, "openmates_official",
+    );
+  });
 
   // contract-test: supporting surface=gui.web assertions=workflows.chat-delivery.client-encrypted,workflows.chat-delivery.key-recovery
   it("establishes a local shell so the existing key persister runs before the encryption guard", async () => {

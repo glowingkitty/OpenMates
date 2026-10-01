@@ -1,4 +1,4 @@
-/** Disabled starting points; the owner reviews location, query and schedule before activation. */
+/** Legacy graph shapes retained only for isolated graph-renderer preview states. */
 import type {
   WorkflowGraph,
   WorkflowNode,

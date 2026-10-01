@@ -227,22 +227,6 @@ test.describe('Component Preview System', () => {
 		expect(embedBox!.height).toBe(200);
 	});
 
-	test('composed workflow home preview includes its composer and browse controls', async ({ page }) => {
-		for (const size of [{ width: 402, height: 874 }, { width: 1376, height: 1032 }]) {
-			await page.setViewportSize(size);
-			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?theme=light&chrome=0');
-			await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
-			await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
-			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
-			await page.getByTestId('workflows-show-all').click();
-			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
-			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(1);
-			await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
-			await page.getByTestId('workflows-back-to-recent').click();
-			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
-		}
-	});
-
 	test('client-side navigation from index to component works', async ({ page }) => {
 		await page.goto('/dev/preview', { waitUntil: 'networkidle' });
 		await page.waitForTimeout(2000);

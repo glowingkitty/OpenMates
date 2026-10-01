@@ -298,6 +298,7 @@ class WorkflowRunSummary(BaseModel):
     status: WorkflowRunStatus
     started_at: int | None = None
     finished_at: int | None = None
+    wait_expires_at: int | None = None
     error_summary: str | None = None
     cost_summary: dict[str, Any] = Field(default_factory=dict)
     content_retention_mode: WorkflowRunContentRetention = WorkflowRunContentRetention.LAST_5

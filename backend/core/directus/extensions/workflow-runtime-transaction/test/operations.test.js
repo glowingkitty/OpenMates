@@ -14,6 +14,7 @@ function fakeDatabase(seed) {
     const predicates = [];
     const orderings = [];
     let rowLimit = null;
+    let rowOffset = 0;
     const match = () => {
       let rows = (store[table] ?? []).filter((row) => predicates.every((predicate) => predicate(row)));
       for (const { field, direction } of orderings.slice().reverse()) {
@@ -23,7 +24,7 @@ function fakeDatabase(seed) {
           return direction === 'desc' ? -comparison : comparison;
         });
       }
-      return rowLimit === null ? rows : rows.slice(0, rowLimit);
+      return rowLimit === null ? rows.slice(rowOffset) : rows.slice(rowOffset, rowOffset + rowLimit);
     };
     const addWhere = (args) => {
       if (typeof args[0] === 'object') {
@@ -52,8 +53,10 @@ function fakeDatabase(seed) {
       async first() { return match()[0]; },
       async insert(value) { (store[table] ??= []).push(structuredClone(value)); return 1; },
       async update(values) { const found = match(); found.forEach((row) => Object.assign(row, structuredClone(values))); return found.length; },
+      async del() { const found = new Set(match()); store[table] = (store[table] ?? []).filter((row) => !found.has(row)); return found.size; },
       orderBy(field, direction = 'asc') { orderings.push({ field, direction }); return query; },
       limit(value) { rowLimit = value; return query; },
+      offset(value) { rowOffset = value; return query; },
       then(resolve, reject) { return Promise.resolve(match()).then(resolve, reject); },
     };
     return query;
@@ -73,6 +76,53 @@ function fakeDatabase(seed) {
   return database;
 }
 
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+test('stale queued, running and human-wait runs finish atomically while due deliveries expire', async () => {
+  const now = 1_783_843_200;
+  const run = (id, status, started, record = null) => ({ id, run_id: id, workflow_id: 'workflow-1', version_id: 'version-1',
+    trigger_type: 'manual', hashed_user_id: OWNER, status, accepted_at: started, started_at: started, record_json: record });
+  const database = fakeDatabase({workflow_runs: [
+    run('queued', 'queued', now - 301), run('running', 'running', now - 1801),
+    run('waiting', 'waiting', now - 100, {id: 'waiting', workflow_id: 'workflow-1', wait_expires_at: now - 1}),
+    run('fresh', 'running', now - 10),
+  ], workflow_chat_deliveries: [{id:'delivery-row',delivery_id:'delivery-1',status:'delivery_pending',expires_at:now-1,
+    encrypted_payload:'ciphertext',revision:1}, {id:'run-delivery-row',delivery_id:'run-delivery',workflow_id:'workflow-1',
+    run_id:'running',hashed_user_id:OWNER,status:'delivery_pending',expires_at:now+1000,encrypted_payload:'ciphertext',revision:1}],
+    workflow_delivery_history: [{id:'history-row',delivery_id:'delivery-1',status:'reserved'},
+      {id:'run-history-row',delivery_id:'run-delivery',workflow_id:'workflow-1',run_id:'running',hashed_user_id:OWNER,status:'reserved'}]});
+  const result = await executeOperation(database, 'reconcile_stale_workflow_state', {protocol_version:1, now, limit:100,
+    queued_timeout_seconds:300,active_timeout_seconds:1800,wait_default_timeout_seconds:86400}, NOW);
+  assert.deepEqual(result.finished_run_ids, ['running','queued','waiting']);
+  assert.equal(database.rows.workflow_runs.find(r=>r.run_id==='fresh').status,'running');
+  assert.equal(database.rows.workflow_runs.find(r=>r.run_id==='waiting').record_json.status,'failed');
+  assert.equal(database.rows.workflow_runs.find(r=>r.run_id==='queued').record_json,null);
+  assert.equal(database.rows.workflow_chat_deliveries[0].status,'expired');
+  assert.equal(database.rows.workflow_chat_deliveries[0].encrypted_payload,'');
+  assert.equal(database.rows.workflow_chat_deliveries[1].status,'cancelled');
+  assert.equal(database.rows.workflow_delivery_history.length,0);
+});
+
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.chat-delivery.client-encrypted
+test('future human waits and persisted delivery payloads do not starve due reconciliation', async () => {
+  const now = 1_783_843_200;
+  const database = fakeDatabase({workflow_runs:[
+    {id:'wait-row',run_id:'wait',workflow_id:'w',status:'waiting',accepted_at:now-1000,
+      started_at:now-1000,record_json:{wait_expires_at:now+1000}},
+    {id:'stale-row',run_id:'stale',workflow_id:'w',status:'queued',accepted_at:now-301},
+  ],workflow_chat_deliveries:[
+    {id:'persisted',delivery_id:'persisted',status:'delivery_pending',expires_at:now-2,
+      client_persisted_at:now-3,encrypted_payload:'temporary'},
+    {id:'unpersisted',delivery_id:'unpersisted',status:'delivery_pending',expires_at:now-1,
+      encrypted_payload:'temporary'},
+  ]});
+  const result = await executeOperation(database,'reconcile_stale_workflow_state',{protocol_version:1,now,limit:1,
+    queued_timeout_seconds:300,active_timeout_seconds:1800,wait_default_timeout_seconds:86400},NOW);
+  assert.deepEqual(result.finished_run_ids,['stale']);
+  assert.deepEqual(result.expired_delivery_ids,['unpersisted']);
+  assert.equal(database.rows.workflow_chat_deliveries[0].status,'delivery_pending');
+  assert.equal(database.rows.workflow_chat_deliveries[0].encrypted_payload,'');
+});
+
 function scheduleTrigger() {
   return {
     trigger_id: 'trigger-1', workflow_id: 'workflow-1', version_id: 'version-1', hashed_user_id: OWNER,
@@ -81,6 +131,25 @@ function scheduleTrigger() {
     encrypted_schedule_config_ref: 'blob-schedule-1', claim_generation: 0,
   };
 }
+
+// contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+test('a stale scheduled occurrence can advance after its accepted run times out', async () => {
+  const trigger = scheduleTrigger();
+  const key = `sha256:${(await import('node:crypto')).createHash('sha256').update(`${trigger.trigger_id}:${trigger.version_id}:${trigger.next_run_at}`).digest('hex')}`;
+  const database = fakeDatabase({workflow_triggers:[trigger],workflow_runs:[{
+    id:'stale-row',run_id:'stale-run',workflow_id:trigger.workflow_id,version_id:trigger.version_id,
+    trigger_id:trigger.trigger_id,hashed_user_id:OWNER,status:'failed',acceptance_idempotency_key:key,
+  }]});
+  const claim = await executeOperation(database,'claim_due_trigger',{protocol_version:1,trigger_id:trigger.trigger_id},NOW);
+  assert.equal(claim.accepted,true);
+  const started = await executeOperation(database,'start_claimed_run',{protocol_version:1,trigger_id:trigger.trigger_id,
+    run_id:'stale-run',claim_generation:claim.claim_generation,claim_token:claim.claim_token},NOW);
+  assert.equal(started.started,false);
+  assert.equal(started.status,'failed');
+  await executeOperation(database,'advance_claimed_trigger',{protocol_version:1,trigger_id:trigger.trigger_id,
+    claim_generation:claim.claim_generation,claim_token:claim.claim_token,next_run_at:trigger.next_run_at+86400},NOW);
+  assert.equal(database.rows.workflow_triggers[0].next_run_at,trigger.next_run_at+86400);
+});
 
 // contract-test: infrastructure
 test('internal authorization fails closed', () => {

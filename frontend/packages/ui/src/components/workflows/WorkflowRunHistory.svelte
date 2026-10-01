@@ -13,7 +13,7 @@
   import { focusTrap } from '../../actions/focusTrap';
   import { getLucideIcon } from '../../utils/categoryUtils';
   import SettingsDropdown from '../settings/elements/SettingsDropdown.svelte';
-  import { orderWorkflowRunsForTimeline } from './workflowRunTimeline';
+  import { orderWorkflowRunsForTimeline, shouldPollWorkflowRunDetail, workflowRunDeliveryState } from './workflowRunTimeline';
   import {
     workflowWorkspaceStore,
     type WorkflowDetail,
@@ -49,7 +49,6 @@
 
   const RUN_POLL_INTERVAL_MS = 2_000;
   const TIMELINE_POLL_INTERVAL_MS = 5_000;
-  const MAX_RUN_POLL_ATTEMPTS = 60;
   const UPCOMING_RUN_ID = '__upcoming__';
   const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'skipped', 'skipped_by_user']);
 
@@ -60,16 +59,18 @@
     ? null
     : timelineRuns.find((run) => run.id === selectedRunId) ?? timelineRuns[0] ?? null);
   const selectedStatus = $derived(upcomingSelected ? '' : selectedRunDetail?.status ?? (selectedRun ? statusOverrides[selectedRun.id] ?? selectedRun.status : ''));
+  const selectedGraphExecutionStatus = $derived(
+    selectedRun && TERMINAL_RUN_STATUSES.has(selectedRun.status)
+      ? selectedRun.status
+      : selectedRunDetail?.id === selectedRun?.id ? selectedRunDetail.status : selectedRun?.status ?? null,
+  );
   const canCancel = $derived(!upcomingSelected && ['queued', 'running', 'waiting'].includes(selectedStatus));
   const Clock = getLucideIcon('clock');
   const Trash = getLucideIcon('trash-2');
   const Back = getLucideIcon('chevron-left');
   const tr = (key: string) => $text(`workflows.runs.${key}`);
-  const selectedDeliveryPending = $derived(selectedRunDetail ? hasPendingDelivery(selectedRunDetail) : false);
+  const selectedDeliveryPending = $derived(selectedRun ? workflowRunDeliveryState(selectedRun, selectedRunDetail) === 'pending' : false);
   const timezone = $derived(String(record(workflow.graph.nodes.find(node => node.type === 'schedule_trigger')?.config?.schedule).timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone));
-  function hasPendingDelivery(run: WorkflowRunDetail): boolean {
-    return Object.values(record(run.output_summary?.deliveries)).some(value => ['delivery_pending', 'claimed'].includes(String(record(value).status)));
-  }
   function statusIcon(status: string) {
     return getLucideIcon(status === 'completed' ? 'circle-check' : status === 'failed' ? 'triangle-alert' : status === 'cancelled' ? 'circle-x' : 'clock');
   }
@@ -89,7 +90,7 @@
     async function refreshRun(): Promise<void> {
       const detail = await loadRun(workflowId, runId, attempts > 0);
       attempts += 1;
-      if (disposed || !detail || (TERMINAL_RUN_STATUSES.has(detail.status) && !hasPendingDelivery(detail)) || attempts >= MAX_RUN_POLL_ATTEMPTS) return;
+      if (disposed || workflow.id !== workflowId || !shouldPollWorkflowRunDetail(runId, selectedRun?.id ?? null, detail)) return;
       timeoutId = setTimeout(() => void refreshRun(), Math.min(RUN_POLL_INTERVAL_MS + attempts * 500, 8000));
     }
 
@@ -182,7 +183,7 @@
     } catch (error) {
       if (workflow.id === workflowId && selectedRun?.id === runId) {
         console.error('[WorkflowRunHistory] Loading failed', error);
-        errorMessage = tr('load_failed');
+        if (!preserveExisting || !selectedRunDetail) errorMessage = tr('load_failed');
       }
       return null;
     } finally {
@@ -259,10 +260,12 @@
         {/if}
         {#each timelineRuns as run (run.id)}
           {@const status = statusOverrides[run.id] ?? run.status}
-          {@const pending = selectedRun?.id === run.id && selectedDeliveryPending}
-          {@const Icon = statusIcon(pending ? 'waiting' : status)}
-          <button type="button" class="run-marker" class:selected={selectedRun?.id === run.id} data-testid="workflow-run-marker" data-run-id={run.id} data-run-status={status} aria-pressed={selectedRun?.id === run.id} aria-label={`${formatTimestamp(run.started_at)}: ${pending ? tr('delivery_pending') : formatStatus(status)}`} onclick={() => onSelectRun(run.id)}>
-            <span class="status-pill" class:complete={status === 'completed' && !pending} class:failed={status === 'failed'}><Icon size={status === 'completed' && !pending ? 18 : 13}/><strong class:sr-only={status === 'completed' && !pending}>{formatStatus(pending ? 'waiting' : status)}</strong></span>
+          {@const deliveryState = selectedRun?.id === run.id ? workflowRunDeliveryState(run, selectedRunDetail) : workflowRunDeliveryState(run)}
+          {@const pending = deliveryState === 'pending'}
+          {@const displayStatus = ['failed', 'cancelled', 'skipped', 'skipped_by_user'].includes(status) ? status : pending ? 'waiting' : deliveryState === 'failed' ? 'failed' : status}
+          {@const Icon = statusIcon(displayStatus)}
+          <button type="button" class="run-marker" class:selected={selectedRun?.id === run.id} data-testid="workflow-run-marker" data-run-id={run.id} data-run-status={pending && displayStatus === 'waiting' ? 'delivery_pending' : displayStatus} aria-pressed={selectedRun?.id === run.id} aria-label={`${formatTimestamp(run.started_at)}: ${pending && displayStatus === 'waiting' ? tr('delivery_pending') : formatStatus(displayStatus)}`} onclick={() => onSelectRun(run.id)}>
+            <span class="status-pill" class:complete={displayStatus === 'completed'} class:failed={displayStatus === 'failed'}><Icon size={displayStatus === 'completed' ? 18 : 13}/><strong class:sr-only={displayStatus === 'completed'}>{formatStatus(displayStatus)}</strong></span>
             <span class="marker-date">{formatDay(run.started_at)}</span><span class="marker-time">{formatTime(run.started_at)}</span>
           </button>
         {/each}
@@ -280,7 +283,7 @@
     <section class="run-detail" data-testid="workflow-run-detail">
       {#if selectedDeliveryPending}<p class="delivery-status" role="status"><Clock size={14}/>{tr('delivery_pending')}</p>{/if}
       {#if selectedRunDetail.content_available === false}<p class="unavailable" data-testid="workflow-run-content-unavailable">{tr('content_unavailable')}</p>{/if}
-      {#if selectedGraph}<WorkflowGraphRenderer graph={selectedGraph} readOnly nodeRuns={selectedRunDetail.node_runs ?? []} testId="workflow-run-graph" onChange={ignoreGraphChange} onSave={null}/>{/if}
+      {#if selectedGraph}<WorkflowGraphRenderer graph={selectedGraph} readOnly nodeRuns={selectedRunDetail.node_runs ?? []} executionStatus={selectedGraphExecutionStatus} testId="workflow-run-graph" onChange={ignoreGraphChange} onSave={null}/>{/if}
       {#if selectedRunDetail.error_summary}<p class="run-error" role="alert">{tr('execution_failed')}</p>{/if}
     </section>
   {/if}

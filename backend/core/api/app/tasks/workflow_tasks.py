@@ -18,7 +18,7 @@ from typing import Any
 
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
 from backend.core.api.app.services.workflow_event_dispatcher import WorkflowEventDispatcher
-from backend.core.api.app.services.workflow_runner import WorkflowRunner
+from backend.core.api.app.services.workflow_runner import WorkflowRunner, WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeService
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
@@ -40,6 +40,8 @@ _INPUT_SERVICE = WorkflowInputService(workflow_service=_WORKFLOW_SERVICE, reposi
 _INPUT_COMMIT_LOCK_PREFIX = "workflow-input:commit:"
 _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 _SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
+WORKFLOW_QUEUED_TIMEOUT_SECONDS = 300
+WORKFLOW_WAIT_DEFAULT_TIMEOUT_SECONDS = 24 * 60 * 60
 
 
 class WorkflowServiceTask(BaseServiceTask):
@@ -237,6 +239,18 @@ async def scan_due_workflow_triggers_now(
     )
 
 
+async def reconcile_stale_workflow_state_now(
+    *, runtime_service: WorkflowRuntimeService, now: int | None = None, limit: int = 100,
+) -> dict[str, Any]:
+    return await runtime_service.execute("reconcile_stale_workflow_state", {
+        "now": now if now is not None else int(time.time()),
+        "limit": limit,
+        "queued_timeout_seconds": WORKFLOW_QUEUED_TIMEOUT_SECONDS,
+        "active_timeout_seconds": WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS,
+        "wait_default_timeout_seconds": WORKFLOW_WAIT_DEFAULT_TIMEOUT_SECONDS,
+    })
+
+
 def dispatch_workflow_event(
     user_id: str,
     event: dict[str, Any],
@@ -352,7 +366,9 @@ def cleanup_expired_temporary_workflows_task(self: BaseServiceTask, user_id: str
         raise
 
 
-@app.task(name="workflows.run", base=WorkflowServiceTask, bind=True)
+@app.task(name="workflows.run", base=WorkflowServiceTask, bind=True,
+          soft_time_limit=WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS,
+          time_limit=WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS + 30)
 def run_workflow_task(
     self: BaseServiceTask,
     workflow_id: str,
@@ -384,7 +400,9 @@ def run_workflow_task(
         raise
 
 
-@app.task(name="workflows.run_scheduled_trigger", base=WorkflowServiceTask, bind=True)
+@app.task(name="workflows.run_scheduled_trigger", base=WorkflowServiceTask, bind=True,
+          soft_time_limit=WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS,
+          time_limit=WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS + 30)
 def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str) -> dict[str, Any]:
     try:
         if not _acquire_scheduled_execution_lock(trigger_id):
@@ -421,6 +439,16 @@ def scan_due_workflow_triggers_task(self: BaseServiceTask, now: int | None = Non
     except Exception as exc:
         logger.error("Workflow due-trigger scanner task failed: %s", exc, exc_info=True)
         raise
+
+
+@app.task(name="workflows.reconcile_stale_state", base=WorkflowServiceTask, bind=True)
+def reconcile_stale_workflow_state_task(self: BaseServiceTask, now: int | None = None, limit: int = 100) -> dict[str, Any]:
+    async def operation() -> dict[str, Any]:
+        return await reconcile_stale_workflow_state_now(
+            runtime_service=WorkflowRuntimeService(self.directus_service), now=now, limit=limit,
+        )
+
+    return asyncio.run(_run_with_workflow_services(self, operation))
 
 
 @app.task(name="workflows.dispatch_event", base=WorkflowServiceTask, bind=True)

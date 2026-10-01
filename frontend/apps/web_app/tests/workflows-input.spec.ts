@@ -4,7 +4,7 @@ import type { Page, Route } from '@playwright/test';
  * Workflows input home coverage.
  *
  * Purpose: verifies the deployed Workflows landing keeps Daily Inspiration,
- * renders one mixed recent/example row, and only marks an AI workflow New
+ * renders owned workflows on home, browses executable templates, and returns to the created workflow
  * after the workflow-input session reports a committed result.
  * Security: uses the shared E2E account and deletes only workflows created by
  * this spec run.
@@ -56,7 +56,7 @@ test.use({
 
 test.describe('Workflows input home', () => {
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft,workflows-ui.mvp.authoring
-	test('opens a committed AI workflow and marks it New on return', async ({ page }: { page: Page }) => {
+	test('opens a committed AI workflow and returns without a New pill', async ({ page }: { page: Page }) => {
 		test.setTimeout(240000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -108,9 +108,11 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByText('Continue where you left off', { exact: true })).toHaveCount(0);
 			const mixedCards = mixedRow.getByTestId('workflow-landing-card');
-			await expect.poll(async () => await mixedCards.count(), { timeout: 30000 }).toBeGreaterThan(6);
+			await expect(mixedCards).toHaveCount(6, { timeout: 30000 });
 			await expect(mixedCards.first()).toHaveAttribute('data-card-source', 'recent');
-			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'example');
+			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'recent');
+			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show my workflows');
+			await expect(page.getByTestId('workflows-show-templates')).toHaveText('Show templates');
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
 			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
@@ -136,6 +138,9 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflows-search')).toBeEnabled();
 			await expect(page.getByTestId('all-workflows-grid')).toBeVisible();
+			await expect(page.getByTestId('workflows-sort')).toHaveValue('recent');
+			await page.getByTestId('workflows-sort').selectOption('running-next');
+			await expect(page.getByTestId('workflows-sort')).toHaveValue('running-next');
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			await expect.poll(async () => page.getByTestId('all-workflows-grid').evaluate((element: HTMLElement) => element.scrollHeight > element.clientHeight), { timeout: 15000 }).toBe(true);
 			const allGridBox = await page.getByTestId('all-workflows-grid').boundingBox();
@@ -231,7 +236,7 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-ai-created-undo')).toHaveCount(0);
 			const newCard = page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: String(saved.title) });
 			await expect(newCard).toBeVisible();
-			await expect(newCard.locator('..').getByTestId('workflow-new-pill')).toHaveText('New');
+			await expect(page.getByTestId('workflow-new-pill')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
 
 			const shortRequest = `School weather ${Date.now()}`;

@@ -2,7 +2,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { fenceWebsiteDeliveries } from './website_changes.js';
 
-const FIELDS = new Set(['protocol_version','action','hashed_user_id','workflow_id','run_id','node_id','delivery_id','destination_hash','candidates','expires_at','encrypted_key_ref','delivery','run']);
+const FIELDS = new Set(['protocol_version','action','hashed_user_id','workflow_id','run_id','node_id','delivery_id','destination_hash','candidates','expires_at','encrypted_key_ref','delivery','run','content_ref']);
 function uuid5(name) {
   const namespace = Buffer.from('6ba7b8119dad11d180b400c04fd430c8','hex');
   const bytes = createHash('sha1').update(namespace).update(name,'utf8').digest().subarray(0,16);
@@ -36,11 +36,24 @@ export async function deliveryHistory(database, body, now, fail) {
       await trx('workflow_delivery_history').where({...scope,delivery_id:body.delivery_id,status:'reserved'}).del();
       return {released:true};
     }
+    if (body.action === 'prune_run_content') {
+      if (typeof body.run_id !== 'string' || !body.run_id || typeof body.content_ref !== 'string' || !body.content_ref.startsWith('vault://workflows/')) fail(400,'invalid_content_ref');
+      const existing = await trx('workflow_runs').where({...scope,run_id:body.run_id}).forUpdate().first();
+      if (!existing || !['completed','failed','cancelled'].includes(existing.status)) fail(409,'run_not_prunable');
+      if (existing.encrypted_output_summary !== body.content_ref) return {pruned:false};
+      if (!existing.record_json || existing.record_json.encrypted_content_ref !== body.content_ref) fail(409,'run_content_mismatch');
+      const record = {...existing.record_json,content_available:false,content_storage:'deleted',content_expires_at:null,
+        encrypted_content_ref:null,encrypted_content_checksum:null};
+      await trx('workflow_runs').where({id:existing.id}).update({record_json:record,encrypted_output_summary:null,
+        content_available:false,content_storage:'deleted',content_expires_at:null});
+      return {pruned:true};
+    }
     if (body.action === 'save_run') {
       const row = body.run;
       if (!row || row.run_id !== body.run_id || row.workflow_id !== body.workflow_id || row.hashed_user_id !== body.hashed_user_id) fail(400,'invalid_run');
-      const existing = await trx('workflow_runs').where({...scope,run_id:body.run_id}).first();
+      const existing = await trx('workflow_runs').where({...scope,run_id:body.run_id}).forUpdate().first();
       if (existing?.status === 'deleted') fail(409,'run_deleted');
+      if (existing && ['completed','failed','cancelled'].includes(existing.status)) fail(409,'run_terminal');
       // Preserve a concurrent cancellation checkpoint, even if the worker has an older snapshot.
       if (existing?.status === 'cancellation_requested' && row.status === 'running') {
         row.status = 'cancellation_requested';
@@ -165,16 +178,20 @@ export async function deliveryHistory(database, body, now, fail) {
         // Retrying delivery creation returns the original ciphertext and stable IDs.
         if (d.revision === 0 && d.status === 'delivery_pending') return {delivery:existing};
         if (Number(existing.revision || 0) !== d.revision) fail(409,'delivery_conflict');
-        if (['acknowledged','cancelled','expired'].includes(existing.status) && d.status !== existing.status) fail(409,'delivery_terminal');
+        if (['acknowledged','cancelled','expired','failed'].includes(existing.status) && d.status !== existing.status) fail(409,'delivery_terminal');
         if (d.chat_id !== existing.chat_id || d.message_id !== existing.message_id || d.node_id !== existing.node_id) fail(409,'delivery_identity_conflict');
         if (d.status === 'acknowledged' && (!existing.client_persisted_at || d.claim_generation !== existing.claim_generation || d.claim_token_hash !== existing.claim_token_hash)) fail(409,'delivery_ack_not_persisted');
-        await trx('workflow_chat_deliveries').where({id:existing.id}).update({...d,revision:d.revision+1});
+        if (d.status === 'failed' && (existing.status !== 'claimed' || existing.client_persisted_at || d.client_persisted_at || d.encrypted_payload !== '' ||
+            d.claim_generation !== existing.claim_generation || d.claim_token_hash !== existing.claim_token_hash ||
+            d.claim_device_id !== existing.claim_device_id || !existing.claim_token_hash || Number(existing.claim_expires_at || 0) <= current)) fail(409,'delivery_claim_expired');
+        await trx('workflow_chat_deliveries').where({id:existing.id}).update({...d,revision:d.revision+1,
+          ...(d.status === 'failed' ? {claim_token_hash:null,claim_issued_at:null,claim_expires_at:null,claim_device_id:null} : {})});
       }
       // Durable ciphertext proves this is no longer an undelivered reservation.
       // Keep it non-expiring until the owner ACK closes delivery, or run deletion forgets it.
       if (d.client_persisted_at) await trx('workflow_delivery_history').where({...scope,run_id:runId,delivery_id:d.delivery_id,status:'reserved'}).update({expires_at:null});
       if (d.status === 'acknowledged') await trx('workflow_delivery_history').where({...scope,run_id:runId,delivery_id:d.delivery_id,status:'reserved'}).update({status:'delivered',delivered_at:current,expires_at:null});
-      else if (['cancelled','expired'].includes(d.status) && !d.client_persisted_at) await trx('workflow_delivery_history').where({...scope,run_id:runId,delivery_id:d.delivery_id,status:'reserved'}).del();
+      else if (['cancelled','expired','failed'].includes(d.status) && !d.client_persisted_at) await trx('workflow_delivery_history').where({...scope,run_id:runId,delivery_id:d.delivery_id,status:'reserved'}).del();
       return {delivery:await trx('workflow_chat_deliveries').where({...deliveryScope,delivery_id:d.delivery_id}).first()};
     }
     fail(400,'unsupported_delivery_action');

@@ -1730,6 +1730,11 @@ export class ChatSynchronizationService extends EventTarget {
           payload as Parameters<typeof module.handleWorkflowChatDeliveryPersistedImpl>[0],
         ),
       );
+      webSocketService.on("workflow_chat_delivery_acknowledged", (payload) =>
+        module.handleWorkflowChatDeliveryAcknowledgedImpl(
+          payload as Parameters<typeof module.handleWorkflowChatDeliveryAcknowledgedImpl>[0],
+        ),
+      );
     });
 
     // Only this live server event authorizes a cancellable countdown. Sync/history

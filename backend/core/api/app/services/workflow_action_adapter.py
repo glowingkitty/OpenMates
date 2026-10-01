@@ -176,6 +176,7 @@ class WorkflowActionAdapter:
         import uuid
         from starlette.concurrency import run_in_threadpool
         from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistory, canonical_result_identity, keyed_fingerprint
+        from backend.core.api.app.services.workflow_result_selection import persistable_result_embed_type
         execution = context.get("workflow") or {}
         workflow_id, run_id, node_id = (execution.get(key) for key in ("workflow_id", "run_id", "node_id"))
         if not all((workflow_id, run_id, node_id)) or execution.get("step_test"):
@@ -208,6 +209,10 @@ class WorkflowActionAdapter:
         for block_index, block in enumerate(preview["blocks"]):
             value = block["value"]
             if not isinstance(value, list):
+                continue
+            source = block["source"]
+            source_node = source.split(".")[1] if source.startswith("$nodes.") else ""
+            if not persistable_result_embed_type((context.get("nodes", {}).get(source_node) or {}).get("app_id")):
                 continue
             for item_index, item in enumerate(value):
                 if not isinstance(item, dict):
@@ -263,9 +268,7 @@ class WorkflowActionAdapter:
             source = blocks[b]["source"]
             source_node = source.split(".")[1] if source.startswith("$nodes.") else ""
             app_id = (context.get("nodes", {}).get(source_node) or {}).get("app_id")
-            content_type = {"news": "website", "events": "event", "home": "listing"}.get(app_id)
-            if content_type is None:
-                continue
+            content_type = persistable_result_embed_type(app_id)
             embed_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{delivery_id}:embed:{fingerprint}"))
             embed_ids_by_original_position[(b, original_index)] = embed_id
             embeds.append({"embed_id": embed_id,
@@ -279,7 +282,7 @@ class WorkflowActionAdapter:
         if prepared:
             already_embedded = {embed["embed_id"] for embed in embeds}
             for embed in prepared.get("embeds") or []:
-                if embed["embed_id"] in text and embed["embed_id"] not in already_embedded:
+                if embed["embed_id"] not in already_embedded:
                     embeds.append(embed)
                     already_embedded.add(embed["embed_id"])
         text = _with_run_link(text, context)

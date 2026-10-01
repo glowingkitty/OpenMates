@@ -366,6 +366,24 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 	const initialState = await getContinueCarouselState(page);
 	expect(initialState.chatIds.length, 'test account needs at least one continue card for carousel stability coverage').toBeGreaterThan(0);
 
+	// The authenticated carousel must fit in the real pane below the banner.
+	for (const size of [{ width: 1366, height: 700, large: false }, { width: 1366, height: 1032, large: true }]) {
+		await page.setViewportSize({ width: size.width, height: size.height });
+		const card = page.getByTestId('recent-chats-scroll-container').locator(size.large
+			? '.resume-chat-large-card, .saved-embed-continue-preview'
+			: '.resume-chat-card').first();
+		await expect(card).toBeVisible();
+		const [banner, carousel, input] = await Promise.all([
+			page.getByTestId('daily-inspiration-area').boundingBox(),
+			page.getByTestId('recent-chats-scroll-container').boundingBox(),
+			page.getByTestId('message-input-wrapper').boundingBox(),
+		]);
+		expect(banner && carousel && input).toBeTruthy();
+		expect(carousel!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height - 1);
+		expect(carousel!.y + carousel!.height).toBeLessThanOrEqual(input!.y + 1);
+	}
+	await page.setViewportSize({ width: 1366, height: 900 });
+
 	await context.setOffline(true);
 	await page.waitForTimeout(250);
 	await context.setOffline(false);
@@ -581,7 +599,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	await verifyCachedShortChatOpening(page);
 });
 
-// contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted
+// contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,workspace-shell.start.available-space-cards
 test('continue carousel remains visible during reconnect churn', async ({ page, context }: { page: any; context: any }) => {
 	test.slow();
 	test.setTimeout(120000);

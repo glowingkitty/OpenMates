@@ -17,6 +17,7 @@ import { buildMemoryRequestMessage, type MemoryRequestContent } from "../utils/a
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { userProfile } from "../stores/userProfile";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { dispatchEmbedFullscreen } from "./embedFullscreenController";
@@ -2043,6 +2044,42 @@ interface WorkflowChatDeliveryPersistedPayload {
 }
 
 const WORKFLOW_DELIVERY_PERSIST_TIMEOUT_MS = 15_000;
+const notifiedWorkflowDeliveryIds = new Set<string>();
+let notifiedWorkflowOwnerId = "";
+const MAX_NOTIFIED_WORKFLOW_DELIVERIES = 200;
+
+export function notifyCommittedWorkflowDelivery(
+  payload: Pick<WorkflowChatDeliveryClaimedPayload, "delivery_id" | "chat_id" | "title" | "message">,
+): void {
+  const ownerId = get(userProfile).user_id || "";
+  if (ownerId !== notifiedWorkflowOwnerId) {
+    notifiedWorkflowDeliveryIds.clear();
+    notifiedWorkflowOwnerId = ownerId;
+  }
+  if (notifiedWorkflowDeliveryIds.has(payload.delivery_id) || isChatVisiblyActive(payload.chat_id)) return;
+  notifiedWorkflowDeliveryIds.add(payload.delivery_id);
+  if (notifiedWorkflowDeliveryIds.size > MAX_NOTIFIED_WORKFLOW_DELIVERIES) {
+    notifiedWorkflowDeliveryIds.delete(notifiedWorkflowDeliveryIds.values().next().value!);
+  }
+  const preview = payload.message
+    .replace(/\[View workflow run\]\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+  notificationStore.chatMessage(payload.chat_id, payload.title, preview || "New workflow message", undefined, "openmates_official");
+}
+
+export function handleWorkflowChatDeliveryAcknowledgedImpl(payload: WorkflowChatDeliverySummary): void {
+  if (payload.status !== "acknowledged" || !payload.delivery_id || !payload.chat_id) return;
+  // A reconnect may acknowledge ciphertext committed by an earlier claim.
+  // The original plaintext has already left the pending envelope, so use a safe label.
+  notifyCommittedWorkflowDelivery({
+    delivery_id: payload.delivery_id,
+    chat_id: payload.chat_id,
+    title: "Workflow message",
+    message: "New workflow message ready",
+  });
+}
 const pendingWorkflowDeliveryPersists = new Map<
   string,
   {
@@ -2243,7 +2280,6 @@ async function handleRunLinkedWorkflowDelivery(
     const { computeSHA256 } = await import("../message_parsing/utils");
     const { encode } = await import("@toon-format/toon");
     const { embedStore } = await import("./embedStore");
-    const { userProfile } = await import("../stores/userProfile");
     const ownerId = get(userProfile).user_id;
     if (!ownerId) throw new Error("Workflow owner session unavailable");
     const hashedOwner = await computeSHA256(ownerId);
@@ -2296,6 +2332,7 @@ async function handleRunLinkedWorkflowDelivery(
       created_at:createdAt,status:"synced" as const,encrypted_content:encryptedContent,
       category:"openmates_official",encrypted_category:encryptedCategory};
     await chatDB.saveMessage(workflowMessage);
+    notifyCommittedWorkflowDelivery(payload);
     await sendWorkflowChatDeliveryAck(payload);
     serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {detail:{chat_id,chat,
       newMessage:workflowMessage,type:"workflow_chat_delivery",messagesUpdated:true}}));

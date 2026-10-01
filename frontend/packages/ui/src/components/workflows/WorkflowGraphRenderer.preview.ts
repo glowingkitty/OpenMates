@@ -1,4 +1,4 @@
-import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowExamples";
+import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowPreviewFixtures";
 import { workflowApiRequest, type WorkflowGraph } from "../../stores/workflowWorkspaceStore";
 import type { Chat } from "../../types/chat";
 import type { Capability } from "./workflowBuilder";
@@ -456,7 +456,40 @@ function websiteChangeGraph(ai = false): WorkflowGraph {
   ], edges: [{ from: "trigger", to: "read" }, { from: "read", to: "rain" }, { from: "rain", to: "message", branch: ai ? "true" : "yes" }] };
 }
 
+function deliveryPreviewGraph(): WorkflowGraph {
+  return { version: 2, trigger_node_id: 'trigger', nodes: [
+    { id: 'trigger', type: 'manual_trigger', title: 'Start', config: {} },
+    { id: 'send', type: 'send_chat_message', title: 'Send message', config: { title: 'Daily result', message: 'Today is ready' } },
+  ], edges: [{ from: 'trigger', to: 'send' }] };
+}
+
+function deliveryPreview(status?: string) {
+  return { ...defaultProps, graph: deliveryPreviewGraph(), readOnly: true, onSave: null,
+    nodeRuns: [{ id: 'preview-send', run_id: 'preview-run', workflow_id: 'preview-workflow',
+      node_id: 'send', node_type: 'send_chat_message', status: 'completed',
+      output_summary: { delivery_id: 'preview-delivery', chat_id: 'preview-delivered-chat',
+        ...(status ? { status } : {}) } }],
+  };
+}
+
 export const variants = {
+  deliveryMissingStatus: deliveryPreview(),
+  deliveryPending: deliveryPreview('delivery_pending'),
+  deliveryClaimed: deliveryPreview('claimed'),
+  deliveryAcknowledged: deliveryPreview('acknowledged'),
+  deliveryExpired: deliveryPreview('expired'),
+  deliveryNoEvidence: {
+    ...deliveryPreview(),
+    nodeRuns: [{ ...deliveryPreview().nodeRuns[0], output_summary: {} }],
+  },
+  deliveryTerminalStale: {
+    ...deliveryPreview('delivery_pending'),
+    executionStatus: 'failed',
+    nodeRuns: [
+      { ...deliveryPreview().nodeRuns[0], node_id: 'trigger', node_type: 'manual_trigger', status: 'running', output_summary: {} },
+      ...deliveryPreview('delivery_pending').nodeRuns,
+    ],
+  },
   askAiTestable: {
     ...defaultProps,
     workflowId: 'preview-workflow',

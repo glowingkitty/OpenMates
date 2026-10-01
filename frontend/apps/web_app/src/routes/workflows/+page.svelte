@@ -34,11 +34,8 @@
 		type ProjectCreationTarget
 	} from '@repo/ui';
 	import { text } from '@repo/ui';
-	import {
-		dailyWeatherNewsGraph,
-		weeklyEventsGraph,
-		hourlyApartmentsGraph
-	} from '@repo/ui/components/workflows/workflowExamples.ts';
+	import { workflowTemplates, workflowTemplateGraph } from '@repo/ui/components/workflows/workflowTemplates.ts';
+	import { sortWorkflowContinue, sortAllWorkflows, type WorkflowSortMode } from '@repo/ui/components/workflows/workflowHomeSorting';
 	import {
 		workflowIcon,
 		workflowGraphReady
@@ -54,7 +51,6 @@
 	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
 	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
-	import type { DailyInspiration } from '@repo/ui/stores/dailyInspirationStore.ts';
 
 	type WorkflowContinueItem = {
 		id: string;
@@ -106,7 +102,9 @@
 	let hydratedEditorWorkflow: WorkflowDetail | null = null;
 	let verifyingMissingWorkflow: { id: string; generation: number } | null = null;
 	let pendingNavigation = $state<{ action: () => void | Promise<void> } | null>(null);
-	let showAllWorkflows = $state(false);
+	let browseMode = $state<'recent' | 'workflows' | 'templates'>('recent');
+	let workflowSortMode = $state<WorkflowSortMode>('recent');
+	let workflowClockMs = $state(Date.now());
 	let workflowClosing = $state(false);
 	let workflowOpening = $state(false);
 
@@ -117,7 +115,6 @@
 	let workflowInputText = $state('');
 	let editorInstruction = $state('');
 	let voiceTarget = $state<'home' | 'editor' | null>(null);
-	let newWorkflowIds = $state<string[]>([]);
 	let aiChange = $state<WorkflowInputChange | null>(null);
 	let aiSession = $state<WorkflowInputSession | null>(null);
 	let createdAiSession = $state<WorkflowInputSession | null>(null);
@@ -159,54 +156,26 @@
 	let draggingWorkflowFile = $state(false);
 
 	let recentWorkflows = $derived.by(() => {
-		const sorted = [...workflows].sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0));
-		const recent = sorted.slice(0, 6);
-		return [...recent, ...sorted.filter(item => newWorkflowIds.includes(item.id) && !recent.some(other => other.id === item.id))];
+		const sorted = sortWorkflowContinue(workflows, workflowClockMs);
+		return sorted.slice(0, 6);
 	});
-	let workflowStarterItems: WorkflowContinueItem[] = [
-		{
-			id: 'starter-rain',
-			title: 'Daily weather and news',
-			summary: 'Rain timing and the latest articles in a new chat',
-			badge: 'Starter',
-			category: 'weather',
-			appId: 'weather',
-			icon: 'cloud-rain',
-			source: 'example'
-		},
-		{
-			id: 'starter-news',
-			title: 'Weekly AI events',
-			summary: 'Discover AI events for the upcoming week',
-			badge: 'Starter',
-			category: 'technology',
-			appId: 'news',
-			icon: 'calendar-days',
-			source: 'example'
-		},
-		{
-			id: 'starter-apartments',
-			title: 'Find new apartments every hour',
-			summary: 'Only previously undelivered listings',
-			badge: 'Starter',
-			category: 'productivity',
-			appId: 'home',
-			icon: 'house',
-			source: 'example'
-		}
-	];
+	let workflowTemplateItems: WorkflowContinueItem[] = workflowTemplates.map((template) => ({
+		id: template.id,
+		title: template.title,
+		summary: template.summary,
+		badge: 'Template',
+		category: template.category,
+		icon: template.icon,
+		source: 'example'
+	}));
 	let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(
 		recentWorkflows.map(workflowSummaryToContinueItem)
 	);
 	let allWorkflowContinueItems = $derived<WorkflowContinueItem[]>(
-		[...workflows]
-			.sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0))
-			.map(workflowSummaryToContinueItem)
+		sortAllWorkflows(workflows, workflowSortMode, workflowClockMs).map(workflowSummaryToContinueItem)
 	);
-	let workflowLandingItems = $derived<WorkflowContinueItem[]>([
-		...recentWorkflowContinueItems,
-		...workflowStarterItems
-	]);
+	let workflowLandingItems = $derived<WorkflowContinueItem[]>(recentWorkflowContinueItems);
+	let browseItems = $derived<WorkflowContinueItem[]>(browseMode === 'templates' ? workflowTemplateItems : allWorkflowContinueItems);
 	let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
 	let isManageView = $derived(!!workflowHashState.workflowId);
 	let isRunsView = $derived(workflowHashState.tab === 'runs');
@@ -227,6 +196,7 @@
 		canRenderWorkflowData ? workflowGreetingName : 'there'
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
+	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : []);
 	let editorActivationReady = $derived(
 		editorGraph && selectedWorkflow?.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
 			? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
@@ -323,8 +293,12 @@
 			const selectedId = $workflowWorkspaceStore.selectedWorkflowId;
 			if (selectedId) void workflowWorkspaceStore.selectWorkflow(selectedId).catch(() => undefined);
 		};
-		const onVisibilityChange = () => { if (!document.hidden) refreshVisibleWorkflow(); };
-		window.addEventListener('focus', refreshVisibleWorkflow);
+		const onVisibilityChange = () => { if (!document.hidden) { workflowClockMs = Date.now(); refreshVisibleWorkflow(); } };
+		const onFocus = () => { workflowClockMs = Date.now(); refreshVisibleWorkflow(); };
+		const workflowClock = window.setInterval(() => {
+			if (!document.hidden) workflowClockMs = Date.now();
+		}, 30_000);
+		window.addEventListener('focus', onFocus);
 		window.addEventListener('online', refreshVisibleWorkflow);
 		document.addEventListener('visibilitychange', onVisibilityChange);
 		void initializeWorkflowsRoute();
@@ -332,9 +306,10 @@
 		return () => {
 			routeAlive = false;
 			streamController?.abort();
+			window.clearInterval(workflowClock);
 			window.removeEventListener('hashchange', syncWorkflowHashFromLocation);
 			window.removeEventListener('popstate', syncWorkflowHashFromLocation);
-			window.removeEventListener('focus', refreshVisibleWorkflow);
+			window.removeEventListener('focus', onFocus);
 			window.removeEventListener('online', refreshVisibleWorkflow);
 			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
@@ -586,7 +561,6 @@
 					partialWorkflowIds = committedWorkflows(session).map(item => item.id);
 				}
 				createdAiSession = session;
-				newWorkflowIds = saved.workflowIds;
 				createdAiWorkflowIds = saved.workflowIds;
 				authoringAssumptions = session.assumptions ?? [];
 				authoringAssumptionsWorkflowId = saved.workflowIds.length === 1 ? saved.workflowIds[0] : null;
@@ -668,16 +642,10 @@
 		if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
 			observedWorkflowGeneration = generation;
 			routeError = null;
+			browseMode = 'recent';
+			workflowSortMode = 'recent';
 		}
 	});
-
-	async function createRainWorkflow() {
-		await createWorkflow('Daily weather and news', rainAlertGraph(), false);
-	}
-
-	async function createNewsWorkflow() {
-		await createWorkflow('Weekly AI events', newsBriefGraph(), false);
-	}
 
 	async function submitBlankWorkflow(): Promise<void> {
 		const title = blankWorkflowTitle.trim();
@@ -692,11 +660,6 @@
 		projectWorkflowTarget = null;
 	}
 
-	function startWorkflowFromInspiration(inspiration: DailyInspiration) {
-		if (!canRenderWorkflowData) return;
-		workflowInputText = inspiration.phrase || inspiration.title || '';
-	}
-
 	async function continueWorkflowFromCard(item: { id: string }) {
 		if (!canLoadWorkflows) return;
 		requestWorkflowSelection(item.id);
@@ -704,15 +667,19 @@
 
 	async function startWorkflowFromCard(item: WorkflowContinueItem) {
 		if (!canLoadWorkflows) return;
-		if (item.id === 'starter-rain') {
-			await createRainWorkflow();
-		} else if (item.id === 'starter-news') {
-			await createNewsWorkflow();
-		} else if (item.id === 'starter-apartments') {
-			await createWorkflow('Hourly apartment search', hourlyApartmentsGraph(), false);
-		} else {
-			await continueWorkflowFromCard(item);
+		await continueWorkflowFromCard(item);
+	}
+
+	async function createWorkflowFromTemplate(item: WorkflowContinueItem): Promise<void> {
+		if (!canLoadWorkflows) return;
+		const graph = workflowTemplateGraph(item.id);
+		if (!graph) return;
+		const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const trigger = graph.nodes.find((node) => node.id === graph.trigger_node_id);
+		if (trigger?.type === 'schedule_trigger' && timezone) {
+			trigger.config = { ...trigger.config, schedule: { ...(trigger.config?.schedule as Record<string, unknown>), timezone } };
 		}
+		await createWorkflow(item.title, graph, false);
 	}
 
 	async function submitWorkflowInput(text: string = workflowInputText): Promise<void> {
@@ -963,8 +930,7 @@
 				createdAiSession = session;
 				createdAiWorkflowIds = created.map(item => item.id);
 				sessionStorage.setItem('workflow-ai-last-batch', JSON.stringify({ sessionId: session.session_id, workflowIds: created.map(item => item.id) }));
-				newWorkflowIds = [...new Set([...created.map(item => item.id), ...newWorkflowIds])];
-				showAllWorkflows = false;
+				browseMode = 'recent';
 				if (created.length === 1 && committed.length === 1) {
 					authoringAssumptionsWorkflowId = created[0].id;
 					await selectWorkflow(created[0].id);
@@ -1054,7 +1020,6 @@
 			createdAiSession = null;
 			const undoingOpenWorkflow = selectedWorkflow && createdAiWorkflowIds.includes(selectedWorkflow.id);
 			sessionStorage.removeItem('workflow-ai-last-batch');
-			newWorkflowIds = newWorkflowIds.filter(id => !createdAiWorkflowIds.includes(id));
 			createdAiWorkflowIds = [];
 			authoringAssumptions = [];
 			authoringAssumptionsWorkflowId = null;
@@ -1086,11 +1051,15 @@
 	}
 
 	function showAllWorkflowCards(): void {
-		showAllWorkflows = true;
+		browseMode = 'workflows';
+	}
+
+	function showWorkflowTemplates(): void {
+		browseMode = 'templates';
 	}
 
 	function showRecentWorkflowCards(): void {
-		showAllWorkflows = false;
+		browseMode = 'recent';
 	}
 
 	function workflowSummaryToContinueItem(workflow: WorkflowSummary): WorkflowContinueItem {
@@ -1098,7 +1067,7 @@
 			id: workflow.id,
 			title: workflow.title,
 			summary: `${workflow.trigger_summary ?? 'Manual'} - ${retentionLabel(workflow.run_content_retention)}`,
-			badge: newWorkflowIds.includes(workflow.id) ? 'New' : workflow.enabled ? 'Enabled' : 'Paused',
+			badge: workflow.enabled ? 'Enabled' : 'Paused',
 			category: workflow.category ?? 'general_knowledge',
 			icon: workflowIcon(workflow.title, workflow.icon),
 			source: 'recent'
@@ -1242,10 +1211,6 @@
 		await maintainTemplateProjection(workflow);
 	}
 
-	function rainAlertGraph(): WorkflowGraph {
-		return dailyWeatherNewsGraph();
-	}
-
 	function blankWorkflowGraph(): WorkflowGraph {
 		return {
 			version: 2,
@@ -1261,10 +1226,6 @@
 			category: 'general_knowledge', status: 'provisional', enabled: false,
 			current_version_id: '', graph: blankWorkflowGraph()
 		};
-	}
-
-	function newsBriefGraph(): WorkflowGraph {
-		return weeklyEventsGraph();
 	}
 
 	function resetEditor(workflow: WorkflowDetail) {
@@ -1388,25 +1349,37 @@
 						actionItemsTestId="workflow-mixed-row"
 						itemTestId="workflow-landing-card"
 						showReportIssue
-						showAllMode={showAllWorkflows}
+						showAllMode={browseMode !== 'recent'}
 						contentSlotVisible={streamPreviewWorkflows.length > 0 || (partialNotice !== null && partialWorkflowIds.length > 1) || (!!pendingSaveSessionId && !!pendingPreviewWorkflow && pendingPreviewTargetId === null)}
-						showAllLabel={workflows.length > 0 ? 'Show all' : ''}
+						showAllLabel="Show my workflows"
 						showAllTestId="workflows-show-all"
-						allItems={allWorkflowContinueItems}
+						browseLabel="Show templates"
+						browseTestId="workflows-show-templates"
+						allItemsHeading={browseMode === 'templates' ? 'Templates' : 'My workflows'}
+						allItems={visibleBrowseItems}
 						allItemsViewTestId="all-workflows-view"
 						allItemsGridTestId="all-workflows-grid"
 						allItemsToolbarTestId="workflows-all-toolbar"
 						allItemTestId="workflow-landing-card"
 						backTestId="workflows-back-to-recent"
 						searchTestId="workflows-search"
-						onShowAll={workflows.length > 0 ? showAllWorkflowCards : undefined}
+						onShowAll={showAllWorkflowCards}
+						onBrowse={showWorkflowTemplates}
 						onBackToRecent={showRecentWorkflowCards}
 						onSearchAll={showWorkflowSearchUnavailable}
 						onContinueItem={continueWorkflowFromCard}
 						onActionItem={startWorkflowFromCard}
-						onAllItem={continueWorkflowFromCard}
-						onStartInspiration={startWorkflowFromInspiration}
+						onAllItem={browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
 					>
+						<svelte:fragment slot="top-right">
+							{#if browseMode === 'workflows'}
+								<label class="workflow-sort-label" for="workflow-sort-select">Sort by</label>
+								<select id="workflow-sort-select" class="workflow-sort-select" data-testid="workflows-sort" bind:value={workflowSortMode}>
+									<option value="recent">Last updated</option>
+									<option value="running-next">Running next first</option>
+								</select>
+							{/if}
+						</svelte:fragment>
 						{#if partialNotice && partialWorkflowIds.length > 1}
 							<p class="workflow-ai-partial-warning" data-testid="workflow-ai-partial-warning" role="status">{partialNotice}</p>
 						{/if}
@@ -1820,6 +1793,21 @@
 		display: block;
 		gap: 0;
 		overflow: hidden;
+	}
+
+	.workflow-sort-label {
+		white-space: nowrap;
+		font-size: 0.875rem;
+	}
+
+	.workflow-sort-select {
+		max-width: min(12rem, 42vw);
+		padding: 0.4rem 0.5rem;
+		border: 1px solid var(--color-grey-40);
+		border-radius: var(--radius-4, 8px);
+		background: var(--color-grey-0);
+		color: var(--color-font-primary);
+		font: inherit;
 	}
 
 	#tabpanel-template {

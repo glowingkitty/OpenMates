@@ -7,6 +7,7 @@
  * cancellable run detail at the required laptop and phone proof viewports.
  * Every created Workflow is deleted during cleanup.
  */
+import type { Page } from '@playwright/test';
 export {};
 
 const { expect, test } = require('./helpers/cookie-audit');
@@ -422,8 +423,16 @@ test.describe('Workflows web UI contract', () => {
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30_000 });
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+			const workflowInspiration = page.getByTestId('daily-inspiration-banner');
+			await expect(workflowInspiration.getByTestId('daily-inspiration-cta-text')).toHaveCount(0);
+			await expect(workflowInspiration).not.toHaveAttribute('role', 'button');
+			await expect(workflowInspiration).not.toHaveAttribute('tabindex', '0');
+			await workflowInspiration.click();
+			await workflowInspiration.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
+			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
 			await expect(page.getByTestId('workflows-workspace-background-icon')).toBeVisible();
-			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show all');
+			await expect(page.getByTestId('workflows-show-all')).toHaveText('Show my workflows');
+			await expect(page.getByTestId('workflows-show-templates')).toHaveText('Show templates');
 			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			const editorCard = page
@@ -435,7 +444,13 @@ test.describe('Workflows web UI contract', () => {
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
 			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
 			if (!startScreenBox) throw new Error('Workflow start screen must be measurable.');
-			const shouldUseCompactCards = startScreenBox.width < 550 || (page.viewportSize()?.height ?? 0) < 800;
+			const [bannerBox, composerBox] = await Promise.all([
+				page.getByTestId('workflows-daily-inspiration-area').boundingBox(),
+				page.getByTestId('workflow-input-composer').boundingBox()
+			]);
+			if (!bannerBox || !composerBox) throw new Error('Workflow banner and composer must be measurable.');
+			const availableCardHeight = composerBox.y - (bannerBox.y + bannerBox.height);
+			const shouldUseCompactCards = startScreenBox.width < 550 || availableCardHeight < 420;
 			if (shouldUseCompactCards) {
 				await expect(editorCard).toHaveClass(/resume-chat-card/);
 				await expect(editorCard.locator('.resume-chat-kind-badge')).toHaveCount(0);
@@ -712,4 +727,166 @@ test.describe('Workflows web UI contract', () => {
 			}
 		}
 	});
+});
+
+test.describe('Workflow templates', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates,workflows-ui.mvp.authoring
+	test('browses templates and creates a disabled owned copy in the editor', async ({ page }: { page: Page }) => {
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		let createdId: string | null = null;
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page);
+		try {
+			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' })).toHaveCount(0);
+			await page.getByTestId('workflows-show-templates').click();
+			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
+			await expect(page.getByRole('heading', { name: 'Templates' })).toBeVisible();
+			await expect(page.getByTestId('workflows-sort')).toHaveCount(0);
+			const templateCard = page.getByTestId('all-workflows-grid').getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' });
+			await expect(templateCard).toBeVisible();
+			const createdResponse = page.waitForResponse((response) => response.url().endsWith('/v1/workflows') && response.request().method() === 'POST');
+			await templateCard.click();
+			const response = await createdResponse;
+			expect(response.ok(), await response.text()).toBe(true);
+			const created = (await response.json()).workflow;
+			const workflowId = String(created.id);
+			createdId = workflowId;
+			expect(created.enabled).toBe(false);
+			expect(created.graph.version).toBe(2);
+			expect(created.graph.nodes.map((node: { type: string }) => node.type)).toEqual(['schedule_trigger', 'send_chat_message']);
+			expect(created.graph.nodes[0].config.schedule.timezone).toBe(await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone));
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily planning reminder');
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			const runResponse = await page.request.post(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
+				data: { mode: 'test', input: {} },
+				headers: { 'Idempotency-Key': `template-browse-${workflowId}` }
+			});
+			expect(runResponse.ok(), await runResponse.text()).toBe(true);
+			const run = (await runResponse.json()).run;
+			await expect.poll(async () => {
+				const result = await page.request.get(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(run.id)}`);
+				if (!result.ok()) return `HTTP ${result.status()}`;
+				return (await result.json()).run.status;
+			}, { timeout: 45_000 }).toBe('completed');
+			await page.getByTestId('workflow-detail-back').click();
+			await page.getByTestId('workflows-show-all').click();
+			await expect(page.getByTestId('all-workflows-grid').getByTestId('workflow-landing-card').filter({ hasText: 'Daily planning reminder' })).toBeVisible();
+		} finally {
+			if (createdId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(createdId)}`).catch(() => null);
+		}
+	});
+
+});
+
+function apiUrl(): string {
+  const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
+  return url.hostname === 'localhost' ? 'http://localhost:8000' : `${url.protocol}//${url.hostname.replace(/^app\./, 'api.')}`;
+}
+
+test.describe('Workflow Send message delivery', () => {
+  // contract-test: direct surface=gui.web assertions=workflows-ui.runs.timeline-execution-detail,workflows.chat-delivery.sync-projection,workflows.chat-delivery.client-encrypted
+  test('stays pending until encrypted chat persistence, then notifies and opens the delivered chat', async ({ page }: { page: import('@playwright/test').Page }) => {
+    test.setTimeout(150_000);
+    test.skip(!getTestAccount().email, 'Test account credentials required.');
+    await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+    await page.addInitScript(() => {
+      const nativeSend = WebSocket.prototype.send;
+      const held: Array<{ socket: WebSocket; data: string | ArrayBufferLike | Blob | ArrayBufferView }> = [];
+      WebSocket.prototype.send = function (data) {
+        if (typeof data === 'string') {
+          try {
+            if (JSON.parse(data).type === 'workflow_chat_delivery_claim') {
+              held.push({ socket: this, data });
+              return;
+            }
+          } catch { /* Non-JSON frames use normal transport. */ }
+        }
+        nativeSend.call(this, data);
+      };
+      (window as typeof window & { __releaseWorkflowClaims?: () => void; __heldWorkflowClaims?: () => number }).__releaseWorkflowClaims = () => {
+        for (const claim of held.splice(0)) nativeSend.call(claim.socket, claim.data);
+      };
+      (window as typeof window & { __heldWorkflowClaims?: () => number }).__heldWorkflowClaims = () => held.length;
+    });
+
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page);
+    const title = `Workflow delivery ${Date.now()}`;
+    const chatTitle = `Workflow message ${Date.now()}`;
+    const created = await page.request.post(`${apiUrl()}/v1/workflows`, { data: {
+      title, enabled: false,
+      graph: {
+        version: 2, trigger_node_id: 'trigger',
+        nodes: [
+          { id: 'trigger', type: 'manual_trigger', title: 'Start', config: {} },
+          { id: 'send', type: 'send_chat_message', title: 'Send message', config: { title: chatTitle, message: 'Delivery is ready' } },
+        ],
+        edges: [{ from: 'trigger', to: 'send' }],
+      },
+    } });
+    expect(created.ok(), await created.text()).toBe(true);
+    const workflowId = (await created.json()).workflow.id;
+    try {
+      await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await page.getByTestId('workflow-landing-card').filter({ hasText: title }).first().click();
+      const accepted = await page.request.post(`${apiUrl()}/v1/workflows/${workflowId}/run`, {
+        data: { mode: 'test', input: {} },
+        headers: { 'Idempotency-Key': `workflow-delivery-${workflowId}` },
+      });
+      expect(accepted.ok(), await accepted.text()).toBe(true);
+      const runId = (await accepted.json()).run.id;
+      const runUrl = `${apiUrl()}/v1/workflows/${workflowId}/runs/${runId}`;
+      await expect.poll(async () => {
+        const response = await page.request.get(runUrl);
+        if (!response.ok()) return `HTTP ${response.status()}`;
+        return (await response.json()).run.output_summary?.deliveries?.send?.status;
+      }, { timeout: 45_000 }).toBe('delivery_pending');
+      await expect.poll(() => page.evaluate(() => (window as typeof window & { __heldWorkflowClaims?: () => number }).__heldWorkflowClaims?.() ?? 0)).toBeGreaterThan(0);
+
+      let browserDetailRequests = 0;
+      await page.route(`**/v1/workflows/${workflowId}/runs/${runId}`, async route => {
+        browserDetailRequests += 1;
+        if (browserDetailRequests === 1) {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"Temporary failure"}' });
+        } else {
+          await route.continue();
+        }
+      });
+      await page.getByTestId('workflow-tab-runs').click();
+      await expect.poll(() => browserDetailRequests, { timeout: 15_000 }).toBeGreaterThan(1);
+      const marker = page.locator(`[data-testid="workflow-run-marker"][data-run-id="${runId}"]`);
+      await expect(marker).toHaveAttribute('data-run-status', 'delivery_pending');
+      const sendNode = page.locator('[data-testid="workflow-run-graph"] [data-node-id="send"]');
+      await expect(sendNode.getByTestId('workflow-run-node-status')).toHaveAttribute('data-node-status', 'delivery_pending');
+      await expect(sendNode.getByTestId('workflow-run-node-status')).toHaveAttribute('aria-label', /waiting/i);
+      await expect(sendNode.getByTestId('workflow-run-open-chat')).toHaveCount(0);
+      await expect(page.getByTestId('chat-notification').filter({ hasText: chatTitle })).toHaveCount(0);
+
+      await page.evaluate(() => (window as typeof window & { __releaseWorkflowClaims?: () => void }).__releaseWorkflowClaims?.());
+      const notification = page.getByTestId('chat-notification').filter({ hasText: chatTitle });
+      await expect(notification).toBeVisible({ timeout: 45_000 });
+      await notification.hover();
+      await expect.poll(async () => {
+        const response = await page.request.get(runUrl);
+        if (!response.ok()) return null;
+        return (await response.json()).run.output_summary?.deliveries?.send?.status;
+      }, { timeout: 45_000 }).toBe('acknowledged');
+      await expect(sendNode.getByTestId('workflow-run-node-status')).toHaveAttribute('data-node-status', 'acknowledged', { timeout: 45_000 });
+      await expect(marker).toHaveAttribute('data-run-status', 'completed');
+      const openChat = sendNode.getByTestId('workflow-run-open-chat');
+      await expect(openChat).toBeVisible();
+      const chatId = await notification.getAttribute('data-chat-id');
+      expect(chatId).toBeTruthy();
+      await expect(openChat).toHaveAttribute('href', new RegExp(`chat-id=${chatId}$`));
+      await notification.click();
+      await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`));
+      await expect(page.getByText('Delivery is ready', { exact: false }).first()).toBeVisible();
+    } finally {
+      await page.request.delete(`${apiUrl()}/v1/workflows/${workflowId}`).catch(() => null);
+    }
+  });
 });

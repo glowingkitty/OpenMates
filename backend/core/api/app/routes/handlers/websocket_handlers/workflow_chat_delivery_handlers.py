@@ -20,6 +20,7 @@ from backend.core.api.app.services.workflow_chat_delivery_service import (
     WorkflowChatDeliveryError,
     WorkflowChatDeliveryService,
 )
+from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistoryError
 
 
 logger = logging.getLogger(__name__)
@@ -233,6 +234,17 @@ async def handle_workflow_chat_delivery_persist(
             device_fingerprint_hash,
         )
     except (PermissionError, WorkflowChatDeliveryError, ValueError) as exc:
+        if _is_permanent_persistence_validation_error(exc):
+            try:
+                _service(directus_service).fail_rejected_client_ciphertext(
+                    delivery_id=delivery_id,
+                    owner_id=user_id,
+                    claim=_claim_from_payload(payload),
+                    device_id=device_fingerprint_hash,
+                )
+            except (PermissionError, WorkflowChatDeliveryError, ValueError):
+                # A stale claimant must never fail a newer claim or committed result.
+                logger.info("Workflow delivery validation rejection lost its claim fence")
         await _send_protocol_error(manager, user_id, device_fingerprint_hash, delivery_id, request_id, exc)
     finally:
         _end_ws_span(_otel_span, _otel_token)
@@ -302,6 +314,19 @@ async def _send_protocol_error(
         user_id,
         device_hash,
     )
+
+
+def _is_permanent_persistence_validation_error(exc: Exception) -> bool:
+    if not isinstance(exc, WorkflowDeliveryHistoryError):
+        return False
+    response = getattr(exc.__cause__, "response", None)
+    if getattr(response, "status_code", None) != 400:
+        return False
+    try:
+        code = response.json().get("error", {}).get("code")
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return code in {"selected_embeds_required", "invalid_client_ciphertext", "invalid_client_embeds", "invalid_embed_keys"}
 
 
 async def _decrypt_claimed_payload(

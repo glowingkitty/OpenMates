@@ -10,7 +10,11 @@ Workflows automate repeatable tasks in OpenMates. Each Workflow combines a trigg
 
 The new draft opens in the **Template** tab. OpenMates assigns its category and icon from the Workflow graph when possible. These identity fields are encrypted with the rest of the Workflow metadata.
 
-Use **Show all** and **Search** to find existing Workflows. Recent Workflows appear before starter templates.
+Use **Show my workflows** to browse all your Workflows. The grid starts with the most recently created or updated Workflow. Change **Last updated** to **Running next first** to put enabled Workflows with upcoming runs first.
+
+**Continue where you left off** prioritizes Workflows created or updated in the last 30 minutes, then Workflows running in the next 30 minutes, those created or updated in the last 24 hours, those running in the next 24 hours, and finally older Workflows by their latest creation or update time. Paused Workflows do not count as upcoming runs.
+
+Open **Show templates** for built-in examples. Selecting a template creates a disabled copy and opens it for review; it does not run or activate the schedule. Templates stay separate from your continuation cards until you create your own copy.
 
 ## Edit The Template
 
@@ -39,6 +43,8 @@ Select the **Runs** tab to inspect upcoming and persisted executions. The timeli
 Select a run to see the Workflow version used for that execution and the status of each node. Expanded nodes show retained inputs, outputs, sources, branches, and errors when available. If retained content has expired, OpenMates keeps the run and node statuses visible and marks the content unavailable instead of reconstructing it.
 
 Runs can be cancelled only while their current state supports cancellation. OpenMates asks for confirmation before requesting cancellation.
+
+A **Send message** step stays pending until the encrypted chat message is persisted and delivery is acknowledged. When the message is ready, an in-app chat notification lets you open it; the acknowledged step also offers **Open chat**. If you are already viewing that chat, OpenMates avoids an extra notification.
 
 ## Privacy
 

@@ -60,3 +60,15 @@ plan_in_tasks:
     given: A Project links a Plan and its Tasks.
     when: The user opens that Project's Tasks tab.
     then: The linked Plan appears beside the Tasks and opens its Plan detail within the Tasks context.
+
+available_space_cards:
+  - id: short-content-area-keeps-controls-visible
+    assertion_ids: [workspace-shell.start.available-space-cards]
+    given: Alice opens Chats, Projects, and Workflows on a laptop where a tall Daily Inspiration banner leaves only a short area above the composer.
+    when: Each continuation section appears.
+    then: All three use compact cards and keep their browsing controls visible between the cards and composer, without overlap or page overflow.
+  - id: container-change-updates-card-size
+    assertion_ids: [workspace-shell.start.available-space-cards]
+    given: Bob views a workspace with enough content space for large cards, then narrows its container or increases the inspiration banner height.
+    when: The available area can no longer fit the large-card layout.
+    then: The cards become compact even if the overall browser window height stays unchanged; expanding the available area restores large cards when they fit.

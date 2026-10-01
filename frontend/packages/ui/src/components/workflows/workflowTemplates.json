@@ -1,0 +1,34 @@
+[
+  {
+    "id": "daily-planning-reminder",
+    "title": "Daily planning reminder",
+    "summary": "A morning message to choose your priorities for the day",
+    "category": "productivity",
+    "icon": "sun",
+    "graph": {
+      "version": 2,
+      "trigger_node_id": "trigger",
+      "nodes": [
+        { "id": "trigger", "type": "schedule_trigger", "title": "Every morning", "config": { "schedule": { "type": "daily", "time": "09:00", "timezone": "Etc/UTC" } } },
+        { "id": "reminder", "type": "send_chat_message", "title": "Plan your day", "config": { "title": "Plan your day", "message": "Choose your top priorities for today." } }
+      ],
+      "edges": [{ "from": "trigger", "to": "reminder" }]
+    }
+  },
+  {
+    "id": "weekly-review-reminder",
+    "title": "Weekly review reminder",
+    "summary": "A Friday prompt to reflect and plan the next week",
+    "category": "productivity",
+    "icon": "calendar-days",
+    "graph": {
+      "version": 2,
+      "trigger_node_id": "trigger",
+      "nodes": [
+        { "id": "trigger", "type": "schedule_trigger", "title": "Every Friday", "config": { "schedule": { "type": "weekly", "weekdays": ["friday"], "time": "16:00", "timezone": "Etc/UTC" } } },
+        { "id": "reminder", "type": "send_chat_message", "title": "Review your week", "config": { "title": "Weekly review", "message": "What went well this week, and what matters next week?" } }
+      ],
+      "edges": [{ "from": "trigger", "to": "reminder" }]
+    }
+  }
+]

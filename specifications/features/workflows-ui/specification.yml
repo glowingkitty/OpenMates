@@ -12,7 +12,7 @@ summary: >
 
 scope:
   includes:
-    - The authenticated /workflows start workspace, title-first draft entry, recent Workflow cards, starter examples, Show all, and visible Search affordance.
+    - The authenticated /workflows start workspace, title-first draft entry, prioritized recent Workflow cards, separate template browsing, Show my workflows, and visible Search affordance.
     - The complete visual composition of the Workflow detail header, Template and Runs tab switch, graph canvas, node cards, dirty state, version timeline, run timeline, and execution detail.
     - Persisted disabled title drafts, in-place node editing, per-node Save and discard, unsaved-node navigation protection, read-only historical inspection, restore-as-new, and contextual run cancellation.
     - Automatic Workflow category and icon metadata, category-derived header and card identity, desktop and mobile layout, current OpenMates design tokens and icons, keyboard and touch operation, dark mode, and reduced-motion behavior.
@@ -202,8 +202,8 @@ models:
         vertical_regions: [recommendation_banner, workflow_identity_space, workflow_card_carousel, browse_controls, bottom_composer]
         recommendation_banner: {full_content_width: true, vivid_gradient_surface: true, rounded: true}
         workflow_identity_space: {large_faint_workflow_icon: true, centered: true}
-        workflow_card_carousel: {horizontal: true, recent_before_starters: true, cards_partially_peek_at_edge: allowed}
-        browse_controls: {centered: true, controls: [show_all, search], show_all_label: 'Show all', show_all_count_suffix: forbidden}
+        workflow_card_carousel: {horizontal: true, owned_workflows_only: true, prioritized_by_recent_edits_and_upcoming_schedule: true, cards_partially_peek_at_edge: allowed}
+        browse_controls: {centered: true, controls: [show_my_workflows, show_templates, search], show_all_label: 'Show my workflows', show_all_count_suffix: forbidden, visible_without_composer_overlap: true}
         bottom_composer: {floating: true, centered: true, pill: true}
     mobile_layout:
       type: mobile_workspace_start_composition
@@ -471,8 +471,16 @@ assertions:
     depends_on: [models.WorkflowIdentityMetadata, examples.workflow_identity]
   - id: workflows-ui.workspace.recommendation-led-composition
     type: behavior
-    must: The /workflows start view vertically composes a prominent recommendation banner, centered faint Workflow identity, horizontal recent-then-starter cards, centered plain 'Show all' without a count and Search controls, and a floating bottom composer. Start content begins below the recommendation banner without overlap. Whenever the available Workflow container width or height cannot fit a large card, compact cards show only the bare assigned icon, one ellipsized title line, and chevron; they omit enabled or paused badges and schedule, next-run, and retention detail. Large cards retain useful schedule or status detail and the Workflow category gradient. Mobile keeps the same hierarchy with the composer above the safe area.
-    depends_on: [models.WorkflowWorkspaceStart, examples.workspace_start]
+    must: The /workflows start view vertically composes a prominent recommendation banner, centered faint Workflow identity, horizontal owned Workflow cards, centered plain 'Show my workflows' without a count, 'Show templates' and Search controls, and a floating bottom composer. Start content begins below the recommendation banner without overlap. Whenever the available Workflow container width or height cannot fit a large card, compact cards show only the bare assigned icon, one ellipsized title line, and chevron; they omit enabled or paused badges and schedule, next-run, and retention detail. Large cards retain useful schedule or status detail and the Workflow category gradient. Mobile keeps the same hierarchy with the composer above the safe area.
+    depends_on: [models.WorkflowWorkspaceStart, examples.workspace_start_layout]
+  - id: workflows-ui.workspace.continue-priority
+    type: behavior
+    must: Continue where you left off shows only owned Workflows, ordered by the first matching priority group — created or updated in the last 30 minutes; enabled Workflows scheduled in the next 30 minutes; created or updated in the last 24 hours; enabled Workflows scheduled in the next 24 hours; all others. Recent groups and the remaining group use the later of creation and update time descending; scheduled groups use their next future run ascending. Paused Workflows and elapsed schedule timestamps do not qualify for scheduled groups. The ordering refreshes with time while the workspace is visible.
+    depends_on: [models.WorkflowWorkspaceStart, examples.workflow_continue_priority]
+  - id: workflows-ui.workspace.owned-library-and-templates
+    type: behavior
+    must: Show my workflows opens the shared responsive grid containing all owned Workflows, sorted by the later of creation and update time descending. A dropdown at the upper inline end offers Last updated and Running next first; the latter places enabled Workflows with future scheduled runs first in next-run order, then all remaining Workflows in recency order. Show templates opens a separate grid through the same browsing and return controls. Templates never appear among owned continuation cards; selecting one creates a new disabled owned Workflow and opens its Template for review, without enabling or executing it. Built-in templates use validated executable graphs.
+    depends_on: [models.WorkflowWorkspaceStart, examples.workflow_library_templates]
   - id: workflows-ui.workspace.title-first-draft
     type: behavior
     must: Submitting a valid short title from the Workflow composer persists and opens a disabled draft in Template, while empty input creates nothing, each node Save immediately persists its graph edit, and unavailable AI or voice authoring never implies success. The centered composer placeholder is exactly 'Enter a name for a new workflow'; no extra top-right blank-workflow button is added.
@@ -617,7 +625,7 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import]
+  required_groups: [visual_language, route_motion_contract, workflow_identity, workspace_start, workspace_start_layout, workflow_continue_priority, workflow_library_templates, detail_header, detail_header_contract, detail_tabs, template_editing, template_step_selector, node_card_contract, unsaved_navigation, version_history, version_selector_contract, run_history, responsive_accessibility, mvp_authoring, ask_ai_authoring, schedule_preview, message_budget, run_deletion, workflow_file_export, workflow_project_import, workflow_composer_import]
 
 approval:
   source: User-approved Figma/PDF workflow v1 plan, Codex task 01a09f95-3e12-71d1-9243-6a3668c57d4b

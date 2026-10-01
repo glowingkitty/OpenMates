@@ -27,6 +27,22 @@ class FakeRuntime:
         return {"trigger_ids": ["trigger-1", "trigger-2"]}
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+@pytest.mark.anyio
+async def test_reconciliation_passes_bounded_deadlines_to_atomic_runtime() -> None:
+    class ReconcileRuntime:
+        async def execute(self, operation: str, data: dict[str, Any]) -> dict[str, Any]:
+            assert operation == "reconcile_stale_workflow_state"
+            assert data == {"now": 1_800_000_000, "limit": 25, "queued_timeout_seconds": 300,
+                            "active_timeout_seconds": 1800, "wait_default_timeout_seconds": 86400}
+            return {"finished_run_ids": ["run-1"], "expired_delivery_ids": []}
+
+    result = await workflow_tasks.reconcile_stale_workflow_state_now(
+        runtime_service=ReconcileRuntime(), now=1_800_000_000, limit=25,
+    )
+    assert result["finished_run_ids"] == ["run-1"]
+
+
 # contract-test: infrastructure
 @pytest.mark.anyio
 async def test_workflow_tasks_initialize_only_core_services(monkeypatch: pytest.MonkeyPatch) -> None:

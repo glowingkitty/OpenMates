@@ -323,7 +323,7 @@ class DirectusWorkflowChatDeliveryRepository:
 class WorkflowChatDeliveryService:
     """Lock-protected pending chat delivery protocol."""
 
-    TERMINAL_STATUSES = frozenset({"acknowledged", "cancelled", "expired"})
+    TERMINAL_STATUSES = frozenset({"acknowledged", "cancelled", "expired", "failed"})
 
     def __init__(
         self,
@@ -506,6 +506,28 @@ class WorkflowChatDeliveryService:
             if delivery.run_id and self._delivery_history is not None:
                 self._delivery_history.acknowledge_in_memory(delivery)
             delivery = self._repository.save_delivery(delivery)
+            return self._snapshot(delivery)
+
+    def fail_rejected_client_ciphertext(
+        self,
+        *,
+        delivery_id: str,
+        owner_id: str,
+        claim: WorkflowChatDeliveryClaim,
+        device_id: str,
+    ) -> WorkflowChatDelivery:
+        """Terminalize a permanently invalid, unpersisted Workflow claim under its fence."""
+        with self._lock:
+            delivery = self._require_owner_delivery(delivery_id, owner_id)
+            self._require_current_claim(delivery, claim)
+            self._require_claim_device(delivery, device_id)
+            if not delivery.run_id or delivery.client_persistence is not None:
+                raise WorkflowChatDeliveryStateError("Persisted or legacy delivery cannot be failed")
+            delivery.status = "failed"
+            delivery.encrypted_payload = ""
+            delivery = self._repository.save_delivery(delivery)
+            if self._delivery_history is not None:
+                self._delivery_history.release(delivery_id, delivery.workflow_id, owner_id)
             return self._snapshot(delivery)
 
     def cancel_delivery(self, *, delivery_id: str, owner_id: str) -> WorkflowChatDelivery:

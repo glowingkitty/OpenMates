@@ -374,6 +374,19 @@ class InMemoryWorkflowRepository:
         self.runs[record["id"]] = deepcopy(record)
         return deepcopy(record)
 
+    def prune_run_content(self, workflow_id: str, run_id: str, user_id: str, content_ref: str) -> bool:
+        with self._authoring_lock:
+            record = self.runs.get(run_id)
+            if not record or record["workflow_id"] != workflow_id or record["owner_hash"] != _hash_owner_id(user_id):
+                raise WorkflowNotFoundError(run_id)
+            if record.get("status") not in {"completed", "failed", "cancelled"}:
+                raise ValueError("Only terminal workflow run content can be pruned")
+            if record.get("encrypted_content_ref") != content_ref:
+                return False
+            record.update(content_available=False, content_storage=WorkflowRunContentStorage.DELETED.value,
+                          content_expires_at=None, encrypted_content_ref=None, encrypted_content_checksum=None)
+            return True
+
     def update_workflow_run_status(self, workflow_id: str, owner_hash: str, run_id: str, status: str, updated_at: int) -> None:
         with self._authoring_lock:
             record = self.workflows.get(workflow_id)
@@ -682,6 +695,12 @@ class DirectusWorkflowRepository:
         runtime_transaction(self, action="save_run", workflow_id=record["workflow_id"],
                             run_id=record["id"], hashed_user_id=record["owner_hash"], run=payload)
         return deepcopy(record)
+
+    def prune_run_content(self, workflow_id: str, run_id: str, user_id: str, content_ref: str) -> bool:
+        from backend.core.api.app.services.workflow_delivery_history import runtime_transaction
+        result = runtime_transaction(self, action="prune_run_content", workflow_id=workflow_id,
+                                     run_id=run_id, hashed_user_id=_hash_owner_id(user_id), content_ref=content_ref)
+        return result.get("pruned") is True
 
     def list_runs(self, workflow_id: str, user_id: str) -> list[dict[str, Any]]:
         items = self._get_items(
@@ -2476,6 +2495,16 @@ class WorkflowService:
                 hydrated["content_storage"] = WorkflowRunContentStorage.DELETED.value
                 hydrated["encrypted_content_ref"] = None
                 hydrated["encrypted_content_checksum"] = None
+        if hydrated.get("status") in {WorkflowRunStatus.FAILED.value, WorkflowRunStatus.CANCELLED.value}:
+            for node in hydrated["node_runs"]:
+                if node.get("status") == "running":
+                    node["status"] = "skipped" if hydrated["status"] == WorkflowRunStatus.CANCELLED.value else "failed"
+                    node["finished_at"] = hydrated.get("finished_at")
+                    if hydrated["status"] == WorkflowRunStatus.FAILED.value:
+                        node["error_code"] = "WORKFLOW_RUN_TIMEOUT"
+                        node["error_summary"] = hydrated.get("error_summary") or "Workflow execution timed out"
+                    else:
+                        node["skipped_reason"] = "Workflow cancelled"
         if delivery_statuses:
             for node in hydrated["node_runs"]:
                 if node["node_id"] in delivery_statuses:
@@ -2544,31 +2573,25 @@ class WorkflowService:
 
     def _delete_existing_ephemeral_run_content(self, workflow_id: str, user_id: str) -> None:
         for run_record in self.repository.list_runs(workflow_id, user_id):
-            if run_record.get("content_storage") != WorkflowRunContentStorage.EPHEMERAL.value:
+            if (run_record.get("content_storage") != WorkflowRunContentStorage.EPHEMERAL.value
+                    or run_record.get("status") not in {"completed", "failed", "cancelled"}):
                 continue
             ref = run_record.get("encrypted_content_ref")
-            if ref:
+            if ref and self.repository.prune_run_content(workflow_id, run_record["id"], user_id, ref):
                 self.repository.delete_encrypted_blob(ref)
-            run_record["content_available"] = False
-            run_record["content_storage"] = WorkflowRunContentStorage.DELETED.value
-            run_record["encrypted_content_ref"] = None
-            run_record["encrypted_content_checksum"] = None
-            self.repository.save_run(run_record)
 
     def _apply_run_content_retention(self, workflow_id: str, user_id: str) -> None:
         durable_runs = [
             record
             for record in self.repository.list_runs(workflow_id, user_id)
-            if record.get("content_storage") == WorkflowRunContentStorage.DURABLE.value and record.get("encrypted_content_ref")
+            if (record.get("content_storage") == WorkflowRunContentStorage.DURABLE.value
+                and record.get("encrypted_content_ref") and record.get("status") in {"completed", "failed", "cancelled"})
         ]
         durable_runs.sort(key=lambda item: (item.get("saved_at") or 0, item.get("started_at") or 0, item["id"]), reverse=True)
         for stale_run in durable_runs[WORKFLOW_DURABLE_RUN_CONTENT_LIMIT:]:
-            self.repository.delete_encrypted_blob(stale_run["encrypted_content_ref"])
-            stale_run["content_available"] = False
-            stale_run["content_storage"] = WorkflowRunContentStorage.DELETED.value
-            stale_run["encrypted_content_ref"] = None
-            stale_run["encrypted_content_checksum"] = None
-            self.repository.save_run(stale_run)
+            ref = stale_run["encrypted_content_ref"]
+            if self.repository.prune_run_content(workflow_id, stale_run["id"], user_id, ref):
+                self.repository.delete_encrypted_blob(ref)
 
     def _sync_workflow_trigger(
         self,

@@ -8,8 +8,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
+import os
 import re
 import time
 import uuid
@@ -31,9 +33,13 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowRunStatus,
 )
 from backend.core.api.app.services.workflow_service import WorkflowService
-from backend.core.api.app.services.workflow_website_changes import WorkflowWebsiteChanges, website_plan
 from backend.core.api.app.services.workflow_template_expressions import resolve_workflow_path, resolve_workflow_template
+from backend.core.api.app.services.workflow_website_changes import WorkflowWebsiteChanges, website_plan
 from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
+
+
+WORKFLOW_NODE_TIMEOUT_SECONDS = int(os.getenv("WORKFLOW_NODE_TIMEOUT_SECONDS", "300"))
+WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS = int(os.getenv("WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS", "1800"))
 
 
 class WorkflowRunner:
@@ -101,6 +107,7 @@ class WorkflowRunner:
                 # A newly accepted run may not have a readable content checkpoint yet.
                 reusable_ai_outputs = {}
         started_at = int(time.time())
+        active_deadline = time.monotonic() + WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS
         trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
         context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "workflow": {
             "workflow_id": workflow.id, "run_id": run_id, "started_at": started_at,
@@ -185,7 +192,10 @@ class WorkflowRunner:
                     credit_cost=reusable_credit_cost,
                 )
             else:
-                node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
+                node_run = await self._run_node(
+                    run_id, workflow.id, node, context, user_id,
+                    timeout_seconds=min(WORKFLOW_NODE_TIMEOUT_SECONDS, max(0, active_deadline - time.monotonic())),
+                )
             node_runs.append(node_run)
             active_event = context["workflow"].get("website_active")
             if active_event and node_run.status == WorkflowNodeRunStatus.COMPLETED:
@@ -235,6 +245,7 @@ class WorkflowRunner:
                     trigger_type=trigger_type,
                     status=WorkflowRunStatus.WAITING,
                     started_at=started_at,
+                    wait_expires_at=(node_run.started_at or int(time.time())) + int(node_run.output_summary.get("timeout_seconds") or 24 * 60 * 60),
                     cost_summary=_workflow_cost_summary(node_runs),
                     node_runs=node_runs,
                     output_summary=context,
@@ -315,6 +326,7 @@ class WorkflowRunner:
             status=status,
             started_at=started_at,
             finished_at=None if status == WorkflowRunStatus.WAITING else int(time.time()),
+            wait_expires_at=((node_run.started_at or int(time.time())) + int(node_run.output_summary.get("timeout_seconds") or 24 * 60 * 60)) if status == WorkflowRunStatus.WAITING else None,
             error_summary=f"Step failed ({node_run.error_code or 'execution_error'})" if node_run.error_summary else None,
             cost_summary=_workflow_cost_summary([node_run]),
             node_runs=[node_run],
@@ -400,10 +412,11 @@ class WorkflowRunner:
         node: WorkflowNode,
         context: dict[str, Any],
         user_id: str,
+        timeout_seconds: float = WORKFLOW_NODE_TIMEOUT_SECONDS,
     ) -> WorkflowNodeRun:
         started_at = int(time.time())
         try:
-            output = await self._execute_node(node, context, user_id)
+            output = await asyncio.wait_for(self._execute_node(node, context, user_id), timeout=timeout_seconds)
             credit_cost = output.pop("_workflow_credit_cost", 0)
             if not isinstance(credit_cost, int) or credit_cost < 0:
                 raise WorkflowSkillBillingError("WORKFLOW_BILLING_INVALID_RECEIPT", "Workflow billing receipt is invalid")
@@ -420,6 +433,14 @@ class WorkflowRunner:
                 input_summary=node.input_mapping,
                 output_summary=output,
                 credit_cost=credit_cost,
+            )
+        except TimeoutError:
+            return WorkflowNodeRun(
+                id=str(uuid.uuid4()), run_id=run_id, workflow_id=workflow_id,
+                node_id=node.id, node_type=node.type, status=WorkflowNodeRunStatus.FAILED,
+                started_at=started_at, finished_at=int(time.time()),
+                error_code="WORKFLOW_NODE_TIMEOUT", error_summary="Workflow step timed out",
+                input_summary=node.input_mapping,
             )
         except WorkflowActionExecutionError as exc:
             return WorkflowNodeRun(

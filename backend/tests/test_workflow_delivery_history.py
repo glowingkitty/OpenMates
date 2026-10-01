@@ -176,6 +176,75 @@ async def test_inline_results_render_at_token_and_ask_receives_only_reserved_ite
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=workflows.results.selective-embeds,workflows.chat-delivery.client-encrypted,workflows.ai-ask.execution
+async def test_prepared_ask_encrypts_every_reserved_result_even_when_answer_cites_only_four():
+    from types import SimpleNamespace
+    service, workflow, cipher, _, adapter = setup()
+    ctx = context(service, workflow)
+    events = [
+        {"id": f"event-{index}", "provider": "example", "title": f"Event {index}",
+         "url": f"https://example.org/events/{index}"}
+        for index in range(10)
+    ]
+    ctx["nodes"]["events"] = {"app_id": "events", "skill_id": "search", "output": {"results": events}}
+    send = SimpleNamespace(id="send", config={"title": "Events", "message": "{{ steps.ask.answer }}"})
+    prepared = await prepare_ask_destinations(
+        workflow_service=service, workflow_id=workflow.id, run_id=ctx["workflow"]["run_id"],
+        ask_node_id="ask", prompt="Summarize {{ steps.events.results }}", context=ctx,
+        user_id="alice", send_nodes=[send],
+    )
+    assert len(prepared["send"]["embeds"]) == 10
+    refs = [embed["embed_id"] for embed in prepared["send"]["embeds"]]
+    answer = "Four highlights: " + ", ".join(f"[Event {index}](embed:{ref})" for index, ref in enumerate(refs[:4]))
+    ctx["nodes"]["ask"] = {"output": {"answer": answer, "answers_by_destination": {"send": answer}}}
+    ctx["workflow"]["prepared"] = prepared
+
+    delivery = await adapter.send_chat_message(send.config, ctx, "alice")
+    payload = cipher.payloads[0]
+    assert delivery["selected_count"] == 10
+    assert len(payload["embeds"]) == 10
+    assert {embed["embed_id"] for embed in payload["embeds"]} == set(refs)
+    assert all(ref in payload["message"] for ref in refs[:4])
+    assert all(ref not in payload["message"] for ref in refs[4:])
+    assert len([row for row in service.repository._delivery_history if row["status"] == "reserved"]) == 10
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=workflows.results.selective-embeds,workflows.history.delivered-membership
+async def test_ask_and_direct_send_reserve_only_results_with_persistable_embeds():
+    from types import SimpleNamespace
+    service, workflow, cipher, _, adapter = setup()
+    event = {"id": "event-supported", "provider": "example", "title": "Event", "url": "https://example.org/event"}
+    task = {"id": "task-unsupported", "provider": "example", "title": "Task", "url": "https://example.org/task"}
+    first = context(service, workflow)
+    first["nodes"]["events"] = {"app_id": "events", "skill_id": "search", "output": {"results": [event]}}
+    first["nodes"]["tasks"] = {"app_id": "tasks", "skill_id": "search", "output": {"results": [task]}}
+    send = SimpleNamespace(id="send", config={"title": "Mixed", "message": "{{ steps.ask.answer }}"})
+    prepared = await prepare_ask_destinations(
+        workflow_service=service, workflow_id=workflow.id, run_id=first["workflow"]["run_id"],
+        ask_node_id="ask", prompt="{{ steps.events.results }} {{ steps.tasks.results }}",
+        context=first, user_id="alice", send_nodes=[send],
+    )
+    assert list(prepared["send"]["selected_lists"]) == ["steps.events.results"]
+    assert len(prepared["send"]["embeds"]) == 1
+    assert len(service.repository._delivery_history) == 1
+    first["nodes"]["ask"] = {"output": {"answer": "One event", "answers_by_destination": {"send": "One event"}}}
+    first["workflow"]["prepared"] = prepared
+    await adapter.send_chat_message(send.config, first, "alice")
+    assert len(cipher.payloads[-1]["embeds"]) == 1
+
+    second = context(service, workflow)
+    second["nodes"]["events"] = {"app_id": "events", "skill_id": "search", "output": {"results": [{**event, "id": "event-direct", "url": "https://example.org/direct"}]}}
+    second["nodes"]["tasks"] = first["nodes"]["tasks"]
+    direct = await adapter.send_chat_message(
+        {"title": "Mixed direct", "message": "{{ steps.events.results }}\n{{ steps.tasks.results }}"}, second, "alice",
+    )
+    assert direct["selected_count"] == 1
+    assert len(cipher.payloads[-1]["embeds"]) == 1
+    assert len(service.repository._delivery_history) == 2
+
+
+@pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=workflows.message.standard
 async def test_inline_result_group_replaces_variable_with_embed_view():
     service, workflow, cipher, _, adapter = setup()

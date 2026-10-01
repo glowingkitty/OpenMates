@@ -26,6 +26,12 @@ _AI_RESULT_FIELDS = (
 )
 _EMBED_LINK = re.compile(r"\[([^\]]*)\]\(embed:([^\s)]+)\)")
 _RESULTS_VIEW = re.compile(r"```(?:embeds_results_view|embeds_map_view)\s*\n(.*?)\n?```", re.DOTALL | re.IGNORECASE)
+_PERSISTABLE_RESULT_EMBED_TYPES = {"events": "event", "news": "website", "home": "listing"}
+
+
+def persistable_result_embed_type(app_id: Any) -> str | None:
+    """Only these source results can satisfy a reserved permanent chat embed."""
+    return _PERSISTABLE_RESULT_EMBED_TYPES.get(app_id) if isinstance(app_id, str) else None
 
 
 def sanitize_workflow_ai_answer(answer: str, allowed_refs: set[str]) -> str:
@@ -140,7 +146,7 @@ async def prepare_ask_destinations(
         node_id, _ = path
         source = context.get("nodes", {}).get(node_id) or {}
         value = resolve_workflow_template(reference if reference.startswith("$nodes.") else "{{" + reference + "}}", context)
-        if isinstance(value, list) and isinstance(source, dict) and source.get("app_id"):
+        if isinstance(value, list) and isinstance(source, dict) and persistable_result_embed_type(source.get("app_id")):
             lists[reference] = (str(source["app_id"]), str(source.get("skill_id") or ""),
                                 [item for item in value if isinstance(item, dict)])
     if not lists or not send_nodes:
@@ -181,9 +187,8 @@ async def prepare_ask_destinations(
             ai_item = {"embed_ref": embed_id, **{field: item[field] for field in _AI_RESULT_FIELDS if field in item}}
             selected_lists[reference].append(item)
             ai_lists[reference].append(ai_item)
-            content_type = {"events": "event", "news": "website", "home": "listing"}.get(app_id)
-            if content_type:
-                embeds.append({"embed_id": embed_id, "content_type": content_type, "content": item})
+            content_type = persistable_result_embed_type(app_id)
+            embeds.append({"embed_id": embed_id, "content_type": content_type, "content": item})
         prepared[send.id] = {
             "delivery_id": delivery_id,
             "selected_lists": selected_lists,

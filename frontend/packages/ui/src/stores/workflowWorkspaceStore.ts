@@ -137,11 +137,10 @@ export type WorkflowRun = {
   cancellation_requested_at?: number | null;
   cancelled_at?: number | null;
   node_runs?: WorkflowNodeRun[];
-};
-
-export type WorkflowRunDetail = WorkflowRun & {
   output_summary?: Record<string, unknown>;
 };
+
+export type WorkflowRunDetail = WorkflowRun;
 
 export type WorkflowRequestInit = {
   method?: string;

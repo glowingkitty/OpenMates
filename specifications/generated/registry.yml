@@ -582,14 +582,14 @@ specifications:
     version: 7
     status: draft
     path: features/workflows-ui
-    fingerprint: ed2577e96ece68d3bb78282e863921e3c5137f3feb17bebd813df79842da7be2
+    fingerprint: c5163f633bfab1e0696c63ec19ba23932ded504e4959b666d54ef2ef3ac9e50b
     required_applies_to:
     - gui.web
   feature.workspace-shell:
     version: 3
     status: draft
     path: features/workspace-shell
-    fingerprint: 372800f5141db388793e3ad56d892e1d93de53cea5295344e3db1ae576558a49
+    fingerprint: 3e8cf8a2386505f9aca2ed6b5a108c5f87b312b72b7d830cf30cd9306f02477c
     required_applies_to:
     - gui.web
   surface.cli:
@@ -7679,7 +7679,7 @@ assertions:
     specification: feature.workflows-ui@7
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: afbeca88e32dc7ffd1fbdb4d39697774cf8966bc6900ccb25042f82428ff7f0e
+    fingerprint: 08829043fb61d56ee1073eeeaf2d6c9fb265c5d951dd7407394407741e78a4f5
     required_applies_to:
     - gui.web
   workflows-ui.visual-language.coherent:
@@ -7700,14 +7700,28 @@ assertions:
     specification: feature.workflows-ui@7
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 33aea084e3de7f3b402e4ab429aeff982c3d08e3e0807af6e5913db23b824f90
+    fingerprint: 48d1bef9cb33f38221462779bb9ac1479304aca18d1ee4cb4eed666d1f5e866e
+    required_applies_to:
+    - gui.web
+  workflows-ui.workspace.continue-priority:
+    specification: feature.workflows-ui@7
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 87f8701fda10c734b43525b36afba584c66defbab41fa8786d5d2a63ebbe9e53
+    required_applies_to:
+    - gui.web
+  workflows-ui.workspace.owned-library-and-templates:
+    specification: feature.workflows-ui@7
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 80a68fcd1d82c16272618026eddb67cf18beab05f9e8ccf6244856232171b19b
     required_applies_to:
     - gui.web
   workflows-ui.workspace.title-first-draft:
     specification: feature.workflows-ui@7
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 34498caac799d290e1d78a0598863edc1fbcb2c695490f80a98564b1e22fa58b
+    fingerprint: a5cffbe41176baa43f00a608c4cecb49dcbbad43cd689a4bc9a4ec80ca0997a0
     required_applies_to:
     - gui.web
   workflows-ui.detail.stable-visual-header:
@@ -7876,6 +7890,13 @@ assertions:
     specification_id: feature.workspace-shell
     type: behavior
     fingerprint: ef8d48f03162461c0fd2ea403919add6191538067b76fd6dda7f06e204f7632d
+    required_applies_to:
+    - gui.web
+  workspace-shell.start.available-space-cards:
+    specification: feature.workspace-shell@3
+    specification_id: feature.workspace-shell
+    type: behavior
+    fingerprint: ef9f0212777428e6972abd8c6706a185f39eaaf188b33f80959ddff0eecb57e0
     required_applies_to:
     - gui.web
   workspace-shell.kanban.figma-controls:

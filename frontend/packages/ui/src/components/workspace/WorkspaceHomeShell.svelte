@@ -18,7 +18,7 @@
   import { dailyInspirationStore, type DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
-  import { text } from '../../i18n/translations';
+  import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
 
   // Vite resolves the same packaged SVGs used by app details into real asset URLs.
   // Keep the glyph independent of Icon.svelte's scoped pseudo-element CSS.
@@ -61,6 +61,9 @@
     showComposer?: boolean;
     showAllMode?: boolean;
     showAllLabel?: string;
+    browseLabel?: string;
+    browseTestId?: string;
+    allItemsHeading?: string;
     showAllTestId?: string;
     allItems?: ContinueItem[];
     allItemsViewTestId?: string;
@@ -76,6 +79,7 @@
     onAllItem?: (item: ContinueItem) => void;
     onStartInspiration?: (inspiration: DailyInspiration) => void;
     onShowAll?: () => void;
+    onBrowse?: () => void;
     onBackToRecent?: () => void;
     onSearchAll?: () => void;
   };
@@ -100,6 +104,9 @@
     showComposer = true,
     showAllMode = false,
     showAllLabel = '',
+    browseLabel = '',
+    browseTestId = `${surface}-browse`,
+    allItemsHeading = '',
     showAllTestId = `${surface}-show-all`,
     allItems = [],
     allItemsViewTestId = `${surface}-all-items-view`,
@@ -115,16 +122,21 @@
     onAllItem,
     onStartInspiration,
     onShowAll,
+    onBrowse,
     onBackToRecent,
     onSearchAll,
   }: Props = $props();
 
   let restoreWorkspaceDefaults = $state(false);
   let containerWidth = $state(0);
-  let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
-  let isTallViewport = $derived(viewportHeight >= 800 && containerWidth >= 550);
+  let inspirationElement: HTMLElement | null = $state(null);
+  let composerElement: HTMLElement | null = $state(null);
+  let composerHeight = $state(0);
+  let availableCardHeight = $state(0);
+  let isTallViewport = $derived(hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
-  let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || !!onSearchAll));
+  let hasBrowseLink = $derived(!!onBrowse && browseLabel.trim().length > 0 && !showAllMode);
+  let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || hasBrowseLink || !!onSearchAll));
   let hasAllItemsToolbar = $derived(showAllMode && (!!onBackToRecent || !!onSearchAll));
   let showTopButtons = $derived(showReportIssue || hasAllItemsToolbar);
   const ChevronRight = getLucideIcon('chevron-right');
@@ -144,10 +156,19 @@
     restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
     const handleResize = () => {
-      viewportHeight = window.innerHeight;
+      if (inspirationElement && composerElement) {
+        availableCardHeight = Math.max(0, composerElement.getBoundingClientRect().top - inspirationElement.getBoundingClientRect().bottom);
+        composerHeight = composerElement.getBoundingClientRect().height;
+      }
     };
+    const observer = new ResizeObserver(handleResize);
+    if (inspirationElement) observer.observe(inspirationElement);
+    if (composerElement) observer.observe(composerElement);
+    const shell = inspirationElement?.closest('.workspace-home-shell');
+    if (shell) observer.observe(shell);
+    handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => { observer.disconnect(); window.removeEventListener('resize', handleResize); };
   });
 
   function handleStartInspiration(inspiration: DailyInspiration): void {
@@ -168,6 +189,10 @@
 
   function handleShowAll(): void {
     onShowAll?.();
+  }
+
+  function handleBrowse(): void {
+    onBrowse?.();
   }
 
   function handleBackToRecent(): void {
@@ -194,9 +219,9 @@
 </script>
 
 <section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
-  <div class="workspace-scroll-layer" data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined}>
+  <div class="workspace-scroll-layer" data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
     {#if !showAllMode}
-      <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`}>
+      <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
         <DailyInspirationBanner
           {surface}
           onStartChat={handleStartInspiration}
@@ -235,12 +260,13 @@
     <div class="center-content workspace-center-content" data-testid={centerTestId}>
     {#if showAllMode}
       <div class="workspace-all-items-view" data-testid={allItemsViewTestId}>
+        {#if allItemsHeading}<h2 class="workspace-all-items-heading">{allItemsHeading}</h2>{/if}
         <div class="workspace-all-items-grid" data-testid={allItemsGridTestId}>
           {#each allItems as item (item.id)}
             <WorkspaceContinueCard
               title={item.title}
               summary={item.summary ?? null}
-              badge={surface === 'workflows' && item.badge === 'New' ? null : (item.badge ?? null)}
+              badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
@@ -273,8 +299,7 @@
         {#each actionItems as item (item.id)}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
-          <div class="workflow-card-placement" class:new-workflow={surface === 'workflows' && item.badge === 'New'}>
-          {#if surface === 'workflows' && item.badge === 'New'}<span class="workflow-new-pill" data-testid="workflow-new-pill">{$text('workflows.builder.ai_new')}</span>{/if}
+          <div class="workflow-card-placement">
           {#if surface === 'apps' && item.appMetadata}
             <div class="app-store-card-placement" data-testid={itemTestId}>
               <AppStoreCard app={item.appMetadata} compact={!isTallViewport} onSelect={() => handleActionItem(item)} />
@@ -283,7 +308,7 @@
             <WorkspaceContinueCard
               title={item.title}
               summary={item.summary ?? null}
-              badge={surface === 'workflows' && item.badge === 'New' ? null : (item.badge ?? null)}
+              badge={item.badge ?? null}
               category={item.category ?? 'productivity'}
               appId={surface === 'workflows' ? null : (item.appId ?? surface)}
               icon={item.icon ?? 'sparkles'}
@@ -326,22 +351,6 @@
           </div>
         {/each}
       </div>
-      {#if hasBrowseControls}
-        <div class="workspace-link-row" data-testid={`${surface}-workspace-link-row`}>
-          {#if hasShowAllLink}
-            <button type="button" class="workspace-show-all-link" data-testid={showAllTestId} data-surface={surface} onclick={handleShowAll}>
-              <span class="workspace-link-icon workspace-link-icon-surface" aria-hidden="true"></span>
-              <span>{showAllLabel}</span>
-            </button>
-          {/if}
-          {#if onSearchAll}
-            <button type="button" class="workspace-show-all-link" data-testid={searchTestId} onclick={handleSearchAll}>
-              <AllItemsSearchIcon size={18} color="currentColor" />
-              <span>{searchLabel}</span>
-            </button>
-          {/if}
-        </div>
-      {/if}
     {:else if continueItems.length > 0}
       <div class="workspace-continue-section" data-testid={continueSectionTestId}>
         <div class="workspace-continue-label">{continueLabel}</div>
@@ -430,6 +439,27 @@
         </div>
       </div>
     {/if}
+    {#if hasBrowseControls}
+      <div class="workspace-link-row" data-testid={`${surface}-workspace-link-row`}>
+        {#if hasShowAllLink}
+          <button type="button" class="workspace-show-all-link" data-testid={showAllTestId} data-surface={surface} onclick={handleShowAll}>
+            <span class="workspace-link-icon workspace-link-icon-surface" aria-hidden="true"></span>
+            <span>{showAllLabel}</span>
+          </button>
+        {/if}
+        {#if hasBrowseLink}
+          <button type="button" class="workspace-show-all-link" data-testid={browseTestId} onclick={handleBrowse}>
+            <span>{browseLabel}</span>
+          </button>
+        {/if}
+        {#if onSearchAll}
+          <button type="button" class="workspace-show-all-link" data-testid={searchTestId} onclick={handleSearchAll}>
+            <AllItemsSearchIcon size={18} color="currentColor" />
+            <span>{searchLabel}</span>
+          </button>
+        {/if}
+      </div>
+    {/if}
     {/if}
     </div>
 
@@ -441,7 +471,7 @@
   </div>
 
   {#if showComposer}
-    <div class="workspace-composer-slot" data-testid="workspace-composer-slot">
+    <div class="workspace-composer-slot" data-testid="workspace-composer-slot" bind:this={composerElement}>
       <slot name="composer" />
     </div>
   {/if}
@@ -497,6 +527,40 @@
     container-name: chat-side;
   }
 
+  .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']):not(.content-slot-mode) .workspace-scroll-layer {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding-bottom: var(--workspace-composer-height);
+    box-sizing: border-box;
+  }
+
+  .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']):not(.content-slot-mode) .workspace-center-content.center-content {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    flex: 1 0 auto;
+    min-height: 0;
+    justify-content: center;
+    padding: var(--spacing-6) 0;
+    box-sizing: border-box;
+  }
+
+  .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']):not(.content-slot-mode) .workspace-daily-inspiration-area {
+    flex-shrink: 0;
+  }
+
+  .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']):not(.content-slot-mode) .workspace-all-items-view {
+    max-height: min(100%, 760px);
+  }
+
+  @media (max-height: 760px) {
+    .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']) .workspace-daily-inspiration-area {
+      min-height: 190px;
+    }
+  }
+
   .workspace-home-shell.content-slot-mode .workspace-scroll-layer {
     display: flex;
     flex-direction: column;
@@ -548,6 +612,31 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     column-gap: var(--spacing-6);
+  }
+
+  @container chat-side (max-width: 600px) {
+    .workspace-all-items-top-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      row-gap: var(--spacing-4);
+    }
+
+    .workspace-all-items-top-buttons .workspace-left-buttons {
+      order: 1;
+    }
+
+    .workspace-all-items-top-buttons .workspace-right-buttons {
+      order: 2;
+      flex: 1 1 auto;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .workspace-all-items-top-buttons .workspace-all-items-toolbar {
+      order: 3;
+      flex: 0 0 100%;
+      min-width: 0;
+    }
   }
 
   .workspace-all-items-toolbar {
@@ -618,6 +707,13 @@
     display: flex;
     flex-direction: column;
     pointer-events: auto;
+  }
+
+  .workspace-all-items-heading {
+    margin: 0 0 var(--spacing-5);
+    color: var(--color-grey-80);
+    font-size: var(--font-size-h2-mobile);
+    text-align: center;
   }
 
   .workspace-all-items-grid {
@@ -842,8 +938,6 @@
   }
   .workflow-card-placement{display:contents}
   .app-store-card-placement{display:block;flex:0 0 auto}
-  .workflow-card-placement.new-workflow{display:flex;flex-direction:column;align-items:center;gap:.45rem;flex:0 0 auto}
-  .workflow-new-pill{display:inline-flex;padding:.25rem .8rem;border-radius:999px;background:var(--color-button-primary);color:var(--color-font-button);font-size:14px;font-weight:700}
 
   .recent-chats-scroll-container::-webkit-scrollbar {
     display: none;
@@ -1077,12 +1171,6 @@
     .workspace-surface-background-icon {
       width: 76px;
       height: 76px;
-    }
-
-    .workspace-home-shell[data-surface='workflows']:not(.content-slot-mode) .workspace-center-content.center-content {
-      /* Center between the 190px banner/action row and the 94px composer,
-         instead of using Chat's offset, which does not reserve this composer. */
-      top: calc(50% + 4.5rem);
     }
 
     .workspace-home-shell.all-items-mode .workspace-center-content.center-content {

@@ -27,6 +27,7 @@
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
+    import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
     import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -4908,7 +4909,6 @@
 
     // Track viewport dimensions for small-screen adjustments (e.g. compact continue cards).
     // Initialised at mount and kept in sync via resize listener in onMount below.
-    let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
     let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
 
     /** Keep viewport dimensions reactive on window resize. Registered/cleaned up in onMount. */
@@ -4919,16 +4919,14 @@
         if (messageInputFocused && isTouchEnvironment) {
             return;
         }
-        viewportWidth = window.innerWidth;
         viewportHeight = window.innerHeight;
     }
 
-    /**
-     * True when the viewport can comfortably show large continue cards.
-     * Tall phones should still use compact cards so saved embeds don't dominate
-     * the welcome screen.
-     */
-    let isTallViewport = $derived(viewportHeight >= 900 && viewportWidth >= 550);
+    // chatSide excludes the composer; use the actual room below the banner.
+    let chatSideWidth = $state(0);
+    let chatSideHeight = $state(0);
+    let welcomeBannerHeight = $state(0);
+    let isTallViewport = $derived(hasRoomForLargeContinueCards(chatSideWidth, chatSideHeight - welcomeBannerHeight));
 
     // Hover tilt effect for the large welcome-screen chat preview card.
     // Mirrors UnifiedEmbedPreview's 3D hover behavior.
@@ -13370,6 +13368,9 @@
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
+                    bind:clientWidth={chatSideWidth}
+                    bind:clientHeight={chatSideHeight}
+                    style:--welcome-banner-height={`${welcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
                 >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
@@ -13383,6 +13384,7 @@
                             class:landing-intro-overlay-active={guestLandingIntroOverlayActive}
                             inert={hideWelcomeForKeyboard || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
                             data-testid="daily-inspiration-area"
+                            bind:clientHeight={welcomeBannerHeight}
                         >
                             {#key guestLandingIntroResetToken}
                                 <DailyInspirationBanner
@@ -15382,6 +15384,15 @@
          * container to thousands of pixels — breaking centering and scroll entirely.
          */
         width: 100%;
+    }
+
+    .chat-side.welcome-chat-side .center-content:not(.guest-welcome-content) {
+        top: var(--welcome-banner-height);
+        bottom: 0;
+        transform: translateX(-50%);
+        justify-content: center;
+        overflow-y: auto;
+        box-sizing: border-box;
     }
 
     .center-content.guest-welcome-content {
