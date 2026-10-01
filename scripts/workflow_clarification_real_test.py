@@ -123,7 +123,7 @@ def test_workflow_clarification() -> None:
                   if item.get("type") == "app_skill_use"]
         search_embeds = [embed for embed in embeds if embed.get("appId") == "workflows"
                          and embed.get("skillId") == "search"]
-        activation = any("focus-mode-activation" in str(embed.get("type", "")) and
+        activation = any(str(embed.get("type", "")).replace("_", "-") == "focus-mode-activation" and
                          nested_has(embed, "workflows-clarify_workflows") for embed in embeds)
         selected_loaded = any(nested_has(embed.get("content"), workflow_id) for embed in search_embeds)
         question_text = re.sub(r"```[\s\S]*?```", "", assistant)

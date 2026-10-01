@@ -2,6 +2,8 @@
 
 Synthetic authoring checks on dev. All created workflows were disabled, never run, and deleted after inspection. These checks establish generated structure and intent; they do not execute the requested app skills.
 
+The current product revision is `15b507d`. The latest tested result for each of the six scenario families matched its instruction after the recorded fixes. These runs span different revisions; they are not a repeated reliability benchmark on one release. Three additional raw/clear transcript cases passed. Five final browser/REST/CLI cases passed, and one live clarification turn resolved the original workflow without executing its future actions. Exact requests, summaries, costs and limitations follow below.
+
 Initial six cases used revision `557ebc1b`. Two targeted reruns used `607cd834`. Four initial cases passed; the weather rerun passed after the Jev branching fix, while shopping remained partial because its euro marketplace was omitted. Later corrections and billing proof are recorded below when verified.
 
 CLI wall time includes the HTTP round trip and persistence. Planner/service times are reported separately. First component is measured **inside Gemini generation**, excluding Jev and client rendering. USD values are provider-cost estimates, not user credit charges; one aborted retry has incomplete cost metering.
@@ -100,7 +102,7 @@ Recorded provider-cost estimates for the eight initial/rerun requests total $0.0
 
 - Wider capability/currency combinations and JSON-retry reliability remain outside this small sample.
 - The bounded raw-versus-clean CLI comparison below supports bypassing separate workflow transcript correction. Actual speech-recognition errors and wider language coverage remain unmeasured.
-- Mixed create/edit Stop recovery and live clarification chat still need their accepted integrated evidence.
+- Same-ID stopped-edit recovery and Undo passed controlled-generation browser coverage with real persistence. The live clarification turn passed exact target lookup, focus activation and one necessary question. A live interrupted model edit and completing an edit after the clarification reply remain unmeasured.
 
 ## Final targeted proof scope
 
@@ -160,18 +162,67 @@ CLI wall: **5.409s**; planner: **3.749s**; service: **4.851s**; estimated provid
 CLI wall: **7.428s**; planner: **5.791s**; service: **6.847s**; estimated provider cost: **$0.00490913**; actual authoring charge: **13 credits**. Cost and billing usage were complete.
 
 The weather pair preserves the same corrected day, clock, timezone, city, runtime date and branch text. The raw shopping result matches the earlier clean headphone baseline. Together with the earlier raw Lisbon robotics case, this supports removing the separate workflow transcript-correction call by default. The direct authoring costs above do not include a transcription/correction call and do not measure the amount of audio latency saved. The operational correction path remains available for rollback; ordinary chat keeps its current correction flow.
-# Selected-workflow clarification follow-through (2026-10-01)
+## Selected-workflow clarification follow-through (2026-10-01)
 
 One live clarification baseline on revision `127f161f` activated
 `workflows.clarify_workflows` and called only `workflows.search`, without running
 events, calendar, maps or delivery actions. It did not resolve the selected
 workflow: exact-title, prefix and empty queries each returned zero results.
 The search skill defaulted to an empty in-memory repository while authoring used
-Directus. The pending fix selects persisted storage, supports an exact
+Directus. The deployed fix on `15b507d` selects persisted storage, supports an exact
 owner-checked workflow ID, supplies the selected graph with credential fields
 removed, and asks one necessary question at a time. Five focused search tests
-pass; post-deployment live verification is pending.
+pass; the post-deployment verification is recorded below.
 
 The baseline took 25.884 seconds and charged 91 credits for an ordinary focused
 chat turn. These are not workflow-authoring stage costs. The disabled original
 was unchanged, no copy was created, and both disposable objects were deleted.
+
+
+## Final integration and clarification proof — 2026-10-01
+
+Deployed to dev and Vercel as `15b507d395a03ba74ba70aa42d1140cdd63b2435`.
+API and 12 dependent workers were updated under coordinated restart
+`docker-dbc72436`; all were running and healthy. Deployment gates passed lint,
+registry/locale validation and six affected pytest files.
+
+- [Workflow input/voice CI](https://github.com/glowingkitty/OpenMates/actions/runs/36805982863): two cases passed at source `0c9ecc0e`; raw submission, failure recovery, editor target, exact focus auto-send, consume-once navigation and existing create/edit/dirty-state flows.
+- [Stream/partial-edit CI](https://github.com/glowingkitty/OpenMates/actions/runs/36804241207): two cases passed at source `a1da94c9`; immediate fullscreen, validated updates, stopped same-ID disabled edit, retained nodes/edges, highlight, full Undo and later-version conflict.
+- [REST/CLI conditional-save/search CI](https://github.com/glowingkitty/OpenMates/actions/runs/36804247471): one case passed at source `a1da94c9`; manual literal branch edits, persisted exact-ID graph lookup and future-schedule enable/disable.
+
+All five passed without skips or flakes. Generation/session responses in browser
+cases are controlled; workflow persistence is real. They do not prove a live
+browser Gemini interruption. The deployed patch was integrated with unrelated
+upstream website-state cleanup and translations without changing these fixes.
+
+### One live clarification turn
+
+Exact synthetic input (the IDs below belonged only to deleted test objects):
+
+> @focus:workflows:clarify_workflows Also add searches for AI meetups and queer meetups.
+>
+> Workflow editor context: I was changing my existing workflow "Clarify Voice Edit QA 0ab67097" (ID e3776e43-cca9-4654-aaf5-930945350cd0). Keep this workflow as the target. Clarify the change before carrying out any of the workflow's future search or delivery actions.
+
+The assistant resolved the exact original through one `workflows.search` result,
+activated the focus mode, and asked: “To update the workflow with the additional
+searches for AI meetups and queer meetups, what location (such as a specific city,
+region, or online/virtual) should be used?” No events/calendar/maps skill or edit
+ran. The original graph remained unchanged; no copy appeared. The chat and
+workflow were deleted and absence verified.
+
+CLI chat wall time: **21.688 seconds**; actual wallet debit: **45 credits**.
+This is a regular focused chat turn, not a workflow-authoring duration or price.
+The first baseline failed lookup, took 25.884 seconds and charged 91 credits;
+these single samples do not establish a causal latency/cost reduction.
+
+Private receipt: `/tmp/workflow-clarification-postdeploy3e12.json` (0600).
+Its original harness exit was 1 because the check used `focus-mode-activation`
+while the decrypted CLI embed uses `focus_mode_activation`. The embed confirms
+`focus_id=workflows-clarify_workflows`. The harness spelling check was fixed;
+re-evaluating the existing receipt passed all eight checks without another AI
+call (`/tmp/workflow-clarification-postdeploy-recheck3e12.json`).
+
+Remaining measurement limits: actual ASR recognition and languages beyond the
+small supplied-text corpus; live browser AI timing (test-account authentication
+blocked); a live interrupted Gemini edit; and completing the edit after the
+clarification reply. Registered skill coverage is broader than the live samples.
