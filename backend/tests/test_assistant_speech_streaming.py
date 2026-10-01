@@ -97,7 +97,7 @@ def test_tracker_dispatches_each_cumulative_boundary_once_and_flushes_final_rema
         tracker.observe("First paragraph.\n\n")
         tracker.observe("First paragraph.\n\nSecond paragraph.")
         tracker.observe("First paragraph.\n\nSecond paragraph.", is_final=True)
-        await asyncio.sleep(0)
+        await tracker.wait_for_handoff()
 
     asyncio.run(exercise())
 
@@ -107,6 +107,34 @@ def test_tracker_dispatches_each_cumulative_boundary_once_and_flushes_final_rema
     ]
     assert all(segment["source_version"] == 4 for segment in dispatched)
     assert all(segment["selected_mate_id"] == "george" for segment in dispatched)
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.execution.first-segment-progressive
+def test_tracker_completes_durable_handoffs_before_owner_event_loop_closes() -> None:
+    dispatched: list[int] = []
+    finalized: list[list[str]] = []
+
+    async def dispatch(segment: dict[str, object]) -> None:
+        await asyncio.sleep(0)
+        dispatched.append(int(segment["sequence"]))
+
+    async def finalize(metadata: dict[str, object]) -> None:
+        finalized.append(list(metadata["segment_ids"]))
+
+    async def exercise() -> None:
+        tracker = ImmutableSpeechBoundaryTracker(
+            metadata={"chat_id": "chat-1", "assistant_message_id": "assistant-1", "source_version": 1},
+            dispatch_speech=dispatch,
+            finalize_speech=finalize,
+        )
+        tracker.observe("Generated reply.", is_final=True)
+        await tracker.wait_for_handoff()
+
+    asyncio.run(exercise())
+
+    assert dispatched == [0]
+    assert len(finalized) == 1
+    assert len(finalized[0]) == 1
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.execution.app-skill-progressive,assistant-speech.execution.first-segment-progressive
@@ -171,6 +199,15 @@ def test_stream_consumer_publishes_visible_text_before_speech_observation() -> N
     observe_index = source.index("speech_tracker.observe(speech_snapshot)", first_flush_index)
 
     assert publish_index < boundary_index < first_flush_index < observe_index
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.execution.first-segment-progressive
+def test_stream_consumer_waits_for_final_speech_handoff() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    final_observe_index = source.index("speech_tracker.observe(aggregated_response, is_final=True)")
+    wait_index = source.index("await speech_tracker.wait_for_handoff()", final_observe_index)
+
+    assert final_observe_index < wait_index
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.immutable-source,assistant-speech.execution.text-stream-independent

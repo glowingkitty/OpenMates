@@ -80,11 +80,6 @@ export interface AssistantSpeechQueueOptions {
   onNeedSegment?: (segment: AssistantSpeechSegment) => void;
 }
 
-interface CachedAudio {
-  audio: SpeechAudio;
-  url: string;
-}
-
 const DEFAULT_STATE: AssistantSpeechQueueState = {
   responseId: null,
   status: "idle",
@@ -103,14 +98,16 @@ export class AssistantSpeechQueue {
 
   private readonly audioFactory: (url: string) => SpeechAudio;
   private readonly segments = new Map<string, AssistantSpeechSegment>();
-  private readonly audioBySegmentId = new Map<string, CachedAudio>();
+  // WebKit grants autoplay permission per media element. Keep one element for
+  // the acknowledgement and every generated chapter, changing only its source.
+  private playbackAudio: SpeechAudio | null = null;
+  private playbackAudioUrl: string | null = null;
   private currentAudio: SpeechAudio | null = null;
   private pendingSegmentId: string | null = null;
   private readonly completedSegmentIds = new Set<string>();
   private autoplayPending = true;
   private playGeneration = 0;
   private complete = false;
-  private primedAudio: SpeechAudio | null = null;
   private pendingCue: SpeechAudio | null = null;
   private explicitSelectionPending = false;
   private readonly requestedSegmentIds = new Set<string>();
@@ -184,7 +181,6 @@ export class AssistantSpeechQueue {
     this.autoplayPending = true;
     this.complete = false;
     this.segments.clear();
-    this.audioBySegmentId.clear();
     this.completedSegmentIds.clear();
     this.requestedSegmentIds.clear();
     this.explicitSelectionPending = false;
@@ -222,12 +218,6 @@ export class AssistantSpeechQueue {
     if (previous?.status === "failed" && segment.status === "generating" && segment.id === this.state.activeSegmentId) {
       this.setState({ ...this.state, status: "waiting_for_segment" });
     }
-    const cachedAudio = this.audioBySegmentId.get(segment.id);
-    if (cachedAudio && cachedAudio.url !== segment.audioUrl) {
-      cachedAudio.audio.pause();
-      this.audioBySegmentId.delete(segment.id);
-    }
-
     if (this.state.status === "waiting_for_more") {
       const nextSegment = this.orderedSegments.find((candidate) => !this.completedSegmentIds.has(candidate.id));
       this.pendingSegmentId = nextSegment?.id ?? null;
@@ -265,12 +255,14 @@ export class AssistantSpeechQueue {
 
   /** Preserve iOS Safari's user-activation grant while generated audio is pending. */
   primeForAutoplay(): void {
-    if (this.primedAudio) return;
+    if (this.playbackAudio) return;
     const audio = this.audioFactory(SILENT_AUDIO_DATA_URL);
-    this.primedAudio = audio;
-    void audio.play().catch(() => {
-      if (this.primedAudio === audio) this.primedAudio = null;
-    });
+    this.playbackAudio = audio;
+    this.playbackAudioUrl = SILENT_AUDIO_DATA_URL;
+    this.bindPlaybackAudioEvents(audio);
+    // Retain the element even when this attempt is rejected. The visible
+    // autoplay-recovery control can retry the same element after a gesture.
+    void audio.play().catch(() => undefined);
   }
 
   pause(): void {
@@ -455,43 +447,52 @@ export class AssistantSpeechQueue {
   }
 
   private getAudio(segment: AssistantSpeechSegment): SpeechAudio {
-    const cached = this.audioBySegmentId.get(segment.id);
-    if (cached && cached.url === segment.audioUrl) {
-      return cached.audio;
-    }
-    const reusable = this.primedAudio;
-    const audio = reusable && typeof reusable.src === "string"
-      ? reusable
-      : this.audioFactory(segment.audioUrl!);
-    if (audio === reusable) {
-      this.primedAudio = null;
+    let audio = this.playbackAudio;
+    if (!audio) {
+      audio = this.audioFactory(segment.audioUrl!);
+      this.playbackAudio = audio;
+      this.playbackAudioUrl = segment.audioUrl!;
+      this.bindPlaybackAudioEvents(audio);
+    } else if (this.playbackAudioUrl !== segment.audioUrl) {
       audio.src = segment.audioUrl!;
       audio.load?.();
+      this.playbackAudioUrl = segment.audioUrl!;
     }
     audio.playbackRate = ASSISTANT_SPEECH_PLAYBACK_RATE;
     audio.preservesPitch = true;
     audio.webkitPreservesPitch = true;
-    audio.addEventListener("ended", () => this.handleSegmentEnded(segment.id, audio));
+    return audio;
+  }
+
+  private bindPlaybackAudioEvents(audio: SpeechAudio): void {
+    audio.addEventListener("ended", () => {
+      const segmentId = this.state.activeSegmentId;
+      if (segmentId) this.handleSegmentEnded(segmentId, audio);
+    });
     audio.addEventListener("error", () => {
-      if (!this.isCurrentAudio(segment.id, audio)) return;
+      const segmentId = this.state.activeSegmentId;
+      if (!segmentId || !this.isCurrentAudio(segmentId, audio)) return;
       console.error("[AssistantSpeechQueue] Audio element reported a playback error");
       this.stopCurrentAudio();
       this.setState({ ...this.state, status: "failed" });
     });
     audio.addEventListener("waiting", () => {
-      if (this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
+      const segmentId = this.state.activeSegmentId;
+      if (segmentId && this.isCurrentAudio(segmentId, audio) && this.autoplayPending) {
         this.setState({ ...this.state, status: "waiting_for_segment" });
       }
     });
     audio.addEventListener("playing", () => {
-      if (this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
+      const segment = this.activeSegment;
+      if (segment && this.isCurrentAudio(segment.id, audio) && this.autoplayPending) {
         this.setState({ ...this.state, status: "playing" });
         this.maybePrefetchNext(segment, audio);
       }
     });
-    audio.addEventListener("timeupdate", () => this.maybePrefetchNext(segment, audio));
-    this.audioBySegmentId.set(segment.id, { audio, url: segment.audioUrl! });
-    return audio;
+    audio.addEventListener("timeupdate", () => {
+      const segment = this.activeSegment;
+      if (segment) this.maybePrefetchNext(segment, audio);
+    });
   }
 
   private handleSegmentEnded(segmentId: string, audio: SpeechAudio): void {

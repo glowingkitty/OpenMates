@@ -50,6 +50,7 @@ class ImmutableSpeechBoundaryTracker:
         self._dispatched: dict[int, dict[str, object]] = {}
         self._pending_tasks: list[asyncio.Task[None]] = []
         self._last_scheduled_task: asyncio.Task[None] | None = None
+        self._finalization_task: asyncio.Task[None] | None = None
 
     def has_new_boundary(self, content: str) -> bool:
         """Return whether observing this snapshot will dispatch immutable speech."""
@@ -94,9 +95,11 @@ class ImmutableSpeechBoundaryTracker:
                 previous = self._dispatched.pop(sequence)
                 if self._invalidate_speech is not None:
                     self._schedule(self._invalidate_speech(previous), sequence)
-            if self._finalize_speech is not None:
-                task = asyncio.create_task(self._finalize_after_dispatch())
-                task.add_done_callback(lambda completed: _consume_detached_exception(completed, -1, self._report_status))
+            if self._finalize_speech is not None and self._finalization_task is None:
+                self._finalization_task = asyncio.create_task(self._finalize_after_dispatch())
+                self._finalization_task.add_done_callback(
+                    lambda completed: _consume_detached_exception(completed, -1, self._report_status)
+                )
 
     def dispatch_projected_segment(self, *, sequence: int, kind: str, speakable_text: str) -> None:
         """Schedule one deterministic non-prose segment without blocking text."""
@@ -157,6 +160,18 @@ class ImmutableSpeechBoundaryTracker:
             **self._metadata,
             "segment_ids": [segment["segment_id"] for segment in self._dispatched.values()],
         })
+
+    async def wait_for_handoff(self) -> None:
+        """Finish durable queue handoffs before the owning Celery event loop closes."""
+        tasks: tuple[asyncio.Task[None], ...]
+        if self._finalization_task is not None:
+            tasks = (self._finalization_task,)
+        else:
+            tasks = tuple(self._pending_tasks)
+        if tasks:
+            # Dispatch/status failures are reported by each task callback and must
+            # not turn a successful text response into a failed chat request.
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def _consume_detached_exception(

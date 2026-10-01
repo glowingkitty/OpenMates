@@ -17,14 +17,27 @@ class FakeAudio {
   readonly listeners = new Map<string, AudioListener[]>();
   readonly pause = vi.fn();
   readonly play = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  onSrcChange?: (src: string) => void;
   currentTime = 0;
   duration = Number.NaN;
   playbackRate = 1;
   preservesPitch = false;
   webkitPreservesPitch = false;
   loop = false;
+  private _src: string;
 
-  constructor(readonly src: string) {}
+  constructor(src: string) { this._src = src; }
+
+  get src() { return this._src; }
+  set src(value: string) {
+    this._src = value;
+    // Assertions in this suite are per source. Production deliberately reuses
+    // this media element across sources to retain WebKit autoplay permission.
+    this.play.mockClear();
+    this.onSrcChange?.(value);
+  }
+
+  load() {}
 
   addEventListener(event: string, listener: AudioListener) {
     this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener]);
@@ -56,6 +69,7 @@ describe("AssistantSpeechQueue", () => {
   const audioByUrl = new Map<string, FakeAudio>();
   const audioFactory = vi.fn((url: string) => {
     const audio = new FakeAudio(url);
+    audio.onSrcChange = (nextUrl) => audioByUrl.set(nextUrl, audio);
     audioByUrl.set(url, audio);
     return audio;
   });
@@ -174,6 +188,35 @@ describe("AssistantSpeechQueue", () => {
     await vi.waitFor(() => expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce());
     expect(queue.state.activeSegmentId).toBe("segment-0");
     expect(queue.presentationMode).toBe("replayable_track_queue");
+    expect(audioFactory).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.first-segment-progressive,assistant-speech.playback.autoplay-recovery-visible
+  it("reuses the gesture-primed media element from acknowledgement through generated speech", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.primeForAutoplay();
+    const reusableAudio = Array.from(audioByUrl.values())[0];
+    expect(reusableAudio).toBeDefined();
+
+    queue.start("response-1", [{
+      id: "acknowledgement-1",
+      sequence: -1,
+      status: "ready",
+      durationMs: 500,
+      audioUrl: "blob:acknowledgement",
+      playbackClass: "passive",
+      chapter: { kind: "passive", type: "confirmation" },
+      waveform: [],
+    }]);
+    queue.upsertSegment(segment(0, "ready"));
+
+    reusableAudio!.emit("ended");
+    await vi.waitFor(() => expect(queue.state.activeSegmentId).toBe("segment-0"));
+
+    expect(audioFactory).toHaveBeenCalledTimes(1);
+    expect(audioByUrl.get("blob:acknowledgement")).toBe(reusableAudio);
+    expect(audioByUrl.get("blob:segment-0")).toBe(reusableAudio);
+    expect(queue.state.status).toBe("playing");
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.pinned-full-response-waveform
@@ -290,7 +333,8 @@ describe("AssistantSpeechQueue", () => {
         activeSegmentId: "segment-0",
       });
     });
-    expect(audioFactory).toHaveBeenCalledTimes(2);
+    expect(audioFactory).toHaveBeenCalledTimes(1);
+    expect(audioByUrl.get("blob:segment-0")).toBe(firstAudio);
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control
