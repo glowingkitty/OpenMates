@@ -1,4 +1,5 @@
 # backend/core/api/app/tasks/leaderboard_tasks.py
+# test-file: backend/tests/test_leaderboard_resilience.py
 #
 # Celery tasks for updating AI model leaderboard data.
 # Runs daily to aggregate rankings from LMArena, OpenRouter, and other sources.

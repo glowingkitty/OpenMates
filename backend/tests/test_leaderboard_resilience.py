@@ -1,4 +1,5 @@
 """Regression coverage for ranking provider outages and queued refreshes."""
+# contract-test-file: infrastructure
 
 # contract-test-file: infrastructure
 

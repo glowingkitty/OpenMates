@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test-file: backend/tests/test_leaderboard_resilience.py
 """
 Aggregates AI model rankings from multiple leaderboard sources.
 
