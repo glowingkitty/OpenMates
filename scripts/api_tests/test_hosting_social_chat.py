@@ -31,6 +31,14 @@ PROMPT = (
     "renewal prices, and any premium or registration restrictions. Only describe "
     "availability that was actually checked."
 )
+FOLLOWUP_PROMPT = (
+    "Please continue this name search. The five base names you checked are in use, "
+    "so propose a few more distinctive names for this in-person social hub and actually "
+    "check their .com, .net, and .app availability. Also look at any suitable available "
+    "alternatives already returned by your previous Hosting search. Recommend concrete, "
+    "fully qualified domains only when availability was checked, and compare evidenced "
+    "registration and renewal prices and relevant restrictions. Do not guess about unchecked names."
+)
 DOMAIN_RE = re.compile(r"(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\.)+(?:com|net|app)\b", re.I)
 EMBED_REF_RE = re.compile(r"embed:([A-Za-z0-9_.:-]+)")
 INLINE_EMBED_RE = re.compile(r'"embed_id"\s*:\s*"([A-Za-z0-9_.:-]+)"')
@@ -107,6 +115,22 @@ def _group_details(content: dict[str, Any]) -> tuple[set[str], set[str]]:
     return queries, domains
 
 
+def _domain_statuses(content: dict[str, Any]) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    def visit(item: Any) -> None:
+        if isinstance(item, list):
+            for child in item:
+                visit(child)
+        elif isinstance(item, dict):
+            name, availability = item.get("domain_ascii"), item.get("availability")
+            if isinstance(name, str) and availability in {"available", "unavailable", "unknown"}:
+                statuses[name.lower()] = availability
+            for field in ("results", "checked_results"):
+                visit(item.get(field))
+    visit(content)
+    return statuses
+
+
 def _verify_chat(env: dict[str, str], api_url: str, chat_id: str, revision: str) -> dict[str, Any]:
     saved = _cli(env, api_url, ["chats", "show", chat_id, "--all"], "Saved chat inspection")
     messages = saved.get("messages")
@@ -127,6 +151,7 @@ def _verify_chat(env: dict[str, str], api_url: str, chat_id: str, revision: str)
     hosting_parents = 0
     queries: set[str] = set()
     checked_domains: set[str] = set()
+    domain_statuses: dict[str, str] = {}
     while pending and len(seen) < 100:
         embed_id = pending.pop()
         if embed_id in seen:
@@ -147,6 +172,7 @@ def _verify_chat(env: dict[str, str], api_url: str, chat_id: str, revision: str)
         parent_queries, parent_domains = _group_details(content)
         queries.update(parent_queries)
         checked_domains.update(parent_domains)
+        domain_statuses.update(_domain_statuses(content))
         name = content.get("domain_ascii")
         if isinstance(name, str):
             checked_domains.add(name.lower())
@@ -169,13 +195,20 @@ def _verify_chat(env: dict[str, str], api_url: str, chat_id: str, revision: str)
         child_queries, child_domains = _group_details(child_content)
         queries.update(child_queries)
         checked_domains.update(child_domains)
+        domain_statuses.update(_domain_statuses(child_content))
     if len(queries) < 2 and len(checked_domains) < 2:
         raise ProbeFailure("Hosting embed evidence did not identify multiple domain searches")
-    mentioned = sorted({domain.lower() for domain in DOMAIN_RE.findall(final_text)})
+    recommendation_text = re.sub(r"\]\([^)]+\)", "]", final_text)
+    mentioned = sorted({domain.lower() for domain in DOMAIN_RE.findall(recommendation_text)
+                        if not domain.split(".")[0].isdigit()})
     if len(mentioned) < 2:
         raise ProbeFailure("Final answer did not recommend multiple concrete domains")
     if checked_domains and len(set(mentioned) & checked_domains) < 2:
         raise ProbeFailure("Final recommendations did not match multiple checked domains")
+    available_recommendations = sorted(domain for domain in mentioned
+                                       if domain_statuses.get(domain) == "available")
+    if len(available_recommendations) < 2:
+        raise ProbeFailure("Final answer did not recommend two confirmed available domains")
     return {
         "revision": revision,
         "skill": "hosting.search_domains",
@@ -184,7 +217,9 @@ def _verify_chat(env: dict[str, str], api_url: str, chat_id: str, revision: str)
         "hosting_parent_embeds": hosting_parents,
         "search_queries": sorted(queries),
         "checked_domains": sorted(checked_domains),
+        "checked_domain_statuses": domain_statuses,
         "recommended_domains": mentioned,
+        "available_recommendations": available_recommendations,
         "final_recommendations": final_text[:12000],
     }
 
@@ -195,6 +230,8 @@ def main() -> int:
     parser.add_argument("--api-url", default=DEFAULT_API_URL)
     parser.add_argument("--revision", required=True, help="Deployed dev revision")
     parser.add_argument("--output", required=True, type=Path, help="Private JSON receipt path")
+    parser.add_argument("--existing-chat-file", type=Path,
+                        help="Private prior receipt; send one natural follow-up in the same chat")
     args = parser.parse_args()
     if urlsplit(args.api_url).scheme != "https" or urlsplit(args.api_url).hostname != "api.dev.openmates.org":
         raise ProbeFailure("This chat probe only runs against the dev API")
@@ -213,7 +250,15 @@ def main() -> int:
                      env=env, label="Test-account login", timeout=180)
         if login.returncode != 0:
             raise ProbeFailure(f"Test-account login failed (exit {login.returncode})")
-        created = _cli(env, args.api_url, ["chats", "new", PROMPT], "Natural social-app chat", timeout=600)
+        if args.existing_chat_file:
+            prior = json.loads(args.existing_chat_file.read_text(encoding="utf-8"))
+            existing_id = prior.get("chat_id")
+            if not isinstance(existing_id, str) or not existing_id:
+                raise ProbeFailure("Prior private receipt has no chat ID")
+            created = _cli(env, args.api_url, ["chats", "send", "--chat", existing_id, FOLLOWUP_PROMPT],
+                           "Natural social-app follow-up", timeout=600)
+        else:
+            created = _cli(env, args.api_url, ["chats", "new", PROMPT], "Natural social-app chat", timeout=600)
         chat_id = created.get("chat_id") or created.get("chatId") or created.get("id")
         if not isinstance(chat_id, str) or not chat_id:
             raise ProbeFailure("CLI chat creation returned no chat ID")

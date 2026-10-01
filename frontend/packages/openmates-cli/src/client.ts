@@ -14,6 +14,7 @@ import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { Writable } from "node:stream";
 import qrcode from "qrcode-terminal";
+import { decode as toonDecode } from "@toon-format/toon";
 
 import {
   decryptWithAesGcmCombined,
@@ -2936,10 +2937,18 @@ function buildUnifiedDiffForEmbedRestore(
   ].join("\n");
 }
 
-function parseEmbedContentObject(rawContent: string): Record<string, unknown> {
+export function parseEmbedContentObject(rawContent: string): Record<string, unknown> {
   try {
     return JSON.parse(rawContent) as Record<string, unknown>;
   } catch {
+    try {
+      const decoded = toonDecode(rawContent, { strict: true });
+      if (decoded && typeof decoded === "object" && !Array.isArray(decoded)) {
+        return decoded as Record<string, unknown>;
+      }
+    } catch {
+      // Older embeds can contain informal key:value text rather than TOON.
+    }
     return parseYamlLikeContent(rawContent);
   }
 }
@@ -6343,15 +6352,7 @@ export class OpenMatesClient {
     const textPreview = await decryptField("encrypted_text_preview");
     let content: Record<string, unknown> | null = null;
     const rawContent = await decryptField("encrypted_content");
-    if (rawContent) {
-      try {
-        content = JSON.parse(rawContent) as Record<string, unknown>;
-      } catch {
-        // Content stored as YAML-like key:value lines (common for skill embeds).
-        // Parse into an object so per-type renderers can use standard field names.
-        content = parseYamlLikeContent(rawContent);
-      }
-    }
+    if (rawContent) content = parseEmbedContentObject(rawContent);
     content = await this.refreshRemotionVideoCreateContent(embedId, content);
 
     // Derive type/appId/skillId from content if not on the embed record itself

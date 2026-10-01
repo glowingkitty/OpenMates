@@ -164,10 +164,12 @@ Fullscreen adds tax context, checked time, supplied restrictions and tier detail
 Keep proxy mode, request IDs, raw JSON, pagination URLs, and retry counts out of
 the product UI. Successful fallback does not change the visual layout.
 
-Recommended defaults: keep all checked results visible, preserve provider order,
-display prices including known taxes, and give exact unavailable domains their
-own child card. Local available-only filtering and price sorting are optional
-for the first release; price sorting must separate incomparable terms/unknowns.
+The initial view follows the selected backend results and requested result limit.
+Available domains appear first; matching in-use domains fill only a shortfall,
+unless available-only was explicit. Local availability controls can reveal the
+already checked in-use children without another provider request. Preserve the
+selected order and show prices including known taxes. Price sorting is optional
+and must separate incomparable terms and unknown prices.
 
 Open design decisions: whether to include the local filter/sort controls in the
 first release, whether the first-year offer badge is useful in compact cards,

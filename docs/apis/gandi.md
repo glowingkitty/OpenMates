@@ -207,6 +207,18 @@ POST this body to `/v1/apps/hosting/skills/search_domains`, or use:
 openmates apps hosting search_domains --input '{"requests":[{"query":"cedarcomet","max_results":10}]}' --json
 ```
 
+One app call accepts one to five independent searches in `requests`. Groups run
+concurrently, share the two-operation provider limit, and preserve caller IDs
+and response order. For example, check two exact domains in one CLI call:
+
+```sh
+openmates apps hosting search_domains --input '{"requests":[{"id":"first","query":"example.com","availability":"all"},{"id":"second","query":"example.net","availability":"all"}]}' --json
+```
+
+The npm SDK exposes `client.apps.hosting.searchDomains(input)`; the pip SDK
+exposes `client.apps.hosting.search_domains(input)`. Both accept the same grouped
+input. Each group defaults to ten selected results and permits at most twenty.
+
 The default `prefer_available` selects available names first and fills a shortfall
 with matching checked in-use domains. `available_only` never fills with in-use
 domains. `all` preserves ranked available and in-use candidate order. Unknown

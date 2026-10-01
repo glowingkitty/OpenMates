@@ -5323,7 +5323,7 @@ export const APP_SKILL_METADATA = [
             "properties": {
               "id": {
                 "description": "Optional caller ID echoed in this group's result.",
-                "oneOf": [
+                "anyOf": [
                   {
                     "type": "string"
                   },

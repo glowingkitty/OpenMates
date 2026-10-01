@@ -7538,7 +7538,7 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'this '
                                                                                         "group's "
                                                                                         'result.',
-                                                                         'oneOf': [{'type': 'string'},
+                                                                         'anyOf': [{'type': 'string'},
                                                                                    {'type': 'integer'}]},
                                                                   'max_results': {'default': 10,
                                                                                   'description': 'Maximum '

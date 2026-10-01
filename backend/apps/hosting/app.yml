@@ -55,7 +55,7 @@ skills:
             properties:
               id:
                 description: Optional caller ID echoed in this group's result.
-                oneOf:
+                anyOf:
                   - type: string
                   - type: integer
               query:

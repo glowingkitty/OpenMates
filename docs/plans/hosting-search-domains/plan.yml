@@ -31,7 +31,7 @@ planning_authority:
   note: OpenMates Tasks owns live work status. Plan task records document approved dependencies and acceptance
     criteria.
 implementation_state:
-  subject_commit: 42669f74e91542faeaafa30a8d3ce39c16ce7ea2
+  subject_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
 approvals:
   specification:
     status: approved
@@ -206,7 +206,13 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      candidate: 92f889b33aa348ea8838605c11830141d526004d
+      ci_job: 2829704813bd5547a7ed3e159cfb509ee80e756e6860c5ff4f9cf19971a98102
+      run: https://github.com/glowingkitty/OpenMates/actions/runs/36868849326
+      result: Nine real REST, CLI, npm SDK and pip SDK cases passed, with zero skipped, flaky or unexpected cases.
+      deployed_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
+      focused_units: Thirty-two provider and skill cases passed, including five simultaneous groups with at most two upstream operations.
   file: frontend/apps/web_app/tests/skill-hosting-search-api.spec.ts
   command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search-api.spec.ts
     --mode e2e
@@ -226,7 +232,15 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      requirements:
+        script: scripts/api_tests/test_hosting_requirements.py
+        deployed_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
+        result: Real Jev applied to 21 checked domains and selected three; bounded quotes and result identities passed.
+      social_chat:
+        status: pending
+        observed: Two real chat turns executed five Hosting search groups each; the initial reply omitted available alternatives and the follow-up failed during AI finalization.
+        cli_decoder: Strict TOON parsing retains nested results; two focused npm client regressions and the CLI build pass.
   execution_environment: dev_server_real_inference
 - id: T-HOSTING-WORKFLOW
   type: playwright
@@ -304,6 +318,11 @@ attempts:
   outcome: succeeded
   approach: 36 paced paired public-domain probes with direct and Webshare routes from the api container,
     then inspect raw fixtures and existing embeds.
+  recorded_at: '2026-10-01'
+- id: ATTEMPT-2
+  task_id: TASK-2722
+  outcome: succeeded
+  approach: Isolated real REST, CLI and npm/pip SDK checks, correcting the initially disabled skill and installing declared pip dependencies on the disposable runner.
   recorded_at: '2026-10-01'
 tasks:
 - id: TASK-2722
