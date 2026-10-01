@@ -5300,6 +5300,99 @@ export const APP_SKILL_METADATA = [
         }
       }
     }
+  },
+  {
+    "app_id": "hosting",
+    "skill_id": "search_domains",
+    "app_namespace_ts": "hosting",
+    "skill_method_ts": "searchDomains",
+    "app_namespace_py": "hosting",
+    "skill_method_py": "search_domains",
+    "description_key": "app_skills.hosting.search_domains.description",
+    "description": "Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "description": "One to five independent domain checks or name searches.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "Optional caller ID echoed in this group's result.",
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              },
+              "query": {
+                "type": "string",
+                "description": "An exact fully qualified domain (up to 253 characters), a short name, or a keyword idea (up to 100 characters).",
+                "minLength": 1,
+                "maxLength": 253
+              },
+              "tlds": {
+                "type": "array",
+                "maxItems": 5,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional suffixes such as .com or .net. For a short single-label name, check each exact name plus suffix before suggestions.\n"
+              },
+              "country": {
+                "type": "string",
+                "default": "DE",
+                "description": "Two-letter tax country code; returned explicitly with prices."
+              },
+              "currency": {
+                "type": "string",
+                "default": "EUR",
+                "enum": [
+                  "EUR",
+                  "USD"
+                ],
+                "description": "Supported quote currency. Unsupported currencies are rejected."
+              },
+              "max_results": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 10,
+                "description": "Maximum selected results per group. Checked pool remains at most 40."
+              },
+              "availability": {
+                "type": "string",
+                "enum": [
+                  "prefer_available",
+                  "available_only",
+                  "all"
+                ],
+                "default": "prefer_available",
+                "description": "prefer_available selects confirmed available first, then checked unavailable names only to fill a shortfall. available_only never fills with unavailable. all preserves ranked checked available and unavailable order. Unknown checks remain diagnostic only.\n"
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "maxLength": 1000,
+                "description": "Optional natural-language goal for ranking checked candidates. Set when the user states a material brand, name-fit, renewal-price, term, premium, or restriction preference that should change order. Copy the goal faithfully; omit for neutral lookup or discovery. Ranking uses only evidenced provider facts and drops scores below 1.\n"
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    }
   }
 ] as const;
 
@@ -6015,6 +6108,21 @@ export class WorkflowsAppSkills {
   }
 }
 
+export class HostingAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Check an exact domain name or discover available domain names through Gandi. Use one grouped request per independent name or idea. A fully qualified domain is checked exactly. Put explicitly requested suffixes in tlds and explicit tax country and currency in country and currency; defaults are DE and EUR. Use availability=prefer_available by default: show confirmed available names first and checked in-use names only to fill remaining result slots. Use available_only only when the user wants no in
+   * Description key: app_skills.hosting.search_domains.description
+   * Skill: hosting/search_domains
+   */
+  async searchDomains<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("hosting", "search_domains", input, options);
+  }
+}
+
 export class GeneratedAppSkills {
   constructor(runSkill: AppSkillRunner) {
     this.ai = new AiAppSkills(runSkill);
@@ -6028,6 +6136,7 @@ export class GeneratedAppSkills {
     this.fitness = new FitnessAppSkills(runSkill);
     this.health = new HealthAppSkills(runSkill);
     this.home = new HomeAppSkills(runSkill);
+    this.hosting = new HostingAppSkills(runSkill);
     this.images = new ImagesAppSkills(runSkill);
     this.mail = new MailAppSkills(runSkill);
     this.maps = new MapsAppSkills(runSkill);
@@ -6061,6 +6170,7 @@ export class GeneratedAppSkills {
   readonly fitness: FitnessAppSkills;
   readonly health: HealthAppSkills;
   readonly home: HomeAppSkills;
+  readonly hosting: HostingAppSkills;
   readonly images: ImagesAppSkills;
   readonly mail: MailAppSkills;
   readonly maps: MapsAppSkills;

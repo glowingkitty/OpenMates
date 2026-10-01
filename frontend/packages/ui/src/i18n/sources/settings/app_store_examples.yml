@@ -14,6 +14,55 @@
 # ships English up-front; the other locales are filled in automatically
 # via scripts/auto_translate.py.
 
+hosting.search_domains.1:
+  context: "First Hosting domain search example"
+  en: "Check if example.com is available"
+  de: "Prüfe, ob example.com verfügbar ist"
+  zh: "查看 example.com 是否可注册"
+  es: "Comprueba si example.com está disponible"
+  fr: "Vérifie si example.com est disponible"
+  pt: "Verifica se example.com está disponível"
+  ru: "Проверь, доступен ли example.com"
+  ja: "example.com が取得可能か確認"
+  ko: "example.com 등록 가능 여부 확인"
+  it: "Verifica se example.com è disponibile"
+  tr: "example.com kullanılabilir mi kontrol et"
+  vi: "Kiểm tra example.com còn trống không"
+  id: "Periksa apakah example.com tersedia"
+  pl: "Sprawdź, czy example.com jest dostępna"
+  nl: "Controleer of example.com beschikbaar is"
+  ar: "تحقق مما إذا كان example.com متاحًا"
+  hi: "जाँचें कि example.com उपलब्ध है या नहीं"
+  th: "ตรวจสอบว่า example.com ว่างหรือไม่"
+  cs: "Ověř, zda je example.com dostupná"
+  sv: "Kontrollera om example.com är tillgänglig"
+  he: "בדוק אם example.com זמין"
+  verified_by_human: []
+
+hosting.search_domains.2:
+  context: "Second Hosting domain search example"
+  en: "Find available domain names for a coffee shop"
+  de: "Finde verfügbare Domainnamen für ein Café"
+  zh: "为咖啡店寻找可注册的域名"
+  es: "Busca dominios disponibles para una cafetería"
+  fr: "Trouve des noms de domaine disponibles pour un café"
+  pt: "Encontra nomes de domínio disponíveis para um café"
+  ru: "Найди свободные домены для кофейни"
+  ja: "コーヒーショップ向けの取得可能なドメイン名を探す"
+  ko: "커피숍에 사용할 수 있는 도메인 이름 찾기"
+  it: "Trova nomi di dominio disponibili per una caffetteria"
+  tr: "Bir kahve dükkânı için kullanılabilir alan adları bul"
+  vi: "Tìm tên miền còn trống cho quán cà phê"
+  id: "Cari nama domain yang tersedia untuk kedai kopi"
+  pl: "Znajdź dostępne domeny dla kawiarni"
+  nl: "Zoek beschikbare domeinnamen voor een koffiebar"
+  ar: "اعثر على أسماء نطاقات متاحة لمقهى"
+  hi: "कॉफ़ी शॉप के लिए उपलब्ध डोमेन नाम खोजें"
+  th: "ค้นหาชื่อโดเมนที่ว่างสำหรับร้านกาแฟ"
+  cs: "Najdi dostupné domény pro kavárnu"
+  sv: "Hitta lediga domännamn för ett kafé"
+  he: "מצא שמות דומיין פנויים לבית קפה"
+  verified_by_human: []
 web.search.1:
   context: Query label for the first web search example in the Apps. Shown on a preview card that opens a real Brave Search result set for quick and healthy everyday dinner recipes.
   en: Quick healthy dinner recipes under 30 minutes

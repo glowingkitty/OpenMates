@@ -454,6 +454,13 @@
         "workflows-ui-contract.spec.ts"
       ]
     },
+    "credential_free_domains": {
+      "execution": "e2e",
+      "enabling_work": "Fresh runner-local core accounts and normal REST/CLI/SDK device approval; bounded real HTTPS calls only to the anonymous Gandi shop endpoint. No AI worker, inference, provider credentials or shared dev endpoint. Direct transport is exercised here; existing Webshare fallback has separate dev probe and focused unit evidence.",
+      "specs": [
+        "skill-hosting-search-api.spec.ts"
+      ]
+    },
     "ai_cached_public_provider": {
       "execution": "e2e",
       "enabling_work": "Preserve committed signed chat replay plus original direct CLI credential-free TI WEBENCH calls. API/AI stay on internal network; fixed HTTPS CONNECT allowlist admits only webench.ti.com, with end-to-end TLS and no paid-provider credentials.",

@@ -59,6 +59,7 @@ ALWAYS_EXTERNAL_DATA_SKILLS: set[tuple[str, str]] = {
     ("fitness", "search_locations"),
     ("health", "search_appointments"),
     ("home", "search"),
+    ("hosting", "search_domains"),
     ("images", "search"),
     ("mail", "search"),
     ("maps", "search"),

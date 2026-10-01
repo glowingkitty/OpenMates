@@ -1,0 +1,111 @@
+id: hosting
+name_translation_key: hosting
+description_translation_key: hosting.description
+icon_image: server.svg
+category: work
+last_updated: "2026-10-01"
+embed_types: []
+skills:
+  - id: search_domains
+    anonymous_access: authenticated
+    parallel_safe: true
+    name_translation_key: app_skills.hosting.search_domains
+    description_translation_key: app_skills.hosting.search_domains.description
+    icon_image: search.svg
+    api_config:
+      expose_get: true
+      expose_post: true
+    preprocessor_hint: >
+      Check an exact domain name or discover available domain names through Gandi.
+      Use one grouped request per independent name or idea. A fully qualified domain
+      is checked exactly. Put explicitly requested suffixes in tlds and explicit
+      tax country and currency in country and currency; defaults are DE and EUR.
+      Use availability=prefer_available by default: show confirmed available names
+      first and checked in-use names only to fill remaining result slots.
+      Use available_only only when the user wants no in-use names, and all when the
+      user asks to inspect all checked statuses. Unknown checks never mean in-use.
+      Copy a stated branding, price, renewal, term, premium, or restriction goal
+      into relevance_criteria when it should affect ordering. Keep query focused
+      on the requested name or topic and do not invent preferences. Omit criteria
+      for neutral checks. Never claim availability is guaranteed or buy a domain.
+    class_path: backend.apps.hosting.skills.search_domains.SearchDomainsSkill
+    pricing:
+      fixed: 1
+    providers:
+      - name: Gandi
+        no_api_key: true
+    example_translation_keys:
+      - settings.app_store_examples.hosting.search_domains.1
+      - settings.app_store_examples.hosting.search_domains.2
+    external_data: true
+    exclude_fields_for_llm: [checked_results, registration, renewal]
+    output_safety:
+      external_data: true
+      prompt_injection: default_on
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          minItems: 1
+          maxItems: 5
+          description: One to five independent domain checks or name searches.
+          items:
+            type: object
+            properties:
+              id:
+                description: Optional caller ID echoed in this group's result.
+                oneOf:
+                  - type: string
+                  - type: integer
+              query:
+                type: string
+                description: An exact fully qualified domain (up to 253 characters), a short name, or a keyword idea (up to 100 characters).
+                minLength: 1
+                maxLength: 253
+              tlds:
+                type: array
+                maxItems: 5
+                items:
+                  type: string
+                description: >
+                  Optional suffixes such as .com or .net. For a short single-label
+                  name, check each exact name plus suffix before suggestions.
+              country:
+                type: string
+                default: DE
+                description: Two-letter tax country code; returned explicitly with prices.
+              currency:
+                type: string
+                default: EUR
+                enum: [EUR, USD]
+                description: Supported quote currency. Unsupported currencies are rejected.
+              max_results:
+                type: integer
+                minimum: 1
+                maximum: 20
+                default: 10
+                description: Maximum selected results per group. Checked pool remains at most 40.
+              availability:
+                type: string
+                enum: [prefer_available, available_only, all]
+                default: prefer_available
+                description: >
+                  prefer_available selects confirmed available first, then checked
+                  unavailable names only to fill a shortfall. available_only never
+                  fills with unavailable. all preserves ranked checked available and
+                  unavailable order. Unknown checks remain diagnostic only.
+              relevance_criteria:
+                type: string
+                maxLength: 1000
+                description: >
+                  Optional natural-language goal for ranking checked candidates.
+                  Set when the user states a material brand, name-fit, renewal-price,
+                  term, premium, or restriction preference that should change order.
+                  Copy the goal faithfully; omit for neutral lookup or discovery.
+                  Ranking uses only evidenced provider facts and drops scores below 1.
+            required: [query]
+      required: [requests]
+    workflow:
+      available: false
+      unavailable_reason: WORKFLOW_CLASSIFICATION_REQUIRED

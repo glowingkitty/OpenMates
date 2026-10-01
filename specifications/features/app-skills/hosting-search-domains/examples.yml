@@ -1,0 +1,92 @@
+schema_version: 1
+specification: feature.app-skill.hosting-search-domains@1
+
+requests:
+  - id: two-independent-searches
+    input: {requests: [{id: exact, query: cedarcomet.com}, {id: ideas, query: cedarcomet}]}
+    given: Alice asks for cedarcomet.com and ideas around cedarcomet, in separate request groups, without stating a country or currency.
+    when: The skill validates both requests.
+    then: Each keeps its caller ID, uses DE and EUR explicitly, and defaults max_results to ten; an unsupported currency, sixth TLD, or max_results above twenty is rejected before provider execution.
+    assertion_ids: [hosting-domains.request.validated]
+
+lookup:
+  - id: exact-and-idn
+    given: Alice requests bücher.example exactly and asks separately for cedarcomet with .com and .net suffixes.
+    when: Gandi checks the requests.
+    then: The first request checks only the IDNA form of bücher.example while retaining its Unicode display; the second prioritizes cedarcomet.com and cedarcomet.net and does not invent another suffix.
+    assertion_ids: [hosting-domains.lookup.exact]
+
+availability:
+  - id: availability-modes
+    given: Ten relevant available suggestions, two checked in-use domains, and one failed check are in a bounded checked pool.
+    when: Alice requests ten results under each availability mode.
+    then: Prefer available and available only show the ten available domains; all may expose in-use domains within its ten-result selection, and the failed check stays unknown rather than becoming in-use. The checked pool retains the matching checked candidates for a local view.
+    assertion_ids: [hosting-domains.availability.selection]
+  - id: exact-unavailable-and-unknown
+    given: An exact domain is checked as in-use on one request and its check fails on another.
+    when: The requests use available_only.
+    then: The in-use request has empty selected results, a checked in-use child, and a warning; the failed check has unknown evidence with a partial or provider error, never a false in-use or clean empty outcome.
+    assertion_ids: [hosting-domains.availability.selection]
+
+relevance:
+  - id: renewal-goal
+    input: {requests: [{query: cedarcomet, tlds: [.com], max_results: 10, relevance_criteria: Prefer a short name with low evidenced renewal cost}]}
+    given: Alice seeks a short .com name with a low renewal price, and forty checked suggestions include premium names, missing renewal quotes, and unrelated long names.
+    when: The skill filters suffix and availability and ranks using her stated goal.
+    then: One typed Jev decision scores only surviving names using supported name, renewal, term, premium, and restriction facts; missing renewal prices stay unknown, scores below one disappear, and no rejected suffix or status returns.
+    assertion_ids: [hosting-domains.relevance.evidenced]
+  - id: absent-or-failed-ranking
+    given: A plain domain search has no relevance criteria, and a later criteria-bearing search receives incomplete Jev scores.
+    when: Each result group is finalized.
+    then: The plain search makes no ranking call; the later search keeps deterministic provider order and the chosen availability policy without exposing model diagnostics.
+    assertion_ids: [hosting-domains.relevance.evidenced]
+
+provider:
+  - id: one-route-fallback
+    given: A direct Gandi stream ends before a complete response after returning one valid checked child.
+    when: The operation falls back through the lazily loaded Webshare route.
+    then: It tries that route once, retains the valid child without duplication, and safely marks an affected check partial if the second route also fails.
+    assertion_ids: [hosting-domains.provider.bounded-fallback]
+  - id: rate-limit-and-total-failure
+    given: One request receives HTTP 429 with Retry-After and another has no successful direct or proxy response.
+    when: Both reach their bounded deadlines.
+    then: The first respects the delay without rotating repeatedly; the second returns a safe provider-unavailable error rather than a clean empty search.
+    assertion_ids: [hosting-domains.provider.bounded-fallback]
+
+quotes:
+  - id: discounted-registration-and-renewal
+    given: Gandi quotes EUR 14.27 for the first year, a normal registration price of EUR 20.54, renewal at EUR 47.60 per year, and included German VAT.
+    when: The child is rendered.
+    then: Registration, normal registration, renewal, and tax context remain separate; the first-year discount is never described as a renewal discount.
+    assertion_ids: [hosting-domains.quotes.truthful]
+  - id: premium-two-year-term
+    given: A premium domain has a minimum two-year registration term and Gandi supplies a registration restriction but no tax rate.
+    when: The child is rendered beside one-year offers.
+    then: Its premium, two-year minimum, and restriction are visible, tax is unknown, and it is not used to compute a misleading first-year minimum.
+    assertion_ids: [hosting-domains.quotes.truthful]
+
+safety:
+  - id: partial-external-text
+    given: A Gandi response supplies one valid domain and one failed price check, while a provider text field contains an instruction to reveal chat history.
+    when: The result is returned to a client or assistant.
+    then: The valid child remains, price uncertainty and partial status are explicit, and the external instruction passes the inherited safety boundary without receiving chat context or user identifiers.
+    assertion_ids: [hosting-domains.results.partial-and-safe]
+
+embeds:
+  - id: local-in-use-view
+    given: Ten available domains fill the selected result count and two matching in-use domains remain in checked_results.
+    when: Alice opens the parent fullscreen and switches on Show in-use domains.
+    then: The responsive grid can show the checked in-use children within the ten-card display limit without a new Gandi call; the initial view hides them, while each child still opens independently from its encrypted reference.
+    assertion_ids: [hosting-domains.embeds.parent-child]
+  - id: child-details
+    given: A checked domain has separate registration and renewal quotes, a minimum term, and a provider link.
+    when: Alice opens its child card on a narrow screen.
+    then: The single-column detail view shows truthful prices, tax and term context, an Open on Gandi action, sibling navigation, and return to results; unknown availability is labeled Could not check.
+    assertion_ids: [hosting-domains.embeds.parent-child]
+
+parity:
+  - id: typed-search-across-surfaces
+    given: Alice sends the same two grouped domain requests through REST, CLI, npm, and pip, then uses their typed output in a Workflow.
+    when: The search completes and the web renderer opens its parent and child embeds.
+    then: All programmatic surfaces preserve selected and checked results, quote details, warnings, and child references; the Workflow can render them on web and makes no Apple support claim.
+    assertion_ids: [hosting-domains.surface-parity]

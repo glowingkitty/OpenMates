@@ -115,6 +115,7 @@ models:
         - fitness.search_classes
         - code.search_repos
         - models3d.search
+        - hosting.search_domains
       constraints: {health.search_appointments: excluded}
     relevance_criteria:
       type: string
@@ -133,6 +134,7 @@ models:
         maps: pageSize
         fitness: limit
         code_models3d: count
+        hosting_domains: max_results
         code_search_repos_default: 10
         other_existing_defaults_preserved: true
         existing_maxima_preserved: true
@@ -154,6 +156,7 @@ models:
         fitness_search_classes: up_to_40_from_existing_date_page_retrieval
         code_search_repos: one_GitHub_request_of_up_to_40_before_license_and_normalization_filters
         models3d_search: one_Printables_GraphQL_request_of_up_to_40
+        hosting_search_domains: up_to_40_checked_candidates_within_existing_bounded_provider_operations
         extra_billable_page_for_ranking_only: forbidden
         provider_shortfall: return_smaller_pool
         fabricated_candidates: forbidden
@@ -176,6 +179,7 @@ models:
         fitness_rubric: stated_activity_goal_fit_from_explicit_discipline_class_schedule_distance_rating_spot_and_plan_evidence
         code_repositories_rubric: stated_software_selection_goal_fit_from_explicit_repository_technology_license_popularity_issue_and_date_evidence
         models3d_rubric: stated_model_selection_goal_fit_from_explicit_listing_feature_license_file_price_date_and_engagement_evidence
+        hosting_domains_rubric: stated_name_and_domain_goal_fit_from_explicit_domain_price_term_premium_and_restriction_evidence
         user_or_chat_identifiers: forbidden
     finalization:
       type: deterministic
@@ -222,12 +226,12 @@ assertions:
 
   - id: app-skills.search-relevance.optional-and-inferred
     type: behavior
-    must: Web, news, events, home, maps, shopping-product, travel-stay, video, fitness location/class, public GitHub repository, and public 3D-model catalog search accept an optional relevance_criteria value through assistant, REST API, CLI, and npm/pip SDK calls. When an ordinary assistant request states a material purpose or preference that should change result ordering, the assistant supplies a concise faithful relevance_criteria value without requiring the user to name the field. A plain search may omit it, direct callers may omit it, and no preference may be invented.
+    must: Web, news, events, home, maps, shopping-product, travel-stay, video, fitness location/class, public GitHub repository, public 3D-model catalog, and hosting-domain search accept an optional relevance_criteria value through assistant, REST API, CLI, and npm/pip SDK calls. When an ordinary assistant request states a material purpose or preference that should change result ordering, the assistant supplies a concise faithful relevance_criteria value without requiring the user to name the field. A plain search may omit it, direct callers may omit it, and no preference may be invented.
     depends_on: [models.OptionalSearchRelevanceRanking]
 
   - id: app-skills.search-relevance.bounded-and-conditional
     type: invariant
-    must: A nonblank relevance_criteria value activates bounded candidate retrieval and one Jev ranking decision using the declared skill profile. Web, news, events, home, videos, fitness, public GitHub repositories, and public 3D-model catalogs target forty candidates or the larger explicitly requested final limit; maps, shopping products, and travel stays target twenty because forty would require an extra billable or rate-limited provider page. Repository and 3D-model ranking increase only the result limit of their existing single provider request. Repository license and normalization filtering may leave fewer than forty rankable candidates. Retrieval remains within each declared request profile, and no extra provider request or billable provider page is fetched solely for ranking. Missing criteria preserves existing fetch and ordering behavior and makes no relevance-ranking call. Provider shortfalls or duplicates yield a smaller pool without fabricated results or unbounded retries.
+    must: A nonblank relevance_criteria value activates bounded candidate retrieval and one Jev ranking decision using the declared skill profile. Web, news, events, home, videos, fitness, public GitHub repositories, public 3D-model catalogs, and hosting domains target forty candidates or the larger explicitly requested final limit; maps, shopping products, and travel stays target twenty because forty would require an extra billable or rate-limited provider page. Repository and 3D-model ranking increase only the result limit of their existing single provider request. Repository license and normalization filtering may leave fewer than forty rankable candidates. Hosting candidates remain within the skill's bounded provider-operation budget. Retrieval remains within each declared request profile, and no extra provider request or billable provider page is fetched solely for ranking. Missing criteria preserves existing fetch and ordering behavior and makes no relevance-ranking call. Provider shortfalls or duplicates yield a smaller pool without fabricated results or unbounded retries.
     depends_on: [models.OptionalSearchRelevanceRanking.candidate_pool]
 
   - id: app-skills.search-relevance.safe-finalization

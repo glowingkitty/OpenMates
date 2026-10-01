@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: d58df4944a3eb925eeb4d4ce344697624a58866b9271e51bc46d86ec262d4f19
+    fingerprint: f7e4a682793a7f1613346a46898a63a5eefd2752bbb13edea030e980f53bc3ea
     required_applies_to:
     - rest_api
     - cli
@@ -208,6 +208,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.hosting-search-domains:
+    version: 1
+    status: draft
+    path: features/app-skills/hosting-search-domains
+    fingerprint: 4ff6738c568c1db44349fe3083670139b1fd60a868b772915b6791a339307de9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.images-view:
     version: 1
     status: draft
@@ -761,7 +772,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: parity
-    fingerprint: cafe962f5aa16347eca45acc80923b0308bd68ceb3ec0b705186ad3b3fad2b14
+    fingerprint: 8b58782c55b29082c4c93df636c883b0629932bf97c81403001578eee06a70b9
     required_applies_to:
     - rest_api
     - cli
@@ -785,7 +796,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: behavior
-    fingerprint: aece864d91011db555313d4e17b84ad29cf0cdd7dc89eff314a19f688f349260
+    fingerprint: 87d86a439c18a00ae829f8969b4bd648180ceda4b297bd22d8be5c2a6c8705c6
     required_applies_to:
     - rest_api
     - cli
@@ -797,7 +808,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: invariant
-    fingerprint: 2810a44e91e6dba8b185a04b4279e7321f4754b55b49bc87f219f9ba44f53ca3
+    fingerprint: eab0d76d0fd3e955ff507c8159303cd6fcdac7c5de10a7424585c4768ebbdeac
     required_applies_to:
     - rest_api
     - cli
@@ -809,7 +820,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 5e3e5872d032fe8350ef112b4689263ea7f1305e2b6a80181d8e6e15c8162684
+    fingerprint: 52a276e4f2ff01ba2c26bab0fe5fb60ea723e26c3e1c80be98825f2d41ec150a
     required_applies_to:
     - rest_api
     - cli
@@ -2968,6 +2979,105 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  hosting-domains.request.validated:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: validation
+    fingerprint: 5b74cf56b1bad95550d2a2558e889cfed95bcd19dfac35c81f53365d26fee2de
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.lookup.exact:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: invariant
+    fingerprint: 746a2ece6d9ac5a98e922b32768e57c563a3fac0baa37bd4ce8fa77e26b5f8a5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.availability.selection:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: behavior
+    fingerprint: e76d7d4953a2bfa4901b6c3391e753122b3176d96b8cc7c3b35cf64ce7d049d0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.relevance.evidenced:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: behavior
+    fingerprint: edd8138922fffa89ef2033851c4feacc987bfadbf95ae4e54534ef8e0c3e4434
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.provider.bounded-fallback:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: failure
+    fingerprint: 26c08fd6664347894a477cc86e82f6a25e3033356182f7160c193c6b99c69fcb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.quotes.truthful:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: invariant
+    fingerprint: 1ce0914d2589990feadbb85884bf79d126e672d42554126433bd3882bdf604dc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.results.partial-and-safe:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: security
+    fingerprint: 812812b31ec0b505dce41ded2b2a8a5f299e31c23e2fafd3aa50d1563dd8c9ec
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.embeds.parent-child:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: behavior
+    fingerprint: 3cf53c037c1eae8e0af2c9bf4a28b70c99c55e84a3041211b34eb342680446ff
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  hosting-domains.surface-parity:
+    specification: feature.app-skill.hosting-search-domains@1
+    specification_id: feature.app-skill.hosting-search-domains
+    type: parity
+    fingerprint: 83963b27fd14e34170c7a779238d56f231e5c158fb272bc4d84742de52e46993
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   images-view.request.exact-embed-ref:
     specification: feature.app-skill.images-view@1
     specification_id: feature.app-skill.images-view

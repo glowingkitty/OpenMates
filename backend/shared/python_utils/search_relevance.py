@@ -55,6 +55,25 @@ class SearchRelevanceProfile:
 
 
 SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
+    "hosting_domains": SearchRelevanceProfile(
+        instructions=(
+            "Score how well this domain fits the submitted name or topic and the stated "
+            "requirements using only its name and explicit provider facts. Structured suffix "
+            "and availability filters are authoritative. Consider registration and renewal "
+            "prices, currency, tax context, premium status, minimum terms, and restrictions "
+            "only when supplied. Compare prices only for comparable terms. Missing facts "
+            "remain unknown; never infer trademark clearance, SEO value, brand suitability, "
+            "registry eligibility, or future availability. Score 0 for explicit conflicts or "
+            "no defensible relationship to the requested name, topic, or requirements."
+        ),
+        criteria=(
+            "Explicit conflict or no defensible fit",
+            "Weak but defensible fit from limited evidence",
+            "Plausible fit supported by domain or provider facts",
+            "Strong fit supported by explicit name and requirement evidence",
+            "Exceptional direct fit supported by the supplied evidence",
+        ),
+    ),
     "web": SearchRelevanceProfile(
         instructions=(
             "Score how well this single web result satisfies the stated relevance goal. "

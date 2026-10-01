@@ -8334,7 +8334,7 @@ async def handle_main_processing(
                                     f"request_id={request_id} (type={type(request_id).__name__}), "
                                     f"request_id_key={request_id_key}, "
                                     f"lookup result has query: {'query' in request_metadata}, "
-                                    f"query value: {request_metadata.get('query', 'NOT_FOUND')}"
+                                    f"query value: {'<redacted>' if app_id == 'hosting' else request_metadata.get('query', 'NOT_FOUND')}"
                                 )
                                 
                                 # Include provider info from first_response if available
@@ -8360,14 +8360,17 @@ async def handle_main_processing(
                                             fallback_value = grouped_result.get(fallback_key)
                                             if isinstance(fallback_value, str) and fallback_value.strip():
                                                 request_metadata_with_provider["query"] = fallback_value
-                                                logger.info(f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': {fallback_value}")
+                                                logger.info(
+                                                    f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': "
+                                                    f"{'<redacted>' if app_id == 'hosting' else fallback_value}"
+                                                )
                                                 break
                                         else:
                                             logger.warning(f"{log_prefix} [QUERY_DEBUG] No query found in grouped_result via any fallback key!")
                                     else:
                                         logger.info(
                                             f"{log_prefix} [QUERY_DEBUG] query found in request_metadata_with_provider: "
-                                            f"{request_metadata_with_provider.get('query')}"
+                                            f"{'<redacted>' if app_id == 'hosting' else request_metadata_with_provider.get('query')}"
                                         )
                                 
                                 # Distinguish a real failure from a successful zero-hit query.
