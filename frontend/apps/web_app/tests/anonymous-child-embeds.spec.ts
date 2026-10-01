@@ -35,8 +35,8 @@ async function mockAnonymousAccess(page: any): Promise<void> {
 	}));
 }
 
-async function mockAnonymousEmbedStream(page: any): Promise<void> {
-	await page.addInitScript(() => {
+async function mockAnonymousEmbedStream(page: any, failAfterTool = false): Promise<void> {
+	await page.addInitScript((limited: boolean) => {
 		const originalFetch = window.fetch.bind(window);
 		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -73,18 +73,31 @@ async function mockAnonymousEmbedStream(page: any): Promise<void> {
 							text_preview: 'OpenMates home page', status: 'finished'
 						}
 					});
+					if (limited) {
+						emit({
+							type: 'ai_message_chunk', chat_id: body.client_chat_id, message_id: assistantId,
+							user_message_id: body.client_message_id, task_id: taskId, sequence: 1,
+							is_final_chunk: false,
+							full_content_so_far: 'I found the [OpenMates source](embed:anonymous-source).',
+							model_name: 'test-model'
+						});
+					}
 					emit({
 						type: 'ai_message_chunk', chat_id: body.client_chat_id, message_id: assistantId,
-						user_message_id: body.client_message_id, task_id: taskId, sequence: 1, is_final_chunk: true,
-						full_content_so_far: 'I found the [OpenMates source](embed:anonymous-source).', model_name: 'test-model'
+						user_message_id: body.client_message_id, task_id: taskId, sequence: limited ? 2 : 1, is_final_chunk: true,
+						full_content_so_far: limited
+							? 'I found the [OpenMates source](embed:anonymous-source).\n\nCreate an account to keep using OpenMates.'
+							: 'I found the [OpenMates source](embed:anonymous-source).',
+						model_name: 'test-model',
+						...(limited ? { rejection_reason: 'anonymous_usage_limit' } : {})
 					});
-					emit({ type: 'ai_task_ended', chatId: body.client_chat_id, taskId, status: 'completed' });
+					emit({ type: 'ai_task_ended', chatId: body.client_chat_id, taskId, status: limited ? 'failed' : 'completed' });
 					controller.close();
 				}
 			});
 			return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
 		};
-	});
+	}, failAfterTool);
 }
 
 async function storedEmbedIds(page: any): Promise<string[]> {
@@ -107,6 +120,31 @@ async function storedEmbedIds(page: any): Promise<string[]> {
 }
 
 test.describe('Anonymous child embeds', () => {
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.persistence.client-encrypted,billing.anonymous.local-only-content
+	test('keeps completed search results when the final anonymous answer reaches its usage limit', async ({ page }: { page: any }) => {
+		test.setTimeout(90_000);
+		await mockAnonymousAccess(page);
+		await mockAnonymousEmbedStream(page, true);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await expect(editor).toBeVisible({ timeout: 10_000 });
+		await editor.click();
+		await editor.pressSequentially('Search official docs');
+		await page.locator('[data-action="send-message"]').click();
+
+		const answer = page.getByTestId('message-assistant').last();
+		await expect(answer).toContainText('Create an account to keep using OpenMates.', { timeout: 30_000 });
+		await expect(answer).not.toContainText('The AI service encountered an error');
+		await expect(answer.getByRole('link', { name: 'OpenMates source' })).toBeVisible();
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+		await expect.poll(() => storedEmbedIds(page), { timeout: 15_000 }).toEqual([PARENT_ID, CHILD_ID]);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		const reloadedAnswer = page.getByTestId('message-assistant').last();
+		await expect(reloadedAnswer).toContainText('Create an account to keep using OpenMates.', { timeout: 15_000 });
+		await expect(reloadedAnswer.getByRole('link', { name: 'OpenMates source' })).toBeVisible();
+		await expect.poll(() => storedEmbedIds(page), { timeout: 15_000 }).toEqual([PARENT_ID, CHILD_ID]);
+	});
+
 	// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 	test('offers a refresh when an older tab cannot load an embed fullscreen chunk', async ({ page }: { page: any }) => {
 		test.setTimeout(90_000);

@@ -23,6 +23,7 @@ from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
 from backend.core.api.app.utils.server_mode import validate_request_domain
 from backend.shared.python_utils.learning_mode import build_anonymous_request_learning_mode_context
 from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
+from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
 
 try:
     from backend.core.api.app.services.limiter import limiter
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 MAX_ANONYMOUS_MESSAGE_CHARS = 20_000
 MAX_ANONYMOUS_HISTORY_MESSAGES = 50
 ANONYMOUS_INFERENCE_ERROR_MESSAGE = "Anonymous inference failed. Please try again."
+ANONYMOUS_USAGE_LIMIT_MESSAGE = "Create an account to keep using OpenMates."
 ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE = 60
 ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE = 20
 MAX_ANONYMOUS_SKILL_BODY_BYTES = 20_000
@@ -604,6 +606,7 @@ async def anonymous_chat_stream(
         reservation = None
         upstream_error_frame = False
         upstream_error_snapshot = None
+        upstream_failure_reason = None
 
         yield _anonymous_sse_event({
             "type": "ai_task_initiated",
@@ -639,7 +642,7 @@ async def anonymous_chat_stream(
                     "chat_id": payload.client_chat_id,
                     "message_id": assistant_message_id,
                     "user_message_id": payload.client_message_id,
-                    "full_content_so_far": "Create an account to keep using OpenMates.",
+                    "full_content_so_far": ANONYMOUS_USAGE_LIMIT_MESSAGE,
                     "sequence": sequence + 1,
                     "is_final_chunk": True,
                     "model_name": model_name,
@@ -690,6 +693,8 @@ async def anonymous_chat_stream(
                             # producing this frame. Preserve only its explicit,
                             # sanitized snapshot; never promote a raw error delta.
                             upstream_error_frame = True
+                            if openai_payload.get("failure_reason") == "anonymous_usage_limit":
+                                upstream_failure_reason = "anonymous_usage_limit"
                             if has_authoritative_content and authoritative_content:
                                 upstream_error_snapshot = authoritative_content
                             raise RuntimeError("Anonymous upstream stream ended with an error")
@@ -755,7 +760,14 @@ async def anonymous_chat_stream(
                     stage="streaming",
                     category="delivery_error",
                 )
-            terminal_content = upstream_error_snapshot or ANONYMOUS_INFERENCE_ERROR_MESSAGE
+            if upstream_failure_reason == "anonymous_usage_limit":
+                partial_content = (upstream_error_snapshot or "").removesuffix(STANDARDIZED_USER_ERROR_MESSAGE).rstrip()
+                terminal_content = (
+                    f"{partial_content}\n\n{ANONYMOUS_USAGE_LIMIT_MESSAGE}"
+                    if partial_content else ANONYMOUS_USAGE_LIMIT_MESSAGE
+                )
+            else:
+                terminal_content = upstream_error_snapshot or ANONYMOUS_INFERENCE_ERROR_MESSAGE
             yield _anonymous_sse_event({
                 "type": "ai_message_chunk",
                 "task_id": task_id,
@@ -766,7 +778,7 @@ async def anonymous_chat_stream(
                 "sequence": sequence + 1,
                 "is_final_chunk": True,
                 "model_name": model_name,
-                "rejection_reason": "anonymous_inference_failed",
+                "rejection_reason": upstream_failure_reason or "anonymous_inference_failed",
             })
             yield _anonymous_sse_event({
                 "type": "ai_task_ended",

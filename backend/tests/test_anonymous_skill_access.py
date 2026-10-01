@@ -498,9 +498,65 @@ async def test_anonymous_sse_forwards_transient_app_skill_embeds(monkeypatch: py
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chats.streaming.ordered-final,billing.anonymous.hard-capped-provider-metering
+@pytest.mark.parametrize("snapshot_kind", ["standardized", "empty", "absent"])
+async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error(
+    monkeypatch: pytest.MonkeyPatch,
+    snapshot_kind: str,
+) -> None:
+    from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
+
+    async def limited_stream():
+        terminal_frame = {
+            "choices": [{"delta": {}, "finish_reason": "error"}],
+            "failure_reason": "anonymous_usage_limit",
+        }
+        if snapshot_kind != "absent":
+            terminal_frame["full_content"] = STANDARDIZED_USER_ERROR_MESSAGE if snapshot_kind == "standardized" else ""
+        yield "data: " + json.dumps(terminal_frame) + "\n\n"
+        yield "data: [DONE]\n\n"
+
+    class FakeRegistry:
+        async def dispatch_skill(self, _app_id: str, _skill_id: str, _body: dict) -> StreamingResponse:
+            return StreamingResponse(limited_stream(), media_type="text/event-stream")
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(
+        AnonymousFreeUsageService,
+        "open_request",
+        lambda self, **kwargs: asyncio.sleep(0, result=AnonymousReservationResult(accepted=True, request_id=kwargs["request_id"])),
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request({
+        "type": "http", "method": "POST", "path": "/v1/anonymous/chat/stream",
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+        "client": ("198.51.100.7", 443),
+    })
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1", client_chat_id="anonymous-chat-1",
+        client_message_id="message-1", plaintext_message="Search docs",
+    )
+    response = await anonymous_chat_stream(
+        request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache(),
+    )
+    body = "".join([chunk.decode() if isinstance(chunk, bytes) else str(chunk) async for chunk in response.body_iterator])
+    events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
+    final = next(event for event in events if event.get("is_final_chunk"))
+    assert final["full_content_so_far"] == "Create an account to keep using OpenMates."
+    assert final["rejection_reason"] == "anonymous_usage_limit"
+    assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
+    assert not any(event["type"] == "post_processing_completed" for event in events)
+
+
+@pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=chats.streaming.ordered-final,billing.anonymous.local-only-content
+@pytest.mark.parametrize("failure_reason", [None, "anonymous_usage_limit"])
 async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefix_rewrite(
     monkeypatch: pytest.MonkeyPatch,
+    failure_reason: str | None,
 ) -> None:
     from types import MethodType
 
@@ -545,6 +601,7 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
                         "full_content_so_far": snapshot,
                         "is_final_chunk": index == len(snapshots) - 1,
                         "error": index == len(snapshots) - 1,
+                        "failure_reason": failure_reason if index == len(snapshots) - 1 else None,
                         "model_name": "google/gemini-test",
                         "anonymous_embeds": [resolved_embed] if index == len(snapshots) - 1 else None,
                     }
@@ -620,8 +677,12 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
 
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final_chunk = next(event for event in events if event["type"] == "ai_message_chunk" and event["is_final_chunk"])
-    assert final_chunk["full_content_so_far"] == snapshots[-1]
-    assert final_chunk["rejection_reason"] == "anonymous_inference_failed"
+    expected_content = (
+        app_fence + "Corrected [source](embed:source-ref).\n\nCreate an account to keep using OpenMates."
+        if failure_reason else snapshots[-1]
+    )
+    assert final_chunk["full_content_so_far"] == expected_content
+    assert final_chunk["rejection_reason"] == (failure_reason or "anonymous_inference_failed")
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)
     assert [event["payload"]["embed_id"] for event in events if event["type"] == "send_embed_data"] == ["result-1"]
@@ -633,6 +694,7 @@ async def test_anonymous_sse_uses_authoritative_final_snapshot_after_redis_prefi
         if frame.startswith("data: {")
     ]
     assert openai_payloads[-1]["full_content"] == snapshots[-1]
+    assert openai_payloads[-1].get("failure_reason") == failure_reason
     assert openai_payloads[-1]["choices"][0]["delta"] == {}
     assert openai_payloads[-1]["choices"][0]["finish_reason"] == "error"
     emitted_deltas = [

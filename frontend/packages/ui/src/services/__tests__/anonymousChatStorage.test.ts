@@ -424,6 +424,79 @@ describe("anonymousChatStorage", () => {
       .toEqual([expect.objectContaining({ message_id: streamedMessageId, content: assistant })]);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,billing.anonymous.local-only-content
+  it("keeps partial anonymous work and a failed terminal message after a usage limit", async () => {
+    const assistant = "Search results are ready.\n\nCreate an account to keep using OpenMates.";
+    const frames = [
+      { type: "ai_typing_started", message_id: "limited-assistant" },
+      { type: "ai_message_chunk", message_id: "limited-assistant", full_content_so_far: "Search results are ready.", is_final_chunk: false },
+      { type: "ai_message_chunk", message_id: "limited-assistant", full_content_so_far: assistant, is_final_chunk: true, rejection_reason: "anonymous_usage_limit" },
+      { type: "ai_task_ended", status: "failed" },
+    ].map((payload) => `data: ${JSON.stringify(payload)}\n\n`).join("");
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(frames));
+          controller.close();
+        },
+      }),
+    })));
+
+    const storage = await loadStorage();
+    const result = await storage.sendTextMessage({ markdown: "Search official docs" });
+    const messages = await storage.getMessagesForChat(result.chat.chat_id);
+
+    expect(result.userMessage.status).toBe("synced");
+    expect(result.assistantMessage).toEqual(expect.objectContaining({
+      message_id: "limited-assistant",
+      content: assistant,
+      status: "failed",
+    }));
+    expect(messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: "user", content: "Search official docs", status: "synced" }),
+      expect.objectContaining({ role: "assistant", content: assistant, status: "failed" }),
+    ]));
+    expect(mockChatSyncService.dispatchEvent.mock.calls.map(([event]) => (event as CustomEvent).type))
+      .toContain("aiTaskEnded");
+    expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith(result.chat.chat_id);
+    expect(mockChatDB.deleteChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final,billing.anonymous.hard-capped-provider-metering
+  it("keeps the signup notice when an accepted request reaches its limit before dispatch", async () => {
+    const notice = "Create an account to keep using OpenMates.";
+    const frames = [
+      { type: "ai_typing_started", message_id: "limited-before-dispatch" },
+      { type: "ai_message_chunk", message_id: "limited-before-dispatch", full_content_so_far: notice,
+        is_final_chunk: true, rejection_reason: "anonymous_usage_limit" },
+      { type: "ai_task_ended", status: "failed" },
+    ].map((payload) => `data: ${JSON.stringify(payload)}\n\n`).join("");
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/event-stream" }),
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(frames));
+          controller.close();
+        },
+      }),
+    })));
+
+    const storage = await loadStorage();
+    const result = await storage.sendTextMessage({ markdown: "A costly request" });
+
+    expect(result.assistantMessage).toEqual(expect.objectContaining({ content: notice, status: "failed" }));
+    expect(await storage.getMessagesForChat(result.chat.chat_id)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: "user", content: "A costly request", status: "synced" }),
+      expect.objectContaining({ role: "assistant", content: notice, status: "failed" }),
+    ]));
+    expect(mockChatDB.deleteChat).not.toHaveBeenCalled();
+  });
+
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
   it("orders same-second anonymous request history by conversation turn", async () => {
     const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "First answer" });

@@ -9798,6 +9798,13 @@ async def _consume_main_processing_stream(
         category=preprocessing_result.category or "general_knowledge"
     )
     if getattr(request_data, "is_anonymous", False):
+        # The anonymous SSE adapter must not present a failed answer as a
+        # completed task. Only this public, non-diagnostic limit code is sent
+        # to the client; other failure details remain server-side.
+        if terminal_failure_applies:
+            final_payload["error"] = True
+            if terminal_failure_reason == "anonymous_usage_limit":
+                final_payload["failure_reason"] = "anonymous_usage_limit"
         anonymous_embeds = [
             embed
             for tool_call in tool_calls_info or []

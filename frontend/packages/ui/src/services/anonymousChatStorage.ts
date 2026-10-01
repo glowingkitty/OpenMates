@@ -364,7 +364,7 @@ class AnonymousChatStorage {
       chat_id: chatId,
       role: "assistant",
       content: response.assistant ?? "",
-      status: "synced",
+      status: response.status === "failed" ? "failed" : "synced",
       created_at: nextAnonymousMessageTimestamp(pendingMessages, Math.floor(Date.now() / 1000)),
       user_message_id: userMessage.message_id,
       category: response.category ?? undefined,
@@ -616,6 +616,7 @@ class AnonymousChatStorage {
     let modelName: string | null = null;
     let rejectionReason: string | null = null;
     let taskEndedStatus: string | null = null;
+    let hasStreamProgress = false;
 
     const handlePayload = async (rawPayload: AnonymousStreamPayload) => {
       const payload = normalizeStreamPayload(rawPayload);
@@ -641,6 +642,7 @@ class AnonymousChatStorage {
           const chunkPayload = this.toMessageChunkPayload(payload, chat.chat_id, userMessageId, messageId, modelName);
           messageId = chunkPayload.message_id;
           assistant = chunkPayload.full_content_so_far;
+          if (!chunkPayload.is_final_chunk && assistant.trim()) hasStreamProgress = true;
           modelName = chunkPayload.model_name ?? modelName;
           if (typeof payload.rejection_reason === "string") {
             rejectionReason = payload.rejection_reason;
@@ -649,6 +651,7 @@ class AnonymousChatStorage {
           break;
         }
         case "send_embed_data": {
+          hasStreamProgress = true;
           const { handleSendEmbedDataImpl } = await import("./chatSyncServiceHandlersAI");
           const embedPayload = payload.payload && typeof payload.payload === "object"
             ? payload.payload as Record<string, unknown>
@@ -717,12 +720,17 @@ class AnonymousChatStorage {
     buffer += decoder.decode();
     await drainBuffer(true);
 
-    if (rejectionReason || taskEndedStatus === "failed") {
+    // An admission rejection has no completed work, so the composer may keep
+    // its draft. A failure after streamed content or a tool result is a real
+    // local turn: persist its result and terminal status instead of deleting it.
+    if (rejectionReason && !hasStreamProgress
+      && rejectionReason !== "anonymous_usage_limit"
+      && rejectionReason !== "anonymous_inference_failed") {
       throw new AnonymousFreeUsageExhaustedError(rejectionReason ?? "budget_exhausted");
     }
 
     return {
-      status: "completed",
+      status: rejectionReason || taskEndedStatus === "failed" ? "failed" : "completed",
       chatId: activeChat.chat_id,
       messageId,
       assistant,
