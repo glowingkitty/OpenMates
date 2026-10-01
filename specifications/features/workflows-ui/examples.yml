@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@6
+specification: feature.workflows-ui@7
 workflow_file_export:
 - id: more-exports-current-saved-workflow
   assertion_ids: [workflows-ui.files.more-export]
@@ -554,3 +554,10 @@ run_deletion:
   when: Alice confirms deleting Run 1.
   then: The dialog explains forgetting and retained chat output; after deletion the apartment is eligible again
     and the old message run preview shows unavailable. Pending deletion is shown until any pending write is fenced.
+
+website_changes:
+- id: website-changes-1
+  assertion_ids: [workflows-ui.website-change.composition]
+  given: "Alice has added Read website for events.ccc.de before a Check."
+  when: "She selects its Has changed output or inserts its Changes output into an AI question."
+  then: "The existing Check controls remain available, readable output labels appear, and guidance explains the first silent baseline and failed-read behavior."

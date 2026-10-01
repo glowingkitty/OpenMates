@@ -201,6 +201,9 @@ class WorkflowActionAdapter:
         history = WorkflowDeliveryHistory(self._workflow_service)
         key = await run_in_threadpool(history.key, workflow_id, user_id)
         destination = keyed_fingerprint(key, f"destination:v1:{node_id}:" + (f"chat:{config['chat_id']}" if config.get("chat_id") else "new-chat"))
+        website_event = execution.get("website_active")
+        if website_event and node_id not in website_event["targets"]:
+            website_event = None
         candidates, candidate_values = [], []
         for block_index, block in enumerate(preview["blocks"]):
             value = block["value"]
@@ -217,7 +220,18 @@ class WorkflowActionAdapter:
                 fingerprint = keyed_fingerprint(key, identity)
                 candidates.append({"index": len(candidates), "fingerprint": fingerprint, "only_new": True})
                 candidate_values.append((block_index, item_index, item, fingerprint))
-        selected = (set(range(len(candidate_values))) if prepared else set(await run_in_threadpool(
+        if website_event:
+            if candidates:
+                raise WorkflowActionExecutionError("WORKFLOW_WEBSITE_RESULT_LISTS_UNSUPPORTED",
+                    "Website-change notifications support text and links. Send result-list embeds in a separate workflow.")
+            selected_event = await run_in_threadpool(history.reserve, user_id=user_id, workflow_id=workflow_id,
+                run_id=run_id, node_id=node_id, delivery_id=delivery_id, destination_hash=destination,
+                candidates=[{"index": 0, "fingerprint": keyed_fingerprint(key, "website-change:" + website_event["id"]),
+                             "only_new": True, "membership_kind": "website_change", "change_id": website_event["id"]}],
+                expires_at=expires_at)
+            if not selected_event:
+                return {"type": "send_chat_message", "status": "no_new_results", "selected_count": 0}
+        selected = (set(range(len(candidate_values))) if prepared or website_event else set(await run_in_threadpool(
             history.reserve, user_id=user_id, workflow_id=workflow_id,
             run_id=run_id, node_id=node_id, delivery_id=delivery_id, destination_hash=destination,
             candidates=candidates, expires_at=expires_at)))

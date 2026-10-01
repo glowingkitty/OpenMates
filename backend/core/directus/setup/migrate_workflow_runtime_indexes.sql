@@ -94,4 +94,11 @@ CREATE INDEX IF NOT EXISTS workflow_delivery_history_delivery_idx
 CREATE INDEX IF NOT EXISTS workflow_deliveries_run_idx
   ON workflow_chat_deliveries (workflow_id, run_id);
 
+CREATE INDEX IF NOT EXISTS workflow_website_state_source_idx
+  ON workflow_website_state (workflow_id, hashed_user_id, source_id, kind);
+CREATE INDEX IF NOT EXISTS workflow_website_state_origin_idx
+  ON workflow_website_state (workflow_id, origin_run_id);
+CREATE INDEX IF NOT EXISTS workflow_delivery_history_change_idx
+  ON workflow_delivery_history (workflow_id, change_id, status);
+
 COMMIT;

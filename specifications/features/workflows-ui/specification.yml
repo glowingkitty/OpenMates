@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 6
+version: 7
 status: draft
 title: Workflows Web UI
 summary: >
@@ -457,6 +457,10 @@ models:
       constraints: {keyboard_tabs_and_nodes: true, visible_focus: true, non_color_status_labels: true, reduced_motion: true, dark_mode_preserves_surface_hierarchy: true}
 
 assertions:
+  - id: workflows-ui.website-change.composition
+    type: behavior
+    must: >
+      After Website read, the existing Check editor offers Has changed since last successful read for exact comparison and Changes since last successful read for AI questions. Contextual guidance explains silent initialization, later change checks and preservation after blocked reads. Setup requires no separate change skill or new top-level Check mode.
   - id: workflows-ui.visual-language.coherent
     type: behavior
     must: Every Workflows state uses dark-mode-aware color-grey token layers, the resolved Workflow category gradient, rounded surfaces, soft elevation, compact pill controls, shallow typography, and functional motion so the start, Template, version, and Runs views read as one visual product family without raw grey values or ad hoc gradients. Body text defaults to 16px and all visible text is at least 14px, including compact preview titles, subtitles, badges, forms and placeholder text. Controls use the canonical supplied-design assets rather than unrelated Lucide or invented replacements. Every user-facing workflow screen renders scalar and nested values as labeled readable content and result collections as shared cards or readable lists; raw JSON, object dumps and debug schemas are forbidden, including expandable detail panels. Empty, error and unavailable states use plain language.

@@ -34,7 +34,7 @@ class FakeDatabase {
     const database = (name) => new Query(database.tables[name]);
     database.tables = Object.fromEntries([
       'workflows', 'workflow_versions', 'workflow_triggers', 'workflow_runs', 'workflow_encrypted_blobs',
-      'workflow_input_mutations', 'workflow_authoring_operations',
+      'workflow_input_mutations', 'workflow_authoring_operations', 'workflow_website_state', 'workflow_chat_deliveries',
     ].map((table) => [table, []]));
     database.transaction = (callback) => {
       const copy = structuredClone(database.tables);

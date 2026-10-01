@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@7
+specification: feature.workflows@8
 portable_definition:
 - id: cli-web-definition-roundtrip
   given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
@@ -372,3 +372,25 @@ skill_billing:
   given: Alice has insufficient credits for a paid Workflow skill.
   when: A full run or node Test attempts that skill.
   then: Paid work is rejected, the failure is visible and downstream steps do not execute; deterministic Preview alone remains uncharged.
+
+website_changes:
+- id: website-changes-1
+  assertion_ids: [workflows.website-change.baseline]
+  given: "Alice watches events.ccc.de for Congress announcements."
+  when: "The first read succeeds, the next is unchanged, and the third returns a browser challenge."
+  then: "The first read initializes silently, the second makes no AI decision, and the blocked read reports its failure while keeping the usable baseline."
+- id: website-changes-2
+  assertion_ids: [workflows.website-change.diff-inputs]
+  given: "A saved page gains a Congress article with a link while a large unrelated article is unchanged."
+  when: "A Check asks whether the Changes output announces Congress news."
+  then: "Jev receives the diff with the new article link, without the unchanged article or a full snapshot. A diff exceeding the limit reports a clear failure."
+- id: website-changes-3
+  assertion_ids: [workflows.website-change.retry]
+  given: "A Congress update matches, but its summary delivery awaits an offline owner device."
+  when: "The website remains unchanged on the next run, then the device reconnects and acknowledges the message."
+  then: "The pending change survives without another decision or summary call; one message is persisted and later runs send nothing for that occurrence."
+- id: website-changes-4
+  assertion_ids: [workflows.website-change.lifecycle]
+  given: "Alice and Bob watch the same URL in separate Workflows, and Alice has a pending update."
+  when: "Alice tests a step, changes the watched URL, or deletes the run that owns its comparison state."
+  then: "Bob is unaffected. The step test changes no baseline; a changed URL initializes silently; deletion forgets the owned state and prevents a late pending write."

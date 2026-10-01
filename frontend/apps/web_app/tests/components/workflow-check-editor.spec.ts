@@ -16,6 +16,39 @@ async function select(page: Page, id: string, name: string | RegExp): Promise<vo
 }
 
 test.describe('Workflow If editor', () => {
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition,workflows.website-change.baseline
+  test('explains a blocked website read in run detail', async ({ page }: { page: Page }) => {
+    await page.goto('/dev/preview/workflows/WorkflowGraphRenderer?variant=websiteBlocked&theme=light&width=900&chrome=0', { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    const read = page.locator('[data-node-id="read"]');
+    await read.getByTestId('workflow-node-summary').click();
+    await expect(read.locator('.error')).toHaveText('This website blocked the read. The last successful version was kept.');
+  });
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.website-change.composition,workflows.website-change.diff-inputs
+  test('offers website change fields through existing exact and AI Checks with baseline guidance', async ({ page }: { page: Page }) => {
+    let saved: { nodes: Array<{ id: string; config: Record<string, unknown> }> } | undefined;
+    await page.route('**/v1/workflows/preview-workflow', async (route: Route) => {
+      saved = route.request().postDataJSON().graph;
+      await route.fulfill({ json: {} });
+    });
+    await openCheck(page, 'websiteChange');
+    await expect(page.getByTestId('workflow-check-variable')).toContainText('Has changed since last successful read');
+    await expect(page.getByTestId('workflow-website-change-guidance')).toContainText('first successful read');
+    await expect(page.getByTestId('workflow-website-change-guidance')).toContainText('Failed or blocked reads');
+    await page.getByTestId('workflow-check-variable').click();
+    await expect(page.getByRole('option', { name: /Changes since last successful read/ })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('workflow-node-save').click();
+    expect(saved?.nodes.find(node => node.id === 'rain')?.config.predicate).toEqual({ op: 'eq', left: '$nodes.read.output.has_changed', right: true });
+    await openCheck(page, 'websiteAiChange');
+    await expect(page.getByTestId('workflow-check-source')).toContainText('AI confirms');
+    await expect(page.getByTestId('workflow-website-change-guidance')).toBeVisible();
+    await page.locator('[data-source-node-id="read"]').click();
+    await expect(page.locator('[data-variable-reference="$nodes.read.output.changes"]')).toHaveText('Changes since last successful read');
+    await expect(page.locator('[data-variable-reference="$nodes.read.output.has_changed"]')).toHaveText('Has changed since last successful read');
+  });
+
   // contract-test: direct surface=gui.web assertions=workflows-ui.if-editor.authored-conditions,workflows.control.typed-data
   test('compares compatible outputs from two earlier app nodes with branded dropdowns', async ({ page }: { page: Page }) => {
     let savedGraph: { nodes:Array<{ id:string; config:Record<string,unknown> }> } | undefined;

@@ -258,6 +258,7 @@ async function commit(database, raw) {
           });
         }
       }
+      if (write.record.status === 'deleted') await clearWebsiteState(trx,write.workflowId,body.owner_hash);
       const head = headRow(write.record);
       if (current) {
         delete head.id;
@@ -345,6 +346,18 @@ const HEAD_CONTENT_FIELDS = [
   'encrypted_icon_ref', 'encrypted_icon_checksum', 'encrypted_slug', 'slug_lookup_hash',
 ];
 
+async function clearWebsiteState(trx, workflowId, owner) {
+  const rows = await trx('workflow_website_state').where({workflow_id:workflowId,hashed_user_id:owner});
+  const refs = rows.map(row=>row.encrypted_ref);
+  await trx('workflow_website_state').where({workflow_id:workflowId,hashed_user_id:owner}).delete();
+  if (refs.length) await trx(TABLES.blobs).where({hashed_user_id:owner}).whereIn('ref',refs).delete();
+  // Workflow deletion fences all its still-undelivered messages, including retries.
+  const deliveries = await trx('workflow_chat_deliveries').where({workflow_id:workflowId,hashed_user_id:owner.replace(/^user_sha256:/,'')});
+  for (const delivery of deliveries) if (!delivery.client_persisted_at && !['acknowledged','cancelled','expired'].includes(delivery.status)) {
+    await trx('workflow_chat_deliveries').where({id:delivery.id}).update({status:'cancelled',encrypted_payload:'',claim_generation:Number(delivery.claim_generation || 0)+1,claim_token_hash:null,revision:Number(delivery.revision || 0)+1});
+  }
+}
+
 async function updateLegacyHead(database, raw) {
   const body = object(raw);
   if (!OWNER_RE.test(string(body.owner_hash, 80))) fail(400, 'invalid_owner');
@@ -375,6 +388,7 @@ async function updateLegacyHead(database, raw) {
       version: updated.version, updated_at: updated.updated_at,
       record_json: JSON.stringify(updated),
     });
+    if (updated.status === 'deleted') await clearWebsiteState(trx,workflowId,body.owner_hash);
     return { record: updated };
   });
 }
@@ -430,6 +444,7 @@ async function expireTemporary(database, raw) {
     await trx(TABLES.mutations).where({ target_type: 'workflow', target_id: workflowId,
       hashed_user_id: body.owner_hash }).delete();
     await trx(TABLES.triggers).where({ workflow_id: workflowId }).delete();
+    await clearWebsiteState(trx,workflowId,body.owner_hash);
     await trx('workflow_runs').where({ workflow_id: workflowId }).delete();
     await trx(TABLES.versions).where({ workflow_id: workflowId }).delete();
     await trx(TABLES.heads).where({ id: head.id }).delete();

@@ -86,7 +86,13 @@
   const appIds = $derived([...new Set(available.map(item => item.metadata.app_id).filter(Boolean))] as string[]);
   const draftCapability = $derived(draft ? capabilityFor(draft, capabilities) : undefined);
   const persistedDraft = $derived(!!draft && graph.nodes.some(node => node.id === draft?.id));
-  const outputs = $derived(draft ? outputsBefore(graph, draft.id, capabilities, insertion) : []);
+  const outputs = $derived((draft ? outputsBefore(graph, draft.id, capabilities, insertion) : []).map(output => {
+    const node = graph.nodes.find(node => node.id === output.nodeId);
+    if (node?.config?.app_id !== 'web' || node.config?.skill_id !== 'read') return output;
+    const field = output.reference.split('.output.')[1];
+    if (!['text','has_changed','changes','source_url'].includes(field)) return output;
+    return { ...output, label: `${summary(node)} · ${tr(`website_${field}`)}` };
+  }));
   const variableGroups = $derived(presentedItems(outputs));
   const eligibleOutputs = $derived([...variableGroups.basic, ...variableGroups.advanced]);
   const variableSources = $derived(graph.nodes.filter(node => eligibleOutputs.some(output => output.nodeId === node.id)).map(node => ({
@@ -95,6 +101,10 @@
     appId: String(node.config?.app_id ?? 'ai'),
     iconStyle: assetIconStyle(node.type === 'app_skill_action' ? appIcon(node) : 'workflow-check', 14, 'var(--color-font-button)'),
   })) satisfies VariableSource[]);
+  const websiteChangeSelected = $derived(outputs.some(output =>
+    ['has_changed', 'changes'].some(field => output.reference.endsWith(`.output.${field}`)) &&
+    graph.nodes.some(node => node.id === output.nodeId && node.config?.app_id === 'web' && node.config?.skill_id === 'read') &&
+    (record(draft?.config?.predicate).left === output.reference || (Array.isArray(draft?.config?.selected_inputs) && draft.config.selected_inputs.includes(output.reference)))));
   const checkSources = $derived(variableSources.filter(source => graph.nodes.some(node => node.id === source.nodeId && node.type === 'app_skill_action')));
   const checkSourceOptions = $derived([...checkSources.map(source => sourceOption(source)), {
     value: 'ai', label: tr('ai_confirms'), iconStyle: assetIconStyle('ai', 16, 'var(--color-font-button)'), iconBackground: appGradient('ai'),
@@ -299,10 +309,21 @@
     const keys = String(node.config?.app_id) === 'weather' ? ['summary','rain_probability','max_temperature_c','rain_expected','rain_summary','forecast_day','forecast_days','rain_periods'] : data.results ? ['result_count','results','warnings','partial'] : null;
     return keys ? Object.fromEntries(keys.filter(key => key in data).map(key => [key, data[key]])) : Object.fromEntries(valueEntries(data));
   }
-  function workflowErrorText(error: unknown, fallback: string): string {
+  function workflowErrorText(error: unknown, fallback: string, errorCode?: string | null): string {
     const code = error instanceof WorkflowApiError ? error.code : typeof error === 'string' ? error : '';
     const keys: Record<string, string> = { WORKFLOW_AI_CHECK_NOT_BOOLEAN: 'ai_check_not_boolean', WORKFLOW_AI_ASK_REQUIRES_APP_ACTION: 'ask_ai_app_warning', INSUFFICIENT_CREDITS: 'insufficient_credits', WORKFLOW_AI_CHECK_VALIDATION_UNAVAILABLE: 'ai_validation_unavailable', WORKFLOW_AI_ASK_VALIDATION_UNAVAILABLE: 'ai_validation_unavailable' };
-    return tr(keys[code ?? ''] ?? fallback);
+    Object.assign(keys, {
+      WORKFLOW_WEBSITE_READ_BLOCKED: 'website_read_blocked',
+      WORKFLOW_WEBSITE_READ_EMPTY: 'website_read_unusable',
+      WORKFLOW_WEBSITE_READ_FAILED: 'website_read_unusable',
+      WORKFLOW_WEBSITE_READ_PARTIAL: 'website_read_unusable',
+      WORKFLOW_WEBSITE_READ_TOO_LARGE: 'website_change_too_large',
+      WORKFLOW_WEBSITE_DIFF_TOO_LARGE: 'website_change_too_large',
+      WORKFLOW_WEBSITE_REQUIRES_ONE_PAGE: 'website_change_one_page',
+      WORKFLOW_WEBSITE_MULTIPLE_SOURCES: 'website_change_one_page',
+      WORKFLOW_WEBSITE_PENDING_LIMIT: 'website_change_pending_limit',
+    });
+    return tr(keys[code ?? ''] ?? keys[errorCode ?? ''] ?? fallback);
   }
   function failForUser(error: unknown, key: string): void { console.error('[Workflow builder]', error); nodeError = workflowErrorText(error, key); }
   function checkMode(mode: 'exact' | 'ai'): void {
@@ -461,7 +482,7 @@
       } else {
         testStatus = run.status === 'cancelled' ? 'cancelled' : 'failed';
         console.error('[Workflow test]', result?.error_summary ?? run.error_summary ?? run.status);
-        nodeError = workflowErrorText(result?.error_summary ?? run.error_summary, 'output_test_failed');
+        nodeError = workflowErrorText(result?.error_summary ?? run.error_summary, 'output_test_failed', result?.error_code);
       }
       testingRunId = null;
     };
@@ -687,6 +708,7 @@
             <p class="reminder">{tr('ai_check_guidance')}</p>
           </div>
         {/if}
+        {#if websiteChangeSelected}<p class="reminder" data-testid="workflow-website-change-guidance">{tr('website_change_guidance')}</p>{/if}
         <div class="check-test-controls">
           <div class="test-control">
             {#if testStatus === 'processing'}<button type="button" class="quiet test" disabled><Play size={16}/>{tr('test_action')}</button>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
@@ -725,7 +747,7 @@
     <article class="flow-node" class:ai-added={aiAddedNodeIds.includes(node.id)} class:ai-edited={aiEditedNodeIds.includes(node.id)} data-ai-change={aiAddedNodeIds.includes(node.id) ? 'added' : aiEditedNodeIds.includes(node.id) ? 'edited' : undefined} data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`}>
       {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
         <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} class:dragging={draggingNodeId === node.id} style={style(node)} data-ai-label={aiAddedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_added') : aiEditedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_edited') : undefined} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} data-can-drag={!readOnly && !!onSave && (canMoveWorkflowNode(graph, node.id, 'up') || canMoveWorkflowNode(graph, node.id, 'down'))} onpointerdown={event => startPointerDrag(event, node.id)} onclick={() => { if (!suppressNodeClick && !draggingNodeId) edit(node); }}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={run.status} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
-        {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{tr('output_step_failed')}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
+        {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{workflowErrorText(run.error_summary, 'output_step_failed', run.error_code)}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
       {/if}
     </article>
     {#if isCheck(node)}

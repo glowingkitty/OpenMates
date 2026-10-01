@@ -1733,7 +1733,19 @@ capabilities:
         - url: https://openmates.org
           formats: [markdown]
           only_main_content: true
-    output_schema: *search_output
+    output_schema:
+      type: object
+      properties:
+        text: {type: string, title: Page text, x-ui: {basic: true}}
+        has_changed: {type: boolean, title: Has changed since last successful read, x-ui: {basic: true}}
+        changes: {type: string, title: Changes since last successful read, x-ui: {basic: true}}
+        source_url: {type: string, title: Website link, x-ui: {basic: true}}
+        read_status: {type: string, title: Read status}
+        change_status: {type: string, title: Change status}
+        summary: {type: string}
+        result_count: {type: integer}
+        provider: {type: string}
+        results: {type: array, items: {type: object, additionalProperties: true}}
   workflows.create-or-modify:
     available: false
     unavailable_reason: WORKFLOW_CLIENT_ENCRYPTED_DATA_REQUIRED

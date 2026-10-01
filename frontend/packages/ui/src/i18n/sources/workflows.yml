@@ -2118,3 +2118,53 @@ run_embed.unavailable:
   context: Workflow run fullscreen message when owner data has expired or been deleted
   en: "This workflow run is no longer available."
   verified_by_human: []
+
+builder.website_text:
+  context: Website change workflow output and setup explanation
+  en: Page text
+  de: Seitentext
+
+builder.website_has_changed:
+  context: Website change workflow output and setup explanation
+  en: Has changed since last successful read
+  de: Seit dem letzten erfolgreichen Lesen geändert
+
+builder.website_changes:
+  context: Website change workflow output and setup explanation
+  en: Changes since last successful read
+  de: Änderungen seit dem letzten erfolgreichen Lesen
+
+builder.website_source_url:
+  context: Website change workflow output and setup explanation
+  en: Website link
+  de: Website-Link
+
+builder.website_change_guidance:
+  context: Website change workflow output and setup explanation
+  en: The first successful read saves a starting point without sending a message. Later runs check only changes. Failed or blocked reads keep the last successful version.
+  de: Das erste erfolgreiche Lesen speichert den Ausgangspunkt, ohne eine Nachricht zu senden. Spätere Ausführungen prüfen nur Änderungen. Fehlgeschlagene oder blockierte Leseversuche behalten die letzte erfolgreiche Version.
+
+builder.website_read_blocked:
+  context: Website monitoring read failure; the saved baseline is preserved
+  en: This website blocked the read. The last successful version was kept.
+  de: Diese Website hat das Lesen blockiert. Die letzte erfolgreiche Version wurde beibehalten.
+
+builder.website_read_unusable:
+  context: Website monitoring returned failed, empty or incomplete extraction
+  en: This website did not return usable, complete text. The last successful version was kept.
+  de: Diese Website hat keinen brauchbaren, vollständigen Text geliefert. Die letzte erfolgreiche Version wurde beibehalten.
+
+builder.website_change_too_large:
+  context: Website text or its diff exceeds safe monitoring limits
+  en: The page or its changes are too large to check completely. The last successful version was kept.
+  de: Die Seite oder ihre Änderungen sind zu groß für eine vollständige Prüfung. Die letzte erfolgreiche Version wurde beibehalten.
+
+builder.website_change_one_page:
+  context: Monitoring supports one URL per Read website and one source per Check
+  en: Use one website URL per read and one website change source per condition.
+  de: Verwende eine Website-URL pro Lesevorgang und eine Website-Änderungsquelle pro Bedingung.
+
+builder.website_change_pending_limit:
+  context: Website monitoring queue cannot accept more pending changes
+  en: Too many changes are waiting for evaluation or delivery. The last successful version was kept.
+  de: Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten.

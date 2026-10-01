@@ -49,6 +49,15 @@ const defaultProps = {
     ),
   ],
   capabilityFixtures: [
+    { id: "web.read", type: "app_skill", enabled: true, title: "Read website", metadata: {
+      app_id: "web", skill_id: "read", input_schema: { type: "object", properties: { url: { type: "string" } } },
+      output_schema: { type: "object", properties: {
+        text: { type: "string", title: "Page text", "x-ui": { basic: true } },
+        has_changed: { type: "boolean", title: "Has changed since last successful read", "x-ui": { basic: true } },
+        changes: { type: "string", title: "Changes since last successful read", "x-ui": { basic: true } },
+        source_url: { type: "string", title: "Website link", "x-ui": { basic: true } },
+      } }, workflow: { test_allowed: true },
+    } },
     {
       id: "weather.forecast",
       type: "app_skill",
@@ -438,6 +447,15 @@ function comparisonCheckGraph(): WorkflowGraph {
 }
 
 export default defaultProps;
+function websiteChangeGraph(ai = false): WorkflowGraph {
+  return { version: 1, trigger_node_id: "trigger", nodes: [
+    { id: "trigger", type: "manual_trigger", config: {} },
+    { id: "read", type: "app_skill_action", title: "Read website", config: { app_id: "web", skill_id: "read", input: { url: "https://events.ccc.de" } } },
+    { id: "rain", type: "check", config: ai ? { mode: "ai", question: "Do these changes announce a new Chaos Communication Congress article? {{steps.read.changes}}", selected_inputs: ["$nodes.read.output.changes"] } : { mode: "exact", predicate: { op: "eq", left: "$nodes.read.output.has_changed", right: true } } },
+    { id: "message", type: "send_chat_message", config: { title: "Congress updates", message: "{{steps.read.changes}}\n{{steps.read.source_url}}" } },
+  ], edges: [{ from: "trigger", to: "read" }, { from: "read", to: "rain" }, { from: "rain", to: "message", branch: ai ? "true" : "yes" }] };
+}
+
 export const variants = {
   askAiTestable: {
     ...defaultProps,
@@ -475,6 +493,13 @@ export const variants = {
   aiCheck: { ...defaultProps, graph: aiCheckGraph() },
   exactCheckTestable: { ...defaultProps, workflowId: "preview-workflow" },
   aiCheckTestable: { ...defaultProps, workflowId: "preview-workflow", graph: aiCheckGraph(), onSave:saveTestGraph },
+  websiteChange: { ...defaultProps, workflowId: "preview-workflow", graph: websiteChangeGraph(), onSave: saveTestGraph },
+  websiteAiChange: { ...defaultProps, workflowId: "preview-workflow", graph: websiteChangeGraph(true), onSave: saveTestGraph },
+  websiteBlocked: { ...defaultProps, readOnly: true, onSave: null, graph: websiteChangeGraph(), nodeRuns: [{
+    id: "blocked-read", run_id: "preview-run", workflow_id: "preview-workflow", node_id: "read",
+    node_type: "app_skill_action", status: "failed", error_code: "WORKFLOW_WEBSITE_READ_BLOCKED",
+    error_summary: "WORKFLOW_WEBSITE_READ_BLOCKED", input_summary: { url: "https://events.ccc.de" }, output_summary: {},
+  }] },
   comparisonCheck: { ...defaultProps, workflowId:"preview-workflow", graph:comparisonCheckGraph(), onSave:saveTestGraph },
   weatherForecast: skillVariant(
     singleSkillGraph("weather"),

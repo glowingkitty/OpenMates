@@ -1,5 +1,6 @@
 /* Atomic run-owned delivery membership. Indexed content is HMAC identity only. */
 import { randomUUID, createHash } from 'node:crypto';
+import { fenceWebsiteDeliveries } from './website_changes.js';
 
 const FIELDS = new Set(['protocol_version','action','hashed_user_id','workflow_id','run_id','node_id','delivery_id','destination_hash','candidates','expires_at','encrypted_key_ref','delivery','run']);
 function uuid5(name) {
@@ -61,6 +62,10 @@ export async function deliveryHistory(database, body, now, fail) {
     if (!run || run.status === 'deleted') fail(409,'run_deleted');
     if (body.action === 'delete_run') {
       const refs = [run.encrypted_output_summary].filter(Boolean);
+      const websiteRows = await trx('workflow_website_state').where({...scope,origin_run_id:runId});
+      refs.push(...websiteRows.map(r=>r.encrypted_ref));
+      await fenceWebsiteDeliveries(trx,scope,websiteRows.filter(r=>r.kind === 'event').map(r=>r.id),current);
+      await trx('workflow_website_state').where({...scope,origin_run_id:runId}).del();
       const deliveries = await trx('workflow_chat_deliveries').where({...deliveryScope,run_id:runId});
       for (const d of deliveries) {
         if (d.status !== 'acknowledged') await trx('workflow_chat_deliveries').where({id:d.id}).update({status:'cancelled',cancelled_at:current,claim_generation:Number(d.claim_generation || 0)+1,claim_token_hash:null,encrypted_payload:'',encrypted_chat_metadata:null,encrypted_message:null});
@@ -85,12 +90,19 @@ export async function deliveryHistory(database, body, now, fail) {
       const knownFingerprints = new Set(knownRows.map(r=>r.fingerprint));
       const selected = [], seen = new Set();
       for (const c of body.candidates) {
-        if (!c || Object.keys(c).some(k=>!['index','fingerprint','only_new'].includes(k)) || !Number.isInteger(c.index) || c.index < 0 || !/^[a-f0-9]{64}$/.test(c.fingerprint || '') || typeof c.only_new !== 'boolean') fail(400,'invalid_candidate');
+        if (!c || Object.keys(c).some(k=>!['index','fingerprint','only_new','membership_kind','change_id'].includes(k)) || !Number.isInteger(c.index) || c.index < 0 || !/^[a-f0-9]{64}$/.test(c.fingerprint || '') || typeof c.only_new !== 'boolean') fail(400,'invalid_candidate');
+        if (c.membership_kind && c.membership_kind !== 'website_change') fail(400,'invalid_membership_kind');
+        if (c.membership_kind === 'website_change') {
+          if (run.version_id !== workflow.current_version_id) fail(409,'website_version_changed');
+          const event = await trx('workflow_website_state').where({...scope,id:c.change_id,kind:'event'}).first();
+          if (!event) fail(409,'website_event_unavailable');
+          if (event.processing_run_id && (event.processing_run_id !== runId || Number(event.processing_expires_at || 0) <= current)) fail(409,'website_event_lease_lost');
+        } else if (c.change_id) fail(400,'invalid_change_id');
         if (seen.has(c.fingerprint)) continue;
         seen.add(c.fingerprint);
         if (c.only_new && knownFingerprints.has(c.fingerprint)) continue;
         selected.push(c.index);
-        await trx('workflow_delivery_history').insert({id:randomUUID(),...scope,run_id:runId,node_id:body.node_id,delivery_id:body.delivery_id,destination_hash:body.destination_hash,fingerprint:c.fingerprint,candidate_index:c.index,status:'reserved',created_at:current,expires_at:body.expires_at});
+        await trx('workflow_delivery_history').insert({id:randomUUID(),...scope,run_id:runId,node_id:body.node_id,delivery_id:body.delivery_id,destination_hash:body.destination_hash,fingerprint:c.fingerprint,candidate_index:c.index,membership_kind:c.membership_kind || 'result',change_id:c.change_id || null,status:'reserved',created_at:current,expires_at:body.expires_at});
       }
       return {selected_indexes:selected};
     }
@@ -99,6 +111,10 @@ export async function deliveryHistory(database, body, now, fail) {
       const allowed = new Set(['delivery_id','hashed_user_id','workflow_id','run_id','node_id','chat_id','message_id','encrypted_payload','status','revision','claim_generation','claim_token_hash','claim_issued_at','claim_expires_at','claim_device_id','encrypted_chat_metadata','encrypted_message','client_persisted_at','acknowledged_at','cancelled_at','expired_at','created_at','expires_at']);
       if (!d || Object.keys(d).some(k=>!allowed.has(k)) || d.workflow_id !== body.workflow_id || d.hashed_user_id !== deliveryScope.hashed_user_id || d.run_id !== runId) fail(400,'invalid_delivery');
       const existing = await trx('workflow_chat_deliveries').where({...deliveryScope,delivery_id:d.delivery_id}).first();
+      const websiteMembership = await trx('workflow_delivery_history').where({...scope,delivery_id:d.delivery_id,membership_kind:'website_change'}).first();
+      // Already persisted owner ciphertext still needs its ACK. Unpersisted
+      // notifications from an obsolete definition must not cross the edit.
+      if (websiteMembership && !existing?.client_persisted_at && run.version_id !== workflow.current_version_id) fail(409,'website_version_changed');
       if (d.client_persisted_at && !existing?.client_persisted_at) {
         if (!existing || existing.status !== 'claimed' || Number(existing.claim_expires_at || 0) <= current) fail(409,'delivery_claim_expired');
         let metadata, message;
@@ -113,7 +129,7 @@ export async function deliveryHistory(database, body, now, fail) {
         const embeds = message.embeds || [];
         if (!Array.isArray(embeds) || embeds.length > 500) fail(400,'invalid_client_embeds');
         const members = await trx('workflow_delivery_history').where({...scope,delivery_id:d.delivery_id});
-        const expected = new Set(members.map(r=>uuid5(`${d.delivery_id}:embed:${r.fingerprint}`)));
+        const expected = new Set(members.filter(r=>r.membership_kind !== 'website_change').map(r=>uuid5(`${d.delivery_id}:embed:${r.fingerprint}`)));
         if (embeds.length !== expected.size) fail(400,'selected_embeds_required');
         const sha = value=>createHash('sha256').update(value,'utf8').digest('hex');
         const hashChat = sha(d.chat_id);

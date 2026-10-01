@@ -2121,6 +2121,10 @@ class WorkflowService:
         record["enabled"] = False
         record["updated_at"] = int(time.time())
         self.repository.save_workflow(record)
+        for state_id, state in list(getattr(self.repository, "_website_state", {}).items()):
+            if state["workflow_id"] == workflow_id:
+                self.repository.delete_encrypted_blob(state["encrypted_ref"])
+                self.repository._website_state.pop(state_id)
         self._delete_workflow_trigger(workflow_id, record.get("owner_hash"), user_id)
         return True
 
@@ -2199,6 +2203,10 @@ class WorkflowService:
                 raise WorkflowNotFoundError(run_id)
             if run.get("encrypted_content_ref"):
                 self.repository.delete_encrypted_blob(run["encrypted_content_ref"])
+            for state_id, state in list(getattr(self.repository, "_website_state", {}).items()):
+                if state["workflow_id"] == workflow_id and state["origin_run_id"] == run_id:
+                    self.repository.delete_encrypted_blob(state["encrypted_ref"])
+                    self.repository._website_state.pop(state_id)
             self.repository._delivery_history[:] = [r for r in self.repository._delivery_history if r["run_id"] != run_id]
             self.repository.runs[run_id] = {"id": run_id, "workflow_id": workflow_id,
                                          "owner_hash": _hash_owner_id(user_id), "status": "deleted"}

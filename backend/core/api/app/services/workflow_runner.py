@@ -18,7 +18,7 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter, WorkflowActionExecutionError
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter, WorkflowSkillBillingError
-from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt
+from backend.core.api.app.services.workflow_ai_service import WorkflowAiService, render_bounded_ask_ai_prompt, is_website_diff_reference, _bounded_runtime_inputs
 from backend.core.api.app.services.workflow_result_selection import prepare_ask_destinations, sanitize_workflow_ai_answer, selected_context
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
@@ -30,6 +30,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowRunStatus,
 )
 from backend.core.api.app.services.workflow_service import WorkflowService
+from backend.core.api.app.services.workflow_website_changes import WorkflowWebsiteChanges, website_plan
 from backend.core.api.app.services.workflow_template_expressions import resolve_workflow_path, resolve_workflow_template
 from backend.shared.python_utils.billing_utils import BillingError, ensure_credit_headroom
 
@@ -102,6 +103,7 @@ class WorkflowRunner:
         trigger_node = next((n for n in workflow.graph.nodes if n.id == workflow.graph.trigger_node_id), None)
         context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}, "workflow": {
             "workflow_id": workflow.id, "run_id": run_id, "started_at": started_at,
+            "version_id": version_id, "vault_key_id": vault_key_id, "website_plan": website_plan(workflow.graph),
             "timezone": ((trigger_node.config.get("schedule") or {}).get("timezone") or trigger_node.config.get("timezone") or "UTC") if trigger_node else "UTC",
         }}
         node_runs: list[WorkflowNodeRun] = []
@@ -140,6 +142,15 @@ class WorkflowRunner:
                     status=WorkflowNodeRunStatus.RUNNING, started_at=int(time.time()))], output_summary=context)
             await run_in_threadpool(self.workflow_service.save_run, user_id, progress, vault_key_id)
             reusable = reusable_ai_outputs.get(node.id)
+            if node.type == WorkflowNodeType.CHECK and context["workflow"].get("website_plan"):
+                # Website decisions are cached by occurrence, not merely by run.
+                reusable = None
+            active_event = context["workflow"].get("website_active")
+            if active_event and node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask":
+                cached = active_event.get("outputs", {}).get(node.id)
+                if cached:
+                    # This occurrence's summary is reused, without charging a later run.
+                    reusable = (dict(cached), 0)
             if reusable is None and node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask":
                 descendants: set[str] = set()
                 pending = [node.id]
@@ -175,6 +186,25 @@ class WorkflowRunner:
             else:
                 node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
             node_runs.append(node_run)
+            active_event = context["workflow"].get("website_active")
+            if active_event and node_run.status == WorkflowNodeRunStatus.COMPLETED:
+                is_check = node.type == WorkflowNodeType.CHECK
+                is_summary = node.type == WorkflowNodeType.APP_SKILL_ACTION and node.config.get("app_id") == "ai" and node.config.get("skill_id") == "ask"
+                matched = node_run.output_summary.get("matched")
+                if (is_check and matched is not None) or is_summary:
+                    consume = is_check and (matched is False or
+                        (matched is True and not active_event["targets"] and active_event["node_id"] == node.id))
+                    if active_event.get("outputs", {}).get(node.id) != node_run.output_summary:
+                        try:
+                            store = await run_in_threadpool(self._website_store, context, user_id)
+                            await run_in_threadpool(store.save_event_output,
+                                active_event, node.id, node_run.output_summary, discard=consume)
+                        except Exception:
+                            node_run.status = WorkflowNodeRunStatus.FAILED
+                            node_run.error_code = "WORKFLOW_WEBSITE_STATE_UNAVAILABLE"
+                            node_run.error_summary = "Website change progress could not be saved"
+                    if consume:
+                        context["workflow"].pop("website_active", None)
             if reusable is not None and isinstance(node_run.output_summary.get("prepared"), dict):
                 context["workflow"].setdefault("prepared", {}).update(node_run.output_summary["prepared"])
             context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value, "app_id": node.config.get("app_id"), "skill_id": node.config.get("skill_id")}
@@ -434,12 +464,46 @@ class WorkflowRunner:
                 input_summary=node.input_mapping,
             )
 
+    def _website_store(self, context: dict[str, Any], user_id: str) -> WorkflowWebsiteChanges:
+        execution = context["workflow"]
+        return WorkflowWebsiteChanges(self.workflow_service, execution["workflow_id"], user_id,
+            execution["run_id"], execution["version_id"], execution.get("vault_key_id"))
+
     async def _execute_node(self, node: WorkflowNode, context: dict[str, Any], user_id: str) -> dict[str, Any]:
         if node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER}:
             return {"triggered": True, "trigger": node.type.value}
         if node.type == WorkflowNodeType.APP_SKILL_ACTION:
             return await self._execute_app_skill(node, context, user_id)
         if node.type.value in {"decision", "check"}:
+            execution = context.get("workflow") or {}
+            monitored_sources = [read_id for read_id, plan in execution.get("website_plan", {}).items()
+                                 if any(c["node_id"] == node.id or any(g["node_id"] == node.id for g in c.get("gates", []))
+                                        for c in plan["consumers"])]
+            if len(monitored_sources) > 1:
+                raise WorkflowActionExecutionError("WORKFLOW_WEBSITE_MULTIPLE_SOURCES", "Use one website change source per Check")
+            if monitored_sources and not execution.get("step_test"):
+                execution.pop("website_active", None)
+                read_output = context["nodes"][monitored_sources[0]]["output"]
+                consumer_ids = [c["node_id"] for c in execution["website_plan"][monitored_sources[0]]["consumers"]
+                                if c["node_id"] == node.id or any(g["node_id"] == node.id for g in c.get("gates", []))]
+                source_events = execution.get("website_events", {}).get(monitored_sources[0], {})
+                events = [source_events.get(consumer_id) for consumer_id in consumer_ids]
+                event = next((event for event in events if event and not (event["targets"] and
+                    set(event["targets"]) <= set(event.get("reserved_targets", [])))), None)
+                if not event or (event["targets"] and set(event["targets"]) <= set(event.get("reserved_targets", []))):
+                    return {"matched": False, "branch": "false" if node.config.get("mode") == "ai" else "no",
+                            "decision_path": "no_decision", "change_status": read_output.get("change_status"),
+                            "reason": "delivery_pending" if event else read_output.get("change_status")}
+                store = await run_in_threadpool(self._website_store, context, user_id)
+                claim = await run_in_threadpool(store.transaction, "claim_event", event_id=event["id"])
+                if not claim.get("claimed"):
+                    return {"matched": False, "branch": "false" if node.config.get("mode") == "ai" else "no",
+                            "decision_path": "no_decision", "reason": "change_processing"}
+                execution["website_active"] = event
+                read_output.update(changes=event["changes"], has_changed=True, source_url=event["source_url"])
+                cached = event.get("outputs", {}).get(node.id)
+                if cached:
+                    return {**cached, "_workflow_credit_cost": 0}
             if node.type == WorkflowNodeType.CHECK and node.config.get("mode", "exact") == "ai":
                 await _precheck_workflow_ai_check(user_id)
                 selected_inputs = [
@@ -447,9 +511,11 @@ class WorkflowRunner:
                         "reference": reference,
                         "label": reference.split(".output.", 1)[-1].replace("_", " "),
                         "value": _resolve_template(reference, context),
+                        **({"_complete_website_diff": True} if is_website_diff_reference(reference, context) else {}),
                     }
                     for reference in node.config["selected_inputs"]
                 ]
+                _bounded_runtime_inputs(selected_inputs)
                 if not await self.ai_service.preflight_check_evaluation(node.config["question"], selected_inputs):
                     raise WorkflowSkillBillingError(
                         "WORKFLOW_AI_CHECK_UNAVAILABLE", "AI Check could not start",
@@ -554,7 +620,6 @@ class WorkflowRunner:
                 except Exception:
                     # A failed Ask has produced no chat delivery. Free every destination
                     # so the next run can retry the same results.
-                    from starlette.concurrency import run_in_threadpool
                     from backend.core.api.app.services.workflow_delivery_history import WorkflowDeliveryHistory
                     history = WorkflowDeliveryHistory(self.workflow_service)
                     for selection in prepared.values():
@@ -588,11 +653,27 @@ class WorkflowRunner:
                 on_snapshot=lambda answer: callback("chunk", answer),
             )
         else:
+            website_options = {}
+            tracking = execution.get("website_plan", {}).get(node.id)
+            if (app_id, skill_id) == ("web", "read") and tracking and not execution.get("step_test"):
+                # Fresh markdown is fetched through normal dispatch and billing. Only
+                # projected changes reach the semantic scanner on a diff-only graph.
+                request = dict(request)
+                if "requests" in request:
+                    request["requests"] = [{**item, "max_age": 0, "formats": ["markdown"]} for item in request["requests"]]
+                else:
+                    request.update(max_age=0, formats=["markdown"])
+                observed_at = int(time.time() * 1000)
+                async def project_website(raw: dict[str, Any]) -> dict[str, Any]:
+                    store = await run_in_threadpool(self._website_store, context, user_id)
+                    return await run_in_threadpool(store.project, node.id, request, tracking, raw, observed_at)
+                website_options["website_projection"] = project_website
             output = await self.app_skill_adapter.execute(
                 app_id,
                 skill_id,
                 request,
                 user_id=user_id,
+                **website_options,
                 billing_context={
                     "workflow_id": execution.get("workflow_id"),
                     "run_id": execution.get("run_id"),
@@ -600,6 +681,8 @@ class WorkflowRunner:
                     "source": "workflow_test" if execution.get("step_test") else "workflow",
                 },
             )
+            if website_options:
+                execution.setdefault("website_events", {})[node.id] = output.pop("_website_events", {})
         if output.get("error"):
             raise WorkflowActionExecutionError("WORKFLOW_SKILL_FAILED", "The selected app skill could not complete this step")
         return output

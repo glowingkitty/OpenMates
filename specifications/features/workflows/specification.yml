@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows
-version: 7
+version: 8
 status: draft
 title: Workflows
 summary: >
@@ -170,6 +170,22 @@ models:
       constraints: {uses_delivery_chat_and_message_ids: true}
 
 assertions:
+  - id: workflows.website-change.baseline
+    type: behavior
+    must: >
+      Selecting Website read change outputs in a Check enables comparison with its last successful read. The first usable read establishes a silent baseline; unchanged pages skip change-dependent AI. Fresh markdown preserves links, and failed, blocked, empty or partial reads do not overwrite the baseline.
+  - id: workflows.website-change.diff-inputs
+    type: behavior
+    must: >
+      Website read exposes typed Page text, Has changed since last successful read, Changes since last successful read and Website link outputs through existing exact and AI Checks. When only change outputs are selected, full snapshots remain encrypted comparison data and only bounded, link-preserving diffs reach semantic scanning and Jev. An oversized diff fails explicitly instead of being truncated.
+  - id: workflows.website-change.retry
+    type: behavior
+    must: >
+      Detected changes remain encrypted and independently pending for their consuming Check until rejected or all configured message destinations acknowledge delivery. Unsure, evaluation failures and message failures preserve the occurrence for retry. Pending deliveries suppress repeated evaluation and summaries; retries reuse completed decisions and summaries. Repeated A to B to A changes have distinct occurrence identities.
+  - id: workflows.website-change.lifecycle
+    type: behavior
+    must: >
+      Comparison state is owner-scoped and Vault encrypted. Atomic revision updates fence deleted runs and obsolete workflow versions. Changing the source or extraction starts a fresh silent baseline; changing a Check requirement invalidates only its old pending decisions. Step tests do not mutate monitor state. Deleting an owning run or Workflow removes its comparison state and fences pending writes.
   - id: workflows.portability.definition-roundtrip
     type: parity
     must: >

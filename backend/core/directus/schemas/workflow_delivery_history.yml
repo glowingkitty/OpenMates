@@ -29,6 +29,12 @@ workflow_delivery_history:
     candidate_index:
       type: integer
       note: "Selected result position within the encrypted delivery."
+    membership_kind:
+      type: string
+      note: "result or website_change; only result memberships require embeds."
+    change_id:
+      type: uuid
+      note: "[Indexed] Pending website change occurrence, without page content."
     status:
       type: string
       note: "reserved or delivered."

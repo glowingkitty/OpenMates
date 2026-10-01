@@ -109,6 +109,7 @@ class WorkflowAppSkillAdapter:
         *,
         user_id: str | None = None,
         billing_context: dict[str, Any] | None = None,
+        website_projection: Callable[[dict[str, Any]], Awaitable[dict[str, Any]]] | None = None,
     ) -> dict[str, Any]:
         registry = self.registry
         if registry is None:
@@ -146,6 +147,23 @@ class WorkflowAppSkillAdapter:
             raw_output = raw_output.model_dump(mode="json")
         if not isinstance(raw_output, dict):
             raw_output = {"result": raw_output}
+        workflow_credit_cost = 0
+        if website_projection is not None:
+            if (app_id, skill_id) != ("web", "read"):
+                raise ValueError("Website projection requires web.read")
+            if billing_context:
+                workflow_credit_cost = await _charge_workflow_skill_result(
+                    app_id=app_id, skill_id=skill_id, request=skill_request,
+                    result=raw_output, user_id=user_id, metadata=metadata,
+                    billing_context=billing_context,
+                )
+            try:
+                raw_output = await website_projection(raw_output)
+            except ValueError as exc:
+                code = str(exc)
+                if not code.startswith("WORKFLOW_WEBSITE_"):
+                    code = "WORKFLOW_WEBSITE_STATE_UNAVAILABLE"
+                raise WorkflowSkillBillingError(code, code, credit_cost=workflow_credit_cost) from exc
         raw_output = await sanitize_app_skill_output(
             raw_output,
             AppSkillOutputSafetyContext(
@@ -161,13 +179,12 @@ class WorkflowAppSkillAdapter:
         )
         # ai.ask settles actual token usage in its existing worker pipeline;
         # report that already-settled cost without charging it again here.
-        workflow_credit_cost = 0
         if billing_context and (app_id, skill_id) == (AI_APP_ID, AI_ASK_SKILL_ID):
             usage = raw_output.get("usage") if isinstance(raw_output.get("usage"), dict) else {}
             reported_cost = usage.get("total_credits", raw_output.get("total_credits"))
             if isinstance(reported_cost, int) and not isinstance(reported_cost, bool) and reported_cost >= 0:
                 workflow_credit_cost = reported_cost
-        if billing_context and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
+        if billing_context and website_projection is None and (app_id, skill_id) != (AI_APP_ID, AI_ASK_SKILL_ID):
             workflow_credit_cost = await _charge_workflow_skill_result(
                 app_id=app_id,
                 skill_id=skill_id,
@@ -177,7 +194,12 @@ class WorkflowAppSkillAdapter:
                 metadata=metadata,
                 billing_context=billing_context,
             )
+        # Scan every pending diff before moving consumer decisions/caches out of
+        # the public Read payload. They belong only to the runner's private context.
+        website_events = raw_output.pop("_website_events", {}) if website_projection is not None else None
         output = _normalize_skill_output(app_id, skill_id, skill_request, raw_output)
+        if website_events is not None:
+            output["_website_events"] = website_events
         if billing_context:
             output["_workflow_credit_cost"] = workflow_credit_cost
         return output
@@ -549,6 +571,20 @@ def _normalize_skill_output(
             "partial": bool(raw_output.get("warnings")),
         })
         return output
+
+    if (app_id, skill_id) == ("web", "read"):
+        from backend.shared.python_utils.website_text import website_read_status
+        pages = _search_results(raw_output)
+        page = pages[0] if len(pages) == 1 else {}
+        output.update({
+            "text": page.get("markdown") or "",
+            "source_url": page.get("source_url") or page.get("url") or "",
+            "read_status": website_read_status(page) if page else "failed",
+            "has_changed": False, "changes": "", "change_status": "not_tracking",
+        })
+        for field in ("text", "source_url", "read_status", "has_changed", "changes", "change_status"):
+            if field in raw_output:
+                output[field] = raw_output[field]
 
     results = raw_output.get("results")
     normalized_results = (

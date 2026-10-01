@@ -505,18 +505,37 @@ async def _atomic_limit(cache_service: Any, key: str, ttl_seconds: int, maximum:
 
 def _bounded_runtime_inputs(inputs: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     bounded: list[dict[str, Any]] = []
+    complete_diff = any(item.get("_complete_website_diff") is True for item in inputs)
+    if complete_diff and len(inputs) > MAX_REFERENCE_COUNT:
+        raise ValueError("WORKFLOW_WEBSITE_DIFF_TOO_LARGE")
     for item in inputs[:MAX_REFERENCE_COUNT]:
         bounded.append(
             {
                 "label": str(item.get("label") or item.get("reference") or "value")[:MAX_REFERENCE_LABEL_CHARS],
                 "reference": str(item.get("reference") or "")[:250],
-                "value": _bounded_value(item.get("value"), depth=0),
+                "value": _complete_diff_value(item.get("value"))
+                if item.get("_complete_website_diff") is True else _bounded_value(item.get("value"), depth=0),
             }
         )
     serialized = json.dumps(bounded, ensure_ascii=False, separators=(",", ":"))
     if len(serialized) > MAX_RUNTIME_INPUT_CHARS:
+        if complete_diff:
+            raise ValueError("WORKFLOW_WEBSITE_DIFF_TOO_LARGE")
         return [{"label": "selected inputs", "reference": "", "value": serialized[:MAX_RUNTIME_INPUT_CHARS]}]
     return bounded
+
+
+def _complete_diff_value(value: Any) -> str:
+    if not isinstance(value, str) or len(value) > MAX_RUNTIME_INPUT_CHARS:
+        raise ValueError("WORKFLOW_WEBSITE_DIFF_TOO_LARGE")
+    return value
+
+
+def is_website_diff_reference(reference: str, context: dict[str, Any]) -> bool:
+    expression = reference.strip().removeprefix("{{").removesuffix("}}").strip()
+    match = re.fullmatch(r"(?:steps\.([\w-]+)\.|\$nodes\.([\w-]+)\.output\.)changes", expression)
+    source = context.get("nodes", {}).get((match.group(1) or match.group(2)) if match else "", {})
+    return bool(match and source.get("app_id") == "web" and source.get("skill_id") == "read")
 
 
 def render_bounded_ask_ai_prompt(template: str, context: dict[str, Any]) -> str:
@@ -527,16 +546,19 @@ def render_bounded_ask_ai_prompt(template: str, context: dict[str, Any]) -> str:
         raise ValueError("Ask AI instruction contains an invalid or excessive Workflow reference")
     rendered_instruction = template
     values: list[dict[str, Any]] = []
+    complete_diff = False
     for index, match in reversed(list(enumerate(matches))):
         expression = match.group(1).strip()
         value = resolve_workflow_template(expression if expression.startswith("$nodes.") else match.group(0), context)
+        is_diff = is_website_diff_reference(expression, context)
+        complete_diff = complete_diff or is_diff
         marker = f"[workflow value {index + 1}]"
         values.insert(
             0,
             {
                 "marker": marker,
                 "reference": expression.split("|", 1)[0],
-                "value": _bounded_value(value, depth=0),
+                "value": _complete_diff_value(value) if is_diff else _bounded_value(value, depth=0),
             },
         )
         rendered_instruction = (
@@ -551,6 +573,8 @@ def render_bounded_ask_ai_prompt(template: str, context: dict[str, Any]) -> str:
         "workflow_values:\n"
         + json.dumps(values, ensure_ascii=False, separators=(",", ":"))
     )
+    if complete_diff and len(prompt) > MAX_RUNTIME_INPUT_CHARS:
+        raise ValueError("WORKFLOW_WEBSITE_DIFF_TOO_LARGE")
     return prompt[:MAX_RUNTIME_INPUT_CHARS]
 
 

@@ -91,6 +91,7 @@ ALWAYS_SEMANTIC_FIELD_NAMES: set[str] = {
     "details",
     "documentation",
     "markdown",
+    "changes",
     "name",
     "notes",
     "review",
