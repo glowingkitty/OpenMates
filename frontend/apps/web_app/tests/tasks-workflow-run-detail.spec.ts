@@ -70,9 +70,15 @@ test.describe('Tasks Workflow run detail', () => {
 				await expect(page.getByTestId('workflow-run-detail-node-status').first()).toBeVisible({ timeout: 30_000 });
 				await expect(board).toBeVisible();
 				if (viewport.width === 1440) {
-					const [boardBox, detailBox] = await Promise.all([board.boundingBox(), detail.boundingBox()]);
-					expect(boardBox && detailBox).toBeTruthy();
-					expect(boardBox!.x + boardBox!.width).toBeLessThanOrEqual(detailBox!.x + 2);
+					const workspace = page.getByTestId('tasks-figma-workspace');
+					const composer = page.getByTestId('task-workspace-composer');
+					const [workspaceBox, detailBox, composerBox] = await Promise.all([
+						workspace.boundingBox(), detail.boundingBox(), composer.boundingBox()
+					]);
+					expect(workspaceBox && detailBox && composerBox).toBeTruthy();
+					expect(Math.abs(workspaceBox!.y - detailBox!.y)).toBeLessThanOrEqual(2);
+					expect(workspaceBox!.x + workspaceBox!.width).toBeLessThan(detailBox!.x);
+					expect(composerBox!.x + composerBox!.width).toBeLessThanOrEqual(workspaceBox!.x + workspaceBox!.width + 1);
 				} else {
 					const box = await detail.boundingBox();
 					expect(box && box.width >= viewport.width - 2 && box.height >= viewport.height - 2).toBe(true);

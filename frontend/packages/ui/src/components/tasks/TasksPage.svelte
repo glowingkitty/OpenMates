@@ -100,6 +100,7 @@
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
   let tasksPageWidth = $state(900);
+  let tasksWorkspaceWidth = $state(900);
   let searchTerm = $state('');
   let showTaskSearch = $state(false);
   let showDesktopTaskTags = $state(true);
@@ -115,8 +116,15 @@
   let tasksEnabled = $derived(previewTasks !== null || (featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true));
   let plansEnabled = $derived(previewPlans !== null || (!hasPreviewData && featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true));
   let isCentralTasksWorkspace = $derived(!compact);
-  let isNarrowTasksWorkspace = $derived(tasksPageWidth <= 900);
+  let isNarrowTasksWorkspace = $derived(tasksWorkspaceWidth <= 900);
   let canSplitTaskDetail = $derived(tasksPageWidth >= 1100);
+  let showSplitTaskDetail = $derived(isCentralTasksWorkspace && canSplitTaskDetail && !!(selectedTask || selectedWorkflowRunProjection));
+  const selectedTaskPreviewRelated = $derived(hasPreviewData && selectedTask ? {
+    projects: selectedTask.linkedProjectIds.map((id) => ({ id, title: projectNames[id] || 'Project', description: '' })),
+    plan: null,
+    chat: null,
+    dependencies: [],
+  } : undefined);
 
   const boardPlans = $derived(plans.filter((plan) => plan.status !== 'archived'));
   const greetingName = $derived(formatGreetingName($userProfile.username));
@@ -244,7 +252,7 @@
   }
 
   async function revealTaskBoardPanel(): Promise<void> {
-    if (!isCentralTasksWorkspace || !taskBoardPanel) return;
+    if (!isCentralTasksWorkspace || !taskBoardPanel || canSplitTaskDetail) return;
     const requestedScope = getWorkspaceCacheIdentity();
     await tick();
     if (!scopeIsCurrent(requestedScope)) return;
@@ -902,7 +910,8 @@
 <section class="tasks-page" class:compact class:figma-layout={isCentralTasksWorkspace} data-testid={compact ? 'project-tasks-page' : 'tasks-page'} bind:clientWidth={tasksPageWidth}>
 
   {#if isCentralTasksWorkspace}
-    <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace">
+    <div class="tasks-workspace-layout" class:split={showSplitTaskDetail} data-testid="tasks-workspace-layout">
+    <section class="tasks-figma-workspace" data-testid="tasks-figma-workspace" aria-label="Tasks workspace" bind:clientWidth={tasksWorkspaceWidth}>
       <WorkspaceHomeShell
           surface="tasks"
           testId="tasks-workspace-home"
@@ -967,8 +976,7 @@
             <button type="button" onclick={() => void refreshTasks()}>Retry</button>
           </div>
         {:else}
-          <div class="task-board-detail-layout" class:split={(selectedWorkflowRunProjection || selectedTask) && canSplitTaskDetail}>
-            <div class="task-board-stage">
+          <div class="task-board-stage">
               <TaskBoard
                 tasks={visibleTasks}
                 plans={visiblePlans}
@@ -988,24 +996,6 @@
               {:else if visibleTasks.length === 0 && visiblePlans.length === 0}
                 <div class="tasks-filter-empty" data-testid="tasks-empty">Click above to add your first task.</div>
               {/if}
-            </div>
-            {#if selectedTask && canSplitTaskDetail}
-              <div class="task-detail-panel" data-testid="task-detail-panel">
-                <TaskDetailFullscreen
-                  task={selectedTask}
-                  {canAssignCodex}
-                  presentation="split"
-                  onTaskChange={selectedTaskChange}
-                  onClose={() => { selectedTask = null; }}
-                />
-              </div>
-            {:else if selectedWorkflowRunProjection && canSplitTaskDetail}
-              <WorkflowRunTaskDetail
-                projection={selectedWorkflowRunProjection}
-                presentation="split"
-                onClose={() => { selectedWorkflowRunProjection = null; }}
-              />
-            {/if}
           </div>
         {/if}
       </section>
@@ -1035,6 +1025,28 @@
       </svelte:fragment>
       </WorkspaceHomeShell>
     </section>
+    {#if showSplitTaskDetail}
+      <div class="task-detail-panel" data-testid="task-detail-panel">
+        {#if selectedTask}
+          <TaskDetailFullscreen
+            task={selectedTask}
+            {canAssignCodex}
+            presentation="split"
+            related={selectedTaskPreviewRelated}
+            activityEntries={hasPreviewData ? [] : undefined}
+            onTaskChange={selectedTaskChange}
+            onClose={() => { selectedTask = null; }}
+          />
+        {:else if selectedWorkflowRunProjection}
+          <WorkflowRunTaskDetail
+            projection={selectedWorkflowRunProjection}
+            presentation="split"
+            onClose={() => { selectedWorkflowRunProjection = null; }}
+          />
+        {/if}
+      </div>
+    {/if}
+    </div>
   {:else}
   {#if !compact}
   <form class="task-create-card" class:compact onsubmit={(event) => { event.preventDefault(); void handleCreateTask(); }} data-testid="task-create-form">
@@ -1193,7 +1205,7 @@
   {/if}
   {/if}
   {#if selectedTask && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
-    <TaskDetailFullscreen task={selectedTask} {canAssignCodex} onTaskChange={selectedTaskChange} onClose={() => { selectedTask = null; }} />
+    <TaskDetailFullscreen task={selectedTask} {canAssignCodex} related={selectedTaskPreviewRelated} activityEntries={hasPreviewData ? [] : undefined} onTaskChange={selectedTaskChange} onClose={() => { selectedTask = null; }} />
   {/if}
   {#if selectedWorkflowRunProjection && (!isCentralTasksWorkspace || !canSplitTaskDetail)}
     <WorkflowRunTaskDetail projection={selectedWorkflowRunProjection} presentation="overlay" onClose={() => { selectedWorkflowRunProjection = null; }} />
@@ -1213,10 +1225,22 @@
     color: var(--color-font-primary);
   }
 
-  .tasks-page > .tasks-figma-workspace,
-  .tasks-page > .tasks-figma-workspace :global(.workspace-home-shell) {
+  .tasks-workspace-layout,
+  .tasks-figma-workspace :global(.workspace-home-shell) {
     flex: 1;
     min-height: 0;
+  }
+
+  .tasks-workspace-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-5);
+    min-width: 0;
+    height: 100%;
+  }
+
+  .tasks-workspace-layout.split {
+    grid-template-columns: minmax(340px, 32%) minmax(0, 1fr);
   }
 
   .tasks-page.compact {
@@ -1508,16 +1532,11 @@
     min-height: 0;
   }
 
-  .task-board-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-5); min-width: 0; min-height: 0; }
-  .task-board-detail-layout.split { grid-template-columns: minmax(0, 1fr) minmax(420px, 46%); }
-  .task-detail-panel,
-  .task-board-detail-layout.split :global(.workflow-run-task-detail) {
-    position: sticky;
-    top: var(--spacing-4);
-    align-self: start;
+  .task-detail-panel {
+    position: relative;
     min-width: 0;
-    height: calc(100dvh - 7rem);
-    min-height: 30rem;
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
     border-radius: 17px;
   }

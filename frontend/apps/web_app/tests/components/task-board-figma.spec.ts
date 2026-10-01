@@ -1,5 +1,6 @@
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { installTasksWorkspacePreviewWorkflow } from '../helpers/tasks-workspace-preview';
 import type { Page } from '@playwright/test';
 
 // playwright-account: not_required reason=isolated_component_preview
@@ -42,6 +43,7 @@ async function expectComposerInFront(page: Page): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
+  await installTasksWorkspacePreviewWorkflow(page);
   await page.addInitScript(() => {
     window.addEventListener('task-board-preview-action', (event) => {
       document.documentElement.dataset.taskBoardAction = String((event as CustomEvent<string>).detail);
@@ -431,7 +433,7 @@ test('keeps the complete Tasks workspace and composer contained on phone', async
 });
 
 // contract-test: supporting surface=gui.web assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
-test('opens task and workflow run details beside the board when there is room', async ({ page }) => {
+test('opens task and workflow run details beside the full workspace when there is room', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(workspacePreview(1320));
   await waitForComponentPreview(page);
@@ -442,23 +444,33 @@ test('opens task and workflow run details beside the board when there is room', 
   await expect(taskPanel).toBeVisible();
   await expect(page.getByTestId('task-detail-fullscreen')).toHaveCSS('transform', /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
   await expect(board).toBeVisible();
-  const [boardBox, taskBox] = await Promise.all([board.boundingBox(), taskPanel.boundingBox()]);
-  expect(boardBox && taskBox).toBeTruthy();
-  expect(boardBox!.x + boardBox!.width).toBeLessThanOrEqual(taskBox!.x + 2);
+  const workspace = page.getByTestId('tasks-figma-workspace');
+  const [workspaceBox, taskBox] = await Promise.all([workspace.boundingBox(), taskPanel.boundingBox()]);
+  expect(workspaceBox && taskBox).toBeTruthy();
+  expect(Math.abs(workspaceBox!.y - taskBox!.y)).toBeLessThanOrEqual(2);
+  expect(workspaceBox!.x + workspaceBox!.width).toBeLessThan(taskBox!.x);
+  await expect(taskPanel.getByRole('alert')).toHaveCount(0);
+  await testInfo.attach('tasks-split-task-detail', { body: await page.getByTestId('tasks-workspace-layout').screenshot(), contentType: 'image/png' });
   await page.getByTestId('task-detail-minimize').click();
 
   await board.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
   await page.getByTestId('workflow-run-projection').click();
   const runPanel = page.getByTestId('workflow-run-projection-detail');
   await expect(runPanel).toHaveAttribute('data-presentation', 'split');
+  const [runBox, workspaceRunBox] = await Promise.all([runPanel.boundingBox(), workspace.boundingBox()]);
+  expect(runBox && workspaceRunBox).toBeTruthy();
+  expect(Math.abs(runBox!.y - workspaceRunBox!.y)).toBeLessThanOrEqual(2);
   await expect(page.getByTestId('workflow-run-fullscreen')).toHaveCSS('transform', /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
   await expect(board).toBeVisible();
-  const runBox = await runPanel.boundingBox();
   expect(runBox!.height).toBeGreaterThan(500);
   const runTitleBox = await page.getByTestId('embed-header-title').boundingBox();
   expect(runTitleBox!.y).toBeLessThan(runBox!.y + 260);
   const runId = page.getByTestId('workflow-run-detail-id');
   await expect(runId).toHaveText('weather-report-run');
+  await expect(page.getByTestId('workflow-run-detail-live-status')).toHaveAttribute('data-status', 'completed');
+  await expect(page.getByTestId('workflow-run-task-graph').getByTestId('workflow-node-card')).toHaveCount(2);
+  await expect(runPanel.getByRole('alert')).toHaveCount(0);
+  await testInfo.attach('tasks-split-workflow-run-detail', { body: await page.getByTestId('tasks-workspace-layout').screenshot(), contentType: 'image/png' });
   const runIdColors = await runId.evaluate((element) => {
     const style = getComputedStyle(element);
     return { foreground: style.color, background: style.backgroundColor };

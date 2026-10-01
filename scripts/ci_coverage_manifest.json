@@ -223,6 +223,8 @@
         "components/projects-workspace-figma.spec.ts",
         "components/record-audio-live-transcript.spec.ts",
         "components/task-board-figma.spec.ts",
+        "components/task-board-drag-drop.spec.ts",
+        "components/tasks-workspace-split.spec.ts",
         "chat-replay-demo-mode.spec.ts",
         "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",

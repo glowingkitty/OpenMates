@@ -89,7 +89,10 @@
     event.preventDefault();
     dropTargetStatus = null;
     const planId = event.dataTransfer?.getData('application/x-openmates-plan-id');
-    const taskId = event.dataTransfer?.getData('application/x-openmates-task-id') || (!planId ? event.dataTransfer?.getData('text/plain') : '');
+    // The active card is authoritative for a drag inside this board. Native
+    // transfers can omit custom data; a local move must not depend on it.
+    const taskId = draggedTaskId || event.dataTransfer?.getData('application/x-openmates-task-id') || (!planId ? event.dataTransfer?.getData('text/plain') : '');
+    draggedTaskId = null;
     const plan = plans.find((candidate) => candidate.plan_id === planId);
     if (plan && planColumn(plan.status) !== status) {
       recentlyDroppedPlanId = plan.plan_id;

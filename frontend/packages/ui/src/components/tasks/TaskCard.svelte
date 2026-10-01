@@ -11,7 +11,7 @@
     type TasksBoardItem,
     type UserTaskStatus,
   } from '../../services/userTaskService';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   let {
     task,
@@ -44,6 +44,7 @@
   const statuses: UserTaskStatus[] = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
   let workflowRun = $derived(isWorkflowRunTaskProjectionViewModel(task) ? task : null);
   let dragging = $state(false);
+  let dragImage: HTMLElement | null = null;
   let settling = $state(false);
   let isAssignedToAI = $derived(task.assigneeType === 'openmates' || task.assigneeType === 'external_ai');
   let isAssignedToUser = $derived(task.assigneeType === 'user');
@@ -62,13 +63,26 @@
     };
   });
 
+  function clearDragImage(): void {
+    dragImage?.remove();
+    dragImage = null;
+  }
+
+  onDestroy(clearDragImage);
+
   function handleDragStart(event: DragEvent): void {
+    if (workflowRun) {
+      event.preventDefault();
+      return;
+    }
+    clearDragImage();
     dragging = true;
     onDragStart(task);
     event.dataTransfer?.setData('application/x-openmates-task-id', task.task_id);
     event.dataTransfer?.setData('text/plain', task.task_id);
     if (event.dataTransfer && event.currentTarget instanceof HTMLElement) {
-      const dragImage = event.currentTarget.cloneNode(true) as HTMLElement;
+      event.dataTransfer.effectAllowed = 'move';
+      dragImage = event.currentTarget.cloneNode(true) as HTMLElement;
       dragImage.classList.add('dragging');
       dragImage.removeAttribute('data-testid');
       dragImage.removeAttribute('data-task-id');
@@ -81,11 +95,13 @@
       dragImage.setAttribute('aria-hidden', 'true');
       document.body.append(dragImage);
       event.dataTransfer.setDragImage(dragImage, 12, 12);
-      requestAnimationFrame(() => dragImage.remove());
+      // Keep the snapshot attached until the native drag finishes. WebKit may
+      // still need the element after the first animation frame.
     }
   }
 
   function handleDragEnd(): void {
+    clearDragImage();
     dragging = false;
     onDragEnd();
   }
@@ -109,6 +125,7 @@
   <button
     type="button"
     class="card-select"
+    draggable={!workflowRun}
     data-testid={workflowRun ? 'workflow-run-projection' : 'task-card-open'}
     data-workflow-run-id={workflowRun?.workflowRunId}
     data-status={workflowRun?.status}

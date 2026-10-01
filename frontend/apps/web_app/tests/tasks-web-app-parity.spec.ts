@@ -179,12 +179,17 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-detail-panel')).toBeVisible();
 		await expect(page.getByTestId('task-board')).toBeVisible();
-		const [boardBounds, detailBounds] = await Promise.all([
-			page.getByTestId('task-board').boundingBox(),
+		const [workspaceBounds, detailBounds, composerBounds] = await Promise.all([
+			page.getByTestId('tasks-figma-workspace').boundingBox(),
 			page.getByTestId('task-detail-panel').boundingBox(),
+			page.getByTestId('task-workspace-composer').boundingBox(),
 		]);
-		expect(boardBounds && detailBounds).toBeTruthy();
-		expect(boardBounds!.x + boardBounds!.width).toBeLessThanOrEqual(detailBounds!.x + 2);
+		expect(workspaceBounds && detailBounds && composerBounds).toBeTruthy();
+		expect(workspaceBounds!.x + workspaceBounds!.width).toBeLessThanOrEqual(detailBounds!.x + 2);
+		expect(Math.abs(workspaceBounds!.y - detailBounds!.y)).toBeLessThanOrEqual(2);
+		expect(detailBounds!.height).toBeGreaterThanOrEqual(workspaceBounds!.height - 2);
+		expect(composerBounds!.x).toBeGreaterThanOrEqual(workspaceBounds!.x - 1);
+		expect(composerBounds!.x + composerBounds!.width).toBeLessThanOrEqual(workspaceBounds!.x + workspaceBounds!.width + 1);
 		await expect(page.getByTestId('embed-header-title')).toContainText(taskTitle);
 		await page.getByTestId('task-detail-minimize').click();
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0, { timeout: 2_000 });
@@ -216,25 +221,28 @@ test.describe('Tasks web app parity', () => {
 				const body = JSON.parse(response.request().postData() ?? '{}');
 				return Array.isArray(body.moves) && body.moves.some((move) => move.task_id === createdTaskId && move.status === 'in_progress');
 			}),
-			todoCard.dragTo(page.getByTestId('task-column-in_progress')),
+			todoCard.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-in_progress'), {
+				targetPosition: { x: 80, y: 20 },
+			}),
 		]);
 		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0);
 		const inProgressCard = taskCardIn(page.getByTestId('task-column-in_progress'), taskTitle);
 		await expect(inProgressCard).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('task-column-in_progress').getByTestId('task-card').first()).toHaveAttribute('data-task-id', createdTaskId!);
-		await inProgressCard.getByTestId('task-actions-more').click();
-
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/block') && response.ok()),
-			inProgressCard.getByTestId('task-block-button').click(),
+			inProgressCard.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-blocked'), {
+				targetPosition: { x: 80, y: 20 },
+			}),
 		]);
 		const blockedCard = taskCardIn(page.getByTestId('task-column-blocked'), taskTitle);
 		await expect(blockedCard).toBeVisible({ timeout: 30_000 });
-		await blockedCard.getByTestId('task-actions-more').click();
 
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/unblock') && response.ok()),
-			blockedCard.getByTestId('task-unblock-button').click(),
+			blockedCard.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-todo'), {
+				targetPosition: { x: 80, y: 20 },
+			}),
 		]);
 		await expect(taskCardIn(page.getByTestId('task-column-todo'), taskTitle)).toBeVisible({ timeout: 30_000 });
 
