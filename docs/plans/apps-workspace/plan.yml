@@ -11,7 +11,7 @@ specification_refs:
   version: 3
 scope:
   in:
-  - Fifth workspace, bottom-slide detail view and legacy route forwarding.
+  - Apps workspace (second header tab), bottom-slide detail view and legacy route forwarding.
   - Lazy public metadata, shared schema forms, existing direct endpoints and guest eligibility.
   - Encrypted chatless results, guest promotion, Personal/Team app libraries with pagination.
   - Relevant unit and isolated browser coverage; scoped dev publication.
@@ -109,7 +109,17 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
+      status: passed
+      timestamp: '2026-10-01T23:22:31.292Z'
+      command: Isolated GitHub Apps route suite:12cases,0skips/retries/failures; includes skill login,
+        immediate retained execution and desktop/phone gutters.
+      run_id: '36940072960'
+      subject_commit: a80e7c0ff072c9c601a6382dba681270ef6c8223
+      execution_environment: isolated_github_ci
+      harness_commit: ac12dcd4158a0fca191de0424bfa479718fbb3b0
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36940072960/artifacts/11200072413
 - id: T-APPS-2
   type: playwright
   file: frontend/apps/web_app/tests/components/apps-skill-form.spec.ts
@@ -187,7 +197,7 @@ tests:
   - AC-1
   - AC-3
   assertions:
-  - Public fifth workspace, responsive Apps home and fullscreen compared with Figma artboards 6019-61646,
+  - Public second workspace, responsive Apps home and fullscreen compared with Figma artboards 6019-61646,
     6021-60395 and 6022-77555, working metadata icons, floating tabs, unavailable renderer close actions,
     and Team switching with stale response isolation.
   red_phase:
@@ -199,7 +209,17 @@ tests:
     required: true
     expected: pass
     evidence:
-      status: pending
+      status: passed
+      timestamp: '2026-10-01T18:43:00+00:00'
+      command: 'Isolated GitHub CI component preview: 8 cases, no skips, retries or failures. Enlarged
+        app tile and collapsed skill context screenshots inspected.'
+      run_id: '36908075659'
+      subject_commit: 1acac904cdf87396089dc46d039c7c4b3b780803
+      execution_environment: isolated_github_ci
+      harness_commit: 917620e9256b1d66b00a668716dc04c93528d7b9
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36908075659/artifacts/11184574037
 tasks:
 - id: TASK-1
   title: Implement approved Apps workspace
@@ -236,7 +256,7 @@ tasks:
   - db7e0037-c5ac-4f0d-ba26-906d5e11bd7b
   - 99c870e8-1b6e-4c40-a5b7-8dd92e2d67b6
 implementation_state:
-  subject_commit: 137ac3c12fb81e9e72f9ad12c4b2bbae4acb912d
+  subject_commit: a80e7c0ff072c9c601a6382dba681270ef6c8223
 approvals:
   specification:
     status: approved
@@ -261,13 +281,26 @@ decisions:
   decided_at: '2026-10-01'
 - id: D-3
   status: active
-  decision: Apps has no bottom composer or quick-use pill; skill hero icons are plain and decorative, and AppStoreCard content is left aligned.
+  decision: Apps has no bottom composer or quick-use pill; skill hero icons are plain and decorative,
+    and AppStoreCard content is left aligned.
   reason: Explicit user corrections on 2026-10-01 override the earlier bottom-control design.
   decided_at: '2026-10-01'
 - id: D-4
   status: active
   decision: Remove the guest APPS eyebrow above the home heading and retain the background app icon.
   reason: Explicit user correction on 2026-10-01; the signed-in greeting remains.
+  decided_at: '2026-10-01'
+- id: D-5
+  status: active
+  decision: Show all replaces the Apps home with the shared workspace grid and back/search toolbar, using
+    AppStoreCard tiles and catalog filters.
+  reason: Explicit user correction on 2026-10-01.
+  decided_at: '2026-10-01'
+- id: D-6
+  status: active
+  decision: No dev-container mutations or web publication before 2026-10-01 22:00 Europe/Berlin (20:00
+    UTC).
+  reason: Explicit webinar hold; local work and isolated GitHub CI may continue.
   decided_at: '2026-10-01'
 attempts:
 - id: ATTEMPT-1
@@ -281,8 +314,9 @@ task_links:
   workspace: 99c870e8-1b6e-4c40-a5b7-8dd92e2d67b6
 handoff:
   current_task_id: TASK-1
-  next_action: Repair deployed header placement, AppStoreCard reuse, decorative hero, real schema loading
-    and stable exit to Chats; verify isolated CI and the deployed UI.
+  next_action: Finish app icon tile, collapsed skill context, immediate login/route restoration, failed
+    direct execution and shared workspace gutters. Reuse catalog evidence, verify the added fixes in isolated
+    CI, then publish only after 20:00 UTC and personally check the deployed version.
   command: python3 scripts/plan_validate.py docs/plans/apps-workspace/plan.yml
   expected_outcome: Approved scope implemented and verified
   last_verified_commit: 41cc2179a426f0c96da99b68450ebf8b7e6e1cb6

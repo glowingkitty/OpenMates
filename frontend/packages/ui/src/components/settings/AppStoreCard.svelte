@@ -44,9 +44,12 @@
         cardIconType?: 'app' | 'skill' | 'focus' | 'memory';
         /** Short pill for the Apps workspace home carousel on narrow viewports. */
         compact?: boolean;
+        /** Fill a shared workspace grid track while keeping the regular card height. */
+        fluid?: boolean;
+        testId?: string;
     }
     
-    let { app, onSelect, skillProviders, cardIconType = 'app', compact = false }: Props = $props();
+    let { app, onSelect, skillProviders, cardIconType = 'app', compact = false, fluid = false, testId = 'app-store-card' }: Props = $props();
 
     /** Whether this app is unavailable (unhealthy health status) */
     let isUnavailable = $derived(
@@ -233,11 +236,12 @@
 
 <div
     class="app-store-card app-card"
-    data-testid="app-store-card"
+    data-testid={testId}
     data-app-id={app.id}
     class:app-unavailable={isUnavailable}
     class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
     class:compact
+    class:fluid
     role="menuitem"
     tabindex="0"
     aria-label={appName}
@@ -361,6 +365,12 @@
         justify-content: center;
         border-radius: var(--radius-full);
         padding: var(--spacing-2) var(--spacing-6);
+    }
+
+    .app-store-card.fluid:not(.compact) {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
     }
 
     .app-store-card.compact .app-header-row {

@@ -64,6 +64,7 @@
     browseLabel?: string;
     browseTestId?: string;
     allItemsHeading?: string;
+    allItemsEmptyLabel?: string;
     showAllTestId?: string;
     allItems?: ContinueItem[];
     allItemsViewTestId?: string;
@@ -107,6 +108,7 @@
     browseLabel = '',
     browseTestId = `${surface}-browse`,
     allItemsHeading = '',
+    allItemsEmptyLabel = '',
     showAllTestId = `${surface}-show-all`,
     allItems = [],
     allItemsViewTestId = `${surface}-all-items-view`,
@@ -129,6 +131,7 @@
 
   let restoreWorkspaceDefaults = $state(false);
   let containerWidth = $state(0);
+  let shellElement: HTMLElement | null = $state(null);
   let inspirationElement: HTMLElement | null = $state(null);
   let composerElement: HTMLElement | null = $state(null);
   let composerHeight = $state(0);
@@ -155,20 +158,30 @@
     const params = new URLSearchParams(window.location.search);
     restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
+  });
+
+  $effect(() => {
+    const shell = shellElement;
+    const inspiration = inspirationElement;
+    const composer = composerElement;
     const handleResize = () => {
-      if (inspirationElement && composerElement) {
-        availableCardHeight = Math.max(0, composerElement.getBoundingClientRect().top - inspirationElement.getBoundingClientRect().bottom);
-        composerHeight = composerElement.getBoundingClientRect().height;
+      if (inspiration && shell) {
+        // Apps has no composer. Measure its available room to the shell bottom.
+        const contentBottom = composer?.getBoundingClientRect().top ?? shell.getBoundingClientRect().bottom;
+        availableCardHeight = Math.max(0, contentBottom - inspiration.getBoundingClientRect().bottom);
       }
+      composerHeight = composer?.getBoundingClientRect().height ?? 0;
     };
     const observer = new ResizeObserver(handleResize);
-    if (inspirationElement) observer.observe(inspirationElement);
-    if (composerElement) observer.observe(composerElement);
-    const shell = inspirationElement?.closest('.workspace-home-shell');
+    if (inspiration) observer.observe(inspiration);
+    if (composer) observer.observe(composer);
     if (shell) observer.observe(shell);
     handleResize();
     window.addEventListener('resize', handleResize);
-    return () => { observer.disconnect(); window.removeEventListener('resize', handleResize); };
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
   });
 
   function handleStartInspiration(inspiration: DailyInspiration): void {
@@ -218,7 +231,7 @@
 
 </script>
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
   <div class="workspace-scroll-layer" data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
     {#if !showAllMode}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
@@ -261,22 +274,31 @@
     {#if showAllMode}
       <div class="workspace-all-items-view" data-testid={allItemsViewTestId}>
         {#if allItemsHeading}<h2 class="workspace-all-items-heading">{allItemsHeading}</h2>{/if}
+        <slot name="all-items-controls" />
         <div class="workspace-all-items-grid" data-testid={allItemsGridTestId}>
           {#each allItems as item (item.id)}
-            <WorkspaceContinueCard
-              title={item.title}
-              summary={item.summary ?? null}
-              badge={item.badge ?? null}
-              category={item.category ?? 'productivity'}
-              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
-              icon={item.icon ?? 'sparkles'}
-              appIconUrl={surface === 'apps' ? appCardIconUrl(item) : null}
-              testId={allItemTestId}
-              href={null}
-              source={item.source ?? null}
-              fluid
-              onActivate={() => handleAllItem(item)}
-            />
+            {#if surface === 'apps' && item.appMetadata}
+              <AppStoreCard app={item.appMetadata} testId={allItemTestId} compact={false} fluid onSelect={() => handleAllItem(item)} />
+            {:else}
+              <WorkspaceContinueCard
+                title={item.title}
+                summary={item.summary ?? null}
+                badge={item.badge ?? null}
+                category={item.category ?? 'productivity'}
+                appId={surface === 'workflows' ? null : (item.appId ?? surface)}
+                icon={item.icon ?? 'sparkles'}
+                appIconUrl={surface === 'apps' ? appCardIconUrl(item) : null}
+                testId={allItemTestId}
+                href={null}
+                source={item.source ?? null}
+                fluid
+                onActivate={() => handleAllItem(item)}
+              />
+            {/if}
+          {:else}
+            {#if allItemsEmptyLabel}
+              <p class="workspace-all-items-empty" data-testid={`${surface}-all-items-empty`}>{allItemsEmptyLabel}</p>
+            {/if}
           {/each}
         </div>
       </div>
@@ -716,10 +738,17 @@
     text-align: center;
   }
 
+  .workspace-all-items-empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--color-font-secondary);
+    text-align: center;
+  }
+
   .workspace-all-items-grid {
     --workspace-all-items-fade-size: 34px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 300px));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 300px));
     justify-content: center;
     gap: var(--spacing-8);
     max-height: min(58vh, 620px);
@@ -1102,18 +1131,18 @@
   }
 
   /* Keep the Apps carousel in the scroll layer below the inspiration banner. */
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) {
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) {
     display: flex;
     flex-direction: column;
   }
 
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-scroll-layer {
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .workspace-scroll-layer {
     height: auto;
     flex: 1 1 auto;
     overflow-y: auto;
   }
 
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-center-content.center-content {
+  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .workspace-center-content.center-content {
     position: relative;
     top: auto;
     left: auto;
@@ -1123,11 +1152,11 @@
   }
 
   @media (min-width: 731px) {
-    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-center-content.center-content {
+    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .workspace-center-content.center-content {
       margin-top: 8px;
     }
 
-    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .recent-chats-scroll-container {
+    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .recent-chats-scroll-container {
       padding-top: 8px;
       padding-bottom: 4px;
     }
@@ -1191,7 +1220,7 @@
     }
 
     .workspace-all-items-grid {
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
       max-height: min(56vh, 560px);
     }
 

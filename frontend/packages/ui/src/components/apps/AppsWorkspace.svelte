@@ -13,8 +13,9 @@
   import { listAppsWorkflows, type AppsWorkflowLibraryItem } from '../../services/appsWorkflowLibraryService';
   import { readAppsWorkspaceRoute, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
   import type { AppsSkillDetails } from '../../types/appsWorkspace';
+  import type { AppMetadata } from '../../types/apps';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
-  import SettingsAllApps from '../settings/SettingsAllApps.svelte';
+  import SearchSortBar from '../settings/SearchSortBar.svelte';
   import AppDetailsWrapper from '../settings/AppDetailsWrapper.svelte';
   import SkillDetails from '../settings/SkillDetails.svelte';
   import SettingsTabs from '../settings/elements/SettingsTabs.svelte';
@@ -46,6 +47,7 @@
   let metadata = $state<AppsSkillDetails | null>(null);
   let metadataLoading = $state(false);
   let metadataError = $state(false);
+  let skillContextOpen = $state(false);
   let submitting = $state(false);
   let requestError = $state(false);
   let libraryError = $state(false);
@@ -56,11 +58,21 @@
   let hasMore = $state(false);
   let libraryGeneration = 0;
   let recents = $state<string[]>([]);
+  let lastHomeHash = $state('#apps');
+  let catalogSearchOpen = $state(false);
+  let catalogSearchQuery = $state('');
+  let catalogSort = $state('newest');
+  let activeCatalogFilter = $state<AllAppsFilterType>('all');
+  let catalogSearchElement = $state<HTMLDivElement | undefined>();
   let formElement = $state<HTMLDivElement | undefined>();
   let highlight = $state(false);
   let highlightTimer: ReturnType<typeof setTimeout> | undefined;
   let mounted = false;
   const pageSize = 20;
+  // Private provider admission must refresh when the account changes. Public
+  // schemas keep their form mounted through login so guest input survives.
+  const privateMetadataContext = $derived(resolvedAppId === 'mail' && skillId === 'search'
+    ? `${$authStore.isAuthenticated}:${$userProfile.user_id ?? ''}` : '');
   const guestEligibility = $derived(metadata ? canRunGuestAppsSkill(metadata, $anonymousFreeUsageStatus) : undefined);
   const title = $derived(skill?.name_translation_key ? $text(skill.name_translation_key) : app?.name_translation_key ? $text(app.name_translation_key) : tr('title'));
   const description = $derived(skill?.description_translation_key ? $text(skill.description_translation_key) : app?.description_translation_key ? $text(app.description_translation_key) : '');
@@ -75,15 +87,52 @@
     const suffix = route.settingsPath?.replace(/^memory\//, 'settings_memories/');
     return `apps/${app.id}${skillId ? `/skill/${skillId}` : ''}${suffix ? `/${suffix}` : ''}`;
   });
+  function appItem(metadata: AppMetadata) {
+    return {
+      id: metadata.id,
+      title: metadata.name_translation_key ? $text(metadata.name_translation_key) : metadata.name ?? metadata.id,
+      summary: metadata.description_translation_key ? $text(metadata.description_translation_key) : metadata.description ?? '',
+      appId: metadata.id, icon: 'app', iconImage: metadata.icon_image, category: 'productivity',
+      appMetadata: metadata,
+    };
+  }
   const homeItems = $derived.by(() => {
     const ids = [...recents, 'web', 'news', 'health', 'travel', 'weather', 'audio'];
-    return [...new Set(ids)].filter(id => apps[id]).slice(0, 6).map(id => ({
-      id, title: apps[id].name_translation_key ? $text(apps[id].name_translation_key) : apps[id].name,
-      summary: apps[id].description_translation_key ? $text(apps[id].description_translation_key) : '', appId: id,
-      icon: 'app', iconImage: apps[id].icon_image, category: 'productivity',
-      appMetadata: apps[id],
-    }));
+    return [...new Set(ids)].filter(id => apps[id]).slice(0, 6).map(id => appItem(apps[id]));
   });
+  const catalogItems = $derived.by(() => {
+    const query = catalogSearchQuery.trim().toLowerCase();
+    const list = Object.values(apps).filter(item => {
+      if (item.id === 'ai') return false;
+      if (activeCatalogFilter === 'skills' && !item.skills?.length) return false;
+      if (activeCatalogFilter === 'focus_modes' && !item.focus_modes?.length) return false;
+      if (activeCatalogFilter === 'settings_memories' && !item.settings_and_memories?.length) return false;
+      if (!query) return true;
+      const name = item.name_translation_key ? $text(item.name_translation_key) : item.name ?? item.id;
+      const description = item.description_translation_key ? $text(item.description_translation_key) : item.description ?? '';
+      return `${name} ${description} ${(item.providers ?? []).join(' ')}`.toLowerCase().includes(query);
+    });
+    list.sort((a, b) => {
+      if (catalogSort === 'newest') {
+        return (b.last_updated ? Date.parse(b.last_updated) : 0) - (a.last_updated ? Date.parse(a.last_updated) : 0);
+      }
+      const aName = a.name_translation_key ? $text(a.name_translation_key) : a.name ?? a.id;
+      const bName = b.name_translation_key ? $text(b.name_translation_key) : b.name ?? b.id;
+      return catalogSort === 'name_desc' ? bName.localeCompare(aName) : aName.localeCompare(bName);
+    });
+    return list.map(appItem);
+  });
+  const catalogSortOptions = $derived([
+    { value: 'newest', label: $text('settings.app_store.all_apps.sort_by_newest') },
+    { value: 'name_asc', label: $text('settings.app_store.all_apps.sort_by_name_asc') },
+    { value: 'name_desc', label: $text('settings.app_store.all_apps.sort_by_name_desc') },
+  ]);
+  const catalogFilterOptions = $derived([
+    { value: 'all', label: $text('settings.app_store.all_apps.filter_all') },
+    { value: 'settings_memories', label: $text('settings.app_store.all_apps.filter_settings_memories') },
+    { value: 'focus_modes', label: $text('settings.app_store.all_apps.filter_focus_modes') },
+    { value: 'skills', label: $text('settings.app_store.all_apps.filter_skills') },
+  ]);
   const tabs = $derived(skillId ? [
     { id: 'overview', icon: 'skill', label: tr('overview') },
     { id: 'embeds', icon: 'files', label: tr('embeds') },
@@ -97,12 +146,42 @@
   ]);
 
   $effect(() => {
+    if (route && !route.appId) lastHomeHash = hash;
+    if (route?.showAll && catalogFilter) {
+      activeCatalogFilter = catalogFilter;
+      catalogSearchOpen = true;
+    }
+  });
+  $effect(() => {
+    if (route?.showAll && catalogSearchOpen) {
+      void tick().then(() => {
+        if (route?.showAll && catalogSearchOpen) catalogSearchElement?.querySelector('input')?.focus();
+      });
+    }
+  });
+  function showAllApps(): void {
+    catalogSearchQuery = '';
+    activeCatalogFilter = 'all';
+    catalogSearchOpen = false;
+    onNavigate('#apps/all');
+  }
+  function searchAllApps(): void {
+    catalogSearchOpen = true;
+    if (!route?.showAll) onNavigate('#apps/all');
+  }
+
+  $effect(() => {
     const context = accountKey;
     try { recents = JSON.parse(localStorage.getItem(`apps-recents:${context}`) ?? '[]'); }
     catch { recents = []; }
   });
   $effect(() => {
+    void resolvedAppId; void skillId;
+    skillContextOpen = false;
+  });
+  $effect(() => {
     const appId = resolvedAppId; const selectedSkill = skillId;
+    void privateMetadataContext;
     metadata = null; metadataError = false; requestError = false;
     if (!appId || !selectedSkill || route?.settingsPath) return;
     const controller = new AbortController();
@@ -111,8 +190,10 @@
       if (!controller.signal.aborted) metadata = value;
     }).catch(() => { if (!controller.signal.aborted) metadataError = true; })
       .finally(() => { if (!controller.signal.aborted) metadataLoading = false; });
-    if (!$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
     return () => controller.abort();
+  });
+  $effect(() => {
+    if (resolvedAppId && skillId && !$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
   });
   $effect(() => {
     const appId = resolvedAppId; const tab = route?.tab; void accountKey;
@@ -201,17 +282,20 @@
 </script>
 
 <div class="apps-workspace" data-testid="apps-workspace">
-  <WorkspaceHomeShell surface="apps" eyebrow={$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.home_greeting', { values: { name: $userProfile.username } }) : ''} heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems} actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" contentSlotVisible={route?.showAll ?? false} showReportIssue showComposer={false} showAllLabel={tr('show_all')} onShowAll={() => onNavigate('#apps/all')} onSearchAll={() => onNavigate('#apps/all')} onActionItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onStartInspiration={item => onNavigate(buildAppsWorkspaceHash(item.feature?.settings_path?.startsWith('apps') ? item.feature.settings_path : 'apps/web/search'))}>
-    {#if route?.showAll}
-      <button class="plain-action" onclick={() => onNavigate('#apps')}>{tr('back_to_recent')}</button>
-      <SettingsAllApps initialFilter={catalogFilter} on:openSettings={navigateSettings} />
-    {/if}
+  <WorkspaceHomeShell surface="apps" eyebrow={$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.home_greeting', { values: { name: $userProfile.username } }) : ''} heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems} actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" allItemTestId="apps-all-item" showAllMode={route?.showAll ?? false} allItems={catalogItems} allItemsEmptyLabel={$text('settings.app_store.all_apps.no_apps_found')} showReportIssue showComposer={false} showAllLabel={tr('show_all')} backLabel={tr('back_to_recent')} searchLabel={$text('common.search')} onShowAll={showAllApps} onSearchAll={searchAllApps} onBackToRecent={() => onNavigate('#apps')} onAllItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onActionItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onStartInspiration={item => onNavigate(buildAppsWorkspaceHash(item.feature?.settings_path?.startsWith('apps') ? item.feature.settings_path : 'apps/web/search'))}>
+    <div slot="all-items-controls">
+      {#if catalogSearchOpen}
+        <div class="catalog-controls" data-testid="apps-catalog-controls" bind:this={catalogSearchElement}>
+          <SearchSortBar bind:searchQuery={catalogSearchQuery} bind:sortBy={catalogSort} bind:filterBy={activeCatalogFilter} searchPlaceholder={$text('settings.app_store.all_apps.search_placeholder')} sortOptions={catalogSortOptions} filterOptions={catalogFilterOptions} />
+        </div>
+      {/if}
+    </div>
   </WorkspaceHomeShell>
 
   {#if route?.appId}
     <div class="apps-detail-layer">
       {#key route.appId}
-        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={() => onNavigate(skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : '#apps')} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
+        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={() => onNavigate(skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : lastHomeHash)} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
           {#snippet embedHeaderCta()}
             {#if skillId && !route?.settingsPath}
               <button class="hero-action" data-testid="apps-use-skill" onclick={useSkill}>{tr('use_skill')}</button>
@@ -246,14 +330,26 @@
                     </div>
                   {:else if route?.skillId && !skillId}<p role="alert">{tr('not_found')}</p>
                   {:else if skillId && !route?.settingsPath}
+                    <details class="skill-context" data-testid="apps-skill-context" bind:open={skillContextOpen}>
+                      <summary data-testid="apps-skill-context-toggle">
+                        <span class="skill-context-icon" aria-hidden="true"></span>
+                        <span>{tr('skill_context_intro')}</span>
+                        <span>{tr('skill_context_chat')}</span>
+                        <span class="skill-context-action">{tr(skillContextOpen ? 'skill_context_collapse' : 'skill_context_expand')}<span class="skill-context-caret" aria-hidden="true"></span></span>
+                      </summary>
+                      {#if skillContextOpen}
+                        <div class="skill-context-details" data-testid="apps-skill-context-details">
+                          <SkillDetails appId={app.id} {skillId} onOpenExample={openExample} on:openSettings={navigateSettings} />
+                        </div>
+                      {/if}
+                    </details>
                     <div class="skill-form-area" class:highlight bind:this={formElement}>
                       {#if metadataLoading}<p role="status">{$text('common.loading')}</p>
                       {:else if metadataError}<p role="alert">{tr('metadata_error')}</p>
-                      {:else if metadata}<AppsSkillForm {metadata} onSubmit={submit} {submitting} disabled={viewer} guest={!$authStore.isAuthenticated} {guestEligibility} {onSignup} />{/if}
+                      {:else if metadata}<AppsSkillForm {metadata} showManualIntro={false} onSubmit={submit} {submitting} disabled={viewer} guest={!$authStore.isAuthenticated} {guestEligibility} {onSignup} />{/if}
                       {#if requestError}<p role="alert">{tr('request_error')}</p>{/if}
                       {#if viewer}<p>{tr('viewer_read_only')}</p>{/if}
                     </div>
-                    <SkillDetails appId={app.id} {skillId} onOpenExample={openExample} on:openSettings={navigateSettings} />
                   {:else}
                     <AppDetailsWrapper presentation="apps" section={route?.tab === 'focus_modes' || route?.tab === 'settings_memories' ? route.tab : 'skills'} onOpenExample={openExample} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
                   {/if}
@@ -288,10 +384,20 @@
   .apps-detail-card [role='tabpanel'] { min-width: 0; max-width: 100%; }
   .skill-form-area { margin: var(--spacing-6) 0; border-radius: var(--border-radius-lg); transition: box-shadow .3s; }
   .skill-form-area.highlight { box-shadow: 0 0 0 .2rem var(--color-primary-start); }
+  .skill-context { padding-top: var(--spacing-6); color: var(--color-font-secondary); font-size: var(--font-size-small); }
+  .skill-context summary { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1); text-align: center; list-style: none; cursor: pointer; }
+  .skill-context summary::-webkit-details-marker { display: none; }
+  .skill-context summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; border-radius: var(--radius-4); }
+  .skill-context-icon { width: 1.25rem; height: 1.25rem; margin-bottom: var(--spacing-2); background: var(--color-primary); -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center/contain no-repeat; mask: url('@openmates/ui/static/icons/chat.svg') center/contain no-repeat; }
+  .skill-context-action { display: inline-flex; align-items: center; gap: var(--spacing-2); font-weight: 700; margin-top: var(--spacing-1); }
+  .skill-context-caret { width: .35rem; height: .35rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+  .skill-context[open] .skill-context-caret { transform: translateY(2px) rotate(225deg); }
+  .skill-context-details { text-align: left; margin-top: var(--spacing-6); }
   .hero-action,.plain-action { border: 0; border-radius: var(--border-radius-lg); padding: .75rem 1.25rem; font: inherit; cursor: pointer; }
   .hero-action { min-width: 11rem; border-radius: var(--radius-5); background: var(--color-button-primary); color: var(--color-font-button); font-weight: 700; box-shadow: var(--shadow-md); }
   .plain-action { background: var(--color-grey-10); color: var(--color-font-primary); }
   .plain-action:disabled { opacity: .45; cursor: default; }
+  .catalog-controls { margin-bottom: var(--spacing-5); }
   .results-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(18.75rem,1fr)); gap: var(--spacing-6); padding: var(--spacing-6) 0; }
   .pagination { display: flex; justify-content: space-between; gap: var(--spacing-4); margin-block: var(--spacing-6); }
   .workflow-row { display: block; padding: var(--spacing-4); border-bottom: 1px solid var(--color-grey-20); color: var(--color-font-primary); text-decoration: none; }

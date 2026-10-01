@@ -183,3 +183,55 @@ def test_adapted_audio_websocket_route_precedes_encoded_apps_route(
         return
 
     pytest.fail(f"Could not find sibling audio and encoded apps routes in {caddyfile}")
+
+
+def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
+    """Direct Apps requests with cookies must reach FastAPI's CORS middleware."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+
+    env = os.environ.copy()
+    env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    result = subprocess.run(
+        [caddy, "adapt", "--config", str(CADDYFILES[0]), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if "module not registered: dns.providers.gandi" in result.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert result.returncode == 0, result.stderr
+
+    direct_paths = {
+        "/v1/apps/workspace/results", "/v1/apps/workspace/results/*",
+        "/v1/apps/*/skills/*", "/v1/tasks/*", "/v1/anonymous/apps/*",
+    }
+    for routes in _route_lists(json.loads(result.stdout)):
+        public_options = next((i for i, route in enumerate(routes)
+            if "/v1/apps/*" in _matched_paths(route)
+            and route.get("match", [{}])[0].get("method") == ["OPTIONS"]), None)
+        public_actual = next((i for i, route in enumerate(routes)
+            if "/v1/apps/*" in _matched_paths(route)
+            and "encode" in _nested_handlers(route)
+            and not route.get("match", [{}])[0].get("method")), None)
+        if public_options is None or public_actual is None:
+            continue
+
+        for method, public_index in (("OPTIONS", public_options), ("actual", public_actual)):
+            matches = [(i, route) for i, route in enumerate(routes)
+                if direct_paths.issubset(_matched_paths(route))
+                and route.get("match", [{}])[0].get("header", {}).get("Origin")
+                    == ["https://app.dev.openmates.org"]
+                and (route.get("match", [{}])[0].get("method") == ["OPTIONS"]) == (method == "OPTIONS")]
+            assert len(matches) == 1, method
+            index, route = matches[0]
+            assert index < public_index, method
+            assert "reverse_proxy" in _nested_handlers(route)
+            assert "headers" not in _nested_handlers(route), method
+        return
+
+    pytest.fail("Could not find credentialed and public Apps routes in adapted dev Caddyfile")
