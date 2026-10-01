@@ -20,6 +20,9 @@ import httpx
 from backend.core.api.app.services.workflow_authoring_compiler import (
     FlatAuthoringAccumulator, compile_authoring_plan,
 )
+from backend.core.api.app.services.workflow_authoring_billing import (
+    GEMINI_MODEL, MeteredJevClient, WorkflowAuthoringBilling,
+)
 from backend.core.api.app.services.workflow_authoring_preselection import (
     JEV_INPUT_PRICE, WorkflowAuthoringPreselector, WorkflowPreselection,
 )
@@ -145,10 +148,12 @@ class WorkflowRegistryPlanner:
                      "New workflows are not existing targets. Select all requested edit targets, "
                      "but do not select similar unrelated workflows."} for item in overview}
         started = time.perf_counter()
-        response = await asyncio.wait_for(jev.evaluate(state={"request": text, "implicit_target_id": (selected or {}).get("id"),
+        decision_call = jev.evaluate(state={"request": text, "implicit_target_id": (selected or {}).get("id"),
                                             "existing_workflows": [{"id": item["id"], "title": item.get("title"),
                                                                      "description": item.get("description")}
-                                                                    for item in overview]}, questions=questions), timeout=3.2)
+                                                                    for item in overview]}, questions=questions)
+        response = (await decision_call if isinstance(jev, MeteredJevClient)
+                    else await asyncio.wait_for(decision_call, timeout=3.2))
         metrics["target_selection_seconds"] = round(time.perf_counter() - started, 3)
         metrics["jev_calls"] += 1
         metrics["estimated_cost_usd"] += response.usage.input_tokens * JEV_INPUT_PRICE
@@ -272,12 +277,24 @@ class WorkflowRegistryPlanner:
         started = time.perf_counter()
         metrics: dict[str, Any] = {"jev_calls": 0, "gemini_calls": 0, "estimated_cost_usd": 0.0,
                                    "generation_attempts": [], "cost_estimate_complete": True}
+        user_id = context.get("_billing_user_id")
+        session_id = context.get("_billing_session_id")
+        billing = (WorkflowAuthoringBilling(user_id=user_id, session_id=session_id)
+                   if isinstance(user_id, str) and isinstance(session_id, str) else None)
+        metered_jev = MeteredJevClient(jev, billing) if billing is not None else jev
         targets: dict[str, dict[str, Any]] = {}
         accumulators: dict[int, FlatAuthoringAccumulator] = {}
         timezone = context.get("timezone") or "UTC"
 
         def finish(plan: dict[str, Any]) -> dict[str, Any]:
             metrics["total_seconds"] = round(time.perf_counter() - started, 3)
+            if billing is not None:
+                metrics["jev_calls"] = max(metrics["jev_calls"], metered_jev.call_count)
+                if not billing.usage_complete:
+                    metrics["cost_estimate_complete"] = False
+                metrics["billing"] = {"credits_charged": sum(item["credits_charged"] for item in billing.entries),
+                                      "usage_complete": billing.usage_complete,
+                                      "entries": billing.entries}
             plan["_authoring_metrics"] = metrics
             if targets:
                 plan["_authoring_before"] = targets
@@ -287,11 +304,15 @@ class WorkflowRegistryPlanner:
             if not text.strip() or len(text) > 16_000:
                 raise ValueError("Invalid workflow instruction length")
             await self._emit(context, {"type": "progress", "phase": "planning"})
-            selector = WorkflowAuthoringPreselector(jev_client=jev, registry=self.registry,
+            selector = WorkflowAuthoringPreselector(jev_client=metered_jev, registry=self.registry,
                                                    mode=self.preselection_mode)
             try:
-                selection = await asyncio.wait_for(selector.select(text, timezone=timezone,
-                                                   selected_workflow=context.get("selected_workflow")), timeout=3.2)
+                selection_call = selector.select(text, timezone=timezone,
+                                                 selected_workflow=context.get("selected_workflow"))
+                # The real Jev client enforces its own provider timeout. A
+                # planner-wide deadline must not cancel ledger settlement.
+                selection = (await selection_call if billing is not None
+                             else await asyncio.wait_for(selection_call, timeout=3.2))
                 metrics.update(selection.metrics)
                 if selection.request_clarity == "title_only":
                     if context.get("selected_workflow") or len(text.strip()) > 200 or len(text.split()) > 24:
@@ -307,7 +328,7 @@ class WorkflowRegistryPlanner:
                 await self._emit(context, {"type": "progress", "phase": "planning",
                                            "operation": selection.operation,
                                            "workflow_count": selection.workflow_count})
-                targets = await self._targets(text, context, selection, jev, metrics)
+                targets = await self._targets(text, context, selection, metered_jev, metrics)
             except (DecisionProviderError, TimeoutError):
                 capabilities = [cap for cap in self.registry.list_capabilities() if cap.enabled]
                 selection = WorkflowPreselection(capabilities, "unknown", "none", True, {}, {})
@@ -421,6 +442,8 @@ class WorkflowRegistryPlanner:
                     for node in self._flat_nodes(raw.get("steps") or []):
                         await accept({"type": "node", "workflow_index": index, "node": node}, replay=replay)
 
+                if billing is not None:
+                    await billing.precheck(model=GEMINI_MODEL)
                 metrics["gemini_calls"] += 1
                 try:
                     kwargs = {"text": text, "selection": selection, "timezone": timezone,
@@ -456,7 +479,8 @@ class WorkflowRegistryPlanner:
                             await ingest(item, index)
                     await self._emit(context, {"type": "progress", "phase": "validating"})
                     plan = self._finalize(accumulators, selection, targets)
-                except _AuthoringCancelled:
+                except _AuthoringCancelled as exc:
+                    usage = getattr(exc, "metrics", None)
                     metrics["cost_estimate_complete"] = False
                     return finish(self._partial(accumulators, "stopped"))
                 except (ValueError, WorkflowAuthoringProviderError) as exc:
@@ -493,6 +517,15 @@ class WorkflowRegistryPlanner:
                         continue
                     plan = self._partial(accumulators, "provider_error")
                 finally:
+                    if billing is not None:
+                        await billing.settle(model=GEMINI_MODEL,
+                                             provider_step=f"gemini:{attempt}", usage=usage)
+                        if not billing.usage_complete:
+                            metrics["cost_estimate_complete"] = False
+                        if "billing" in metrics:
+                            metrics["billing"]["credits_charged"] = sum(
+                                item["credits_charged"] for item in billing.entries)
+                            metrics["billing"]["usage_complete"] = billing.usage_complete
                     if usage is not None:
                         metrics["generation_attempts"].append(usage)
                         metrics["generation"] = usage

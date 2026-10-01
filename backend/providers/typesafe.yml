@@ -1,0 +1,35 @@
+# Jev is a bounded decision model used for workflow authoring, not chat generation.
+provider_id: "typesafe"
+name: "TypeSafe"
+description: "Bounded decision models served through OpenRouter."
+privacy_policy: "https://openrouter.ai/privacy"
+
+models:
+  - id: "jev-1.13"
+    name: "Jev 1.13"
+    description: "Workflow authoring capability and target selection."
+    for_app_skill: "workflows.create-or-modify"
+    allow_auto_select: false
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter"
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "typesafe/jev-1.13"
+        region: "global"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 7900 # $0.042/M input using the standard 3x markup and rounding.
+        output:
+          per_credit_unit: 0 # Provider output is free.
+    costs:
+      input_per_million_token:
+        price: 0.042
+        currency: USD
+      output_per_million_token:
+        price: 0
+        currency: USD

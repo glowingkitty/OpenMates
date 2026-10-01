@@ -7129,6 +7129,7 @@ async function handleWorkflows(
       selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
       timezone: typeof flags.timezone === "string" ? flags.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone,
       optimisticSave: flags.optimistic === true,
+      idempotencyKey: typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : undefined,
     });
     if (flags.json === true) {
       printJson(session);
@@ -14957,7 +14958,7 @@ function printWorkflowsHelp(): void {
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
-  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--optimistic] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--idempotency-key <stable-key>] [--optimistic] [--json]
   openmates workflows input-show <session-id> [--json]
   openmates workflows input-events <session-id> [--after <event-id>] [--json]
   openmates workflows input-follow-up <session-id> <text> [--json]

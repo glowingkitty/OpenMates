@@ -22,6 +22,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
 from backend.core.api.app.services.workflow_input_security import redacted_event_summary, sanitize_workflow_input_text
+from backend.core.api.app.services.workflow_authoring_billing import WorkflowAuthoringBillingError
 from backend.core.api.app.services.workflow_models import WorkflowDetail, WorkflowGraph, validate_workflow_composition_refs, validate_workflow_readiness
 from backend.core.api.app.services.workflow_service import (
     DirectusWorkflowRepository,
@@ -1046,6 +1047,8 @@ class WorkflowInputService:
             try:
                 plan = self.planner.plan(text=sanitized_text, context=context)
             except Exception as exc:
+                if isinstance(exc, WorkflowAuthoringBillingError):
+                    raise
                 if not session.get("accepted_checkpoints"):
                     raise
                 logger.warning("Workflow planner exited after validated checkpoints for session %s with %s",
@@ -1073,6 +1076,11 @@ class WorkflowInputService:
                 return self._queue_plan(session, validated_plan, vault_key_id)
             self._emit_stream(session, {"type": "progress", "phase": "saving"})
             return self._apply_plan(session, validated_plan, vault_key_id)
+        except WorkflowAuthoringBillingError as exc:
+            message = ("Insufficient credits for workflow authoring."
+                       if exc.code == "INSUFFICIENT_CREDITS"
+                       else "Workflow authoring billing could not be completed.")
+            return self._fail_session(session, "billing_failed", exc.code, message, vault_key_id, exc)
         except WorkflowInputUnavailableError as exc:
             return self._fail_session(session, "capability_unavailable", exc.code, str(exc), vault_key_id)
         except (ValidationError, ValueError) as exc:
@@ -1562,6 +1570,11 @@ class WorkflowInputService:
             "selected_project_id": session.get("selected_project_id"),
             "timezone": session.get("timezone"),
         }
+        if getattr(self.planner, "atomic_authoring", False):
+            # Private server-side billing identity. The planner passes only
+            # explicit request/registry fields to Jev and Gemini.
+            context["_billing_user_id"] = session["user_id"]
+            context["_billing_session_id"] = session["id"]
         if getattr(self.planner, "requires_workflow_lookup", False):
             # Keep owner credentials and library contents out of model input.
             # The NL planner invokes these only after it has classified an edit.

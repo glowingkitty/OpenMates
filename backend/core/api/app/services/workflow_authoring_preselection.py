@@ -18,6 +18,7 @@ from typing import Any
 from zoneinfo import available_timezones
 
 from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+from backend.core.api.app.services.workflow_authoring_billing import WorkflowAuthoringBillingError
 from backend.core.api.app.services.workflow_models import WorkflowCapability
 from backend.shared.providers.typesafe.models import ChoiceAnswer, NoulAnswer
 
@@ -367,7 +368,17 @@ class WorkflowAuthoringPreselector:
             # A failed per-app decision must not silently remove executable skills.
             # Fall back to a full direct pass, using the same request and registry.
             try:
-                results = await asyncio.gather(*(choose_skills(app_id) for app_id in selected_apps))
+                # Let every started provider call finish its usage settlement
+                # before taking a direct fallback after one stage fails.
+                results = await asyncio.gather(
+                    *(choose_skills(app_id) for app_id in selected_apps),
+                    return_exceptions=True,
+                )
+                failures = [item for item in results if isinstance(item, BaseException)]
+                if failures:
+                    billing_failure = next((item for item in failures
+                                            if isinstance(item, WorkflowAuthoringBillingError)), None)
+                    raise billing_failure or failures[0]
                 for app_id, result, seconds in results:
                     stage_metrics.append({"stage": f"skills:{app_id}", "seconds": round(seconds, 3),
                                           "jev_calls": 1, "input_tokens": result.usage.input_tokens,
@@ -378,6 +389,8 @@ class WorkflowAuthoringPreselector:
                         if not isinstance(answer, NoulAnswer):
                             raise ValueError(f"Jev omitted skill relevance for {cap.id}")
                         scores[cap.id] = answer.noul
+            except WorkflowAuthoringBillingError:
+                raise
             except Exception:
                 fallback = True
                 direct = WorkflowAuthoringPreselector(jev_client=self.jev_client, registry=self.registry)

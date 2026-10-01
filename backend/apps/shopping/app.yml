@@ -51,7 +51,11 @@ skills:
       mouse" with relevance_criteria "Good for travel, with explicit quiet-click, long-battery, and
       multi-device evidence." Keep provider, category, country, department, price, fulfilment, and
       sort constraints structured. Omit relevance_criteria only for a neutral product search fully
-      expressed by query and structured fields; never invent preferences.
+      expressed by query and structured fields; never invent preferences. Amazon min_price and
+      max_price use the selected marketplace's currency, with no conversion. When the user states
+      a currency but no country, select a supported marketplace using that currency (for example,
+      country de for euros) rather than relying on a locale fallback. Preserve an explicitly
+      requested destination; do not guess a conversion for an unsupported currency.
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
       per_unit:
@@ -190,9 +194,13 @@ skills:
                   basic: false
                 type: string
                 description: >
-                  Amazon-only marketplace country code. Example: us, uk, de, fr,
-                  it, es, ca, au, jp, in, br, mx, nl, sg, se, pl.
-                  If omitted, inferred from user language/locale with fallback to us.
+                  Amazon-only marketplace country code. Price amounts use this marketplace's
+                  currency; no currency conversion is performed. Euro marketplaces include
+                  de, fr, it, es, and nl. For a euro price limit with no destination specified,
+                  use de as the default euro marketplace. Other examples: us (USD), uk (GBP),
+                  jp (JPY), ca, au, in, br, mx, sg, se, pl. If the user specifies a destination,
+                  preserve that destination; do not silently reinterpret a stated currency.
+                  If omitted, country is inferred from user language/locale with fallback to us.
               department:
                 x-ui:
                   basic: false
@@ -224,12 +232,18 @@ skills:
                 x-ui:
                   basic: false
                 type: number
-                description: Amazon-only minimum price filter (client-side after fetch).
+                description: >
+                  Amazon-only minimum price filter (client-side after fetch), in the selected
+                  marketplace's currency; no conversion is performed. Set country when the user
+                  states a currency.
               max_price:
                 x-ui:
                   basic: false
                 type: number
-                description: Amazon-only maximum price filter (client-side after fetch).
+                description: >
+                  Amazon-only maximum price filter (client-side after fetch), in the selected
+                  marketplace's currency; no conversion is performed. Set country when the user
+                  states a currency, for example de with max_price 150 for a 150-euro ceiling.
             required:
               - query
       required:
