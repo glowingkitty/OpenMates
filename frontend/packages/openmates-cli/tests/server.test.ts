@@ -10,7 +10,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
@@ -92,6 +92,9 @@ import {
   deliverUpdateCompletionEmail,
   evaluateOperationalReportFreshness,
   evaluateCmsCacheConsistency,
+  readRuntimeIncidentState,
+  runtimeIncidentStateOwner,
+  writeRuntimeIncidentState,
   isBrevoIdempotencyDuplicate,
   isBrevoAcceptedResponse,
   planOperationalMonitoring,
@@ -113,7 +116,7 @@ import {
   serverUpdateStatusFile,
   writeServerUpdateStatus,
 } from "../src/serverUpdateState.ts";
-import { ensureCorePrometheusRuntimeFiles, loadSelfHostComposeTemplate } from "../src/server.ts";
+import { ensureCoreAlertmanagerRuntimeFile, ensureCorePrometheusRuntimeFiles, imageUpdateUpArgs, loadSelfHostComposeTemplate, validateReuseCompletedSetup, waitForServerHealth } from "../src/server.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
 
@@ -169,13 +172,13 @@ describe("image-mode Prometheus configuration", () => {
       assert.ok(managed.scrape_configs.some((job: { job_name: string }) => job.job_name === "api"));
       assert.ok(managed.scrape_configs.some((job: { job_name: string }) => job.job_name === "celery-core-worker"));
       const compose = parseYaml(readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8"));
-      for (const job of managed.scrape_configs as Array<{ static_configs: Array<{ targets: string[] }> }>) {
+      for (const job of managed.scrape_configs as Array<{ job_name: string; static_configs: Array<{ targets: string[] }> }>) {
         for (const config of job.static_configs) {
           for (const target of config.targets) {
             const [service, port] = target.split(":");
             if (service === "localhost") continue;
             assert.ok(compose.services[service], `unknown image-mode scrape service ${service}`);
-            if (compose.services[service].environment?.CELERY_METRICS_PORT) {
+            if (job.job_name.startsWith("celery-")) {
               assert.equal(port, compose.services[service].environment.CELERY_METRICS_PORT, target);
             }
           }
@@ -187,6 +190,73 @@ describe("image-mode Prometheus configuration", () => {
       ensureCorePrometheusRuntimeFiles(installPath);
       assert.equal(readFileSync(join(runtimeDir, "prometheus.yml"), "utf-8"), "operator-managed: true\n");
     } finally {
+      rmSync(installPath, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps AI, images, and PDF metrics ports aligned across runtime editions", () => {
+    const expected = { "app-ai-worker": "9102", "app-images-worker": "9103", "app-pdf-worker": "9104" };
+    for (const file of [
+      "../templates/core/docker-compose.selfhost.yml",
+      "../../../../backend/core/docker-compose.selfhost.yml",
+      "../../../../backend/core/docker-compose.yml",
+    ]) {
+      const compose = parseYaml(readFileSync(new URL(file, import.meta.url), "utf-8"));
+      for (const [service, port] of Object.entries(expected)) {
+        assert.equal(compose.services[service].environment.CELERY_METRICS_PORT, port, `${file}: ${service}`);
+      }
+    }
+  });
+});
+
+it("does not rewrite an identical read-only Alertmanager runtime file", () => {
+  const installPath = mkdtempSync(join(tmpdir(), "openmates-alertmanager-"));
+  const runtimePath = join(installPath, "backend", "core", "monitoring", "alertmanager", "alertmanager.yml");
+  try {
+    ensureCoreAlertmanagerRuntimeFile(installPath);
+    const packaged = readFileSync(runtimePath, "utf-8");
+    const oldTime = new Date("2020-01-01T00:00:00Z");
+    utimesSync(runtimePath, oldTime, oldTime);
+    chmodSync(runtimePath, 0o444);
+    ensureCoreAlertmanagerRuntimeFile(installPath);
+    assert.equal(statSync(runtimePath).mtimeMs, oldTime.getTime());
+    assert.equal(readFileSync(runtimePath, "utf-8"), packaged);
+
+    chmodSync(runtimePath, 0o600);
+    writeFileSync(runtimePath, "outdated\n");
+    ensureCoreAlertmanagerRuntimeFile(installPath);
+    assert.equal(readFileSync(runtimePath, "utf-8"), packaged);
+  } finally {
+    rmSync(installPath, { recursive: true, force: true });
+  }
+});
+
+describe("server health loopback", () => {
+  it("probes the IPv4 address bound by each image-mode role", async () => {
+    const originalFetch = globalThis.fetch;
+    const installPath = mkdtempSync(join(tmpdir(), "openmates-health-loopback-"));
+    const calls: string[] = [];
+    globalThis.fetch = async (input) => {
+      calls.push(String(input));
+      return new Response("ok");
+    };
+    try {
+      for (const [role, port, service] of [
+        ["upload", "8000", "app-uploads"],
+        ["preview", "8080", "preview"],
+        ["core", "8000", "api"],
+      ] as const) {
+        const template = role === "upload" ? "../templates/upload/docker-compose.yml"
+          : role === "preview" ? "../templates/preview/docker-compose.preview.yml"
+            : "../templates/core/docker-compose.selfhost.yml";
+        const compose = parseYaml(readFileSync(new URL(template, import.meta.url), "utf-8"));
+        assert.ok(compose.services[service].ports.includes(`127.0.0.1:${port}:${port}`));
+        await waitForServerHealth(installPath, role, { checkWebApp: false });
+        assert.equal(calls.at(-1), `http://127.0.0.1:${port}/health`);
+        assert.deepEqual(planServerRuntime({ role }).healthChecks, [`http://127.0.0.1:${port}/health`]);
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
       rmSync(installPath, { recursive: true, force: true });
     }
   });
@@ -848,6 +918,35 @@ describe("feature override config", () => {
 });
 
 describe("image-mode update planning", () => {
+  it("reuses only a completed target-tag setup with healthy core dependencies and a filtered no-deps up", () => {
+    const healthy = { image: "ignored", status: "running", exitCode: 0, health: "healthy" };
+    const input = {
+      role: "core" as const,
+      installMode: "image",
+      servicesFlag: "api,core-worker,prometheus",
+      excludeFlag: undefined,
+      selectedServices: ["api", "core-worker", "prometheus"],
+      targetTag: `sha-${"a".repeat(40)}`,
+      registry: "ghcr.io/glowingkitty",
+      setup: { image: `ghcr.io/glowingkitty/openmates-cms-setup:sha-${"a".repeat(40)}`, status: "exited", exitCode: 0 },
+      dependencies: Object.fromEntries(["cms", "cms-database", "cache", "vault"].map((service) => [service, healthy])),
+    };
+    assert.doesNotThrow(() => validateReuseCompletedSetup(input));
+    assert.deepEqual(imageUpdateUpArgs(["compose"], input.selectedServices, true, true), ["compose", "up", "-d", "--no-deps", ...input.selectedServices]);
+    assert.deepEqual(imageUpdateUpArgs(["compose"], input.selectedServices, true, false), ["compose", "up", "-d", ...input.selectedServices]);
+    assert.throws(() => imageUpdateUpArgs(["compose"], input.selectedServices, false, true), /explicitly selected services/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, setup: { ...input.setup, image: `ghcr.io/glowingkitty/openmates-cms-setup:sha-${"b".repeat(40)}` } }), /target image/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, setup: { ...input.setup, status: "running" } }), /exited successfully/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, setup: { ...input.setup, exitCode: 1 } }), /exited successfully/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, dependencies: { ...input.dependencies, cms: { ...healthy, health: "unhealthy" } } }), /healthy cms/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, servicesFlag: undefined }), /explicit --services/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, selectedServices: ["cms-setup"] }), /allows only api/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, role: "upload" }), /core image-mode/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, installMode: "source" }), /core image-mode/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, targetTag: "main" }), /immutable --image-tag/);
+    assert.throws(() => validateReuseCompletedSetup({ ...input, targetTag: "sha-abc123" }), /immutable --image-tag/);
+  });
+
   it("installs stable CLI releases through the verified GitHub release channel", () => {
     assert.equal(getDefaultImageTagForVersion("0.19.0"), "stable");
     assert.equal(getDefaultImageTagForVersion("0.20.0-alpha.4"), "v0.20.0-alpha.4");
@@ -998,7 +1097,7 @@ describe("role-based server planning", () => {
 
     assert.deepEqual(parseYaml(packaged), parseYaml(canonical));
     assert.match(source, /CORE_ALERTMANAGER_CONFIG_FILE = join\("backend", "core", "monitoring", "alertmanager", "alertmanager\.yml"\)/);
-    assert.match(source, /copyFileSync\(alertmanagerTemplatePath, alertmanagerConfigPath\)/);
+    assert.match(source, /ensureCoreAlertmanagerRuntimeFile\(installPath\)/);
     assert.match(source, /version: value\("OPENMATES_IMAGE_TAG"\) \|\| serverConfig\?\.imageTag \|\| "source"/);
   });
 
@@ -1330,6 +1429,42 @@ describe("server preflight and Caddy planning", () => {
 });
 
 describe("post-update runtime health", () => {
+  it("keeps private runtime state readable by the installer after a root writer", async () => {
+    const installPath = mkdtempSync(join(tmpdir(), "openmates-incident-owner-"));
+    const rootDir = join(installPath, ".openmates");
+    const stateDir = join(rootDir, "runtime-health");
+    const statePath = join(stateDir, "core.json");
+    try {
+      mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+      chmodSync(rootDir, 0o700);
+      chmodSync(stateDir, 0o700);
+      const installer = statSync(stateDir);
+      assert.deepEqual(await runtimeIncidentStateOwner(installPath, 0), { uid: installer.uid, gid: installer.gid });
+      assert.equal(await runtimeIncidentStateOwner(installPath, installer.uid === 0 ? 1000 : installer.uid), null);
+
+      const state = { consecutiveFailures: 2, incidentOpen: true };
+      await writeRuntimeIncidentState(installPath, "core", state, 0);
+      assert.equal(statSync(statePath).uid, installer.uid);
+      assert.equal(statSync(statePath).gid, installer.gid);
+      assert.equal(statSync(statePath).mode & 0o777, 0o600);
+      assert.deepEqual(await readRuntimeIncidentState(installPath, "core"), state);
+
+      await writeRuntimeIncidentState(installPath, "core", { ...state, consecutiveFailures: 3 }, installer.uid === 0 ? 1000 : installer.uid);
+      assert.equal(statSync(statePath).uid, installer.uid);
+      assert.equal(statSync(statePath).mode & 0o777, 0o600);
+
+      chmodSync(stateDir, 0o755);
+      await assert.rejects(runtimeIncidentStateOwner(installPath, 0), /private installer-owned directories/);
+      chmodSync(stateDir, 0o700);
+      if (process.getuid?.() !== 0) {
+        chmodSync(statePath, 0o000);
+        await assert.rejects(readRuntimeIncidentState(installPath, "core"), { code: "EACCES" });
+      }
+    } finally {
+      rmSync(installPath, { recursive: true, force: true });
+    }
+  });
+
   it("requires effective CMS cache flags and records only sanitized failures", () => {
     const healthy = evaluateCmsCacheConsistency({
       containerFound: true,

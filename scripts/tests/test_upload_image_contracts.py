@@ -55,7 +55,23 @@ def test_upload_service_only_imports_packaged_shared_modules() -> None:
 
 def test_upload_image_imports_its_entry_point_during_build() -> None:
     dockerfile = (PROJECT_ROOT / "backend" / "upload" / "Dockerfile").read_text(encoding="utf-8")
-    assert 'RUN python -c "import backend.upload.main"' in dockerfile
+    assert 'RUN python -c "import backend.upload.main; import backend.scripts.runtime_health_verifier"' in dockerfile
+
+
+def test_upload_image_packages_verifier_shared_imports() -> None:
+    dockerfile = (PROJECT_ROOT / "backend" / "upload" / "Dockerfile").read_text(encoding="utf-8")
+    verifier = PROJECT_ROOT / "backend" / "scripts" / "runtime_health_verifier.py"
+    tree = ast.parse(verifier.read_text(encoding="utf-8"), filename=str(verifier))
+    shared_imports = {
+        node.module
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module
+        and node.module.startswith("backend.shared")
+    }
+    for module in shared_imports:
+        source = module.replace(".", "/") + ".py"
+        assert f"COPY {source} /app/{source}" in dockerfile, f"Upload verifier dependency is not packaged: {module}"
 
 
 def test_sightengine_http_client_accepts_provider_category() -> None:

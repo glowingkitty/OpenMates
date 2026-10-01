@@ -62,6 +62,7 @@
         "project-task-sync.spec.ts",
         "projects-flow.spec.ts",
         "projects-remote-sources.spec.ts",
+        "teams-settings-context.spec.ts",
         "workflow-files.spec.ts",
         "proton-local-connector-settings.spec.ts",
         "recent-chats-dedup.spec.ts",
@@ -169,7 +170,6 @@
         "skill-images-generate-safety-upload.spec.ts",
         "skill-images-generate-safety.spec.ts",
         "sub-chats-real-inference.spec.ts",
-        "teams-settings-context.spec.ts",
         "usage-token-breakdown.spec.ts",
         "webhook-incoming-chat.spec.ts",
         "wikipedia-mentions.spec.ts",
@@ -1257,15 +1257,6 @@
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: real LLM sub-chat pipeline supports sending inside a synced sub-chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": []
-    },
-    "teams-settings-context.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: isolates Team chats and sends ordinary Team turns as scoped ciphertext. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "PLAYWRIGHT_TEST_API_URL",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
     },
     "usage-token-breakdown.spec.ts": {
       "dependency": "original_live_inference",

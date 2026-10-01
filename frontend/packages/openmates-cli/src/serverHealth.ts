@@ -584,14 +584,45 @@ export async function readRuntimeIncidentState(installDir: string, role: ServerR
   }
 }
 
-export async function writeRuntimeIncidentState(installDir: string, role: ServerRole, state: RuntimeIncidentState): Promise<void> {
+export async function runtimeIncidentStateOwner(
+  installDir: string,
+  effectiveUid: number | undefined = process.geteuid?.() ?? process.getuid?.(),
+): Promise<{ uid: number; gid: number } | null> {
+  if (effectiveUid !== 0) return null;
+  const rootDir = path.join(installDir, ".openmates");
+  const stateDir = path.join(rootDir, "runtime-health");
+  const [rootInfo, stateInfo] = await Promise.all([fs.lstat(rootDir), fs.lstat(stateDir)]);
+  for (const info of [rootInfo, stateInfo]) {
+    if (!info.isDirectory() || info.isSymbolicLink() || (info.mode & 0o777) !== 0o700) {
+      throw new Error("Runtime health state requires private installer-owned directories.");
+    }
+  }
+  if (rootInfo.uid !== stateInfo.uid || rootInfo.gid !== stateInfo.gid) {
+    throw new Error("Runtime health state directories have conflicting owners.");
+  }
+  return { uid: stateInfo.uid, gid: stateInfo.gid };
+}
+
+export async function writeRuntimeIncidentState(
+  installDir: string,
+  role: ServerRole,
+  state: RuntimeIncidentState,
+  effectiveUid: number | undefined = process.geteuid?.() ?? process.getuid?.(),
+): Promise<void> {
   const stateDir = path.join(installDir, ".openmates", "runtime-health");
   const statePath = path.join(stateDir, `${role}.json`);
-  const temporaryPath = `${statePath}.${process.pid}.tmp`;
+  const temporaryPath = `${statePath}.${randomUUID()}.tmp`;
   await fs.mkdir(stateDir, { recursive: true, mode: 0o700 });
-  await fs.writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  await fs.rename(temporaryPath, statePath);
-  await fs.chmod(statePath, 0o600);
+  const owner = await runtimeIncidentStateOwner(installDir, effectiveUid);
+  try {
+    await fs.writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+    if (owner && (owner.uid !== 0 || owner.gid !== 0)) await fs.chown(temporaryPath, owner.uid, owner.gid);
+    await fs.rename(temporaryPath, statePath);
+    await fs.chmod(statePath, 0o600);
+  } catch (error) {
+    await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
 }
 
 function isPrivateAddress(address: string): boolean {

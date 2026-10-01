@@ -89,7 +89,7 @@ export function selectExpectedServerApiUrl(input: {
   if (input.allowExplicitOverride && input.explicitApiUrl?.trim()) {
     return input.explicitApiUrl;
   }
-  return input.configuredApiUrl || "http://localhost:8000";
+  return input.configuredApiUrl || "http://127.0.0.1:8000";
 }
 
 export function mergeQuickServerTestUpdateStatus(

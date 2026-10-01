@@ -1,4 +1,5 @@
 # backend/core/api/app/tasks/leaderboard_tasks.py
+# test-file: backend/tests/test_leaderboard_resilience.py
 #
 # Celery tasks for updating AI model leaderboard data.
 # Runs daily to aggregate rankings from LMArena, OpenRouter, and other sources.
@@ -20,6 +21,46 @@ LEADERBOARD_CACHE_KEY = "leaderboard:models"
 
 # TTL for leaderboard cache (25 hours - slightly longer than daily update interval)
 LEADERBOARD_CACHE_TTL = 25 * 60 * 60
+
+# A worker may receive many old refresh messages after a queue outage. Only one
+# of them should contact ranking providers within this window, including when
+# that attempt fails or is rate limited.
+LEADERBOARD_REFRESH_COOLDOWN = 60 * 60
+LEADERBOARD_MAX_RETRIES = 3
+
+
+def _has_rankings(data: Any) -> bool:
+    """Only a leaderboard with usable ranked models can replace the last good one."""
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("rankings"), list)
+        and any(isinstance(row, dict) and row.get("model_id") for row in data["rankings"])
+    )
+
+
+async def _claim_refresh_slot_async(category: str, task_id: Optional[str], retries: int) -> bool:
+    """Limit queued task IDs while allowing the owner's bounded Celery retries."""
+    cache_service = CacheService()
+    try:
+        client = await cache_service.client
+        if client is None:
+            logger.warning("[LEADERBOARD] Cache unavailable; skipping provider refresh")
+            return False
+        key = f"leaderboard:refresh_cooldown:{category}"
+        owner = task_id or "direct-invocation"
+        if await client.set(key, owner, ex=LEADERBOARD_REFRESH_COOLDOWN, nx=True):
+            return True
+        if task_id and 0 < retries <= LEADERBOARD_MAX_RETRIES:
+            current_owner = await client.get(key)
+            if isinstance(current_owner, bytes):
+                current_owner = current_owner.decode("utf-8")
+            return current_owner == task_id
+        return False
+    except Exception as e:
+        logger.warning("[LEADERBOARD] Could not claim provider refresh slot: %s", e)
+        return False
+    finally:
+        await cache_service.close()
 
 
 async def _aggregate_leaderboard_async(category: str = "text") -> Dict[str, Any]:
@@ -65,18 +106,23 @@ async def _update_cache_async(data: Dict[str, Any]) -> bool:
     Returns:
         True if cache was updated successfully
     """
+    if not _has_rankings(data):
+        logger.warning("[LEADERBOARD] Refusing to cache leaderboard without ranked models")
+        return False
+
     cache_service = CacheService()
     try:
         # Store full leaderboard data as JSON
         cache_value = json.dumps(data, ensure_ascii=False)
-        await cache_service.set(
+        updated = await cache_service.set(
             key=LEADERBOARD_CACHE_KEY,
             value=cache_value,
             ttl=LEADERBOARD_CACHE_TTL
         )
 
-        logger.info(f"[LEADERBOARD] Cache updated with {len(data.get('rankings', []))} ranked models")
-        return True
+        if updated:
+            logger.info(f"[LEADERBOARD] Cache updated with {len(data['rankings'])} ranked models")
+        return bool(updated)
 
     except Exception as e:
         logger.error(f"[LEADERBOARD] Failed to update cache: {e}", exc_info=True)
@@ -113,7 +159,7 @@ async def _get_cached_leaderboard_async() -> Optional[Dict[str, Any]]:
 @app.task(
     name='leaderboard.update_daily',
     bind=True,
-    max_retries=3,
+    max_retries=LEADERBOARD_MAX_RETRIES,
     default_retry_delay=300,  # 5 minute retry delay
     soft_time_limit=600,  # 10 minute soft limit
     time_limit=660,  # 11 minute hard limit
@@ -138,9 +184,20 @@ def update_leaderboard_daily(self, category: str = "text"):
 
     logger.info(f"{log_prefix} [LEADERBOARD] Starting daily leaderboard update (category: {category})")
 
+    if not asyncio.run(_claim_refresh_slot_async(category, task_id, self.request.retries)):
+        logger.info(f"{log_prefix} [LEADERBOARD] Skipping provider refresh during cooldown")
+        return {
+            "success": False,
+            "skipped": True,
+            "reason": "Provider refresh cooldown or cache unavailable",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
     try:
         # Run async aggregation
         data = asyncio.run(_aggregate_leaderboard_async(category))
+        if not _has_rankings(data):
+            raise ValueError("Leaderboard aggregation produced no ranked models")
 
         # Update cache
         cache_updated = asyncio.run(_update_cache_async(data))
@@ -215,11 +272,11 @@ def refresh_leaderboard_cache(self):
         with open(leaderboard_file, 'r') as f:
             data = yaml.safe_load(f)
 
-        if not data:
-            logger.warning(f"{log_prefix} [LEADERBOARD] Empty leaderboard file")
+        if not _has_rankings(data):
+            logger.warning(f"{log_prefix} [LEADERBOARD] Invalid leaderboard file")
             return {
                 "success": False,
-                "error": "Empty leaderboard file",
+                "error": "Leaderboard file has no ranked models",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -227,7 +284,7 @@ def refresh_leaderboard_cache(self):
         cache_updated = asyncio.run(_update_cache_async(data))
 
         result = {
-            "success": True,
+            "success": cache_updated,
             "ranked_models": len(data.get("rankings", [])),
             "cache_updated": cache_updated,
             "source_timestamp": data.get("metadata", {}).get("generated_at"),
@@ -266,8 +323,11 @@ async def get_leaderboard_data() -> Optional[Dict[str, Any]]:
     """
     # Try cache first
     cached = await _get_cached_leaderboard_async()
-    if cached:
+    if _has_rankings(cached):
         return cached
+
+    if cached is not None:
+        logger.warning("[LEADERBOARD] Cached leaderboard has no ranked models; loading saved file")
 
     # Fall back to file
     try:
@@ -280,10 +340,12 @@ async def get_leaderboard_data() -> Optional[Dict[str, Any]]:
                 data = yaml.safe_load(f)
 
             # Update cache for next time
-            if data:
+            if _has_rankings(data):
                 await _update_cache_async(data)
+                return data
 
-            return data
+            logger.warning("[LEADERBOARD] Saved leaderboard has no ranked models")
+            return None
 
         return None
 

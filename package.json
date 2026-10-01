@@ -106,7 +106,7 @@
       "markdown-it": "14.3.2"
     }
   },
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "[![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)",
   "main": "index.js",
   "directories": {
