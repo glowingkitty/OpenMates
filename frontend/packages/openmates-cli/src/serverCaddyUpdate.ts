@@ -7,9 +7,120 @@ import { dirname, join } from "node:path";
 
 type Paths = Record<string, string[]>;
 type Matcher = { line: number; paths: string[]; prefix: string; suffix: string };
-export type CaddyUpdateState = { version: 1; configPath: string; site: string | null; revision: string; paths: Paths; template: string };
+export type CaddyProfile = "self-host" | "official-upload";
+export type OfficialUploadOrigins = { prod: string; dev: string };
+export type CaddyUpdateState = { version: 1; configPath: string; site: string | null; revision: string; paths: Paths; template: string; profile?: CaddyProfile };
 export type CaddyUpdateResult = { status: "updated" | "unchanged" | "not_installed"; revision?: string; backupPath?: string };
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+
+export function resolveCaddyProfile(role: string, explicit: string | boolean | undefined, previous?: CaddyProfile): CaddyProfile {
+  if (explicit === undefined) return previous ?? "self-host";
+  if (role !== "upload" || explicit !== "official-upload") throw new Error("caddy_profile_unsupported");
+  if (previous && previous !== explicit) throw new Error("caddy_profile_conflicts_with_baseline");
+  return explicit;
+}
+
+function scopedHandleBlock(content: string, name: string): string | undefined {
+  const lines = content.split("\n");
+  const start = lines.findIndex(line => new RegExp(`^\\s*handle\\s+${name}\\s*\\{$`).test(line));
+  if (start < 0) return undefined;
+  let depth = 0;
+  for (let i = start; i < lines.length; i++) {
+    const code = lines[i].replace(/#.*$/, "");
+    depth += (code.match(/\{/g)?.length ?? 0) - (code.match(/\}/g)?.length ?? 0);
+    if (depth === 0) return lines.slice(start, i + 1).join("\n");
+  }
+  return undefined;
+}
+
+function reverseProxyBlocks(content: string): string[] {
+  const lines = content.split("\n");
+  const blocks: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const first = lines[i].replace(/#.*$/, "");
+    if (!/^\s*reverse_proxy\b/.test(first)) continue;
+    if (!/\{\s*$/.test(first)) throw new Error("caddy_official_upload_structure_missing");
+    const start = i;
+    let depth = 0;
+    let closed = false;
+    for (; i < lines.length; i++) {
+      const code = lines[i].replace(/#.*$/, "");
+      depth += (code.match(/\{/g)?.length ?? 0) - (code.match(/\}/g)?.length ?? 0);
+      if (depth === 0) {
+        blocks.push(lines.slice(start, i + 1).join("\n"));
+        closed = true;
+        break;
+      }
+    }
+    if (!closed) throw new Error("caddy_official_upload_structure_missing");
+  }
+  return blocks;
+}
+
+function headerUpAffectsTargetEnv(line: string): boolean {
+  const field = /^header_up\s+(\S+)/i.exec(line)?.[1]?.replace(/^['"]|['"]$/g, "").replace(/^[+-]/, "").toLowerCase();
+  if (!field) return false;
+  const escaped = field.split("*").map(part => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+  return new RegExp(`^${escaped}$`).test("x-target-env");
+}
+
+export function officialUploadOrigins(content: string): OfficialUploadOrigins {
+  const origins: Partial<OfficialUploadOrigins> = {};
+  for (const environment of ["prod", "dev"]) {
+    const matches = [...content.matchAll(new RegExp(`^\\s*@${environment}_origin\\s+expression\\s+\\{header\\.Origin\\}\\s*==\\s*"([^"\\n]+)"\\s*$`, "gm"))];
+    if (matches.length !== 1) {
+      throw new Error("caddy_official_upload_structure_missing");
+    }
+    const origin = matches[0][1];
+    let parsed: URL;
+    try { parsed = new URL(origin); } catch { throw new Error("caddy_official_upload_origin_invalid"); }
+    if (parsed.protocol !== "https:" || parsed.origin !== origin || parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+      throw new Error("caddy_official_upload_origin_invalid");
+    }
+    origins[environment as keyof OfficialUploadOrigins] = origin;
+  }
+  if (origins.prod === origins.dev) throw new Error("caddy_official_upload_origin_conflict");
+  return origins as OfficialUploadOrigins;
+}
+
+export function validateOfficialUploadCaddy(content: string, expectedOrigins?: OfficialUploadOrigins): void {
+  const origins = officialUploadOrigins(content);
+  if (expectedOrigins && (origins.prod !== expectedOrigins.prod || origins.dev !== expectedOrigins.dev)) {
+    throw new Error("caddy_official_upload_origin_mismatch");
+  }
+  const scoped = matchers(content, null, true);
+  if (!scoped.has("@prod_origin/@upload_api") || !scoped.has("@dev_origin/@upload_api") ||
+      !scoped.has("@upload_health") || !scoped.has("@admin_paths")) {
+    throw new Error("caddy_official_upload_structure_missing");
+  }
+  for (const environment of ["prod", "dev"]) {
+    const block = scopedHandleBlock(content, `@${environment}_origin`);
+    const active = block?.split("\n").filter(line => !line.trim().startsWith("#")).join("\n") ?? "";
+    if (!block || !active.includes("@upload_options method OPTIONS") || !/handle\s*\{\s*abort\s*\}/.test(active)) {
+      throw new Error("caddy_official_upload_structure_missing");
+    }
+    const proxies = reverseProxyBlocks(active);
+    if (proxies.length < 2) throw new Error("caddy_official_upload_structure_missing");
+    for (const proxy of proxies) {
+      const targetHeaders = proxy.split("\n")
+        .map(line => line.replace(/#.*$/, "").trim())
+        .filter(headerUpAffectsTargetEnv);
+      if (targetHeaders.length !== 1 || !new RegExp(`^header_up\\s+X-Target-Env\\s+(?:"${environment}"|${environment})$`, "i").test(targetHeaders[0])) {
+        throw new Error("caddy_official_upload_structure_missing");
+      }
+    }
+  }
+}
+
+export function renderOfficialUploadCaddyTemplate(template: string, domain: string, email: string): string {
+  if (!/^[a-z0-9.-]+$/i.test(domain) || !domain.includes(".") || !/^[^\s{}$@]+@[^\s{}$@]+\.[^\s{}$@]+$/.test(email)) {
+    throw new Error("caddy_official_upload_render_values_invalid");
+  }
+  const rendered = template.replaceAll("${DEPLOY_UPLOAD_DOMAIN}", domain).replaceAll("${DEPLOY_ACME_EMAIL}", email);
+  if (/\$\{[A-Z_][A-Z0-9_]*\}/.test(rendered)) throw new Error("caddy_official_upload_template_unresolved");
+  validateOfficialUploadCaddy(rendered);
+  return rendered;
+}
 
 function siteRange(lines: string[], site: string | null): [number, number] {
   if (!site) return [0, lines.length];
@@ -25,39 +136,51 @@ function siteRange(lines: string[], site: string | null): [number, number] {
   throw new Error("caddy_managed_site_unclosed");
 }
 
-function matchers(content: string, site: string | null): Map<string, Matcher> {
+function matchers(content: string, site: string | null, scopeAware = false): Map<string, Matcher> {
   const lines = content.split("\n");
   const [start, end] = siteRange(lines, site);
   const result = new Map<string, Matcher>();
+  let depth = 0;
+  const handles: Array<{ name: string; depth: number }> = [];
   for (let i = start; i < end; i++) {
     const named = /^\s*(@[\w-]+)\s+(.*)$/.exec(lines[i]);
-    if (!named) continue;
-    let pathLine = i;
-    if (named[2].trim() === "{") {
-      pathLine = -1;
-      for (let j = i + 1; j < end && lines[j].trim() !== "}"; j++) {
-        if (/^\s*path\s/.test(lines[j])) {
-          if (pathLine !== -1) throw new Error("caddy_ambiguous_path_matcher");
-          pathLine = j;
+    if (named) {
+      let pathLine = i;
+      if (named[2].trim() === "{") {
+        pathLine = -1;
+        for (let j = i + 1; j < end && lines[j].trim() !== "}"; j++) {
+          if (/^\s*path\s/.test(lines[j])) {
+            if (pathLine !== -1) throw new Error("caddy_ambiguous_path_matcher");
+            pathLine = j;
+          }
         }
       }
-      if (pathLine === -1) continue;
+      const path = pathLine >= 0 ? /^(.*?\bpath\s+)([^#]*?)(\s*(?:#.*)?)$/.exec(lines[pathLine]) : null;
+      if (path) {
+        const paths = path[2].trim().split(/\s+/);
+        if (paths.some(value => !value.startsWith("/") || /[{}"'\\]/.test(value))) throw new Error("caddy_unsupported_path_matcher");
+        const scope = scopeAware ? handles.at(-1)?.name : undefined;
+        const key = scope ? `${scope}/${named[1]}` : named[1];
+        if (result.has(key)) throw new Error("caddy_ambiguous_path_matcher");
+        result.set(key, { line: pathLine, paths, prefix: path[1], suffix: path[3] });
+      }
     }
-    const path = /^(.*?\bpath\s+)([^#]*?)(\s*(?:#.*)?)$/.exec(lines[pathLine]);
-    if (!path) continue;
-    const paths = path[2].trim().split(/\s+/);
-    if (paths.some(value => !value.startsWith("/") || /[{}"'\\]/.test(value))) throw new Error("caddy_unsupported_path_matcher");
-    if (result.has(named[1])) throw new Error("caddy_ambiguous_path_matcher");
-    result.set(named[1], { line: pathLine, paths, prefix: path[1], suffix: path[3] });
+    if (scopeAware) {
+      const handle = /^\s*handle\s+(@[\w-]+)\s*\{/.exec(lines[i]);
+      if (handle) handles.push({ name: handle[1], depth: depth + 1 });
+      const code = lines[i].replace(/#.*$/, "");
+      depth += (code.match(/\{/g)?.length ?? 0) - (code.match(/\}/g)?.length ?? 0);
+      while (handles.length && depth < handles[handles.length - 1].depth) handles.pop();
+    }
   }
   return result;
 }
 
 export function mergeCaddyPaths(input: {
-  current: string; target: string; site: string | null; previous?: Paths;
+  current: string; target: string; site: string | null; previous?: Paths; scopeAware?: boolean;
 }): { content: string; paths: Paths } {
-  const current = matchers(input.current, input.site);
-  const target = matchers(input.target, input.site);
+  const current = matchers(input.current, input.site, input.scopeAware);
+  const target = matchers(input.target, input.site, input.scopeAware);
   if (!target.size) throw new Error("caddy_release_matchers_missing");
   const lines = input.current.split("\n");
   const paths: Paths = {};
@@ -88,7 +211,8 @@ export function readCaddyUpdateState(path: string, configPath: string, site: str
     const state = JSON.parse(readFileSync(path, "utf8")) as CaddyUpdateState;
     if (state.version !== 1 || state.configPath !== configPath || state.site !== site ||
       !/^[a-f0-9]{40}$/i.test(state.revision) || typeof state.template !== "string" || !state.template || !state.paths || Array.isArray(state.paths) ||
-      Object.entries(state.paths).some(([name, paths]) => !/^@[\w-]+$/.test(name) ||
+      (state.profile !== undefined && state.profile !== "self-host" && state.profile !== "official-upload") ||
+      Object.entries(state.paths).some(([name, paths]) => !/^(?:@[\w-]+\/)?@[\w-]+$/.test(name) ||
         !Array.isArray(paths) || paths.some(path => typeof path !== "string" || !path.startsWith("/")))) {
       throw new Error();
     }
@@ -192,7 +316,7 @@ export function caddyHostOperation(input: Record<string, unknown> & { configPath
 
 export async function applyCaddyPathUpdate(input: {
   installPath: string; role: string; configPath: string; site: string | null;
-  target: string; revision: string; verify: () => Promise<void>;
+  target: string; revision: string; verify: () => Promise<void>; profile?: CaddyProfile;
 }): Promise<CaddyUpdateResult> {
   if (!/^[a-f0-9]{40}$/i.test(input.revision)) throw new Error("caddy_release_revision_invalid");
   const current = caddyHostOperation({ action: "read", configPath: input.configPath }).content!;
@@ -202,15 +326,17 @@ export async function applyCaddyPathUpdate(input: {
   // matchers first, preserving every other byte. Later releases use a complete
   // three-way merge, including handler changes and route removals.
   const merged = previous
-    ? { content: mergeCaddyRelease(current, previous.template, input.target), paths: Object.fromEntries([...matchers(input.target, input.site)].map(([name, matcher]) => [name, matcher.paths])) }
-    : mergeCaddyPaths({ current, target: input.target, site: input.site });
+    ? { content: mergeCaddyRelease(current, previous.template, input.target), paths: Object.fromEntries([...matchers(input.target, input.site, input.profile === "official-upload")].map(([name, matcher]) => [name, matcher.paths])) }
+    : mergeCaddyPaths({ current, target: input.target, site: input.site, scopeAware: input.profile === "official-upload" });
+  if (input.profile === "official-upload") validateOfficialUploadCaddy(merged.content, officialUploadOrigins(input.target));
   const result = caddyHostOperation({ action: "apply", configPath: input.configPath, expectedHash: hash(current), content: merged.content });
   try { await input.verify(); }
-  catch {
+  catch (error) {
     if (result.backupPath) caddyHostOperation({ action: "restore", configPath: input.configPath, expectedHash: hash(merged.content), backupPath: result.backupPath });
+    if (error instanceof Error && /^caddy_upload_(?:health_route_failed|prod_preflight_failed|dev_preflight_failed|unknown_origin_allowed)$/.test(error.message)) throw error;
     throw new Error("caddy_public_route_verification_failed");
   }
-  const state: CaddyUpdateState = { version: 1, configPath: input.configPath, site: input.site, revision: input.revision, paths: merged.paths, template: input.target };
+  const state: CaddyUpdateState = { version: 1, configPath: input.configPath, site: input.site, revision: input.revision, paths: merged.paths, template: input.target, profile: input.profile ?? "self-host" };
   mkdirSync(dirname(statePath), { recursive: true });
   const temp = `${statePath}.${process.pid}.tmp`;
   writeFileSync(temp, JSON.stringify(state) + "\n", { mode: 0o600 });
@@ -235,5 +361,46 @@ export async function verifyCaddyCoreRoutes(apiUrl: string, origin: string): Pro
   for (const path of ["/v1/workflows", "/v1/workflows/00000000-0000-4000-8000-000000000000/runs"]) {
     const response = await request(path, { headers: { Origin: origin } });
     if (response.status !== 401 || response.headers.get("access-control-allow-origin") !== origin) throw new Error("caddy_workflow_route_failed");
+  }
+}
+
+export async function verifyCaddyUploadRoutes(
+  baseUrl: string,
+  origins: OfficialUploadOrigins,
+  fetcher: typeof fetch = fetch,
+): Promise<void> {
+  const endpoint = baseUrl.replace(/\/$/, "");
+  const request = (path: string, init: RequestInit = {}) => fetcher(`${endpoint}${path}`, {
+    ...init, redirect: "error", signal: AbortSignal.timeout(5_000),
+  });
+  let health: Response;
+  try { health = await request("/health"); } catch { throw new Error("caddy_upload_health_route_failed"); }
+  if (!health.ok) throw new Error("caddy_upload_health_route_failed");
+  for (const environment of ["prod", "dev"] as const) {
+    const origin = origins[environment];
+    let preflight: Response;
+    try {
+      preflight = await request("/v1/upload/file", { method: "OPTIONS", headers: {
+        Origin: origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type",
+      } });
+    } catch { throw new Error(`caddy_upload_${environment}_preflight_failed`); }
+    const methods = preflight.headers.get("access-control-allow-methods")?.split(",").map(value => value.trim().toUpperCase()) ?? [];
+    if (!preflight.ok || preflight.headers.get("access-control-allow-origin") !== origin ||
+        preflight.headers.get("access-control-allow-credentials") !== "true" || !methods.includes("POST")) {
+      throw new Error(`caddy_upload_${environment}_preflight_failed`);
+    }
+  }
+  const unknownOrigin = "https://openmates-route-probe.invalid";
+  if (Object.values(origins).includes(unknownOrigin)) throw new Error("caddy_upload_unknown_origin_allowed");
+  try {
+    const denied = await request("/v1/upload/file", { method: "OPTIONS", headers: {
+      Origin: unknownOrigin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type",
+    } });
+    if (![403, 404].includes(denied.status) || denied.headers.get("access-control-allow-origin") === unknownOrigin) {
+      throw new Error("caddy_upload_unknown_origin_allowed");
+    }
+  } catch (error) {
+    // Caddy's `abort` closes the connection, which fetch reports as a rejection.
+    if (error instanceof Error && error.message === "caddy_upload_unknown_origin_allowed") throw error;
   }
 }

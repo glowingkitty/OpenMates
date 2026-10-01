@@ -104,6 +104,7 @@ import {
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
+import { evaluateNotificationDestinationConfiguration, resolveHostNotificationDestinations } from "../src/serverNotifications.ts";
 import {
   resolveStableImageTag,
   selectLatestStableReleaseTag,
@@ -119,6 +120,61 @@ import {
 import { ensureCoreAlertmanagerRuntimeFile, ensureCorePrometheusRuntimeFiles, imageUpdateUpArgs, loadSelfHostComposeTemplate, validateReuseCompletedSetup, waitForServerHealth } from "../src/server.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
+
+describe("host notification environment mapping", () => {
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable
+  it("closes a saved configuration incident once its independent fallback is configured", () => {
+    const email = { to: "admin@example.test", from: "noreply@example.test", apiKey: "host-test-key" };
+    const missing = evaluateNotificationDestinationConfiguration({ email });
+    const opened = applyRuntimeCheckResults({ consecutiveFailures: 0, incidentOpen: false }, [missing], "2026-10-01T12:00:00Z");
+    assert.equal(opened.state.incidentOpen, true);
+    const repaired = evaluateNotificationDestinationConfiguration({ email, discordWebhookUrl: "https://discord.example/prod" });
+    const recovered = applyRuntimeCheckResults(opened.state, [repaired], "2026-10-01T12:01:00Z");
+    assert.equal(recovered.state.incidentOpen, false);
+    assert.equal(recovered.state.checks?.[missing.id].incidentOpen, false);
+    assert.equal(recovered.events.length, 1);
+    assert.equal(recovered.events[0].type, "recovered");
+    assert.equal(repaired.sanitized_reason, undefined);
+    assert.equal(JSON.stringify(recovered).includes(email.to), false);
+    assert.equal(JSON.stringify(recovered).includes(email.apiKey), false);
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.environments.isolated-labeled,operational-monitoring.delivery.observable
+  it("requires a matching explicit environment for a legacy cloud destination", () => {
+    const env: Record<string, string> = { OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL: "https://discord.example/legacy" };
+    const resolve = (target: "production" | "development") => resolveHostNotificationDestinations((key) => env[key], "official_cloud", target);
+    assert.equal(resolve("production").discordWebhookUrl, undefined);
+    env.OPENMATES_RUNTIME_HEALTH_LEGACY_DISCORD_ENVIRONMENT = "production";
+    assert.equal(resolve("development").discordWebhookUrl, undefined);
+    assert.equal(resolve("production").discordWebhookUrl, env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL);
+    assert.equal(resolve("production").discordDestinationSource, "legacy_environment_mapping");
+    assert.equal(resolve("production").discordFallbackUsed, false);
+    env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION = "https://discord.example/canonical";
+    assert.equal(resolve("production").discordWebhookUrl, env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION);
+    assert.equal(resolve("production").discordDestinationSource, "canonical");
+  });
+
+  // contract-test: direct surface=cli assertions=operational-monitoring.environments.isolated-labeled,operational-monitoring.self-host.auto-email
+  it("preserves environment-specific fallbacks and rejects Vault markers as host configuration", () => {
+    const env: Record<string, string> = {
+      ADMIN_NOTIFY_EMAIL: "admin@example.test", BREVO_API_KEY: "IMPORTED_TO_VAULT",
+      OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL: "IMPORTED_TO_VAULT",
+      OPENMATES_RUNTIME_HEALTH_LEGACY_DISCORD_ENVIRONMENT: "production",
+      DISCORD_WEBHOOK_PROD_SMOKE: "https://discord.example/prod",
+      DISCORD_WEBHOOK_DEV_NIGHTLY: "https://discord.example/dev",
+    };
+    const resolve = (mode: "official_cloud" | "self_host", target: "production" | "development") => resolveHostNotificationDestinations((key) => env[key], mode, target);
+    assert.equal(resolve("official_cloud", "production").email, undefined);
+    assert.equal(resolve("official_cloud", "production").discordWebhookUrl, env.DISCORD_WEBHOOK_PROD_SMOKE);
+    assert.equal(resolve("official_cloud", "production").discordFallbackUsed, true);
+    assert.equal(resolve("official_cloud", "development").discordWebhookUrl, env.DISCORD_WEBHOOK_DEV_NIGHTLY);
+    assert.equal(resolve("self_host", "production").discordWebhookUrl, undefined);
+    env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL = "https://discord.example/self";
+    env.BREVO_API_KEY = "test-host-key";
+    assert.equal(resolve("self_host", "production").discordWebhookUrl, env.OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL);
+    assert.deepEqual(resolve("self_host", "production").email, { apiKey: "test-host-key", to: "admin@example.test", from: "noreply@openmates.org" });
+  });
+});
 
 describe("runtime metrics bind mount", () => {
   it("creates owner-only directories before Compose can claim the host path", () => {
