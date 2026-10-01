@@ -13,9 +13,12 @@
 
 import AVKit
 import Foundation
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
 import SwiftUI
 
 struct RemotionVideoCreateRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let embedId: String?
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
@@ -26,6 +29,11 @@ struct RemotionVideoCreateRenderer: View {
     @State private var currentTime: Double = 0
 
     private let model: RemotionVideoCreateModel
+    private var publicVideoURL: URL? {
+        guard let raw = model.publicVideoURL else { return nil }
+        if let recipientMediaContext { return recipientMediaContext.resolvedPublicURL(raw.relativeString) }
+        return URL(string: raw.relativeString, relativeTo: ServerProfile.current().webBaseURL)?.absoluteURL
+    }
 
     private var currentStatusText: String {
         switch model.status {
@@ -56,7 +64,7 @@ struct RemotionVideoCreateRenderer: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if model.isFinished, model.hasThumbnail || model.publicVideoURL != nil {
+            if model.isFinished, model.hasThumbnail || publicVideoURL != nil {
                 ZStack {
                     if model.hasThumbnail {
                         thumbnailView
@@ -158,28 +166,32 @@ struct RemotionVideoCreateRenderer: View {
             HStack(spacing: 8) {
                 toolbarTab(.code, title: AppStrings.videoCreateCode)
                 Spacer(minLength: 0)
-                Button(AppStrings.videoCreateActionRerender) {
-                    Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: nil) }
+                if recipientMediaContext == nil {
+                    Button(AppStrings.videoCreateActionRerender) {
+                        Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: nil) }
+                    }
+                    .buttonStyle(RemotionToolbarButtonStyle())
+                    .disabled(embedId == nil)
+                    .accessibilityIdentifier("video-create-rerender")
+                }
+            }
+            if recipientMediaContext == nil {
+                HStack(spacing: 8) {
+                if model.status == "rendering" {
+                    Button(AppStrings.videoCreateActionStopRender) {
+                        Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render/current/stop", sourceVersion: nil) }
+                    }
+                    .buttonStyle(RemotionToolbarButtonStyle())
+                    .disabled(embedId == nil)
+                }
+                Button(AppStrings.videoCreateActionRenderThisVersion) {
+                    Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: model.sourceVersion) }
                 }
                 .buttonStyle(RemotionToolbarButtonStyle())
                 .disabled(embedId == nil)
-                .accessibilityIdentifier("video-create-rerender")
-            }
-            HStack(spacing: 8) {
-            if model.status == "rendering" {
-                Button(AppStrings.videoCreateActionStopRender) {
-                    Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render/current/stop", sourceVersion: nil) }
+                .accessibilityIdentifier("video-create-render-version")
+                Spacer(minLength: 0)
                 }
-                .buttonStyle(RemotionToolbarButtonStyle())
-                .disabled(embedId == nil)
-            }
-            Button(AppStrings.videoCreateActionRenderThisVersion) {
-                Task { await postAction(path: "/v1/videos/remotion/\(embedId ?? "")/render", sourceVersion: model.sourceVersion) }
-            }
-            .buttonStyle(RemotionToolbarButtonStyle())
-            .disabled(embedId == nil)
-            .accessibilityIdentifier("video-create-render-version")
-            Spacer(minLength: 0)
             }
         }
     }
@@ -228,7 +240,7 @@ struct RemotionVideoCreateRenderer: View {
             )
                 .frame(minHeight: 240)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
-        } else if let publicVideoURL = model.publicVideoURL {
+        } else if let publicVideoURL = publicVideoURL {
             RemotionPlayerView(url: publicVideoURL, onPlayerReady: { videoPlayer = $0 })
                 .frame(minHeight: 240)
                 .clipShape(RoundedRectangle(cornerRadius: .radius6))
@@ -291,6 +303,7 @@ struct RemotionVideoCreateRenderer: View {
             var body: [String: Any] = [:]
             if let chatId = model.chatId { body["chat_id"] = chatId }
             if let sourceVersion { body["source_version"] = sourceVersion }
+            guard recipientMediaContext == nil else { return }
             let _: Data = try await APIClient.shared.request(.post, path: path, body: body)
             actionError = nil
         } catch {
@@ -355,9 +368,7 @@ private struct RemotionVideoCreateModel {
         aesNonce = Self.string(data, ["aes_nonce"])
         thumbnailURL = Self.string(data, ["thumbnail_url"])
         let publicVideo = Self.string(data, ["video_url", "videoUrl"])
-        publicVideoURL = publicVideo.flatMap {
-            URL(string: $0, relativeTo: ServerProfile.current().webBaseURL)?.absoluteURL
-        }
+        publicVideoURL = publicVideo.flatMap { URL(string: $0) }
         chatId = Self.string(data, ["chat_id"])
 
         let s3BaseURL = Self.string(data, ["s3_base_url"])
@@ -596,6 +607,7 @@ private struct RemotionTimelinePreview: View {
 }
 
 private struct EncryptedVideoPlayer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let s3Url: String
     let aesKey: String
     let aesNonce: String?
@@ -603,12 +615,15 @@ private struct EncryptedVideoPlayer: View {
     let filename: String
     let onPlayerReady: (AVPlayer) -> Void
 
+    @State private var recipientPlayer: AVPlayer?
     @State private var temporaryURL: URL?
     @State private var loadError: String?
 
     var body: some View {
         Group {
-            if let temporaryURL {
+            if let recipientPlayer {
+                VideoPlayer(player: recipientPlayer)
+            } else if let temporaryURL {
                 RemotionPlayerView(url: temporaryURL, onPlayerReady: onPlayerReady)
             } else if let loadError {
                 Color.grey100.overlay(
@@ -627,9 +642,15 @@ private struct EncryptedVideoPlayer: View {
 
     private func loadVideo() async {
         do {
-            let data = try await S3MediaClient.shared.fetchAndDecrypt(
+            let data = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                 s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce, encryption: encryption
             )
+            if let recipientMediaContext {
+                let player = try recipientMediaContext.player(data: data)
+                recipientPlayer = player
+                onPlayerReady(player)
+                return
+            }
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-remotion-video", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let sanitized = filename.replacingOccurrences(of: "/", with: "-")
@@ -643,6 +664,8 @@ private struct EncryptedVideoPlayer: View {
     }
 
     private func cleanup() {
+        recipientPlayer?.pause()
+        recipientPlayer = nil
         if let temporaryURL {
             try? FileManager.default.removeItem(at: temporaryURL)
         }
@@ -650,6 +673,7 @@ private struct EncryptedVideoPlayer: View {
 }
 
 private struct RemotionPlayerView: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let url: URL
     let onPlayerReady: (AVPlayer) -> Void
     @State private var player: AVPlayer?
@@ -662,11 +686,20 @@ private struct RemotionPlayerView: View {
                 Color.black
             }
         }
-        .onAppear {
+        .task(id: url) {
             guard player == nil else { return }
-            let newPlayer = AVPlayer(url: url)
-            player = newPlayer
-            onPlayerReady(newPlayer)
+            if let recipientMediaContext {
+                do {
+                    let newPlayer = try await recipientMediaContext.player(url: url)
+                    try recipientMediaContext.checkCurrent()
+                    player = newPlayer
+                    onPlayerReady(newPlayer)
+                } catch { player = nil }
+            } else {
+                let newPlayer = AVPlayer(url: url)
+                player = newPlayer
+                onPlayerReady(newPlayer)
+            }
         }
         .onDisappear { player?.pause(); player = nil }
     }

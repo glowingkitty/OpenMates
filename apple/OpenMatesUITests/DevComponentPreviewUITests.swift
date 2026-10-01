@@ -1125,8 +1125,28 @@ final class SearchSheetComponentPreviewUITests: XCTestCase {
                 XCTAssertTrue(app.staticTexts["150 rows × 8 columns"].exists)
                 XCTAssertTrue(app.staticTexts["+4"].exists)
             }
+            screenshot("Sheet preview actual cells — " + variant)
             card.tap()
+            let expectedEmbedID = variant == "sheet" ? "preview-sheet-1" : "preview-sheet-large"
+            let opened = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "label == %@", "opened-" + expectedEmbedID),
+                object: element(app, "dev-preview-local-action"))
+            XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed,
+                           "The production preview button must dispatch its fullscreen route")
             XCTAssertTrue(element(app, "sheet-fullscreen-table").waitForExistence(timeout: 5))
+            let fullscreen = element(app, "dev-preview-embed-fullscreen")
+            let cellText = variant == "sheet" ? "Alice Johnson" : "Widget A"
+            #if os(iOS)
+            let firstCell = fullscreen.textViews.matching(NSPredicate(format: "value == %@", cellText)).firstMatch
+            #else
+            let firstCell = fullscreen.staticTexts[cellText].firstMatch
+            #endif
+            XCTAssertTrue(firstCell.waitForExistence(timeout: 5))
+            let paintedCell = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                firstCell.exists && firstCell.isHittable
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [paintedCell], timeout: 5), .completed,
+                           "Capture the spreadsheet after its visible cells paint")
             screenshot("Sheet actual cells and fullscreen — " + variant)
             app.terminate()
         }
@@ -1205,5 +1225,9 @@ final class SearchSheetComponentPreviewUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+        let hierarchy = XCTAttachment(string: XCUIApplication().debugDescription)
+        hierarchy.name = name + " — accessibility"
+        hierarchy.lifetime = .keepAlways
+        add(hierarchy)
     }
 }

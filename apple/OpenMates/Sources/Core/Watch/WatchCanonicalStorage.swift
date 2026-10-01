@@ -46,10 +46,19 @@ enum WatchCanonicalStorage {
         let ack = try await request("chat_turn_preflight", preflight, ["chat_turn_preflight_ack"],
                                     { $0["turn_id"] as? String == pending.id })
         try validate()
-        guard let state = ack["state"] as? String,
-              let preflightID = ack["preflight_id"] as? String, !preflightID.isEmpty else { throw WatchChatRuntimeError.preflightRejected }
-        if ["ENQUEUED", "RUNNING", "TERMINAL"].contains(state) { return }
-        guard state == "PREPARED" || state == "LEGACY" else { throw WatchChatRuntimeError.preflightRejected }
+        guard let state = ack["state"] as? String else {
+            throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .preflight, issue: .missingState)
+        }
+        guard let preflightID = ack["preflight_id"] as? String, !preflightID.isEmpty else {
+            throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .preflight, issue: .missingPreflightID)
+        }
+        if ["ENQUEUED", "RUNNING", "TERMINAL"].contains(state) {
+            NativeDiagnostics.event("inference_accepted", category: "watch_chat_socket", flags: ["replayed": true])
+            return
+        }
+        guard state == "PREPARED" || state == "LEGACY" else {
+            throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .preflight, issue: .unexpectedState)
+        }
         var commit = inference
         commit["protocol_version"] = 1
         commit["preflight_id"] = preflightID
@@ -59,8 +68,13 @@ enum WatchCanonicalStorage {
              ($0["user_message_id"] ?? $0["message_id"]) as? String == pending.messageId)
         })
         try validate()
-        guard receipt["code"] == nil,
-              let taskID = (receipt["ai_task_id"] ?? receipt["task_id"]) as? String, !taskID.isEmpty else { throw WatchChatRuntimeError.inferenceRejected }
+        guard receipt["code"] == nil else {
+            throw WatchTurnAdmissionDiagnostic.serverRejection(stage: .commit, code: receipt["code"])
+        }
+        guard let taskID = (receipt["ai_task_id"] ?? receipt["task_id"]) as? String, !taskID.isEmpty else {
+            throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .commit, issue: .missingTaskID)
+        }
+        NativeDiagnostics.event("inference_accepted", category: "watch_chat_socket", flags: ["replayed": false])
         // LEGACY acknowledges admission but has not persisted the encrypted user
         // message. Complete its canonical storage package before retiring the turn.
         if state == "LEGACY" {
@@ -104,8 +118,13 @@ enum WatchCanonicalStorage {
                     $0["chat_id"] as? String == pending.chatId && $0["message_id"] as? String == pending.messageId
                 })
             try validate()
-            guard stored["code"] == nil, let versions = stored["versions"] as? [String: Any],
-                  let version = versions["messages_v"] as? Int, version > 0 else { throw WatchChatRuntimeError.preflightRejected }
+            guard stored["code"] == nil else {
+                throw WatchTurnAdmissionDiagnostic.serverRejection(stage: .legacyStorage, code: stored["code"])
+            }
+            guard let versions = stored["versions"] as? [String: Any],
+                  let version = versions["messages_v"] as? Int, version > 0 else {
+                throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .legacyStorage, issue: .missingStoredVersion)
+            }
         }
     }
 

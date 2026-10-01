@@ -12,12 +12,16 @@ final class SettingsModesParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testGuestLearningModeCanBeEnabledAndDisabledForCurrentSession() {
-        let app = launchSettingsFixture()
-
-        let learningRow = app.descendants(matching: .any)["learning-mode-toggle-wrapper"]
-        XCTAssertTrue(learningRow.waitForExistence(timeout: 5))
-        tapToggle("learning-mode-toggle-wrapper", in: app)
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,settings-ui.navigation.contextual-availability
+    func testGuestLearningSetupCanBeEnabledAndDisabledThroughOwnedRoute() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-link-fixture"]
+        app.launchEnvironment["UI_TEST_SETTINGS_LINK_PATH"] = "learning-mode/setup"
+        app.launch()
+        let link = app.descendants(matching: .any)["ui-test-settings-link"]
+        XCTAssertTrue(link.waitForExistence(timeout: 15))
+        XCTAssertTrue(link.isHittable)
+        link.tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["settings-learning-mode-page"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["learning-mode-age-group-dropdown"].exists)
@@ -30,6 +34,7 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["learning-mode-status-disabled"].firstMatch.waitForExistence(timeout: 5))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.composition.canonical-and-accessible
     func testAccountLearningModeRendersPasscodeProtectedManagement() {
         let app = launchSettingsFixture(extraArguments: ["--ui-test-account-settings-fixture"])
         let learningRow = app.descendants(matching: .any)["learning-mode-toggle-wrapper"]
@@ -40,6 +45,7 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(app.buttons["learning-mode-enable-button"].firstMatch.waitForExistence(timeout: 5))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing,message-input.privacy-context
     func testIncognitoFirstActivationUsesExplainerAndHandledActivationEvent() {
         let app = launchSettingsFixture(extraArguments: ["--ui-test-account-settings-fixture", "--ui-test-reset-incognito-explainer"])
 

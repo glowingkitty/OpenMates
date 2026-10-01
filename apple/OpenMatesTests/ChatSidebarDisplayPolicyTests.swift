@@ -82,6 +82,55 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
             limit: 0, selectedChatID: "a", lastActiveChatID: nil).isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSnapshotKeepsLargeInputBoundedAndDerivesGroupsFromTheVisibleRows() {
+        let chats = (0..<2_000).map { chat("chat-\($0)", age: $0 % 90, pinned: $0 < 15) }
+        let snapshot = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: chats,
+            appliesDisplayLimit: true, limit: 11, selectedChatID: "chat-1999", lastActiveChatID: nil,
+            totalChatCount: 2_000, serverChatPagesExhausted: true, now: now, calendar: utc)
+        XCTAssertEqual(snapshot.filteredCount, 2_000)
+        XCTAssertTrue(snapshot.shouldShowMore)
+        XCTAssertEqual(snapshot.visibleChats.map(\.id), (0..<10).map { "chat-\($0)" } + ["chat-1999"])
+        XCTAssertEqual(snapshot.groups.flatMap(\.chats).count, 11,
+                       "Grouping work must remain bounded by the visible window, even for a large sidebar")
+        XCTAssertEqual(snapshot.groups.map(\.key), ChatSidebarDisplayPolicy.groups(
+            snapshot.visibleChats, now: now, calendar: utc).map(\.key))
+        XCTAssertEqual(Set(snapshot.groups.flatMap(\.chats).map(\.id)), Set(snapshot.visibleChats.map(\.id)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSnapshotBypassesLimitForSearchAndAnonymousViewsAndUsesOnlyFilteredInput() {
+        // Represents the caller's already-filtered search/anonymous list. The
+        // snapshot must not reintroduce a selected chat removed by that filter.
+        let filtered = (0..<14).map { chat("match-\($0)", age: $0, pinned: $0 < 2) }
+        let unlimited = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: filtered,
+            appliesDisplayLimit: false, limit: 11, selectedChatID: "excluded-chat", lastActiveChatID: nil,
+            totalChatCount: 50, serverChatPagesExhausted: false, now: now, calendar: utc)
+        XCTAssertEqual(unlimited.visibleChats.map(\.id), filtered.map(\.id))
+        XCTAssertEqual(unlimited.filteredCount, filtered.count)
+        XCTAssertEqual(unlimited.groups.flatMap(\.chats).count, filtered.count)
+        XCTAssertFalse(unlimited.shouldShowMore)
+        let limited = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: filtered,
+            appliesDisplayLimit: true, limit: 11, selectedChatID: "excluded-chat", lastActiveChatID: nil,
+            totalChatCount: 50, serverChatPagesExhausted: false, now: now, calendar: utc)
+        XCTAssertEqual(limited.visibleChats.map(\.id), Array(filtered.prefix(11)).map(\.id))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testSnapshotLoadMorePreservesLocalAndServerPaginationRules() {
+        let chats = (0..<5).map { chat("chat-\($0)", age: $0) }
+        func snapshot(total: Int, exhausted: Bool, limit: Int = 11) -> ChatSidebarDisplayPolicy.Snapshot {
+            ChatSidebarDisplayPolicy.snapshot(sortedUserChats: chats,
+                appliesDisplayLimit: true, limit: limit, selectedChatID: nil, lastActiveChatID: nil,
+                totalChatCount: total, serverChatPagesExhausted: exhausted, now: now, calendar: utc)
+        }
+        XCTAssertTrue(snapshot(total: 50, exhausted: false).shouldShowMore)
+        XCTAssertFalse(snapshot(total: 50, exhausted: true).shouldShowMore)
+        XCTAssertFalse(snapshot(total: 5, exhausted: false).shouldShowMore)
+        XCTAssertTrue(snapshot(total: 5, exhausted: true, limit: 3).shouldShowMore)
+        XCTAssertEqual(snapshot(total: 50, exhausted: false).filteredCount, 5)
+    }
+
     private func chat(_ id: String, age: Int, pinned: Bool = false) -> Chat {
         let stamp = ISO8601DateFormatter().string(from: now.addingTimeInterval(-Double(age) * 86_400))
         return Chat(id: id, title: id, lastMessageAt: stamp, createdAt: stamp, updatedAt: stamp,

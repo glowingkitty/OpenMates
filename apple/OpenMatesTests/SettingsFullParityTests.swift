@@ -22,6 +22,22 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(language.hasNativeChild)
         XCTAssertTrue(language.canOpen(authenticated: false, admin: false))
 
+        for path in ["settings_memories", "privacy"] {
+            let publicOverview = SettingsDeepLinkRoute(path)
+            XCTAssertTrue(publicOverview.canOpen(authenticated: false, admin: false), path)
+            XCTAssertTrue(publicOverview.hasNativeChild, path)
+        }
+        XCTAssertTrue(SettingsDeepLinkRoute("ai/provider/openai").hasNativeChild)
+        XCTAssertFalse(SettingsDeepLinkRoute("ai/provider/openai/unknown").hasNativeChild)
+        for path in ["teams", "teams/synthetic-team", "ai/tier/simple", "ai/tier/complex/provider/openai", "ai/tier/most-demanding"] {
+            let route = SettingsDeepLinkRoute(path)
+            XCTAssertTrue(route.hasNativeChild, path)
+            XCTAssertFalse(route.canOpen(authenticated: false, admin: false), path)
+            XCTAssertTrue(route.canOpen(authenticated: true, admin: false), path)
+        }
+        XCTAssertFalse(SettingsDeepLinkRoute("teams/synthetic-team/unknown").hasNativeChild)
+        XCTAssertFalse(SettingsDeepLinkRoute("ai/tier/unknown").hasNativeChild)
+
         for path in ["account/security/password", "privacy/connected-accounts", "billing/invoices",
                      "developers/api-keys/create", "account/storage/images"] {
             let route = SettingsDeepLinkRoute(path)
@@ -35,7 +51,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(SettingsDeepLinkRoute("billing/buy-credits/confirmation").hasNativeChild,
                        "An incoming link cannot fabricate a completed purchase")
         XCTAssertFalse(SettingsDeepLinkRoute("interface/unknown").hasNativeChild)
-        XCTAssertTrue(SettingsDeepLinkRoute("apps/web/skills/search").hasNativeChild)
+        XCTAssertFalse(SettingsDeepLinkRoute("apps/web/skills/search").hasNativeChild)
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.shell.lifecycle-and-routing
@@ -97,16 +113,16 @@ final class SettingsFullParityTests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testNativeSettingsRouteInventoryCoversWebBaseRoutes() {
-        let missing = SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.coveredWebBaseRoutes)
+        let missing = SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.intentionallyExcludedWebRoutes).subtracting(SettingsRouteInventory.coveredWebBaseRoutes)
         XCTAssertTrue(missing.isEmpty, "Missing native settings route coverage: \(missing.sorted())")
 
-        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("apps"))
+        XCTAssertFalse(SettingsRouteInventory.nativeRoutes.contains("apps"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("apps/all"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("projects"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("billing"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("server"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("account/security/recovery-key"))
-        XCTAssertEqual(SettingsRouteInventory.webBaseRoutes, SettingsRouteInventory.nativeRoutes)
+        XCTAssertEqual(SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.intentionallyExcludedWebRoutes), SettingsRouteInventory.nativeRoutes)
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell

@@ -107,7 +107,7 @@ struct DevHistoryComponentFixture: View {
                      initialEmbeds: workspace ? [skill.primaryEmbed] + skill.childEmbeds : [])
 
                     } settings: {
-                        SettingsView(isolatedNavigation: true, onClose: { settingsOpen = false })
+                        SettingsView(isolatedNavigation: true, deepLinkPath: "learning-mode/setup", onClose: { settingsOpen = false })
                     }
 
                 }

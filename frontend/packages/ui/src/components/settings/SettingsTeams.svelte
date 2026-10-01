@@ -1,4 +1,5 @@
 <!--
+  Apple counterpart: apple/OpenMates/Sources/Features/Settings/Views/SettingsTeamsView.swift
   SettingsTeams.svelte
   Settings-only Teams V1 management surface. It reuses the encrypted browser
   team service for create/list/detail/invite without exposing a top-level Teams

@@ -9,12 +9,16 @@
 // CSS:     frontend/packages/ui/src/styles/header.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.routing-coherent
 
 import SwiftUI
 
 struct WatchRootView: View {
     @StateObject private var authStore = WatchAuthStore()
     @StateObject private var phoneBridge = WatchPhoneLoginBridge.shared
+    @StateObject private var push = WatchPushNotificationManager.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -31,6 +35,7 @@ struct WatchRootView: View {
                     currentUserId: authStore.currentUser?.id,
                     currentUsername: authStore.currentUser?.username,
                     webSocketToken: authStore.webSocketToken,
+                    notificationRoute: push.pendingRoute.flatMap { push.permitsOpen($0) ? $0 : nil },
                     onOpenItem: { request in
                         _ = phoneBridge.sendItemOpenRequest(request)
                     },
@@ -48,7 +53,21 @@ struct WatchRootView: View {
                 .task { phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in }) }
             }
         }
-        .task { await authStore.checkSession() }
+        .task {
+            push.attach(authStore)
+            push.isActive = scenePhase == .active
+            await authStore.checkSession()
+            await push.refresh()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            push.isActive = phase == .active
+            if phase == .active {
+                Task {
+                    await authStore.checkSession()
+                    await push.refresh()
+                }
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-root")
     }

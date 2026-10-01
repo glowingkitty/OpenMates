@@ -280,6 +280,7 @@ struct OMToggle: View {
 struct OMSettingsToggleRow: View {
     let title: String
     var subtitle: String?
+    var subtitleTop: String?
     var icon: String?
     @Binding var isOn: Bool
     var disabled = false
@@ -303,6 +304,12 @@ struct OMSettingsToggleRow: View {
             }
 
             VStack(alignment: .leading, spacing: .spacing1) {
+                if let subtitleTop {
+                    Text(subtitleTop)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.grey60)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text(title)
                     .font(.omP.weight(.medium))
                     .foregroundStyle(Color.fontPrimary)
@@ -684,6 +691,9 @@ struct OMSettingsPage<Content: View>: View {
     var trailing: AnyView?
     var showsHeader = true
     var showsFooter = true
+    var contentHorizontalPadding: CGFloat = .spacing5
+    var contentVerticalSpacing: CGFloat = .spacing8
+    var scrollAccessibilityIdentifier: String?
     @ViewBuilder let content: Content
 
     init(
@@ -692,6 +702,9 @@ struct OMSettingsPage<Content: View>: View {
         trailing: AnyView? = nil,
         showsHeader: Bool = true,
         showsFooter: Bool = true,
+        contentHorizontalPadding: CGFloat = .spacing5,
+        contentVerticalSpacing: CGFloat = .spacing8,
+        scrollAccessibilityIdentifier: String? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -699,6 +712,9 @@ struct OMSettingsPage<Content: View>: View {
         self.trailing = trailing
         self.showsHeader = showsHeader
         self.showsFooter = showsFooter
+        self.contentHorizontalPadding = contentHorizontalPadding
+        self.contentVerticalSpacing = contentVerticalSpacing
+        self.scrollAccessibilityIdentifier = scrollAccessibilityIdentifier
         self.content = content()
     }
 
@@ -730,7 +746,7 @@ struct OMSettingsPage<Content: View>: View {
 
             GeometryReader { scrollFrame in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: .spacing8) {
+                    LazyVStack(alignment: .leading, spacing: contentVerticalSpacing) {
                         GeometryReader { contentFrame in
                             Color.clear.preference(
                                 key: OMSettingsScrollOffsetPreferenceKey.self,
@@ -748,9 +764,10 @@ struct OMSettingsPage<Content: View>: View {
                             OMSettingsFooter()
                         }
                     }
-                    .padding(.horizontal, .spacing5)
+                    .padding(.horizontal, contentHorizontalPadding)
                     .padding(.bottom, .spacing16)
                 }
+                .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
                 .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
                     if let callback = scrollOffsetHandler.callback {
                         Task { @MainActor in
@@ -763,6 +780,20 @@ struct OMSettingsPage<Content: View>: View {
             }
         }
         .background(Color.grey20)
+    }
+}
+
+// Attach an identity to the actual scrolling control without renaming its
+// surrounding page or inheriting an ancestor container's identifier.
+private struct OMSettingsScrollIdentity: ViewModifier {
+    let identifier: String?
+
+    func body(content: Content) -> some View {
+        if let identifier {
+            content.accessibilityIdentifier(identifier)
+        } else {
+            content
+        }
     }
 }
 
@@ -901,8 +932,13 @@ struct OMSettingsSectionHeading: View {
 struct OMSettingsRow: View {
     let title: String
     var subtitle: String?
+    var subtitleTop: String?
+    var subtitleBottom: String?
     var icon: String?
     var iconGradient: LinearGradient?
+    var plainIcon = false
+    var iconAccessibilityIdentifier: String?
+    var titleLineLimit: Int?
     var value: String?
     var isDestructive = false
     var showsChevron = true
@@ -925,7 +961,7 @@ struct OMSettingsRow: View {
         }
         .buttonStyle(.plain)
         .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
-        .accessibilityLabel(title)
+        .accessibilityLabel([subtitleTop, title, subtitleBottom].compactMap { $0 }.joined(separator: "\n"))
         .help(Text(title))
     }
 
@@ -937,18 +973,29 @@ struct OMSettingsRow: View {
                 // Mode B (.has-bg): gradient bg, white icon at 50% (22pt)
                 // Mode A (no .has-bg): grey-20→grey-30 gradient bg, colored icon at 50% (22pt)
                 Icon(icon, size: 22)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(plainIcon ? AnyShapeStyle(iconGradient ?? LinearGradient.primary) : AnyShapeStyle(Color.white))
                     .frame(width: 44, height: 44)
-                    .background(isDestructive ? LinearGradient.appNews : LinearGradient.primary)
+                    .background(plainIcon ? LinearGradient(colors: [Color.grey20, Color.grey30], startPoint: .topLeading, endPoint: .bottomTrailing) : isDestructive ? LinearGradient.appNews : iconGradient ?? LinearGradient.primary)
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .accessibilityLabel(icon)
+                    .accessibilityIdentifier(iconAccessibilityIdentifier ?? "settings-row-icon-\(icon)")
                     .padding(.trailing, .spacing6) // margin-inline-end: 12px
             }
 
             VStack(alignment: .leading, spacing: .spacing1) {
+                if let subtitleTop {
+                    Text(subtitleTop).font(.omSmall.weight(.medium)).foregroundStyle(Color.grey60)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text(title)
                     .font(.omP.weight(.medium))
                     .foregroundStyle(isDestructive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
-                if let subtitle {
+                    .lineLimit(titleLineLimit)
+                    .truncationMode(.tail)
+                if let subtitleBottom {
+                    Text(subtitleBottom).font(.omSmall.weight(.medium)).foregroundStyle(Color.grey60)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if let subtitle {
                     Text(subtitle)
                         .font(.omXs)
                         .foregroundStyle(Color.fontSecondary)
@@ -981,6 +1028,7 @@ struct OMSettingsRow: View {
 struct OMSettingsStaticRow: View {
     let title: String
     let value: String
+    var subtitleTop: String?
     var icon: String?
 
     var body: some View {
@@ -999,13 +1047,23 @@ struct OMSettingsStaticRow: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
                     .padding(.trailing, .spacing6)
             }
-            Text(title)
-                .font(.omP)
-                .foregroundStyle(Color.fontPrimary)
+            VStack(alignment: .leading, spacing: .spacing1) {
+                if let subtitleTop {
+                    Text(subtitleTop)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.grey60)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(title)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontPrimary)
+            }
             Spacer()
-            Text(value)
-                .font(.omSmall)
-                .foregroundStyle(Color.fontSecondary)
+            if !value.isEmpty {
+                Text(value)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
         }
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing2)

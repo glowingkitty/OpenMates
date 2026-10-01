@@ -1,4 +1,5 @@
 import { expect, test } from '../helpers/cookie-audit';
+import type { Locator } from '@playwright/test';
 import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
@@ -81,3 +82,88 @@ test('standalone image result preview loads through the same privacy proxy', asy
 		'https://images.unsplash.com/photo-1501594907352-04cda38ebc29'
 	);
 });
+
+/** Resolve the expected surface from the active theme, as the component does. */
+async function expectSurfaceColor(
+	surface: Locator,
+	expression: string,
+	property: 'backgroundColor' | 'color' = 'backgroundColor',
+) {
+	await expect(surface).toBeVisible();
+	await expect.poll(() => surface.evaluate((element, { background, property }) => {
+		const style = getComputedStyle(element);
+		const tokens = background.match(/--[a-z0-9-]+/g) || [];
+		const tokensDefined = tokens.every((token) => style.getPropertyValue(token).trim().length > 0);
+		const probe = document.createElement('span');
+		probe.style[property] = background;
+		element.appendChild(probe);
+		const expected = getComputedStyle(probe)[property];
+		probe.remove();
+		return { tokensDefined, matches: style[property] === expected };
+	}, { background: expression, property })).toEqual({ tokensDefined: true, matches: true });
+}
+
+for (const theme of ['light', 'dark'] as const) {
+	// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+	test(`image result surfaces render with active ${theme} palette tokens`, async ({ page }, testInfo) => {
+		test.setTimeout(90_000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		const fixture = await page.request.get('/images/examples/group1.jpg');
+		expect(fixture.ok()).toBeTruthy();
+		const fixtureBytes = await fixture.body();
+		let failImage = false;
+		await page.route('**/api/v1/image?*', (route) => route.fulfill({
+			status: 200,
+			contentType: 'image/jpeg',
+			body: failImage ? Buffer.from('invalid-image') : fixtureBytes,
+		}));
+		const config = `theme=${theme}&background=%23dbeafe&width=390&chrome=0`;
+		const placeholderBackground = theme === 'dark'
+			? 'var(--color-grey-20)'
+			: 'color-mix(in srgb, var(--color-grey-20) 27.272727%, var(--color-grey-25))';
+		const sectionBackground = theme === 'dark' ? 'var(--color-grey-0)' : 'var(--color-grey-5)';
+		const attachSurface = async (state: string) => testInfo.attach(`image-result-${theme}-${state}`, {
+			body: await page.getByTestId('component-preview-canvas').screenshot(),
+			contentType: 'image/png',
+		});
+
+		await page.goto(`${cardPreviewPath}?${config}`);
+		await waitForComponentPreview(page);
+		await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+		const previewImage = page.getByTestId('image-result-preview-image');
+		await expect(previewImage).toHaveCSS('opacity', '1');
+		await expect.poll(() => previewImage.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+		await expectSurfaceColor(previewImage, placeholderBackground);
+		await attachSurface('preview-loaded');
+
+		failImage = true;
+		await page.goto(`${cardPreviewPath}?${config}`);
+		await waitForComponentPreview(page);
+		await expectSurfaceColor(page.locator('.image-result-content .image-placeholder'), placeholderBackground);
+		await expect(page.getByTestId('image-result-preview-image')).toHaveCount(0);
+		await attachSurface('preview-placeholder');
+
+		await page.goto(`${cardPreviewPath}?${config}&variant=processing`);
+		await waitForComponentPreview(page);
+		await expectSurfaceColor(page.locator('.skeleton-image'), placeholderBackground);
+		await attachSurface('preview-processing');
+
+		failImage = false;
+		await page.goto(`${previewPath}?${config}`);
+		await waitForComponentPreview(page);
+		const fullscreenImage = page.getByTestId('image-result-fullscreen-image');
+		await expect(fullscreenImage).toHaveCSS('opacity', '1');
+		await expect.poll(() => fullscreenImage.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+		await expectSurfaceColor(page.locator('.image-section'), sectionBackground);
+		await expectSurfaceColor(page.locator('.result-title'), 'var(--color-grey-90)', 'color');
+		await attachSurface('fullscreen-loaded');
+
+		await page.goto(`${previewPath}?${config}&variant=failedImage`);
+		await waitForComponentPreview(page);
+		await expectSurfaceColor(page.getByTestId('image-result-fullscreen-placeholder'), placeholderBackground);
+		await expect(page.getByTestId('image-result-fullscreen-image')).toHaveCount(0);
+		await expectSurfaceColor(page.locator('.image-section'), sectionBackground);
+		await expectSurfaceColor(page.locator('.result-title'), 'var(--color-grey-90)', 'color');
+		await attachSurface('fullscreen-placeholder');
+	});
+}

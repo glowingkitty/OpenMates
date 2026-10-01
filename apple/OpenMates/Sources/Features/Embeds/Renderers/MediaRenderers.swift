@@ -22,7 +22,8 @@
 //                specifications/features/app-skills/audio-generate/specification.yml
 //                specifications/features/app-skills/audio-speak/specification.yml
 //                specifications/features/app-skills/web-search/specification.yml
-// Assertions: chats.surface.semantic-parity, videos.transcript.surface-parity, audio-generate.surface-parity,
+//                specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open, chats.surface.semantic-parity, videos.transcript.surface-parity, audio-generate.surface-parity,
 //             audio-speak.surface-parity, web-search.surface-parity
 
 import SwiftUI
@@ -51,7 +52,8 @@ final class GeneratedAudioPreviewController: ObservableObject {
     @Published private(set) var elapsed: TimeInterval = 0
     private var player: AVAudioPlayer?
 
-    func toggle(data: [String: AnyCodable]?) {
+    func toggle(data: [String: AnyCodable]?, recipientMediaContext: RecipientMediaContext? = nil) {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         if let player {
             if player.isPlaying { player.pause() } else { player.play() }
             isPlaying = player.isPlaying
@@ -63,12 +65,14 @@ final class GeneratedAudioPreviewController: ObservableObject {
         loadFailed = false
         Task {
             do {
-                let bytes = try await payload.loadAudio()
+                let bytes = try await payload.loadAudio(recipientMediaContext: recipientMediaContext)
                 #if os(iOS)
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 #endif
+                try recipientMediaContext?.checkCurrent()
                 let newPlayer = try AVAudioPlayer(data: bytes)
+                try recipientMediaContext?.track(newPlayer)
                 newPlayer.prepareToPlay()
                 newPlayer.play()
                 player = newPlayer
@@ -99,6 +103,7 @@ extension EnvironmentValues {
 }
 
 struct GeneratedAudioPreviewPlayButton: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     @ObservedObject var controller: GeneratedAudioPreviewController
     let data: [String: AnyCodable]?
     let skillId: String
@@ -110,7 +115,7 @@ struct GeneratedAudioPreviewPlayButton: View {
     var body: some View {
         let payload = GeneratedAudioSkillPayload(data)
         if payload.hasPlayableMedia {
-            Button { controller.toggle(data: data) } label: {
+            Button { controller.toggle(data: data, recipientMediaContext: recipientMediaContext) } label: {
                 Group {
                     if controller.isLoading {
                         ProgressView().tint(Color.grey0)
@@ -132,6 +137,7 @@ struct GeneratedAudioPreviewPlayButton: View {
 }
 
 struct GeneratedAudioSkillEmbedRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let status: EmbedStatus
     let skillId: String
@@ -330,6 +336,7 @@ struct GeneratedAudioSkillEmbedRenderer: View {
     }
 
     private func togglePlayback() {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         if let player {
             if player.isPlaying { player.pause() } else { player.play() }
             isPlaying = player.isPlaying
@@ -340,12 +347,14 @@ struct GeneratedAudioSkillEmbedRenderer: View {
         loadFailed = false
         Task {
             do {
-                let bytes = try await payload.loadAudio()
+                let bytes = try await payload.loadAudio(recipientMediaContext: recipientMediaContext)
                 #if os(iOS)
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 #endif
+                try recipientMediaContext?.checkCurrent()
                 let audioPlayer = try AVAudioPlayer(data: bytes)
+                try recipientMediaContext?.track(audioPlayer)
                 audioPlayer.prepareToPlay()
                 audioPlayer.play()
                 player = audioPlayer
@@ -451,18 +460,20 @@ private struct GeneratedAudioSkillPayload {
 
     var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
 
-    func loadAudio() async throws -> Data {
+    @MainActor func loadAudio(recipientMediaContext: RecipientMediaContext? = nil) async throws -> Data {
         if let directURL {
             if directURL.hasPrefix("data:"), let comma = directURL.firstIndex(of: ",") {
                 let encoded = String(directURL[directURL.index(after: comma)...])
                 guard let data = Data(base64Encoded: encoded) else { throw URLError(.cannotDecodeContentData) }
+                try recipientMediaContext?.checkCurrent()
+                if recipientMediaContext != nil, data.count > RecipientMediaTransport.maximumMediaBytes { throw URLError(.dataLengthExceedsMaximum) }
                 return data
             }
             guard let url = URL(string: directURL) else { throw URLError(.badURL) }
-            return try await URLSession.shared.data(from: url).0
+            return try await RecipientMediaContext.download(context: recipientMediaContext, url: url)
         }
         guard let s3Key, let aesKey else { throw URLError(.badURL) }
-        return try await S3MediaClient.shared.fetchAndDecrypt(
+        return try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
             s3Url: s3BaseURL ?? "",
             aesKeyHex: aesKey,
             aesNonceHex: aesNonce,
@@ -510,6 +521,7 @@ private struct GeneratedAudioSkillPayload {
 // MARK: - Disk-backed public image loader
 
 struct CachedRemoteImage<Content: View, Placeholder: View>: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let url: URL
     let onFailure: (() -> Void)?
     let onSuccess: (() -> Void)?
@@ -559,7 +571,9 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
             loadedSVG = nil
             loadedURL = nil
             do {
-                let data = try await RemoteImageCache.shared.fetch(requestedURL.absoluteString, allowStaticSVG: true)
+                let data: Data
+                if let recipientMediaContext { data = try await recipientMediaContext.download(requestedURL) }
+                else { data = try await RemoteImageCache.shared.fetch(requestedURL.absoluteString, allowStaticSVG: true) }
                 guard !Task.isCancelled else { return }
                 if let image = platformImage(from: data) {
                     loadedImage = image
@@ -691,6 +705,7 @@ extension StaticSVGRemoteImageView: NSViewRepresentable {
 // MARK: - Encrypted image loader (shared by image embeds)
 
 struct EncryptedImageView: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let s3Url: String?
     let s3Key: String?
     let aesKey: String?
@@ -731,7 +746,7 @@ struct EncryptedImageView: View {
             return
         }
         do {
-            imageData = try await S3MediaClient.shared.fetchAndDecrypt(
+            imageData = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                 s3Url: s3Url,
                 aesKeyHex: aesKey,
                 aesNonceHex: aesNonce,
@@ -959,6 +974,7 @@ extension NativeImagePreviewer: QLPreviewPanelDataSource, QLPreviewPanelDelegate
 #endif
 
 struct TappableEncryptedImageView: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let s3Url: String?
     let s3Key: String?
     let aesKey: String?
@@ -979,6 +995,7 @@ struct TappableEncryptedImageView: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        guard recipientMediaContext == nil else { return }
                         NativeImagePreviewer.shared.previewImageData(imageData, suggestedFilename: filename)
                     }
             } else if isLoading {
@@ -1007,7 +1024,7 @@ struct TappableEncryptedImageView: View {
             return
         }
         do {
-            imageData = try await S3MediaClient.shared.fetchAndDecrypt(
+            imageData = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                 s3Url: s3Url,
                 aesKeyHex: aesKey,
                 aesNonceHex: aesNonce,
@@ -1580,6 +1597,7 @@ struct VideoGenerateEmbedRenderer: View {
 }
 
 private struct GeneratedAudioControl: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let payload: GeneratedMediaPayload
     let compact: Bool
 
@@ -1610,6 +1628,7 @@ private struct GeneratedAudioControl: View {
     }
 
     private func togglePlayback() {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         if let player {
             if player.isPlaying {
                 player.pause()
@@ -1626,9 +1645,9 @@ private struct GeneratedAudioControl: View {
                 let data: Data
                 if payload.directURL != nil {
                     guard let url = URL(string: mediaURL) else { throw URLError(.badURL) }
-                    data = try await URLSession.shared.data(from: url).0
+                    data = try await RecipientMediaContext.download(context: recipientMediaContext, url: url)
                 } else {
-                    data = try await S3MediaClient.shared.fetchAndDecrypt(
+                    data = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                         s3Url: mediaURL, aesKeyHex: payload.aesKey ?? "", aesNonceHex: payload.aesNonce,
                         encryption: payload.encryption, s3Key: payload.s3Key
                     )
@@ -1637,7 +1656,9 @@ private struct GeneratedAudioControl: View {
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 #endif
+                try recipientMediaContext?.checkCurrent()
                 let loadedPlayer = try AVAudioPlayer(data: data)
+                try recipientMediaContext?.track(loadedPlayer)
                 loadedPlayer.prepareToPlay()
                 loadedPlayer.play()
                 player = loadedPlayer
@@ -1651,8 +1672,10 @@ private struct GeneratedAudioControl: View {
 }
 
 private struct GeneratedVideoPlayer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let payload: GeneratedMediaPayload
 
+    @State private var recipientVideoData: Data?
     @State private var localURL: URL?
     @State private var loadError: String?
 
@@ -1660,6 +1683,8 @@ private struct GeneratedVideoPlayer: View {
         Group {
             if let directURL = payload.directURL.flatMap(URL.init(string:)) {
                 VideoPlayerView(url: directURL)
+            } else if let recipientVideoData {
+                VideoPlayerView(url: URL(string: "https://recipient-media.invalid/video.mp4")!, recipientData: recipientVideoData)
             } else if let localURL {
                 VideoPlayerView(url: localURL)
             } else if let loadError {
@@ -1677,10 +1702,15 @@ private struct GeneratedVideoPlayer: View {
         guard payload.directURL == nil, let mediaURL = payload.mediaURL,
               let aesKey = payload.aesKey, payload.aesNonce != nil || payload.encryption != nil else { return }
         do {
-            let data = try await S3MediaClient.shared.fetchAndDecrypt(
+            let data = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                 s3Url: mediaURL, aesKeyHex: aesKey, aesNonceHex: payload.aesNonce,
                 encryption: payload.encryption, s3Key: payload.s3Key
             )
+            if let recipientMediaContext {
+                try recipientMediaContext.checkCurrent()
+                recipientVideoData = data
+                return
+            }
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-generated-video", isDirectory: true)
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let url = directory.appendingPathComponent("\(UUID().uuidString).mp4")
@@ -1771,6 +1801,7 @@ private enum GeneratedMediaText {
 // MARK: - Recording (encrypted audio on S3)
 
 struct RecordingRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
@@ -2076,6 +2107,7 @@ struct RecordingRenderer: View {
     }
 
     private func togglePlayback() {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         if let player = audioPlayer {
             if player.isPlaying {
                 player.pause()
@@ -2093,9 +2125,9 @@ struct RecordingRenderer: View {
             do {
                 let audioData: Data
                 if let directURL, let url = URL(string: directURL) {
-                    audioData = try await URLSession.shared.data(from: url).0
+                    audioData = try await RecipientMediaContext.download(context: recipientMediaContext, url: url)
                 } else if let s3Url, let aesKey, aesNonce != nil || encryption != nil {
-                    audioData = try await S3MediaClient.shared.fetchAndDecrypt(
+                    audioData = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                         s3Url: s3Url,
                         aesKeyHex: aesKey,
                         aesNonceHex: aesNonce,
@@ -2109,7 +2141,9 @@ struct RecordingRenderer: View {
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 #endif
+                try recipientMediaContext?.checkCurrent()
                 let player = try AVAudioPlayer(data: audioData)
+                try recipientMediaContext?.track(player)
                 player.prepareToPlay()
                 player.play()
                 audioPlayer = player
@@ -2213,6 +2247,7 @@ private struct RecordingSeekBar: View {
 // MARK: - PDF (encrypted on S3)
 
 struct PDFRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
@@ -2336,7 +2371,7 @@ struct PDFRenderer: View {
         isLoading = true
         Task {
             do {
-                pdfData = try await S3MediaClient.shared.fetchAndDecrypt(
+                pdfData = try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
                     s3Url: s3Url,
                     aesKeyHex: aesKey,
                     aesNonceHex: aesNonce,
@@ -2371,7 +2406,9 @@ struct PDFKitView: UIViewRepresentable {
 import AVKit
 
 struct VideoPlayerView: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let url: URL
+    var recipientData: Data? = nil
     @State private var player: AVPlayer?
 
     var body: some View {
@@ -2382,9 +2419,15 @@ struct VideoPlayerView: View {
                 Color.grey20.overlay(ProgressView())
             }
         }
-        .onAppear {
-            let avPlayer = AVPlayer(url: url)
-            player = avPlayer
+        .task(id: url) {
+            if let recipientMediaContext {
+                do {
+                    let bytes: Data
+                    if let recipientData { bytes = recipientData }
+                    else { bytes = try await recipientMediaContext.download(url) }
+                    player = try recipientMediaContext.player(data: bytes)
+                } catch { player = nil }
+            } else { player = AVPlayer(url: url) }
         }
         .onDisappear {
             player?.pause()
@@ -2582,7 +2625,7 @@ enum VideoTranscriptMetadataLoader {
         return components?.url
     }
 
-    static func load(sourceURL: String, session: URLSession = .shared) async throws -> VideoTranscriptMetadata {
+    @MainActor static func load(sourceURL: String, session: URLSession = .shared, recipientMediaContext: RecipientMediaContext? = nil) async throws -> VideoTranscriptMetadata {
         guard let url = metadataURL(for: sourceURL) else { throw URLError(.badURL) }
         #if DEBUG
         if let fixture = ProcessInfo.processInfo.environment["DEV_TRANSCRIPT_METADATA_RESPONSE"],
@@ -2590,6 +2633,10 @@ enum VideoTranscriptMetadataLoader {
             return try JSONDecoder().decode(VideoTranscriptMetadata.self, from: fixtureData)
         }
         #endif
+        if let recipientMediaContext {
+            let data = try await recipientMediaContext.download(url)
+            return try JSONDecoder().decode(VideoTranscriptMetadata.self, from: data)
+        }
         let (data, response) = try await session.data(from: url)
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode) else {
@@ -2600,6 +2647,7 @@ enum VideoTranscriptMetadataLoader {
 }
 
 struct TranscriptRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
 
@@ -2703,7 +2751,7 @@ struct TranscriptRenderer: View {
             fetchedMetadata = nil
             guard let sourceURL = payload.sourceURL,
                   payload.title == nil || payload.channelName == nil || payload.channelThumbnailURL == nil else { return }
-            fetchedMetadata = try? await VideoTranscriptMetadataLoader.load(sourceURL: sourceURL)
+            fetchedMetadata = try? await VideoTranscriptMetadataLoader.load(sourceURL: sourceURL, recipientMediaContext: recipientMediaContext)
         }
     }
 

@@ -5,6 +5,7 @@
 // full large-chat histories before first render.
 
 import XCTest
+import Combine
 @testable import OpenMates
 
 @MainActor
@@ -335,6 +336,132 @@ final class ChatWindowLoadingTests: XCTestCase {
         XCTAssertEqual(store.chats.count, 3)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCanonicalHistoryKeepsArrayStorageAndEqualTimestampOrder() {
+        var rows = makeMessages(count: 600)
+        rows[1] = makeHistoryMessage(id: rows[1].id, createdAt: rows[0].createdAt, content: "Equal timestamp")
+        let ordered = ChatHistoryWindowPolicy.orderedUnique(rows)
+        XCTAssertEqual(ordered.map(\.id), rows.map(\.id))
+        XCTAssertEqual(ordered.map(\.content), rows.map(\.content))
+        assertSameMessageStorage(rows, ordered)
+        XCTAssertTrue(ChatHistoryWindowPolicy.orderedUnique([]).isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testDuplicateHistoryKeepsLastValueAndFirstPositionForTimestampTies() {
+        let date = "2026-01-01T00:01:00Z"
+        let rows = [
+            makeHistoryMessage(id: "duplicate", createdAt: date, content: "Old"),
+            makeHistoryMessage(id: "peer", createdAt: date, content: "Peer"),
+            makeHistoryMessage(id: "duplicate", createdAt: date, content: "Accepted replacement")
+        ]
+        let ordered = ChatHistoryWindowPolicy.orderedUnique(rows)
+        XCTAssertEqual(ordered.map(\.id), ["duplicate", "peer"])
+        XCTAssertEqual(ordered.map(\.content), ["Accepted replacement", "Peer"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testUnorderedHistorySortsReplacementTimestampAndPreservesTiePositions() {
+        let early = "2026-01-01T00:01:00Z"
+        let late = "2026-01-01T00:02:00Z"
+        let rows = [
+            makeHistoryMessage(id: "later", createdAt: late, content: "Later"),
+            makeHistoryMessage(id: "first-tie", createdAt: early, content: "First"),
+            makeHistoryMessage(id: "second-tie", createdAt: early, content: "Second"),
+            makeHistoryMessage(id: "later", createdAt: early, content: "Earlier replacement")
+        ]
+        let ordered = ChatHistoryWindowPolicy.orderedUnique(rows)
+        XCTAssertEqual(ordered.map(\.id), ["later", "first-tie", "second-tie"])
+        XCTAssertEqual(ordered.first?.content, "Earlier replacement")
+        let withoutDuplicate = ChatHistoryWindowPolicy.orderedUnique(Array(rows.prefix(3)))
+        XCTAssertEqual(withoutDuplicate.map(\.id), ["first-tie", "second-tie", "later"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,chats.local-state.precedence
+    func testLargeChatBatchPublishesOneFinalSnapshotAndMergesRepeatedIDs() {
+        let store = ChatStore()
+        let date = "2026-01-01T00:00:00Z"
+        store.performWithoutPersistence {
+            store.upsertChats([makeChat(id: "batch-0", title: "Accepted title", updatedAt: date,
+                messagesV: 4, encryptedChatKey: "wrapped-key-fixture")])
+        }
+        var snapshots: [[String]] = []
+        let subscription = store.$chats.dropFirst().sink { snapshots.append($0.map(\.id)) }
+        defer { subscription.cancel() }
+        var incoming = (0..<600).map { index in
+            makeChat(id: "batch-\(index)", title: "Incoming \(index)", updatedAt: date, messagesV: 1)
+        }
+        incoming.append(makeChat(id: "batch-1", title: "Newer duplicate", updatedAt: date, messagesV: 2))
+        let serverOrder = (0..<600).reversed().map { "batch-\($0)" }
+        store.performWithoutPersistence {
+            store.upsertChats(incoming, serverSortOrder: serverOrder, serverSortOffset: 50)
+        }
+        XCTAssertEqual(snapshots.count, 1, "A batch must publish only its final merged and sorted list")
+        XCTAssertEqual(snapshots.first, serverOrder)
+        XCTAssertEqual(store.chats.map(\.id), serverOrder)
+        XCTAssertEqual(store.chat(for: "batch-0")?.title, "Accepted title")
+        XCTAssertEqual(store.chat(for: "batch-0")?.messagesV, 4)
+        XCTAssertEqual(store.chat(for: "batch-0")?.encryptedChatKey, "wrapped-key-fixture")
+        XCTAssertEqual(store.chat(for: "batch-1")?.title, "Newer duplicate")
+        XCTAssertEqual(store.chat(for: "batch-1")?.messagesV, 2)
+        let state = store.makeSyncClientState(clientSuggestionsCount: 0)
+        XCTAssertEqual(state.clientChatIds, serverOrder)
+        XCTAssertEqual(state.clientChatVersions["batch-0"]?["messages_v"], 4)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testModernEmbedsWithoutLegacyHashesKeepHistoryStorage() {
+        let rows = makeMessages(count: 600)
+        let embed = EmbedRecord(id: "modern-embed", type: "web-website", status: .finished,
+            data: .raw([:]), parentEmbedId: nil, appId: "web", skillId: nil,
+            embedIds: nil, createdAt: nil)
+        let result = ChatLegacyEmbedLinkPolicy.applying(to: rows, embeds: [embed])
+        XCTAssertEqual(result.map(\.id), rows.map(\.id))
+        XCTAssertEqual(result.map(\.content), rows.map(\.content))
+        assertSameMessageStorage(rows, result)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testLegacyHashStillLinksOnlyMatchingUserAndPreservesRawEmptyContent() throws {
+        let linked = makeHistoryMessage(id: "legacy-audio-message", createdAt: "2026-01-01T00:01:00Z", content: "")
+        let unmatched = makeHistoryMessage(id: "unmatched", createdAt: linked.createdAt, content: "")
+        let embed = EmbedRecord(id: "legacy-audio", type: "audio-recording", status: .finished,
+            data: .raw([:]), parentEmbedId: nil, appId: "audio", skillId: nil,
+            embedIds: nil,
+            hashedMessageId: "b01c731376d38838b752117a8df680216c9fedf304994c2968eef09e4d6dc7f9",
+            createdAt: nil)
+        let assistant = Message(id: linked.id, chatId: linked.chatId, role: .assistant, content: "",
+            encryptedContent: nil, createdAt: linked.createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        let result = ChatLegacyEmbedLinkPolicy.applying(to: [linked, unmatched, assistant], embeds: [embed])
+        XCTAssertEqual(result[0].embedRefs?.map(\.id), [embed.id])
+        XCTAssertTrue(result[0].content?.contains(embed.id) == true)
+        XCTAssertNil(result[1].embedRefs)
+        XCTAssertEqual(result[1].content, "")
+        XCTAssertNil(result[2].embedRefs, "Legacy links apply only to user messages")
+        XCTAssertEqual(result[2].content, "")
+        let raw = try XCTUnwrap(ChatLegacyEmbedLinkPolicy.applying(
+            to: [linked], embeds: [embed], synthesizeMissingContent: false).first)
+        XCTAssertEqual(raw.content, "")
+        XCTAssertEqual(raw.embedRefs?.map(\.id), [embed.id])
+    }
+
+    private func assertSameMessageStorage(_ original: [Message], _ result: [Message],
+                                         file: StaticString = #filePath, line: UInt = #line) {
+        original.withUnsafeBufferPointer { originalBuffer in
+            result.withUnsafeBufferPointer { resultBuffer in
+                XCTAssertEqual(originalBuffer.baseAddress, resultBuffer.baseAddress,
+                    "Canonical history should reuse its existing array", file: file, line: line)
+            }
+        }
+    }
+
+    private func makeHistoryMessage(id: String, createdAt: String, content: String) -> Message {
+        Message(id: id, chatId: "unit-large-chat", role: .user, content: content,
+            encryptedContent: nil, createdAt: createdAt, updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+    }
+
     private func assertSupersededOlderPageIsDiscarded(usesStore: Bool, reloadsSameChat: Bool) async throws {
         let gate = OlderMessageDecryptionGate()
         let model = ChatViewModel(messageDecryptor: { await gate.decrypt($0, chatId: $1) })
@@ -419,7 +546,7 @@ final class ChatWindowLoadingTests: XCTestCase {
     }
 
     private func makeChat(id: String, title: String, updatedAt: String, messagesV: Int,
-                          lastVisibleMessageId: String? = nil) -> Chat {
+                          lastVisibleMessageId: String? = nil, encryptedChatKey: String? = nil) -> Chat {
         Chat(
             id: id,
             title: title,
@@ -430,7 +557,7 @@ final class ChatWindowLoadingTests: XCTestCase {
             isPinned: false,
             appId: "ai",
             encryptedTitle: nil,
-            encryptedChatKey: nil,
+            encryptedChatKey: encryptedChatKey,
             messagesV: messagesV,
             titleV: messagesV,
             lastVisibleMessageId: lastVisibleMessageId

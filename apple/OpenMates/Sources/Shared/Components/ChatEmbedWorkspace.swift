@@ -238,11 +238,8 @@ struct WorkspaceSettingsLayout<Content: View, Settings: View>: View {
                     Color.black.opacity(0.2).contentShape(Rectangle())
                         .onTapGesture { isOpen = false }.accessibilityHidden(true)
                 }
-                settings().environment(\.workspacePaneIsVisible, parentVisible && visible).frame(width: panelWidth, height: height)
-                    // A retained native ScrollView can expose its own AX node
-                    // through an implicit SwiftUI group. Give the pane a real
-                    // ancestor whose accessibility and actions close together.
-                    .accessibilityElement(children: .contain)
+                settings().environment(\.workspacePaneIsVisible, parentVisible && visible)
+                    .frame(width: panelWidth, height: height)
                     .accessibilityIdentifier("workspace-settings")
                     .disabled(!parentVisible || !isOpen)
                     .offset(x: overlay ? (visible ? x + (323 - reveal) : x + panelWidth + rightInset * 2) : geometry.size.width - reveal, y: y)

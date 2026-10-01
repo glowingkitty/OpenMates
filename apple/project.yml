@@ -91,6 +91,8 @@ targets:
         buildPhase: resources
       - path: OpenMates/Resources/SpeechIcons.xcassets
         buildPhase: resources
+      - path: ../frontend/apps/web_app/static/audio/assistant-speech-pending.wav
+        buildPhase: resources
       - path: OpenMates/Resources/modelsMetadata.json
         buildPhase: resources
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
@@ -133,6 +135,9 @@ targets:
           - webcredentials:openmates.org
           - $(OPENMATES_DEV_WEBCREDENTIALS)
           - webcredentials:app.openmates.org
+          - applinks:app.openmates.org
+          - applinks:openmates.org
+          - applinks:app.dev.openmates.org
     info:
       path: OpenMates/Resources/Info.plist
       properties:
@@ -227,6 +232,7 @@ targets:
       - path: OpenMates/Sources/Core/Networking/APIClient.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      - path: OpenMates/Sources/Core/Watch/WatchPushLifecycle.swift
       - path: OpenMates/Sources/Core/Watch/WatchCanonicalStorage.swift
       - path: OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
       - path: OpenMates/Sources/Core/Watch/WatchItemOpenModel.swift
@@ -284,10 +290,14 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          APS_ENVIRONMENT: development
         Release:
+          APS_ENVIRONMENT: production
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
     entitlements:
       path: OpenMatesWatch/OpenMatesWatch.entitlements
+      properties:
+        aps-environment: $(APS_ENVIRONMENT)
     info:
       path: OpenMatesWatch/Info.plist
       properties:

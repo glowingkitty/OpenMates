@@ -1,4 +1,6 @@
 <!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatSettingsView.swift
   ChatSettingsHeader.svelte
 
   Gradient Settings-shell banner for a single chat. It mirrors the app detail
@@ -13,6 +15,7 @@
   const COLLAPSED_HEIGHT = 88;
   const EXPANDED_HEIGHT_DESKTOP = 250;
   const EXPANDED_HEIGHT_MOBILE = 220;
+  let viewportWidth = $state(0);
 
   let {
     title,
@@ -42,8 +45,7 @@
   });
 
   let expandedHeight = $derived.by(() => {
-    if (typeof window === 'undefined') return EXPANDED_HEIGHT_DESKTOP;
-    return window.innerWidth <= 730 ? EXPANDED_HEIGHT_MOBILE : EXPANDED_HEIGHT_DESKTOP;
+    return viewportWidth > 0 && viewportWidth <= 730 ? EXPANDED_HEIGHT_MOBILE : EXPANDED_HEIGHT_DESKTOP;
   });
 
   let headerHeight = $derived(
@@ -56,6 +58,7 @@
   let displayCredits = $derived(Number.isFinite(credits) ? Math.max(0, Math.round(credits)) : 0);
 </script>
 
+<svelte:window bind:innerWidth={viewportWidth} />
 <div
   class="chat-settings-header"
   data-testid="chat-settings-header"

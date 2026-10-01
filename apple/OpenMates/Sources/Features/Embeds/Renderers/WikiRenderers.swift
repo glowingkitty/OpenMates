@@ -10,7 +10,8 @@
 //         TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity
+//                specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open, chats.surface.semantic-parity
 
 import SwiftUI
 #if os(iOS)
@@ -53,6 +54,7 @@ struct WikiInlineLinkView: View {
 }
 
 struct WikiRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     @State private var article: WikipediaArticleSummary?
@@ -222,11 +224,17 @@ struct WikiRenderer: View {
         isLoading = true
         loadError = nil
         do {
-            let encoded = summaryFetchTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? summaryFetchTitle
-            let response: WikipediaSummaryResponse = try await APIClient.shared.request(
-                .get,
-                path: "/v1/wikipedia/summary?title=\(encoded)&language=en"
-            )
+            let response: WikipediaSummaryResponse
+            if let recipientMediaContext {
+                var url = URLComponents(url: recipientMediaContext.apiBaseURL.appendingPathComponent("v1/wikipedia/summary"), resolvingAgainstBaseURL: false)!
+                url.queryItems = [.init(name: "title", value: summaryFetchTitle), .init(name: "language", value: "en")]
+                let data = try await recipientMediaContext.download(url.url!)
+                response = try JSONDecoder().decode(WikipediaSummaryResponse.self, from: data)
+                try recipientMediaContext.checkCurrent()
+            } else {
+                let encoded = summaryFetchTitle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? summaryFetchTitle
+                response = try await APIClient.shared.request(.get, path: "/v1/wikipedia/summary?title=\(encoded)&language=en")
+            }
             article = WikipediaArticleSummary(response: response)
         } catch {
             loadError = error.localizedDescription

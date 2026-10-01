@@ -3,6 +3,8 @@
 // Supports both Encodable bodies and raw dictionary bodies.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.embeds.gated-send
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.registration.lifecycle
 
 import Foundation
 
@@ -198,6 +200,27 @@ actor APIClient {
     }
 
     // MARK: - Encodable body
+
+    /// Watch push requests pin the verified account's cookies atomically with
+    /// its lifecycle check, before crossing into network execution.
+    func requestForWatchPush(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
+                             body: [String: String],
+                             validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        var request = buildRequest(method, path: path, headers: nil,
+                                   baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
+        request.httpBody = try encoder.encode(body)
+        let prepared = request
+        request = try await MainActor.run {
+            try validate()
+            var pinned = prepared
+            Self.pinAuthorizedCookies(in: &pinned)
+            return pinned
+        }
+        try Task.checkCancellation()
+        let response = try await execute(request)
+        try await MainActor.run { try validate() }
+        return response
+    }
 
     func request(
         _ method: HTTPMethod,

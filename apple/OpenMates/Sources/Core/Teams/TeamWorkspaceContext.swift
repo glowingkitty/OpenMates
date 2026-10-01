@@ -104,6 +104,15 @@ protocol TeamWorkspaceServing {
 
 @MainActor
 final class TeamWorkspaceService: TeamWorkspaceServing {
+    typealias Transport = @MainActor (String, TeamWorkspaceFence) async throws -> Data
+    private let transport: Transport
+    init(transport: Transport? = nil) {
+        self.transport = transport ?? { path, fence in
+            try await APIClient.shared.request(.get, path: path, serverProfile: fence.server,
+                expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        }
+    }
+
     private struct TeamRecord: Decodable {
         let teamId: String?
         let encryptedName: String?
@@ -121,7 +130,7 @@ final class TeamWorkspaceService: TeamWorkspaceServing {
 
     private func request<T: Decodable>(_ path: String, fence: TeamWorkspaceFence) async throws -> T {
         try await fence.check()
-        let data = try await APIClient.shared.request(.get, path: path, serverProfile: fence.server)
+        let data = try await transport(path, fence)
         try await fence.check()
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -298,6 +307,8 @@ final class TeamWorkspaceContext: ObservableObject {
     func selectTeam(_ id: String?) async {
         generation = UUID()
         let operation = generation
+        // Cancelling an in-flight detail operation also clears its loading state.
+        isLoading = false
         guard let accountID, let server else { return }
         let fence = TeamWorkspaceFence(accountID: accountID, environment: environment)
         guard fence.server == server, await isCurrent(operation, fence: fence) else { return }

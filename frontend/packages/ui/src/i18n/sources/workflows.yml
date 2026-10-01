@@ -1,3 +1,137 @@
+sidebar.loading:
+  context: Workflows sidebar loading state
+  en: Loading workflows...
+  de: Workflows werden geladen...
+  verified_by_human: []
+
+sidebar.empty:
+  context: Workflows sidebar empty state
+  en: No workflows yet.
+  de: Noch keine Workflows.
+  verified_by_human: []
+
+sidebar.manual:
+  context: Workflows sidebar manual trigger fallback
+  en: Manual
+  de: Manuell
+  verified_by_human: []
+
+home.greeting:
+  context: Workflow workspace home greeting, with the owner's visible first name
+  en: 'Hey {name}!'
+  de: 'Hallo {name}!'
+  verified_by_human: []
+home.fallback_name:
+  context: Familiar name when the Workflow owner has no visible username
+  en: there
+  de: du
+  verified_by_human: []
+home.subtitle:
+  context: Workflow workspace home subtitle
+  en: What do you want to automate next?
+  de: Was möchtest du als Nächstes automatisieren?
+  verified_by_human: []
+home.show_all:
+  context: Show every workflow from workspace home
+  en: Show all
+  de: Alle anzeigen
+  verified_by_human: []
+home.back_to_recent:
+  context: Return to recent Workflow cards
+  en: Back to recent
+  de: Zurück zu den letzten Workflows
+  verified_by_human: []
+home.search:
+  context: Search button on all Workflows view
+  en: Search
+  de: Suchen
+  verified_by_human: []
+home.search_unavailable:
+  context: Temporary search notice in all Workflows view
+  en: Workflow search is coming soon.
+  de: Die Workflow-Suche kommt bald.
+  verified_by_human: []
+home.retention_none:
+  context: Workflow home card without durable run content
+  en: No durable run content
+  de: Keine dauerhaft gespeicherten Ausführungsinhalte
+  verified_by_human: []
+home.retention_last5:
+  context: Workflow home card retaining five encrypted runs
+  en: Keep latest 5 encrypted runs
+  de: Die letzten 5 verschlüsselten Ausführungen behalten
+  verified_by_human: []
+home.badge_new:
+  context: Newly created Workflow card badge
+  en: New
+  de: Neu
+  verified_by_human: []
+home.badge_enabled:
+  context: Enabled Workflow card badge
+  en: Enabled
+  de: Aktiviert
+  verified_by_human: []
+home.badge_paused:
+  context: Paused Workflow card badge
+  en: Paused
+  de: Pausiert
+  verified_by_human: []
+home.starter_badge:
+  context: Workflow example starter card badge
+  en: Starter
+  de: Vorlage
+  verified_by_human: []
+home.starter_rain_title:
+  context: Daily weather and news Workflow starter title
+  en: Daily weather and news
+  de: Tägliches Wetter und Nachrichten
+  verified_by_human: []
+home.starter_rain_summary:
+  context: Daily weather and news Workflow starter summary
+  en: Rain timing and the latest articles in a new chat
+  de: Regenzeiten und aktuelle Artikel in einem neuen Chat
+  verified_by_human: []
+home.starter_news_title:
+  context: Weekly AI events Workflow starter title
+  en: Weekly AI events
+  de: Wöchentliche KI-Veranstaltungen
+  verified_by_human: []
+home.starter_news_summary:
+  context: Weekly AI events Workflow starter summary
+  en: Discover AI events for the upcoming week
+  de: KI-Veranstaltungen für die kommende Woche entdecken
+  verified_by_human: []
+home.starter_apartments_title:
+  context: Hourly apartment Workflow starter title
+  en: Find new apartments every hour
+  de: Stündlich neue Wohnungen finden
+  verified_by_human: []
+home.starter_apartments_summary:
+  context: Hourly apartment Workflow starter summary
+  en: Only previously undelivered listings
+  de: Nur bisher nicht zugestellte Angebote
+  verified_by_human: []
+home.inspiration_phrase:
+  context: Workflow home daily inspiration phrase
+  en: A useful workflow starts with one trigger, one decision, and one visible result.
+  de: Ein nützlicher Workflow beginnt mit einem Auslöser, einer Entscheidung und einem sichtbaren Ergebnis.
+  verified_by_human: []
+home.inspiration_title:
+  context: Workflow home daily inspiration title
+  en: Design a Workflow Trigger
+  de: Einen Workflow-Auslöser entwerfen
+  verified_by_human: []
+home.inspiration_feature_title:
+  context: Workflow home inspiration feature title
+  en: Workflow planning tip
+  de: Tipp zur Workflow-Planung
+  verified_by_human: []
+home.inspiration_feature_description:
+  context: Workflow home inspiration feature description
+  en: Start automation with a clear trigger.
+  de: Starte die Automatisierung mit einem klaren Auslöser.
+  verified_by_human: []
+
 template_share.title:
   context: Heading for the Workflow template sharing panel
   en: Share as template
@@ -2117,6 +2251,168 @@ run_embed.loading:
 run_embed.unavailable:
   context: Workflow run fullscreen message when owner data has expired or been deleted
   en: "This workflow run is no longer available."
+  verified_by_human: []
+
+builder.ai_create_submit:
+  context: 'Button to create a Workflow from an instruction'
+  en: 'Create workflow'
+  de: 'Workflow erstellen'
+  verified_by_human: []
+
+builder.ai_create_submitting:
+  context: 'Button while an AI Workflow is being created'
+  en: 'Creating...'
+  de: 'Wird erstellt...'
+  verified_by_human: []
+
+template_share.owner_description:
+  context: 'Explanation of the portable Workflow template'
+  en: 'Recipients import a disabled copy and reconnect their own accounts, schedules, permissions, and notification preferences.'
+  de: 'Empfänger importieren eine deaktivierte Kopie und verbinden ihre eigenen Konten, Zeitpläne, Berechtigungen und Benachrichtigungseinstellungen erneut.'
+  verified_by_human: []
+
+template_share.preparing:
+  context: 'Preparing a Workflow template link'
+  en: 'Preparing...'
+  de: 'Wird vorbereitet...'
+  verified_by_human: []
+
+template_share.copy_short:
+  context: 'Copy a short Workflow template link'
+  en: 'Copy short link'
+  de: 'Kurzlink kopieren'
+  verified_by_human: []
+
+template_share.copy_offline:
+  context: 'Copy an offline Workflow template link'
+  en: 'Copy offline link'
+  de: 'Offline-Link kopieren'
+  verified_by_human: []
+
+template_share.revoke:
+  context: 'Revoke Workflow template access'
+  en: 'Revoke template access'
+  de: 'Vorlagenzugriff widerrufen'
+  verified_by_human: []
+
+template_share.restore:
+  context: 'Restore Workflow template access'
+  en: 'Restore template access'
+  de: 'Vorlagenzugriff wiederherstellen'
+  verified_by_human: []
+
+template_share.link_created:
+  context: 'Workflow template share confirmation'
+  en: 'Short template link created.'
+  de: 'Kurzlink für Vorlage erstellt.'
+  verified_by_human: []
+
+template_share.link_copied:
+  context: 'Workflow template copy confirmation'
+  en: 'Link copied.'
+  de: 'Link kopiert.'
+  verified_by_human: []
+
+template_share.access_restored:
+  context: 'Workflow template restoration confirmation'
+  en: 'Template access restored. Create a new short link to share it again.'
+  de: 'Vorlagenzugriff wiederhergestellt. Erstelle einen neuen Kurzlink, um die Vorlage erneut zu teilen.'
+  verified_by_human: []
+
+template_share.preview_label:
+  context: 'Workflow template preview heading'
+  en: 'Workflow template'
+  de: 'Workflow-Vorlage'
+  verified_by_human: []
+
+template_share.import_disabled:
+  context: 'Explains imported Workflows begin disabled'
+  en: 'Imported workflows start disabled.'
+  de: 'Importierte Workflows sind zunächst deaktiviert.'
+  verified_by_human: []
+
+template_share.preview_step_summary:
+  context: 'Recipient Workflow template step count and disabled state'
+  en: '{count} steps. Imported workflows start disabled.'
+  de: '{count} Schritte. Importierte Workflows sind zunächst deaktiviert.'
+  verified_by_human: []
+
+template_share.importing:
+  context: 'Workflow template import in progress'
+  en: 'Importing...'
+  de: 'Wird importiert...'
+  verified_by_human: []
+
+template_share.complete_before_enable:
+  context: 'Workflow template binding heading'
+  en: 'Complete before enabling'
+  de: 'Vor der Aktivierung abschließen'
+  verified_by_human: []
+
+template_share.binding_explanation:
+  context: 'Workflow template binding explanation'
+  en: 'This imported workflow remains disabled until these recipient-owned bindings are confirmed.'
+  de: 'Dieser importierte Workflow bleibt deaktiviert, bis diese eigenen Verbindungen bestätigt sind.'
+  verified_by_human: []
+
+template_share.binding_schedule:
+  context: 'Workflow template schedule binding'
+  en: 'Choose your schedule and timezone'
+  de: 'Zeitplan und Zeitzone auswählen'
+  verified_by_human: []
+
+template_share.binding_app_skill:
+  context: 'Workflow template app skill binding prefix'
+  en: 'Connect'
+  de: 'Verbinden:'
+  verified_by_human: []
+
+template_share.binding_notifications:
+  context: 'Workflow template notification binding'
+  en: 'Choose notification preferences'
+  de: 'Benachrichtigungseinstellungen auswählen'
+  verified_by_human: []
+
+template_share.binding_other:
+  context: 'Other Workflow template binding'
+  en: 'Complete requirement'
+  de: 'Anforderung abschließen'
+  verified_by_human: []
+
+template_share.mark_complete:
+  context: 'Confirm a Workflow template binding'
+  en: 'Mark complete'
+  de: 'Als abgeschlossen markieren'
+  verified_by_human: []
+
+template_share.completed:
+  context: 'Workflow template binding completion status'
+  en: 'Completed'
+  de: 'Abgeschlossen'
+  verified_by_human: []
+
+template_share.enabling:
+  context: 'Workflow template activation in progress'
+  en: 'Enabling...'
+  de: 'Wird aktiviert...'
+  verified_by_human: []
+
+template_share.enable:
+  context: 'Enable imported Workflow template'
+  en: 'Enable workflow'
+  de: 'Workflow aktivieren'
+  verified_by_human: []
+
+template_share.import_done:
+  context: 'Workflow template import confirmation'
+  en: 'Workflow imported disabled. Complete its binding requirements before enabling it.'
+  de: 'Workflow deaktiviert importiert. Schließe die Verbindungsanforderungen vor der Aktivierung ab.'
+  verified_by_human: []
+
+template_share.binding_done:
+  context: 'Workflow template binding confirmation'
+  en: 'Binding requirement completed.'
+  de: 'Verbindungsanforderung abgeschlossen.'
   verified_by_human: []
 
 builder.website_text:

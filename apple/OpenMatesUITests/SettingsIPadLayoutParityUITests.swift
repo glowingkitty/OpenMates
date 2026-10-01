@@ -1,8 +1,6 @@
-// iPad settings layout parity smoke for the native Apps settings path.
-// Uses the deterministic app-store fixture to avoid provider calls,
-// credentials, private account data, billing state, and private screenshots.
-// Verifies that key iPad controls remain visible, tappable, and free of
-// default table chrome while exercising Apps drilldown back navigation.
+// iPad settings layout parity for guest Memories, Privacy, and Interface.
+// Uses public settings state without credentials or private account data.
+// Checks rendered bounds and hittability, including the Language child return.
 
 import XCTest
 
@@ -12,57 +10,60 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testIPadAppsSettingsLayoutKeepsControlsVisibleAndUsable() throws {
+    // contract-test: direct surface=gui.apple assertions=settings-ui.navigation.contextual-availability,settings-ui.navigation.parent-return,settings-ui.parity.web-apple-shell
+    func testIPadGuestSettingsDestinationsKeepControlsVisibleAndUsable() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-app-store-fixture"]
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-memory-fixture"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
-        app.buttons["settings-button"].tap()
-
+        let settingsButton = app.buttons["settings-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 15))
+        XCTAssertTrue(settingsButton.isHittable)
+        settingsButton.tap()
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
-        XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
-        assertElementInsideWindow(app.descendants(matching: .any)["settings-apps-row"], in: app)
-        app.descendants(matching: .any)["settings-apps-row"].tap()
+        XCTAssertFalse(app.descendants(matching: .any)["settings-apps-row"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["learning-mode-toggle-wrapper"].exists)
 
-        XCTAssertTrue(waitForElement("settings-app-store-page", in: app, timeout: 10))
-        XCTAssertTrue(waitForElement("settings-show-all-apps-row", in: app, timeout: 5))
-        assertElementInsideWindow(app.descendants(matching: .any)["settings-show-all-apps-row"], in: app)
-        XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
-        guard let visibleWeather = visibleElement("app-card-weather", in: app) else {
-            XCTFail("Expected a visible Weather card in an iPad category carousel")
-            return
+        for destination in [
+            (row: "settings-memories-row", page: "settings-memories-page"),
+            (row: "settings-privacy-row", page: "settings-privacy-page"),
+            (row: "settings-interface-row", page: "settings-interface-page"),
+        ] {
+            XCTAssertTrue(waitForElement(destination.row, in: app, timeout: 5))
+            guard let row = visibleElement(destination.row, in: app) else {
+                XCTFail("Expected visible row \(destination.row)")
+                return
+            }
+            assertElementInsideWindow(row, in: app)
+            XCTAssertTrue(row.isHittable)
+            row.tap()
+            XCTAssertTrue(waitForElement(destination.page, in: app, timeout: 8))
+            XCTAssertFalse(app.tables.firstMatch.exists, "iPad settings must not render default List/table chrome")
+
+            if destination.page == "settings-interface-page" {
+                XCTAssertTrue(waitForElement("settings-interface-language-row", in: app, timeout: 5))
+                let languageRow = app.descendants(matching: .any)["settings-interface-language-row"].firstMatch
+                assertElementInsideWindow(languageRow, in: app)
+                XCTAssertTrue(languageRow.isHittable)
+                languageRow.tap()
+                XCTAssertTrue(waitForElement("settings-language-page", in: app, timeout: 5))
+                let languageBack = app.buttons["settings-language-back"]
+                assertElementInsideWindow(languageBack, in: app)
+                XCTAssertTrue(languageBack.isHittable)
+                languageBack.tap()
+                XCTAssertTrue(waitForElement("settings-interface-language-row", in: app, timeout: 5))
+            }
+
+            attachScreenshot(name: "iPad \(destination.page) layout")
+            let back = app.buttons["settings-destination-back"]
+            assertElementInsideWindow(back, in: app)
+            XCTAssertTrue(back.isHittable)
+            back.tap()
+            XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 5))
         }
-        assertElementInsideWindow(visibleWeather, in: app)
-
-        app.descendants(matching: .any)["settings-show-all-apps-row"].tap()
-        XCTAssertTrue(waitForElement("settings-all-apps-page", in: app, timeout: 8))
-        XCTAssertTrue(waitForElement("settings-all-apps-filter-focus-modes", in: app, timeout: 3))
-        XCTAssertTrue(waitForElement("settings-all-app-row-weather", in: app, timeout: 5))
-        assertElementInsideWindow(app.descendants(matching: .any)["settings-all-app-row-weather"], in: app)
-
-        app.descendants(matching: .any)["settings-all-app-row-weather"].tap()
-        XCTAssertTrue(waitForElement("settings-app-detail-page", in: app, timeout: 8))
-        XCTAssertTrue(waitForElement("settings-app-skill-row-forecast", in: app, timeout: 5))
-        assertElementInsideWindow(app.descendants(matching: .any)["settings-app-skill-row-forecast"], in: app)
-        XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
-
-        app.descendants(matching: .any)["settings-app-skill-row-forecast"].tap()
-        XCTAssertTrue(waitForElement("settings-skill-detail-page", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("settings-skill-detail-back", in: app, timeout: 3))
-        assertElementInsideWindow(app.descendants(matching: .any)["settings-skill-detail-back"], in: app)
-        app.descendants(matching: .any)["settings-skill-detail-back"].tap()
-
-        XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
-        app.descendants(matching: .any)["settings-app-focus-row-travel_weather"].tap()
-        XCTAssertTrue(waitForElement("settings-focus-detail-page", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("settings-focus-instructions-toggle", in: app, timeout: 3))
-        assertElementInsideWindow(app.descendants(matching: .any)["settings-focus-instructions-toggle"], in: app)
-        XCTAssertFalse(app.tables.firstMatch.exists, "iPad Apps settings must not render default List/table chrome")
-
-        attachScreenshot(name: "iPad Apps settings layout smoke")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell
     func testIPadSettingsShellProducesLightAndDarkReviewArtifacts() {
         for appearance in ["Light", "Dark"] {
             let app = XCUIApplication()
@@ -76,10 +77,14 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
             XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
             app.buttons["settings-button"].tap()
             XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
-            let appsRow = app.descendants(matching: .any)["settings-apps-row"].firstMatch
-            XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
-            assertElementInsideWindow(appsRow, in: app)
-            XCTAssertTrue(appsRow.isHittable)
+            let aiRow = app.descendants(matching: .any)["settings-ai-row"].firstMatch
+            XCTAssertTrue(waitForElement("settings-ai-row", in: app, timeout: 5))
+            assertElementInsideWindow(aiRow, in: app)
+            XCTAssertTrue(aiRow.isHittable)
+            XCTAssertFalse(app.descendants(matching: .any)["settings-apps-row"].exists)
+            let banner = app.descendants(matching: .any)["settings-banner-shell"].firstMatch
+            XCTAssertTrue(banner.waitForExistence(timeout: 5))
+            assertElementInsideWindow(banner, in: app)
             XCTAssertFalse(app.tables.firstMatch.exists)
             attachScreenshot(name: "iPad Settings shell \(appearance.lowercased())")
 
@@ -96,6 +101,10 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
             scrollView.swipeUp()
             if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
         }
+        for _ in 0..<6 where scrollView.exists {
+            scrollView.swipeDown()
+            if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
+        }
         return visibleElement(identifier, in: app) != nil
     }
 
@@ -103,7 +112,7 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .allElementsBoundByIndex
-            .first { isElementInsideWindow($0, in: app) }
+            .first { isElementInsideWindow($0, in: app) && $0.isHittable }
     }
 
     private func assertElementInsideWindow(_ element: XCUIElement, in app: XCUIApplication) {
@@ -117,7 +126,7 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
     private func isElementInsideWindow(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         guard element.exists else { return false }
         let windowFrame = app.windows.firstMatch.frame.insetBy(dx: -1, dy: -1)
-        return windowFrame.contains(element.frame)
+        return !element.frame.isEmpty && windowFrame.contains(element.frame)
     }
 
     private func attachScreenshot(name: String) {

@@ -137,6 +137,52 @@ test.describe('Component Preview System', () => {
 		await expect(page.getByText('No table data available')).toHaveCount(0);
 	});
 
+	test('chat settings public usage preview uses bundled rows and hides owner planning', async ({ page }) => {
+		await page.goto('/dev/preview/chats/ChatSettingsPreviewHarness?chrome=0&theme=light&variant=publicUsage');
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+		await expect(page.getByTestId('chat-settings-tab-usage')).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByTestId('chat-settings-tab-tasks')).toHaveCount(0);
+		await expect(page.getByTestId('chat-settings-tab-plan')).toHaveCount(0);
+		const rows = page.getByTestId('chat-settings-usage-row');
+		await expect(rows).toHaveCount(2);
+		await expect(rows.nth(0)).toContainText('ai | ask');
+		await expect(rows.nth(0)).toContainText('Google AI Studio / US');
+		await expect(rows.nth(1)).toContainText('audio | speak');
+		await expect(page.getByTestId('chat-settings-usage-total')).toContainText('37');
+		await expect(page.locator('.chat-settings-header')).toContainText('37');
+		await expect(page.getByTestId('chat-settings-download-usage')).toBeEnabled();
+		await page.getByTestId('chat-settings-tab-files').click();
+		await expect(page.getByTestId('chat-settings-download-files')).toBeEnabled();
+		await expect(page.getByTestId('chat-settings-file-row')).toContainText('audio-speak-openmates-welcome-message.mp3');
+		await expect(page.getByTestId('chat-settings-file-row')).toContainText('Audio');
+	});
+
+	test('embed fullscreen captures retain full viewport height and visible content', async ({ page }) => {
+		for (const size of [{ width: 402, height: 874 }, { width: 1376, height: 1032 }]) {
+			await page.setViewportSize(size);
+			for (const path of ['code/CodeEmbedFullscreen', 'sheets/SheetEmbedFullscreen']) {
+				await page.goto(`/dev/preview/embeds/${path}?chrome=0&theme=light`);
+				await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
+				const overlay = page.locator('.unified-embed-fullscreen-overlay');
+				await expect.poll(async () => {
+					const box = await overlay.boundingBox();
+					return box && {
+						x: Math.round(box.x), y: Math.round(box.y),
+						width: Math.round(box.width), height: Math.round(box.height)
+					};
+				}).toEqual({ x: 0, y: 0, ...size });
+				const content = path.startsWith('code/')
+					? page.getByTestId('code-fullscreen-code')
+					: page.getByText('Alice Johnson', { exact: true });
+				await expect(content).toBeVisible();
+				const box = await content.boundingBox();
+				expect(box).not.toBeNull();
+				expect(box!.y).toBeGreaterThanOrEqual(0);
+				expect(box!.y).toBeLessThan(size.height);
+			}
+		}
+	});
+
 	test('full-page workspace previews fill the phone and wide capture viewport', async ({ page }) => {
 		for (const size of [{ width: 402, height: 874 }, { width: 1376, height: 1032 }]) {
 			await page.setViewportSize(size);

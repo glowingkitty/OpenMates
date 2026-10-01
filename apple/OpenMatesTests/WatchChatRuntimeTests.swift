@@ -9,6 +9,75 @@ import CryptoKit
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationJoinsInflightRefreshBeforeResolvingUncachedTarget() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let gate = WatchChatFetchGate()
+        let api = FakeWatchChatAPI(chats: [
+            Self.remoteChat(id: "target", title: "Target", lastMessageAt: "2026-07-01T10:00:00Z"),
+        ], chatFetchGate: gate)
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let refresh = Task { await runtime.refresh() }
+        await gate.waitUntilStarted()
+        let open = Task { await runtime.openNotificationChat(chatID: "target") }
+        await Task.yield()
+        XCTAssertTrue(runtime.isSyncing)
+        XCTAssertFalse(runtime.chatLoadFailed)
+        XCTAssertNil(runtime.selectedChatId)
+        await gate.release()
+        let result = await open.value
+        await refresh.value
+        XCTAssertEqual(result, .opened)
+        XCTAssertEqual(runtime.selectedChatId, "target")
+        XCTAssertEqual(api.fetchRecentChatsCallCount, 1)
+        XCTAssertEqual(api.fetchMessagesCallCount, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationTransientResolutionFailureRemainsRetryable() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(chats: [
+            Self.remoteChat(id: "target", title: "Target", lastMessageAt: "2026-07-01T10:00:00Z"),
+        ], chatFetchError: APIError.httpError(status: 503, message: "fixture temporary outage"))
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let failed = await runtime.openNotificationChat(chatID: "target")
+        XCTAssertEqual(failed, .retry)
+        XCTAssertNil(runtime.selectedChatId)
+        api.chatFetchError = nil
+        let retried = await runtime.openNotificationChat(chatID: "target")
+        XCTAssertEqual(retried, .opened)
+        XCTAssertEqual(runtime.selectedChatId, "target")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationHydratesExactTargetAndMissingTargetNeverOpensAnotherChat() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(chats: [
+            Self.remoteChat(id: "latest", title: "Latest", lastMessageAt: "2026-07-05T10:00:00Z"),
+            Self.remoteChat(id: "target", title: "Target", lastMessageAt: "2026-07-01T10:00:00Z"),
+        ])
+        let runtime = WatchChatRuntime(api: api, cache: WatchChatOfflineCache(directory: directory),
+                                       crypto: FakeWatchChatCrypto(), syncSocket: nil)
+        let opened = await runtime.openNotificationChat(chatID: "target")
+        XCTAssertEqual(opened, .opened)
+        XCTAssertEqual(runtime.selectedChatId, "target")
+        XCTAssertEqual(api.fetchMessagesCallCount, 1)
+        let missing = await runtime.openNotificationChat(chatID: "missing")
+        XCTAssertEqual(missing, .unavailable)
+        XCTAssertNil(runtime.selectedChatId)
+        XCTAssertTrue(runtime.chatLoadFailed)
+        XCTAssertEqual(api.fetchMessagesCallCount, 1)
+        WatchChatAccountLifecycle.invalidate()
+        let stale = await runtime.openNotificationChat(chatID: "latest")
+        XCTAssertEqual(stale, .stale)
+        XCTAssertNil(runtime.selectedChatId)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.browse-search-open,apple-watch.chats.new-text-reply
     func testWatchInitialSyncIncludesRequiredPersonalContextEpoch() {
         let state = WatchSyncClientState(
@@ -439,7 +508,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let cache = WatchChatOfflineCache(directory: directory)
         let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
-        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true, rejectionCode: "version_conflict")
         let runtime = WatchChatRuntime(
             api: FakeWatchChatAPI(
                 chats: [Self.remoteChat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")],
@@ -467,6 +536,12 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual((preflight["encrypted_user_message"] as? [String: Any])?["encrypted_content"] as? String, "encrypted:Pending reply")
         XCTAssertEqual((inference["message"] as? [String: Any])?["content"] as? String, "Pending reply")
         XCTAssertNil(preflight["encrypted_chat_metadata"], "Existing titled chats do not resend initial metadata")
+        let anotherSend = await runtime.sendText("Blocked new text")
+        XCTAssertFalse(anotherSend)
+        let afterRejectedReplay = await cache.loadSnapshot()
+        XCTAssertEqual(afterRejectedReplay.pendingTextSends, [saved], "Admission diagnostics cannot change the persisted encrypted turn")
+        XCTAssertEqual(socket.attemptedTurns.map(\.id), [saved.id, saved.id])
+        XCTAssertTrue(socket.sentTurns.isEmpty)
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-watch.chats.new-text-reply
@@ -475,7 +550,7 @@ final class WatchChatRuntimeTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let cache = WatchChatOfflineCache(directory: directory)
         let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
-        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true)
+        let socket = FakeWatchChatSyncSocket(shouldRejectSend: true, rejectionCode: "preflight_mismatch")
         let runtime = WatchChatRuntime(
             api: FakeWatchChatAPI(chats: [Self.remoteChat(id: chat.id, title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")]),
             cache: cache, crypto: FakeWatchChatCrypto(), syncSocket: socket,
@@ -484,15 +559,24 @@ final class WatchChatRuntimeTests: XCTestCase {
         await runtime.refresh()
         await runtime.openChat(chat)
         let firstQueued = await runtime.sendText("First")
+        let queued = await cache.loadSnapshot()
+        let original = try XCTUnwrap(queued.pendingTextSends.first)
         let blockedNewSend = await runtime.sendText("Second")
         XCTAssertTrue(firstQueued)
         XCTAssertFalse(blockedNewSend)
         XCTAssertNotEqual(runtime.errorMessage, WatchChatRuntimeError.sendInProgress.localizedDescription)
+        let stillQueued = await cache.loadSnapshot()
+        XCTAssertEqual(stillQueued.pendingTextSends, [original])
+        XCTAssertEqual(socket.attemptedTurns.map(\.id), [original.id, original.id])
 
         socket.shouldRejectSend = false
         let secondSent = await runtime.sendText("Second")
         XCTAssertTrue(secondSent)
         XCTAssertEqual(socket.sentTurns.count, 2)
+        XCTAssertEqual(socket.sentTurns[0].id, original.id)
+        XCTAssertEqual(socket.sentTurns[0].encryptedContent, original.encryptedContent)
+        XCTAssertNotEqual(socket.sentTurns[1].id, original.id)
+        XCTAssertEqual(socket.sentTurns[1].encryptedContent, "encrypted:Second")
         let saved = await cache.loadSnapshot()
         XCTAssertTrue(saved.pendingTextSends.isEmpty)
         XCTAssertEqual(runtime.selectedMessages.filter(\.isPending).count, 0)
@@ -918,9 +1002,33 @@ private actor WatchAudioUploadGate {
     }
 }
 
+private actor WatchChatFetchGate {
+    private var started = false
+    private var startedWaiter: CheckedContinuation<Void, Never>?
+    private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { startedWaiter = $0 }
+    }
+
+    func suspendFetch() async {
+        started = true
+        startedWaiter?.resume()
+        startedWaiter = nil
+        await withCheckedContinuation { releaseWaiter = $0 }
+    }
+
+    func release() {
+        releaseWaiter?.resume()
+        releaseWaiter = nil
+    }
+}
+
 private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private let shouldThrow: Bool
-    private let chatFetchError: Error?
+    var chatFetchError: Error?
+    private let chatFetchGate: WatchChatFetchGate?
     private let ignoresChatOffset: Bool
     private let maxAcceptedChatLimit: Int?
     private let chats: [WatchRemoteChat]
@@ -946,7 +1054,8 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         transientChatFetchFailures: Int = 0,
         transientMessageFetchFailures: Int = 0,
         uploadedAudio: WatchUploadedAudio? = nil,
-        uploadGate: WatchAudioUploadGate? = nil
+        uploadGate: WatchAudioUploadGate? = nil,
+        chatFetchGate: WatchChatFetchGate? = nil
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
@@ -958,9 +1067,11 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         self.transientMessageFetchFailures = transientMessageFetchFailures
         self.uploadedAudio = uploadedAudio
         self.uploadGate = uploadGate
+        self.chatFetchGate = chatFetchGate
     }
 
     func fetchRecentChats(limit: Int, offset: Int) async throws -> [WatchRemoteChat] {
+        await chatFetchGate?.suspendFetch()
         fetchRecentChatsCallCount += 1
         lastRequestedChatLimit = limit
         requestedChatOffsets.append(offset)
@@ -1122,9 +1233,14 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     private(set) var connectedSyncState: WatchSyncClientState?
     private(set) var didDisconnect = false
     private(set) var sentTurns: [WatchPendingTextSend] = []
+    private(set) var attemptedTurns: [WatchPendingTextSend] = []
     var shouldRejectSend: Bool
+    var rejectionCode: String?
 
-    init(shouldRejectSend: Bool = false) { self.shouldRejectSend = shouldRejectSend }
+    init(shouldRejectSend: Bool = false, rejectionCode: String? = nil) {
+        self.shouldRejectSend = shouldRejectSend
+        self.rejectionCode = rejectionCode
+    }
 
     func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {
         connectedSession = session
@@ -1134,7 +1250,11 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     func disconnect() { didDisconnect = true }
     func setChangeHandler(_ handler: (@MainActor () -> Void)?) {}
     func sendTurn(_ pending: WatchPendingTextSend) async throws {
-        if shouldRejectSend { throw WatchChatRuntimeError.preflightRejected }
+        attemptedTurns.append(pending)
+        if shouldRejectSend {
+            if let rejectionCode { throw WatchTurnAdmissionDiagnostic.serverRejection(stage: .preflight, code: rejectionCode) }
+            throw WatchChatRuntimeError.preflightRejected
+        }
         sentTurns.append(pending)
     }
 }

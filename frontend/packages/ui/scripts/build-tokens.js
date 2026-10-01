@@ -638,6 +638,14 @@ function generateSwiftGradients() {
   }
   lines.push("");
 
+  // Icon gradients share the same canonical palette as web memory/focus icons.
+  for (const [name, grad] of Object.entries(gradients.icons || {})) {
+    if (grad.start && !grad.start_ref) {
+      lines.push(`    static let icon${pascalCase(name)} = omGradient(start: Color(hex: 0x${grad.start.replace("#", "").toUpperCase()}), end: Color(hex: 0x${grad.end.replace("#", "").toUpperCase()}))`);
+    }
+  }
+  lines.push("");
+
   // Primary
   const primary = gradients.primary;
   lines.push(`    static let primary = omGradient(start: Color(hex: 0x${primary.start.replace("#", "").toUpperCase()}), end: Color(hex: 0x${primary.end.replace("#", "").toUpperCase()}))`);
@@ -1402,6 +1410,12 @@ function verify(generatedCSS) {
 
 function main() {
   const isVerify = process.argv.includes("--verify");
+
+  if (process.argv.includes("--swift-gradients-only")) {
+    ensureDir(SWIFT_DIR);
+    writeFileSync(resolve(SWIFT_DIR, "GradientTokens.generated.swift"), generateSwiftGradients(), "utf-8");
+    return;
+  }
 
   ensureDir(GENERATED_DIR);
   ensureDir(SWIFT_DIR);

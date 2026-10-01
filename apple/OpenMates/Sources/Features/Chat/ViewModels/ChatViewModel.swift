@@ -234,6 +234,7 @@ enum ChatLegacyEmbedLinkPolicy {
         let embedsByMessageHash = Dictionary(grouping: embeds.compactMap { embed in
             embed.hashedMessageId.map { ($0, embed) }
         }, by: { $0.0 })
+        guard !embedsByMessageHash.isEmpty else { return messages }
 
         return messages.map { message in
             guard message.role == .user else { return message }
@@ -437,6 +438,22 @@ enum ChatHistoryWindowPolicy {
     static let stride = capacity - overlap
 
     static func orderedUnique(_ messages: [Message]) -> [Message] {
+        // Synced/cached history is usually already canonical. Preserve its array
+        // storage instead of rebuilding and sorting the complete history.
+        var seenIDs = Set<String>()
+        seenIDs.reserveCapacity(messages.count)
+        var previousCreatedAt: String?
+        var isOrderedUnique = true
+        for message in messages {
+            if !seenIDs.insert(message.id).inserted
+                || previousCreatedAt.map({ $0 > message.createdAt }) == true {
+                isOrderedUnique = false
+                break
+            }
+            previousCreatedAt = message.createdAt
+        }
+        if isOrderedUnique { return messages }
+
         var byID: [String: Message] = [:]
         var firstPosition: [String: Int] = [:]
         for (index, message) in messages.enumerated() {
@@ -3728,7 +3745,11 @@ enum PublicChatContent {
 
         guard let spec = specs[id] else { return nil }
         let messages = spec.messages.map { messageSpec in
-            message(
+            // Bind public speech to the bundled source UUID through its exact
+            // untranslated content key and role, preserving existing native IDs.
+            PublicAssistantSpeechManifest.registerMessage(chatID: id, nativeID: messageSpec.id,
+                contentKey: messageSpec.key, role: messageSpec.role.rawValue)
+            return message(
                 id: messageSpec.id,
                 chatId: id,
                 role: messageSpec.role,

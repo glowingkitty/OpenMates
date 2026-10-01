@@ -6,6 +6,8 @@
 // for offline startup. This layer never logs plaintext.
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.new-text-reply, apple-watch.chats.audio-reply
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.action.routing-coherent
 
 import CryptoKit
 import Foundation
@@ -677,6 +679,8 @@ final class WatchChatRuntime: ObservableObject {
     private let syncSocket: (any WatchChatSyncSocket)?
     private let syncSession: WatchSyncSession?
     private var isSending = false
+    private var refreshTask: Task<Void, Never>?
+    private var chatListAuthoritative = false
     private var pendingTextSends: [WatchPendingTextSend] = []
     private var pendingRecoveryJobs: [WatchRecoveryJob] = []
     private var pendingCompletions: [WatchPendingCompletion] = []
@@ -785,7 +789,17 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     func refresh() async {
+        guard !isStopped else { return }
+        if let refreshTask { await refreshTask.value; return }
+        let task = Task { @MainActor in await self.performRefresh() }
+        refreshTask = task
+        await task.value
+        refreshTask = nil
+    }
+
+    private func performRefresh() async {
         guard !isSyncing, !isStopped else { return }
+        chatListAuthoritative = false
         let generation = lifecycleGeneration
         let profile = ServerProfile.current()
         func current() -> Bool { !isStopped && generation == lifecycleGeneration && profile == ServerProfile.current() }
@@ -803,6 +817,7 @@ final class WatchChatRuntime: ObservableObject {
         var limit = Self.firstChatFetchLimit
         var fetchedFirstPage = false
         var fetchError: Error?
+        var reachedEnd = false
         while true {
             let page: [WatchRemoteChat]
             do {
@@ -848,7 +863,7 @@ final class WatchChatRuntime: ObservableObject {
                 "offset": offset, "fetched": unseen.count, "decrypted": remote.count,
                 "unavailable_key": unavailableChatCount,
             ])
-            guard hasMore else { break }
+            guard hasMore else { reachedEnd = true; break }
             offset += page.count
             limit = Self.chatFetchLimit
         }
@@ -862,6 +877,7 @@ final class WatchChatRuntime: ObservableObject {
             }
         }
         guard current() else { return }
+        chatListAuthoritative = reachedEnd && fetchError == nil
         if fetchedFirstPage {
             NativeDiagnostics.event("refresh", category: "watch_chat", counts: [
                 "fetched": fetchedCount, "decrypted": remote.count,
@@ -905,6 +921,29 @@ final class WatchChatRuntime: ObservableObject {
         await replayPendingTextSends()
         await flushPendingCompletions()
         await requestSelectedEmbedPreviews()
+    }
+
+    /// Resolve only the requested authorized/decryptable chat. A missing target
+    /// leaves the list in an error state and never substitutes another chat.
+    func openNotificationChat(chatID: String) async -> WatchNotificationResolution {
+        guard !isStopped, !chatID.isEmpty else { return .stale }
+        selectedChatId = nil
+#if DEBUG
+        if isPreviewFixture {
+            guard chats.contains(where: { $0.id == chatID }) else { chatLoadFailed = true; return .unavailable }
+            selectedChatId = chatID
+            return .opened
+        }
+#endif
+        if !chats.contains(where: { $0.id == chatID }) { await refresh() }
+        guard !isStopped else { return .stale }
+        guard let chat = chats.first(where: { $0.id == chatID }) else {
+            if chatListAuthoritative { chatLoadFailed = true; return .unavailable }
+            return .retry
+        }
+        await openChat(chat)
+        guard !isStopped else { return .stale }
+        return selectedChatId == chatID && errorMessage == nil ? .opened : .retry
     }
 
     func openChat(_ chat: WatchChatSummary) async {
@@ -1537,6 +1576,7 @@ final class WatchChatRuntime: ObservableObject {
             return true
         } catch {
             guard generation == lifecycleGeneration, !isStopped, profile == ServerProfile.current() else { return queued }
+            NativeDiagnostics.failure("send_failed", category: "watch_chat_socket", level: .warning, error: error)
             errorMessage = error.localizedDescription
             try? await persistSnapshot()
             return queued
@@ -2250,11 +2290,8 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
         if !type.isEmpty { try await send(WatchWSOutboundMessage(type: type, payload: payload), on: task) }
         for _ in 0..<200 {
             guard expected == connectionGeneration, webSocketTask === task, !Task.isCancelled else { throw WatchChatRuntimeError.socketUnavailable }
-            if let index = inbox.firstIndex(where: { (responseTypes.contains($0.type) || $0.type == "error") && matching($0.payload) }) {
-                let event = inbox.remove(at: index)
-                if event.type == "error" { throw WatchChatRuntimeError.preflightRejected }
-                return event.payload
-            }
+            if let response = try WatchSocketResponses.takeMatchingResponse(from: &inbox,
+                requestType: type, responseTypes: responseTypes, matching: matching) { return response }
             try await Task.sleep(for: .milliseconds(100))
         }
         throw WatchChatRuntimeError.socketUnavailable
@@ -2321,7 +2358,11 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
                 return false
             }) {
                 let event = inbox.remove(at: index)
-                if event.type == "error" { throw WatchChatRuntimeError.preflightRejected }
+                if event.type == "error" {
+                    throw WatchTurnAdmissionDiagnostic.serverRejection(
+                        stage: type == "chat_turn_preflight_ack" ? .preflight : .commit,
+                        code: event.payload["code"])
+                }
                 return event.payload
             }
             try await Task.sleep(for: .milliseconds(100))
@@ -2564,6 +2605,93 @@ enum WatchChatKeyResolver {
     }
 }
 
+enum WatchTurnAdmissionStage: String, Equatable, Sendable {
+    case preflight, commit, legacyStorage = "legacy_storage"
+
+    init?(requestType: String) {
+        switch requestType {
+        case "chat_turn_preflight": self = .preflight
+        case "chat_message_added": self = .commit
+        case "encrypted_chat_metadata": self = .legacyStorage
+        default: return nil
+        }
+    }
+}
+
+enum WatchTurnAcknowledgementIssue: String, Equatable, Sendable {
+    case missingState = "missing_state"
+    case missingPreflightID = "missing_preflight_id"
+    case unexpectedState = "unexpected_state"
+    case missingTaskID = "missing_task_id"
+    case missingStoredVersion = "missing_stored_version"
+}
+
+// All strings admitted here are static protocol codes from the preflight/
+// message handlers and Directus chat-recovery-transaction prepare/enqueue paths.
+// An unknown code, message, ID or other server value never enters diagnostics.
+struct WatchTurnAdmissionDiagnostic: Equatable, Sendable {
+    let stage: WatchTurnAdmissionStage
+    let reason: String
+    let invalidAcknowledgement: Bool
+
+    private static let knownServerCodes: Set<String> = [
+        "durable_preflight_failed", "transaction_failed", "team_permission_denied",
+        "client_update_required", "inference_temporarily_unavailable", "active_task_in_progress",
+        "inference_temporarily_paused", "cutover_state_corrupt", "invalid_request",
+        "invalid_owner", "invalid_team", "invalid_chat_id", "invalid_turn_id", "invalid_message_id",
+        "invalid_device", "invalid_key_version", "invalid_wrapped_chat_key", "invalid_recovery_public_key",
+        "invalid_inference_commitment", "invalid_commitment_version", "invalid_message_version",
+        "invalid_encrypted_message", "invalid_message_timestamp", "invalid_encrypted_chat_metadata",
+        "invalid_chat_timestamp", "message_identity_mismatch", "message_identity_conflict",
+        "chat_not_found", "preflight_mismatch", "existing_chat_metadata_forbidden", "version_conflict",
+        "new_chat_metadata_required", "immutable_chat_key_mismatch", "recovery_key_mismatch",
+        "invalid_preflight_id", "invalid_task_id", "invalid_billing_identity", "invalid_outbox_id",
+        "preflight_not_found", "preflight_invalidated", "enqueue_identity_mismatch",
+        "invalid_preflight_state", "preflight_expired"
+    ]
+
+    private init(stage: WatchTurnAdmissionStage, reason: String, invalidAcknowledgement: Bool) {
+        self.stage = stage
+        self.reason = reason
+        self.invalidAcknowledgement = invalidAcknowledgement
+    }
+
+    static func serverRejection(stage: WatchTurnAdmissionStage, code: Any?) -> WatchChatRuntimeError {
+        let reason = (code as? String).flatMap { knownServerCodes.contains($0) ? $0 : nil } ?? "unrecognized_server_code"
+        return failure(stage: stage, reason: reason, invalidAcknowledgement: false)
+    }
+
+    static func invalidAcknowledgement(stage: WatchTurnAdmissionStage, issue: WatchTurnAcknowledgementIssue) -> WatchChatRuntimeError {
+        failure(stage: stage, reason: issue.rawValue, invalidAcknowledgement: true)
+    }
+
+    private static func failure(stage: WatchTurnAdmissionStage, reason: String, invalidAcknowledgement: Bool) -> WatchChatRuntimeError {
+        let diagnostic = Self(stage: stage, reason: reason, invalidAcknowledgement: invalidAcknowledgement)
+        NativeDiagnostics.event("turn_admission_failed", category: "watch_chat_socket", level: .warning,
+            flags: ["stage_\(stage.rawValue)": true, "reason_\(reason)": true,
+                    "invalid_acknowledgement": invalidAcknowledgement])
+        return .turnAdmissionFailure(diagnostic)
+    }
+}
+
+// Shared by the real socket and account-free tests. Correlation is unchanged:
+// errors for another turn remain queued and cannot reject/authorize this turn.
+@MainActor
+enum WatchSocketResponses {
+    static func takeMatchingResponse(from inbox: inout [(type: String, payload: [String: Any])],
+        requestType: String, responseTypes: Set<String>, matching: ([String: Any]) -> Bool) throws -> [String: Any]? {
+        guard let index = inbox.firstIndex(where: {
+            (responseTypes.contains($0.type) || $0.type == "error") && matching($0.payload)
+        }) else { return nil }
+        let event = inbox.remove(at: index)
+        if event.type == "error" {
+            guard let stage = WatchTurnAdmissionStage(requestType: requestType) else { throw WatchChatRuntimeError.preflightRejected }
+            throw WatchTurnAdmissionDiagnostic.serverRejection(stage: stage, code: event.payload["code"])
+        }
+        return event.payload
+    }
+}
+
 enum WatchChatRuntimeError: LocalizedError {
     case missingChatKey
     case audioUploadFailed
@@ -2575,6 +2703,7 @@ enum WatchChatRuntimeError: LocalizedError {
     case preflightRejected
     case inferenceRejected
     case historyUnavailable
+    case turnAdmissionFailure(WatchTurnAdmissionDiagnostic)
 
     var errorDescription: String? {
         switch self {
@@ -2589,6 +2718,8 @@ enum WatchChatRuntimeError: LocalizedError {
         case .preflightRejected: return "Message could not be saved"
         case .inferenceRejected: return "Message could not start a reply"
         case .historyUnavailable: return "Chat history could not be read"
+        case .turnAdmissionFailure(let diagnostic):
+            return diagnostic.stage == .commit ? "Message could not start a reply" : "Message could not be saved"
         }
     }
 }

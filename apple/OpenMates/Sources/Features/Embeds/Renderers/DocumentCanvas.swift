@@ -9,6 +9,8 @@
 // Assertions: chats.rendering.assistant-document-convergence
 
 import Foundation
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
 import SwiftUI
 import WebKit
 #if os(iOS)
@@ -192,7 +194,32 @@ struct DocumentCanvasSource {
 struct DocumentCanvasView: View {
     let source: DocumentCanvasSource
     let mode: EmbedDisplayMode
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
+
+    var body: some View {
+        if let recipientMediaContext {
+            DocumentCanvasContent(source: source, mode: mode, scope: recipientMediaContext.namespace,
+                                  generation: recipientMediaContext.generation, recipientMediaContext: recipientMediaContext)
+        } else { OwnerDocumentCanvas(source: source, mode: mode) }
+    }
+}
+
+private struct OwnerDocumentCanvas: View {
+    let source: DocumentCanvasSource
+    let mode: EmbedDisplayMode
     @ObservedObject private var offlineStore = OfflineStore.shared
+    var body: some View {
+        DocumentCanvasContent(source: source, mode: mode, scope: offlineStore.activeScopeId,
+                              generation: offlineStore.scopeGeneration, recipientMediaContext: nil)
+    }
+}
+
+private struct DocumentCanvasContent: View {
+    let source: DocumentCanvasSource
+    let mode: EmbedDisplayMode
+    let scope: String?
+    let generation: UUID
+    let recipientMediaContext: RecipientMediaContext?
     @State private var zoomMultiplier: CGFloat = 1
     @State private var hydratedPageURLs: [String] = []
     @State private var hydratedGeneration: UUID?
@@ -200,7 +227,7 @@ struct DocumentCanvasView: View {
 
     private var displayedPageURLs: [String] {
         if !source.pageURLs.isEmpty { return source.pageURLs }
-        return hydratedGeneration == offlineStore.scopeGeneration ? hydratedPageURLs : []
+        return hydratedGeneration == generation ? hydratedPageURLs : []
     }
 
     var body: some View {
@@ -252,7 +279,7 @@ struct DocumentCanvasView: View {
             )
         }
         .frame(height: mode == .preview ? 200 : 650)
-        .task(id: "\(offlineStore.scopeGeneration)-\(source.encryptedPageKeys.hashValue)-\(source.aesKey?.hashValue ?? 0)") {
+        .task(id: "\(generation)-\(source.encryptedPageKeys.hashValue)-\(source.aesKey?.hashValue ?? 0)") {
             await hydrateEncryptedPages()
         }
     }
@@ -264,8 +291,25 @@ struct DocumentCanvasView: View {
         guard source.pageURLs.isEmpty,
               let aesKey = source.aesKey, !aesKey.isEmpty,
               !source.encryptedPageKeys.isEmpty,
-              let scope = offlineStore.activeScopeId else { return }
-        let generation = offlineStore.scopeGeneration
+              let scope else { return }
+        if let recipientMediaContext {
+            let keys = mode == .preview ? Array(source.encryptedPageKeys.prefix(1)) : source.encryptedPageKeys
+            var pages: [String] = []
+            for key in keys {
+                do {
+                    let bytes = try await recipientMediaContext.fetchAndDecrypt(s3Url: "", aesKeyHex: aesKey,
+                        aesNonceHex: nil, encryption: S3MediaClient.noncePrefixedEncryption, s3Key: key)
+                    guard bytes.count <= 8_000_000,
+                          bytes.prefix(8).elementsEqual([UInt8](arrayLiteral: 137, 80, 78, 71, 13, 10, 26, 10)) else { return }
+                    try recipientMediaContext.checkCurrent()
+                    pages.append("data:image/png;base64,\(bytes.base64EncodedString())")
+                    hydratedPageURLs = pages
+                    hydratedGeneration = generation
+                } catch { return }
+            }
+            return
+        }
+        let offlineStore = OfflineStore.shared
         guard let owner = await AuthManager.currentUserId(),
               !Task.isCancelled,
               offlineStore.scopeGeneration == generation,

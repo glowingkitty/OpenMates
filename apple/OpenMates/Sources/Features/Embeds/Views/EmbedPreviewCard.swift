@@ -210,7 +210,8 @@ struct EmbedPreviewCard: View {
                     type: embedType?.displayName ?? embed.type,
                     title: statusTitle
                 )
-                .accessibilityElement(children: embedType == .webSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web") ? .contain : .combine)
+                .accessibilityElement(children: embed.status == .finished &&
+                    (embedType == .webSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web")) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
         }

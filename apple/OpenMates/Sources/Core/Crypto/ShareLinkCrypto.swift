@@ -15,6 +15,7 @@ import Foundation
 enum ShareDuration: Int, CaseIterable, Identifiable {
     case noExpiration = 0
     case oneMinute = 60
+    case tenMinutes = 600
     case oneHour = 3_600
     case twentyFourHours = 86_400
     case sevenDays = 604_800
@@ -127,7 +128,9 @@ enum ShareLinkCrypto {
         guard let query = components.percentEncodedQuery else {
             throw ShareLinkCryptoError.serializationFailed
         }
-        return query
+        // The web recipient reads URLSearchParams form data, where a literal
+        // plus is a space. Preserve plus signs in base64 keys and passwords.
+        return query.replacingOccurrences(of: "+", with: "%2B")
     }
 
     private static func randomBase62(length: Int) throws -> String {

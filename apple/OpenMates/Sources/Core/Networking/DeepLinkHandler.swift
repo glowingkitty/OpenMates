@@ -51,6 +51,7 @@ final class DeepLinkHandler: ObservableObject {
     private(set) var shortLinkResolutionTask: Task<Void, Never>?
     @Published var pendingShortLinkError = false
     @Published var pendingSharedBrowserURL: URL?
+    @Published var pendingSharedChatURL: URL?
     @Published var pendingChatId: String?
     @Published var pendingEmbedId: String?
     @Published var pendingMessageId: String?
@@ -73,7 +74,14 @@ final class DeepLinkHandler: ObservableObject {
         invalidateShortLinkResolution()
         pendingShortLinkError = false
         pendingSharedBrowserURL = nil
+        pendingSharedChatURL = nil
         pendingWorkflowTemplate = nil
+        // Public recipient decryption is independent of the signed-in account
+        // and selected server. Keep the full fragment inside the native viewer.
+        if Self.isNativeChatShareURL(url) {
+            pendingSharedChatURL = url
+            return
+        }
         if url.scheme == "openmates" {
             handleCustomScheme(url)
         } else {
@@ -210,6 +218,8 @@ final class DeepLinkHandler: ObservableObject {
                 if let template = Self.workflowTemplateLink(from: target,
                     selectedDomain: profile.displayDomain) {
                     self.pendingWorkflowTemplate = template
+                } else if Self.isNativeChatShareURL(target) {
+                    self.pendingSharedChatURL = url
                 } else if Self.isBrowserShareTarget(target, selectedDomain: profile.displayDomain) {
                     // Chat and embed recipients retain the web share flow. Show
                     // the original encrypted URL inside the app so Universal
@@ -289,8 +299,17 @@ final class DeepLinkHandler: ObservableObject {
     }
 
     static func shouldHandleInApp(_ url: URL, selectedDomain: String) -> Bool {
-        ShortShareLink.parse(url, selectedDomain: selectedDomain) != nil ||
+        isNativeChatShareURL(url) || ShortShareLink.parse(url, selectedDomain: selectedDomain) != nil ||
             workflowTemplateLink(from: url, selectedDomain: selectedDomain) != nil
+    }
+
+    static func isNativeChatShareURL(_ url: URL) -> Bool {
+        guard url.scheme == "https", url.user == nil, url.password == nil, url.port == nil,
+              let host = url.host?.lowercased(),
+              ["openmates.org", "app.openmates.org", "app.dev.openmates.org"].contains(host) else { return false }
+        let parts = url.pathComponents
+        return parts.count == 4 && parts[1] == "share" && parts[2] == "chat"
+            && parts[3].range(of: "^[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil
     }
 
     static func shouldInterceptShareURL(_ url: URL, selectedDomain: String) -> Bool {
@@ -349,6 +368,7 @@ final class DeepLinkHandler: ObservableObject {
         invalidateShortLinkResolution()
         pendingShortLinkError = false
         pendingSharedBrowserURL = nil
+        pendingSharedChatURL = nil
         pendingChatId = nil
         pendingEmbedId = nil
         pendingMessageId = nil

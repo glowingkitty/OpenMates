@@ -160,6 +160,45 @@ final class CodeRunOutputSyncTests: XCTestCase {
         XCTAssertTrue(queue.drainCurrent(in: store).isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testFileArtifactDisplayMatchesWebFilenamePathAndBinarySizeUnits() {
+        let payload = FileEmbedPayload([
+            "normalized_path": AnyCodable("artifacts/reports/berlin-weather.csv"),
+            "path": AnyCodable("reports/old.csv"),
+            "filename": AnyCodable("berlin-weather.csv"),
+            "mime_type": AnyCodable("text/csv"),
+            "size_bytes": AnyCodable(24_576)
+        ])
+        XCTAssertEqual(payload.path, "artifacts/reports/berlin-weather.csv")
+        XCTAssertEqual(payload.filename, "berlin-weather.csv")
+        XCTAssertEqual(payload.metadata, "text/csv · 24.0 KB")
+        for (bytes, expected) in [(0, "0 B"), (1023, "1023 B"), (1024, "1.0 KB"),
+                                  (1_048_576, "1.0 MB"), (1_073_741_824, "1024.0 MB")] {
+            XCTAssertEqual(FileEmbedPayload(["size_bytes": AnyCodable(bytes)]).metadata,
+                           "application/octet-stream · \(expected)")
+        }
+        XCTAssertEqual(FileEmbedPayload(["path": AnyCodable("reports/data.csv")]).filename, "data.csv")
+        XCTAssertEqual(FileEmbedPayload(nil).metadata, "application/octet-stream")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testFileArtifactDownloadAvailabilityRejectsExpiredLinksAtUseTime() {
+        let url = "https://example.invalid/artifacts/data.csv"
+        let timed = FileEmbedPayload([
+            "download_url": AnyCodable(url), "download_expires_at": AnyCodable(2000)
+        ])
+        XCTAssertEqual(timed.availableDownloadURL(at: 1999)?.absoluteString, url)
+        XCTAssertNil(timed.availableDownloadURL(at: 2000))
+        XCTAssertNil(timed.availableDownloadURL(at: 2001))
+        XCTAssertNil(FileEmbedPayload(nil).availableDownloadURL(at: 1000))
+        XCTAssertEqual(FileEmbedPayload(["download_url": AnyCodable(url)])
+            .availableDownloadURL(at: 1000)?.absoluteString, url)
+        // Web treats a zero expiry as absent, matching captured artifact data.
+        XCTAssertEqual(FileEmbedPayload([
+            "download_url": AnyCodable(url), "download_expires_at": AnyCodable(0)
+        ]).availableDownloadURL(at: 1000)?.absoluteString, url)
+    }
+
     private func testDirectory(_ prefix: String) throws -> URL {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

@@ -14,6 +14,8 @@
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.action.routing-coherent
 
 import AVFoundation
 import SwiftUI
@@ -138,8 +140,15 @@ struct WatchChatShellView: View {
     private let initialSearchText: String?
     private let showsRecordingFixture: Bool
     private let currentUsername: String?
+    private let notificationRoute: WatchNotificationRoute?
+    private let isVisible: Bool
+    private let fixtureNotificationChatID: String?
+    @State private var networkReady = false
+    @State private var resolvingRouteID: UUID?
 
-    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
+    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?,
+         notificationRoute: WatchNotificationRoute? = nil, isVisible: Bool = true,
+         onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
             currentUserId: currentUserId,
             syncSession: WatchSyncSession(
@@ -154,10 +163,13 @@ struct WatchChatShellView: View {
         initialSearchText = nil
         showsRecordingFixture = false
         self.currentUsername = currentUsername
+        self.notificationRoute = notificationRoute
+        self.isVisible = isVisible
+        self.fixtureNotificationChatID = nil
     }
 
 #if DEBUG
-    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
+    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil, fixtureNotificationChatID: String? = nil) {
         _runtime = StateObject(wrappedValue: WatchChatRuntime(
             uiTestSnapshot: uiTestSnapshot,
             selectedChatId: selectedChatId, initialDraft: initialDraft
@@ -169,6 +181,9 @@ struct WatchChatShellView: View {
         self.initialSearchText = initialSearchText
         self.showsRecordingFixture = showsRecordingFixture
         self.currentUsername = currentUsername
+        self.notificationRoute = nil
+        self.isVisible = true
+        self.fixtureNotificationChatID = fixtureNotificationChatID
     }
 #endif
 
@@ -188,14 +203,49 @@ struct WatchChatShellView: View {
         .task {
 #if DEBUG
             if seedsRemoteDraftFixture { await runtime.seedRemoteDraftPreview() }
+            if let fixtureNotificationChatID {
+                _ = await runtime.openNotificationChat(chatID: fixtureNotificationChatID)
+            }
 #endif
             guard startsNetworkTasks else { return }
             phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in })
             await runtime.loadCachedSnapshot()
             await runtime.startRealtimeSync()
             await runtime.refresh()
+            networkReady = true
         }
-        .onDisappear { if startsNetworkTasks { Task { await runtime.flushDraftAndStop() } } }
+        .task(id: networkReady ? notificationRoute?.id : nil) {
+            await resolveNotificationRoute()
+        }
+        .onChange(of: runtime.isSyncing) { _, syncing in
+            if !syncing { Task { await resolveNotificationRoute() } }
+        }
+        .onChange(of: runtime.selectedChatId) { _, chatID in
+            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = isVisible ? chatID : nil }
+        }
+        .onChange(of: isVisible) { _, visible in
+            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = visible ? runtime.selectedChatId : nil }
+        }
+        .onDisappear {
+            if startsNetworkTasks {
+                WatchPushNotificationManager.shared.viewedChatID = nil
+                Task { await runtime.flushDraftAndStop() }
+            }
+        }
+    }
+
+    @MainActor
+    private func resolveNotificationRoute() async {
+        guard networkReady, let notificationRoute, resolvingRouteID != notificationRoute.id,
+              WatchPushNotificationManager.shared.permitsOpen(notificationRoute) else { return }
+        resolvingRouteID = notificationRoute.id
+        defer { if resolvingRouteID == notificationRoute.id { resolvingRouteID = nil } }
+        let result = await runtime.openNotificationChat(chatID: notificationRoute.chatID)
+        guard WatchPushNotificationManager.shared.permitsOpen(notificationRoute) else { return }
+        if result == .opened || result == .unavailable {
+            WatchPushNotificationManager.shared.consume(notificationRoute)
+        }
+        WatchPushNotificationManager.shared.viewedChatID = isVisible ? runtime.selectedChatId : nil
     }
 }
 

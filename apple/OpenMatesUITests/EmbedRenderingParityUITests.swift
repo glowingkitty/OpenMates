@@ -76,6 +76,131 @@ final class EmbedRenderingParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testFileArtifactFullscreenUsesFilenameMetadataAndSharedDownloadAction() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code",
+                               "--embed-registry-key", "file-file", "--embed-surface", "fullscreen",
+                               "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let card = app.descendants(matching: .any)["file-embed-fullscreen"].firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["embed-header-title"].label, "berlin-weather.csv")
+        XCTAssertEqual(app.staticTexts["embed-header-subtitle"].label, "text/csv · 24.0 KB")
+        XCTAssertTrue(app.staticTexts["artifacts/reports/berlin-weather.csv"].exists)
+        XCTAssertFalse(app.buttons["file-download-button"].exists,
+                       "The file content card must not duplicate the shared toolbar download")
+        XCTAssertGreaterThanOrEqual(card.frame.minX, 15)
+        XCTAssertLessThanOrEqual(card.frame.maxX, app.frame.maxX - 15)
+        attachScreenshot(name: "File artifact filename metadata and web card layout")
+        let more = app.buttons["embed-more-button"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        more.tap()
+        XCTAssertTrue(app.buttons["embed-download-button"].waitForExistence(timeout: 5),
+                      "An unexpired file link must remain available through More")
+        attachScreenshot(name: "File artifact shared More download action")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,web-search.surface-parity
+    func testGalleryProcessingVariantAndQuoteOpenUseSelectedState() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "web",
+                               "--embed-registry-key", "app:web:search", "--embed-surface", "preview",
+                               "--embed-variant", "processing", "--dev-preview-theme", "dark"]
+        app.launch()
+        let marker = app.descendants(matching: .any)["dev-embed-canonical-preview"].firstMatch
+        XCTAssertTrue(marker.waitForExistence(timeout: 10))
+        XCTAssertEqual(marker.value as? String, "app:web:search|processing")
+        let preview = app.buttons["embed-preview"].firstMatch
+        XCTAssertTrue(preview.exists)
+        XCTAssertEqual(preview.value as? String, "Loading")
+        attachScreenshot(name: "Web search processing variant dark")
+        app.terminate()
+
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "web",
+                               "--embed-registry-key", "web-website", "--embed-surface", "quote",
+                               "--embed-direction", "rtl", "--dev-preview-theme", "dark"]
+        app.launch()
+        let quote = app.buttons["dev-embed-quote-open"]
+        XCTAssertTrue(quote.waitForExistence(timeout: 10))
+        attachScreenshot(name: "Website quote dark RTL")
+        quote.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["dev-embed-opened-fullscreen"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["website-fullscreen-body"].waitForExistence(timeout: 10))
+        attachScreenshot(name: "Website quote opened production fullscreen")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testGalleryLargeGroupCyclesDataVariants() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "web",
+                               "--embed-registry-key", "web-website", "--embed-surface", "group-large",
+                               "--dev-preview-theme", "light"]
+        app.launch()
+        let group = app.descendants(matching: .any)["dev-embed-group-large"].firstMatch
+        XCTAssertTrue(group.waitForExistence(timeout: 10))
+        XCTAssertEqual(group.value as? String, "default")
+        attachScreenshot(name: "Website large group default variant")
+        app.buttons["dev-embed-large-next"].tap()
+        XCTAssertEqual(group.value as? String, "richMetadata")
+        XCTAssertFalse(app.descendants(matching: .any)["dev-embed-registry-missing"].exists)
+        attachScreenshot(name: "Website large group rich metadata variant")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testDoctorAppointmentCalendarActionUsesResponsiveHeaderAndExportsFile() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "health",
+            "--embed-registry-key", "health-appointment", "--embed-surface", "fullscreen",
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        XCTAssertTrue(app.buttons["external-provider-cta"].waitForExistence(timeout: 10))
+        assertFullscreenSettled(app: app, key: "health-appointment")
+        let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        let map = app.descendants(matching: .any)["embed-location-map"].firstMatch
+        XCTAssertTrue(map.waitForExistence(timeout: 5))
+        let provider = app.buttons["external-provider-cta"]
+        XCTAssertTrue(provider.isHittable, "The provider CTA must stay usable where it overlaps the map")
+        XCTAssertEqual(provider.frame.height, 44, accuracy: 1)
+        XCTAssertTrue(header.frame.contains(provider.frame), "The header must retain the entire provider button's hit bounds")
+        XCTAssertEqual(map.frame.minY, provider.frame.midY, accuracy: 1,
+                       "The map starts at the panel edge, under the middle of the overlapping provider CTA")
+        XCTAssertEqual(header.frame.maxY - map.frame.minY, 22, accuracy: 1,
+                       "The CTA's lower half is hit-test clearance, not an extra gap above the map")
+        let calendar = app.buttons["embed-calendar-button"]
+        if app.frame.width < 460 {
+            let more = app.buttons["embed-more-button"]
+            XCTAssertTrue(more.waitForExistence(timeout: 5))
+            XCTAssertTrue(more.isHittable)
+            XCTAssertFalse(calendar.exists)
+            more.tap()
+            XCTAssertTrue(app.buttons["embed-share-button"].waitForExistence(timeout: 5))
+        } else {
+            XCTAssertFalse(app.buttons["embed-more-button"].exists)
+        }
+        XCTAssertTrue(calendar.waitForExistence(timeout: 5))
+        XCTAssertTrue(calendar.isHittable)
+        XCTAssertEqual(calendar.label, "Add to calendar")
+        attachScreenshot(name: "Appointment responsive calendar header action")
+        calendar.tap()
+        let export = app.otherElements["ShareSheet.RemoteContainerView"].firstMatch
+        XCTAssertTrue(export.waitForExistence(timeout: 8), "The action must present the real ICS file export sheet")
+        XCTAssertGreaterThan(export.frame.width, 0)
+        XCTAssertTrue(app.frame.intersects(export.frame))
+        // The system's share service exposes the file and actions from its remote process;
+        // UIActivityViewController's host view is not an accessibility container.
+        let filename = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label == %@", "LP.CaptionBar.BottomCaption",
+            "dr-sophie-m-ller-ophthalmologist-2026-04-03.ics")).firstMatch
+        XCTAssertTrue(filename.waitForExistence(timeout: 5), "Export must contain the appointment's actual ICS file")
+        for label in ["Copy", "Save to Files"] {
+            let action = app.cells.matching(NSPredicate(format: "label == %@", label)).firstMatch
+            XCTAssertTrue(action.waitForExistence(timeout: 5), "The file export must offer \(label)")
+            XCTAssertTrue(action.isHittable, "The real \(label) export action must be usable")
+        }
+        attachScreenshot(name: "Appointment native calendar file export")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDoctorAppointmentFullscreenRendersLocationMapMarkerAndAddress() {
         let app = XCUIApplication()
@@ -713,6 +838,53 @@ final class EmbedRenderingParityUITests: XCTestCase {
         )
         XCTAssertFalse(app.tables.firstMatch.exists, "Sheets embed must not render default List/table chrome")
         attachScreenshot(name: "Sheets fullscreen")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCanonicalSheetFullscreenUsesWebFixtureAndEdgeToEdgeTable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "sheets",
+                               "--embed-registry-key", "sheets-sheet", "--embed-surface", "fullscreen",
+                               "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let table = app.descendants(matching: .any)["sheet-fullscreen-table"].firstMatch
+        XCTAssertTrue(table.waitForExistence(timeout: 10))
+        let header = app.descendants(matching: .any)["embed-fullscreen-header"].firstMatch
+        // UICollectionViewCell retains button traits but XCTest may expose it
+        // as a Cell; identify the actual control independently of SDK type.
+        let filter = app.descendants(matching: .any)["sheet-filter-toggle"].firstMatch
+        if !header.exists || !filter.exists {
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Canonical sheet missing control accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+            attachScreenshot(name: "Canonical sheet missing control")
+        }
+        XCTAssertTrue(header.exists)
+        XCTAssertTrue(filter.exists)
+        XCTAssertTrue(filter.isHittable)
+        XCTAssertEqual(app.staticTexts["embed-header-title"].label, "Team Directory")
+        XCTAssertEqual(app.staticTexts["embed-header-subtitle"].label, "8 rows × 6 columns")
+        XCTAssertEqual(table.frame.minX, app.frame.minX, accuracy: 1)
+        XCTAssertEqual(table.frame.width, app.frame.width, accuracy: 1)
+        // The web spreadsheet clears its floating controls with one 70px gap.
+        // Generic fullscreen padding must not add another gutter or top gap.
+        XCTAssertEqual(filter.frame.minY - header.frame.maxY, 70, accuracy: 2)
+        XCTAssertEqual(filter.frame.minX, app.frame.minX, accuracy: 1)
+        // Sheet values are selectable UITextViews, matching web cell selection.
+        let firstValue = app.textViews.matching(NSPredicate(format: "value == %@", "Alice Johnson")).firstMatch
+        let lastValue = app.textViews.matching(NSPredicate(format: "value == %@", "Henry Davis")).firstMatch
+        if !firstValue.exists || !lastValue.exists {
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Canonical sheet cell accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+            attachScreenshot(name: "Canonical sheet cell accessibility")
+        }
+        XCTAssertTrue(firstValue.isHittable)
+        XCTAssertTrue(lastValue.isHittable)
+        XCTAssertFalse(app.tables.firstMatch.exists)
+        attachScreenshot(name: "Canonical sheet fullscreen web fixture and table geometry")
     }
 
     // contract-test: supporting surface=gui.apple assertions=web-search.surface-parity

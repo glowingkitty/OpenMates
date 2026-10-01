@@ -145,7 +145,7 @@ final class ShortWorkflowShareTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows.access.boundaries
-    func testResolvedChatAndEmbedSharesKeepOriginalShortURLForBrowser() async throws {
+    func testResolvedSharesKeepOriginalShortURLInTheirRecipientSurface() async throws {
         let profile = ServerProfile.current()
         let original = try XCTUnwrap(URL(string: profile.webBaseURL.absoluteString + "/s/\(token)#\(shortKey)"))
         for target in [
@@ -156,11 +156,18 @@ final class ShortWorkflowShareTests: XCTestCase {
             let handler = DeepLinkHandler(shortLinkResolver: { _, _ in target })
             handler.handle(url: original)
             await handler.shortLinkResolutionTask?.value
-            XCTAssertEqual(handler.pendingSharedBrowserURL, original)
+            if DeepLinkHandler.isNativeChatShareURL(target) {
+                XCTAssertEqual(handler.pendingSharedChatURL, original)
+                XCTAssertNil(handler.pendingSharedBrowserURL)
+            } else {
+                XCTAssertEqual(handler.pendingSharedBrowserURL, original)
+                XCTAssertNil(handler.pendingSharedChatURL)
+            }
             XCTAssertNil(handler.pendingWorkflowTemplate)
             XCTAssertFalse(handler.pendingShortLinkError)
             handler.clearPending()
             XCTAssertNil(handler.pendingSharedBrowserURL)
+            XCTAssertNil(handler.pendingSharedChatURL)
         }
     }
 

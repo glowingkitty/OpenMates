@@ -14,6 +14,7 @@ final class SettingsMemoriesMatesParityTests: XCTestCase {
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.id, "software_development")
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.last?.id, "general_knowledge")
         XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.mentionSyntax, "@mate:software_development")
+        XCTAssertEqual(CanonicalSettingsMateCatalog.all.first?.settingsPath, "mates/software_development")
         XCTAssertTrue(CanonicalSettingsMateCatalog.all.allSatisfy { !$0.artworkName.isEmpty })
         XCTAssertTrue(CanonicalSettingsMateCatalog.all.allSatisfy(\.isAvailable))
     }
@@ -30,12 +31,27 @@ final class SettingsMemoriesMatesParityTests: XCTestCase {
 
     // contract-test: supporting surface=gui.apple assertions=chat-processing-feedback.selected-mate-identity,settings-ui.parity.web-apple-shell
     func testSettingsComposerHandoffIsNativeAndSingleUse() {
+        let newChat = XCTNSNotificationExpectation(name: .newChat)
+        newChat.isInverted = true
+        let handoff = XCTNSNotificationExpectation(name: .settingsComposerHandoffRequested)
+        handoff.handler = { $0.object as? String == "@mate:finance" }
         SettingsComposerHandoff.request(mention: "@mate:finance")
+        wait(for: [handoff, newChat], timeout: 0.05)
 
         XCTAssertTrue(SettingsComposerHandoff.hasPendingMention)
         XCTAssertEqual(SettingsComposerHandoff.consume(), "@mate:finance")
         XCTAssertFalse(SettingsComposerHandoff.hasPendingMention)
         XCTAssertNil(SettingsComposerHandoff.consume())
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence,chats.surface.semantic-parity
+    func testMateMentionAppendPreservesExistingDraftAndSpacing() {
+        XCTAssertEqual(SettingsComposerHandoff.appending(mention: "@mate:finance", to: "Keep this draft"),
+                       "Keep this draft @mate:finance ")
+        XCTAssertEqual(SettingsComposerHandoff.appending(mention: "@mate:finance", to: "Keep this draft\n"),
+                       "Keep this draft\n@mate:finance ")
+        XCTAssertEqual(SettingsComposerHandoff.appending(mention: "@mate:finance", to: ""),
+                       "@mate:finance ")
     }
 
     // contract-test: supporting surface=gui.apple assertions=app-memories.surface.semantic-parity

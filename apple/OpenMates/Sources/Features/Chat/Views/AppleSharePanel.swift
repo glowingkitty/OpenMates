@@ -423,6 +423,7 @@ struct AppleSharePanel: View {
         switch option {
         case .noExpiration: AppStrings.shareNoExpiration
         case .oneMinute: AppStrings.shareOneMinute
+        case .tenMinutes: AppStrings.chatSettingsTenMinutes
         case .oneHour: AppStrings.shareOneHour
         case .twentyFourHours: AppStrings.shareTwentyFourHours
         case .sevenDays: AppStrings.shareSevenDays

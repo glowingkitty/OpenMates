@@ -6,6 +6,25 @@
 import XCTest
 
 final class WatchChatLayoutUITests: XCTestCase {
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.action.routing-coherent
+    func testNotificationRouteOpensTargetAndMissingTargetShowsError() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-watch-chat-notification-route"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-chat-thread"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.descendants(matching: .any)["watch-embed-preview-code"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["watch-chat-list"].exists)
+        app.terminate()
+        app.launchArguments = ["--ui-test-watch-chat-notification-missing"]
+        app.launch()
+        XCTAssertTrue(app.descendants(matching: .any)["watch-chat-list"].waitForExistence(timeout: 12))
+        XCTAssertFalse(app.descendants(matching: .any)["watch-chat-thread"].exists)
+        let error = app.descendants(matching: .any)["watch-chat-load-error"]
+        for _ in 0..<3 where !error.exists { app.swipeUp() }
+        XCTAssertTrue(error.waitForExistence(timeout: 3))
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

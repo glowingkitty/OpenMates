@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
   import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { planDetailAdapter } from '../workspace/detailMetadataAdapters';
@@ -15,8 +15,6 @@
     createPlanCriterion,
     createPlanVerification,
     loadUserPlanDetailState,
-    peekUserPlan,
-    subscribeUserPlans,
     updatePlanAssumption,
     updatePlanCriterion,
     type UserPlanAssumptionViewModel,
@@ -26,8 +24,6 @@
     type UserPlanViewModel,
   } from '../../services/userPlanService';
   import { text } from '@repo/ui';
-  import { getWorkspaceCacheIdentity } from '../../services/workspaceQueryCache';
-  import { userProfile } from '../../stores/userProfile';
 
   let {
     planId,
@@ -54,84 +50,40 @@
   let unresolvedAssumptions = $derived(detailState.assumptions.filter((item) => !['confirmed', 'waived'].includes(item.status)).length);
   let uncoveredCriteria = $derived(detailState.criteria.filter((item) => item.required && item.coverageStatus !== 'covered' && item.verificationIds.length === 0).length);
   let failedChecks = $derived(detailState.verifications.filter((item) => item.status === 'failed').length);
-  let loadGeneration = 0;
-  let disposed = false;
   onMount(() => {
-    if (previewPlan) return;
-    let displayedIdentity = getWorkspaceCacheIdentity();
-    const unsubscribe = subscribeUserPlans(() => {
-      if (previewPlan) return;
-      const identity = getWorkspaceCacheIdentity();
-      if (identity !== displayedIdentity) {
-        displayedIdentity = identity;
-        loadGeneration += 1;
-        plan = null;
-        detailState = { criteria: [], verifications: [], assumptions: [], referencePatterns: [] };
-        if (identity) void load(planId);
-      }
-      plan = peekUserPlan(planId) ?? null;
-    });
-    return () => { disposed = true; loadGeneration += 1; unsubscribe(); };
-  });
-  $effect(() => {
-    const id = planId;
     if (previewPlan) {
-      const fixturePlan = previewPlan;
-      const fixtureDetailState = previewDetailState;
-      untrack(() => {
-        loadGeneration += 1;
-        plan = fixturePlan;
-        detailState = fixtureDetailState ?? { criteria: [], verifications: [], assumptions: [], referencePatterns: [] };
-        hasError = false;
-        detailError = false;
-        isDetailLoading = false;
-      });
+      plan = previewPlan;
+      detailState = previewDetailState ?? { criteria: [], verifications: [], assumptions: [], referencePatterns: [] };
       return;
     }
-    const userId = $userProfile.user_id;
-    untrack(() => {
-      plan = peekUserPlan(id) ?? null;
-      detailState = { criteria: [], verifications: [], assumptions: [], referencePatterns: [] };
-      if (userId) void load(id);
-      else loadGeneration += 1;
-    });
+    void load();
   });
-  async function load(id = planId): Promise<void> {
-    if (previewPlan) return;
-    const generation = ++loadGeneration;
-    const identity = getWorkspaceCacheIdentity();
+  async function load(): Promise<void> {
     hasError = false;
     try {
-      const loaded = await planDetailAdapter.load(id);
-      if (disposed || previewPlan || generation !== loadGeneration || id !== planId || identity !== getWorkspaceCacheIdentity()) return;
-      plan = loaded;
-      await loadDetailState(loaded);
+      plan = await planDetailAdapter.load(planId);
+      await loadDetailState();
     } catch (value) {
-      if (disposed || previewPlan || generation !== loadGeneration || id !== planId || identity !== getWorkspaceCacheIdentity()) return;
-      hasError = !plan;
+      hasError = true;
       console.error('[PlanDetailPage] Failed to load plan:', value);
     }
   }
 
-  async function loadDetailState(target = plan): Promise<void> {
-    if (!target || previewPlan) return;
-    const identity = getWorkspaceCacheIdentity();
-    const generation = loadGeneration;
+  async function loadDetailState(): Promise<void> {
+    if (!plan) return;
+    if (previewPlan) return;
     isDetailLoading = true;
     detailError = false;
     try {
-      const loadedState = await loadUserPlanDetailState(target);
-      if (disposed || previewPlan || generation !== loadGeneration || target.plan_id !== planId || identity !== getWorkspaceCacheIdentity()) return;
-      detailState = loadedState;
+      detailState = await loadUserPlanDetailState(plan);
       if (!selectedVerificationId && detailState.verifications.length > 0) {
         selectedVerificationId = detailState.verifications[0].verificationId;
       }
     } catch (value) {
-      if (disposed || previewPlan || generation !== loadGeneration || target.plan_id !== planId || identity !== getWorkspaceCacheIdentity()) return;
       detailError = true;
       console.error('[PlanDetailPage] Failed to load plan detail state:', value);
     } finally {
-      if (!disposed && !previewPlan && generation === loadGeneration && target.plan_id === planId) isDetailLoading = false;
+      isDetailLoading = false;
     }
   }
 

@@ -99,6 +99,121 @@ final class WatchCanonicalStorageTests: XCTestCase {
     }
 
     private var job: WatchRecoveryJob { .init(id: "job", chatId: "chat", messageId: "assistant", turnId: "turn", keyVersion: 1) }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,chats.persistence.client-encrypted
+    func testCorrelatedServerRejectionReportsStageWithoutStartingCommit() async throws {
+        var calls: [String] = []
+        var inbox: [(type: String, payload: [String: Any])] = [
+            ("error", ["turn_id": "other-turn", "code": "preflight_mismatch"]),
+            ("error", ["turn_id": "turn", "code": "version_conflict"]),
+        ]
+        do {
+            try await WatchCanonicalStorage.sendTurn(turn(), request: { type, _, responseTypes, matching in
+                calls.append(type)
+                let response = try WatchSocketResponses.takeMatchingResponse(from: &inbox,
+                    requestType: type, responseTypes: responseTypes, matching: matching)
+                return try XCTUnwrap(response)
+            }, encryptMetadata: { "cipher-" + $0 }, validate: {})
+            XCTFail("Rejected preflight must not authorize inference")
+        } catch WatchChatRuntimeError.turnAdmissionFailure(let diagnostic) {
+            XCTAssertEqual(diagnostic.stage, .preflight)
+            XCTAssertEqual(diagnostic.reason, "version_conflict")
+            XCTAssertFalse(diagnostic.invalidAcknowledgement)
+        }
+        XCTAssertEqual(calls, ["chat_turn_preflight"])
+        XCTAssertEqual(inbox.count, 1)
+        XCTAssertEqual(inbox.first?.payload["turn_id"] as? String, "other-turn")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply
+    func testWrongTurnErrorCannotSupplyResponseForCurrentAdmission() throws {
+        var inbox: [(type: String, payload: [String: Any])] = [
+            ("error", ["turn_id": "other-turn", "code": "version_conflict"]),
+        ]
+        let response = try WatchSocketResponses.takeMatchingResponse(from: &inbox,
+            requestType: "chat_turn_preflight", responseTypes: ["chat_turn_preflight_ack"],
+            matching: { $0["turn_id"] as? String == "turn" })
+        XCTAssertNil(response)
+        XCTAssertEqual(inbox.count, 1, "Other-turn errors remain queued for their own request")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply
+    func testMalformedPreflightAcknowledgementsHaveStaticReasonsAndDoNotCommit() async throws {
+        let cases: [([String: Any], WatchTurnAcknowledgementIssue)] = [
+            (["preflight_id": "preflight"], .missingState),
+            (["state": "PREPARED"], .missingPreflightID),
+            (["state": "untrusted-state-with-private-data", "preflight_id": "preflight"], .unexpectedState),
+        ]
+        for (ack, issue) in cases {
+            var calls: [String] = []
+            do {
+                try await WatchCanonicalStorage.sendTurn(turn(), request: { type, _, _, _ in
+                    calls.append(type); return ack
+                }, encryptMetadata: { "cipher-" + $0 }, validate: {})
+                XCTFail("Malformed acknowledgement cannot authorize inference")
+            } catch WatchChatRuntimeError.turnAdmissionFailure(let diagnostic) {
+                XCTAssertEqual(diagnostic.stage, .preflight)
+                XCTAssertEqual(diagnostic.reason, issue.rawValue)
+                XCTAssertTrue(diagnostic.invalidAcknowledgement)
+            }
+            XCTAssertEqual(calls, ["chat_turn_preflight"])
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply
+    func testCommitRejectionAndMalformedReceiptRemainDistinctFromPreflight() async throws {
+        for malformed in [false, true] {
+            var calls: [String] = []
+            do {
+                try await WatchCanonicalStorage.sendTurn(turn(), request: { type, _, responseTypes, matching in
+                    calls.append(type)
+                    if type == "chat_turn_preflight" { return ["state": "PREPARED", "preflight_id": "preflight"] }
+                    if malformed { return ["turn_id": "turn"] }
+                    var inbox: [(type: String, payload: [String: Any])] = [
+                        ("error", ["turn_id": "turn", "code": "preflight_expired"]),
+                    ]
+                    let response = try WatchSocketResponses.takeMatchingResponse(from: &inbox,
+                        requestType: type, responseTypes: responseTypes, matching: matching)
+                    return try XCTUnwrap(response)
+                }, encryptMetadata: { "cipher-" + $0 }, validate: {})
+                XCTFail("Rejected or malformed commit must not retire a pending turn")
+            } catch WatchChatRuntimeError.turnAdmissionFailure(let diagnostic) {
+                XCTAssertEqual(diagnostic.stage, .commit)
+                XCTAssertEqual(diagnostic.reason, malformed ? "missing_task_id" : "preflight_expired")
+                XCTAssertEqual(diagnostic.invalidAcknowledgement, malformed)
+            }
+            XCTAssertEqual(calls, ["chat_turn_preflight", "chat_message_added"])
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-watch.chats.new-text-reply,chats.persistence.client-encrypted
+    func testAdmissionDiagnosticsAllowlistCodesAndExcludeAllServerPayloadData() throws {
+        let sequence = NativeClientLogCollector.shared.entriesSnapshot(limit: 1).last?.sequence ?? 0
+        let privateValue = "synthetic-private-payload-value"
+        for rawCode: Any in [privateValue, "version_conflict " + privateValue, ["private": privateValue], 7] {
+            var inbox: [(type: String, payload: [String: Any])] = [
+                ("error", ["turn_id": "turn", "code": rawCode, "message": privateValue,
+                           "chat_id": privateValue, "token": privateValue]),
+            ]
+            XCTAssertThrowsError(try WatchSocketResponses.takeMatchingResponse(from: &inbox,
+                requestType: "chat_turn_preflight", responseTypes: ["chat_turn_preflight_ack"],
+                matching: { $0["turn_id"] as? String == "turn" })) { error in
+                guard case WatchChatRuntimeError.turnAdmissionFailure(let diagnostic) = error else { return XCTFail("Missing static diagnostic") }
+                XCTAssertEqual(diagnostic.reason, "unrecognized_server_code")
+                XCTAssertEqual(error.localizedDescription, "Message could not be saved")
+            }
+        }
+        let entries = NativeClientLogCollector.shared.entriesAfter(sequence: sequence, limit: 20)
+        XCTAssertEqual(entries.count, 4)
+        for entry in entries {
+            XCTAssertTrue(entry.message.contains("stage_preflight=true"))
+            XCTAssertTrue(entry.message.contains("reason_unrecognized_server_code=true"))
+            XCTAssertFalse(entry.message.contains(privateValue))
+            XCTAssertFalse(entry.message.contains("turn_id"))
+            XCTAssertFalse(entry.message.contains("chat_id"))
+            XCTAssertFalse(entry.message.contains("token"))
+        }
+    }
     private var chat: WatchChatSummary { .init(id: "chat", title: nil, lastMessageAt: nil, preview: nil, isPinned: false,
         encryptedTitle: "cipher-title", encryptedPreview: nil, encryptedChatKey: "wrapped", messagesV: 7) }
     private var claim: [String: Any] { ["job_id": "job", "chat_id": "chat", "assistant_message_id": "assistant",

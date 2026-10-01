@@ -12,11 +12,13 @@ final class SettingsMacPrivacyParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell,settings-ui.composition.canonical-and-accessible
     func testPrivacyHubAndDebugSessionAreUsableOnMacOS() {
         let app = XCUIApplication()
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
             "--ui-test-account-settings-fixture",
+            "--ui-test-authenticated-chat-navigation",
             "--ui-test-privacy-settings-fixture",
         ]
         app.launch()

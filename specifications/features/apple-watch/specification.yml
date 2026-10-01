@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.apple-watch
-version: 1
+version: 2
 status: draft
 title: Apple Watch companion
 summary: >
@@ -12,11 +12,12 @@ scope:
   includes:
     - Watch pairing through the matching iPhone with a prominent short-URL and manual pair-code fallback.
     - Watch Chat, Task, and Workflow navigation and read-only lists.
+    - A horizontally paged Tasks kanban board with canonical iPhone sections, vertical Digital Crown scrolling, and native read-only Task details.
     - Privacy-preserving Task and Workflow handoff to the paired iPhone.
     - Saved-chat browsing, search, new chat, text replies, and audio replies.
     - Compact Watch layout and accessible controls for these surfaces.
   excludes:
-    - Native Watch Task or Workflow detail, creation, editing, or execution.
+    - Native Watch Workflow detail, and Task or Workflow creation, editing, or execution.
     - On-device audio transcription or a post-recording attachment editor.
     - Changes to the shared pair-login, encrypted chat, or server transcription contracts.
 
@@ -55,13 +56,18 @@ assertions:
     must: >
       An authenticated Watch lists readable client-decrypted Tasks and Workflows,
       including workflow-run projections where available, without exposing
-      ciphertext or offering native Task or Workflow mutation and detail screens.
-      Loading and failure states remain visible.
+      ciphertext or offering native mutations. Tasks use the iPhone kanban section
+      order: Backlog, To do, In progress, Blocked, and Done. Swiping horizontally
+      changes sections while the Digital Crown scrolls the current section
+      vertically. Tapping a Task opens its readable private details on Watch.
+      Workflow detail stays on the paired iPhone. Loading, empty, and failure
+      states remain visible.
     depends_on: [examples.lists]
   - id: apple-watch.handoff.exact-private
     type: behavior
     must: >
-      Tapping a Task or Workflow on Watch sends only an item kind, opaque id, and
+      Choosing Open on iPhone in a Task read view, or tapping a Workflow on Watch,
+      sends only an item kind, opaque id, and
       server identity to the paired iPhone. The iPhone accepts only a matching
       server profile and valid identifier, then routes the user to the exact HTTPS
       web item; collection and settings handoffs use that profile's web origin.

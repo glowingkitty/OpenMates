@@ -17,6 +17,7 @@
 
 #if DEBUG
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct DevComponentPreviewView: View {
     let configuration: DevPreviewLaunchConfiguration
@@ -46,7 +47,7 @@ struct DevComponentPreviewView: View {
         let allowedKeys: Set<String>
         switch component {
         case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions, .tasks, .projects: allowedKeys = []
-        case .notification: allowedKeys = []
+        case .notification, .sharedRecipient: allowedKeys = []
         case .workflows:
             allowedKeys = []
             guard ["short-template", "home"].contains(configuration.variant) else {
@@ -322,8 +323,8 @@ private struct DevComponentPreviewCanvas: View {
                     .accessibilityElement()
                     .accessibilityLabel(lastAction)
                     .accessibilityIdentifier("dev-preview-local-action")
-                    .allowsHitTesting(false)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .allowsHitTesting(false)
             }
             .environment(\.openURL, OpenURLAction { _ in
                 lastAction = "external-link-intercepted"
@@ -338,6 +339,8 @@ private struct DevComponentPreviewCanvas: View {
     @ViewBuilder
     private func component(viewport: CGSize) -> some View {
         switch configuration.component {
+        case .sharedRecipient:
+            SharedChatRecipientView.preview(state: configuration.variant)
         case .sidebar:
             DevSidebarComponentFixture(variant: configuration.variant)
         case .history:
@@ -346,6 +349,22 @@ private struct DevComponentPreviewCanvas: View {
             DevWelcomeComponentFixture(empty: configuration.variant == "empty", onAction: { lastAction = $0 })
         case .login, .signup:
             DevAuthFormFixture(configuration: configuration)
+        case .composer where configuration.variant == "assistant-speech":
+            DevAssistantSpeechPreview()
+        case .composer where configuration.variant == "assistant-speech-public":
+            DevAssistantSpeechPreview(variant: "publicExample")
+        case .composer where configuration.variant == "chat-settings":
+            ChatSettingsView.preview()
+        case .composer where configuration.variant == "chat-settings-usage":
+            ChatSettingsView.preview(populatedUsage: true)
+        case .composer where configuration.variant == "chat-settings-plans":
+            ChatSettingsView.preview(allPlans: true)
+        case .composer where configuration.variant == "chat-settings-shared":
+            ChatSettingsView.preview(shared: true)
+        case .composer where configuration.variant == "chat-settings-public":
+            ChatSettingsView.preview(example: true)
+        case .composer where configuration.variant == "chat-settings-export-control":
+            DevNativeJSONExportControl()
         case .composer where configuration.variant == "model":
             DevComposerModelFixture()
         case .composer where configuration.variant == "search-suggestions":
@@ -783,5 +802,41 @@ private struct DevComposerComponentFixture: View {
         focused = false
         onAction("submitted-locally")
     }
+}
+// A small system capability control isolates Simulator Files-provider failures
+// from the public MP3 download/export path. Uses no account or network data.
+private struct DevNativeJSONExportControl: View {
+    @State private var document: DevNativeJSONExportDocument?
+    @State private var presented = false
+    @State private var phase = "idle"
+    var body: some View {
+        Button(AppStrings.chatSettingsDownloadFiles) {
+            document = .init(data: Data("{\"fixture\":\"parity-export-control\"}".utf8))
+            phase = "presenting"; presented = true
+        }.buttonStyle(OMPrimaryButtonStyle()).accessibilityIdentifier("native-export-control-open")
+            .fileExporter(isPresented: $presented, document: document, contentType: .json, defaultFilename: "parity-export-control.json") { result in
+                switch result {
+                case .success(let url):
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+                    let bytes = (attributes?[.size] as? NSNumber)?.stringValue ?? "unavailable"
+                    phase = "saved=\(url.lastPathComponent);bytes=\(bytes)"
+                case .failure: phase = "finished"
+                }
+                document = nil
+            }
+            .accessibilityValue(phase)
+    }
+}
+private struct DevNativeJSONExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    let data: Data
+    init(data: Data) { self.data = data }
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else { throw CocoaError(.fileReadCorruptFile) }
+        self.data = data
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 #endif

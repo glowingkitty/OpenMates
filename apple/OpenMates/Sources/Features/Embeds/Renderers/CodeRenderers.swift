@@ -15,12 +15,17 @@
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/file/FileEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/app-skills/code-run/specification.yml
 // Assertions: code-run.surface-parity
 
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
+import Combine
 import SwiftUI
 import WebKit
 import AVFoundation
@@ -30,6 +35,19 @@ import UIKit
 #elseif os(macOS)
 import AppKit
 #endif
+
+private struct EmbedSheetViewportHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    /// Available fullscreen content height below the measured Sheet header.
+    /// Nil permits natural sizing for standalone content.
+    var embedSheetViewportHeight: CGFloat? {
+        get { self[EmbedSheetViewportHeightKey.self] }
+        set { self[EmbedSheetViewportHeightKey.self] = newValue }
+    }
+}
 
 struct AppleCodeEmbedContent: Equatable {
     let code: String
@@ -264,7 +282,29 @@ struct ApplicationEmbedRenderer: View {
     }
 }
 
+/// Lazily subscribes to owner outputs only when the renderer has owner context.
+@MainActor
+private final class CodeEmbedOwnerOutputs: ObservableObject {
+    private var store: CodeRunOutputStore?
+    private var observation: AnyCancellable?
+
+    func hydrate(chatId: String, embedId: String, embed: EmbedRecord?) async {
+        if store == nil {
+            let ownerStore = CodeRunOutputStore.shared
+            store = ownerStore
+            observation = ownerStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+            objectWillChange.send()
+        }
+        await store?.hydrate(chatId: chatId, embedId: embedId, embed: embed)
+    }
+
+    func output(chatId: String, embedId: String) -> CodeRunOutput? {
+        store?.output(chatId: chatId, embedId: embedId)
+    }
+}
+
 struct CodeEmbedRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let embed: EmbedRecord?
     let embedId: String
@@ -277,7 +317,7 @@ struct CodeEmbedRenderer: View {
     var previewActive = false
     var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
-    @ObservedObject private var savedOutputs = CodeRunOutputStore.shared
+    @StateObject private var savedOutputs = CodeEmbedOwnerOutputs()
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
@@ -327,7 +367,7 @@ struct CodeEmbedRenderer: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : (code.isEmpty ? "code-embed-processing" : "code-embed-source-preview"))
             .task(id: embedId) {
-                guard let chatId, !chatId.isEmpty else { return }
+                guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
                 #if DEBUG
                 if chatId == "dev-embed-preview-chat" { return }
                 #endif
@@ -377,6 +417,10 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .background(Color.grey10)
+            .task(id: embedId) {
+                guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
+                await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
+            }
         }
     }
 
@@ -438,13 +482,13 @@ struct CodeEmbedRenderer: View {
     }
 
     private var savedOutputPreview: String? {
-        guard let chatId,
+        guard recipientMediaContext == nil, let chatId,
               let output = savedOutputs.output(chatId: chatId, embedId: embedId)?.output else { return nil }
         return CodeRunPreviewText.lastLines(output, limit: isLargePreview ? 18 : 8)
     }
 
     private var savedRunOutput: CodeRunOutput? {
-        guard let chatId else { return nil }
+        guard recipientMediaContext == nil, let chatId else { return nil }
         return savedOutputs.output(chatId: chatId, embedId: embedId)
     }
 
@@ -529,6 +573,7 @@ private struct EmbedPIIToggle: View {
 // MARK: - Generated audio
 
 struct GeneratedAudioEmbedRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let status: EmbedStatus
     let skillId: String
@@ -682,6 +727,7 @@ struct GeneratedAudioEmbedRenderer: View {
     }
 
     private func togglePlayback() {
+        do { try recipientMediaContext?.checkCurrent() } catch { return }
         if let player {
             if player.isPlaying { player.pause() } else { player.play() }
             isPlaying = player.isPlaying
@@ -692,12 +738,14 @@ struct GeneratedAudioEmbedRenderer: View {
         loadFailed = false
         Task {
             do {
-                let bytes = try await payload.loadAudio()
+                let bytes = try await payload.loadAudio(recipientMediaContext: recipientMediaContext)
                 #if os(iOS)
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 #endif
+                try recipientMediaContext?.checkCurrent()
                 let audioPlayer = try AVAudioPlayer(data: bytes)
+                try recipientMediaContext?.track(audioPlayer)
                 audioPlayer.prepareToPlay()
                 audioPlayer.play()
                 player = audioPlayer
@@ -754,18 +802,20 @@ private struct GeneratedAudioEmbedPayload {
     }
     var hasPlayableMedia: Bool { directURL != nil || (s3Key != nil && aesKey != nil) }
 
-    func loadAudio() async throws -> Data {
+    @MainActor func loadAudio(recipientMediaContext: RecipientMediaContext? = nil) async throws -> Data {
         if let directURL {
             if directURL.hasPrefix("data:"), let comma = directURL.firstIndex(of: ",") {
                 let encoded = String(directURL[directURL.index(after: comma)...])
                 guard let data = Data(base64Encoded: encoded) else { throw URLError(.cannotDecodeContentData) }
+                try recipientMediaContext?.checkCurrent()
+                if recipientMediaContext != nil, data.count > RecipientMediaTransport.maximumMediaBytes { throw URLError(.dataLengthExceedsMaximum) }
                 return data
             }
             guard let url = URL(string: directURL) else { throw URLError(.badURL) }
-            return try await URLSession.shared.data(from: url).0
+            return try await RecipientMediaContext.download(context: recipientMediaContext, url: url)
         }
         guard let s3Key, let aesKey else { throw URLError(.badURL) }
-        return try await S3MediaClient.shared.fetchAndDecrypt(
+        return try await RecipientMediaContext.fetchAndDecrypt(context: recipientMediaContext,
             s3Url: s3BaseURL ?? "",
             aesKeyHex: aesKey,
             aesNonceHex: aesNonce,
@@ -1022,8 +1072,6 @@ struct FileEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     let status: EmbedStatus
-    @Environment(\.openURL) private var openURL
-
     private var payload: FileEmbedPayload { FileEmbedPayload(data) }
 
     var body: some View {
@@ -1058,23 +1106,34 @@ struct FileEmbedRenderer: View {
             .accessibilityIdentifier("file-embed-preview")
 
         case .fullscreen:
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: .spacing12) { fileIcon; fileDetails }
-                VStack(alignment: .leading, spacing: .spacing8) { fileIcon; fileDetails }
+            // The rendered web card remains a row on phones: its source
+            // container query currently has no named ancestor to activate it.
+            HStack(alignment: .center, spacing: .spacing12) {
+                fileIcon
+                fileDetails
             }
-            .padding(.spacing12)
-            .frame(maxWidth: 704, alignment: .leading)
+            .padding(.spacing16)
+            .frame(maxWidth: 748, alignment: .leading)
             .background(Color.grey10)
             .clipShape(RoundedRectangle(cornerRadius: .radius8))
             .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey25, lineWidth: 1) }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("file-embed-fullscreen")
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing16)
+            .frame(maxWidth: .infinity)
         }
     }
 
     private var fileIcon: some View {
-        Icon("files", size: mode == .preview ? 46 : 64)
-            .foregroundStyle(LinearGradient.primary)
+        // FileEmbedFullscreen's raw .icon.files span currently has no mask.
+        // Reproduce its rendered grey fallback block rather than an SVG glyph.
+        RoundedRectangle(cornerRadius: .radius6)
+            .fill(LinearGradient(stops: [
+                .init(color: Color.grey20, location: 0.0904),
+                .init(color: Color.grey30, location: 0.9006)
+            ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: 68, height: 68)
             .accessibilityHidden(true)
     }
 
@@ -1088,15 +1147,7 @@ struct FileEmbedRenderer: View {
             Text(payload.metadata)
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
-            if let downloadURL = payload.availableDownloadURL {
-                Button {
-                    openURL(downloadURL)
-                } label: {
-                    Label(AppStrings.download, systemImage: "arrow.down.circle.fill")
-                }
-                .buttonStyle(OMSecondaryButtonStyle())
-                .accessibilityIdentifier("file-download-button")
-            } else {
+            if payload.availableDownloadURL == nil {
                 Text(AppStrings.localized("app_skills.code.run.download_unavailable"))
                     .font(.omSmall)
                     .foregroundStyle(Color.warning)
@@ -1107,7 +1158,7 @@ struct FileEmbedRenderer: View {
     }
 }
 
-private struct FileEmbedPayload {
+struct FileEmbedPayload {
     let path: String
     let filename: String
     let mimeType: String
@@ -1132,9 +1183,13 @@ private struct FileEmbedPayload {
     }
 
     var availableDownloadURL: URL? {
+        availableDownloadURL(at: Date().timeIntervalSince1970)
+    }
+
+    func availableDownloadURL(at now: TimeInterval) -> URL? {
         guard let downloadURL else { return nil }
-        guard let downloadExpiresAt else { return downloadURL }
-        return downloadExpiresAt > Date().timeIntervalSince1970 ? downloadURL : nil
+        guard let downloadExpiresAt, downloadExpiresAt != 0 else { return downloadURL }
+        return downloadExpiresAt > now ? downloadURL : nil
     }
 
     private static func string(_ data: [String: AnyCodable]?, keys: [String]) -> String? {
@@ -1153,7 +1208,9 @@ private struct FileEmbedPayload {
     }
 
     private static func formatBytes(_ count: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: count, countStyle: .file)
+        if count < 1024 { return "\(count) B" }
+        if count < 1_048_576 { return String(format: "%.1f KB", locale: Locale(identifier: "en_US_POSIX"), Double(count) / 1024) }
+        return String(format: "%.1f MB", locale: Locale(identifier: "en_US_POSIX"), Double(count) / 1_048_576)
     }
 }
 
@@ -1963,6 +2020,7 @@ private struct SheetFullscreenTable: View {
     @State private var sortAscending = true
     @State private var showFilters = false
     @State private var filters: [String] = []
+    @Environment(\.embedSheetViewportHeight) private var viewportHeight
 
     private var displayRows: [[String]] {
         var rows = table.rows
@@ -1994,6 +2052,7 @@ private struct SheetFullscreenTable: View {
                     HStack(spacing: .spacing3) {
                         ForEach(table.headers.indices, id: \.self) { index in
                             TextField(table.headers[index], text: bindingForFilter(index))
+                                .accessibilityIdentifier("sheet-filter-input-\(index)")
                                 .textFieldStyle(.plain)
                                 .font(.omXs)
                                 .foregroundStyle(Color.fontPrimary)
@@ -2012,11 +2071,14 @@ private struct SheetFullscreenTable: View {
 
             sheetTableBody
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: viewportHeight)
         .onAppear {
             filters = Array(repeating: "", count: table.headers.count)
             onDisplayedRowsChange?(displayRows)
         }
         .onChange(of: displayRows) { _, rows in onDisplayedRowsChange?(rows) }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sheet-fullscreen-table")
     }
 
@@ -2173,7 +2235,7 @@ private struct SheetFullscreenTable: View {
 
     private func columnWidth(_ index: Int) -> CGFloat {
         let headerLen = table.headers.indices.contains(index) ? table.headers[index].count : 0
-        let maxRowLen = table.rows.map { $0.indices.contains(index) ? $0[index].count : 0 }.max() ?? 0
+        let maxRowLen = displayRows.map { $0.indices.contains(index) ? $0[index].count : 0 }.max() ?? 0
         return min(max(CGFloat(max(headerLen, maxRowLen) * 8), 80), 320)
     }
 
@@ -2190,6 +2252,76 @@ private struct SheetFullscreenTable: View {
 }
 
 #if os(iOS)
+// SheetEmbedFullscreen.svelte overrides its normal Lexend typography with the
+// system font and switches spacing at the browser viewport's 768px breakpoint.
+struct SheetFullscreenTableMetrics {
+    let viewportWidth: CGFloat
+    var isMobile: Bool { viewportWidth <= 768 }
+    // CSS widths/min-widths use content-box; the collapsed grid contributes one pixel.
+    var gutterWidth: CGFloat { (isMobile ? 32 : 40) + horizontalPadding * 2 + 1 }
+    var horizontalPadding: CGFloat { isMobile ? .spacing4 : .spacing6 }
+    var verticalPadding: CGFloat { isMobile ? 5 : .spacing3 }
+    var letterVerticalPadding: CGFloat { isMobile ? 5 : .spacing1 }
+    var font: UIFont { .systemFont(ofSize: isMobile ? 12 : 13, weight: .medium) }
+    var headerFont: UIFont { .systemFont(ofSize: font.pointSize, weight: .semibold) }
+    var letterFont: UIFont { .systemFont(ofSize: 11, weight: .medium) }
+    var lineHeight: CGFloat { floor(font.pointSize * 1.4 * 64) / 64 }
+    var letterRowHeight: CGFloat { 22 + letterVerticalPadding * 2 + 1 }
+    var headerRowHeight: CGFloat { lineHeight + verticalPadding * 2 + 1.5 }
+
+    func contentWidth(for columnWidth: CGFloat) -> CGFloat {
+        max(1, columnWidth - horizontalPadding * 2 - 1)
+    }
+
+    /// CSS auto table layout shrinks preferred <col> widths toward each header
+    /// minimum when the wrapper is narrow, then overflows rather than squeezing
+    /// the 80px content-box minimum or the nowrap header and sort control.
+    func resolvedColumnWidths(headers: [String], preferredWidths: [CGFloat], availableWidth: CGFloat) -> [CGFloat] {
+        let minimums = headers.map { header in
+            let textWidth = (header as NSString).size(withAttributes: [.font: headerFont]).width
+            return max(80, textWidth + .spacing2 + 10) + horizontalPadding * 2 + 1
+        }
+        let preferred = minimums.enumerated().map { index, minimum in
+            max(minimum, preferredWidths.indices.contains(index) ? preferredWidths[index] : minimum)
+        }
+        let minimumTotal = minimums.reduce(gutterWidth + 1, +)
+        let preferredTotal = preferred.reduce(gutterWidth + 1, +)
+        guard preferredTotal > minimumTotal else { return minimums }
+        let fraction = min(1, max(0, (availableWidth - minimumTotal) / (preferredTotal - minimumTotal)))
+        return zip(minimums, preferred).map { minimum, desired in minimum + (desired - minimum) * fraction }
+    }
+
+    func attributedValue(_ text: String) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.minimumLineHeight = lineHeight
+        paragraph.maximumLineHeight = lineHeight
+        paragraph.lineBreakMode = .byWordWrapping
+        return NSAttributedString(string: text, attributes: [
+            .font: font, .foregroundColor: UIColor(Color.fontPrimary), .paragraphStyle: paragraph
+        ])
+    }
+
+    func rowHeight(values: [String], columnWidths: [CGFloat]) -> CGFloat {
+        var textHeight = lineHeight
+        for (index, value) in values.enumerated() where columnWidths.indices.contains(index) {
+            // Use the same TextKit engine as the selectable UITextView cells,
+            // including break-word fallback when a word exceeds the column.
+            let storage = NSTextStorage(attributedString: attributedValue(value))
+            let manager = NSLayoutManager()
+            let container = NSTextContainer(size: CGSize(
+                width: contentWidth(for: columnWidths[index]),
+                height: .greatestFiniteMagnitude))
+            container.lineFragmentPadding = 0
+            container.lineBreakMode = .byWordWrapping
+            manager.addTextContainer(container)
+            storage.addLayoutManager(manager)
+            manager.ensureLayout(for: container)
+            textHeight = max(textHeight, manager.usedRect(for: container).height)
+        }
+        return textHeight + verticalPadding * 2 + 1
+    }
+}
+
 private struct SheetFullscreenCollectionTable: UIViewRepresentable {
     let headers: [String]
     let rows: [[String]]
@@ -2206,7 +2338,12 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UICollectionView {
         let layout = SheetFullscreenCollectionLayout()
+        layout.configure(headers: headers, rows: rows, widths: columnWidths,
+                         viewportWidth: 0)
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
+        // The representable owns the table's AX node; SwiftUI may flatten its
+        // enclosing VStack while preserving these native cells and controls.
+        collectionView.accessibilityIdentifier = "sheet-fullscreen-table"
         collectionView.backgroundColor = UIColor(Color.grey20)
         collectionView.alwaysBounceVertical = true
         collectionView.alwaysBounceHorizontal = true
@@ -2219,11 +2356,26 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
         return collectionView
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UICollectionView, context: Context) -> CGSize? {
+        guard let layout = uiView.collectionViewLayout as? SheetFullscreenCollectionLayout else { return nil }
+        layout.configure(headers: headers, rows: rows, widths: columnWidths,
+                         viewportWidth: uiView.window?.bounds.width ?? proposal.width ?? columnWidths.reduce(40, +),
+                         availableWidth: proposal.width)
+        // Fullscreen content sits inside a vertical SwiftUI ScrollView, whose
+        // height proposal is nil. UICollectionView has no intrinsic height;
+        // provide the table's extent so its visible cells do not collapse.
+        return CGSize(
+            width: proposal.width ?? layout.columnWidths.reduce(0, +),
+            height: proposal.height ?? (layout.totalContentHeight + uiView.contentInset.vertical)
+        )
+    }
+
     func updateUIView(_ collectionView: UICollectionView, context: Context) {
         context.coordinator.parent = self
         if let layout = collectionView.collectionViewLayout as? SheetFullscreenCollectionLayout {
-            layout.columnWidths = [40] + columnWidths
-            layout.rowCount = rows.count + 2
+            layout.configure(headers: headers, rows: rows, widths: columnWidths,
+                             viewportWidth: collectionView.window?.bounds.width ?? collectionView.bounds.width,
+                             availableWidth: collectionView.bounds.width > 0 ? collectionView.bounds.width : nil)
             layout.invalidateLayout()
         }
         collectionView.reloadData()
@@ -2245,7 +2397,13 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
                 withReuseIdentifier: SheetFullscreenCollectionCell.reuseIdentifier,
                 for: indexPath
             ) as! SheetFullscreenCollectionCell
-            cell.configure(with: cellModel(for: indexPath.item))
+            let metrics = (collectionView.collectionViewLayout as? SheetFullscreenCollectionLayout)?.metrics
+                ?? SheetFullscreenTableMetrics(viewportWidth: collectionView.bounds.width)
+            cell.configure(with: cellModel(for: indexPath.item), metrics: metrics)
+            cell.onActivate = { [weak self, weak collectionView] in
+                guard let self, let collectionView else { return }
+                self.collectionView(collectionView, didSelectItemAt: indexPath)
+            }
             return cell
         }
 
@@ -2274,8 +2432,8 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
                 let columnIndex = position.column - 1
                 let header = parent.headers.indices.contains(columnIndex) ? parent.headers[columnIndex] : ""
                 let isActive = parent.sortColumnIndex == columnIndex
-                let sortIndicator = isActive ? (parent.sortAscending ? " ↑" : " ↓") : " ↕"
-                return .init(text: header + sortIndicator, kind: .header(isActive: isActive))
+                return .init(text: header, kind: .header(columnIndex: columnIndex,
+                                                       ascending: isActive ? parent.sortAscending : nil))
             }
 
             let rowIndex = position.row - 2
@@ -2306,13 +2464,41 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
     }
 }
 
-private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
+final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
     var columnWidths: [CGFloat] = []
-    var rowCount = 0
-    private let rowHeights: [CGFloat] = [24, 44]
-    private let dataRowHeight: CGFloat = 44
+    private(set) var metrics = SheetFullscreenTableMetrics(viewportWidth: 0)
+    private var rowHeights: [CGFloat] = []
+    private var rowOffsets: [CGFloat] = []
+    private var measuredRows: [[String]] = []
+    private var measuredHeaders: [String] = []
+    private var measuredWidths: [CGFloat] = []
     private var columnOffsets: [CGFloat] = []
     private var contentSize = CGSize.zero
+    private var rowCount: Int { rowHeights.count }
+
+    func configure(headers: [String], rows: [[String]], widths: [CGFloat], viewportWidth: CGFloat,
+                   availableWidth: CGFloat? = nil) {
+        let newMetrics = SheetFullscreenTableMetrics(viewportWidth: viewportWidth)
+        let resolvedWidths = newMetrics.resolvedColumnWidths(headers: headers, preferredWidths: widths,
+                                                            availableWidth: availableWidth ?? viewportWidth)
+        let needsMeasurement = rowHeights.isEmpty || rows != measuredRows || headers != measuredHeaders || resolvedWidths != measuredWidths
+            || newMetrics.isMobile != metrics.isMobile
+        metrics = newMetrics
+        columnWidths = [metrics.gutterWidth] + resolvedWidths
+        if needsMeasurement {
+            measuredRows = rows
+            measuredHeaders = headers
+            measuredWidths = resolvedWidths
+            rowHeights = [metrics.letterRowHeight, metrics.headerRowHeight]
+                + rows.enumerated().map { index, values in
+                    metrics.rowHeight(values: values, columnWidths: resolvedWidths) + (index == 0 ? 0.5 : 0)
+                }
+            rowOffsets = []
+            var y: CGFloat = 0
+            for height in rowHeights { rowOffsets.append(y); y += height }
+        }
+        invalidateLayout()
+    }
 
     override func prepare() {
         super.prepare()
@@ -2326,7 +2512,7 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         }
 
         contentSize = CGSize(
-            width: max(x, collectionView.bounds.width + 1),
+            width: max(x + 1, collectionView.bounds.width + 1),
             height: max(totalContentHeight, collectionView.bounds.height - collectionView.adjustedContentInset.vertical + 1)
         )
     }
@@ -2338,8 +2524,12 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
     override func layoutAttributesForElements(in rect: CGRect) -> [UICollectionViewLayoutAttributes]? {
         guard !columnWidths.isEmpty, rowCount > 0 else { return [] }
 
-        let rowRange = visibleRowRange(intersecting: rect)
-        let columnRange = visibleColumnRange(intersecting: rect)
+        // Sticky headers and gutter must remain in the attribute set even when
+        // their original frames are outside the current visible rect.
+        let visibleRows = intersectingRange(offsets: rowOffsets, lengths: rowHeights, min: rect.minY, max: rect.maxY)
+        let visibleColumns = intersectingRange(offsets: columnOffsets, lengths: columnWidths, min: rect.minX, max: rect.maxX)
+        let rowRange = Set(visibleRows).union([0, 1]).sorted()
+        let columnRange = Set(visibleColumns).union([0]).sorted()
         var visibleAttributes: [UICollectionViewLayoutAttributes] = []
 
         for row in rowRange {
@@ -2362,10 +2552,21 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         let itemAttributes = UICollectionViewLayoutAttributes(forCellWith: indexPath)
         itemAttributes.frame = CGRect(
             x: columnOffsets[column],
-            y: yOffset(for: row),
+            y: rowOffsets[row],
             width: columnWidths[column],
-            height: height(for: row)
+            height: rowHeights[row]
         )
+        if let collectionView {
+            if row < 2 {
+                let stickyTop = collectionView.bounds.minY + collectionView.adjustedContentInset.top
+                itemAttributes.frame.origin.y = max(rowOffsets[row], stickyTop + rowOffsets[row])
+                itemAttributes.zIndex = 3
+            }
+            if column == 0 {
+                itemAttributes.frame.origin.x = max(0, collectionView.bounds.minX + collectionView.adjustedContentInset.left)
+                itemAttributes.zIndex = row < 2 ? 4 : 2
+            }
+        }
         return itemAttributes
     }
 
@@ -2373,56 +2574,23 @@ private final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         true
     }
 
-    private var totalContentHeight: CGFloat {
-        guard rowCount > 0 else { return 0 }
-        return (0..<rowCount).reduce(CGFloat(0)) { total, row in
-            total + height(for: row)
-        }
+    var totalContentHeight: CGFloat {
+        (rowOffsets.last ?? 0) + (rowHeights.last ?? 0)
     }
 
-    private func height(for row: Int) -> CGFloat {
-        rowHeights.indices.contains(row) ? rowHeights[row] : dataRowHeight
-    }
-
-    private func yOffset(for row: Int) -> CGFloat {
-        guard row > 0 else { return 0 }
-        return (0..<row).reduce(CGFloat(0)) { total, item in
-            total + height(for: item)
+    private func intersectingRange(offsets: [CGFloat], lengths: [CGFloat], min: CGFloat, max: CGFloat) -> Range<Int> {
+        guard !offsets.isEmpty else { return 0..<0 }
+        func lowerBound(_ predicate: (Int) -> Bool) -> Int {
+            var low = 0, high = offsets.count
+            while low < high {
+                let middle = (low + high) / 2
+                if predicate(middle) { high = middle } else { low = middle + 1 }
+            }
+            return low
         }
-    }
-
-    private func visibleRowRange(intersecting rect: CGRect) -> Range<Int> {
-        guard rowCount > 0 else { return 0..<0 }
-        let headerHeight = rowHeights.reduce(0, +)
-        let first: Int
-        if rect.minY < rowHeights[0] {
-            first = 0
-        } else if rect.minY < headerHeight {
-            first = 1
-        } else {
-            first = min(max(Int((rect.minY - headerHeight) / dataRowHeight) + rowHeights.count, 0), rowCount)
-        }
-
-        let lastExclusive: Int
-        if rect.maxY <= rowHeights[0] {
-            lastExclusive = 1
-        } else if rect.maxY <= headerHeight {
-            lastExclusive = min(2, rowCount)
-        } else {
-            lastExclusive = min(Int(ceil((rect.maxY - headerHeight) / dataRowHeight)) + rowHeights.count, rowCount)
-        }
-
-        return min(first, lastExclusive)..<max(first, lastExclusive)
-    }
-
-    private func visibleColumnRange(intersecting rect: CGRect) -> Range<Int> {
-        guard !columnWidths.isEmpty else { return 0..<0 }
-        let first = columnOffsets.firstIndex { offset in
-            let column = columnOffsets.firstIndex(of: offset) ?? 0
-            return offset + columnWidths[column] >= rect.minX
-        } ?? 0
-        let last = columnOffsets.lastIndex { offset in offset <= rect.maxX } ?? (columnWidths.count - 1)
-        return first..<min(last + 2, columnWidths.count)
+        let first = lowerBound { offsets[$0] + lengths[$0] >= min }
+        let end = lowerBound { offsets[$0] > max }
+        return first..<Swift.max(first, end)
     }
 }
 
@@ -2432,7 +2600,7 @@ private final class SheetFullscreenCollectionCell: UICollectionViewCell {
     enum Kind {
         case filter(isActive: Bool)
         case columnLetter
-        case header(isActive: Bool)
+        case header(columnIndex: Int, ascending: Bool?)
         case rowHeader
         case value(isAlternate: Bool)
     }
@@ -2444,79 +2612,239 @@ private final class SheetFullscreenCollectionCell: UICollectionViewCell {
 
     private let label = UILabel()
     private let valueTextView = UITextView()
+    private let headerLabel = UILabel()
+    private let filterGlyph = SheetFullscreenControlGlyphView()
+    private let filterBackground = UIView()
+    private let sortGlyph = SheetFullscreenControlGlyphView()
+    private let headerStack = UIStackView()
+    private let gridBorder = CAShapeLayer()
+    private let emphasizedBorder = CAShapeLayer()
+    private let gutterBorder = CAShapeLayer()
+    private var metrics = SheetFullscreenTableMetrics(viewportWidth: 0)
+    private var kind: Kind = .columnLetter
+    var onActivate: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         contentView.addSubview(label)
         contentView.addSubview(valueTextView)
-        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(filterBackground)
+        contentView.addSubview(filterGlyph)
+        filterBackground.layer.cornerRadius = 3
+        filterBackground.isUserInteractionEnabled = false
+        contentView.addSubview(headerStack)
+        headerStack.axis = .horizontal
+        headerStack.alignment = .center
+        headerStack.spacing = .spacing2
+        headerStack.addArrangedSubview(headerLabel)
+        headerStack.addArrangedSubview(sortGlyph)
+        headerLabel.numberOfLines = 1
+        headerLabel.lineBreakMode = .byTruncatingTail
+        headerLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        sortGlyph.translatesAutoresizingMaskIntoConstraints = false
+        filterGlyph.accessibilityIdentifier = "sheet-filter-glyph"
+        sortGlyph.accessibilityIdentifier = "sheet-sort-glyph"
         label.numberOfLines = 1
         label.lineBreakMode = .byTruncatingTail
-        valueTextView.translatesAutoresizingMaskIntoConstraints = false
         valueTextView.backgroundColor = .clear
         valueTextView.isEditable = false
+        valueTextView.isSelectable = true
         valueTextView.isScrollEnabled = false
-        valueTextView.textContainer.lineBreakMode = .byTruncatingTail
-        valueTextView.textContainer.maximumNumberOfLines = 1
-        valueTextView.textContainerInset = UIEdgeInsets(top: 3, left: 0, bottom: 3, right: 0)
+        valueTextView.textContainer.lineBreakMode = .byWordWrapping
+        valueTextView.textContainer.maximumNumberOfLines = 0
         valueTextView.textContainer.lineFragmentPadding = 0
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 3),
-            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -3),
-            valueTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            valueTextView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            valueTextView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            valueTextView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            sortGlyph.widthAnchor.constraint(equalToConstant: 10),
+            sortGlyph.heightAnchor.constraint(equalToConstant: 10),
         ])
+        contentView.clipsToBounds = true
+        gridBorder.fillColor = nil
+        gridBorder.lineWidth = 1
+        emphasizedBorder.fillColor = nil
+        emphasizedBorder.lineWidth = 2
+        gutterBorder.fillColor = nil
+        gutterBorder.lineWidth = 2
+        contentView.layer.addSublayer(gridBorder)
+        contentView.layer.addSublayer(emphasizedBorder)
+        contentView.layer.addSublayer(gutterBorder)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(with model: Model) {
+    func configure(with model: Model, metrics: SheetFullscreenTableMetrics) {
+        self.metrics = metrics
+        kind = model.kind
         label.isHidden = false
         valueTextView.isHidden = true
+        filterGlyph.isHidden = true
+        filterBackground.isHidden = true
+        headerStack.isHidden = true
+        isAccessibilityElement = false
+        accessibilityIdentifier = nil
+        accessibilityLabel = nil
+        accessibilityTraits = []
         label.text = model.text
         label.textAlignment = .left
-        label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
+        label.font = metrics.font
         label.textColor = UIColor(Color.fontPrimary)
-        contentView.layer.borderWidth = 0.7
-        contentView.layer.borderColor = UIColor(Color.grey30).cgColor
+        gridBorder.strokeColor = UIColor(Color.grey25).cgColor
+        emphasizedBorder.strokeColor = UIColor(Color.grey30).cgColor
+        gutterBorder.strokeColor = UIColor(Color.grey30).cgColor
 
         switch model.kind {
         case .filter(let isActive):
-            label.text = LocalizationManager.shared.text("activity.filter")
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
-            label.textAlignment = .center
-            label.textColor = UIColor(isActive ? Color.buttonPrimary : Color.fontTertiary)
+            label.isHidden = true
+            filterGlyph.isHidden = false
+            filterBackground.isHidden = false
+            filterBackground.backgroundColor = isActive
+                ? UIColor(AppGradientPalette.colors(for: "primary").start).withAlphaComponent(0.12) : .clear
+            filterGlyph.glyph = .filter
+            filterGlyph.tintColor = UIColor(isActive ? AppGradientPalette.colors(for: "primary").start : Color.fontTertiary)
+            isAccessibilityElement = true
+            accessibilityIdentifier = "sheet-filter-toggle"
+            accessibilityLabel = LocalizationManager.shared.text("activity.filter")
+            accessibilityTraits = isActive ? [.button, .selected] : .button
             contentView.backgroundColor = UIColor(Color.grey10)
         case .columnLetter:
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.font = metrics.letterFont
             label.textAlignment = .center
             label.textColor = UIColor(Color.fontTertiary)
             contentView.backgroundColor = UIColor(Color.grey10)
-        case .header(let isActive):
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .bold)
-            label.textColor = UIColor(isActive ? Color.buttonPrimary : Color.fontPrimary)
+        case .header(let columnIndex, let ascending):
+            label.isHidden = true
+            headerStack.isHidden = false
+            headerLabel.text = model.text
+            headerLabel.font = metrics.headerFont
+            headerLabel.textColor = UIColor(Color.fontPrimary)
+            sortGlyph.glyph = .sort(ascending: ascending)
+            sortGlyph.alpha = ascending == nil ? 0.35 : 1
+            sortGlyph.tintColor = UIColor(ascending == nil ? Color.fontSecondary : AppGradientPalette.colors(for: "primary").start)
+            isAccessibilityElement = true
+            accessibilityIdentifier = "sheet-sort-column-\(columnIndex)"
+            accessibilityLabel = model.text
+            accessibilityTraits = ascending == nil ? .button : [.button, .selected]
             contentView.backgroundColor = UIColor(Color.grey10)
         case .rowHeader:
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 11) ?? .systemFont(ofSize: 11, weight: .medium)
+            label.font = .systemFont(ofSize: 11, weight: .medium)
             label.textAlignment = .center
             label.textColor = UIColor(Color.fontTertiary)
             contentView.backgroundColor = UIColor(Color.grey10)
         case .value(let isAlternate):
             label.isHidden = true
             valueTextView.isHidden = false
-            valueTextView.text = model.text
-            valueTextView.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-            valueTextView.textColor = UIColor(Color.fontPrimary)
-            label.font = UIFont(name: FontRegistration.fontFamily, size: 13) ?? .systemFont(ofSize: 13, weight: .semibold)
-            label.textColor = UIColor(Color.fontPrimary)
-            contentView.backgroundColor = UIColor(isAlternate ? Color.grey20 : Color.grey10)
+            valueTextView.attributedText = metrics.attributedValue(model.text)
+            valueTextView.textContainerInset = UIEdgeInsets(top: metrics.verticalPadding, left: 0,
+                                                          bottom: metrics.verticalPadding, right: 0)
+            contentView.backgroundColor = UIColor(isAlternate ? Color.grey10 : Color.grey20)
         }
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let availableWidth = metrics.contentWidth(for: contentView.bounds.width)
+        label.frame = CGRect(x: metrics.horizontalPadding + 0.5, y: metrics.verticalPadding,
+                             width: availableWidth, height: label.font.pointSize * 1.4)
+        valueTextView.frame = CGRect(x: metrics.horizontalPadding + 0.5, y: 0,
+                                     width: availableWidth, height: contentView.bounds.height)
+        headerStack.frame = CGRect(x: metrics.horizontalPadding + 0.5, y: metrics.verticalPadding,
+                                   width: min(availableWidth, headerLabel.intrinsicContentSize.width + .spacing2 + 10),
+                                   height: metrics.lineHeight)
+        filterGlyph.frame = CGRect(x: (contentView.bounds.width - 12) / 2,
+                                   y: metrics.letterVerticalPadding + 5, width: 12, height: 12)
+        filterBackground.frame = CGRect(x: (contentView.bounds.width - 22) / 2,
+                                        y: metrics.letterVerticalPadding, width: 22, height: 22)
+        gridBorder.path = UIBezierPath(rect: contentView.bounds).cgPath
+        let border = UIBezierPath()
+        emphasizedBorder.lineWidth = 2
+        switch kind {
+        case .filter, .columnLetter:
+            emphasizedBorder.lineWidth = 1
+            label.frame.origin.y = metrics.letterVerticalPadding
+            border.move(to: CGPoint(x: 0, y: contentView.bounds.height - 0.5))
+            border.addLine(to: CGPoint(x: contentView.bounds.width, y: contentView.bounds.height - 0.5))
+        case .header:
+            border.move(to: CGPoint(x: 0, y: contentView.bounds.height - 1))
+            border.addLine(to: CGPoint(x: contentView.bounds.width, y: contentView.bounds.height - 1))
+        case .rowHeader:
+            if label.text?.isEmpty == true {
+                border.move(to: CGPoint(x: 0, y: contentView.bounds.height - 1))
+                border.addLine(to: CGPoint(x: contentView.bounds.width, y: contentView.bounds.height - 1))
+            }
+        case .value: break
+        }
+        let gutter = UIBezierPath()
+        switch kind {
+        case .filter, .rowHeader:
+            gutter.move(to: CGPoint(x: contentView.bounds.width - 1, y: 0))
+            gutter.addLine(to: CGPoint(x: contentView.bounds.width - 1, y: contentView.bounds.height))
+        default: break
+        }
+        emphasizedBorder.path = border.cgPath
+        gutterBorder.path = gutter.cgPath
+    }
+
+    override func accessibilityActivate() -> Bool {
+        guard accessibilityTraits.contains(.button), let onActivate else { return false }
+        onActivate()
+        return true
+    }
+}
+
+// Exact inline SVG paths from SheetEmbedFullscreen.svelte. The bundled generic
+// filter/sort assets have different silhouettes from these spreadsheet controls.
+private final class SheetFullscreenControlGlyphView: UIView {
+    enum Glyph {
+        case filter
+        case sort(ascending: Bool?)
+    }
+
+    var glyph: Glyph = .filter { didSet { setNeedsDisplay() } }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isOpaque = false
+        isAccessibilityElement = false
+        contentMode = .redraw
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func tintColorDidChange() {
+        super.tintColorDidChange()
+        setNeedsDisplay()
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        context.scaleBy(x: bounds.width / 24, y: bounds.height / 24)
+        tintColor.setStroke()
+        let path = UIBezierPath()
+        func polyline(_ points: [CGPoint]) {
+            guard let first = points.first else { return }
+            path.move(to: first)
+            for point in points.dropFirst() { path.addLine(to: point) }
+        }
+        switch glyph {
+        case .filter:
+            polyline([CGPoint(x: 22, y: 3), CGPoint(x: 2, y: 3), CGPoint(x: 10, y: 12.46),
+                      CGPoint(x: 10, y: 19), CGPoint(x: 14, y: 21), CGPoint(x: 14, y: 12.46)])
+            path.close()
+            path.lineWidth = 2.5
+        case .sort(let ascending):
+            path.lineWidth = ascending == nil ? 1.5 : 3
+            if let ascending {
+                polyline(ascending ? [CGPoint(x: 18, y: 15), CGPoint(x: 12, y: 9), CGPoint(x: 6, y: 15)]
+                                   : [CGPoint(x: 6, y: 9), CGPoint(x: 12, y: 15), CGPoint(x: 18, y: 9)])
+            } else {
+                polyline([CGPoint(x: 8, y: 10), CGPoint(x: 12, y: 6), CGPoint(x: 16, y: 10)])
+                polyline([CGPoint(x: 8, y: 14), CGPoint(x: 12, y: 18), CGPoint(x: 16, y: 14)])
+            }
+        }
+        path.stroke()
     }
 }
 

@@ -19,7 +19,7 @@ actor S3MediaClient {
 
     private var cache: [String: Data] = [:]
     private var inFlight: [String: Task<Data, Error>] = [:]
-    private let diskCache: MediaDiskCache
+    private let diskCache: MediaDiskCache?
     private let encryptedDataLoader: @Sendable (String, String?) async throws -> Data
 
     private init() {
@@ -29,7 +29,7 @@ actor S3MediaClient {
 
     // Isolated test seam: a real encrypted payload exercises the cache policy
     // without an API request or persistent user media.
-    init(diskCache: MediaDiskCache,
+    init(diskCache: MediaDiskCache? = nil,
          encryptedDataLoader: @escaping @Sendable (String, String?) async throws -> Data) {
         self.diskCache = diskCache
         self.encryptedDataLoader = encryptedDataLoader
@@ -52,7 +52,7 @@ actor S3MediaClient {
             if let cached = cache[cacheKey] {
                 return cached
             }
-            if let cached = try? diskCache.load(cacheKey: cacheKey) {
+            if let cached = try? diskCache?.load(cacheKey: cacheKey) {
                 cache[cacheKey] = cached
                 return cached
             }
@@ -63,7 +63,9 @@ actor S3MediaClient {
         }
 
         let task = Task<Data, Error> {
+            try Task.checkCancellation()
             let encryptedData = try await encryptedDataLoader(s3Url, s3Key)
+            try Task.checkCancellation()
             return try Self.decryptAESGCM(
                 data: encryptedData,
                 encodedKey: aesKeyHex,
@@ -75,9 +77,10 @@ actor S3MediaClient {
         inFlight[flightKey] = task
         do {
             let decrypted = try await task.value
+            try Task.checkCancellation()
             if cachePolicy == .persistent {
                 cache[cacheKey] = decrypted
-                try? diskCache.save(decrypted, cacheKey: cacheKey)
+                try? diskCache?.save(decrypted, cacheKey: cacheKey)
             }
             inFlight.removeValue(forKey: flightKey)
             return decrypted
@@ -95,6 +98,13 @@ actor S3MediaClient {
     }
 
     func clearCache() {
+        cache.removeAll()
+    }
+
+    /// Presentation-scoped clients discard all in-flight plaintext on dismissal.
+    func cancelAll() {
+        for task in inFlight.values { task.cancel() }
+        inFlight.removeAll()
         cache.removeAll()
     }
 

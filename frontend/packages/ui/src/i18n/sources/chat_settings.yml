@@ -1,0 +1,341 @@
+plan:
+  context: Chat Settings parity interface
+  en: "Plan"
+  de: "Plan"
+  verified_by_human: []
+
+recipient_decrypting:
+  context: Anonymous encrypted shared chat loading state
+  en: "Decrypting chat…"
+  de: "Chat wird entschlüsselt…"
+  verified_by_human: []
+
+recipient_password_title:
+  context: Anonymous shared chat password gate heading
+  en: "Password Required"
+  de: "Passwort erforderlich"
+  verified_by_human: []
+
+recipient_password_detail:
+  context: Anonymous shared chat password gate explanation
+  en: "This shared chat is protected with a password."
+  de: "Dieser geteilte Chat ist mit einem Passwort geschützt."
+  verified_by_human: []
+
+recipient_password_placeholder:
+  context: Anonymous shared chat password field
+  en: "Enter password"
+  de: "Passwort eingeben"
+  verified_by_human: []
+
+recipient_access:
+  context: Anonymous shared chat password submission
+  en: "Access Chat"
+  de: "Chat öffnen"
+  verified_by_human: []
+
+recipient_unavailable_title:
+  context: Anonymous shared chat error heading
+  en: "Unable to Load Chat"
+  de: "Chat konnte nicht geladen werden"
+  verified_by_human: []
+
+recipient_unavailable_detail:
+  context: Anonymous shared chat unavailable or invalid link error
+  en: "This shared chat is no longer available or the link is invalid."
+  de: "Dieser geteilte Chat ist nicht mehr verfügbar oder der Link ist ungültig."
+  verified_by_human: []
+
+recipient_expired:
+  context: Anonymous shared chat expired link error
+  en: "This shared chat link has expired."
+  de: "Dieser Link zum geteilten Chat ist abgelaufen."
+  verified_by_human: []
+
+recipient_invalid_password:
+  context: Anonymous shared chat incorrect password error
+  en: "Incorrect password. Please try again."
+  de: "Falsches Passwort. Bitte versuche es erneut."
+  verified_by_human: []
+
+recipient_short_disabled:
+  context: Anonymous shared chat disabled short link error
+  en: "This shared chat link is disabled."
+  de: "Dieser Link zum geteilten Chat ist deaktiviert."
+  verified_by_human: []
+
+recipient_lock_symbol:
+  context: Shared chat password and read-only status symbol matching the web
+  en: "🔒"
+  de: "🔒"
+  verified_by_human: []
+
+recipient_warning_symbol:
+  context: Shared chat unavailable status symbol matching the web
+  en: "⚠️"
+  de: "⚠️"
+  verified_by_human: []
+
+summary_empty:
+  context: Chat Settings parity interface
+  en: "No summary available yet."
+  de: "Noch keine Zusammenfassung verfügbar."
+  verified_by_human: []
+
+loading_plans:
+  context: Chat Settings parity interface
+  en: "Loading chat plans..."
+  de: "Chat-Pläne werden geladen..."
+  verified_by_human: []
+
+loading_tasks:
+  context: Chat Settings parity interface
+  en: "Loading chat tasks..."
+  de: "Chat-Aufgaben werden geladen..."
+  verified_by_human: []
+
+no_plan:
+  context: Chat Settings parity interface
+  en: "No plan is linked to this chat yet."
+  de: "Noch kein Plan mit diesem Chat verknüpft."
+  verified_by_human: []
+
+no_shared_plan:
+  context: Chat Settings parity interface
+  en: "No shared plan is available for this chat."
+  de: "Für diesen Chat ist kein geteilter Plan verfügbar."
+  verified_by_human: []
+
+no_tasks:
+  context: Chat Settings parity interface
+  en: "No tasks are linked to this chat yet."
+  de: "Noch keine Aufgaben mit diesem Chat verknüpft."
+  verified_by_human: []
+
+no_shared_tasks:
+  context: Chat Settings parity interface
+  en: "No shared tasks are available for this chat."
+  de: "Für diesen Chat sind keine geteilten Aufgaben verfügbar."
+  verified_by_human: []
+
+create_task:
+  context: Chat Settings parity interface
+  en: "Create task"
+  de: "Aufgabe erstellen"
+  verified_by_human: []
+
+creating:
+  context: Chat Settings parity interface
+  en: "Creating..."
+  de: "Wird erstellt..."
+  verified_by_human: []
+
+task_title:
+  context: Chat Settings parity interface
+  en: "What should happen next?"
+  de: "Was soll als Nächstes passieren?"
+  verified_by_human: []
+
+task_context:
+  context: Chat Settings parity interface
+  en: "Optional task context"
+  de: "Optionaler Aufgabenkontext"
+  verified_by_human: []
+
+shared_readonly:
+  context: Chat Settings parity interface
+  en: "This is a shared chat. Details are read-only for everyone except the owner."
+  de: "Dies ist ein geteilter Chat. Nur der Besitzer kann Details bearbeiten."
+  verified_by_human: []
+
+share_readonly:
+  context: Chat Settings parity interface
+  en: "This shared chat is read-only. Only the owner can change password, expiration, community sharing, or stop sharing."
+  de: "Dieser geteilte Chat ist schreibgeschützt. Nur der Besitzer kann Passwort, Ablauf, Community-Freigabe oder die Freigabe ändern."
+  verified_by_human: []
+
+files:
+  context: Chat Settings parity interface
+  en: "Files"
+  de: "Dateien"
+  verified_by_human: []
+
+download_files:
+  context: Chat Settings parity interface
+  en: "Download files"
+  de: "Dateien herunterladen"
+  verified_by_human: []
+
+downloadable_empty:
+  context: Chat Settings Files download action subtitle when no files exist
+  en: "No downloadable files yet"
+  de: "Noch keine herunterladbaren Dateien"
+  verified_by_human: []
+
+downloadable_one:
+  context: Chat Settings Files download action subtitle for one file
+  en: "{count} downloadable item"
+  de: "{count} herunterladbares Element"
+  verified_by_human: []
+
+downloadable_many:
+  context: Chat Settings Files download action subtitle for multiple files
+  en: "{count} downloadable items"
+  de: "{count} herunterladbare Elemente"
+  verified_by_human: []
+
+no_files:
+  context: Chat Settings parity interface
+  en: "No downloadable files found for this chat yet."
+  de: "Noch keine herunterladbaren Dateien in diesem Chat gefunden."
+  verified_by_human: []
+
+community:
+  context: Chat Settings parity interface
+  en: "Share with community"
+  de: "Mit der Community teilen"
+  verified_by_human: []
+
+community_detail:
+  context: Chat Settings parity interface
+  en: "Allow this shared chat to appear in community surfaces."
+  de: "Diesen geteilten Chat in Community-Bereichen anzeigen."
+  verified_by_human: []
+
+password:
+  context: Chat Settings parity interface
+  en: "Password protection"
+  de: "Passwortschutz"
+  verified_by_human: []
+
+password_detail:
+  context: Chat Settings parity interface
+  en: "Require a short password before opening the shared chat."
+  de: "Zum Öffnen des geteilten Chats ein kurzes Passwort verlangen."
+  verified_by_human: []
+
+auto_expire:
+  context: Chat Settings parity interface
+  en: "Auto expire"
+  de: "Automatisch ablaufen"
+  verified_by_human: []
+
+expire_detail:
+  context: Chat Settings parity interface
+  en: "Expire the share link after 10 minutes."
+  de: "Den Freigabelink nach 10 Minuten ablaufen lassen."
+  verified_by_human: []
+
+show_qr:
+  context: Chat Settings parity interface
+  en: "Show QR code"
+  de: "QR-Code anzeigen"
+  verified_by_human: []
+
+hide_qr:
+  context: Chat Settings parity interface
+  en: "Hide QR code"
+  de: "QR-Code ausblenden"
+  verified_by_human: []
+
+show_url:
+  context: Chat Settings parity interface
+  en: "Show URL"
+  de: "URL anzeigen"
+  verified_by_human: []
+
+hide_url:
+  context: Chat Settings parity interface
+  en: "Hide URL"
+  de: "URL ausblenden"
+  verified_by_human: []
+
+stop_sharing:
+  context: Chat Settings parity interface
+  en: "Stop sharing"
+  de: "Freigabe beenden"
+  verified_by_human: []
+
+download_chat:
+  context: Chat Settings parity interface
+  en: "Download chat"
+  de: "Chat herunterladen"
+  verified_by_human: []
+
+download_zip:
+  context: Chat Settings parity interface
+  en: "Download chat zip"
+  de: "Chat als ZIP herunterladen"
+  verified_by_human: []
+
+link_unavailable:
+  context: Chat Settings parity interface
+  en: "The original share link is not stored on this device. Open the chat from its share link again to save it here."
+  de: "Der ursprüngliche Freigabelink ist auf diesem Gerät nicht gespeichert. Öffne den Chat erneut über den Freigabelink."
+  verified_by_human: []
+
+short_fallback:
+  context: Chat Settings parity interface
+  en: "Short link unavailable. Using a long encrypted link."
+  de: "Kurzlink nicht verfügbar. Ein langer verschlüsselter Link wird verwendet."
+  verified_by_human: []
+
+share_failed:
+  context: Chat Settings parity interface
+  en: "Could not create share link."
+  de: "Freigabelink konnte nicht erstellt werden."
+  verified_by_human: []
+
+stop_failed:
+  context: Chat Settings parity interface
+  en: "Could not stop sharing."
+  de: "Freigabe konnte nicht beendet werden."
+  verified_by_human: []
+
+password_invalid:
+  context: Chat Settings parity interface
+  en: "Use a password between 1 and 10 characters."
+  de: "Verwende ein Passwort mit 1 bis 10 Zeichen."
+  verified_by_human: []
+
+export_failed:
+  context: Chat Settings parity interface
+  en: "Could not download chat data."
+  de: "Chat-Daten konnten nicht heruntergeladen werden."
+  verified_by_human: []
+
+usage_empty:
+  context: Chat Settings parity interface
+  en: "No usage entries available for this chat yet."
+  de: "Noch keine Nutzungseinträge für diesen Chat verfügbar."
+  verified_by_human: []
+
+download_usage:
+  context: Chat Settings parity interface
+  en: "Download usage data"
+  de: "Nutzungsdaten herunterladen"
+  verified_by_human: []
+
+share_created:
+  context: Chat Settings parity interface
+  en: "Share link created."
+  de: "Freigabelink erstellt."
+  verified_by_human: []
+
+ten_minutes:
+  context: Chat Settings parity interface
+  en: "10 minutes"
+  de: "10 Minuten"
+  verified_by_human: []
+
+never:
+  context: Chat Settings parity interface
+  en: "never"
+  de: "nie"
+  verified_by_human: []
+
+progress:
+  context: Completion percentage of Tasks linked to the chat
+  en: "{percent}% complete"
+  de: "{percent}% abgeschlossen"
+  verified_by_human: []

@@ -7,13 +7,23 @@ import CryptoKit
 import Foundation
 
 enum WatchTaskGroup: Int, CaseIterable, Identifiable {
-    case inProgress, todo, backlog, done
+    case backlog, todo, inProgress, blocked, done
 
     var id: Int { rawValue }
+    var status: String {
+        switch self {
+        case .backlog: "backlog"
+        case .todo: "todo"
+        case .inProgress: "in_progress"
+        case .blocked: "blocked"
+        case .done: "done"
+        }
+    }
 
     static func from(status: String) -> WatchTaskGroup? {
         switch status {
-        case "in_progress", "blocked": return .inProgress
+        case "in_progress": return .inProgress
+        case "blocked": return .blocked
         case "todo": return .todo
         case "backlog": return .backlog
         case "done": return .done
@@ -30,6 +40,27 @@ struct WatchTaskListItem: Identifiable, Equatable {
     let position: Int
     let updatedAt: Int
     let openRequest: WatchItemOpenRequest
+    let description: String
+    let latestInstruction: String
+    let activitySummary: String
+    let blockedReason: String
+
+    init(id: String, title: String, group: WatchTaskGroup, status: String,
+         position: Int, updatedAt: Int, openRequest: WatchItemOpenRequest,
+         description: String = "", latestInstruction: String = "",
+         activitySummary: String = "", blockedReason: String = "") {
+        self.id = id
+        self.title = title
+        self.group = group
+        self.status = status
+        self.position = position
+        self.updatedAt = updatedAt
+        self.openRequest = openRequest
+        self.description = description
+        self.latestInstruction = latestInstruction
+        self.activitySummary = activitySummary
+        self.blockedReason = blockedReason
+    }
 }
 
 struct WatchWorkflowListItem: Identifiable, Equatable {
@@ -80,6 +111,11 @@ struct WatchTaskRecord: Decodable {
     let title: String?
     let encryptedTaskKey: String?
     let encryptedTitle: String?
+    let encryptedDescription: String?
+    let encryptedLatestInstruction: String?
+    let encryptedActivitySummary: String?
+    let encryptedBlockedReason: String?
+    let blockedMessage: String?
     let status: String
     let position: Int?
     let updatedAt: Int?
@@ -120,37 +156,9 @@ final class WatchHubDataService: ObservableObject {
             }
             var decrypted: [WatchTaskListItem] = []
             for record in response.tasks {
-                guard let group = WatchTaskGroup.from(status: record.status) else { continue }
-                let request: WatchItemOpenRequest?
-                let title: String?
-                if record.source == "workflow_run" {
-                    // These are server-generated projections in the Tasks board.
-                    // Open their parent workflow, whose details live on iPhone.
-                    guard let workflowId = record.workflowId else { continue }
-                    request = WatchItemOpenRequest(kind: .workflow, id: workflowId)
-                    title = record.title
-                } else {
-                    request = WatchItemOpenRequest(kind: .task, id: record.taskId)
-                    guard let encryptedKey = record.encryptedTaskKey,
-                          let encryptedTitle = record.encryptedTitle else { continue }
-                    do {
-                        let taskKey = try await CryptoManager.shared.unwrapChatKey(
-                            encryptedChatKeyBase64: encryptedKey, masterKey: masterKey
-                        )
-                        title = try await CryptoManager.shared.decryptContent(
-                            base64String: encryptedTitle, key: taskKey
-                        )
-                    } catch {
-                        // A stale or foreign key must not reveal raw ciphertext.
-                        continue
-                    }
+                if let item = await Self.openTask(record, masterKey: masterKey) {
+                    decrypted.append(item)
                 }
-                guard let request, let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
-                decrypted.append(WatchTaskListItem(
-                    id: record.taskId, title: title, group: group,
-                    status: record.status, position: record.position ?? 0,
-                    updatedAt: record.updatedAt ?? 0, openRequest: request
-                ))
             }
             tasks = decrypted.sorted {
                 if $0.group.rawValue != $1.group.rawValue { return $0.group.rawValue < $1.group.rawValue }
@@ -169,6 +177,43 @@ final class WatchHubDataService: ObservableObject {
                 level: .warning, error: error
             )
         }
+    }
+
+    /// Uses the same account-wrapped Task key and encrypted detail fields as iPhone.
+    /// A malformed optional field fails closed rather than displaying ciphertext.
+    static func openTask(_ record: WatchTaskRecord, masterKey: SymmetricKey) async -> WatchTaskListItem? {
+        guard let group = WatchTaskGroup.from(status: record.status) else { return nil }
+        if record.source == "workflow_run" {
+            guard let workflowID = record.workflowId,
+                  let request = WatchItemOpenRequest(kind: .workflow, id: workflowID),
+                  let title = record.title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return WatchTaskListItem(id: record.taskId, title: title, group: group,
+                status: record.status, position: record.position ?? 0, updatedAt: record.updatedAt ?? 0,
+                openRequest: request, blockedReason: record.blockedMessage ?? "")
+        }
+        guard let request = WatchItemOpenRequest(kind: .task, id: record.taskId),
+              let encryptedKey = record.encryptedTaskKey, let encryptedTitle = record.encryptedTitle else { return nil }
+        do {
+            let taskKey = try await CryptoManager.shared.unwrapChatKey(
+                encryptedChatKeyBase64: encryptedKey, masterKey: masterKey)
+            let title = try await CryptoManager.shared.decryptContent(base64String: encryptedTitle, key: taskKey)
+            guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            let description = try await openText(record.encryptedDescription, key: taskKey)
+            let instruction = try await openText(record.encryptedLatestInstruction, key: taskKey)
+            let summary = try await openText(record.encryptedActivitySummary, key: taskKey)
+            let blockedReason = try await openText(record.encryptedBlockedReason, key: taskKey)
+            return WatchTaskListItem(id: record.taskId, title: title, group: group,
+                status: record.status, position: record.position ?? 0, updatedAt: record.updatedAt ?? 0,
+                openRequest: request, description: description, latestInstruction: instruction,
+                activitySummary: summary, blockedReason: blockedReason)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func openText(_ ciphertext: String?, key: SymmetricKey) async throws -> String {
+        guard let ciphertext, !ciphertext.isEmpty else { return "" }
+        return try await CryptoManager.shared.decryptContent(base64String: ciphertext, key: key)
     }
 
     func refreshWorkflows() async {

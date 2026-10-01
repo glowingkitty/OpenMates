@@ -111,6 +111,7 @@ final class TeamWorkspaceContextTests: XCTestCase {
         XCTAssertNil(store.teamID)
         XCTAssertNil(store.selectedTeam)
         XCTAssertEqual(store.contextEpoch, epoch)
+        XCTAssertFalse(store.isLoading, "Personal selection must cancel the old detail loading state")
     }
 
     // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local

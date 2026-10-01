@@ -877,6 +877,10 @@
     justify-content: center;
     width: 22px;
     height: 22px;
+    /* Keep the gutter control independent of the global primary button rules. */
+    padding: 0;
+    min-width: 0;
+    filter: none;
     border: none;
     border-radius: 3px;
     background: transparent;
@@ -886,8 +890,18 @@
   }
   
   .filter-toggle:hover {
+    scale: 1;
     background: var(--color-grey-20);
     color: var(--color-font-secondary);
+  }
+
+  .filter-toggle:active {
+    scale: 1;
+  }
+
+  .filter-toggle:focus-visible {
+    outline: 3px solid var(--color-primary-start);
+    outline-offset: 3px;
   }
   
   .filter-toggle-active {
@@ -986,6 +1000,6 @@
   }
 
   /* Dark mode: no overrides needed — base styles use CSS custom properties
-     (var(--color-grey-*), var(--color-font-*)) that flip automatically with
+     (such as var(--color-grey-0) and var(--color-font-primary)) that flip with
      [data-theme="dark"]. */
 </style>

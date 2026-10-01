@@ -69,27 +69,31 @@ final class ChatStore: ObservableObject {
             }
         }
 
+        // Merge and sort off the published property so one sync batch causes
+        // one coherent chat-list invalidation, including repeated incoming IDs.
+        var nextChats = chats
         var indexByChatId: [String: Int] = [:]
-        for (index, chat) in chats.enumerated() {
+        for (index, chat) in nextChats.enumerated() {
             indexByChatId[chat.id] = index
         }
         var persisted: [Chat] = []
         persisted.reserveCapacity(newChats.count)
         for chat in newChats {
             if let index = indexByChatId[chat.id] {
-                logMetadataMerge(existing: chats[index], incoming: chat)
-                chats[index] = chats[index].merged(with: chat)
-                persisted.append(chats[index])
+                logMetadataMerge(existing: nextChats[index], incoming: chat)
+                nextChats[index] = nextChats[index].merged(with: chat)
+                persisted.append(nextChats[index])
             } else {
-                indexByChatId[chat.id] = chats.count
-                chats.append(chat)
+                indexByChatId[chat.id] = nextChats.count
+                nextChats.append(chat)
                 persisted.append(chat)
                 if NativeSyncPerfLog.verboseCrypto {
                     print("[ChatStore] insert chat id=\(chat.id.prefix(8)) title=\(chat.title != nil) category=\(chat.category != nil) icon=\(chat.icon != nil) summary=\(chat.chatSummary != nil) encryptedTitle=\(chat.encryptedTitle != nil)")
                 }
             }
         }
-        sortChats()
+        nextChats.sort(by: chatSortPrecedes)
+        chats = nextChats
         persistIfAllowed { $0.onChatsReceived(persisted) }
     }
 

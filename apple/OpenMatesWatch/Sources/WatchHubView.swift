@@ -1,11 +1,14 @@
 // Figma Watch hub and compact read-only Tasks and Workflows lists.
 // Web source: frontend/packages/ui/src/components/tasks/TasksPage.svelte,
 // frontend/packages/ui/src/components/tasks/TaskBoard.svelte,
+// frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte,
 // frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte.
 // Figma: Apple watch board, node 6073:63296 (184 × 224 frames).
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.hub.compact-navigation, apple-watch.lists.read-only-private,
 //             apple-watch.handoff.exact-private.
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.action.routing-coherent
 
 import SwiftUI
 
@@ -196,10 +199,13 @@ struct WatchHubView: View {
     @State private var isSearching = false
     @State private var searchText = ""
     @State private var popupMessage: String?
+    @State private var selectedTaskGroup: WatchTaskGroup = .backlog
+    @State private var selectedTask: WatchTaskListItem?
 
     private let currentUserId: String?
     private let currentUsername: String?
     private let webSocketToken: String?
+    private let notificationRoute: WatchNotificationRoute?
     private let onOpenItem: (WatchItemOpenRequest) -> Void
     private let onOpenSettings: () -> Void
     private let onCreate: (WatchHubSection) -> Void
@@ -208,6 +214,7 @@ struct WatchHubView: View {
         currentUserId: String?,
         currentUsername: String? = nil,
         webSocketToken: String?,
+        notificationRoute: WatchNotificationRoute? = nil,
         fixtureTasks: [WatchTaskListItem]? = nil,
         fixtureWorkflows: [WatchWorkflowListItem]? = nil,
         onOpenItem: @escaping (WatchItemOpenRequest) -> Void,
@@ -217,6 +224,7 @@ struct WatchHubView: View {
         self.currentUserId = currentUserId
         self.currentUsername = currentUsername
         self.webSocketToken = webSocketToken
+        self.notificationRoute = notificationRoute
         self.onOpenItem = onOpenItem
         self.onOpenSettings = onOpenSettings
         self.onCreate = onCreate
@@ -238,11 +246,14 @@ struct WatchHubView: View {
                         currentUserId: currentUserId,
                         currentUsername: currentUsername,
                         webSocketToken: webSocketToken,
+                        notificationRoute: notificationRoute,
+                        isVisible: !showsSectionMenu,
                         onOpenHub: openSectionMenu,
                         onOpenSettings: showSettingsPopup
                     )
                 case .tasks, .workflows:
-                    listScreen
+                    if let selectedTask { taskDetail(selectedTask) }
+                    else { listScreen }
                 }
             }
             .allowsHitTesting(!showsSectionMenu)
@@ -287,6 +298,13 @@ struct WatchHubView: View {
         .animation(.easeInOut(duration: 0.28), value: showsSectionMenu)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("watch-hub")
+        .task(id: notificationRoute?.id) {
+            guard notificationRoute != nil else { return }
+            selectedSection = .chat
+            showsSectionMenu = false
+            popupMessage = nil
+            isSearching = false
+        }
     }
 
     private var selector: some View {
@@ -324,36 +342,26 @@ struct WatchHubView: View {
 
     private var listScreen: some View {
         VStack(spacing: 0) {
-            header
-                .zIndex(1)
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    actions
-                        .padding(.bottom, isSearching ? 8 : 26)
-                    if isSearching {
-                        TextField(WatchHubCopy.search, text: $searchText)
-                            .font(.omXs)
-                            .foregroundStyle(Color.grey0)
-                            .tint(WatchHubPalette.blue)
-                            .padding(.horizontal, 10)
-                            .frame(height: 28)
-                            .background(Color.grey90, in: Capsule())
-                            .padding(.bottom, 12)
-                            .accessibilityIdentifier("watch-hub-search-input")
-                    }
-                    if selectedSection == .tasks {
-                        taskGroups
-                    } else {
-                        workflowRows
-                            .padding(.top, 19)
-                    }
-                }
-                .padding(.horizontal, 11)
-                .padding(.top, 40)
+            header.zIndex(1)
+            actions.padding(.vertical, .spacing2)
+            if isSearching {
+                TextField(WatchHubCopy.search, text: $searchText)
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey0)
+                    .tint(WatchHubPalette.blue)
+                    .padding(.horizontal, .spacing3)
+                    .frame(height: 28)
+                    .background(Color.grey90, in: Capsule())
+                    .padding(.horizontal, .spacing3)
+                    .accessibilityIdentifier("watch-hub-search-input")
             }
-            .refreshable {
-                if selectedSection == .tasks { await dataService.refreshTasks() }
-                else { await dataService.refreshWorkflows() }
+            if selectedSection == .tasks {
+                taskGroups
+            } else {
+                ScrollView {
+                    workflowRows.padding(.horizontal, .spacing3).padding(.top, .spacing4)
+                }
+                .refreshable { await dataService.refreshWorkflows() }
             }
         }
         .ignoresSafeArea(edges: .top)
@@ -424,43 +432,116 @@ struct WatchHubView: View {
     }
 
     private var taskGroups: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            if dataService.isLoadingTasks && dataService.tasks.isEmpty { statusText(WatchHubCopy.loading) }
-            else if dataService.tasksError && dataService.tasks.isEmpty { statusText(WatchStrings.offlineBanner) }
-            else if filteredTasks.isEmpty { statusText(WatchHubCopy.emptyTasks) }
+        TabView(selection: $selectedTaskGroup) {
             ForEach(WatchTaskGroup.allCases) { group in
-                let items = filteredTasks.filter { $0.group == group }
-                if !items.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Rectangle()
-                                .fill(group == .inProgress ? WatchHubPalette.inProgress : WatchHubPalette.blue)
-                                .frame(width: 4, height: 25)
-                            Text(groupTitle(group))
-                                .font(WatchHubType.heading)
-                                .foregroundStyle(Color.grey0)
-                        }
-                        .accessibilityIdentifier("watch-task-group-\(group.id)")
-                        ForEach(items) { item in
-                            Button { onOpenItem(item.openRequest) } label: {
-                                Text(item.title)
-                                    .font(WatchHubType.row)
-                                    .foregroundStyle(Color.grey0)
-                                    .lineLimit(3)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 7)
-                                    .background(Color.grey90, in: RoundedRectangle(cornerRadius: 16))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("watch-task-row-\(item.id)")
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                taskColumn(group).tag(group)
             }
         }
-        .padding(.horizontal, 10)
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
+        .accessibilityIdentifier("watch-task-board")
+    }
+
+    private func taskColumn(_ group: WatchTaskGroup) -> some View {
+        let items = filteredTasks.filter { $0.group == group }
+        return ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                HStack(spacing: .spacing2) {
+                    RoundedRectangle(cornerRadius: .radius1)
+                        .fill(taskAccent(group)).frame(width: 4, height: 25)
+                    Text(groupTitle(group)).font(.omSmall.weight(.bold))
+                    Text("(\(items.count))").font(.omMicro).foregroundStyle(Color.grey30)
+                }
+                .foregroundStyle(Color.grey0)
+                .accessibilityIdentifier("watch-task-group-\(group.id)")
+                if dataService.isLoadingTasks && dataService.tasks.isEmpty { statusText(WatchHubCopy.loading) }
+                else if dataService.tasksError { statusText(WatchStrings.offlineBanner) }
+                if items.isEmpty && !dataService.isLoadingTasks { statusText(WatchHubCopy.emptyTasks) }
+                ForEach(items) { item in
+                    Button { selectedTask = item } label: {
+                        Text(item.title)
+                            .font(.omXs.weight(.medium))
+                            .foregroundStyle(Color.grey0)
+                            .lineLimit(3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.spacing3)
+                            .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-task-row-\(item.id)")
+                }
+            }
+            .padding(.horizontal, .spacing3)
+            .padding(.top, .spacing2)
+            .padding(.bottom, .spacing6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .refreshable { await dataService.refreshTasks() }
+        .accessibilityIdentifier("watch-task-column-\(group.status)")
+    }
+
+    private func taskDetail(_ item: WatchTaskListItem) -> some View {
+        VStack(spacing: 0) {
+            Button { selectedTask = nil } label: {
+                HStack(spacing: .spacing2) {
+                    Image(systemName: "chevron.left")
+                    Text(WatchStrings.back)
+                    Spacer(minLength: 0)
+                }
+                .font(.omXs)
+                .foregroundStyle(Color.grey0)
+                .padding(.spacing3)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("watch-task-detail-back")
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    Text(item.title).font(.omSmall.weight(.bold))
+                        .accessibilityIdentifier("watch-task-detail-title")
+                    Text(groupTitle(item.group)).font(.omXs).foregroundStyle(taskAccent(item.group))
+                        .accessibilityIdentifier("watch-task-detail-status")
+                    detailText(WatchLocalization.text("watch.task.description"), value: item.description, id: "description")
+                    detailText(WatchLocalization.text("watch.task.context"), value: item.latestInstruction, id: "context")
+                    detailText(WatchLocalization.text("watch.task.progress"), value: item.activitySummary, id: "progress")
+                    detailText(WatchLocalization.text("tasks.blocked_heading"), value: item.blockedReason, id: "blocked-reason")
+                    Button { onOpenItem(item.openRequest) } label: {
+                        Text(WatchLocalization.text("watch.hub.open_on_phone"))
+                            .font(.omXs).frame(maxWidth: .infinity)
+                            .padding(.spacing3)
+                            .background(WatchHubPalette.blue, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-task-detail-open-on-phone")
+                }
+                .foregroundStyle(Color.grey0)
+                .padding(.horizontal, .spacing3)
+                .padding(.bottom, .spacing6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityIdentifier("watch-task-detail-scroll")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch-task-detail")
+    }
+
+    @ViewBuilder
+    private func detailText(_ title: String, value: String, id: String) -> some View {
+        if !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(title).font(.omMicro).foregroundStyle(Color.grey30)
+                Text(value).font(.omXs).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("watch-task-detail-\(id)")
+            }
+        }
+    }
+
+    private func taskAccent(_ group: WatchTaskGroup) -> Color {
+        switch group {
+        case .backlog: .chatRainbowPurple
+        case .todo: .chatRainbowCyan
+        case .inProgress: .warning
+        case .blocked: .error
+        case .done: .chatRainbowGreen
+        }
     }
 
     private var workflowRows: some View {
@@ -503,6 +584,7 @@ struct WatchHubView: View {
         case .inProgress: return WatchHubCopy.inProgress
         case .todo: return WatchHubCopy.todo
         case .backlog: return WatchHubCopy.backlog
+        case .blocked: return WatchLocalization.text("watch.hub.blocked")
         case .done: return WatchHubCopy.done
         }
     }
@@ -521,6 +603,7 @@ struct WatchHubView: View {
 
     private func select(_ section: WatchHubSection) {
         selectedSection = section
+        selectedTask = nil
         showsSectionMenu = false
         isSearching = false
         searchText = ""
@@ -537,3 +620,23 @@ struct WatchHubView: View {
         popupMessage = WatchHubCopy.settingsLinkSent
     }
 }
+
+#if DEBUG
+/// Diagnostic control for simulator Crown delivery, isolated from hub paging,
+/// overlays, custom gestures, refresh controls and explicit focus modifiers.
+struct WatchNativeCrownDiagnosticView: View {
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(spacing: .spacing2) {
+                ForEach(0..<12) { index in
+                    Text("Crown row \(index + 1)")
+                        .font(.omXs)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .accessibilityIdentifier("watch-native-crown-row-\(index)")
+                }
+            }
+        }
+        .accessibilityIdentifier("watch-native-crown-scroll")
+    }
+}
+#endif

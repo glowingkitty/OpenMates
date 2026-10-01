@@ -5,7 +5,7 @@
 // This file is compiled in Debug builds only.
 
 // ─── Web source ─────────────────────────────────────────────────────
-// Svelte:  frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+// Svelte:  frontend/apps/web_app/src/routes/dev/preview/embeds/[app=embedApp]/+page.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
 // CSS:     frontend/packages/ui/src/components/enter_message/EmbeddPreview.styles.css
@@ -342,27 +342,13 @@ struct DevEmbedPreviewGalleryView: View {
         return [PIIMapping(placeholder: "[HTML_NAME]", original: "OpenMates preview", type: "name")]
     }
 
-    private enum CanonicalSurface: String {
-        case preview
-        case fullscreen
-    }
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var galleryColorScheme: ColorScheme?
+    @State private var openedSkill: DevEmbedPreviewSkill?
+    @State private var openedQuote: String?
 
-    private struct CanonicalRequest {
-        let registryKey: String
-        let surface: CanonicalSurface
-
-        static var current: CanonicalRequest? {
-            let arguments = ProcessInfo.processInfo.arguments
-            guard let key = value(after: "--embed-registry-key", in: arguments),
-                  let rawSurface = value(after: "--embed-surface", in: arguments),
-                  let surface = CanonicalSurface(rawValue: rawSurface) else { return nil }
-            return CanonicalRequest(registryKey: key, surface: surface)
-        }
-
-        private static func value(after flag: String, in arguments: [String]) -> String? {
-            guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
-            return arguments[index + 1]
-        }
+    private var canonicalRequest: DevEmbedPreviewRequest? {
+        DevEmbedPreviewRequest.parse(arguments: ProcessInfo.processInfo.arguments)
     }
 
     init(initialApp: DevEmbedPreviewApp) {
@@ -381,7 +367,7 @@ struct DevEmbedPreviewGalleryView: View {
                       let skill = DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: EmbedType.healthSearch.rawValue) {
                 DevEmbedFullscreenRouteHarness(skill: skill)
                     .padding(.spacing8)
-            } else if let request = CanonicalRequest.current {
+            } else if let request = canonicalRequest {
                 canonicalSurface(request)
             } else {
                 VStack(spacing: 0) {
@@ -389,7 +375,7 @@ struct DevEmbedPreviewGalleryView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: .spacing12) {
                             ForEach(DevEmbedPreviewFixtures.skills(for: selectedApp)) { skill in
-                                DevEmbedPreviewSkillSection(skill: skill)
+                                DevEmbedPreviewSkillSection(skill: skill) { open($0, quote: $1) }
                             }
                         }
                         .padding(.horizontal, .spacing8)
@@ -401,7 +387,26 @@ struct DevEmbedPreviewGalleryView: View {
             }
         }
         .background(Color.grey0.ignoresSafeArea())
-        .environment(\.colorScheme, .light)
+        .preferredColorScheme(galleryColorScheme)
+        .transformEnvironment(\.colorScheme) { scheme in
+            if let galleryColorScheme { scheme = galleryColorScheme }
+        }
+        .transformEnvironment(\.layoutDirection) { direction in
+            if let request = canonicalRequest {
+                direction = request.direction == .rtl ? .rightToLeft : .leftToRight
+            }
+        }
+        .overlay {
+            if let openedSkill {
+                EmbedFullscreenContainer(
+                    embeds: [openedSkill.primaryEmbed], initialEmbedId: openedSkill.primaryEmbed.id,
+                    allEmbedRecords: openedSkill.allRecords, chatId: nil,
+                    onClose: { self.openedSkill = nil; openedQuote = nil },
+                    highlightQuoteText: openedQuote
+                )
+                .accessibilityIdentifier("dev-embed-opened-fullscreen")
+            }
+        }
         .environment(\.embedChatID,
                      ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
                         ? "dev-embed-preview-chat" : nil)
@@ -416,64 +421,69 @@ struct DevEmbedPreviewGalleryView: View {
     }
 
     @ViewBuilder
-    private func canonicalSurface(_ request: CanonicalRequest) -> some View {
-        if let skill = request.surface == .fullscreen
-            ? DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: request.registryKey)
-            : DevEmbedPreviewFixtures.skill(forRegistryKey: request.registryKey) {
-            switch request.surface {
-            case .preview:
-                VStack {
-                    Color.clear
-                        .frame(width: 1, height: 1)
-                        .accessibilityElement()
-                        .accessibilityIdentifier("dev-embed-canonical-preview")
-                        .accessibilityValue("\(request.registryKey)|default")
+    private func canonicalSurface(_ request: DevEmbedPreviewRequest) -> some View {
+        if let skill = DevEmbedPreviewFixtures.fixture(for: request) {
+            Group {
+                switch request.surface {
+                case .preview:
                     if request.registryKey == EmbedType.focusModeActivation.rawValue {
                         FocusModeRenderer(data: skill.primaryEmbed.rawData, mode: .preview)
                             .frame(maxWidth: 326)
                     } else {
-                        EmbedPreviewCard(
-                            embed: skill.primaryEmbed,
-                            allEmbedRecords: skill.allRecords,
-                            variant: .compact
-                        ) {}
+                        EmbedPreviewCard(embed: skill.primaryEmbed, allEmbedRecords: skill.allRecords, variant: .compact) {
+                            open(skill)
+                        }
                         .frame(width: 300, height: 200)
                     }
+                case .fullscreen:
+                    EmbedFullscreenContainer(
+                        embeds: [skill.primaryEmbed], initialEmbedId: skill.primaryEmbed.id,
+                        allEmbedRecords: skill.allRecords,
+                        chatId: ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
+                            ? "dev-embed-preview-chat" : nil,
+                        hasPIIMappings: !previewPIIMappings.isEmpty, piiMappings: previewPIIMappings,
+                        isPIIRevealed: isPreviewPIIRevealed,
+                        onTogglePII: { isPreviewPIIRevealed.toggle() }
+                    )
+                case .inline:
+                    DevEmbedInlineLinkBlock(skill: skill) { open(skill) }
+                        .padding(.spacing10)
+                case .quote:
+                    DevEmbedQuoteBlock(skill: skill) { quote in open(skill, quote: quote) }
+                        .padding(.spacing10)
+                case .groupSmall:
+                    if let base = DevEmbedPreviewFixtures.skill(forRegistryKey: request.registryKey) {
+                        DevEmbedSmallGroup(variants: DevEmbedPreviewFixtures.dataVariants(for: base)) { open($0) }
+                    }
+                case .groupLarge:
+                    if let base = DevEmbedPreviewFixtures.skill(forRegistryKey: request.registryKey) {
+                        DevEmbedLargeGroup(variants: DevEmbedPreviewFixtures.dataVariants(for: base), initialVariant: request.variant) { open($0) }
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            case .fullscreen:
-                EmbedFullscreenContainer(
-                    embeds: [skill.primaryEmbed],
-                    initialEmbedId: skill.primaryEmbed.id,
-                    allEmbedRecords: skill.allRecords,
-                    chatId: ProcessInfo.processInfo.arguments.contains("--dev-code-run-output-preview")
-                        ? "dev-embed-preview-chat" : nil,
-                    hasPIIMappings: !previewPIIMappings.isEmpty,
-                    piiMappings: previewPIIMappings,
-                    isPIIRevealed: isPreviewPIIRevealed,
-                    onTogglePII: { isPreviewPIIRevealed.toggle() }
-                )
-                .overlay(alignment: .topLeading) {
-                    Color.clear
-                        .frame(width: 1, height: 1)
-                        .accessibilityElement()
-                        .accessibilityIdentifier("dev-embed-canonical-fullscreen")
-                        .accessibilityValue("\(request.registryKey)|default")
-                        .offset(x: 8)
-                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .topLeading) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("dev-embed-canonical-\(request.surface.rawValue)")
+                    .accessibilityValue("\(request.registryKey)|\(request.variant)")
+                    .offset(x: 8)
             }
         } else {
             VStack(alignment: .leading, spacing: .spacing4) {
-                Text("Missing native registry fixture")
-                    .font(.omH4)
-                Text(request.registryKey)
-                    .font(.omSmall)
+                Text("Missing native registry fixture or unsupported state").font(.omH4)
+                Text("\(request.registryKey)|\(request.surface.rawValue)|\(request.variant)").font(.omSmall)
             }
             .padding(.spacing8)
             .accessibilityIdentifier("dev-embed-registry-missing")
             .accessibilityValue(request.registryKey)
         }
+    }
+
+    private func open(_ skill: DevEmbedPreviewSkill, quote: String? = nil) {
+        openedQuote = quote
+        openedSkill = skill
     }
 
     private var header: some View {
@@ -483,6 +493,15 @@ struct DevEmbedPreviewGalleryView: View {
                     .font(.omH3)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.fontPrimary)
+                Spacer()
+                Button {
+                    galleryColorScheme = (galleryColorScheme ?? colorScheme) == .dark ? .light : .dark
+                } label: {
+                    Icon("darkmode", size: .iconSizeSm)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("theme-toggle-btn")
+                .accessibilityLabel("Toggle theme")
                 Text(skillCountLabel)
                     .font(.omMicro)
                     .foregroundStyle(Color.fontTertiary)
@@ -554,92 +573,183 @@ private struct DevEmbedOwnerPIINavigationPreviewView: View {
 
 private struct DevEmbedPreviewSkillSection: View {
     let skill: DevEmbedPreviewSkill
+    let onOpen: (DevEmbedPreviewSkill, String?) -> Void
+    private let previewVariants: [DevEmbedPreviewVariant]
+    private let fullscreenVariants: [DevEmbedPreviewVariant]
+    private let showsLargeGroup: Bool
+    @State private var selectedTemplate = "default"
+    @State private var fullscreenVariant = "default"
+
+    init(skill: DevEmbedPreviewSkill, onOpen: @escaping (DevEmbedPreviewSkill, String?) -> Void) {
+        self.skill = skill
+        self.onOpen = onOpen
+        previewVariants = DevEmbedPreviewFixtures.variants(for: skill)
+        let fullscreen = DevEmbedPreviewFixtures.fullscreenSkill(forRegistryKey: skill.primaryEmbed.type) ?? skill
+        fullscreenVariants = DevEmbedPreviewFixtures.dataVariants(for: fullscreen, fullscreen: true)
+        showsLargeGroup = DevEmbedPreviewFixtures.supportsLargeGroup(skill)
+    }
+
+    private var activeTemplate: DevEmbedPreviewSkill {
+        previewVariants.first { $0.name == selectedTemplate }?.skill ?? skill
+    }
+    private var smallVariants: [DevEmbedPreviewVariant] {
+        previewVariants.filter(\.isDataVariant).map {
+            $0.name == "default" ? DevEmbedPreviewVariant(name: "default", skill: activeTemplate) : $0
+        }
+    }
+    private var activeFullscreen: DevEmbedPreviewSkill {
+        fullscreenVariants.first { $0.name == fullscreenVariant }?.skill ?? skill
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing6) {
+        VStack(alignment: .leading, spacing: .spacing12) {
             HStack(spacing: .spacing3) {
                 AppIconView(appId: skill.primaryEmbed.appId ?? "web", size: 28)
-                Text(skill.label)
-                    .font(.omH4)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
+                Text(skill.label).font(.omH4).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
             }
             .accessibilityIdentifier("dev-preview-skill-\(skill.id)")
             .accessibilityValue(skill.primaryEmbed.type)
 
-            Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement()
+            Color.clear.frame(width: 1, height: 1).accessibilityElement()
                 .accessibilityIdentifier("dev-preview-registry-key-\(skill.primaryEmbed.type)")
 
-            DevEmbedTemplateControls()
+            DevEmbedTemplateControls(variants: previewVariants.filter { $0.name != "mobile" },
+                                     selection: $selectedTemplate, identifier: "dev-embed-template")
+                .accessibilityValue(selectedTemplate)
+                .accessibilityIdentifier("dev-preview-active-template")
 
             DevEmbedDisplayBlock(title: "INLINE LINK") {
-                DevEmbedInlineLinkBlock(embed: skill.primaryEmbed)
+                DevEmbedInlineLinkBlock(skill: skill) { open(activeTemplate) }
             }
-
             DevEmbedDisplayBlock(title: "QUOTE BLOCK") {
-                DevEmbedQuoteBlock(embed: skill.primaryEmbed)
+                DevEmbedQuoteBlock(skill: skill) { quote in open(activeTemplate, quote: quote) }
             }
-
-            DevEmbedDisplayBlock(title: "GROUP — SMALL") {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: .spacing4) {
-                        ForEach(smallGroupEmbeds) { embed in
-                            EmbedPreviewCard(embed: embed, allEmbedRecords: skill.allRecords) {}
-                        }
+            DevEmbedDisplayBlock(title: "GROUP — SMALL", flush: true) {
+                DevEmbedSmallGroup(variants: smallVariants) { open($0) }
+            }
+            if showsLargeGroup {
+                DevEmbedDisplayBlock(title: "GROUP — LARGE", flush: true) {
+                    DevEmbedLargeGroup(variants: previewVariants.filter(\.isDataVariant)) { open($0) }
+                }
+            }
+            DevEmbedDisplayBlock(title: "FULLSCREEN CLIPPED INLINE", flush: true) {
+                VStack(spacing: 0) {
+                    if fullscreenVariants.count > 1 {
+                        DevEmbedTemplateControls(variants: fullscreenVariants, selection: $fullscreenVariant,
+                                                 identifier: "dev-embed-fullscreen-variant")
+                            .padding(.spacing5)
                     }
-                    .padding(.vertical, .spacing2)
+                    EmbedFullscreenContainer(
+                        embeds: fullscreenVariants.map { $0.skill.primaryEmbed },
+                        initialEmbedId: activeFullscreen.primaryEmbed.id,
+                        allEmbedRecords: fullscreenVariants.reduce(into: [:]) { $0.merge($1.skill.allRecords) { _, new in new } },
+                        chatId: nil
+                    )
+                    .id(fullscreenVariant)
+                    .frame(height: 560)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1)
+                    }
                 }
             }
-
             if !skill.childEmbeds.isEmpty {
-                DevEmbedDisplayBlock(title: "GROUP — LARGE") {
-                    groupedPreview
-                }
-            }
-
-            DevEmbedDisplayBlock(title: "FULLSCREEN CLIPPED INLINE") {
-                EmbedFullscreenContainer(
-                    embeds: [skill.primaryEmbed],
-                    initialEmbedId: skill.primaryEmbed.id,
-                    allEmbedRecords: skill.allRecords,
-                    chatId: nil
-                )
-                .frame(height: 560)
-                .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                .overlay {
-                    RoundedRectangle(cornerRadius: .radius8)
-                        .stroke(Color.grey30, lineWidth: 1)
-                }
-            }
-
-            if !skill.childEmbeds.isEmpty {
-                DevEmbedDisplayBlock(title: "FULLSCREEN ROUTE HARNESS") {
+                DevEmbedDisplayBlock(title: "FULLSCREEN ROUTE HARNESS", flush: true) {
                     DevEmbedFullscreenRouteHarness(skill: skill)
                 }
             }
         }
-        .padding(.spacing6)
+        .frame(maxWidth: 930, alignment: .leading)
+
+    }
+
+    private func open(_ skill: DevEmbedPreviewSkill, quote: String? = nil) {
+        onOpen(skill, quote)
+    }
+}
+
+/// The showcase groups compare data variants of one renderer, not parent/child records.
+private struct DevEmbedSmallGroup: View {
+    let variants: [DevEmbedPreviewVariant]
+    let onOpen: (DevEmbedPreviewSkill) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: true) {
+            HStack(alignment: .top, spacing: .spacing6) {
+                ForEach(variants) { variant in
+                    VStack(spacing: .spacing3) {
+                        Text(variant.name.uppercased()).font(.omTiny.weight(.semibold))
+                            .foregroundStyle(Color.fontTertiary)
+                        EmbedPreviewCard(embed: variant.skill.primaryEmbed, allEmbedRecords: variant.skill.allRecords) {
+                            onOpen(variant.skill)
+                        }
+                        .frame(width: 300, height: 200)
+                    }
+                    .accessibilityIdentifier("dev-embed-small-variant-\(variant.name)")
+                }
+            }
+            .padding(.bottom, .spacing4)
+        }
+        .padding(.vertical, .spacing6)
+        .padding(.horizontal, .spacing8)
         .background(Color.grey10)
         .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .overlay { RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1) }
+        .accessibilityIdentifier("dev-embed-group-small")
+        .accessibilityValue(variants.map(\.name).joined(separator: "|"))
+    }
+}
+
+private struct DevEmbedLargeGroup: View {
+    let variants: [DevEmbedPreviewVariant]
+    let onOpen: (DevEmbedPreviewSkill) -> Void
+    @State private var selectedIndex: Int
+
+    init(variants: [DevEmbedPreviewVariant], initialVariant: String = "default", onOpen: @escaping (DevEmbedPreviewSkill) -> Void) {
+        self.variants = variants
+        self.onOpen = onOpen
+        _selectedIndex = State(initialValue: variants.firstIndex { $0.name == initialVariant } ?? 0)
     }
 
-    private var smallGroupEmbeds: [EmbedRecord] {
-        let embeds = [skill.primaryEmbed] + skill.childEmbeds
-        return Array(embeds.prefix(6))
+    var body: some View {
+        if !variants.isEmpty {
+            let variant = variants[min(selectedIndex, variants.count - 1)]
+            VStack(spacing: 0) {
+                HStack(spacing: .spacing6) {
+                    arrow(previous: true) { selectedIndex = (selectedIndex - 1 + variants.count) % variants.count }
+                    Text("\(variant.name)  \(selectedIndex + 1) / \(variants.count)")
+                        .font(.omXs.weight(.semibold)).foregroundStyle(Color.fontPrimary)
+                        .accessibilityIdentifier("dev-embed-large-active-variant")
+                    arrow(previous: false) { selectedIndex = (selectedIndex + 1) % variants.count }
+                }
+                .padding(.bottom, .spacing6)
+                GeometryReader { geometry in
+                    EmbedPreviewCard(embed: variant.skill.primaryEmbed, allEmbedRecords: variant.skill.allRecords,
+                                     variant: geometry.size.width > 400 ? .large : .compact) {
+                        onOpen(variant.skill)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .frame(height: 425)
+                .overlay { RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1) }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("dev-embed-group-large")
+            .accessibilityValue(variant.name)
+        }
     }
 
-    private var groupedPreview: some View {
-        GroupedEmbedView(
-            group: EmbedGroup(
-                id: "\(skill.id)-group-large",
-                type: EmbedType(rawValue: skill.childEmbeds[0].type) ?? .webWebsite,
-                embeds: skill.childEmbeds,
-                isAppSkillUse: false
-            ),
-            allEmbedRecords: skill.allRecords
-        ) { _ in }
+    private func arrow(previous: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Icon("back", size: .iconSizeXs).scaleEffect(x: previous ? 1 : -1, y: 1)
+                .padding(.vertical, .spacing2).padding(.horizontal, .spacing6)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius2))
+                .overlay { RoundedRectangle(cornerRadius: .radius2).stroke(Color.grey30, lineWidth: 1) }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(previous ? AppStrings.previousInspiration : AppStrings.nextInspiration)
+        .accessibilityIdentifier(previous ? "dev-embed-large-previous" : "dev-embed-large-next")
     }
 }
 
@@ -719,130 +829,107 @@ private struct DevEmbedFullscreenRouteHarness: View {
 }
 
 private struct DevEmbedTemplateControls: View {
+    let variants: [DevEmbedPreviewVariant]
+    @Binding var selection: String
+    let identifier: String
+
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: .spacing3) {
-                Text("Template:")
-                    .font(.omMicro)
-                    .foregroundStyle(Color.fontSecondary)
-                DevEmbedTemplateChip(title: "Default", isSelected: true)
-                DevEmbedTemplateChip(title: "processing", isSelected: false)
-            }
-            DevEmbedTemplateChip(title: "Props", isSelected: false)
-        }
-    }
-}
-
-private struct DevEmbedTemplateChip: View {
-    let title: String
-    let isSelected: Bool
-
-    var body: some View {
-        Text(title)
-            .font(.omMicro)
-            .fontWeight(.semibold)
-            .foregroundStyle(isSelected ? Color.fontButton : Color.fontPrimary)
-            .frame(minWidth: 74, minHeight: 26)
-            .padding(.horizontal, .spacing3)
-            .background(isSelected ? Color.buttonPrimary : Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: .radius2))
-            .shadow(color: .black.opacity(0.16), radius: 4, x: 0, y: 2)
-    }
-}
-
-private struct DevEmbedInlineLinkBlock: View {
-    let embed: EmbedRecord
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            Text("The assistant found")
-                .font(.omMicro)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontSecondary)
-            HStack(spacing: .spacing2) {
-                AppIconView(appId: embed.appId ?? "web", size: 16)
-                Text(embedTitle)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.buttonPrimary)
-                    .lineLimit(2)
-            }
-            Text("for you.")
-                .font(.omMicro)
-                .foregroundStyle(Color.fontSecondary)
-        }
-        .padding(.spacing5)
-        .frame(maxWidth: 320, alignment: .leading)
-        .background(Color.grey10)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .overlay {
-            RoundedRectangle(cornerRadius: .radius4)
-                .stroke(Color.grey30, lineWidth: 1)
-        }
-    }
-
-    private var embedTitle: String {
-        firstString(keys: ["title", "name", "query", "site_name"]) ?? EmbedType(rawValue: embed.type)?.displayName ?? embed.type
-    }
-
-    private func firstString(keys: [String]) -> String? {
-        for key in keys {
-            if let value = embed.rawData?[key]?.value as? String, !value.isEmpty {
-                return value
-            }
-        }
-        return nil
-    }
-}
-
-private struct DevEmbedQuoteBlock: View {
-    let embed: EmbedRecord
-
-    var body: some View {
-        HStack(alignment: .top, spacing: .spacing4) {
-            RoundedRectangle(cornerRadius: .radiusFull)
-                .fill(Color.buttonPrimary)
-                .frame(width: 3)
-            VStack(alignment: .leading, spacing: .spacing4) {
-                Text(quoteText)
-                    .font(.omSmall)
-                    .italic()
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(4)
-                HStack(spacing: .spacing2) {
-                    AppIconView(appId: embed.appId ?? "web", size: 14)
-                    Text(embed.appId ?? "web")
-                        .font(.omMicro)
-                        .foregroundStyle(Color.fontSecondary)
+                ForEach(variants) { variant in
+                    Button { selection = variant.name } label: {
+                        Text(variant.name == "default" ? "Default" : variant.name)
+                            .font(.omXxs)
+                            .foregroundStyle(selection == variant.name ? Color.fontButton : Color.fontPrimary)
+                            .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
+                            .background(selection == variant.name ? AppGradientPalette.colors(for: "primary").start : Color.grey10)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                            .overlay { RoundedRectangle(cornerRadius: .radius1).stroke(Color.grey30, lineWidth: 1) }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("\(identifier)-\(variant.name)")
+                    .accessibilityAddTraits(selection == variant.name ? [.isSelected] : [])
                 }
             }
         }
-        .padding(.spacing5)
-        .frame(maxWidth: 320, alignment: .leading)
-        .background(Color.grey0)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .overlay {
-            RoundedRectangle(cornerRadius: .radius4)
-                .stroke(Color.grey30, lineWidth: 1)
-        }
     }
+}
 
-    private var quoteText: String {
-        firstString(keys: ["description", "summary", "title", "name", "query"]) ?? EmbedType(rawValue: embed.type)?.displayName ?? embed.type
-    }
+/// Web showcase-specific presentation. Production chat uses InlineMarkdownText;
+/// this route compares the deployed fake-inline illustration and opens real embeds.
+private struct DevEmbedInlineLinkBlock: View {
+    let skill: DevEmbedPreviewSkill
+    let onOpen: () -> Void
 
-    private func firstString(keys: [String]) -> String? {
-        for key in keys {
-            if let value = embed.rawData?[key]?.value as? String, !value.isEmpty {
-                return value
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 3) {
+                Text("The assistant found")
+                link
+                Text("for you.")
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("The assistant found")
+                HStack(spacing: 3) { link; Text("for you.") }
             }
         }
-        return nil
+        // /dev/preview .dt-body--inline, .fake-link-text: 0.9375rem (15px).
+        .font(.custom("Lexend Deca", size: 15))
+        .foregroundStyle(Color.fontPrimary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dev-embed-inline")
+    }
+
+    private var link: some View {
+        Button(action: onOpen) {
+            HStack(spacing: 5) {
+                AppIconView(appId: skill.primaryEmbed.appId ?? "web", size: .iconSizeSm)
+                Text(DevEmbedPreviewFixtures.inlineText(for: skill))
+                    .fontWeight(.medium).foregroundStyle(AppGradientPalette.colors(for: "primary").start)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("dev-embed-inline-open")
+    }
+}
+
+/// Match the deployed showcase illustration while forwarding source quote text
+/// to the production fullscreen highlight/scroll pipeline on open.
+private struct DevEmbedQuoteBlock: View {
+    let skill: DevEmbedPreviewSkill
+    let onOpen: (String) -> Void
+
+    var body: some View {
+        let quote = DevEmbedPreviewFixtures.quoteText(for: skill)
+        Button { onOpen(quote) } label: {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                // /dev/preview .fake-quote-text: 15px, line-height 1.6.
+                Text(quote).font(.custom("Lexend Deca", size: 15)).italic()
+                    .foregroundStyle(Color.fontPrimary).lineSpacing(5)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: .spacing3) {
+                    AppIconView(appId: skill.primaryEmbed.appId ?? "web", size: 18)
+                    Text(skill.primaryEmbed.appId ?? "web").font(.omXxs).foregroundStyle(Color.fontTertiary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, .spacing5).padding(.horizontal, .spacing8)
+            .background(Color.grey0)
+            .overlay(alignment: .leading) {
+                Rectangle().fill(AppGradientPalette.colors(for: skill.primaryEmbed.appId ?? "web").start).frame(width: 3)
+            }
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0,
+                                            bottomTrailingRadius: .radius3, topTrailingRadius: .radius3))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("dev-embed-quote-open")
     }
 }
 
 private struct DevEmbedDisplayBlock<Content: View>: View {
     let title: String
+    var flush = false
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -855,10 +942,13 @@ private struct DevEmbedDisplayBlock<Content: View>: View {
 
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(flush ? .spacing0 : .spacing10)
+                .background(flush ? Color.clear : Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                .overlay {
+                    if !flush { RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25, lineWidth: 1) }
+                }
         }
-        .padding(.spacing5)
-        .background(Color.grey0)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
 }
 #endif

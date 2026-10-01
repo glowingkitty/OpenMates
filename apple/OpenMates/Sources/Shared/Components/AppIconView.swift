@@ -1,5 +1,7 @@
 // App icon component — renders a gradient circle with the app's icon.
 // Maps app IDs to their gradient and icon from the design token system.
+// Web source: frontend/packages/ui/src/styles/icons.css
+// Web source: frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Specification: specifications/features/message-input/specification.yml
 // Assertion: message-input.layout.responsive-parity (audio recording preview icon)
 
@@ -64,6 +66,7 @@ struct AppIconView: View {
         case "photos": return .appPhotos
         case "videos": return .appVideos
         case "docs": return .appDocs
+        case "sheets": return .appSheets
         case "diagrams": return .appDiagrams
         case "models3d": return .app3dmodels
         case "tasks": return .primary

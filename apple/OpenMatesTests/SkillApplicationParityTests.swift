@@ -965,6 +965,91 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(String(EventValue.markdown("Meet **local builders**").characters), "Meet local builders")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryParsesIndependentSurfacesVariantsAndDirection() throws {
+        for surface in DevEmbedPreviewSurface.allCases {
+            let request = try XCTUnwrap(DevEmbedPreviewRequest.parse(arguments: [
+                "--embed-registry-key", "code-code", "--embed-surface", surface.rawValue,
+                "--embed-variant", "python", "--embed-direction", "rtl"
+            ]))
+            XCTAssertEqual(request.surface, surface)
+            XCTAssertEqual(request.variant, "python")
+            XCTAssertEqual(request.direction, .rtl)
+        }
+        let legacy = try XCTUnwrap(DevEmbedPreviewRequest.parse(arguments: [
+            "--embed-registry-key", "code-code", "--embed-surface", "preview"
+        ]))
+        XCTAssertEqual(legacy.variant, "default")
+        XCTAssertEqual(legacy.direction, .ltr)
+        for invalid in [
+            ["--embed-registry-key", "code-code", "--embed-surface", "unknown"],
+            ["--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-variant"],
+            ["--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-direction", "unknown"],
+            ["--embed-registry-key", "code-code", "--embed-surface", "preview", "--embed-surface", "quote"]
+        ] {
+            XCTAssertNil(DevEmbedPreviewRequest.parse(arguments: invalid))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryDataGroupsUseNamedVariantsAndExcludeStatusTemplates() throws {
+        let code = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "code-code"))
+        let data = DevEmbedPreviewFixtures.dataVariants(for: code)
+        XCTAssertEqual(data.map(\.name), ["default", "bash", "python", "svelte", "html", "javascript", "css"])
+        let python = try XCTUnwrap(data.first { $0.name == "python" }?.skill.primaryEmbed)
+        XCTAssertEqual(python.rawData?["filename"]?.value as? String, "embed_service.py")
+        XCTAssertTrue((python.rawData?["code"]?.value as? String)?.contains("async def resolve_embed") == true)
+        XCTAssertTrue(DevEmbedPreviewFixtures.supportsLargeGroup(code))
+        let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
+        XCTAssertFalse(DevEmbedPreviewFixtures.supportsLargeGroup(search))
+        XCTAssertEqual(DevEmbedPreviewFixtures.dataVariants(for: search).map(\.name), ["default", "cancelled"])
+        let sheet = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "sheets-sheet"))
+        XCTAssertTrue(DevEmbedPreviewFixtures.dataVariants(for: sheet).map(\.name).contains("mobileWide"),
+                      "The web excludes the exact mobile template, not every variant whose name contains mobile.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryEmptyStatusVariantsDoNotRetainFinishedSearchChildren() throws {
+        let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
+        XCTAssertFalse(search.childEmbeds.isEmpty)
+        let variants = DevEmbedPreviewFixtures.variants(for: search)
+        for status in [EmbedStatus.processing, .error, .cancelled] {
+            let variant = try XCTUnwrap(variants.first { $0.name == status.rawValue }?.skill)
+            XCTAssertEqual(variant.primaryEmbed.status, status)
+            XCTAssertTrue(variant.childEmbeds.isEmpty)
+            XCTAssertTrue(variant.primaryEmbed.childEmbedIds.isEmpty)
+            XCTAssertEqual(variant.allRecords.count, 1)
+            XCTAssertTrue(variant.primaryEmbed.isAppSkillUse)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryFullscreenVariantsRemainIndependentAndUnknownStatesFail() throws {
+        let request = DevEmbedPreviewRequest(registryKey: "code-code", surface: .fullscreen, variant: "longCode", direction: .ltr)
+        let fullscreen = try XCTUnwrap(DevEmbedPreviewFixtures.fixture(for: request))
+        XCTAssertEqual(fullscreen.primaryEmbed.rawData?["filename"]?.value as? String, "long_file.py")
+        let code = try XCTUnwrap(fullscreen.primaryEmbed.rawData?["code"]?.value as? String)
+        XCTAssertEqual(code.components(separatedBy: "\n").count, 100)
+        XCTAssertNil(DevEmbedPreviewFixtures.fixture(for: .init(registryKey: "code-code", surface: .preview,
+                                                              variant: "longCode", direction: .ltr)))
+        XCTAssertNil(DevEmbedPreviewFixtures.fixture(for: .init(registryKey: "app:web:search", surface: .groupLarge,
+                                                              variant: "default", direction: .ltr)))
+        XCTAssertNil(DevEmbedPreviewFixtures.fixture(for: .init(registryKey: "code-code", surface: .preview,
+                                                              variant: "missing", direction: .ltr)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testEmbedGalleryUsesDeployedShowcaseQuoteAndInlineLabels() throws {
+        let search = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "app:web:search"))
+        XCTAssertEqual(DevEmbedPreviewFixtures.inlineText(for: search), "Best restaurants in Berlin")
+        XCTAssertEqual(DevEmbedPreviewFixtures.quoteText(for: search),
+                       "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors.")
+        let appointment = try XCTUnwrap(DevEmbedPreviewFixtures.skill(forRegistryKey: "health-appointment"))
+        let jameda = try XCTUnwrap(DevEmbedPreviewFixtures.variants(for: appointment).first { $0.name == "jameda" })
+        XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["provider_platform"]?.value as? String, "Jameda")
+        XCTAssertEqual(jameda.skill.primaryEmbed.rawData?["name"]?.value as? String, "Dr. Markus Reinholz")
+    }
+
     private func decodeRecord(_ json: String) throws -> EmbedRecord {
         try JSONDecoder().decode(EmbedRecord.self, from: Data(json.utf8))
     }

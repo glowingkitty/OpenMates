@@ -9,6 +9,8 @@
 
 grey:
   0:    { light: "#ffffff", dark: "#171717" }
+  # Shared-chat gate background matches the rendered route's fixed fallback.
+  5:    { value: "#f5f5f5" }
   10:   { light: "#f9f9f9", dark: "#1c1c1c" }
   20:   { light: "#f3f3f3", dark: "#212121" }
   25:   { light: "#e8e8e8", dark: "#252525" }

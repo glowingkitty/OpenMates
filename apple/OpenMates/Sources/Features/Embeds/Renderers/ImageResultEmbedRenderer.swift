@@ -7,6 +7,8 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/chat-share-settings/specification.yml
+// Assertions: chat-share-settings.shared-link-open
 import SwiftUI
 #if os(iOS)
 import UIKit
@@ -15,6 +17,7 @@ import AppKit
 #endif
 
 struct ImageResultEmbedRenderer: View {
+    @Environment(\.recipientMediaContext) private var recipientMediaContext
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     @Environment(\.openURL) private var openURL
@@ -103,7 +106,7 @@ struct ImageResultEmbedRenderer: View {
                 .background(Color(hex: 0xFAFAFA))
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    if let fullURL { NativeImagePreviewer.shared.previewRemoteImage(fullURL, suggestedFilename: title) }
+                    if recipientMediaContext == nil, let fullURL { NativeImagePreviewer.shared.previewRemoteImage(fullURL, suggestedFilename: title) }
                 }
 
                 if let title {

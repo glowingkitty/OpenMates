@@ -193,6 +193,7 @@ struct MainAppView: View {
     @State private var showExplore = false
     @State private var showSearch = false
     @State private var settingsShareChatId: String?
+    @State private var settingsChatInitialTab: ChatSettingsTab = .plan
     @State private var settingsProjectID: String?
     @State private var settingsDeepLinkPath: String?
     @State private var settingsDeepLinkRequest = 0
@@ -222,6 +223,7 @@ struct MainAppView: View {
     @State private var windowRuntimeID = UUID()
     @State private var workflowTemplateLink: WorkflowTemplateLink?
     @State private var sharedBrowserDestination: SharedBrowserDestination?
+    @State private var sharedChatDestination: SharedBrowserDestination?
     #if os(macOS)
     @State private var isKeyChatWindow = false
     #endif
@@ -292,10 +294,6 @@ struct MainAppView: View {
         }
     }
 
-    private var filteredPinnedChats: [Chat] {
-        filteredSidebarUserChats.filter { $0.isPinned == true }
-    }
-
     private var filteredUnpinnedChats: [Chat] {
         filteredSidebarUserChats.filter { $0.isPinned != true }
     }
@@ -342,12 +340,6 @@ struct MainAppView: View {
 
     private var userChatCountForDisplayLimit: Int {
         filteredSidebarUserChats.count
-    }
-
-    private var shouldShowMoreUserChats: Bool {
-        guard isAuthenticated, searchText.isEmpty else { return false }
-        return userChatCountForDisplayLimit > visibleUserChatLimit
-            || (!serverChatPagesExhausted && totalChatCount > userChatCountForDisplayLimit)
     }
 
     private var isCompactShell: Bool {
@@ -544,9 +536,15 @@ struct MainAppView: View {
         #endif
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             openNewChatScreen()
-            if SettingsComposerHandoff.hasPendingMention {
-                showSettings = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsComposerHandoffRequested)) { _ in
+            selectedWorkspace = .chat
+            showSettings = false
+            if showNewChat || selectedChatId == nil {
+                showNewChat = true
                 newChatFocusRequest += 1
+            } else {
+                chatInputFocusRequest += 1
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleIncognito)) { _ in
@@ -686,6 +684,7 @@ struct MainAppView: View {
                 deepLinkHandler.pendingSharedBrowserURL = nil
             }
         }
+        .onChange(of: deepLinkHandler.pendingSharedChatURL, pendingSharedChatDidChange)
         .onChange(of: authManager.sessionValidationState, sessionValidationDidChange)
         .onChange(of: pushManager.pendingChatId, pendingPushChatDidChange)
         .onChange(of: pushManager.replyQueueRevision) { _, _ in
@@ -699,6 +698,24 @@ struct MainAppView: View {
     }
 
     private var shellWithOverlays: some View {
+        shellWithProductOverlays
+        .overlay { sharedChatRecipientOverlay }
+        .overlay(alignment: .top) {
+            topStatusOverlay
+                .allowsHitTesting(false)
+        }
+        .sheet(item: $sharedBrowserDestination) { destination in
+            sharedBrowserContent(destination)
+        }
+    }
+
+    private func pendingSharedChatDidChange(_ oldURL: URL?, _ newURL: URL?) {
+        guard let newURL else { return }
+        sharedChatDestination = SharedBrowserDestination(url: newURL)
+        deepLinkHandler.pendingSharedChatURL = nil
+    }
+
+    private var shellWithProductOverlays: some View {
         rootShell
         .overlay { projectEmbedOverlay }
         #if os(macOS)
@@ -726,26 +743,34 @@ struct MainAppView: View {
         .overlay {
             appOverlays
         }
-        .overlay(alignment: .top) {
-            topStatusOverlay
-                .allowsHitTesting(false)
-        }
-        .sheet(item: $sharedBrowserDestination) { destination in
-            VStack(spacing: 0) {
-                #if os(macOS)
-                HStack {
-                    Spacer()
-                    OMIconButton(icon: "close", label: AppStrings.close, size: 32) {
-                        sharedBrowserDestination = nil
-                    }
-                }
-                .padding(.spacing3)
-                #endif
-                SharedLinkBrowserView(url: destination.url)
-            }
+    }
+
+    private func sharedBrowserContent(_ destination: SharedBrowserDestination) -> some View {
+        VStack(spacing: 0) {
             #if os(macOS)
-            .frame(minWidth: 640, idealWidth: 1000, minHeight: 480, idealHeight: 750)
+            HStack {
+                Spacer()
+                OMIconButton(icon: "close", label: AppStrings.close, size: 32) {
+                    sharedBrowserDestination = nil
+                }
+            }
+            .padding(.spacing3)
             #endif
+            SharedLinkBrowserView(url: destination.url)
+        }
+        #if os(macOS)
+        .frame(minWidth: 640, idealWidth: 1000, minHeight: 480, idealHeight: 750)
+        #endif
+    }
+
+    @ViewBuilder
+    private var sharedChatRecipientOverlay: some View {
+        if let destination = sharedChatDestination {
+            SharedChatRecipientView(url: destination.url, onClose: { sharedChatDestination = nil })
+                .id(destination.id)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.grey0)
+                .accessibilityIdentifier("shared-chat-recipient-overlay")
         }
     }
 
@@ -863,7 +888,7 @@ struct MainAppView: View {
             if ProcessInfo.processInfo.arguments.contains("--ui-test-app-link-fixture") {
                 HStack(spacing: .spacing4) {
                     Link(AppStrings.settings,
-                         destination: URL(string: "\(ServerProfile.current().webBaseURL.absoluteString)#settings/interface/language")!)
+                         destination: uiTestSettingsLinkURL)
                         .accessibilityIdentifier("ui-test-settings-link")
                     Link(AppStrings.chat,
                          destination: URL(string: "\(ServerProfile.current().webBaseURL.absoluteString)#message=Synthetic%20linked%20draft")!)
@@ -876,6 +901,19 @@ struct MainAppView: View {
         }
         #endif
     }
+
+    #if DEBUG
+    // Public settings paths exercise the normal link router and its auth guards.
+    // Keep the original language destination when no test override is supplied.
+    private var uiTestSettingsLinkURL: URL {
+        let path = SettingsDeepLinkRoute(
+            ProcessInfo.processInfo.environment["UI_TEST_SETTINGS_LINK_PATH"] ?? "interface/language"
+        ).path
+        var components = URLComponents(url: ServerProfile.current().webBaseURL, resolvingAgainstBaseURL: false)!
+        components.fragment = path.isEmpty ? "settings" : "settings/\(path)"
+        return components.url!
+    }
+    #endif
 
     @ViewBuilder
     private var chatNavigationUITestProbe: some View {
@@ -1226,6 +1264,7 @@ struct MainAppView: View {
         selectedWorkspace = workspace
         workflowTemplateLink = nil
         sharedBrowserDestination = nil
+        sharedChatDestination = nil
         projectFullscreenEmbed = nil
         showAuthSheet = false
         showSearch = false
@@ -1259,6 +1298,7 @@ struct MainAppView: View {
         projectFullscreenEmbed = nil
         workflowTemplateLink = nil
         sharedBrowserDestination = nil
+        sharedChatDestination = nil
     }
 
     private func loadSelectedWorkspace() async {
@@ -1491,12 +1531,26 @@ struct MainAppView: View {
 
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-test-share-settings-chat") {
+            let fixture = Chat(id: "ui-test-share-settings-chat", title: "Launch preparation",
+                lastMessageAt: nil, createdAt: "2026-10-01T12:00:00Z", updatedAt: nil,
+                isArchived: false, isPinned: false, appId: nil,
+                chatSummary: "Coordinate the work and verify the outcome before completion.",
+                encryptedTitle: nil, encryptedChatKey: nil, budgetSpent: 24)
+            chatStore.performWithoutPersistence { chatStore.upsertChat(fixture) }
             openShareSettings(for: "ui-test-share-settings-chat")
         }
         #endif
     }
 
     private func runStartupTask() async {
+        #if DEBUG
+        // The synthetic Chat Settings route must not wait for public API
+        // startup requests or import anonymous account data.
+        if isChatSettingsUITestFixture {
+            applyLaunchCommandIfNeeded()
+            return
+        }
+        #endif
         if isAuthenticated {
             await bootstrapAuthenticatedSession()
             await loadAccountTopicPreferences()
@@ -1759,6 +1813,23 @@ struct MainAppView: View {
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
     private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
+        Group {
+        if let chatID = settingsShareChatId, let chat = chatStore.chat(for: chatID) {
+            ChatSettingsView(
+                chat: chat,
+                messages: chatStore.messages(for: chatID),
+                embeds: chatStore.embeds(for: chatID),
+                accountID: authManager.currentUser?.id,
+                isExample: publicChatGroup(for: chatID) != nil,
+                exampleUsageLoader: { PublicChatUsageCatalog.rows(chatID: chatID) },
+                exampleFileLoader: { PublicChatFileCatalog.rows(chatID: chatID) },
+                onBack: { settingsShareChatId = nil },
+                isPreview: isChatSettingsUITestFixture,
+                initialTab: settingsChatInitialTab,
+                viewportWidth: currentViewportWidth
+            )
+            .id(chat.id)
+        } else {
         SettingsView(
             reportIssuePrefill: reportIssuePrefill,
             referralCodeRequest: referralCodeRequest,
@@ -1767,19 +1838,24 @@ struct MainAppView: View {
             projectID: settingsProjectID,
             teamContext: teamContext,
             deepLinkPath: settingsDeepLinkPath,
-            deepLinkRequest: settingsDeepLinkRequest
-        ) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showSettings = false
-            }
-        } onOpenExampleChat: { chatId in
-            selectedChatId = chatId
-            showNewChat = false
-            if closesOnExampleChatOpen {
+            deepLinkRequest: settingsDeepLinkRequest,
+            viewportWidth: currentViewportWidth,
+            onClose: {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSettings = false
                 }
-            }
+            },
+            onOpenExampleChat: { chatId in
+                selectedChatId = chatId
+                showNewChat = false
+                if closesOnExampleChatOpen {
+                    withAnimation(.easeInOut(duration: 0.3)) { showSettings = false }
+                }
+            },
+            memoriesEmbedRecords: loadedSettingsMemoryEmbeds,
+            onOpenMemoryEmbed: openSettingsMemoryEmbed
+        )
+        }
         }
         .environmentObject(authManager)
         .environmentObject(themeManager)
@@ -1789,6 +1865,25 @@ struct MainAppView: View {
         .background(Color.grey20)
         .clipShape(RoundedRectangle(cornerRadius: activeChatContainerRadius))
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
+    }
+
+    private var loadedSettingsMemoryEmbeds: [String: EmbedRecord] {
+        guard isAuthenticated else { return [:] }
+        // Only already-decrypted records in this account's active ChatStore.
+        // Memories never installs keys or silently fetches another chat's data.
+        return chatStore.chats.reduce(into: [:]) { records, chat in
+            for embed in chatStore.embeds(for: chat.id) { records[embed.id] = embed }
+        }
+    }
+
+    private func openSettingsMemoryEmbed(_ embed: EmbedRecord) {
+        guard isAuthenticated,
+              let chat = chatStore.chats.first(where: { chat in
+                  chatStore.embeds(for: chat.id).contains(where: { $0.id == embed.id })
+              }) else { return }
+        pendingExternalEmbedOpen = .init(chatId: chat.id, embedId: embed.id)
+        openWorkspaceChat(chat.id)
+        showSettings = false
     }
 
     private func openSettingsDeepLink(_ path: String) {
@@ -1827,14 +1922,27 @@ struct MainAppView: View {
     }
 
     private func openShareSettings(for chatId: String) {
+        openChatSettings(for: chatId, tab: .share)
+    }
+
+    private func openChatSettings(for chatId: String, tab: ChatSettingsTab = .plan) {
         settingsDeepLinkPath = nil
         messageSettingsTarget = nil
         selectedChatId = chatId
+        settingsChatInitialTab = tab
         settingsShareChatId = chatId
         actionChat = nil
         withAnimation(.easeInOut(duration: 0.3)) {
             showSettings = true
         }
+    }
+
+    private var isChatSettingsUITestFixture: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--ui-test-share-settings-chat")
+        #else
+        return false
+        #endif
     }
 
     private func openAssistantMessageSettings(_ target: AssistantMessageSettingsTarget) {
@@ -2239,9 +2347,7 @@ struct MainAppView: View {
                     }
                 },
                 onOpenChatSettings: headerActions.exposesOwnerSettings ? {
-                    messageSettingsTarget = nil
-                    settingsShareChatId = nil
-                    showSettings = true
+                    openChatSettings(for: chatId)
                 } : nil,
                 onCloseChat: closeChatToWorkspaceLanding,
                 onPreviousChat: previousChatAction(for: chatId),
@@ -2351,15 +2457,31 @@ struct MainAppView: View {
                 onOpenTask: { openWorkspaceTasks(taskID: $0) },
                 onOpenPlan: { openWorkspaceTasks(planID: $0) })
         } else {
+            // Filter/sort once per sidebar render. Draft-preview updates consume
+            // this snapshot instead of repeating the full user-chat projection.
+            let filteredChats = filteredSidebarUserChats
+            let snapshot = ChatSidebarDisplayPolicy.snapshot(sortedUserChats: filteredChats,
+                appliesDisplayLimit: isAuthenticated && searchText.isEmpty,
+                limit: visibleUserChatLimit, selectedChatID: selectedChatId,
+                lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope) ?? authManager.currentUser?.lastOpened,
+                totalChatCount: totalChatCount, serverChatPagesExhausted: serverChatPagesExhausted)
+            let locale = Locale(identifier: LocalizationManager.shared.currentLanguage.code)
+            let userSections = snapshot.groups.map { group in
+                ChatSidebarSection(id: group.key,
+                    title: ChatSidebarDisplayPolicy.title(for: group.key, locale: locale), chats: group.chats)
+            }
+            let publicSections = sidebarPublicSections
+            let emptyMessage = snapshot.visibleChats.isEmpty && isAuthenticated &&
+                publicSections.first(where: { $0.id == PublicChatGroup.intro.rawValue })?.chats.isEmpty == true
+                ? AppStrings.noChats : nil
+            let loadMore = snapshot.shouldShowMore ? ChatSidebarLoadMore(
+                totalCount: max(totalChatCount, snapshot.filteredCount),
+                loadedCount: visibleUserChatLimit, isLoading: isLoadingMore) : nil
             ChatSidebarDraftContext { draftPreviews in
-                ChatSidebarContent(userSections: sidebarUserSections, publicSections: sidebarPublicSections,
+                ChatSidebarContent(userSections: userSections, publicSections: publicSections,
                     selectedChatID: selectedChatId, draftPreviews: draftPreviews,
                     showSearch: showSearch,
-                    emptyMessage: visibleSidebarUserChats.isEmpty &&
-                        isAuthenticated && publicChats(in: .intro).isEmpty ? AppStrings.noChats : nil,
-                    loadMore: shouldShowMoreUserChats ? ChatSidebarLoadMore(
-                        totalCount: max(totalChatCount, userChatCountForDisplayLimit),
-                        loadedCount: visibleUserChatLimit, isLoading: isLoadingMore) : nil,
+                    emptyMessage: emptyMessage, loadMore: loadMore,
                     actions: ChatSidebarActions(select: selectSidebarChat,
                         showActions: isAuthenticated ? { actionChat = $0 } : nil,
                         search: openSearchOverlay,
@@ -2374,13 +2496,6 @@ struct MainAppView: View {
         }
     }
 
-    private var sidebarUserSections: [ChatSidebarSection] {
-        let locale = Locale(identifier: LocalizationManager.shared.currentLanguage.code)
-        return ChatSidebarDisplayPolicy.groups(visibleSidebarUserChats).map { group in
-            ChatSidebarSection(id: group.key,
-                title: ChatSidebarDisplayPolicy.title(for: group.key, locale: locale), chats: group.chats)
-        }
-    }
     private var sidebarPublicSections: [ChatSidebarSection] {
         let groups: [(PublicChatGroup, String)] = [(.intro, AppStrings.introSection),
             (.examples, AppStrings.exampleChatsSection), (.announcements, AppStrings.announcementsSection), (.legal, AppStrings.legalSection)]
@@ -7809,7 +7924,7 @@ struct NewChatWelcomeView: View {
         guard focusRequest > 0, handledFocusRequest != focusRequest else { return }
         handledFocusRequest = focusRequest
         if let mention = SettingsComposerHandoff.consume() {
-            composerSession.replaceMarkdown("\(mention) ")
+            composerSession.replaceMarkdown(SettingsComposerHandoff.appending(mention: mention, to: composerSession.canonicalMarkdown))
         }
         isGuestInterestSelectionActive = false
         isComposerActivated = true

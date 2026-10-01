@@ -5,11 +5,12 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
 // Specification: specifications/features/settings-ui/specification.yml
-// Assertions: settings-ui.shell.lifecycle-and-routing, settings-ui.navigation.contextual-availability, settings-ui.navigation.parent-return
+// Assertions: settings-ui.shell.lifecycle-and-routing, settings-ui.navigation.contextual-availability, settings-ui.navigation.parent-return, settings-ui.parity.web-apple-shell
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
 //          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+//          frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
 //          frontend/packages/ui/src/components/settings/settingsRoutes.ts
 //          frontend/packages/ui/src/components/settings/SettingsFooter.svelte
 //          frontend/packages/ui/src/components/settings/incognito/SettingsIncognitoInfo.svelte
@@ -40,6 +41,7 @@ enum SettingsRouteInventory {
         "privacy/auto-deletion/files",
         "privacy/share-debug-logs",
         "projects",
+        "teams",
         "mates",
         "billing",
         "billing/buy-credits",
@@ -122,7 +124,6 @@ enum SettingsRouteInventory {
     static let nativeRoutes: Set<String> = [
         "pricing",
         "ai",
-        "apps",
         "apps/all",
         "settings_memories",
         "privacy",
@@ -136,6 +137,7 @@ enum SettingsRouteInventory {
         "privacy/auto-deletion/files",
         "privacy/share-debug-logs",
         "projects",
+        "teams",
         "mates",
         "billing",
         "billing/buy-credits",
@@ -215,6 +217,10 @@ enum SettingsRouteInventory {
         "logs",
     ]
 
+    // The top-level Apps menu is retired. apps/all remains reachable internally
+    // from Memories discovery, with its Memories filter selected.
+    static let intentionallyExcludedWebRoutes: Set<String> = ["apps"]
+
     static var coveredWebBaseRoutes: Set<String> {
         nativeRoutes
     }
@@ -236,9 +242,32 @@ struct SettingsDeepLinkRoute: Equatable {
         childPath = parts.dropFirst().joined(separator: "/")
     }
 
+    var isMemoriesDiscovery: Bool { path == "apps/all" }
+    var memoryRoute: SettingsMemoryRoute? {
+        guard topLevel == "apps", hasMemoryChild else { return nil }
+        return SettingsMemoryRoute(path: path)
+    }
+    private var hasMemoryChild: Bool {
+        let parts = path.split(separator: "/")
+        guard parts.count >= 4, parts[0] == "apps", parts[2] == "settings_memories" else { return false }
+        if parts.count == 4 { return true }
+        if parts.count == 5 { return parts[4] == "create" }
+        return parts[4] == "entry" && (parts.count == 6 || (parts.count == 7 && parts[6] == "edit"))
+    }
     var requiresAuthentication: Bool {
-        ["settings_memories", "privacy", "projects", "billing", "notifications", "shared",
-         "account", "developers", "server", "logs"].contains(topLevel)
+        if let memoryRoute {
+            switch memoryRoute {
+            case .hub, .category: return false
+            case .entry(_, _, let id): return !id.hasPrefix("example_")
+            case .editor: return true
+            }
+        }
+        // The public Memories examples and Privacy overview are guest destinations.
+        // Their private child routes retain the account requirement.
+        if ["settings_memories", "privacy"].contains(topLevel) { return !childPath.isEmpty }
+        if topLevel == "ai", childPath.hasPrefix("tier/") { return true }
+        return ["projects", "teams", "billing", "notifications", "shared",
+                "account", "developers", "server", "logs"].contains(topLevel)
     }
     var requiresAdmin: Bool { ["server", "logs"].contains(topLevel) }
     func canOpen(authenticated: Bool, admin: Bool) -> Bool {
@@ -248,6 +277,7 @@ struct SettingsDeepLinkRoute: Equatable {
     // Each child maps to an existing native page/control. Transient receipts
     // such as payment/confirmation need their originating action state.
     var hasNativeChild: Bool {
+        if topLevel == "apps" { return isMemoriesDiscovery || hasMemoryChild }
         if childPath.isEmpty { return true }
         let children: [String: Set<String>] = [
             "interface": ["language", "dark_mode"],
@@ -269,18 +299,39 @@ struct SettingsDeepLinkRoute: Equatable {
             "learning-mode": ["setup"],
             "incognito": ["info"],
         ]
-        if topLevel == "apps" {
-            let parts = childPath.split(separator: "/")
-            return parts.count == 1 || (parts.count == 3 && ["skills", "focus", "focus-modes", "memories", "settings-memories", "content-types"].contains(String(parts[1])))
-        }
         if topLevel == "mates" { return !childPath.contains("/") }
-        if topLevel == "ai" { return !childPath.contains("/") }
-        if topLevel == "projects" { return !childPath.contains("/") }
+        if topLevel == "ai" {
+            let parts = childPath.split(separator: "/")
+            if parts.first == "tier" {
+                guard parts.count >= 2, AIRequestTier(rawValue: String(parts[1])) != nil else { return false }
+                return parts.count == 2 || (parts.count == 4 && parts[2] == "provider")
+            }
+            return parts.count == 1 || (parts.count == 2 && parts[0] == "provider")
+        }
+        if ["projects", "teams"].contains(topLevel) { return !childPath.contains("/") }
         if topLevel == "account", childPath.hasPrefix("storage/") {
             return ["images", "videos", "audio", "pdf", "code", "docs", "sheets", "archives", "other"].contains(String(childPath.dropFirst(8)))
         }
         return children[topLevel]?.contains(childPath) == true
     }
+}
+
+// Destination content publishes child navigation so the sticky shell owns one banner.
+struct SettingsChildSiblingNavigation {
+    let title: String
+    let onSelect: () -> Void
+}
+struct SettingsChildBannerNavigation {
+    let title: String
+    let description: String
+    var allowsBack: Bool = true
+    var icon: String? = nil
+    var breadcrumb: String? = nil
+    var appColorID: String? = nil
+    var typeLabel: String? = nil
+    var previous: SettingsChildSiblingNavigation? = nil
+    var next: SettingsChildSiblingNavigation? = nil
+    let onBack: () -> Void
 }
 
 struct SettingsView: View {
@@ -290,6 +341,8 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     var onClose: (() -> Void)?
     var onOpenExampleChat: ((String) -> Void)?
+    var memoriesEmbedRecords: [String: EmbedRecord]
+    var onOpenMemoryEmbed: ((EmbedRecord) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     var shareChatId: String?
@@ -298,6 +351,9 @@ struct SettingsView: View {
     var teamContext: TeamWorkspaceContext?
     var deepLinkPath: String?
     var deepLinkRequest: Int
+    // The window content width determines the web's <=730px header icon cap.
+    // Standalone settings previews fall back to their measured content width.
+    var viewportWidth: CGFloat?
     private let isolatedNavigation: Bool
     @State private var showIncognitoInfo = false
     @StateObject private var incognitoSession: IncognitoSettingsSession
@@ -312,6 +368,11 @@ struct SettingsView: View {
     @State private var destinationScrollTop: CGFloat = 0
     @State private var activeDeepLinkRoute: SettingsDeepLinkRoute?
     @State private var activeDeepLinkRevision = 0
+    @State private var aiChildNavigation: SettingsChildBannerNavigation?
+    @State private var teamChildNavigation: SettingsChildBannerNavigation?
+    @State private var supportChildNavigation: SettingsChildBannerNavigation?
+    @State private var memoryChildNavigation: SettingsChildBannerNavigation?
+    @State private var showsMemoriesDiscovery = false
 
     init(
         isolatedNavigation: Bool = false,
@@ -323,13 +384,17 @@ struct SettingsView: View {
         teamContext: TeamWorkspaceContext? = nil,
         deepLinkPath: String? = nil,
         deepLinkRequest: Int = 0,
+        viewportWidth: CGFloat? = nil,
         onClose: (() -> Void)? = nil,
-        onOpenExampleChat: ((String) -> Void)? = nil
+        onOpenExampleChat: ((String) -> Void)? = nil,
+        memoriesEmbedRecords: [String: EmbedRecord] = [:],
+        onOpenMemoryEmbed: ((EmbedRecord) -> Void)? = nil
     ) {
         self.projectID = projectID
         self.teamContext = teamContext
         self.deepLinkPath = deepLinkPath
         self.deepLinkRequest = deepLinkRequest
+        self.viewportWidth = viewportWidth
         self.isolatedNavigation = isolatedNavigation
         _incognitoSession = StateObject(wrappedValue: isolatedNavigation ? .isolated() : .shared)
         _guestLearningMode = StateObject(wrappedValue: isolatedNavigation ? LearningModeGuestSession() : .shared)
@@ -340,6 +405,8 @@ struct SettingsView: View {
         self.messageSettingsTarget = messageSettingsTarget
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
+        self.memoriesEmbedRecords = memoriesEmbedRecords
+        self.onOpenMemoryEmbed = onOpenMemoryEmbed
         let messageDestination: SettingsDestination?
         if let messageSettingsTarget {
             switch messageSettingsTarget {
@@ -365,9 +432,10 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        GeometryReader { geometry in
         ZStack {
             VStack(spacing: 0) {
-                settingsBannerShell
+                settingsBannerShell(viewportWidth: viewportWidth ?? geometry.size.width)
                     .overlay(alignment: .bottom) {
                         if isAuthenticated, destination == nil, let teamContext {
                             TeamWorkspaceContextSelector(context: teamContext, isCollapsed: homeScrollTop > 30)
@@ -394,6 +462,11 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color.grey20)
+            // A page contains both its sticky banner and its destination.
+            // Naming a one-child destination wrapper instead renames its
+            // underlying ScrollView and hides the destination's own identity.
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(shellPageAccessibilityIdentifier)
 
             if showIncognitoInfo {
                 incognitoOverlay
@@ -440,11 +513,17 @@ struct SettingsView: View {
                 Task { await accountLearningMode.loadAccountStatus() }
             }
         }
+        }
     }
 
     private func applyDeepLink() {
         guard let deepLinkPath else { return }
         let route = SettingsDeepLinkRoute(deepLinkPath)
+        aiChildNavigation = nil
+        teamChildNavigation = nil
+        supportChildNavigation = nil
+        memoryChildNavigation = nil
+        showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         guard route.canOpen(authenticated: isAuthenticated || BillingUITestFixture.enabled, admin: isAdmin) else {
             destination = nil
@@ -454,8 +533,8 @@ struct SettingsView: View {
             return
         }
         let destinations: [String: SettingsDestination] = [
-            "pricing": .pricing, "ai": .ai, "settings_memories": .memories, "apps": .apps,
-            "privacy": .privacy, "projects": .projects, "mates": .mates, "billing": .billing,
+            "pricing": .pricing, "ai": .ai, "settings_memories": .memories,
+            "privacy": .privacy, "projects": .projects, "teams": .teams, "mates": .mates, "billing": .billing,
             "notifications": .notifications, "shared": .shared, "interface": .interface,
             "account": .account, "developers": .developers, "newsletter": .newsletter,
             "support": .support, "report_issue": .reportIssue, "report-issue": .reportIssue,
@@ -469,7 +548,8 @@ struct SettingsView: View {
         }
         activeDeepLinkRoute = route
         activeDeepLinkRevision += 1
-        destination = destinations[route.topLevel]
+        showsMemoriesDiscovery = route.isMemoriesDiscovery
+        destination = route.memoryRoute != nil || route.isMemoriesDiscovery ? .memories : destinations[route.topLevel]
     }
 
     // MARK: - Main settings menu
@@ -496,7 +576,7 @@ struct SettingsView: View {
 
                     // Menu items — web: flat list, NO container/section wrapper
                     // Each item sits directly on grey-20 background
-                    // Items use padding 5px 10px, min-height 40px, radius-3
+                    // Rendered web rows: 44px icon + 4px vertical padding = 52px.
 
                     if !isAuthenticated {
                         row(.pricing, AppStrings.settingsPricing, icon: "pricing")
@@ -516,25 +596,27 @@ struct SettingsView: View {
                         .accessibilityIdentifier("incognito-toggle-wrapper")
                     }
 
-                    OMSettingsToggleRow(
-                        title: AppStrings.learningMode,
-                        subtitle: learningModeStatus.enabled ? AppStrings.learningModeActive : AppStrings.learningModeInactive,
-                        icon: "study",
-                        isOn: Binding(
-                            get: { learningModeStatus.enabled },
-                            set: { _ in navigateTo(.learningMode) }
-                        ),
-                        disabled: isAuthenticated && accountLearningMode.isLoading
-                    )
-                    .accessibilityIdentifier("learning-mode-toggle-wrapper")
+                    if isAuthenticated {
+                        OMSettingsToggleRow(
+                            title: AppStrings.learningMode,
+                            subtitle: learningModeStatus.enabled ? AppStrings.learningModeActive : AppStrings.learningModeInactive,
+                            icon: "study",
+                            isOn: Binding(
+                                get: { learningModeStatus.enabled },
+                                set: { _ in navigateTo(.learningMode) }
+                            ),
+                            disabled: accountLearningMode.isLoading
+                        )
+                        .accessibilityIdentifier("learning-mode-toggle-wrapper")
+                    }
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
-                    row(.apps, AppStrings.settingsApps, icon: "app_store")
+                    row(.memories, AppStrings.settingsMemories, icon: "settings_memories")
+                    row(.privacy, AppStrings.settingsPrivacy, icon: "privacy")
 
                     if isAuthenticated {
-                        row(.memories, AppStrings.settingsMemories, icon: "settings_memories")
-                        row(.privacy, AppStrings.settingsPrivacy, icon: "privacy")
                         row(.projects, AppStrings.projects, icon: "project")
+                        row(.teams, AppStrings.localized("settings.teams"), icon: "team")
                     }
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
@@ -593,13 +675,46 @@ struct SettingsView: View {
     // MARK: - Settings Banner Shell
     // Web: .settings-banner-shell wrapping SettingsMainHeader.svelte.
 
-    private var settingsBannerShell: some View {
-        Group {
+    private func settingsBannerShell(viewportWidth: CGFloat) -> some View {
+        VStack(spacing: 0) {
             if let destination {
-                SettingsStandardBanner(destination: destination, scrollTop: destinationScrollTop) {
+                SettingsStandardBanner(
+                    destination: destination,
+                    scrollTop: destinationScrollTop,
+                    viewportWidth: viewportWidth,
+                    titleOverride: destination == .mates ? settingsMate?.name : destinationChildNavigation?.title,
+                    descriptionOverride: destination == .mates && settingsMate != nil ? "" : destinationChildNavigation?.description,
+                    iconOverride: destinationChildNavigation?.icon,
+                    mateArtworkName: destination == .mates ? settingsMate?.artworkName : nil,
+                    backTitle: destination == .mates && settingsMate != nil ? "\(AppStrings.settings) / \(AppStrings.settingsMates)" : destinationChildNavigation?.breadcrumb ?? AppStrings.settings,
+                    allowsBack: destinationChildNavigation?.allowsBack ?? true,
+                    appColorID: destinationChildNavigation?.appColorID,
+                    typeLabel: destinationChildNavigation?.typeLabel,
+                    previous: destinationChildNavigation?.previous,
+                    next: destinationChildNavigation?.next
+                ) {
+                    if destination == .mates, settingsMate != nil {
+                        navigationDirection = .back
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            activeDeepLinkRoute = nil
+                            activeMessageSettingsTarget = nil
+                            activeDeepLinkRevision += 1
+                        }
+                        return
+                    }
+                    if let child = destinationChildNavigation {
+                        navigationDirection = .back
+                        child.onBack()
+                        return
+                    }
                     navigationDirection = .back
                     withAnimation(.easeOut(duration: 0.2)) {
                         activeDeepLinkRoute = nil
+                        aiChildNavigation = nil
+                        teamChildNavigation = nil
+                        supportChildNavigation = nil
+                        memoryChildNavigation = nil
+                        showsMemoriesDiscovery = false
                         self.destination = nil
                     }
                 }
@@ -610,10 +725,55 @@ struct SettingsView: View {
                     profileImageUrl: settingsUser?.profileImageUrl,
                     isAuthenticated: isAuthenticated,
                     credits: settingsUser?.credits,
-                    scrollTop: homeScrollTop
+                    scrollTop: homeScrollTop,
+                    onAvatarClick: { navigateToAccountChild("profile-picture") },
+                    onUsernameClick: { navigateToAccountChild("username") },
+                    onBillingClick: { navigateTo(.billing) }
                 )
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("settings-banner-shell")
+    }
+
+    private var destinationChildNavigation: SettingsChildBannerNavigation? {
+        switch destination {
+        case .ai: return aiChildNavigation
+        case .teams: return teamChildNavigation
+        case .support: return supportChildNavigation
+        case .memories: return memoryChildNavigation
+        default: return nil
+        }
+    }
+
+    private func discoverMemoryApps() {
+        navigationDirection = .forward
+        memoryChildNavigation = nil
+        activeDeepLinkRoute = SettingsDeepLinkRoute("apps/all")
+        showsMemoriesDiscovery = true
+        activeDeepLinkRevision += 1
+    }
+
+    private func openMemoryCategory(app: String, category: String) {
+        navigationDirection = .forward
+        memoryChildNavigation = nil
+        showsMemoriesDiscovery = false
+        activeDeepLinkRoute = SettingsDeepLinkRoute("apps/\(app)/settings_memories/\(category)")
+        activeDeepLinkRevision += 1
+    }
+
+    private func returnToMemoriesHub() {
+        navigationDirection = .back
+        memoryChildNavigation = nil
+        showsMemoriesDiscovery = false
+        activeDeepLinkRoute = nil
+        activeDeepLinkRevision += 1
+    }
+
+    private func openMemoryExampleChat(_ id: String) {
+        if let onOpenExampleChat { onOpenExampleChat(id); return }
+        guard let url = URL(string: "openmates://chat/\(id)") else { return }
+        NotificationCenter.default.post(name: .deepLinkReceived, object: nil, userInfo: ["url": url])
     }
 
     // MARK: - Footer
@@ -681,6 +841,11 @@ struct SettingsView: View {
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
+        aiChildNavigation = nil
+        teamChildNavigation = nil
+        supportChildNavigation = nil
+        memoryChildNavigation = nil
+        showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         guard !isolatedNavigation || destination == .learningMode else { return }
         navigationDirection = .forward
@@ -688,6 +853,12 @@ struct SettingsView: View {
         withAnimation(.easeOut(duration: 0.2)) {
             self.destination = destination
         }
+    }
+
+    private func navigateToAccountChild(_ childPath: String) {
+        navigateTo(.account)
+        activeDeepLinkRoute = SettingsDeepLinkRoute("account/\(childPath)")
+        activeDeepLinkRevision += 1
     }
 
     private var learningModeStatus: LearningModeStatus {
@@ -771,16 +942,16 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func settingsDestinationContent(_ destination: SettingsDestination) -> some View {
-        let accessibilityIdentifier = destination == .shared && shareChatId != nil
-            ? "settings-shared-share-settings"
-            : destination.pageAccessibilityIdentifier
         destinationContent(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier(accessibilityIdentifier)
             .environment(\.omSettingsScrollOffsetHandler, OMSettingsScrollOffsetHandler { offset in
                 destinationScrollTop = offset
             })
+    }
+
+    private var shellPageAccessibilityIdentifier: String {
+        if destination == .shared, shareChatId != nil { return "settings-shared-share-settings" }
+        return destination?.pageAccessibilityIdentifier ?? "settings-panel"
     }
 
     @ViewBuilder
@@ -794,12 +965,8 @@ struct SettingsView: View {
         switch destination {
         case .pricing:
             SettingsPricingView(
-                onOpenApps: { navigateTo(.apps) },
                 onOpenAI: { navigateTo(.ai) }
             )
-        case .apps:
-            SettingsAppsFullView(deepLinkPath: activeDeepLinkRoute?.childPath,
-                onOpenExampleChat: onOpenExampleChat ?? { _ in })
         case .learningMode:
             SettingsLearningModeView(
                 isAuthenticated: isAuthenticated,
@@ -809,11 +976,40 @@ struct SettingsView: View {
         case .shared:
             SettingsSharedView(initialChatId: shareChatId, initiallyShowsTip: activeDeepLinkRoute?.childPath == "tip")
         case .mates:
-            SettingsMatesView(initialMateID: activeDeepLinkRoute?.childID ?? activeMateSettingsID)
+            if let mate = settingsMate {
+                SettingsMateDetailView(mate: mate)
+            } else {
+                SettingsMatesView { path in
+                    navigationDirection = .forward
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        activeDeepLinkRoute = SettingsDeepLinkRoute(path)
+                        activeDeepLinkRevision += 1
+                    }
+                }
+            }
         case .ai:
-            SettingsAIFullView(initialModelID: activeDeepLinkRoute?.childID ?? activeModelSettingsID)
+            SettingsAIFullView(
+                initialModelID: activeProviderSettingsID == nil && activeAISettingsTier == nil
+                    ? activeDeepLinkRoute?.childID ?? activeModelSettingsID : nil,
+                initialProviderID: activeProviderSettingsID,
+                initialTier: activeAISettingsTier,
+                onChildNavigationChanged: { aiChildNavigation = $0 }
+            )
+        case .memories:
+            if showsMemoriesDiscovery {
+                SettingsAppsFullView(deepLinkPath: "all", onOpenExampleChat: openMemoryExampleChat,
+                    memoriesDiscovery: true, onMemoryCategory: openMemoryCategory,
+                    onChildNavigationChanged: { memoryChildNavigation = $0 }, onReturnToMemories: returnToMemoriesHub)
+            } else {
+                SettingsMemoriesFullView(deepLinkPath: activeDeepLinkRoute?.path,
+                    onChildNavigationChanged: { memoryChildNavigation = $0 }, onDiscoverApps: discoverMemoryApps,
+                    onOpenExampleChat: openMemoryExampleChat, embedRecords: memoriesEmbedRecords, onOpenEmbed: onOpenMemoryEmbed)
+            }
         case .projects:
             SettingsProjectsView(initialProjectID: activeDeepLinkRoute?.childID ?? projectID, teamID: teamContext?.teamID)
+        case .teams:
+            SettingsTeamsView(initialTeamID: activeDeepLinkRoute?.childPath.isEmpty == false ? activeDeepLinkRoute?.childPath : nil,
+                onChildNavigationChanged: { teamChildNavigation = $0 })
         case .account: SettingsAccountSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .interface: SettingsInterfaceSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .privacy: SettingsPrivacyContentView(deepLinkPath: activeDeepLinkRoute?.childPath)
@@ -821,7 +1017,7 @@ struct SettingsView: View {
         case .notifications: SettingsNotificationsView(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .developers: SettingsDeveloperView(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .server: SettingsServerView(deepLinkPath: activeDeepLinkRoute?.childPath)
-        case .support: SettingsSupportView(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .support: SettingsSupportView(deepLinkPath: activeDeepLinkRoute?.childPath, onChildNavigationChanged: { supportChildNavigation = $0 })
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
@@ -831,9 +1027,27 @@ struct SettingsView: View {
         }
     }
 
+    private var settingsMate: SettingsMateMetadata? {
+        CanonicalSettingsMateCatalog.mate(id: activeDeepLinkRoute?.childID ?? activeMateSettingsID)
+    }
+
     private var activeMateSettingsID: String? {
         guard case .mate(let id) = activeMessageSettingsTarget else { return nil }
         return id
+    }
+
+    private var activeProviderSettingsID: String? {
+        guard let childPath = activeDeepLinkRoute?.childPath else { return nil }
+        let parts = childPath.split(separator: "/")
+        if parts.count == 2, parts[0] == "provider" { return String(parts[1]) }
+        if parts.count == 4, parts[0] == "tier", parts[2] == "provider" { return String(parts[3]) }
+        return nil
+    }
+
+    private var activeAISettingsTier: AIRequestTier? {
+        guard let parts = activeDeepLinkRoute?.childPath.split(separator: "/"),
+              parts.count >= 2, parts[0] == "tier" else { return nil }
+        return AIRequestTier(rawValue: String(parts[1]))
     }
 
     private var activeModelSettingsID: String? {
@@ -844,6 +1058,17 @@ struct SettingsView: View {
     private struct SettingsStandardBanner: View {
         let destination: SettingsDestination
         let scrollTop: CGFloat
+        let viewportWidth: CGFloat
+        var titleOverride: String? = nil
+        var descriptionOverride: String? = nil
+        var iconOverride: String? = nil
+        var mateArtworkName: String? = nil
+        var backTitle: String = AppStrings.settings
+        var allowsBack: Bool = true
+        var appColorID: String? = nil
+        var typeLabel: String? = nil
+        var previous: SettingsChildSiblingNavigation? = nil
+        var next: SettingsChildSiblingNavigation? = nil
         let onBack: () -> Void
 
         private var progress: CGFloat {
@@ -852,23 +1077,26 @@ struct SettingsView: View {
         }
 
         private var isCollapsed: Bool { progress > 0.5 }
+        private var isMobile: Bool { viewportWidth <= 730 }
         private var height: CGFloat { 190 - (190 - 88) * progress }
-        private var iconSize: CGFloat { 50 - 14 * progress }
+        // AppDetailsHeader.svelte: the mobile mask is capped at 40px;
+        // the shared collapse animation still reaches 36px on every viewport.
+        private var iconSize: CGFloat { min(viewportWidth <= 730 ? 40 : 50, 50 - 14 * progress) }
         private var titleSize: CGFloat { 20 - 3 * progress }
         private var detailsOpacity: CGFloat { max(0, 1 - progress * 2) }
-        private var identityHeight: CGFloat { isCollapsed ? 44 : 76 }
+        private var identityHeight: CGFloat { isCollapsed ? 44 : (isMobile ? 73 : 76) + (typeLabel == nil ? 0 : titleSize * 1.25) }
 
         var body: some View {
             VStack(spacing: 0) {
-                LinearGradient.primary
+                (appColorID.map { AppIconView.gradient(forAppId: $0) } ?? LinearGradient.primary)
                     .overlay(alignment: .top) {
                         VStack(spacing: 0) {
                             Button(action: onBack) {
                                 HStack(spacing: .spacing3) {
-                                    Icon("back", size: 22)
+                                    Icon("back", size: isMobile ? 20 : 22)
                                         .foregroundStyle(Color.white.opacity(0.85))
-                                    Text(AppStrings.settings)
-                                        .font(.omSmall.weight(.semibold))
+                                    Text(backTitle)
+                                        .font((isMobile ? Font.omXs : .omSmall).weight(.semibold))
                                         .foregroundStyle(Color.white.opacity(0.72))
                                         .lineLimit(1)
                                 }
@@ -877,6 +1105,7 @@ struct SettingsView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .disabled(!allowsBack)
                             .accessibilityIdentifier("settings-destination-back")
 
                             identityBlock
@@ -885,11 +1114,47 @@ struct SettingsView: View {
                             detailsBlock
                         }
                     }
+                    .overlay(alignment: .leading) {
+                        if let previous { siblingButton(previous, previous: true) }
+                    }
+                    .overlay(alignment: .trailing) {
+                        if let next { siblingButton(next, previous: false) }
+                    }
             }
             .frame(height: height)
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
             .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 4)
             .animation(.easeInOut(duration: 0.15), value: scrollTop)
+        }
+
+        private func siblingButton(_ navigation: SettingsChildSiblingNavigation, previous: Bool) -> some View {
+            Button(action: navigation.onSelect) {
+                // AppDetailsHeader renders Lucide ChevronLeft/Right at 22px.
+                Path { path in
+                    path.move(to: CGPoint(x: previous ? 13.75 : 8.25, y: 5.5))
+                    path.addLine(to: CGPoint(x: previous ? 8.25 : 13.75, y: 11))
+                    path.addLine(to: CGPoint(x: previous ? 13.75 : 8.25, y: 16.5))
+                }
+                .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 22.0 / 12.0, lineCap: .round, lineJoin: .round))
+                .frame(width: 22, height: 22)
+                .frame(width: 40, height: height)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(SettingsSiblingArrowStyle(previous: previous))
+            .disabled(!allowsBack)
+            .accessibilityLabel(navigation.title)
+            .accessibilityIdentifier(previous ? "settings-memory-previous-category" : "settings-memory-next-category")
+        }
+        private struct SettingsSiblingArrowStyle: ButtonStyle {
+            let previous: Bool
+            @State private var hovered = false
+            func makeBody(configuration: Configuration) -> some View {
+                configuration.label.background(Color.white.opacity(configuration.isPressed ? 0.18 : hovered ? 0.1 : 0))
+                    .onHover { hovered = $0 }
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: previous ? 0 : 10,
+                        bottomLeadingRadius: previous ? 0 : 10, bottomTrailingRadius: previous ? 10 : 0,
+                        topTrailingRadius: previous ? 10 : 0))
+            }
         }
 
         @ViewBuilder
@@ -902,40 +1167,62 @@ struct SettingsView: View {
                 .padding(.horizontal, .spacing8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             } else {
-                VStack(spacing: .spacing5) {
+                VStack(spacing: isMobile ? .spacing3 : .spacing5) {
                     bannerIcon
-                    bannerTitle(alignment: .center, lineLimit: 2)
+                    VStack(spacing: 0) {
+                        bannerTitle(alignment: .center, lineLimit: 2)
+                        if let typeLabel {
+                            Text(typeLabel).font(Font.custom("Lexend Deca", size: titleSize).weight(.semibold))
+                                .foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                                .frame(height: titleSize * 1.25)
+                        }
+                    }
                 }
                 .padding(.horizontal, .spacing8)
+                .padding(.bottom, isMobile ? .spacing2 : 0)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
         }
 
         @ViewBuilder
         private var detailsBlock: some View {
-            if !destination.description.isEmpty {
-                Text(destination.description)
-                    .font(.omSmall.weight(.semibold))
+            let description = descriptionOverride ?? destination.description
+            if !description.isEmpty {
+                Text(description)
+                    .font((isMobile ? Font.omXs : .omSmall).weight(.semibold))
                     .foregroundStyle(Color.fontButton)
                     .multilineTextAlignment(.center)
-                    .lineLimit(3)
+                    .lineLimit(isMobile ? 2 : 3)
+                    // Mobile CSS line-height:1.2 gives 15.6pt at 13pt.
+                    // Bundled Lexend SemiBold hhea metrics give a 16.25pt
+                    // line box at 13pt; tighten the interline gap accordingly.
+                    .lineSpacing(isMobile ? 15.6 - 16.25 : 0)
                     .opacity(detailsOpacity)
                     .padding(.horizontal, .spacing8)
-                    .padding(.top, .spacing5)
+                    .padding(.top, isMobile ? 0 : .spacing5)
+                    .padding(.bottom, isMobile ? .spacing4 : 0)
+                    .frame(maxHeight: isMobile ? CGFloat.infinity : nil)
             }
         }
 
+        @ViewBuilder
         private var bannerIcon: some View {
-            Icon(destination.icon, size: iconSize)
-                .foregroundStyle(Color.white.opacity(0.95))
+            if let mateArtworkName {
+                Image(mateArtworkName).resizable().scaledToFill()
+                    .frame(width: min(38, iconSize), height: min(38, iconSize)).clipShape(Circle())
+            } else {
+                Icon(iconOverride ?? destination.icon, size: iconSize)
+                    .foregroundStyle(Color.white.opacity(0.95))
+            }
         }
 
         private func bannerTitle(alignment: TextAlignment, lineLimit: Int) -> some View {
-            Text(destination.title)
+            Text(titleOverride ?? destination.title)
                 .font(Font.custom("Lexend Deca", size: titleSize).weight(.bold))
                 .foregroundStyle(Color.fontButton)
                 .multilineTextAlignment(alignment)
                 .lineLimit(lineLimit)
+                .lineSpacing(isMobile ? titleSize * (1.15 - 1.25) : 0)
         }
     }
 
@@ -944,7 +1231,7 @@ struct SettingsView: View {
     @MainActor
     private enum SettingsDestination: Hashable {
         // Top-level menu items (matching web settingsRoutes.ts order)
-        case pricing, ai, memories, apps, privacy, projects, mates
+        case pricing, ai, memories, privacy, projects, teams, mates
         case billing, notifications, shared, interface, learningMode
         case account, developers, newsletter, support, reportIssue
         case serverConnection
@@ -957,9 +1244,9 @@ struct SettingsView: View {
             case .pricing: return AppStrings.settingsPricing
             case .ai: return AppStrings.settingsAI
             case .memories: return AppStrings.settingsMemories
-            case .apps: return AppStrings.settingsApps
             case .privacy: return AppStrings.settingsPrivacy
             case .projects: return AppStrings.projects
+            case .teams: return AppStrings.localized("settings.teams")
             case .mates: return AppStrings.settingsMates
             case .billing: return AppStrings.settingsBilling
             case .notifications: return AppStrings.settingsNotifications
@@ -985,9 +1272,9 @@ struct SettingsView: View {
             case .pricing: return "pricing"
             case .ai: return "ai"
             case .memories: return "settings_memories"
-            case .apps: return "app_store"
             case .privacy: return "privacy"
             case .projects: return "project"
+            case .teams: return "team"
             case .mates: return "mates"
             case .billing: return "billing"
             case .notifications: return "notifications"
@@ -1019,9 +1306,9 @@ struct SettingsView: View {
             case .pricing: return "pricing"
             case .ai: return "ai"
             case .memories: return "memories"
-            case .apps: return "apps"
             case .privacy: return "privacy"
             case .projects: return "projects"
+            case .teams: return "teams"
             case .mates: return "mates"
             case .billing: return "billing"
             case .notifications: return "notifications"
@@ -1047,9 +1334,9 @@ struct SettingsView: View {
             case .pricing: return LocalizationManager.shared.text("settings.pricing.description")
             case .ai: return LocalizationManager.shared.text("settings.ai.description")
             case .memories: return LocalizationManager.shared.text("settings.settings_memories.description")
-            case .apps: return LocalizationManager.shared.text("settings.app_store.description")
             case .privacy: return LocalizationManager.shared.text("settings.privacy.description")
             case .projects: return LocalizationManager.shared.text("settings.projects.loading_description")
+            case .teams: return ""
             case .mates: return LocalizationManager.shared.text("settings.mates.description")
             case .billing: return LocalizationManager.shared.text("settings.billing.description")
             case .notifications: return LocalizationManager.shared.text("settings.notifications.description")
@@ -1075,9 +1362,9 @@ struct SettingsView: View {
             case .pricing: SettingsPricingView()
             case .ai: SettingsAIFullView()
             case .memories: SettingsMemoriesFullView()
-            case .apps: SettingsAppsFullView()
             case .privacy: SettingsPrivacySubPage()
             case .projects: SettingsProjectsView()
+            case .teams: SettingsTeamsView()
             case .mates: SettingsMatesView()
             case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()
@@ -1127,6 +1414,9 @@ private struct SettingsMainBanner: View {
     let isAuthenticated: Bool
     let credits: Double?
     let scrollTop: CGFloat
+    let onAvatarClick: () -> Void
+    let onUsernameClick: () -> Void
+    let onBillingClick: () -> Void
 
     private var progress: CGFloat {
         let raw = min(1, max(0, scrollTop / 60))
@@ -1141,23 +1431,26 @@ private struct SettingsMainBanner: View {
     var body: some View {
         ZStack {
             LinearGradient.appOpenmates
+                .allowsHitTesting(false)
 
             Circle()
                 .fill(Color.white.opacity(0.18))
                 .frame(width: 220, height: 220)
                 .blur(radius: 24)
                 .offset(x: -70, y: -70)
+                .allowsHitTesting(false)
 
             Circle()
                 .fill(Color.white.opacity(0.14))
                 .frame(width: 190, height: 190)
                 .blur(radius: 24)
                 .offset(x: 90, y: 78)
+                .allowsHitTesting(false)
 
             Group {
                 if isCollapsed {
                     HStack(spacing: .spacing6) {
-                        avatar
+                        avatarControl
 
                         VStack(alignment: .leading, spacing: .spacing2) {
                             usernameText
@@ -1167,38 +1460,77 @@ private struct SettingsMainBanner: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     VStack(spacing: .spacing4) {
-                        avatar
-                        usernameText
-                        creditsView
+                        avatarControl
+                        VStack(spacing: .spacing2) {
+                            usernameText
+                            creditsView
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             .padding(.horizontal, .spacing8)
+            .padding(.top, isCollapsed ? 0 : .spacing8)
+            .padding(.bottom, isCollapsed ? 0 : .spacing2)
         }
         .frame(height: height)
+        .contentShape(Rectangle())
         .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
         .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 4)
+        .accessibilityIdentifier("settings-main-header")
     }
 
+    @ViewBuilder
     private var usernameText: some View {
+        if isAuthenticated {
+            Button(action: onUsernameClick) {
+                usernameLabel
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.username)
+            .accessibilityIdentifier("settings-profile-username")
+        } else {
+            usernameLabel
+        }
+    }
+
+    private var usernameLabel: some View {
         Text(username)
             .font(Font.custom("Lexend Deca", size: nameSize).weight(.bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.fontButton)
             .lineLimit(1)
     }
 
     @ViewBuilder
+    private var avatarControl: some View {
+        if isAuthenticated {
+            Button(action: onAvatarClick) { avatar }
+                .buttonStyle(.plain)
+                .accessibilityLabel(AppStrings.profilePicture)
+                .accessibilityIdentifier("settings-profile-avatar")
+        } else {
+            avatar
+        }
+    }
+
+    @ViewBuilder
     private var creditsView: some View {
-        if isAuthenticated, let credits {
-            HStack(spacing: .spacing3) {
-                Icon("coins", size: 19)
-                    .foregroundStyle(.white)
-                Text(AppStrings.creditsAmount(Self.formatCredits(credits)))
-                    .font(.omSmall.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
+        if isAuthenticated {
+            Button(action: onBillingClick) {
+                HStack(spacing: .spacing3) {
+                    Icon("coins", size: isCollapsed ? 13 : 16)
+                        .foregroundStyle(Color.fontButton.opacity(0.9))
+                    Text(AppStrings.creditsAmount(Self.formatCredits(credits ?? 0)))
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.fontButton)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, .spacing3)
+                .padding(.vertical, .spacing1)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.settingsBilling)
+            .accessibilityIdentifier("settings-profile-credits")
         }
     }
 
@@ -1231,10 +1563,10 @@ private struct SettingsMainBanner: View {
 
     private var defaultAvatar: some View {
         Circle()
-            .fill(Color.white.opacity(isAuthenticated ? 0.22 : 0.28))
+            .fill(Color.fontButton.opacity(isAuthenticated ? 0.2 : 0.25))
             .frame(width: avatarSize, height: avatarSize)
             .overlay {
-                Icon("user", size: avatarSize * 0.61)
+                Icon("user", size: avatarSize * 0.55)
                     .foregroundStyle(.white)
             }
             .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)

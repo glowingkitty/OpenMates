@@ -15,6 +15,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history
     func testUnauthenticatedChatListExposesManagementIdentifiers() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-shell-metrics"]
@@ -38,6 +39,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Public chat management identifiers")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-share-settings.generated-link-controls
     func testChatSharePreviewGeneratesLinkQRCodeAndOpensSystemShareSheet() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-share"]
@@ -73,6 +75,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Native chat share sheet")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell,settings-ui.composition.canonical-and-accessible
     func testChatShareConfigurationMatchesWebContract() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-share"]
@@ -99,6 +102,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Chat share configuration")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell,settings-ui.composition.canonical-and-accessible
     func testEmbedShareConfigurationMatchesWebContract() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "embed-share"]
@@ -121,6 +125,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Embed share configuration")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chat-share-settings.shell-navigation
     func testChatShareSettingsOpenAsNestedSettingsDestination() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -131,13 +136,21 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(
-            accessibilityElement(in: app, identifier: "settings-shared-share-settings").waitForExistence(timeout: 15),
-            "Sharing a chat must open the nested Shared settings destination, not an app overlay."
+            accessibilityElement(in: app, identifier: "chat-settings-header").waitForExistence(timeout: 15),
+            "Sharing a chat must open its native Chat Settings page."
         )
-        XCTAssertTrue(accessibilityElement(in: app, identifier: "settings-destination-back").exists)
+        XCTAssertTrue(app.buttons["chat-settings-tab-share"].isSelected)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-generate-link").exists)
+        let back = app.buttons["banner-back-button"]
+        XCTAssertTrue(back.isHittable)
+        back.tap()
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "settings-menu").waitForExistence(timeout: 5))
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "settings-main-header").exists)
+        XCTAssertFalse(accessibilityElement(in: app, identifier: "chat-settings-header").exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership,message-input.layout.responsive-parity
     func testSafariShareSheetSendsURLThroughOpenMatesExtension() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
@@ -200,6 +213,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Safari share to OpenMates extension completed")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testSafariShareSheetShowsUnifiedOpenMatesComposer() throws {
         registerShareExtensionHostApp()
 

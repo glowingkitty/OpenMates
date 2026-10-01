@@ -1,8 +1,9 @@
 // Simulator coverage for background chat notification behavior.
 // The host helper injects generic server-shaped payloads only after this test
-// requests a named scenario. APNs provider delivery, device-token registration,
-// notification-extension keychain access, and unread-store observability remain
-// external to Simulator coverage. Credentials and chat identifiers are never logged.
+// requests a named scenario. This injection helper does not prove provider
+// delivery, real device-token registration, or encrypted extension processing.
+// Compatible Simulators can register real APNs tokens and test those paths
+// separately. Credentials and chat identifiers are never logged.
 
 import Foundation
 import XCTest
@@ -16,6 +17,44 @@ final class BackgroundChatNotificationUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+    }
+
+    // Uses an actual DEV account, inference completion and APNs delivery. There
+    // is deliberately no host injection helper in this scenario.
+    // contract-test: direct surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible
+    func testLiveDevCompletionDeliversAfterBackgroundAndOpensSentChat() throws {
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(extraArguments: ["--ui-test-fresh-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.openNewChatIfNeeded(app: app)
+        guard let editor = RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 20) else {
+            XCTFail("The live DEV chat composer did not open")
+            return
+        }
+        XCTAssertEqual(editor.value as? String, "", "Preserve any unrelated existing draft")
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        let prompt = "apple-watch-notification-6dc7: Reply with exactly WATCH6DC7 completed."
+        app.typeText(prompt)
+        XCTAssertEqual(editor.value as? String, prompt)
+        let send = app.buttons["send-button"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
+        XCUIDevice.shared.press(.home)
+        let board = springBoard()
+        let delivered = board.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@ OR label == %@", "WATCH6DC7 completed", notificationBody)
+        ).firstMatch
+        XCTAssertTrue(delivered.waitForExistence(timeout: 120),
+                      "No actual completion notification appeared after backgrounding the DEV app")
+        attachScreenshot(named: "Actual DEV completion notification after background")
+        delivered.tap()
+        XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
+            in: app, identifier: "message-user", labelContaining: prompt
+        ).waitForExistence(timeout: 30), "The notification must open this sent chat")
+        XCTAssertTrue(RealAccountUITestSupport.accessibilityElement(
+            in: app, identifier: "message-assistant", labelContaining: "WATCH6DC7 completed"
+        ).waitForExistence(timeout: 30))
     }
 
     // contract-test: direct surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.action.routing-coherent,apple-notifications.delivery.idempotent-visible

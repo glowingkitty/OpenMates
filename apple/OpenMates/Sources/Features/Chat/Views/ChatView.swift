@@ -613,6 +613,8 @@ struct ChatView: View {
                         incognitoSessionBanner
                     }
 
+                    AssistantSpeechPlayerHostView(chatID: chatId, viewportWidth: chatContainerWidth)
+
                     messageList
                         .simultaneousGesture(
                             TapGesture().onEnded {
@@ -722,6 +724,9 @@ struct ChatView: View {
         decoratedChatView
         .onAppear(perform: handleInitialAppear)
         .onChange(of: inputFocusRequest) { _, _ in
+            if let mention = SettingsComposerHandoff.consume() {
+                messageText = SettingsComposerHandoff.appending(mention: mention, to: messageText)
+            }
             handleInputFocusRequestChange()
         }
         .onChange(of: cameraCaptureRequest) { _, _ in
@@ -1361,6 +1366,9 @@ struct ChatView: View {
                                         },
                                         onOpenMateSettings: onOpenMateSettings,
                                         onOpenModelSettings: onOpenModelSettings,
+                                        onSpeak: canSpeakAssistantMessage(message) ? {
+                                            speakAssistantMessage(message)
+                                        } : nil,
                                         onShowActions: {
                                             actionMessage = message
                                         },
@@ -2263,6 +2271,13 @@ struct ChatView: View {
                 }
                 .accessibilityIdentifier("message-action-copy")
 
+                if canSpeakAssistantMessage(message) {
+                    messageActionRow(icon: "assistant-speech-audio", title: LocalizationManager.shared.text("chat.assistant_speech.speak_response")) {
+                        actionMessage = nil
+                        speakAssistantMessage(message)
+                    }.accessibilityIdentifier("message-action-speak")
+                }
+
                 messageActionRow(icon: "copy", title: AppStrings.forkConversation) {
                     Task { await viewModel.forkFromMessage(message.id) }
                     actionMessage = nil
@@ -2308,6 +2323,28 @@ struct ChatView: View {
             .contentShape(RoundedRectangle(cornerRadius: .radiusFull))
         }
         .buttonStyle(.plain)
+    }
+
+    private func canSpeakAssistantMessage(_ message: Message) -> Bool {
+        guard message.role == .assistant, !viewModel.isStreamingMessage(message.id),
+              message.isStreaming != true, !IncognitoChatSession.isIncognitoChatId(chatId) else { return false }
+        if isDemoOrLegalChat || isExampleChat {
+            return !PublicAssistantSpeechManifest.segments(chatID: chatId, nativeMessageID: message.id).isEmpty
+        }
+        return authManager.state == .authenticated
+    }
+    private func speakAssistantMessage(_ message: Message) {
+        guard canSpeakAssistantMessage(message) else { return }
+        if isDemoOrLegalChat || isExampleChat {
+            let fixtures = PublicAssistantSpeechManifest.segments(chatID: chatId, nativeMessageID: message.id)
+            Task { await AssistantSpeechAppRuntime.shared.playPublicExample(chatID: chatId, messageID: message.id, fixtures: fixtures) }
+        } else {
+            Task {
+                await AssistantSpeechAppRuntime.shared.controller(for: chatId).request(
+                    messageID: message.id, markdown: message.content ?? "",
+                    mateName: message.senderName ?? "OpenMates", mateCategory: message.category ?? "default")
+            }
+        }
     }
 
     private func copyMessage(_ message: Message) {
@@ -4428,8 +4465,11 @@ struct MessageBubble: View {
     let onInteractiveQuestionSubmit: ((String) -> Void)?
     var onOpenMateSettings: ((String) -> Void)? = nil
     var onOpenModelSettings: ((String) -> Void)? = nil
+    var onSpeak: (() -> Void)? = nil
     let onShowActions: (() -> Void)?
     var accessibilityIdentifier: String? = nil
+    /// Recipient transcripts use an ephemeral scope instead of the owner's cache scope.
+    var renderScopeID: String? = nil
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var isUser: Bool { message.role == .user }
@@ -4499,7 +4539,7 @@ struct MessageBubble: View {
         let content = isPIIRevealed && !piiMappings.isEmpty
             ? PIIDetector.restorePII(in: raw, mappings: piiMappings) : raw
         return ProgressiveMarkdownRequest(
-            identity: ProgressiveMarkdownIdentity(scopeID: OfflineStore.shared.scopeGeneration.uuidString,
+            identity: ProgressiveMarkdownIdentity(scopeID: renderScopeID ?? OfflineStore.shared.scopeGeneration.uuidString,
                 chatID: chatId, messageID: message.id),
             content: content, isStreaming: streamingContent != nil,
             renderDocument: stableRenderDocument, embedRefs: message.embedRefs ?? [])
@@ -4807,7 +4847,12 @@ struct MessageBubble: View {
             if !displayContent.isEmpty || thinkingContent?.isEmpty == false || !topLevelAppSkillEmbeds.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: .spacing3) {
-                        assistantIdentity(.mateName)
+                        HStack(spacing: .spacing2) {
+                            assistantIdentity(.mateName)
+                            if let onSpeak, message.isStreaming != true {
+                                AssistantMessageSpeakButton(action: onSpeak)
+                            }
+                        }
 
                         if let thinkingContent, !thinkingContent.isEmpty {
                             ThinkingSectionView(

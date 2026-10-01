@@ -36,6 +36,29 @@ enum ChatSidebarDisplayPolicy {
         return visible
     }
 
+    struct Snapshot {
+        let visibleChats: [Chat]
+        let groups: [Group]
+        let filteredCount: Int
+        let shouldShowMore: Bool
+    }
+
+    /// The caller supplies one filtered, ordered chat snapshot. Derive every
+    /// sidebar consumer from that same input before entering draft observation.
+    static func snapshot(sortedUserChats: [Chat], appliesDisplayLimit: Bool,
+                         limit: Int, selectedChatID: String?, lastActiveChatID: String?,
+                         totalChatCount: Int, serverChatPagesExhausted: Bool,
+                         now: Date = Date(), calendar: Calendar = gregorianCalendar) -> Snapshot {
+        let visible = appliesDisplayLimit
+            ? visibleChats(sortedUserChats: sortedUserChats, limit: limit,
+                           selectedChatID: selectedChatID, lastActiveChatID: lastActiveChatID)
+            : sortedUserChats
+        let count = sortedUserChats.count
+        return Snapshot(visibleChats: visible, groups: groups(visible, now: now, calendar: calendar),
+            filteredCount: count, shouldShowMore: appliesDisplayLimit &&
+                (count > limit || (!serverChatPagesExhausted && totalChatCount > count)))
+    }
+
     static func nextLimit(after limit: Int) -> Int {
         max(0, limit) > Int.max - increment ? Int.max : max(0, limit) + increment
     }

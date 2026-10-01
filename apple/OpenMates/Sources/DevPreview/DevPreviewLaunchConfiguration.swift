@@ -81,6 +81,7 @@ enum DevPreviewComponent: String, CaseIterable, Hashable {
     case projects
     case workflows
     case notification
+    case sharedRecipient = "shared-recipient"
 
     var descriptor: DevPreviewComponentDescriptor { DevPreviewComponentRegistry.descriptor(for: self) }
 }
@@ -108,7 +109,7 @@ enum DevPreviewComponentRegistry {
     static func descriptor(for component: DevPreviewComponent) -> DevPreviewComponentDescriptor {
         switch component {
         case .composer:
-            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "default", "focused", "filled", "attachment", "disabled", "search-suggestions"], hostSupport: .componentHost)
+            return .init(component: component, webComponentPath: "enter_message/MessageInput", nativeRendererNames: ["MessageComposerView", "NativeComposerSession"], variants: ["model", "default", "focused", "filled", "attachment", "disabled", "search-suggestions", "assistant-speech", "assistant-speech-public", "chat-settings", "chat-settings-usage", "chat-settings-plans", "chat-settings-shared", "chat-settings-public", "chat-settings-export-control"], hostSupport: .componentHost)
         case .chatHeader:
             return .init(component: component, webComponentPath: "ChatHeader", nativeRendererNames: ["ChatBannerView"], variants: ["default", "loading", "incognito", "draft", "long-title"], hostSupport: .componentHost)
         case .followUpSuggestions:
@@ -135,6 +136,8 @@ enum DevPreviewComponentRegistry {
             return .init(component: component, webComponentPath: "projects/ProjectsPage", nativeRendererNames: ["ProjectsWorkspaceView", "ProjectsSidebarView"], variants: ["default", "landing", "folders", "readme", "tasks", "connectedSource", "localFolderSource", "multipleSources", "largeConnectedSource", "legacyConnectedSource", "sidebar"], hostSupport: .componentHost)
         case .notification:
             return .init(component: component, webComponentPath: "Notification", nativeRendererNames: ["InAppNotificationCard"], variants: ["default", "connection", "progress", "stack"], hostSupport: .componentHost)
+        case .sharedRecipient:
+            return .init(component: component, webComponentPath: "chats/SharedChatRecipientPreviewHarness", nativeRendererNames: ["SharedChatRecipientView"], variants: ["default", "loading", "password", "invalidPassword", "error", "ready", "target", "embed", "imageSiblings"], hostSupport: .componentHost)
         case .workflows:
             return .init(component: component, webComponentPath: "workflows/WorkflowTemplateShare", nativeRendererNames: ["WorkflowShortTemplatePreviewHost", "WorkflowTemplateImportPanel", "WorkflowHomeView"], variants: ["short-template", "home"], hostSupport: .componentHost)
         }

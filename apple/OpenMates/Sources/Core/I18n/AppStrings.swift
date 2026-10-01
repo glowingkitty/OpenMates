@@ -24,7 +24,8 @@ enum AppStrings {
     static var pricing: String { L("common.pricing") }
     static var back: String { L("common.back") }
     static var showLess: String { L("common.show_less") }
-    static var next: String { L("common.next") }
+    // Reuse the catalog's translated navigation action; common.next is absent.
+    static var next: String { L("projects.workspace_next") }
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
     static var quickActionAsk: String { L("activity.quick_action_ask") }

@@ -325,8 +325,25 @@ async def _send_push_notification_if_enabled(
     cache_service: CacheService = app.state.cache_service
     cached_user = await cache_service.get_user_by_id(user_id)
     if not cached_user:
-        logger.debug(f"{log_prefix} User not in cache, skipping push")
-        return False
+        # Native registration invalidates this profile after saving its targets.
+        # Completion may arrive before another request repopulates the cache.
+        directus_service = getattr(app.state, "directus_service", None)
+        if directus_service is None:
+            logger.warning(f"{log_prefix} Durable push settings unavailable")
+            return False
+        cached_user = await directus_service.get_user_fields_direct(
+            user_id,
+            [
+                "push_notification_enabled",
+                "push_notification_subscription",
+                "push_notification_preferences",
+            ],
+        )
+        if not isinstance(cached_user, dict):
+            logger.debug(f"{log_prefix} No durable push settings, skipping push")
+            return False
+        # Keep this narrow projection local; writing it as a complete user cache
+        # would overwrite unrelated profile fields or a concurrent cache refill.
 
     push_enabled = cached_user.get("push_notification_enabled", False)
     if not push_enabled:
