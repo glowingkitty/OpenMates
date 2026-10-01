@@ -51,6 +51,7 @@ import {
   parseSecretEnvKey,
   redactEnvValue,
   resolveServiceSelection,
+  resolveTemplateSource,
   resolveRuntimeDeploymentMode,
   shouldAutoInstallRuntimeMonitoringServices,
   shouldCheckWebHealth,
@@ -64,12 +65,14 @@ import {
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
 import { applyCaddyPathUpdate, caddyHostOperation, verifyCaddyCoreRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
+  CMS_CACHE_INSPECT_FORMAT,
   applyRuntimeCheckResults,
   buildOperationalDeliveryReceipt,
   buildUpdateCompletionOutcome,
   deliverUpdateCompletionEmail,
   deliverRuntimeNotification,
   evaluateOperationalReportFreshness,
+  evaluateCmsCacheConsistency,
   evaluateRuntimeHeartbeat,
   evaluateRuntimeWatchdog,
   planOperationalMonitoring,
@@ -812,21 +815,29 @@ function fileHash(path: string): string | null {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
-async function loadSelfHostComposeTemplate(templateRef: string, role: ServerRole): Promise<string> {
+export async function loadSelfHostComposeTemplate(
+  templateRef: string,
+  role: ServerRole,
+  imageTag: string,
+  packageVersion = getPackageVersion(),
+): Promise<string> {
   const templateDir = process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
   if (templateDir) {
     return readFileSync(join(resolve(templateDir), ROLE_TEMPLATE_FILES[role]), "utf-8");
   }
 
-  const overrideUrl = process.env.OPENMATES_SELFHOST_COMPOSE_URL;
-  if (overrideUrl) {
-    return fetchText(overrideUrl);
-  }
-
   const packaged = packagedTemplatePath(role);
-  if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
-
-  return fetchText(`https://raw.githubusercontent.com/glowingkitty/OpenMates/${templateRef}/${ROLE_IMAGE_COMPOSE_FILES[role]}`);
+  const source = resolveTemplateSource({
+    role,
+    packagedTemplateExists: existsSync(packaged),
+    templateUrl: process.env.OPENMATES_SELFHOST_COMPOSE_URL,
+    templateRef,
+    imageTag,
+    packageVersion,
+  });
+  if (source.type === "packaged") return readFileSync(packaged, "utf-8");
+  if (source.type === "url") return fetchText(source.url);
+  return fetchText(`https://raw.githubusercontent.com/glowingkitty/OpenMates/${source.ref}/${source.path}`);
 }
 
 async function writeImageModeRuntimeFiles(installPath: string, imageTag: string, role: ServerRole): Promise<void> {
@@ -834,7 +845,7 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   const vaultConfigDir = join(roleDir, "vault", "config");
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
-  writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
+  writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role, imageTag));
   if (role === "core") {
     writeFileSync(join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE), readOfficialCloudNoWebappComposeTemplate());
   }
@@ -2410,6 +2421,33 @@ type RuntimeVerifierOutput = {
   restoreStatus?: "available" | "restore_unavailable";
 };
 
+function inspectCmsCacheConsistency(
+  installPath: string,
+  withOverrides: boolean,
+  installMode: NonNullable<ServerConfig["installMode"]>,
+): RuntimeVerifierOutput["checks"][number] {
+  const composeResult = spawnSync(
+    "docker",
+    [...composeArgs(installPath, withOverrides, installMode, "core"), "ps", "-q", "cms"],
+    { cwd: installPath, encoding: "utf-8", timeout: 5_000 },
+  );
+  const containerIds = composeResult.status === 0 ? composeResult.stdout.trim().split(/\s+/).filter(Boolean) : [];
+  const containerId = containerIds.length === 1 ? containerIds[0] : undefined;
+  if (!containerId) {
+    return evaluateCmsCacheConsistency({ containerFound: false, inspectionSucceeded: false, filteredEnvironment: "" });
+  }
+  const inspectResult = spawnSync(
+    "docker",
+    ["inspect", "--format", CMS_CACHE_INSPECT_FORMAT, containerId],
+    { cwd: installPath, encoding: "utf-8", timeout: 5_000 },
+  );
+  return evaluateCmsCacheConsistency({
+    containerFound: true,
+    inspectionSucceeded: inspectResult.status === 0,
+    filteredEnvironment: inspectResult.status === 0 ? inspectResult.stdout : "",
+  });
+}
+
 function runRuntimeVerification(installPath: string, role: ServerRole, config: ServerConfig | null): RuntimeVerifierOutput {
   const envText = existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "";
   const mode = resolveRuntimeDeploymentMode({
@@ -2437,6 +2475,11 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
     throw new Error(`Runtime verifier returned invalid output (${result.status ?? "unknown"}).`);
   }
   output.checks = output.checks.map((check) => ({ ...check, failureClass: check.failureClass ?? check.failure_class }));
+  if (role === "core") {
+    const cmsCacheCheck = inspectCmsCacheConsistency(installPath, withOverrides, installMode);
+    output.checks.push(cmsCacheCheck);
+    if (cmsCacheCheck.status !== "passed") output.status = "failed";
+  }
   if (mode.effectiveMode === "official_cloud") {
     const destinations = runtimeNotificationConfig(installPath);
     const configuredCount = [destinations.email, destinations.discordWebhookUrl, destinations.genericWebhook].filter(Boolean).length;

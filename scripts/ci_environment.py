@@ -73,6 +73,16 @@ pathlib.Path('/vault-data/api.token').write_text(response.json()['auth']['client
 validation=asyncio.run(validate_token_file('http://vault:8200','/vault-data/api.token'))
 assert validation.valid, 'Synthetic API token failed canonical startup validation: '+validation.reason
 pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
+if os.environ.get('CI_UPLOADS') == '1':
+    import httpx
+    from backend.upload.vault import setup_vault
+    from backend.upload.vault.token_maintenance import renew_api_token
+    async def upload_token():
+        async with httpx.AsyncClient(timeout=15) as client:
+            await setup_vault.create_policy(client, token)
+            await setup_vault.create_or_reuse_api_token(client, token)
+            await renew_api_token(client, 'http://vault:8200', setup_vault.API_TOKEN_FILE)
+    asyncio.run(upload_token())
 """
 
 
@@ -387,6 +397,8 @@ def compose_profile(
             services[name]["depends_on"]["object-storage"] = {"condition": "service_healthy"}
         services["vault-init"]["environment"].update(CI_STORAGE_ACCESS_KEY=credentials["storage_key"], CI_STORAGE_SECRET_KEY=credentials["storage_secret"])
     if uploads:
+        services["vault-init"]["environment"]["CI_UPLOADS"] = "1"
+        services["vault-init"]["volumes"].append("upload-vault-token:/app/app-data")
         services["clamav"] = {
             "image": "clamav/clamav-debian@sha256:5037bae34bf7566052d18f30be1e351155bfce845a583f0c08027f9fcaa44b5d",
             "environment": {"CLAMAV_NO_FRESHCLAMD": "false", "CLAMAV_NO_CLAMD": "false", "CLAMAV_NO_MILTERD": "true"},
@@ -405,7 +417,7 @@ def compose_profile(
                 f"{SOURCE}/backend/shared/python_utils:/app/backend_shared/python_utils:ro",
                 f"{SOURCE}/config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro",
                 f"{SOURCE}/backend/upload/vault/wait-for-vault.sh:/app/wait-for-vault.sh:ro",
-                {"type": "volume", "source": "vault-tokens", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}},
+                {"type": "volume", "source": "upload-vault-token", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}},
             ],
             "ports": ["127.0.0.1:8001:8000"], "mem_limit": 1024 * MIB,
             "depends_on": {"clamav": {"condition": "service_healthy"}, "object-storage": {"condition": "service_healthy"}, "vault-init": {"condition": "service_completed_successfully"}, "api": {"condition": "service_healthy"}},

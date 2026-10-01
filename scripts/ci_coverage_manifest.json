@@ -67,6 +67,7 @@
         "recent-chats-dedup.spec.ts",
         "recovery-key-login-flow.spec.ts",
         "recovery-key-settings.spec.ts",
+        "session-503-inspiration-recovery.spec.ts",
         "session-revoke-flow.spec.ts",
         "settings-privacy-pii-deep-link.spec.ts",
         "settings-translation-coverage.spec.ts",

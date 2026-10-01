@@ -54,6 +54,7 @@ import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 import { captureReferralCodeFromUrl, submitPendingReferralCode } from "../services/referralService";
 import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
+import { dailyInspirationStore } from "./dailyInspirationStore";
 
 // Import core auth state and related flags
 import {
@@ -1192,6 +1193,7 @@ async function performAuthCheck(
           "[AuthSessionActions] ✅ Local user data found - assuming authenticated (offline-first mode)",
         );
 
+        const wasAuthenticated = get(authStore).isAuthenticated;
         authStore.update((state) => ({
           ...state,
           isAuthenticated: true,
@@ -1208,18 +1210,26 @@ async function performAuthCheck(
         // so IndexedDB decryption will succeed immediately — giving near-instant restoration
         // without waiting for Phase 1 to complete.
         //
-        // loadDefaultInspirations is idempotent: if the store is already populated (because
-        // the disruption was brief and the store survived intact) it exits immediately.
-        void import("../demo_chats/loadDefaultInspirations")
-          .then(({ loadDefaultInspirations }) =>
-            loadDefaultInspirations({ allowIndexedDB: true }),
-          )
-          .catch((error) => {
-            console.error(
-              "[AuthSessionActions] Failed to restore inspirations after offline-first re-auth:",
-              error,
-            );
-          });
+        // Repeated session 503s can reach this path on every WebSocket retry.
+        // An existing authenticated set may be a public fallback that the loader
+        // considers incomplete; reloading it repeatedly swaps the carousel.
+        const inspirationState = get(dailyInspirationStore);
+        if (
+          !wasAuthenticated ||
+          inspirationState.inspirations.length === 0 ||
+          inspirationState.source === "guest-onboarding"
+        ) {
+          void import("../demo_chats/loadDefaultInspirations")
+            .then(({ loadDefaultInspirations }) =>
+              loadDefaultInspirations({ allowIndexedDB: true }),
+            )
+            .catch((error) => {
+              console.error(
+                "[AuthSessionActions] Failed to restore inspirations after offline-first re-auth:",
+                error,
+              );
+            });
+        }
 
         // Start clientLogForwarder for admin users in offline-first mode.
         // The normal (online) path starts the forwarder in checkAuth()'s happy path.

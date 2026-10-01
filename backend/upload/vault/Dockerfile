@@ -6,7 +6,7 @@
 #   2. Auto-unseal Vault using the saved unseal key (subsequent restarts)
 #   3. Enable KV v2 engine
 #   4. Create read-only uploads-service policy
-#   5. Create or reuse scoped API token (saved to vault-setup-data volume)
+#   5. Create or reuse periodic scoped API token (saved to vault-app-data volume)
 #   6. Migrate SECRET__* env vars into Vault KV (idempotent)
 #
 # Exits after setup completes (restart: on-failure handles retries).

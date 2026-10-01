@@ -93,7 +93,7 @@ Client receives the plaintext AES key + S3 metadata, builds an embed TOON, clien
 
 ```
 UPLOADS VM                              MAIN SERVER
-  app-uploads -> local Vault (dev mode)   core API -> main Vault (Transit only)
+  app-uploads -> local Vault (file storage) core API -> main Vault (Transit only)
        |           S3 creds                        -> Directus
        |           SightEngine creds
        +-> core API /internal/uploads/*
@@ -102,7 +102,11 @@ UPLOADS VM                              MAIN SERVER
 
 **Compromise blast radius:** Attacker gets S3 write creds + SightEngine keys only. Cannot decrypt existing files, access user data, or reach main Vault.
 
-**Local Vault:** Dev mode (in-memory, auto-unsealed) Docker sidecar. `vault-setup` init container migrates `SECRET__*` env vars into KV v2. Only two KV paths: `kv/data/providers/hetzner` (S3) and `kv/data/providers/sightengine`.
+**Local Vault:** A Docker sidecar with persistent file storage. The `vault-setup` init container initializes and unseals it, then migrates `SECRET__*` env vars into KV v2. Provider credentials live at `kv/data/providers/hetzner` (S3) and `kv/data/providers/sightengine`.
+
+Setup issues a scoped seven-day periodic API token. The upload app validates and renews it at startup and every 12 hours, retrying transient renewal failures every five minutes. Ordinary renewable tokens still expire at Vault's maximum TTL; setup replaces them during an update. The setup-only volume retains `root.token`; a separate app volume contains the scoped API token and the unseal key used by the startup gate. Updates that introduce this volume must run the new `vault-setup` image before starting the new upload app.
+
+The upload image explicitly packages the shared media-encryption and object-storage-region utilities. Its build imports `backend.upload.main` from the image filesystem so a missing runtime dependency fails before publication.
 
 ### Encryption Model
 

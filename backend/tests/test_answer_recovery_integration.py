@@ -38,6 +38,7 @@ ATTACHMENT_URL = (
 )
 CITATION_URL = "https://evidence.test/source-1"
 EMBED_REFERENCE = "search-result-source-1"
+CURRENT_TOOL_EVIDENCE = "A newly completed search favors option one."
 ANSWER = f"The completed evidence supports the first option [source]({CITATION_URL})."
 
 
@@ -54,6 +55,19 @@ def _forbidden_tool_call(call_number: int) -> ParsedGoogleToolCall:
     )
 
 
+def _completed_tool_call() -> ParsedGoogleToolCall:
+    return ParsedGoogleToolCall(
+        tool_call_id="current-search",
+        function_name="web-search",
+        function_arguments_raw=json.dumps({"query": "latest comparison"}),
+        function_arguments_parsed={"query": "latest comparison"},
+        thought_signature="current-signature",
+        provider_transport_state={
+            GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: "google_ai_studio"
+        },
+    )
+
+
 def _usage(call_number: int) -> GoogleUsageMetadata:
     return GoogleUsageMetadata(
         prompt_token_count=10 + call_number,
@@ -64,7 +78,7 @@ def _usage(call_number: int) -> GoogleUsageMetadata:
     )
 
 
-def _seeded_history() -> list[dict]:
+def _seeded_history(*, signature_provider: str = "google") -> list[dict]:
     return [
         {
             "role": "user",
@@ -86,7 +100,7 @@ def _seeded_history() -> list[dict]:
                     },
                     "thought_signature": "history-signature-hit",
                     "provider_transport_state": {
-                        GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: "google"
+                        GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: signature_provider
                     },
                 }
             ],
@@ -188,13 +202,16 @@ def _request(history: list[dict]) -> SimpleNamespace:
 
 
 def _preprocessing(
-    alternate_model: str | None, secondary_model: str | None = None
+    alternate_model: str | None,
+    secondary_model: str | None = None,
+    *,
+    primary_model: str = PRIMARY_MODEL,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         load_app_settings_and_memories=[],
         rejection_reason=None,
         relevant_app_skills=[],
-        selected_main_llm_model_id=PRIMARY_MODEL,
+        selected_main_llm_model_id=primary_model,
         selected_main_llm_model_name="Answer primary",
         selected_secondary_model_id=secondary_model,
         selected_fallback_model_id=alternate_model,
@@ -264,15 +281,50 @@ def answer_recovery_runner(monkeypatch):
         alternate_model: str | None,
         secondary_model: str | None = None,
         hidden_server_fallback: bool = False,
+        primary_model: str = PRIMARY_MODEL,
+        signature_provider: str = "google",
+        live_tool_call: bool = False,
     ) -> tuple[list[object], list[dict], list[dict]]:
         calls_before = len(provider_calls)
+        skill_dispatch.reset_mock()
+        if live_tool_call:
+            monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 2)
+            monkeypatch.setattr(
+                main_processor,
+                "generate_tools_from_apps",
+                lambda **_kwargs: [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "web-search",
+                            "description": "Search the web",
+                            "parameters": {"type": "object", "properties": {}},
+                        },
+                    }
+                ],
+            )
+            skill_dispatch.return_value = [{
+                "status": "success",
+                "summary": CURRENT_TOOL_EVIDENCE,
+            }]
+        discovered_apps = (
+            {"web": SimpleNamespace(
+                skills=[SimpleNamespace(
+                    id="search",
+                    tool_schema={"type": "object", "properties": {}},
+                    exclude_fields_for_llm=[],
+                )],
+                instructions=[],
+            )}
+            if live_tool_call else {}
+        )
 
         monkeypatch.setattr(
             llm_utils,
             "resolve_fallback_servers_from_provider_config",
             lambda model_id: (
                 ["google/hidden-server"]
-                if hidden_server_fallback and model_id == PRIMARY_MODEL
+                if hidden_server_fallback and model_id == primary_model
                 else []
             ),
         )
@@ -304,29 +356,39 @@ def answer_recovery_runner(monkeypatch):
         )
         monkeypatch.setitem(
             llm_utils.PROVIDER_CLIENT_REGISTRY,
+            "google_ai_studio",
+            fake_google_provider,
+        )
+        monkeypatch.setitem(
+            llm_utils.PROVIDER_CLIENT_REGISTRY,
             "anthropic",
             fake_anthropic_provider,
         )
 
-        history = _seeded_history()
+        history = _seeded_history(signature_provider=signature_provider)
         original_history = copy.deepcopy(history)
         output = [
             chunk
             async for chunk in main_processor.handle_main_processing(
                 "task-answer-recovery",
                 _request(history),
-                _preprocessing(alternate_model, secondary_model),
+                _preprocessing(
+                    alternate_model, secondary_model, primary_model=primary_model
+                ),
                 {},
                 None,
                 None,
                 None,
                 [],
-                discovered_apps_metadata={},
+                discovered_apps_metadata=discovered_apps,
                 user_overrides=SimpleNamespace(skills=None, wikipedia_references=[]),
             )
         ]
         assert history == original_history
-        skill_dispatch.assert_not_awaited()
+        if live_tool_call:
+            skill_dispatch.assert_awaited_once()
+        else:
+            skill_dispatch.assert_not_awaited()
         return output, provider_calls[calls_before:], original_history
 
     return run
@@ -515,3 +577,81 @@ async def test_repeated_forbidden_calls_without_alternate_fail_once_and_stop(
     assert EMBED_REFERENCE in json.dumps(original_history)
     assert not any(isinstance(chunk, str) and chunk for chunk in output)
     _assert_usage(output, calls=2, successful_model=None)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_first_answer_partial_503_recovers_without_replaying_signed_tool_history(
+    answer_recovery_runner,
+) -> None:
+    primary_model = "google_ai_studio/answer-primary"
+    prefix = "The completed searches favor option one.\n\n"
+    suffix = f"See [the primary source]({CITATION_URL})."
+    output, calls, _original_history = await answer_recovery_runner(
+        [
+            [_completed_tool_call()],
+            [prefix, _usage(2), RuntimeError("503 high demand")],
+            [suffix],
+        ],
+        alternate_model=CROSS_PROVIDER_MODEL,
+        primary_model=primary_model,
+        signature_provider="google_ai_studio",
+        hidden_server_fallback=True,
+        live_tool_call=True,
+    )
+
+    # The second call has completed signed tool evidence but recovery is not yet
+    # active. The hidden Google server is incompatible with those signatures;
+    # recovering from clean evidence keeps the prefix and avoids replaying it.
+    assert [call["model_id"] for call in calls] == [
+        "answer-primary",
+        "answer-primary",
+        "answer-primary",
+    ]
+    assert "current-signature" in json.dumps(calls[1]["messages"])
+    assert CURRENT_TOOL_EVIDENCE in json.dumps(calls[1]["messages"])
+    _assert_clean_recovery_payload(calls[2])
+    assert CURRENT_TOOL_EVIDENCE in json.dumps(calls[2]["messages"])
+    assert "ALREADY PUBLISHED TO THE USER" in json.dumps(calls[2]["messages"])
+    published = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert published == prefix + suffix
+    assert published.count(prefix) == 1
+    assert llm_utils.STANDARDIZED_USER_ERROR_MESSAGE not in published
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+    _assert_usage(output, calls=3, successful_model=primary_model)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
+    answer_recovery_runner,
+) -> None:
+    primary_model = "google_ai_studio/answer-primary"
+    prefix = "The completed searches favor option one.\n\n"
+    output, calls, _original_history = await answer_recovery_runner(
+        [
+            [_completed_tool_call()],
+            [prefix, _usage(2), RuntimeError("503 high demand")],
+            [_usage(3), RuntimeError("503 high demand")],
+            [_usage(4), RuntimeError("503 high demand")],
+        ],
+        alternate_model=CROSS_PROVIDER_MODEL,
+        primary_model=primary_model,
+        signature_provider="google_ai_studio",
+        live_tool_call=True,
+    )
+
+    assert len(calls) == 4
+    assert calls[-1]["provider_id"] == "anthropic"
+    _assert_clean_recovery_payload(calls[2])
+    _assert_clean_recovery_payload(calls[3])
+    failures = [
+        chunk
+        for chunk in output
+        if isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+    ]
+    assert failures == [
+        {"__main_processing_failure__": True, "reason": "provider_exhausted"}
+    ]
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == prefix

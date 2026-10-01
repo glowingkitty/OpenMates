@@ -29,7 +29,7 @@ test.describe('streamed workflow authoring', () => {
     await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
     await page.addInitScript(() => {
       const originalFetch = window.fetch.bind(window);
-      const streamWindow = window as typeof window & { __workflowStreamCases?: Array<{ events: unknown[]; holdOpen?: boolean; holdResponse?: boolean }>; __workflowStreamCalls?: number; __workflowStreamBodies?: Array<Record<string, unknown>>; __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array>; __workflowReleaseResponse?: () => void };
+      const streamWindow = window as typeof window & { __workflowStreamCases?: Array<{ events: unknown[]; holdOpen?: boolean; holdResponse?: boolean }>; __workflowStreamCalls?: number; __workflowDeliveredEvents?: number; __workflowStreamBodies?: Array<Record<string, unknown>>; __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array>; __workflowReleaseResponse?: () => void };
       streamWindow.__workflowStreamCases = [];
       streamWindow.__workflowStreamCalls = 0;
       streamWindow.__workflowStreamBodies = [];
@@ -38,6 +38,7 @@ test.describe('streamed workflow authoring', () => {
         const scenario = streamWindow.__workflowStreamCases?.shift();
         if (!scenario) throw new Error('Missing workflow stream scenario');
         streamWindow.__workflowStreamCalls = (streamWindow.__workflowStreamCalls ?? 0) + 1;
+        streamWindow.__workflowDeliveredEvents = 0;
         streamWindow.__workflowStreamBodies?.push(JSON.parse(String(init?.body ?? '{}')));
         streamWindow.__workflowOpenStream = undefined;
         if (scenario.holdResponse) await new Promise<void>(resolve => { streamWindow.__workflowReleaseResponse = resolve; });
@@ -52,6 +53,7 @@ test.describe('streamed workflow authoring', () => {
               setTimeout(() => controller.enqueue(encoder.encode(frame.slice(0, split))), index * 700);
               setTimeout(() => {
                 controller.enqueue(encoder.encode(frame.slice(split)));
+                streamWindow.__workflowDeliveredEvents = (streamWindow.__workflowDeliveredEvents ?? 0) + 1;
                 if (index === scenario.events.length - 1 && !scenario.holdOpen) controller.close();
               }, index * 700 + 35);
             });
@@ -235,9 +237,13 @@ test.describe('streamed workflow authoring', () => {
       ], true);
       await page.getByTestId('workflow-input-textarea').fill('Two workflow request');
       await page.getByTestId('workflow-input-submit').click();
-      await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(2);
       await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
       await expect(page.getByTestId('workflow-management')).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('workflow-ai-pending') || '{}'))).toEqual({ sessionId: 'multi-stream' });
+      await expect.poll(() => page.evaluate(() => (window as typeof window & { __workflowDeliveredEvents?: number }).__workflowDeliveredEvents)).toBe(4);
+      await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
+      await expect(page.getByTestId('workflow-ai-pending')).toHaveCount(0);
+      await expect(page.getByTestId('workflow-ai-stop')).toHaveCount(0);
       await page.evaluate(({ one, two }) => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
         if (!stream) throw new Error('Pending workflow stream was not opened');
@@ -246,16 +252,20 @@ test.describe('streamed workflow authoring', () => {
       }, { one, two });
       await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
       await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => sessionStorage.getItem('workflow-ai-pending'))).toBeNull();
       for (const workflow of [one, two]) {
         const card = page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: workflow.title });
-        await expect(card).toBeVisible();
-        await expect(card.locator('..').getByTestId('workflow-new-pill')).toHaveText('New');
+        await expect(card).toHaveCount(1);
+        await expect(card).toContainText(workflow.title);
       }
 
       let stopCalls = 0;
       let partialReads = 0;
+      let releaseStop: () => void = () => {};
+      const stopAcknowledged = new Promise<void>(resolve => { releaseStop = resolve; });
       await page.route('**/v1/workflows/input/stop-stream/stop', async route => {
         stopCalls += 1;
+        await stopAcknowledged;
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ session: { session_id: 'stop-stream', status: 'running', stop_requested: true } }) });
       });
       await page.route('**/v1/workflows/input/stop-stream', async route => {
@@ -276,6 +286,14 @@ test.describe('streamed workflow authoring', () => {
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveText('1 step validated');
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveText('2 steps validated');
       await page.getByTestId('workflow-ai-stop').click();
+      await expect(page.getByTestId('workflow-ai-pending')).toContainText('Stopping');
+      await page.getByTestId('workflow-detail-back').click();
+      await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+      await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
+      await expect(page.getByTestId('workflow-ai-pending')).toHaveCount(0);
+      await expect(page.getByTestId('workflow-ai-stop')).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('workflow-ai-pending') || '{}'))).toEqual({ sessionId: 'stop-stream' });
+      releaseStop();
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(one.title);
       await expect(page.getByTestId('workflow-ai-partial-warning')).toContainText('Saved completed steps');
       expect(stopCalls).toBe(1);

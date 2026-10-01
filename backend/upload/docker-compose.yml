@@ -72,7 +72,7 @@ services:
   # Vault Setup (init container — initializes, unseals, and populates Vault)
   # ---------------------------------------------------------------------------
   # On first boot: initializes Vault, saves unseal key + root token to
-  # vault-setup-data volume, enables KV v2, creates policy + scoped API token.
+  # vault-setup-data volume, enables KV v2, creates policy + periodic scoped API token.
   # On subsequent restarts: loads saved root token, auto-unseals, reuses
   # existing API token (or creates a new one if expired).
   # Migrates SECRET__* env vars into Vault KV on first run (idempotent).
@@ -87,9 +87,10 @@ services:
       VAULT_ADDR: "http://vault:8200"
       VAULT_AUTO_UNSEAL: "true"
     volumes:
-      # Persistent volume for unseal key, root token, and scoped API token.
-      # vault-setup writes here; app-uploads reads api.token from here (read-only).
+      # Root token stays private to vault-setup.
       - vault-setup-data:/app/data
+      # App receives only the scoped API token and unseal key.
+      - vault-app-data:/app/app-data
     networks:
       - uploads
     depends_on:
@@ -141,8 +142,8 @@ services:
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT:-production}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
     volumes:
-      # Vault API token written by vault-setup init container (read-only)
-      - vault-setup-data:/vault-data:ro
+      # Scoped token and unseal key only; root.token is never mounted here.
+      - vault-app-data:/vault-data:ro
       # NO Docker socket mount here — the admin-sidecar handles that
     networks:
       - uploads
@@ -283,8 +284,8 @@ volumes:
     # using the unseal key saved in vault-setup-data.
     name: openmates-uploads-vault-data
   vault-setup-data:
-    # Shared between vault-setup (writer) and app-uploads (reader).
-    # Contains: unseal.key, root.token, api.token
-    # app-uploads mounts this read-only at /vault-data and waits for api.token
-    # before starting uvicorn (via wait-for-vault.sh).
+    # Private setup credentials, including root.token and the master unseal key.
     name: openmates-uploads-vault-setup-data
+  vault-app-data:
+    # Only scoped api.token and the unseal key needed for restart recovery.
+    name: openmates-uploads-vault-app-data

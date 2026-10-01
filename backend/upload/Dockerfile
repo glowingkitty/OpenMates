@@ -57,6 +57,7 @@ COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.ym
 RUN mkdir -p /app/backend && touch /app/backend/__init__.py
 RUN mkdir -p /app/backend/shared/python_utils && touch /app/backend/shared/__init__.py /app/backend/shared/python_utils/__init__.py
 COPY backend/shared/python_utils/media_encryption.py /app/backend/shared/python_utils/media_encryption.py
+COPY backend/shared/python_utils/object_storage_regions.py /app/backend/shared/python_utils/object_storage_regions.py
 COPY backend/upload/ /app/backend/upload/
 RUN mkdir -p /app/backend/scripts /app/backend/core/api/app/utils
 COPY backend/scripts/runtime_health_verifier.py /app/backend/scripts/runtime_health_verifier.py
@@ -72,6 +73,10 @@ RUN chmod +x /app/wait-for-vault.sh
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONPATH="/app"
+
+# Import the actual entry point in the built filesystem before publishing.
+# Missing shared modules must fail the image build rather than production boot.
+RUN python -c "import backend.upload.main"
 
 EXPOSE 8000
 

@@ -92,6 +92,49 @@ const VARIABLE_SOURCE_CAPABILITY = {
 };
 
 test.describe('WorkflowGraphRenderer real skill variants', () => {
+	// contract-test: direct surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.responsive-accessible-reachable
+	test('joins an expanded Events Search summary to its details at desktop and phone widths', async ({ page }: { page: Page }) => {
+		for (const width of [1280, 390]) {
+			await page.setViewportSize({ width, height: 900 });
+			const query = new URLSearchParams({
+				variant: 'eventsSearch', theme: 'light', background: '#dbeafe', width: String(width), chrome: '0',
+				props: JSON.stringify({ readOnly: true, onSave: null })
+			});
+			await page.goto(`/dev/preview/workflows/WorkflowGraphRenderer?${query}`, { waitUntil: 'domcontentloaded' });
+			await waitForComponentPreview(page);
+			const node = page.locator('[data-node-id="events"]');
+			const summary = node.getByTestId('workflow-node-summary');
+			await expect(summary).toContainText('Events | Search');
+			await summary.click();
+			await expect(summary).toHaveAttribute('aria-expanded', 'true');
+			const details = node.getByTestId('workflow-node-expanded');
+			await expect(details).toBeVisible();
+			await expect.poll(async () => {
+				const [headerBox, bodyBox] = await Promise.all([summary.boundingBox(), details.boundingBox()]);
+				const style = await summary.evaluate(element => ({
+					width: getComputedStyle(element).width,
+					marginRight: getComputedStyle(element).marginRight,
+					scale: getComputedStyle(element).scale
+				}));
+				return {
+					aligned: Boolean(headerBox && bodyBox && Math.abs(headerBox.x - bodyBox.x) <= 1 && Math.abs(headerBox.width - bodyBox.width) <= 1),
+					headerBox, bodyBox, style
+				};
+			}).toMatchObject({ aligned: true });
+			const [summaryBox, detailsBox, canvasBox] = await Promise.all([
+				summary.boundingBox(), details.boundingBox(), page.locator('.graph-canvas').boundingBox()
+			]);
+			expect(summaryBox && detailsBox && canvasBox).not.toBeNull();
+			if (!summaryBox || !detailsBox || !canvasBox) return;
+			expect(Math.abs(summaryBox.x - detailsBox.x)).toBeLessThanOrEqual(1);
+			expect(Math.abs(summaryBox.width - detailsBox.width)).toBeLessThanOrEqual(1);
+			expect(Math.abs(summaryBox.y + summaryBox.height - detailsBox.y)).toBeLessThanOrEqual(1);
+			expect(summaryBox.x).toBeGreaterThanOrEqual(canvasBox.x - 1);
+			expect(detailsBox.x + detailsBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width + 1);
+			if (width === 1280) expect(summaryBox.width).toBeGreaterThan(700);
+		}
+	});
+
 	// contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable,workflows-ui.mvp.authoring
 	test('app skill tests show exactly one Processing indicator in the output container', async ({ page }: { page: Page }) => {
 		let release = () => {};

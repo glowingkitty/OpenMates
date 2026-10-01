@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+# test-file: backend/tests/test_upload_vault_token_renewal.py
 """
 Vault Setup Script for the OpenMates Upload Server.
 
 Mirrors the core API vault-setup pattern:
   - Initializes Vault on first run (saves unseal key + root token to persistent volume)
   - Auto-unseals on subsequent restarts using the saved unseal key
-  - Creates a read-only KV policy + scoped API token (saved to /app/data/api.token)
+  - Creates a read-only KV policy + periodic scoped API token (saved to /app/app-data/api.token)
   - Migrates SECRET__* env vars into Vault KV on first run
   - Skips already-migrated secrets (IMPORTED_TO_VAULT sentinel or migration flag in Vault)
 
@@ -41,14 +42,18 @@ VAULT_ADDR      = os.environ.get("VAULT_ADDR", "http://vault:8200")
 VAULT_TOKEN_ENV = os.environ.get("VAULT_TOKEN", "")  # Only used as fallback
 
 DATA_DIR        = "/app/data"
+APP_DATA_DIR    = "/app/app-data"
 UNSEAL_KEY_FILE = f"{DATA_DIR}/unseal.key"
 ROOT_TOKEN_FILE = f"{DATA_DIR}/root.token"
-API_TOKEN_FILE  = f"{DATA_DIR}/api.token"
+API_TOKEN_FILE  = f"{APP_DATA_DIR}/api.token"
+APP_UNSEAL_KEY_FILE = f"{APP_DATA_DIR}/unseal.key"
 
 SECRET_PREFIX              = "SECRET__"
 MIGRATION_FLAG_PATH        = "kv/data/system_flags/migration_status"
 MIGRATION_FLAG_KEY         = "initial_env_secrets_migrated"
 AUTO_UNSEAL                = os.environ.get("VAULT_AUTO_UNSEAL", "true").lower() == "true"
+API_TOKEN_KIND             = "periodic_v1"
+API_TOKEN_PERIOD           = "168h"  # Seven days; app-uploads renews every 12 hours.
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -63,7 +68,7 @@ async def vault_get(client: httpx.AsyncClient, path: str, token: str) -> Optiona
         resp.raise_for_status()
         return resp.json() if resp.text else {}
     except httpx.HTTPStatusError as e:
-        logger.error(f"GET {path}: {e.response.status_code} {e.response.text[:200]}")
+        logger.error("GET %s: HTTP %s", path, e.response.status_code)
         raise
 
 
@@ -74,7 +79,7 @@ async def vault_post(client: httpx.AsyncClient, path: str, token: str, data: dic
         resp.raise_for_status()
         return resp.json() if resp.text else {}
     except httpx.HTTPStatusError as e:
-        logger.error(f"POST {path}: {e.response.status_code} {e.response.text[:200]}")
+        logger.error("POST %s: HTTP %s", path, e.response.status_code)
         raise
 
 
@@ -120,6 +125,7 @@ def save_unseal_key(key: str) -> None:
         logger.info("Unseal key already saved, not overwriting")
         return
     _write_file(UNSEAL_KEY_FILE, key, stat.S_IRUSR | stat.S_IWUSR)  # 600
+    _write_file(APP_UNSEAL_KEY_FILE, key, stat.S_IRUSR | stat.S_IWUSR)
     logger.info(f"Unseal key saved to {UNSEAL_KEY_FILE}")
 
 
@@ -129,7 +135,7 @@ def save_root_token(token: str) -> None:
 
 
 def save_api_token(token: str) -> None:
-    _write_file(API_TOKEN_FILE, token, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)  # 644
+    _write_file(API_TOKEN_FILE, token, stat.S_IRUSR | stat.S_IWUSR)  # 600
     logger.info(f"API token saved to {API_TOKEN_FILE}")
 
 # ---------------------------------------------------------------------------
@@ -211,6 +217,10 @@ async def create_policy(client: httpx.AsyncClient, token: str) -> None:
     path "auth/token/lookup-self" {
       capabilities = ["read"]
     }
+
+    path "auth/token/renew-self" {
+      capabilities = ["update"]
+    }
     """
     await vault_post(client, "sys/policies/acl/uploads-service", token, {"policy": policy_hcl})
     logger.info("uploads-service policy created/updated")
@@ -223,9 +233,12 @@ async def create_or_reuse_api_token(client: httpx.AsyncClient, root_token: str) 
         # Validate it still works
         try:
             resp = await vault_get(client, "auth/token/lookup-self", existing)
-            if resp and resp.get("data", {}).get("ttl", 0) > 0:
-                policies = resp["data"].get("policies", [])
-                if "uploads-service" in policies:
+            data = (resp or {}).get("data", {})
+            if data.get("ttl", 0) > 0 and data.get("renewable"):
+                policies = data.get("policies", [])
+                if ("uploads-service" in policies
+                        and (data.get("meta") or {}).get("uploads_token_kind") == API_TOKEN_KIND
+                        and data.get("explicit_max_ttl", 0) == 0):
                     logger.info("Existing API token is valid, reusing it")
                     return existing
         except Exception:
@@ -235,14 +248,15 @@ async def create_or_reuse_api_token(client: httpx.AsyncClient, root_token: str) 
     result = await vault_post(client, "auth/token/create", root_token, {
         "policies": ["uploads-service"],
         "display_name": "uploads-service-token",
-        "ttl": "8760h",
+        "period": API_TOKEN_PERIOD,
         "renewable": True,
+        "no_default_policy": True,
+        "meta": {"uploads_token_kind": API_TOKEN_KIND},
     })
     if not result or "auth" not in result:
-        raise RuntimeError(f"Unexpected response from Vault token/create: {result!r}")
+        raise RuntimeError("Unexpected response from Vault token/create")
     token = result["auth"]["client_token"]
-    masked = f"{token[:4]}...{token[-4:]}"
-    logger.info(f"API token created: {masked}")
+    logger.info("Periodic API token created")
     save_api_token(token)
     return token
 
@@ -341,6 +355,13 @@ async def main() -> None:
                 logger.error("Vault is initialized but no saved root token found.")
                 logger.error(f"Ensure {ROOT_TOKEN_FILE} exists on the vault-setup-data volume.")
                 sys.exit(1)
+
+            # Only the unseal key and scoped token are shared with the app.
+            # Existing volumes receive the key on the first updated setup run.
+            unseal_key = _read_file(UNSEAL_KEY_FILE)
+            if not unseal_key:
+                raise RuntimeError("Unseal key not found")
+            _write_file(APP_UNSEAL_KEY_FILE, unseal_key, stat.S_IRUSR | stat.S_IWUSR)
 
             # Unseal if sealed
             if sealed:

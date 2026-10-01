@@ -82,6 +82,7 @@ import {
   validateServerEnvironmentTarget,
 } from "../src/serverPlanning.ts";
 import {
+  CMS_CACHE_INSPECT_FORMAT,
   applyRuntimeCheckResults,
   buildBrevoRequestOptions,
   buildUpdateCompletionEmail,
@@ -90,6 +91,7 @@ import {
   buildRuntimeEmail,
   deliverUpdateCompletionEmail,
   evaluateOperationalReportFreshness,
+  evaluateCmsCacheConsistency,
   isBrevoIdempotencyDuplicate,
   isBrevoAcceptedResponse,
   planOperationalMonitoring,
@@ -111,6 +113,7 @@ import {
   serverUpdateStatusFile,
   writeServerUpdateStatus,
 } from "../src/serverUpdateState.ts";
+import { loadSelfHostComposeTemplate } from "../src/server.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
 
@@ -1087,12 +1090,77 @@ describe("role-based server planning", () => {
     assert.doesNotMatch(restoreSource, /input: readFileSync\(postgresDump\)/);
   });
 
-  it("prefers packaged templates before GitHub raw fallback", () => {
-    assert.deepEqual(resolveTemplateSource({ role: "core", packagedTemplateExists: true }), {
+  it("uses packaged templates only for the matching CLI release", () => {
+    assert.deepEqual(resolveTemplateSource({ role: "core", packagedTemplateExists: true, imageTag: "v0.23.0", packageVersion: "0.23.0" }), {
       type: "packaged",
       path: "templates/core/docker-compose.selfhost.yml",
     });
-    assert.equal(resolveTemplateSource({ role: "core", packagedTemplateExists: false, templateRef: "dev" }).type, "github-raw");
+    for (const imageTag of ["main", "dev", "v0.24.0", "sha-450d83f98b22e31404ead88937111fdd5f4eee74"]) {
+      assert.deepEqual(resolveTemplateSource({ role: "core", packagedTemplateExists: true, imageTag, packageVersion: "0.23.0", templateRef: "main" }), {
+        type: "github-raw",
+        ref: "main",
+        path: "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
+      });
+    }
+    for (const [role, path] of [
+      ["upload", "frontend/packages/openmates-cli/templates/upload/docker-compose.yml"],
+      ["preview", "frontend/packages/openmates-cli/templates/preview/docker-compose.preview.yml"],
+    ] as const) {
+      assert.deepEqual(resolveTemplateSource({ role, packagedTemplateExists: true, imageTag: "main", packageVersion: "0.23.0", templateRef: "main" }), {
+        type: "github-raw",
+        ref: "main",
+        path,
+      });
+    }
+    assert.equal(resolveTemplateSource({ role: "core", packagedTemplateExists: false, imageTag: "v0.23.0", packageVersion: "0.23.0", templateRef: "v0.23.0" }).type, "github-raw");
+    assert.deepEqual(resolveTemplateSource({ role: "core", packagedTemplateExists: true, imageTag: "v0.23.0", packageVersion: "0.23.0", templateUrl: "https://example.test/compose.yml" }), {
+      type: "url",
+      url: "https://example.test/compose.yml",
+    });
+  });
+
+  it("loads the target revision when a newer image outlives the installed CLI package", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalUrl = process.env.OPENMATES_SELFHOST_COMPOSE_URL;
+    const originalDir = process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
+    const requests: string[] = [];
+    delete process.env.OPENMATES_SELFHOST_COMPOSE_URL;
+    delete process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
+    globalThis.fetch = async (input) => {
+      requests.push(String(input));
+      if (String(input).includes("/templates/upload/")) {
+        return new Response('services:\n  app-uploads:\n    image: ${OPENMATES_IMAGE_REGISTRY}/openmates-uploads:${OPENMATES_IMAGE_TAG}\n    env_file: ../../.env\n');
+      }
+      return new Response('services:\n  cms:\n    environment:\n      CACHE_SKIP_ALLOWED: "true"\n      CACHE_AUTO_PURGE: "true"\n');
+    };
+    try {
+      const template = await loadSelfHostComposeTemplate("v0.23.0", "core", "v0.23.0", "0.20.0");
+      assert.match(template, /CACHE_SKIP_ALLOWED: "true"/);
+      assert.deepEqual(requests, ["https://raw.githubusercontent.com/glowingkitty/OpenMates/v0.23.0/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml"]);
+
+      for (const [ref, imageTag] of [["main", "main"], ["450d83f98b22e31404ead88937111fdd5f4eee74", "sha-450d83f98b22e31404ead88937111fdd5f4eee74"]]) {
+        const uploadTemplate = await loadSelfHostComposeTemplate(ref, "upload", imageTag, "0.20.0");
+        assert.match(uploadTemplate, /env_file: \.\.\/\.\.\/\.env/);
+        assert.match(uploadTemplate, /image: \$\{OPENMATES_IMAGE_REGISTRY\}/);
+        assert.equal(requests.at(-1), `https://raw.githubusercontent.com/glowingkitty/OpenMates/${ref}/frontend/packages/openmates-cli/templates/upload/docker-compose.yml`);
+      }
+
+      globalThis.fetch = async () => { throw new Error("target template unavailable"); };
+      await assert.rejects(loadSelfHostComposeTemplate("main", "core", "main", "0.20.0"), /target template unavailable/);
+
+      const packaged = await loadSelfHostComposeTemplate("v0.24.0", "core", "v0.24.0", "0.24.0");
+      assert.match(packaged, /CACHE_AUTO_PURGE: "true"/);
+
+      process.env.OPENMATES_SELFHOST_COMPOSE_URL = "https://example.test/compose.yml";
+      globalThis.fetch = async (input) => new Response(String(input));
+      assert.equal(await loadSelfHostComposeTemplate("main", "core", "main", "0.20.0"), "https://example.test/compose.yml");
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalUrl === undefined) delete process.env.OPENMATES_SELFHOST_COMPOSE_URL;
+      else process.env.OPENMATES_SELFHOST_COMPOSE_URL = originalUrl;
+      if (originalDir === undefined) delete process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
+      else process.env.OPENMATES_SELFHOST_TEMPLATE_DIR = originalDir;
+    }
   });
 });
 
@@ -1225,6 +1293,37 @@ describe("server preflight and Caddy planning", () => {
 });
 
 describe("post-update runtime health", () => {
+  it("requires effective CMS cache flags and records only sanitized failures", () => {
+    const healthy = evaluateCmsCacheConsistency({
+      containerFound: true,
+      inspectionSucceeded: true,
+      filteredEnvironment: "CACHE_SKIP_ALLOWED=true,CACHE_AUTO_PURGE=true,",
+    });
+    const stale = evaluateCmsCacheConsistency({
+      containerFound: true,
+      inspectionSucceeded: true,
+      filteredEnvironment: "CACHE_SKIP_ALLOWED=true,SECRET__EXAMPLE=private-value",
+    });
+    const disabled = evaluateCmsCacheConsistency({
+      containerFound: true,
+      inspectionSucceeded: true,
+      filteredEnvironment: "CACHE_SKIP_ALLOWED=false,CACHE_AUTO_PURGE=true,",
+    });
+    const unavailable = evaluateCmsCacheConsistency({
+      containerFound: true,
+      inspectionSucceeded: false,
+      filteredEnvironment: "SECRET__EXAMPLE=private-value",
+    });
+    assert.equal(healthy.status, "passed");
+    assert.deepEqual([stale.status, stale.required, stale.sanitized_reason], ["failed", true, "cms_cache_flags_missing_or_disabled"]);
+    assert.equal(disabled.status, "failed");
+    assert.deepEqual([unavailable.status, unavailable.sanitized_reason], ["failed", "cms_cache_inspection_unavailable"]);
+    assert.doesNotMatch(JSON.stringify({ stale, unavailable }), /private-value|SECRET__EXAMPLE/);
+    assert.match(CMS_CACHE_INSPECT_FORMAT, /if eq \. "CACHE_SKIP_ALLOWED=true"/);
+    assert.match(CMS_CACHE_INSPECT_FORMAT, /if eq \. "CACHE_AUTO_PURGE=true"/);
+    assert.doesNotMatch(CMS_CACHE_INSPECT_FORMAT, /json \.Config\.Env|range \.Config\.Env}}\{\{\.}}/);
+  });
+
   it("fails closed to self-host for missing, malformed, duplicate, and conflicting mode", () => {
     for (const envText of [
       "",
@@ -1243,6 +1342,7 @@ describe("post-update runtime health", () => {
     const checks = buildRuntimeCheckInventory("core", "self_host");
     const schedulerCheck = checks.find((check) => check.id === "core.scheduler_freshness");
     assert.ok(checks.some((check) => check.id === "core.chat_plumbing"));
+    assert.ok(checks.some((check) => check.id === "core.cms_cache_consistency" && check.required));
     assert.equal(checks.some((check) => check.id.startsWith("billing.")), false);
     assert.ok(checks.every((check) => check.timeoutSeconds > 0 && check.timeoutSeconds <= 60));
     assert.equal(schedulerCheck?.timeoutSeconds, 15);

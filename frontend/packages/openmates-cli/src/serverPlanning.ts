@@ -275,6 +275,7 @@ const RUNTIME_CHECKS: Record<ServerRole, RuntimeCheckDefinition[]> = {
     { id: "http.role_health", required: true, timeoutSeconds: 10 },
     { id: "core.database", required: true, timeoutSeconds: 10 },
     { id: "core.cache", required: true, timeoutSeconds: 10 },
+    { id: "core.cms_cache_consistency", required: true, timeoutSeconds: 10 },
     { id: "core.vault", required: true, timeoutSeconds: 10 },
     { id: "core.worker_queue", required: true, timeoutSeconds: CELERY_PROBE_CHECK_TIMEOUT_SECONDS },
     { id: "core.scheduler_freshness", required: true, timeoutSeconds: CELERY_PROBE_CHECK_TIMEOUT_SECONDS },
@@ -607,12 +608,22 @@ export function resolveTemplateSource(input: {
   packagedTemplateExists: boolean;
   templateUrl?: string;
   templateRef?: string;
+  imageTag: string;
+  packageVersion: string;
 }): TemplateSource {
   const role = parseServerRole(input.role);
   const definition = ROLE_DEFINITIONS[role];
   if (input.templateUrl) return { type: "url", url: input.templateUrl };
-  if (input.packagedTemplateExists) return { type: "packaged", path: definition.templatePath };
-  return { type: "github-raw", ref: input.templateRef ?? "dev", path: definition.composeFile };
+  // A packaged template belongs to the installed CLI release, not to a newer
+  // image or a moving channel such as main/dev.
+  if (input.packagedTemplateExists && input.packageVersion && input.imageTag === `v${input.packageVersion}`) {
+    return { type: "packaged", path: definition.templatePath };
+  }
+  return {
+    type: "github-raw",
+    ref: input.templateRef ?? "dev",
+    path: `frontend/packages/openmates-cli/${definition.templatePath}`,
+  };
 }
 
 export function findMissingRequiredSecrets(input: {

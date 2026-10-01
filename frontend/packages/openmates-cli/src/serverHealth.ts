@@ -821,6 +821,25 @@ export async function deliverRuntimeNotification(
 export type RuntimeCheckResult = { id: string; status: "passed" | "failed" | "skipped"; failureClass?: string; required?: boolean };
 export type RuntimeHealthEvent = { type: "service_unhealthy" | "service_critical" | "recovered"; checkId: string };
 
+export const CMS_CACHE_INSPECT_FORMAT = '{{range .Config.Env}}{{if eq . "CACHE_SKIP_ALLOWED=true"}}CACHE_SKIP_ALLOWED=true,{{end}}{{if eq . "CACHE_AUTO_PURGE=true"}}CACHE_AUTO_PURGE=true,{{end}}{{end}}';
+
+/** Evaluate only the two CMS cache flags emitted by the filtered docker inspect format. */
+export function evaluateCmsCacheConsistency(input: {
+  containerFound: boolean;
+  inspectionSucceeded: boolean;
+  filteredEnvironment: string;
+}): RuntimeCheckResult & { required: true; duration_ms: number; sanitized_reason?: string } {
+  const result = { id: "core.cms_cache_consistency", required: true as const, duration_ms: 0 };
+  if (!input.containerFound || !input.inspectionSucceeded) {
+    return { ...result, status: "failed", failureClass: "configuration", sanitized_reason: "cms_cache_inspection_unavailable" };
+  }
+  const flags = new Set(input.filteredEnvironment.split(",").map((value) => value.trim()));
+  if (!flags.has("CACHE_SKIP_ALLOWED=true") || !flags.has("CACHE_AUTO_PURGE=true")) {
+    return { ...result, status: "failed", failureClass: "configuration", sanitized_reason: "cms_cache_flags_missing_or_disabled" };
+  }
+  return { ...result, status: "passed" };
+}
+
 export function applyRuntimeCheckResults(
   state: RuntimeIncidentState | undefined,
   results: RuntimeCheckResult[],

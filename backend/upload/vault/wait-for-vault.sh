@@ -5,8 +5,8 @@
 # Polls for the Vault API token written by vault-setup before starting uvicorn.
 # Mirrors the pattern used in backend/core/api/wait-for-vault.sh.
 #
-# vault-setup writes /app/data/api.token; docker-compose mounts vault-setup-data
-# at /vault-data in app-uploads, so the file appears at /vault-data/api.token.
+# vault-setup writes /app/app-data/api.token; docker-compose mounts only the
+# scoped app volume at /vault-data, so root.token is absent from this container.
 
 echo "Waiting for Vault API token to be ready..."
 
@@ -72,8 +72,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     echo "Checking for API token file (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
     if [ -f "$TOKEN_FILE" ]; then
         echo "API token file found at $TOKEN_FILE"
-        FIRST_CHARS=$(cut -c 1-4 < "$TOKEN_FILE")
-        echo "API token loaded. Token starts with: $FIRST_CHARS..."
+        echo "API token file ready."
         break
     else
         echo "API token file not found yet, waiting..."

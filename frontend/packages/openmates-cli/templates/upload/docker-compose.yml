@@ -21,6 +21,7 @@ services:
       VAULT_AUTO_UNSEAL: "true"
     volumes:
       - vault-setup-data:/app/data
+      - vault-app-data:/app/app-data
     networks: [uploads]
     depends_on: [vault]
     restart: on-failure
@@ -45,7 +46,7 @@ services:
       CLAMAV_HOST: clamav
       CLAMAV_PORT: 3310
     volumes:
-      - vault-setup-data:/vault-data:ro
+      - vault-app-data:/vault-data:ro
     networks: [uploads]
     depends_on: [clamav, vault-setup]
     healthcheck:
@@ -81,3 +82,5 @@ volumes:
     name: openmates-uploads-vault-data
   vault-setup-data:
     name: openmates-uploads-vault-setup-data
+  vault-app-data:
+    name: openmates-uploads-vault-app-data
