@@ -356,7 +356,9 @@ def _prevalidate_paid_workflow_save(
     enabled: bool = False,
 ) -> None:
     """Reject deterministic graph failures before any billable AI validation."""
-    validate_workflow_composition_refs(graph, prior_graph=prior_graph)
+    validate_workflow_composition_refs(
+        graph, prior_graph=prior_graph, allow_data_dependencies=graph.version >= 2,
+    )
     if enabled:
         validate_workflow_readiness(graph, require_schedule=True)
 

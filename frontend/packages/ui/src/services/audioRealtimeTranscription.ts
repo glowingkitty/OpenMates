@@ -18,6 +18,7 @@ export interface RealtimeCorrectionResult extends RealtimeTranscriptionResult {
   transcriptOriginal: string;
   transcriptCorrected?: string;
   useCorrected: boolean;
+  correctionSkipped?: boolean;
   correctionModel?: string;
 }
 
@@ -226,6 +227,18 @@ export function startAudioRealtimeTranscription(
               transcriptCorrected: String(message.transcript || '') || undefined,
               useCorrected: true,
               correctionModel: message.correction_model || undefined,
+            });
+          }
+          activeSocket.close(1000, 'complete');
+          break;
+        case 'correction.skipped':
+          if (rawResult && !settledCorrection) {
+            settledCorrection = true;
+            resolveCorrection({
+              ...rawResult,
+              transcriptOriginal: rawResult.transcript,
+              useCorrected: false,
+              correctionSkipped: true,
             });
           }
           activeSocket.close(1000, 'complete');

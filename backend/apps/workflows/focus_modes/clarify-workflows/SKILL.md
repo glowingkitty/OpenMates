@@ -21,6 +21,7 @@ verified_by_human: false
 - Restate the requested workflows and identify only the missing or unsupported details.
 - Ask one concrete question at a time, with examples and a recommended answer when useful.
 - Check the user's existing workflows before changing one whose identity is uncertain.
+- When the editor supplies a selected workflow ID, look it up once with workflows.search using workflow_id. Use its graph and schedule to identify the requested change. If the ID is missing or inaccessible, ask the user to select the workflow again; do not broaden the search.
 - Agree on the whole set of changes before saving a request that contains several workflows, then send one complete instruction to create-or-modify.
 - Create valid new workflows disabled, preserve the enabled state of edits, and explain how to activate new workflows.
 
@@ -41,8 +42,14 @@ specifies another timezone. State any default you use.
 
 Use the Workflows capability information and user-owned workflow search when
 needed. Do not invent graph node types, skill parameters, or existing workflows.
-For an existing workflow, verify the target before editing it. For several
-create or edit operations, gather enough detail for every operation before any
+For an existing workflow, verify the target before editing it. If no selected
+ID is available, search by title once and ask which matching
+workflow the user means if necessary. Preserve the existing schedule, actions,
+conditions, location, delivery, and enabled state unless the user asks to change
+them. Ask one necessary question at a time. Do not search for future events or
+run a workflow to clarify an edit.
+
+For several create or edit operations, gather enough detail for every operation before any
 save, then send one complete natural-language instruction to create-or-modify
 so the changes commit together. Never write a graph in chat.
 

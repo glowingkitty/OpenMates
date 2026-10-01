@@ -731,8 +731,8 @@ builder.voice_no_speech:
 
 builder.voice_transcription_failed:
   context: Error when workflow voice input transcription fails
-  en: Transcription failed.
-  de: Transkription fehlgeschlagen.
+  en: Could not transcribe this recording. Please record again or type your workflow request.
+  de: Diese Aufnahme konnte nicht transkribiert werden. Bitte nimm erneut auf oder tippe deine Workflow-Anfrage.
   verified_by_human: []
 
 builder.ai_draft_unsaved:

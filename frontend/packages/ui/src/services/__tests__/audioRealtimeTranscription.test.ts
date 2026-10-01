@@ -152,6 +152,31 @@ describe('audio realtime transcription', () => {
     chat.cancel();
   });
 
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
+  it('resolves an explicitly skipped workflow correction with the raw transcript', async () => {
+    const handle = startAudioRealtimeTranscription({} as MediaStream, {
+      correctionContext: 'workflow',
+    });
+    const socket = FakeWebSocket.last;
+    socket.emit({ type: 'session.ready' });
+    socket.emit({ type: 'transcription.done', transcript: 'At eight, actually nine in Lisbon', language: 'en' });
+    socket.emit({ type: 'correction.skipped', transcript: 'At eight, actually nine in Lisbon' });
+
+    await expect(handle.transcription).resolves.toMatchObject({
+      transcript: 'At eight, actually nine in Lisbon',
+    });
+    const skipped = await handle.correction;
+    expect(skipped).toMatchObject({
+      transcript: 'At eight, actually nine in Lisbon',
+      transcriptOriginal: 'At eight, actually nine in Lisbon',
+      correctionSkipped: true,
+      useCorrected: false,
+    });
+    expect(skipped.transcriptCorrected).toBeUndefined();
+    expect(skipped.correctionModel).toBeUndefined();
+    expect(socket.closeCalls).toEqual([{ code: 1000, reason: 'complete' }]);
+  });
+
   // contract-test: supporting surface=gui.web assertions=message-input.recording.lifecycle
   it('flushes queued audio and the finish signal when readiness arrives late', () => {
     const handle = startAudioRealtimeTranscription({} as MediaStream);

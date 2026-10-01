@@ -99,7 +99,7 @@ Recorded provider-cost estimates for the eight initial/rerun requests total $0.0
 ## Remaining verification
 
 - Wider capability/currency combinations and JSON-retry reliability remain outside this small sample.
-- Transcript correction remains enabled; the successful raw spoken request does not establish a controlled quality comparison.
+- The bounded raw-versus-clean CLI comparison below supports bypassing separate workflow transcript correction. Actual speech-recognition errors and wider language coverage remain unmeasured.
 - Mixed create/edit Stop recovery and live clarification chat still need their accepted integrated evidence.
 
 ## Final targeted proof scope
@@ -130,3 +130,48 @@ The initial proof harness used a named idempotency key and was rejected with HTT
 [Billing settings CI run 36796094385](https://github.com/glowingkitty/OpenMates/actions/runs/36796094385) passed one case with no skips or failures at source `98433d1810`, harness `c3127d67`. It checks authoring labels, two billed provider requests, credits, day-total reconciliation and the Apps summary. A prior attempt failed only because the fixture added a highest-credit app while assertions assumed fixed row positions; the corrected test selects rows by app name.
 
 Vercel deployment succeeded for the same product revision. Deployment gates passed lint, translations, SDK privacy/boundary audits and ten affected backend test files. No unrelated browser suite was run.
+
+## Raw transcript versus clear instruction (2026-10-01)
+
+Three capped real-inference requests on product revision `127f161f` passed final intent checks. This compares supplied transcript text, not speech-recognition accuracy. All generated workflows remained disabled, were never executed, and were deleted with absence verified. Private receipt: `/tmp/workflow-raw-voice-quality3e12.json` (0600).
+
+### Raw weather with self-corrections: PASS
+
+> Um, make a workflow every day at seven Berlin time, actually no, every weekday at eight thirty Berlin time. Check today's weather in Paris, sorry, tomorrow's weather in Berlin. If rain is expected, send me 'Take an umbrella in Berlin tomorrow' in chat; if it isn't, send me 'No rain expected in Berlin tomorrow' in chat. Name it Weather Raw Voice QA ba678e7e.
+
+**Output**: Weekdays 08:30 Europe/Berlin → Berlin tomorrow forecast → exact rain_expected Check → yes: “Take an umbrella in Berlin tomorrow”; no: “No rain expected in Berlin tomorrow”. No Ask AI.
+
+CLI wall: **6.204s**; planner: **3.984s**; service: **5.614s**; estimated provider cost: **$0.00537710**; actual authoring charge: **15 credits**. Cost and billing usage were complete.
+
+### Matching clear weather instruction: PASS
+
+> Every weekday at 08:30 Berlin time, check tomorrow's weather in Berlin. If rain is expected, send me 'Take an umbrella in Berlin tomorrow' in chat; otherwise send me 'No rain expected in Berlin tomorrow' in chat. Name it Weather Clean Voice QA ba678e7e.
+
+**Output**: Weekdays 08:30 Europe/Berlin → Berlin tomorrow forecast → exact rain_expected Check → yes: “Take an umbrella in Berlin tomorrow”; no: “No rain expected in Berlin tomorrow”. No Ask AI.
+
+CLI wall: **5.409s**; planner: **3.749s**; service: **4.851s**; estimated provider cost: **$0.00531517**; actual authoring charge: **15 credits**. Cost and billing usage were complete.
+
+### Raw shopping with self-corrections: PASS
+
+> Um, every Thursday at six p.m. Berlin time, find noise-cancelling headphones for under 120 dollars and send the matching products in chat. Wait, no: every Friday at 18:00 UTC, find noise-cancelling headphones costing no more than 150 euros, and send me the matching products in chat. Name it Headphone Raw Voice QA ba678e7e.
+
+**Output**: Friday 18:00 UTC → shopping.search_products (noise-cancelling headphones, country de, max_price 150 EUR) → Send chat with typed matching-product results. No Check or Ask AI.
+
+CLI wall: **7.428s**; planner: **5.791s**; service: **6.847s**; estimated provider cost: **$0.00490913**; actual authoring charge: **13 credits**. Cost and billing usage were complete.
+
+The weather pair preserves the same corrected day, clock, timezone, city, runtime date and branch text. The raw shopping result matches the earlier clean headphone baseline. Together with the earlier raw Lisbon robotics case, this supports removing the separate workflow transcript-correction call by default. The direct authoring costs above do not include a transcription/correction call and do not measure the amount of audio latency saved. The operational correction path remains available for rollback; ordinary chat keeps its current correction flow.
+# Selected-workflow clarification follow-through (2026-10-01)
+
+One live clarification baseline on revision `127f161f` activated
+`workflows.clarify_workflows` and called only `workflows.search`, without running
+events, calendar, maps or delivery actions. It did not resolve the selected
+workflow: exact-title, prefix and empty queries each returned zero results.
+The search skill defaulted to an empty in-memory repository while authoring used
+Directus. The pending fix selects persisted storage, supports an exact
+owner-checked workflow ID, supplies the selected graph with credential fields
+removed, and asks one necessary question at a time. Five focused search tests
+pass; post-deployment live verification is pending.
+
+The baseline took 25.884 seconds and charged 91 credits for an ordinary focused
+chat turn. These are not workflow-authoring stage costs. The disabled original
+was unchanged, no copy was created, and both disposable objects were deleted.

@@ -153,6 +153,7 @@ test.describe('Workflows input home', () => {
 			if (!committedWorkflow) throw new Error('Seed workflow missing');
 			const saved = committedWorkflow;
 			const preview = { ...saved, title: 'Daily school weather preview', description: 'A proposed weather briefing before school.' };
+			const validatedPreviewGraph = { ...(saved.graph as Record<string, unknown>), version: 2 };
 			let allowCommit = false;
 			await page.route('**/v1/workflows/input/workflow-input-spec', async (route: Route) => {
 				await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: JSON.stringify({ session: allowCommit
@@ -166,7 +167,8 @@ test.describe('Workflows input home', () => {
 				expect(payload.text).toBe('Daily school weather');
 				expect(payload.timezone).toBeTruthy();
 				expect(payload.optimistic_save).toBe(true);
-				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
+				const validatedPreview = { type: 'preview', provisional: true, validated: true, workflow_index: 0, operation: 'create', graph: validatedPreviewGraph, accepted_node_count: (validatedPreviewGraph.nodes as unknown[]).length, metadata: { title: preview.title, description: preview.description, category: saved.category, icon: saved.icon } };
+				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: `data: ${JSON.stringify({ type: 'started', session_id: 'workflow-input-spec', status: 'running' })}\n\n` + `data: ${JSON.stringify(validatedPreview)}\n\n` + sseSession({
 					session_id: 'workflow-input-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: preview
 				}) });
 			});
@@ -177,12 +179,15 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-input-submit')).toBeEnabled();
 			await page.getByTestId('workflow-input-submit').click();
 			await expect(page.getByTestId('workflow-ai-pending')).toContainText('Saving now');
-			await expect(page.getByTestId('workflow-ai-pending-preview')).toBeVisible();
-			await expect(page.getByTestId('workflow-ai-preview-title')).toHaveText('Daily school weather preview');
-			await expect(page.getByTestId('workflow-ai-preview-description')).toContainText('proposed weather briefing');
-			await expect(page.getByTestId('workflow-ai-preview-steps').locator('li')).not.toHaveCount(0);
-			await expect(page.getByTestId('workflow-ai-saving-pill')).toHaveText('Saving...');
-			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveAttribute('data-disabled', 'true');
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily school weather preview');
+			await expect(page.getByTestId('workspace-detail-description')).toContainText('proposed weather briefing');
+			const provisionalGraph = page.getByTestId('workflow-ai-pending-preview');
+			await expect(provisionalGraph).toBeVisible();
+			await expect(provisionalGraph.getByTestId('workflow-node-card')).not.toHaveCount(0);
+			await expect(page.getByTestId('workflow-ai-processing')).toContainText('Saving now');
+			await expect(provisionalGraph).toHaveAttribute('data-disabled', 'true');
+			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+			await expect(provisionalGraph.getByTestId('workflow-node-save')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-new-pill')).toHaveCount(0);
 			allowCommit = true;
 			await expect(page.getByTestId('workflow-ai-pending-preview')).toHaveCount(0);
@@ -390,12 +395,24 @@ test.describe('Workflows input home', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
-	test('streams a workflow recording and submits only corrected text', async ({ page }: { page: Page }) => {
+	test('streams raw workflow voice requests, recovers transcription failures, and clarifies an edit', async ({ page }: { page: Page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
-		let correctionFails = false;
-		let correctedTranscript = 'Weather tomorrow at 08:00';
+		// The clarification route can load a new document. Install this before
+		// navigation so the handoff is captured in either document without AI calls.
+		await page.addInitScript(() => {
+			const captured = window as Window & { workflowClarificationPrefills?: Array<{ text: string; autoSend: boolean }> };
+			captured.workflowClarificationPrefills = [];
+			window.addEventListener('docsMessagePrefill', event => {
+				captured.workflowClarificationPrefills?.push((event as CustomEvent<{ text: string; autoSend: boolean }>).detail);
+				event.stopImmediatePropagation();
+			}, { capture: true });
+		});
+		let transcriptionFails = false;
+		let emptyTranscription = false;
+		let clarifyNextSession = false;
+		let rawFinalTranscript = 'Weather tomorrow at 08:00';
 		let socketConnections = 0;
 		await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, socket => {
 			socketConnections += 1;
@@ -404,16 +421,17 @@ test.describe('Workflows input home', () => {
 			socket.send(JSON.stringify({ type: 'session.ready', model: 'voxtral-mini-transcribe-realtime-2602', sample_rate: 16000 }));
 			socket.onMessage(rawMessage => {
 				const message = JSON.parse(String(rawMessage));
-				if (message.type === 'input_audio.append' && !sentPreview) {
+				if (message.type === 'input_audio.append' && !sentPreview && !emptyTranscription) {
 					sentPreview = true;
 					socket.send(JSON.stringify({ type: 'transcription.text.delta', text: 'Weather tomorrow' }));
 				}
 				if (message.type !== 'input_audio.end') return;
-				socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'Weather tomorrow', language: 'en', model: 'voxtral-mini-transcribe-realtime-2602' }));
-				socket.send(JSON.stringify({ type: 'correction.started', model: 'openai/gpt-oss-20b' }));
-				socket.send(JSON.stringify(correctionFails
-					? { type: 'correction.failed' }
-					: { type: 'correction.done', transcript: correctedTranscript, correction_model: 'openai/gpt-oss-20b' }));
+				if (transcriptionFails || emptyTranscription) {
+					socket.send(JSON.stringify({ type: 'session.error', message: 'Transcription unavailable' }));
+					return;
+				}
+				socket.send(JSON.stringify({ type: 'transcription.done', transcript: rawFinalTranscript, language: 'en', model: 'voxtral-mini-transcribe-realtime-2602' }));
+				socket.send(JSON.stringify({ type: 'correction.skipped', transcript: rawFinalTranscript }));
 			});
 		});
 		const log = (message: string, metadata: Record<string, unknown> = {}) => {
@@ -427,9 +445,9 @@ test.describe('Workflows input home', () => {
 			if (route.request().method() !== 'POST') return route.continue();
 			submittedTexts.push(route.request().postDataJSON().text);
 			selectedWorkflowIds.push(route.request().postDataJSON().selected_workflow_id);
-			await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
-				session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.'
-			}) });
+			await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession(clarifyNextSession
+				? { session_id: 'workflow-voice-spec', status: 'needs_clarification', message: 'Which event topics should I add?' }
+				: { session_id: 'workflow-voice-spec', status: 'failed', error: 'Voice request was not saved.' }) });
 		});
 		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
@@ -441,7 +459,7 @@ test.describe('Workflows input home', () => {
 		await expect.poll(() => submittedTexts.length).toBe(1);
 		expect(submittedTexts[0]).toBe('Weather tomorrow at 08:00');
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toHaveCount(0);
-		correctionFails = true;
+		transcriptionFails = true;
 		await page.getByTestId('workflow-input-textarea').fill('');
 		const priorSocketConnections = socketConnections;
 		await page.getByTestId('workflow-input-mic').click();
@@ -450,24 +468,49 @@ test.describe('Workflows input home', () => {
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toHaveCount(0);
 		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Weather tomorrow');
 		expect(submittedTexts).toHaveLength(1);
+		transcriptionFails = false;
+		emptyTranscription = true;
+		await page.getByTestId('workflow-input-textarea').fill('');
+		await page.getByTestId('workflow-input-mic').click();
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toBeVisible();
+		await expect(page.getByTestId('workflow-input-composer').getByTestId('timer-pill')).toContainText('00:01');
+		await page.getByTestId('workflow-input-composer').getByTestId('record-finish-button').click();
+		await expect(page.getByTestId('workflows-error')).toContainText('Could not transcribe this recording. Please record again or type your workflow request.');
+		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
+		expect(submittedTexts).toHaveLength(1);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+		const workflowTitle = `Voice edit spec ${Date.now()}`;
 		const create = await page.request.post(`${apiUrl}/v1/workflows`, {
-			data: { title: `Voice edit spec ${Date.now()}`, graph: blankWorkflowGraph(7), enabled: false }
+			data: { title: workflowTitle, graph: blankWorkflowGraph(7), enabled: false }
 		});
 		expect(create.ok(), await create.text()).toBe(true);
 		const workflowId = (await create.json()).workflow.id as string;
 		try {
-			correctionFails = false;
-			correctedTranscript = 'Also search for AI meetups and queer meetups';
+			transcriptionFails = false;
+			emptyTranscription = false;
+			clarifyNextSession = true;
+			rawFinalTranscript = 'Also search for AI meetups and queer meetups';
 			await page.goto(getE2EDebugUrl(`/workflows#workflow-id=${encodeURIComponent(workflowId)}&tab=details`), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflow-ai-edit-mic')).toBeVisible();
 			await page.getByTestId('workflow-ai-edit-mic').click();
 			await expect(page.getByTestId('workflow-ai-edit-composer').getByTestId('record-overlay')).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-edit-composer').getByTestId('recording-live-transcript')).toContainText('Weather tomorrow');
 			await page.getByTestId('workflow-ai-edit-composer').getByTestId('record-finish-button').click();
 			await expect.poll(() => submittedTexts.length).toBe(2);
-			expect(submittedTexts[1]).toBe(correctedTranscript);
+			expect(submittedTexts[1]).toBe(rawFinalTranscript);
 			expect(selectedWorkflowIds[1]).toBe(workflowId);
+			await expect.poll(() => page.evaluate(() => (window as Window & { workflowClarificationPrefills?: unknown[] }).workflowClarificationPrefills?.length ?? 0)).toBe(1);
+			const [handoff] = await page.evaluate(() => (window as Window & { workflowClarificationPrefills?: Array<{ text: string; autoSend: boolean }> }).workflowClarificationPrefills ?? []);
+			expect(handoff.autoSend).toBe(true);
+			expect(handoff.text).toBe(`@focus:workflows:clarify_workflows ${rawFinalTranscript}\n\nWorkflow editor context: I was changing my existing workflow ${JSON.stringify(workflowTitle)} (ID ${workflowId}). Keep this workflow as the target. Clarify the change before carrying out any of the workflow's future search or delivery actions.`);
+			expect(new URL(page.url()).pathname).toBe('/');
+			expect(await page.evaluate(() => ({
+				pending: sessionStorage.getItem('workflow_clarification_pending_message'),
+				newChat: sessionStorage.getItem('workflow_clarification_new_chat'),
+				autoSend: sessionStorage.getItem('docs_auto_send'),
+				prefillCount: (window as Window & { workflowClarificationPrefills?: unknown[] }).workflowClarificationPrefills?.length ?? 0
+			}))).toEqual({ pending: null, newChat: null, autoSend: null, prefillCount: 1 });
 		} finally {
 			await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
 		}

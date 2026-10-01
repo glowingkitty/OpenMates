@@ -243,4 +243,155 @@ test.describe('streamed workflow authoring', () => {
       for (const id of created) await page.request.delete(`${apiUrl()}/v1/workflows/${id}`).catch(() => null);
     }
   });
+
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.edit-control-and-undo,workflows.authoring.atomic-update
+  test('stopped streamed edit keeps the original workflow and guards Undo after a later version', async ({ page }: { page: Page }) => {
+    test.setTimeout(180000);
+    test.skip(!getTestAccount().email, 'Test account credentials required.');
+    await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
+    await page.addInitScript(() => {
+      const originalFetch = window.fetch.bind(window);
+      const state = window as typeof window & {
+        __editStreams?: Array<{ sessionId: string; preview: unknown }>;
+        __editStreamBodies?: Array<Record<string, unknown>>;
+      };
+      state.__editStreams = [];
+      state.__editStreamBodies = [];
+      window.fetch = async (input, init) => {
+        if (!String(input).includes('/v1/workflows/input/stream')) return originalFetch(input, init);
+        const scenario = state.__editStreams?.shift();
+        if (!scenario) throw new Error('Missing partial edit stream scenario');
+        state.__editStreamBodies?.push(JSON.parse(String(init?.body ?? '{}')));
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            init?.signal?.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), { once: true });
+            for (const event of [
+              { type: 'started', session_id: scenario.sessionId, status: 'running' },
+              { type: 'progress', phase: 'validating', operation: 'update', workflow_count: 1 },
+              scenario.preview
+            ]) controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          }
+        });
+        return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+      };
+    });
+    const log = (message: string) => console.log(`[WORKFLOW_PARTIAL_EDIT_E2E] ${message}`);
+    await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+    await loginToTestAccount(page, log, async () => {});
+    const originalGraph = {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'schedule_trigger', title: 'Every morning', config: { schedule: { type: 'daily', time: '07:00', timezone: 'Europe/Berlin' } } },
+        { id: 'message', type: 'send_chat_message', title: 'Send report', config: { title: 'Daily report', message: 'Original report' } },
+        { id: 'later', type: 'send_chat_message', title: 'Later follow-up', config: { title: 'Follow-up report', message: 'Keep this step' } }
+      ],
+      edges: [{ from: 'trigger', to: 'message' }, { from: 'message', to: 'later' }]
+    };
+    const seedResponse = await page.request.post(`${apiUrl()}/v1/workflows`, { data: {
+      title: `Partial edit ${Date.now()}`, description: 'Original description', category: 'general_knowledge', icon: 'calendar', graph: originalGraph, enabled: true
+    } });
+    expect(seedResponse.ok(), await seedResponse.text()).toBe(true);
+    const original = (await seedResponse.json()).workflow;
+    const workflowUrl = `${apiUrl()}/v1/workflows/${original.id}`;
+    const readWorkflow = async () => (await (await page.request.get(workflowUrl)).json()).workflow;
+    const editedGraph = { ...original.graph, nodes: original.graph.nodes.map((node: typeof originalGraph.nodes[number]) =>
+      node.id === 'message' ? { ...node, title: 'Send revised report', config: { ...node.config, message: 'Revised report' } } : node) };
+    let current = original;
+    let undoCalls = 0;
+    try {
+      await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      await page.getByTestId('workflow-landing-card').filter({ hasText: original.title }).click();
+      await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'true');
+      const stopCounts = new Map<string, number>();
+      const statusCounts = new Map<string, number>();
+      for (const sessionId of ['partial-edit-first', 'partial-edit-second']) {
+        await page.route(`**/v1/workflows/input/${sessionId}/stop`, async route => {
+          stopCounts.set(sessionId, (stopCounts.get(sessionId) ?? 0) + 1);
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ session: { session_id: sessionId, status: 'running', stop_requested: true } }) });
+        });
+        await page.route(`**/v1/workflows/input/${sessionId}`, async route => {
+          const reads = (statusCounts.get(sessionId) ?? 0) + 1;
+          statusCounts.set(sessionId, reads);
+          if (reads === 1) {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ session: { session_id: sessionId, status: 'running', stop_requested: true } }) });
+            return;
+          }
+          if (reads === 2) {
+            const response = await page.request.patch(workflowUrl, { data: {
+              title: 'Partially revised workflow', description: 'Revised description', icon: 'workflow', graph: editedGraph, enabled: false
+            } });
+            expect(response.ok(), await response.text()).toBe(true);
+            current = (await response.json()).workflow;
+          }
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ session: {
+            session_id: sessionId, status: 'draft', partial_reason: 'stopped', partial_warning: 'Saved completed steps; later steps remain.',
+            workflows: [current], undo_available: true,
+            mutations: [{ type: 'update_workflow', target_id: original.id, before: original, after: current }]
+          } }) });
+        });
+        await page.route(`**/v1/workflows/input/${sessionId}/undo`, async route => {
+          undoCalls += 1;
+          if (sessionId === 'partial-edit-first') {
+            const response = await page.request.patch(workflowUrl, { data: {
+              title: original.title, description: original.description, icon: original.icon, graph: original.graph, enabled: original.enabled
+            } });
+            expect(response.ok(), await response.text()).toBe(true);
+            current = (await response.json()).workflow;
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ session: { session_id: sessionId, status: 'undone' } }) });
+          } else {
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ session: {
+              session_id: sessionId, status: 'draft', error_code: 'WORKFLOW_INPUT_UNDO_CONFLICT', error: 'A newer change prevents Undo.'
+            } }) });
+          }
+        });
+      }
+      const stopEdit = async (sessionId: string) => {
+        await page.evaluate(({ sessionId, id, title, graph }) => {
+          (window as typeof window & { __editStreams: Array<{ sessionId: string; preview: unknown }> }).__editStreams.push({
+            sessionId, preview: { type: 'preview', workflow_index: 0, operation: 'update', provisional: true, validated: true,
+              graph, metadata: { workflow_id: id, title, description: 'Revised description', icon: 'workflow' }, accepted_node_count: 2 }
+          });
+        }, { sessionId, id: original.id, title: 'Partially revised workflow', graph: editedGraph });
+        await page.getByTestId('workflow-ai-edit-textarea').fill('Revise only the report step');
+        await page.getByTestId('workflow-ai-edit-submit').click();
+        await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-ai-accepted-nodes')).toHaveText('2 steps validated');
+        await page.getByTestId('workflow-ai-stop').click();
+        await expect(page.getByTestId('workflow-ai-partial-warning')).toContainText('later steps remain');
+        await expect(page.getByTestId('workspace-detail-title')).toHaveText('Partially revised workflow');
+        await expect(page.getByTestId('workspace-detail-description')).toHaveText('Revised description');
+        await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-icon', 'workflow');
+        await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'false');
+        await expect(page.locator('[data-testid="workflow-node-card"][data-node-id="message"]')).toHaveAttribute('data-ai-change', 'edited');
+        await expect(page.locator('[data-testid="workflow-node-card"][data-node-id="later"]')).toBeVisible();
+        expect(stopCounts.get(sessionId)).toBe(1);
+        expect(statusCounts.get(sessionId)).toBeGreaterThanOrEqual(2);
+        const saved = await readWorkflow();
+        expect(saved.id).toBe(original.id);
+        expect(saved.graph.nodes.find((node: { id: string }) => node.id === 'message')?.config).toEqual(editedGraph.nodes.find((node: { id: string }) => node.id === 'message')?.config);
+        expect(saved.graph.nodes.find((node: { id: string }) => node.id === 'later')).toEqual(original.graph.nodes.find((node: { id: string }) => node.id === 'later'));
+        expect(saved.graph.edges).toEqual(original.graph.edges);
+      };
+      await stopEdit('partial-edit-first');
+      await page.getByTestId('workflow-ai-undo').click();
+      await expect(page.getByTestId('workspace-detail-title')).toHaveText(original.title);
+      await expect(page.getByTestId('workspace-detail-description')).toHaveText(original.description);
+      await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-icon', original.icon);
+      await expect(page.getByTestId('workflow-enabled-state')).toHaveAttribute('data-enabled', 'true');
+      expect((await readWorkflow()).graph).toEqual(original.graph);
+
+      await stopEdit('partial-edit-second');
+      const manualResponse = await page.request.patch(workflowUrl, { data: { description: 'Later manual version' } });
+      expect(manualResponse.ok(), await manualResponse.text()).toBe(true);
+      const manualVersion = (await manualResponse.json()).workflow;
+      await page.getByTestId('workflow-ai-undo').click();
+      await expect(page.getByTestId('workflows-error')).toContainText('A newer change prevents Undo.');
+      expect(undoCalls).toBe(2);
+      expect((await readWorkflow()).current_version_id).toBe(manualVersion.current_version_id);
+      expect((await readWorkflow()).description).toBe('Later manual version');
+      expect(await page.evaluate(() => (window as typeof window & { __editStreamBodies: Array<Record<string, unknown>> }).__editStreamBodies.map(body => body.selected_workflow_id))).toEqual([original.id, original.id]);
+    } finally {
+      await page.request.delete(workflowUrl).catch(() => null);
+    }
+  });
 });

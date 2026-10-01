@@ -10,10 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 from backend.core.api.app.services.workflow_assistant_service import WorkflowAssistantService
-from backend.core.api.app.services.workflow_service import WorkflowService
+from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 
 
-_DEFAULT_WORKFLOW_SERVICE = WorkflowService()
+_DEFAULT_WORKFLOW_SERVICE = WorkflowService(repository=DirectusWorkflowRepository())
 _DEFAULT_ASSISTANT_SERVICE = WorkflowAssistantService(_DEFAULT_WORKFLOW_SERVICE)
 
 

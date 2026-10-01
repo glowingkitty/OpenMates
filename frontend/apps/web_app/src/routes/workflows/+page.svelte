@@ -78,7 +78,7 @@
 		liveTranscript?: string;
 		realtime?: {
 			transcription: Promise<{ transcript: string }>;
-			correction: Promise<{ useCorrected: boolean; transcriptCorrected?: string }>;
+			correction: Promise<{ useCorrected: boolean; correctionSkipped?: boolean; transcriptCorrected?: string }>;
 		};
 	};
 
@@ -754,6 +754,7 @@
 		const review = () => {
 			if (target === 'home') workflowInputText = raw;
 			else editorInstruction = raw;
+			if (!raw) routeError = $text('workflows.builder.voice_transcription_failed');
 		};
 		if (!realtime) {
 			review();
@@ -762,6 +763,15 @@
 		try {
 			raw = (await realtime.transcription).transcript.trim() || raw;
 			const corrected = await realtime.correction;
+			if (corrected.correctionSkipped) {
+				if (!raw) {
+					review();
+					return;
+				}
+				if (target === 'home') await submitWorkflowInput(raw);
+				else submitEditorInstruction(raw);
+				return;
+			}
 			if (!corrected.useCorrected || !corrected.transcriptCorrected?.trim()) {
 				review();
 				return;
@@ -779,9 +789,13 @@
 		const context = target
 			? `\n\nWorkflow editor context: I was changing my existing workflow ${JSON.stringify(target.title)} (ID ${target.id}). Keep this workflow as the target. Clarify the change before carrying out any of the workflow's future search or delivery actions.`
 			: '\n\nWorkflow workspace context: Clarify the workflow creation or edit before carrying out its future search or delivery actions.';
+		const message = `@focus:workflows:clarify_workflows ${instruction}${context}`;
 		sessionStorage.setItem('docs_auto_send', 'true');
 		sessionStorage.setItem('workflow_clarification_new_chat', 'true');
-		void goto(`/#message=${encodeURIComponent(`@focus:workflows:clarify_workflows ${instruction}${context}`)}`);
+		// The root page can change its hash during asynchronous startup. Retain the
+		// same request for its one-time workflow handoff recovery path.
+		sessionStorage.setItem('workflow_clarification_pending_message', message);
+		void goto(`/#message=${encodeURIComponent(message)}`);
 	}
 
 	async function authorWorkflow(instruction: string, workflowId?: string, existingSessionId?: string): Promise<void> {

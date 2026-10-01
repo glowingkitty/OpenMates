@@ -474,9 +474,33 @@ async def test_realtime_correction_failure_keeps_raw_transcript(
 
 # contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
 @pytest.mark.asyncio
+async def test_workflow_voice_uses_raw_transcript_without_correction_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("WORKFLOW_TRANSCRIPT_CORRECTION_ENABLED", raising=False)
+    sent: list[dict[str, object]] = []
+
+    class Socket(_FakeWebSocket):
+        async def send_json(self, message: dict[str, object]) -> None:
+            sent.append(message)
+
+    async def unexpected_secret(*_args: object) -> str:
+        raise AssertionError("Workflow raw transcript must not fetch correction secrets")
+
+    socket = Socket()
+    socket.app.state.secrets_manager = SimpleNamespace(get_secret=unexpected_secret)
+    raw = "Move this to 8, actually no, 8:30 Berlin time."
+    await audio_realtime._correct_and_send(socket, raw, "en", "workflow")
+
+    assert sent == [{"type": "correction.skipped", "transcript": raw}]
+
+
+# contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring
+@pytest.mark.asyncio
 async def test_workflow_voice_correction_routes_by_language_and_falls_back(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("WORKFLOW_TRANSCRIPT_CORRECTION_ENABLED", "true")
     sent: list[dict[str, object]] = []
     requested_secrets: list[str] = []
 

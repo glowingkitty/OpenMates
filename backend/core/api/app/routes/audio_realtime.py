@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import math
+import os
 import uuid
 from typing import Any, Optional
 
@@ -184,6 +185,15 @@ async def _correct_and_send(
     context: Optional[str] = None,
 ) -> None:
     workflow_context = context == "workflow"
+    # Natural-language workflow planning can interpret spoken self-corrections.
+    # Keep a rollout switch for restoring the prior provider correction path.
+    if workflow_context and os.getenv(
+        "WORKFLOW_TRANSCRIPT_CORRECTION_ENABLED", ""
+    ).strip().lower() not in {"1", "true", "yes"}:
+        await websocket.send_json(
+            {"type": "correction.skipped", "transcript": raw_transcript}
+        )
+        return
     first_workflow_model = (
         GROQ_WORKFLOW_CORRECTION_MODEL
         if (language or "").lower().startswith("en")

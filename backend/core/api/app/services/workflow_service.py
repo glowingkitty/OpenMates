@@ -1589,7 +1589,7 @@ class WorkflowService:
                 "description": description, "encrypted_slug": encrypted_slug,
                 "slug_lookup_hash": slug_lookup_hash, "category": category, "icon": icon,
                 "initial_binding_requirements": initial_binding_requirements,
-                "allow_data_dependencies": allow_data_dependencies,
+                "allow_data_dependencies": allow_data_dependencies or WorkflowGraph.model_validate(graph).version >= 2,
             }], f"single-create:{workflow_id}:{initial_version_id}", vault_key_id)[0]
             assert result is not None
             return result
@@ -1617,7 +1617,9 @@ class WorkflowService:
         self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash)
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
-        validate_workflow_composition_refs(workflow_graph, allow_data_dependencies=allow_data_dependencies)
+        validate_workflow_composition_refs(
+            workflow_graph, allow_data_dependencies=allow_data_dependencies or workflow_graph.version >= 2,
+        )
         if enabled:
             validate_workflow_readiness(workflow_graph, require_schedule=True)
         identity = (
@@ -1749,7 +1751,9 @@ class WorkflowService:
                 "restored_from_version_id": restored_from_version_id,
                 "encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash,
                 "category": category, "icon": icon,
-                "allow_data_dependencies": allow_data_dependencies,
+                "allow_data_dependencies": allow_data_dependencies or (
+                    graph is not None and WorkflowGraph.model_validate(graph).version >= 2
+                ),
             }], f"single-update:{workflow_id}:{new_version_id}", vault_key_id)[0]
             assert result is not None
             return result
@@ -1780,7 +1784,10 @@ class WorkflowService:
             prior_graph = known_prior.graph if known_prior is not None else WorkflowGraph.model_validate(
                 self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)
             )
-            validate_workflow_composition_refs(workflow_graph, prior_graph, allow_data_dependencies=allow_data_dependencies)
+            validate_workflow_composition_refs(
+                workflow_graph, prior_graph,
+                allow_data_dependencies=allow_data_dependencies or workflow_graph.version >= 2,
+            )
         effective_enabled = record["enabled"] if enabled is None else enabled
         if effective_enabled:
             validate_workflow_readiness(

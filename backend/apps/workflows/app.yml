@@ -64,7 +64,15 @@ focuses:
 
       Use the Workflows capability information and user-owned workflow search when
       needed. Do not invent graph node types, skill parameters, or existing workflows.
-      For an existing workflow, verify the target before editing it. For several
+      For an existing workflow, verify the target before editing it. When the
+      editor supplies a selected workflow ID, look it up once with workflows.search
+      using workflow_id and use its graph and schedule to identify the change.
+      If that ID is missing or inaccessible, ask the user to select the workflow
+      again; do not broaden the search. Without a selected ID, search by title
+      once and ask which match the user means if needed. Preserve the existing
+      schedule, actions, conditions, location, delivery, and enabled state unless
+      the user asks to change them. Ask one necessary question at a time. Do not
+      search for future events or run a workflow to clarify an edit. For several
       create or edit operations, gather enough detail for every operation, then
       pass the complete request to create-or-modify in one instruction so the
       changes commit together. Never send an assistant-written graph.
@@ -110,8 +118,9 @@ skills:
     description_translation_key: workflows.skills.search.description
     icon_image: search.svg
     preprocessor_hint: >
-      Search the user's existing persisted workflows before proposing a new automation.
-      Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+      Look up a selected workflow by its exact ID before editing it. Otherwise
+      search the user's persisted workflows by title. Include temporary workflows
+      only when the user explicitly asks about recent chat-created workflows.
     providers:
       - name: OpenMates
         no_api_key: true
@@ -122,6 +131,9 @@ skills:
         query:
           type: string
           description: Workflow title or intent text to search for.
+        workflow_id:
+          type: string
+          description: Exact owner-scoped workflow ID from the editor or a prior search result.
         include_temporary:
           type: boolean
           description: Include temporary chat-created workflows in the search results.

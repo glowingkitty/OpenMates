@@ -89,7 +89,7 @@
 	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
-	import { replaceState } from '$app/navigation';
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import WorkflowsRoute from './workflows/+page.svelte';
 	import ProjectsRoute from './projects/+page.svelte';
@@ -108,6 +108,16 @@
 	// Height (px) reserved for the dev console at the bottom of the viewport
 	const DEV_CONSOLE_HEIGHT = 280;
 	let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+	let workflowHandoffReady = false;
+	let workflowHandoffInFlight = false;
+
+	afterNavigate(() => {
+		// A workflow can return to an already-mounted root page via SvelteKit goto,
+		// which does not always produce a native hashchange event.
+		if (workflowHandoffReady && window.location.pathname === '/') {
+			void consumePendingWorkflowClarification();
+		}
+	});
 	let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
 	let lastLoadedChatId = $state<string | null>(null);
 	let anonymousHashRecoveryChatId = $state<string | null>(null);
@@ -3022,6 +3032,10 @@
 		bfcacheRestoreHandler = handleBfcacheRestore;
 		window.addEventListener('pageshow', handleBfcacheRestore);
 
+		// Startup can replace the hash before the normal deep-link pass reaches it.
+		// The same consumer also handles a workflow's client-side return to root.
+		workflowHandoffReady = true;
+		await consumePendingWorkflowClarification();
 		console.debug('[+page.svelte] onMount finished');
 
 		// --- Media mode ready signal ---
@@ -3173,6 +3187,18 @@
 		activeChatStore.clearActiveChat();
 	}
 
+	async function consumePendingWorkflowClarification(): Promise<void> {
+		if (workflowHandoffInFlight || sessionStorage.getItem('workflow_clarification_new_chat') !== 'true') return;
+		const pending = sessionStorage.getItem('workflow_clarification_pending_message');
+		if (!pending) return;
+		workflowHandoffInFlight = true;
+		try {
+			await processDeepLink(`#message=${encodeURIComponent(pending)}`, createDeepLinkHandlers());
+		} finally {
+			workflowHandoffInFlight = false;
+		}
+	}
+
 	/**
 	 * Create deep link handlers for unified processing
 	 */
@@ -3251,6 +3277,7 @@
 				const workflowClarification = sessionStorage.getItem('workflow_clarification_new_chat') === 'true';
 				if (workflowClarification) {
 					sessionStorage.removeItem('workflow_clarification_new_chat');
+					sessionStorage.removeItem('workflow_clarification_pending_message');
 					// Reset ActiveChat's current chat, draft context and temporary ID before
 					// dispatching the prefill. Clearing only the store can reuse an open chat.
 					if (activeChat?.resetToNewChat) await activeChat.resetToNewChat();
