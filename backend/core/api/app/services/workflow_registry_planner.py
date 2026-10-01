@@ -467,8 +467,15 @@ class WorkflowRegistryPlanner:
                                 # callbacks. Re-encoding its validated JSON fields
                                 # may change whitespace, but cannot edit a prefix.
                                 def decoded(record: dict[str, Any]) -> dict[str, Any]:
-                                    return {key: json.loads(value) if key.endswith("_json") else value
-                                            for key, value in record.items()}
+                                    result = {key: json.loads(value) if key.endswith("_json") else value
+                                              for key, value in record.items()}
+                                    # A root's explicit default branch compiles
+                                    # identically to an omitted branch. Compact
+                                    # returns omit it; frozen model retries still
+                                    # require the exact accepted flat record.
+                                    if result.get("parent_check_id") is None and result.get("branch") == "default":
+                                        result.pop("branch")
+                                    return result
                                 equivalent = decoded(existing_node) == decoded(node)
                             if equivalent and (replay or node in frozen_nodes):
                                 return

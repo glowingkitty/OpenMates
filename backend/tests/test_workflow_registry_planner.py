@@ -607,7 +607,8 @@ async def test_gemini_can_include_a_needed_exact_check_even_when_jev_suggests_no
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.provisional-validation
 @pytest.mark.asyncio
-async def test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks(monkeypatch):
+@pytest.mark.parametrize("explicit_root_default", [False, True])
+async def test_compact_return_does_not_reject_json_whitespace_after_validated_node_callbacks(monkeypatch, explicit_root_default):
     configure(monkeypatch)
 
     class CompactReturningAuthor(FlatAuthor):
@@ -617,6 +618,8 @@ async def test_compact_return_does_not_reject_json_whitespace_after_validated_no
 
     raw = flat_forecast()
     for node in raw["workflows"][0]["nodes"]:
+        if explicit_root_default:
+            node["branch"] = "default"
         for key, value in list(node.items()):
             if key.endswith("_json"):
                 node[key] = json.dumps(json.loads(value), indent=2)
