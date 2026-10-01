@@ -91,7 +91,9 @@
         "workflows-input-stream.spec.ts",
         "workflows-reorder-inputs.spec.ts",
         "workspace-hash-routing.spec.ts",
-        "workspace-sidebar.spec.ts"
+        "workspace-sidebar.spec.ts",
+        "components/chat-settings-preview.spec.ts",
+        "components/sheet-fullscreen.spec.ts"
       ]
     },
     "external_integration": {
