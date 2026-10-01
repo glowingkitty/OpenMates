@@ -507,6 +507,7 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
         
         # Find all models that use this server
         candidate_models = []  # List of (provider_id, model_id, model_config, cost)
+        preferred_models = []
         
         for provider_id, provider_config in all_provider_configs.items():
             models = provider_config.get("models", [])
@@ -517,9 +518,11 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                 # Check if this model has the server in its servers list
                 servers = model.get("servers", [])
                 has_server = False
+                health_check_preferred = False
                 for server in servers:
                     if isinstance(server, dict) and server.get("id") == server_id:
                         has_server = True
+                        health_check_preferred = server.get("health_check_preferred") is True
                         break
                 
                 if has_server:
@@ -528,11 +531,19 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                         # Get input cost per million tokens
                         costs = model.get("costs", {})
                         input_cost = costs.get("input_per_million_token", {}).get("price")
-                        candidate_models.append((provider_id, model_id, model, input_cost))
+                        candidate = (provider_id, model_id, model, input_cost)
+                        candidate_models.append(candidate)
+                        if health_check_preferred:
+                            preferred_models.append(candidate)
         
         if not candidate_models:
             logger.warning(f"No models found that use server '{server_id}'")
             return None
+
+        # A provider's cheapest catalog entry may require a dedicated endpoint.
+        # Prefer a configured model verified to work for the health probe.
+        if preferred_models:
+            candidate_models = preferred_models
         
         # For Anthropic, prefer Haiku models for health checks
         if server_id == "anthropic":

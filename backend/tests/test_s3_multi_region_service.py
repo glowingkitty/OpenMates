@@ -66,7 +66,7 @@ def test_region_endpoint_is_derived_from_selected_region() -> None:
 
 
 class FakeSecretsManager:
-    async def get_secret(self, *, secret_path: str, secret_key: str):
+    async def get_secret(self, *, secret_path: str, secret_key: str, log_missing: bool = True):
         values = {
             "s3_access_key": "test-access",
             "s3_secret_key": "test-secret",

@@ -138,8 +138,7 @@ skills:
     anonymous_access: authenticated
     name_translation_key: books.translate
     description_translation_key: books.translate.description
-    class_path: |
-      skills.translate.TranslateSkill
+    # Implementation is planned; omit class_path until a skill module exists.
 focuses:
   - id: book_recommendations
     name_translation_key: books.book_recommendations

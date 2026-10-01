@@ -293,7 +293,7 @@ class S3UploadService:
         self.configured = True
 
         # The legacy region secret remains the active write region during rollout.
-        region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name")
+        region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name", log_missing=False)
         self.region_name = region_secret if region_secret else 'nbg1'
         configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
         if os.getenv("S3_ENDPOINT_URL") and len(configured_regions) != 1:

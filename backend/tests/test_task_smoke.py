@@ -214,6 +214,21 @@ class TestCeleryConfig:
 
 class TestAppHealthChecks:
     # contract-test: supporting surface=rest_api assertions=operational-monitoring.providers.current-availability
+    def test_provider_probe_prefers_configured_available_model_over_cheaper_catalog_entry(self, monkeypatch):
+        from backend.core.api.app.tasks import health_check_tasks
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(health_check_tasks, "config_manager", SimpleNamespace(
+            get_provider_configs=lambda: {"models": {"models": [
+                {"id": "dedicated-only", "servers": [{"id": "together"}],
+                 "costs": {"input_per_million_token": {"price": 0.95}}},
+                {"id": "available", "servers": [{"id": "together", "health_check_preferred": True}],
+                 "costs": {"input_per_million_token": {"price": 2.10}}},
+            ]}},
+        ))
+        assert health_check_tasks._get_cheapest_model_for_server("together") == "models/available"
+
+    # contract-test: supporting surface=rest_api assertions=operational-monitoring.providers.current-availability
     def test_groq_health_probe_selects_configured_model(self, monkeypatch):
         from backend.core.api.app.tasks import health_check_tasks
         from types import SimpleNamespace
