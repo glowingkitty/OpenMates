@@ -1,6 +1,6 @@
 {
   "name": "@openmates/secret-scanner",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Secret detection, tokenization, and restoration for OpenMates CLI and web app",
   "type": "module",
   "main": "dist/index.js",
