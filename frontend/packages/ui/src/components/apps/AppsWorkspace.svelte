@@ -81,6 +81,7 @@
       id, title: apps[id].name_translation_key ? $text(apps[id].name_translation_key) : apps[id].name,
       summary: apps[id].description_translation_key ? $text(apps[id].description_translation_key) : '', appId: id,
       icon: 'app', iconImage: apps[id].icon_image, category: 'productivity',
+      appMetadata: apps[id],
     }));
   });
   const tabs = $derived(skillId ? [
@@ -200,22 +201,17 @@
 </script>
 
 <div class="apps-workspace" data-testid="apps-workspace">
-  <WorkspaceHomeShell surface="apps" eyebrow={$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.home_greeting', { values: { name: $userProfile.username } }) : tr('title')} heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems} actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" contentSlotVisible={route?.showAll ?? false} showReportIssue showAllLabel={tr('show_all')} onShowAll={() => onNavigate('#apps/all')} onSearchAll={() => onNavigate('#apps/all')} onActionItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onStartInspiration={item => onNavigate(buildAppsWorkspaceHash(item.feature?.settings_path?.startsWith('apps') ? item.feature.settings_path : 'apps/web/search'))}>
+  <WorkspaceHomeShell surface="apps" eyebrow={$authStore.isAuthenticated && $userProfile.username ? $text('apps_workspace.home_greeting', { values: { name: $userProfile.username } }) : ''} heading={tr('home_prompt')} subtitle={tr('description')} actionItems={homeItems} actionItemsTestId="apps-home-apps" itemTestId="apps-app-card" contentSlotVisible={route?.showAll ?? false} showReportIssue showComposer={false} showAllLabel={tr('show_all')} onShowAll={() => onNavigate('#apps/all')} onSearchAll={() => onNavigate('#apps/all')} onActionItem={item => onNavigate(buildAppsWorkspaceHash(`apps/${item.id}`))} onStartInspiration={item => onNavigate(buildAppsWorkspaceHash(item.feature?.settings_path?.startsWith('apps') ? item.feature.settings_path : 'apps/web/search'))}>
     {#if route?.showAll}
       <button class="plain-action" onclick={() => onNavigate('#apps')}>{tr('back_to_recent')}</button>
       <SettingsAllApps initialFilter={catalogFilter} on:openSettings={navigateSettings} />
     {/if}
-    <svelte:fragment slot="composer">
-      {#if !route?.showAll}
-        <button class="apps-quick-use-affordance" data-testid="apps-quick-use-affordance" type="button" onclick={() => onNavigate('#apps/all&filter=skills')}>{tr('quick_use_hint')}</button>
-      {/if}
-    </svelte:fragment>
   </WorkspaceHomeShell>
 
   {#if route?.appId}
     <div class="apps-detail-layer">
       {#key route.appId}
-        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} onClose={() => onNavigate(skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : '#apps')} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
+        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={() => onNavigate(skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : '#apps')} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
           {#snippet embedHeaderCta()}
             {#if skillId && !route?.settingsPath}
               <button class="hero-action" data-testid="apps-use-skill" onclick={useSkill}>{tr('use_skill')}</button>
@@ -290,8 +286,6 @@
   .apps-detail-card { width: 82%; min-width: 0; box-sizing: border-box; min-height: 20rem; margin: var(--spacing-9, 2.25rem) auto 0; padding: 0 var(--spacing-6) var(--spacing-8); border-radius: var(--radius-5); background: var(--color-grey-0); }
   .apps-detail-tabs { position: relative; top: -1.25rem; z-index: var(--z-index-raised-2); width: min(100%, 19rem); margin: 0 auto -0.25rem; }
   .apps-detail-card [role='tabpanel'] { min-width: 0; max-width: 100%; }
-  .apps-quick-use-affordance { display: block; width: min(100% - 2rem, 32rem); min-height: 3.25rem; margin: 0 auto; border: 0; border-radius: var(--radius-full); background: var(--color-grey-0); box-shadow: var(--shadow-md); color: var(--color-grey-70); font: inherit; font-weight: 700; cursor: pointer; }
-  .apps-quick-use-affordance:hover { color: var(--color-primary-start); }
   .skill-form-area { margin: var(--spacing-6) 0; border-radius: var(--border-radius-lg); transition: box-shadow .3s; }
   .skill-form-area.highlight { box-shadow: 0 0 0 .2rem var(--color-primary-start); }
   .hero-action,.plain-action { border: 0; border-radius: var(--border-radius-lg); padding: .75rem 1.25rem; font: inherit; cursor: pointer; }

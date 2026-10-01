@@ -76,6 +76,8 @@ function assertExecutionIdentity(identity: ExecutionIdentity): void {
 /** Public details are loaded only when a skill opens; failures are never cached. */
 export function getAppsSkillDetails(appId: string, skillId: string, signal?: AbortSignal): Promise<AppsSkillDetails> {
   const key = `${appId}/${skillId}`;
+  // Private mail metadata must be admitted by the server for every account.
+  if (appId === 'mail' && skillId === 'search') return fetchDetails(appId, skillId, signal);
   // A caller-specific abort must not cancel a shared cached request.
   if (signal) return fetchDetails(appId, skillId, signal);
   const cached = detailsCache.get(key);
@@ -90,8 +92,14 @@ export function getAppsSkillDetails(appId: string, skillId: string, signal?: Abo
 
 async function fetchDetails(appId: string, skillId: string, signal?: AbortSignal): Promise<AppsSkillDetails> {
   const url = getApiEndpoint(`/v1/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}/details`);
-  const response = await fetch(url, { credentials: 'include', signal });
+  // Public catalog responses allow wildcard CORS, which browsers reject for
+  // credentialed requests. Mail search is the one user-gated catalog entry and
+  // must keep its session so its backend allowlist remains authoritative.
+  const credentials = appId === 'mail' && skillId === 'search' ? 'include' : 'omit';
+  const requestAuthGeneration = authGeneration;
+  const response = await fetch(url, { credentials, signal });
   const body = await readJson(response);
+  if (credentials === 'include' && requestAuthGeneration !== authGeneration) throw new Error('account_context_changed');
   if (!response.ok) throw new Error(errorDetail(body, response.status));
   return body as AppsSkillDetails;
 }

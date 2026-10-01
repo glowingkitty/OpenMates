@@ -51,24 +51,6 @@ async function fixturePublicApps(page: Page): Promise<void> {
   }));
 }
 
-async function expectLoadedAppGlyph(card: Locator, svgName: string): Promise<void> {
-  const glyph = card.getByTestId('apps-card-glyph');
-  await expect(glyph).toBeVisible();
-  await expect.poll(() => glyph.evaluate(image => {
-    const img = image as HTMLImageElement;
-    return img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
-  })).toBe(true);
-  const expectedSvg = readFileSync(resolve(__dirname, `../../../../packages/ui/static/icons/${svgName}.svg`), 'utf8');
-  const expectedPath = expectedSvg.match(/<path d="([^"]+)"/)?.[1];
-  expect(expectedPath).toBeTruthy();
-  const actualPath = await glyph.evaluate(async image => {
-    const img = image as HTMLImageElement;
-    const svg = await (await fetch(img.currentSrc)).text();
-    return new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('path')?.getAttribute('d');
-  });
-  expect(actualPath).toBe(expectedPath);
-}
-
 async function expectLoadedMaskGlyph(glyph: Locator, svgName: string): Promise<void> {
   await expect(glyph).toBeVisible();
   const expectedSvg = readFileSync(resolve(__dirname, `../../../../packages/ui/static/icons/${svgName}.svg`), 'utf8');
@@ -120,16 +102,34 @@ test.describe('Apps bare component previews', () => {
     await closed;
   });
   // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,workspace-shell.nav.released-surfaces-visible
-  test('shows the fifth Apps tab for signed-in desktop and a public Apps choice on phone', async ({ page }: { page: Page }) => {
+  test('orders signed-in workspaces with Apps second and keeps the public Apps choice on phone', async ({ page }: { page: Page }) => {
     await fixturePublicApps(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(preview('Header', 1280, 'signedIn'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
     const nav = page.locator('.icon-tab-bar');
     const apps = page.getByTestId('apps-nav-link');
+    const header = page.getByTestId('global-header');
+    const headerBounds = await header.boundingBox();
+    expect(headerBounds).not.toBeNull();
+    expect(headerBounds!.width).toBeGreaterThanOrEqual(1200);
+    expect(headerBounds!.height).toBeLessThanOrEqual(65);
     await expect(nav.getByRole('link')).toHaveCount(5);
+    await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
+    expect(await nav.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('data-testid')))).toEqual([
+      'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'tasks-nav-link', 'workflows-nav-link',
+    ]);
     await expect(apps).toBeVisible();
     await expect(apps).toHaveAttribute('href', '/#apps');
+    for (const control of [header.getByRole('link', { name: /OpenMates/i }).first(), ...await nav.getByRole('link').all()]) {
+      await expect(control).toBeVisible();
+      const bounds = await control.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(headerBounds!.x);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(headerBounds!.x + headerBounds!.width);
+      expect(bounds!.y).toBeGreaterThanOrEqual(headerBounds!.y);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(headerBounds!.y + headerBounds!.height);
+    }
     // Compare the SVG path itself because Vite may inline its asset URL.
     const expectedIcon = readFileSync(resolve(__dirname, '../../../../packages/ui/static/icons/app.svg'), 'utf8');
     const actualIconPath = await apps.locator('.app-icon').evaluate(async element => {
@@ -147,12 +147,17 @@ test.describe('Apps bare component previews', () => {
     await expectNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(preview('Header', 390), { waitUntil: 'domcontentloaded' });
+    await page.goto(preview('Header', 390, 'signedIn'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
     const mobileSelect = page.getByTestId('workspace-mobile-select');
     await expect(mobileSelect).toBeVisible();
-    await expect(mobileSelect.locator('option')).toHaveCount(2);
-    await expect(mobileSelect.locator('option[value="/#apps"]')).toHaveText(/Apps/i);
+    expect(await mobileSelect.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual([
+      '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+    ]);
+    await page.goto(preview('Header', 390), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('workspace-mobile-select').locator('option')).toHaveCount(2);
+    await expect(page.getByTestId('workspace-mobile-select').locator('option[value="/#apps"]')).toHaveText(/Apps/i);
     await expectNoHorizontalOverflow(page);
   });
 
@@ -169,17 +174,15 @@ test.describe('Apps bare component previews', () => {
       await expect(page.getByTestId('report-issue-button')).toBeVisible();
       await expect(page.getByRole('heading', { name: 'What app do you want to use?' })).toBeVisible();
       const banner = await page.getByTestId('apps-daily-inspiration-area').boundingBox();
-      const greeting = await page.getByTestId('apps-workspace-home').locator('.workspace-eyebrow').boundingBox();
+      await expect(page.getByTestId('apps-workspace-home').locator('.workspace-eyebrow')).toHaveCount(0);
+      await expect(page.getByTestId('apps-workspace-background-icon')).toBeVisible();
       const heading = await page.getByRole('heading', { name: 'What app do you want to use?' }).boundingBox();
-      expect(greeting!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height);
       expect(heading!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height);
-      await expect(page.getByTestId('apps-quick-use-affordance')).toBeVisible();
-      const chooser = await page.getByTestId('apps-quick-use-affordance').boundingBox();
+      await expect(page.getByTestId('apps-workspace-home').getByTestId('workspace-composer-slot')).toHaveCount(0);
+      await expect(page.getByTestId('apps-workspace-home').getByRole('textbox')).toHaveCount(0);
       for (const link of [page.getByTestId('apps-show-all'), page.getByTestId('apps-search')]) {
         await expect(link).toBeVisible();
         await expectContainedInPreview(page, link);
-        const bounds = await link.boundingBox();
-        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(chooser!.y - 1);
         expect(await link.evaluate(element => {
           const rect = element.getBoundingClientRect();
           const top = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
@@ -187,21 +190,46 @@ test.describe('Apps bare component previews', () => {
         })).toBe(true);
       }
       await expect(page.getByTestId('apps-app-card').first()).toBeVisible();
-      await expectLoadedAppGlyph(page.locator('[data-testid="apps-app-card"][data-app-id="web"]'), 'web');
-      await expectLoadedAppGlyph(page.locator('[data-testid="apps-app-card"][data-app-id="health"]'), 'heart');
+      const webCard = page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Web') });
+      await expect(webCard).toHaveAttribute('data-app-id', 'web');
+      await expect(webCard.getByTestId('app-card-icon')).toBeVisible();
+      await expect(webCard.getByTestId('app-card-name')).toHaveCSS('text-align', 'left');
+      const iconBounds = await webCard.getByTestId('app-card-icon').boundingBox();
+      const nameBounds = await webCard.getByTestId('app-card-name').boundingBox();
+      expect(iconBounds!.x + iconBounds!.width).toBeLessThan(nameBounds!.x);
+      await expect(page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Health') })).toHaveAttribute('data-app-id', 'health');
+      const webCardBounds = await webCard.boundingBox();
+      expect(webCardBounds).not.toBeNull();
+      if (width === 390) {
+        expect(webCardBounds!.width).toBeGreaterThanOrEqual(275);
+        expect(webCardBounds!.width).toBeLessThanOrEqual(285);
+        expect(webCardBounds!.height).toBeGreaterThanOrEqual(42);
+        expect(webCardBounds!.height).toBeLessThanOrEqual(46);
+        await expect(webCard.getByTestId('app-card-name')).toBeVisible();
+        await expect(webCard.getByTestId('app-card-description')).toHaveCount(0);
+        await expect(webCard).toHaveText('Web');
+      } else {
+        expect(webCardBounds!.height).toBeGreaterThanOrEqual(125);
+        await expect(webCard.getByTestId('app-card-description')).toBeVisible();
+        await expect(webCard.getByTestId('app-card-description')).toHaveCSS('text-align', 'left');
+      }
       await attachWorkspaceScreenshot(page, `apps-home-${width}.png`);
       const inspiredSkill = page.evaluate(() => new Promise<string>(resolve =>
         window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
       await page.getByTestId('daily-inspiration-phrase').click();
       expect(await inspiredSkill).toMatch(/^#apps\/(web\/search|weather\/forecast)$/);
-      const chooseSkill = page.evaluate(() => new Promise<string>(resolve =>
-        window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-      await page.getByTestId('apps-quick-use-affordance').click();
-      expect(await chooseSkill).toBe('#apps/all&filter=skills');
       const navigated = page.evaluate(() => new Promise<string>(resolve =>
         window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-      await page.getByTestId('apps-app-card').first().click();
+      await page.getByTestId('apps-app-card').first().getByTestId('app-store-card').click();
       expect(await navigated).toMatch(/^#apps\/[a-z0-9-]+$/);
+      if (width === 390) {
+        const keyboardNavigation = page.evaluate(() => new Promise<string>(resolve =>
+          window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
+        await webCard.focus();
+        await expect(webCard).toBeFocused();
+        await webCard.press('Enter');
+        expect(await keyboardNavigation).toBe('#apps/web');
+      }
       await expectNoHorizontalOverflow(page);
     }
   });
@@ -216,7 +244,17 @@ test.describe('Apps bare component previews', () => {
       const fullscreen = page.getByTestId('apps-detail-fullscreen');
       await expect(fullscreen).toBeVisible();
       await expect(page.getByTestId('apps-hero-category')).toHaveText('App');
+      await page.evaluate(() => window.addEventListener('apps-preview-navigate', event => { (window as Window & { appsPreviewNavigation?: string }).appsPreviewNavigation = (event as CustomEvent<string>).detail; }));
       await expect(page.getByTestId('apps-hero-icon')).toBeVisible();
+      // Background chat restoration must not navigate independent Apps details.
+      await page.evaluate(() => window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat_id: 'background-chat' } })));
+      await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible();
+      expect(await page.evaluate(() => (window as Window & { appsPreviewNavigation?: string }).appsPreviewNavigation ?? null)).toBeNull();
+      await expect(page.getByTestId('apps-hero-icon')).toHaveAttribute('aria-hidden', 'true');
+      await expect(page.getByTestId('apps-hero-icon')).not.toHaveAttribute('role', 'button');
+      await expect(page.getByTestId('apps-hero-icon')).not.toHaveAttribute('tabindex', '0');
+      await expect(page.getByTestId('apps-hero-icon')).not.toHaveJSProperty('tagName', 'BUTTON');
+      await expect(page.getByTestId('apps-hero-icon')).toHaveCSS('border-top-width', '1px');
       await expect(page.getByTestId('apps-hero-stats')).toContainText(/\d+ skills/);
       await expect(page.getByTestId('apps-tab-overview')).toBeVisible();
       await expect(page.getByTestId('apps-tab-embeds')).toBeVisible();
@@ -282,6 +320,13 @@ test.describe('Apps bare component previews', () => {
     await expect(page.getByTestId('apps-hero-providers')).toContainText('Brave');
     await expect(page.getByTestId('apps-use-skill')).toBeVisible();
     await expectLoadedSkillHeroGlyph(page, 'search');
+    const skillIcon = page.getByTestId('apps-hero-icon');
+    await expect(skillIcon).toHaveAttribute('aria-hidden', 'true');
+    await expect(skillIcon).not.toHaveJSProperty('tagName', 'BUTTON');
+    await expect(skillIcon).not.toHaveAttribute('tabindex', '0');
+    await expect(skillIcon).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(skillIcon).toHaveCSS('border-top-width', '0px');
+    await expect(skillIcon).toHaveCSS('box-shadow', 'none');
     await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(3);
     await expectContainedInPreview(page, page.getByTestId('apps-hero-identity'));
     await expectContainedInPreview(page, page.getByTestId('apps-detail-card'));

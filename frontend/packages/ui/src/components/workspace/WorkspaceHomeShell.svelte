@@ -10,6 +10,8 @@
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import WorkspaceContinueCard from './WorkspaceContinueCard.svelte';
+  import AppStoreCard from '../settings/AppStoreCard.svelte';
+  import type { AppMetadata } from '../../types/apps';
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
@@ -36,6 +38,7 @@
     icon?: string | null;
     iconImage?: string | null;
     source?: 'recent' | 'example';
+    appMetadata?: AppMetadata;
   };
 
   type Props = {
@@ -55,6 +58,7 @@
     contentSlotVisible?: boolean;
     contentSlotTestId?: string;
     showReportIssue?: boolean;
+    showComposer?: boolean;
     showAllMode?: boolean;
     showAllLabel?: string;
     showAllTestId?: string;
@@ -93,6 +97,7 @@
     contentSlotVisible = false,
     contentSlotTestId = `${surface}-workspace-content`,
     showReportIssue = false,
+    showComposer = true,
     showAllMode = false,
     showAllLabel = '',
     showAllTestId = `${surface}-show-all`,
@@ -270,7 +275,11 @@
           {@const IconComponent = getLucideIcon(iconName)}
           <div class="workflow-card-placement" class:new-workflow={surface === 'workflows' && item.badge === 'New'}>
           {#if surface === 'workflows' && item.badge === 'New'}<span class="workflow-new-pill" data-testid="workflow-new-pill">{$text('workflows.builder.ai_new')}</span>{/if}
-          {#if isTallViewport}
+          {#if surface === 'apps' && item.appMetadata}
+            <div class="app-store-card-placement" data-testid={itemTestId}>
+              <AppStoreCard app={item.appMetadata} compact={!isTallViewport} onSelect={() => handleActionItem(item)} />
+            </div>
+          {:else if isTallViewport}
             <WorkspaceContinueCard
               title={item.title}
               summary={item.summary ?? null}
@@ -431,9 +440,11 @@
     {/if}
   </div>
 
-  <div class="workspace-composer-slot">
-    <slot name="composer" />
-  </div>
+  {#if showComposer}
+    <div class="workspace-composer-slot" data-testid="workspace-composer-slot">
+      <slot name="composer" />
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -830,6 +841,7 @@
     max-width: 100%;
   }
   .workflow-card-placement{display:contents}
+  .app-store-card-placement{display:block;flex:0 0 auto}
   .workflow-card-placement.new-workflow{display:flex;flex-direction:column;align-items:center;gap:.45rem;flex:0 0 auto}
   .workflow-new-pill{display:inline-flex;padding:.25rem .8rem;border-radius:999px;background:var(--color-button-primary);color:var(--color-font-button);font-size:14px;font-weight:700}
 
@@ -995,8 +1007,7 @@
     justify-items: center;
   }
 
-  /* Apps has a persistent quick-use chooser. Keep it in the shell's layout so
-     the scrollable app cards never sit behind its hit target. */
+  /* Keep the Apps carousel in the scroll layer below the inspiration banner. */
   .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) {
     display: flex;
     flex-direction: column;
@@ -1026,14 +1037,6 @@
       padding-top: 8px;
       padding-bottom: 4px;
     }
-  }
-
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode) .workspace-composer-slot {
-    position: relative;
-    left: auto;
-    bottom: auto;
-    transform: none;
-    flex: 0 0 auto;
   }
 
   .workspace-home-shell.content-slot-mode .workspace-composer-slot {

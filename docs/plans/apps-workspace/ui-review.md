@@ -1,25 +1,15 @@
-# Apps workspace Figma comparison
+# Apps workspace Figma comparison and deployed repair
 
-Reviewed implementation: `41cc2179a426f0c96da99b68450ebf8b7e6e1cb6`.
-CI harness: `afc642c99763f2c3b1f495966e491738a3ebf4a8`.
-Review date: 2026-10-01.
+The prior component review did not prove the deployed route, real cross-origin skill loading or signed-in navigation. The user's screenshots exposed failures missed by that review. Completion is reopened.
 
-The rendered web UI was compared directly with all three supplied artboards. All six Apps workspace screenshots and both Audio form screenshots were inspected. The layout hierarchy and responsive controls pass the comparison within the approved current Chats shell baseline.
+Design references: [home 6019:61646](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=6019-61646), [app 6021:60395](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=6021-60395), [skill 6022:77555](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=6022-77555). All three cached exports were inspected again on 2026-10-01 before the repair.
 
-| Figma reference | Rendered views | Confirmed appearance and interaction |
-| --- | --- | --- |
-| [6019:61646](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=6019-61646) | Apps home, 1180 and 390 px | Daily Inspiration above the greeting/prompt; one app-card row; loaded Web/Health glyphs; visible, unobstructed Show all/Search; bottom skill chooser; inspiration action opens a skill. |
-| [6021:60395](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=6021-60395) | Health app fullscreen, laptop and phone | Tall gradient hero with app identity/actions/counts; all five floating tabs; white inner card with centered, wrapping skill cards; contained phone layout. |
-| [6022:77555](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=6022-77555) | Web Search fullscreen and Audio direct-use form, laptop and phone | Three floating skill tabs; loaded Search hero glyph; coral Use skill action focuses the primary field; grey Audio textarea; gear Show settings control; coral form action; stacked provider/rate/model details. |
+The repair uses the existing AppStoreCard on the home, makes the app/skill hero decorative, anchors account controls to the full route, and follows the user-confirmed header order Chats, Apps, Projects, Tasks, Workflows. Public skill schemas must load through the real endpoint and leaving Apps must survive chat restoration, reload and browser history.
 
-The current Chats shell supplies the shared outer layout and continue-card sizing. At 1180 px the home carousel shows two complete cards and part of a third; the wider Figma desktop frame shows three. The public preview displays “Apps” instead of a signed-in username. App names, colors, counts, field labels, providers/models, defaults and prices come from current metadata. Audio retains its declared 1.0-second default and 20 credits per second. Generic schema forms use “Run skill”; tab glyphs reuse the repository icon set, including Search for Focus modes and the existing skill Overview glyph. This review confirms the design hierarchy and working controls without claiming pixel-identical content or icons.
+The user's 2026-10-01 corrections override the earlier bottom quick-use pill: Apps has no bottom composer or quick-use control. The skill hero is a plain icon without a rectangle, border or shadow, and app-card text and content are left aligned.
 
-## Evidence
+A deployed guest walkthrough reproduced the schema CORS failure: a credentialed request was rejected by the public endpoint's wildcard origin response. DOM geometry also placed the profile at y=63 below a 55px header because its absolute wrapper was anchored to the Apps body. Guest return to Chats worked; authenticated verification remains required.
 
-[Workspace component CI and six screenshots](https://github.com/glowingkitty/OpenMates/actions/runs/36808696995/artifacts/11138810962): seven cases passed, with no skips or flaky cases. The artifact includes `apps-home-1180.png`, `apps-home-390.png`, `app-detail-1180.png`, `app-detail-390.png`, `skill-detail-1180.png` and `skill-detail-390.png`.
+Verification is pending: focused components, full-route regression tests, and a direct walkthrough of the published version at laptop and phone sizes. This report will record source-bound evidence and the inspected deployed screenshots before completion.
 
-[Form component CI and Audio screenshots](https://github.com/glowingkitty/OpenMates/actions/runs/36808703802/artifacts/11138671195): seven cases passed, with no skips or flaky cases. The artifact includes `audio-form-desktop.png` and `audio-form-phone.png`.
-
-The automated checks cover actual SVG path data, all five app-tab hitboxes, heading/banner separation, horizontal containment, unobstructed catalog links, primary-input focus, schema defaults, advanced controls, and declared pricing/provider/model information.
-
-All eight screenshots from this final reconciled source are byte-identical to the directly inspected prior renderings. The reconciliation preserves Apps layout and controls while retaining the latest shared workflow navigation.
+Reviewed source `240c1a50d0123d8d092d9dfb1d15695f4cccec84` component artifacts from run 36879833495: home, app and skill at 1180px and 390px. The inspected home has left-aligned AppStoreCard contents and no bottom control. The skill hero is a plain search glyph without border, background or shadow; app details retain the Figma app tile. Component interaction and layout assertions passed (7 cases, no skips or retries). Full-route and deployed verification remain pending.

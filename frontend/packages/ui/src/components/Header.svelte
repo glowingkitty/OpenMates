@@ -170,6 +170,15 @@
           },
         ]
       : []),
+    {
+      id: "/#apps",
+      href: "/#apps",
+      testId: "apps-nav-link",
+      label: $text("common.apps"),
+      iconClass: "app-icon" as const,
+      active: isAppsRoute,
+      disabled: false,
+    },
     ...(isLoggedIn && projectsEnabled
       ? [
           {
@@ -179,19 +188,6 @@
             label: $text("navigation.projects"),
             iconClass: "project-icon" as const,
             active: isProjectsRoute,
-            disabled: false,
-          },
-        ]
-      : []),
-    ...(isLoggedIn && workflowsEnabled
-      ? [
-          {
-            id: "/#workflows",
-            href: "/#workflows",
-            testId: "workflows-nav-link",
-            label: $text("navigation.workflows"),
-            iconClass: "workflow-icon" as const,
-            active: isWorkflowsRoute,
             disabled: false,
           },
         ]
@@ -209,15 +205,19 @@
           },
         ]
       : []),
-    {
-      id: "/#apps",
-      href: "/#apps",
-      testId: "apps-nav-link",
-      label: $text("common.apps"),
-      iconClass: "app-icon" as const,
-      active: isAppsRoute,
-      disabled: false,
-    },
+    ...(isLoggedIn && workflowsEnabled
+      ? [
+          {
+            id: "/#workflows",
+            href: "/#workflows",
+            testId: "workflows-nav-link",
+            label: $text("navigation.workflows"),
+            iconClass: "workflow-icon" as const,
+            active: isWorkflowsRoute,
+            disabled: false,
+          },
+        ]
+      : []),
   ] satisfies WorkspaceTab[]);
   let activeWorkspaceIndex = $derived(
     Math.max(
@@ -488,6 +488,7 @@
 
 <header
   bind:this={headerDiv}
+  data-testid="global-header"
   class:webapp={context === "webapp"}
   class:publication={!!publicationLabel}
 >
@@ -674,6 +675,7 @@
             class="right-section"
             class:hidden={!publicationLabel &&
               (context !== "webapp" ||
+                isLoggedIn ||
                 $authStore.isAuthenticated ||
                 $loginInterfaceOpen)}
             class:signup-cta-hidden={!publicationLabel && $introBannerVisible}
@@ -742,6 +744,7 @@
   /* Update webapp header styles */
   header.webapp {
     position: relative;
+    padding-block: var(--spacing-4);
   }
 
   .container {
@@ -761,6 +764,7 @@
   /* Remove max-width constraint for webapp navigation */
   nav.webapp {
     max-width: none;
+    min-height: 2.75rem;
   }
 
   .left-section {
@@ -1284,7 +1288,7 @@
 
   @media (max-width: 894px) {
     nav.webapp {
-      min-height: 36px;
+      min-height: 2.75rem;
     }
 
     header.webapp .logo-link :global(strong) {
@@ -1317,7 +1321,7 @@
 
   @container main-content (max-width: 894px) {
     nav.webapp {
-      min-height: 36px;
+      min-height: 2.75rem;
     }
 
     header.webapp .logo-link :global(strong) {

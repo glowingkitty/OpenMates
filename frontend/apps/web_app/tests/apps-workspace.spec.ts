@@ -63,6 +63,19 @@ function expectPersonalPageQuery(params: URLSearchParams | undefined, appId: str
   expect(params?.has('team_id')).toBe(false);
 }
 
+async function assertProfileInHeader(page: any): Promise<void> {
+  const profile = page.getByTestId('profile-container');
+  await expect(profile).toBeVisible();
+  await profile.evaluate(async (element: Element) => {
+    const wrapper = element.closest('.profile-container-wrapper');
+    if (wrapper) await Promise.all(wrapper.getAnimations().map(animation => animation.finished.catch(() => {})));
+  });
+  const header = await page.locator('header').first().boundingBox();
+  const account = await profile.boundingBox();
+  expect(account.y).toBeGreaterThanOrEqual(header.y);
+  expect(account.y + account.height).toBeLessThanOrEqual(header.y + header.height + 4);
+}
+
 test.describe('Apps workspace', () => {
   // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.navigation.hash-and-forwarding
   test('guest browses the app and compact skill URL, then Back, Forward, and close restore the parent', async ({ page }: { page: any }) => {
@@ -74,6 +87,11 @@ test.describe('Apps workspace', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(getE2EDebugUrl('/#apps'), { waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('apps-workspace-home').locator('.workspace-eyebrow')).toHaveCount(0);
+    await expect(page.getByTestId('apps-workspace-background-icon')).toBeVisible();
+    await expect(page.locator('.workspace-composer-slot')).toHaveCount(0);
+    await expect(page.getByTestId('apps-quick-use-affordance')).toHaveCount(0);
+    await expect(page.locator('.ProseMirror, textarea')).toHaveCount(0);
     await expect(page.getByTestId('workspace-mobile-select')).toBeVisible();
     await expect(page.getByTestId('workspace-mobile-select')).toHaveValue('/#apps');
     await page.getByTestId('apps-app-card').filter({ hasText: /Health/i }).first().click();
@@ -95,6 +113,90 @@ test.describe('Apps workspace', () => {
     expect(appHash(page)).toBe('#apps/health/search-appointments');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.discovery.public-catalog,apps.forms.metadata-driven,apps.navigation.hash-and-forwarding
+  test('real public skill schema loads after cold boot and leaving Apps cannot reopen the detail', async ({ page }: { page: any }) => {
+    test.setTimeout(90000);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(getE2EDebugUrl('/#apps'), { waitUntil: 'domcontentloaded' });
+    await page.evaluate(async () => {
+      localStorage.clear();
+      for (const database of await indexedDB.databases()) {
+        if (database.name) indexedDB.deleteDatabase(database.name);
+      }
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
+    const card = page.getByTestId('apps-app-card').filter({ hasText: /Web/i }).first();
+    await expect(card.getByTestId('app-store-card')).toBeVisible();
+    await assertProfileInHeader(page);
+    await page.getByTestId('profile-container').click();
+    await expect(page.getByTestId('settings-menu')).toBeVisible();
+    await page.getByTestId('icon-button-close').click();
+    await expect(page.getByTestId('settings-menu')).not.toBeVisible();
+
+    // Keep this endpoint real: fixtures cannot prove deployed CORS admission.
+    const details = page.waitForResponse((response: any) => response.url().includes('/v1/apps/web/skills/search/details') && response.request().method() === 'GET');
+    await page.getByTestId('apps-nav-link').click();
+    await page.goto(getE2EDebugUrl('/#apps/web/search'), { waitUntil: 'domcontentloaded' });
+    expect((await details).status()).toBe(200);
+    await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+    await assertProfileInHeader(page);
+    await expect(page.getByText('The skill details could not be loaded.', { exact: true })).toHaveCount(0);
+    const hero = page.getByTestId('apps-hero-icon');
+    await expect(hero).toHaveAttribute('aria-hidden', 'true');
+    await expect(hero).toHaveCSS('pointer-events', 'none');
+    const iconBounds = await hero.boundingBox();
+    await page.mouse.click(iconBounds.x + iconBounds.width / 2, iconBounds.y + iconBounds.height / 2);
+    expect(appHash(page)).toBe('#apps/web/search');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat_id: 'background-restoration' } })));
+    expect(appHash(page)).toBe('#apps/web/search');
+    await page.getByTestId('chats-nav-link').click();
+    await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+    expect(appHash(page)).not.toMatch(/^#apps/);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+    expect(appHash(page)).not.toMatch(/^#apps/);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,workspace-shell.nav.released-surfaces-visible
+  test('authenticated header stays aligned and Chats exits Apps on desktop and mobile', async ({ page }: { page: any }) => {
+    test.setTimeout(180000);
+    test.skip(!getTestAccount().email, 'Test account credentials required.');
+    await loginToTestAccount(page, () => {}, async () => {});
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      if (width === 1440) await page.getByTestId('apps-nav-link').click();
+      else await page.getByTestId('workspace-mobile-select').selectOption('/#apps');
+      await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
+      await assertProfileInHeader(page);
+      if (width === 1440) {
+        expect(await page.locator('.icon-tab-bar').getByRole('link').evaluateAll((links: Element[]) => links.map(link => link.getAttribute('data-testid')))).toEqual([
+          'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'tasks-nav-link', 'workflows-nav-link',
+        ]);
+      } else {
+        expect(await page.getByTestId('workspace-mobile-select').locator('option').evaluateAll((options: HTMLOptionElement[]) => options.map(option => option.value))).toEqual([
+          '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+        ]);
+      }
+      await page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ hasText: /Web/i }).first().click();
+      await page.getByTestId('settings-skill-cards-scroll').getByText('Search', { exact: true }).first().click();
+      await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+      await assertProfileInHeader(page);
+      if (width === 1440) await page.getByTestId('chats-nav-link').click();
+      else await page.getByTestId('workspace-mobile-select').selectOption('/');
+      await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+      await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+      await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 30000 });
+      expect(appHash(page)).not.toMatch(/^#apps/);
+      await page.goBack();
+      await expect(page.getByTestId('apps-skill-form')).toBeVisible({ timeout: 30000 });
+      await page.goForward();
+      await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
+      expect(appHash(page)).not.toMatch(/^#apps/);
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven

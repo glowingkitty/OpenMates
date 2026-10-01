@@ -42,9 +42,11 @@
          * to hold the item-specific icon filename (not the app icon).
          */
         cardIconType?: 'app' | 'skill' | 'focus' | 'memory';
+        /** Short pill for the Apps workspace home carousel on narrow viewports. */
+        compact?: boolean;
     }
     
-    let { app, onSelect, skillProviders, cardIconType = 'app' }: Props = $props();
+    let { app, onSelect, skillProviders, cardIconType = 'app', compact = false }: Props = $props();
 
     /** Whether this app is unavailable (unhealthy health status) */
     let isUnavailable = $derived(
@@ -235,6 +237,7 @@
     data-app-id={app.id}
     class:app-unavailable={isUnavailable}
     class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
+    class:compact
     role="menuitem"
     tabindex="0"
     aria-label={appName}
@@ -255,7 +258,7 @@
             <!-- Provider icons behind the app icon - first centered, others to the right (max 5) -->
             <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
             <!-- Icons use a consistent opacity so no provider appears visually preferred. -->
-            {#if orderedProviders.length > 0 && !isSkillCard}
+            {#if !compact && orderedProviders.length > 0 && !isSkillCard}
                 <div class="provider-icons-background" aria-hidden="true">
                     {#each orderedProviders.slice(0, MAX_PROVIDER_ICONS) as provider, index}
                         <div 
@@ -277,11 +280,11 @@
                  gradient background instead of the app gradient. app.icon_image holds the
                  item-specific icon filename set by AppDetails. -->
             {#if app.icon_image}
-                <div class="app-icon-wrapper">
+                <div class="app-icon-wrapper" data-testid="app-card-icon">
                     <Icon 
                         name={getIconName(app.icon_image)}
                         type={cardIconType === 'app' ? 'app' : cardIconType}
-                        size="38px"
+                        size={compact ? '24px' : '38px'}
                         className="app-icon-main no-fade"
                         borderColor="#ffffff"
                     />
@@ -299,12 +302,12 @@
     </div>
     
     <!-- App description below — aria-hidden since card has aria-label={appName} -->
-    <p class="app-card-description" aria-hidden="true">{appDescription}</p>
+    {#if !compact}<p class="app-card-description" data-testid="app-card-description" aria-hidden="true">{appDescription}</p>{/if}
     
     <!-- Skill-specific providers below description (only for skill cards) -->
     <!-- Show provider icons next to "via" text instead of above app icon -->
     <!-- Skill cards show first 4 providers with consistent opacity, plus a "+N" counter if more exist -->
-    {#if isSkillCard && orderedProviders.length > 0}
+    {#if !compact && isSkillCard && orderedProviders.length > 0}
         {@const maxSkillProviderIcons = 4}
         {@const displayedProviders = orderedProviders.slice(0, maxSkillProviderIcons)}
         {@const remainingCount = orderedProviders.length - maxSkillProviderIcons}
@@ -345,7 +348,35 @@
         overflow: hidden;
         box-sizing: border-box; /* Ensure padding is included in width/height */
         padding-top: 25px;
+        text-align: left;
     }
+
+    .app-store-card.compact {
+        width: 280px;
+        min-width: 280px;
+        max-width: 280px;
+        height: 44px;
+        min-height: 44px;
+        max-height: 44px;
+        justify-content: center;
+        border-radius: var(--radius-full);
+        padding: var(--spacing-2) var(--spacing-6);
+    }
+
+    .app-store-card.compact .app-header-row {
+        justify-content: flex-start;
+        gap: var(--spacing-3);
+        margin: 0;
+    }
+
+    .app-store-card.compact .app-icon-container,
+    .app-store-card.compact .app-icon-wrapper,
+    .app-store-card.compact .app-icon-gradient {
+        width: 24px;
+        height: 24px;
+    }
+
+    .app-store-card.compact .app-card-name { flex: none; margin: 0; }
     
     /* Skill cards keep the regular card height; compact internal spacing to fit provider icons. */
     .app-store-card.has-skill-providers {
@@ -505,6 +536,7 @@
         color: white;
         line-height: 1.2;
         flex: 1;
+        text-align: left;
     }
     
     .app-card-description {
@@ -517,6 +549,7 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         flex-grow: 1;
+        text-align: left;
     }
     
     /* Skill providers section - shown below description for skill cards */

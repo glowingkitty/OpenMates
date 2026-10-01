@@ -6,7 +6,7 @@ vi.mock('../anonymousChatStorage', () => ({ anonymousChatStorage: { getAnonymous
 vi.mock('../../stores/authState', async () => ({ authStore: (await import('svelte/store')).writable({ isAuthenticated: true, isInitialized: true }) }));
 vi.mock('../../stores/userProfile', async () => ({ userProfile: (await import('svelte/store')).writable({ user_id: 'user-A' }) }));
 
-import { executeAppsSkill } from '../appsWorkspaceService';
+import { executeAppsSkill, getAppsSkillDetails } from '../appsWorkspaceService';
 import { authStore } from '../../stores/authState';
 import { userProfile } from '../../stores/userProfile';
 
@@ -23,6 +23,59 @@ beforeEach(() => {
   authStore.set({ isAuthenticated: true, isInitialized: true });
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe('public Apps skill details', () => {
+  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  it('loads a direct public detail response without browser credentials', async () => {
+    const controller = new AbortController();
+    const details = { ...metadata, app_id: 'events', skill_id: 'search', anonymous_allowed: true, execution_mode: 'sync' };
+    const fetchMock = vi.fn(async () => Response.json(details));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getAppsSkillDetails('events', 'search', controller.signal)).resolves.toEqual(details);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      'https://api.example.test/v1/apps/events/skills/search/details',
+      { credentials: 'omit', signal: controller.signal },
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  it('retains the session for the user-gated mail search details endpoint', async () => {
+    const controller = new AbortController();
+    const details = { ...metadata, app_id: 'mail', skill_id: 'search' };
+    const fetchMock = vi.fn(async () => Response.json(details));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getAppsSkillDetails('mail', 'search', controller.signal)).resolves.toEqual(details);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      'https://api.example.test/v1/apps/mail/skills/search/details',
+      { credentials: 'include', signal: controller.signal },
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  it('rechecks private mail admission after an account switch instead of using cached details', async () => {
+    const details = { ...metadata, app_id: 'mail', skill_id: 'search' };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json(details))
+      .mockResolvedValueOnce(Response.json({ detail: 'not_allowed' }, { status: 403 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getAppsSkillDetails('mail', 'search')).resolves.toEqual(details);
+    userProfile.update(profile => ({ ...profile, user_id: 'user-B' }));
+    await expect(getAppsSkillDetails('mail', 'search')).rejects.toThrow('not_allowed');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+  it('rejects private mail details received after the requesting account changes', async () => {
+    let release: (response: Response) => void = () => {};
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { release = resolve; })));
+    const request = getAppsSkillDetails('mail', 'search');
+    userProfile.update(profile => ({ ...profile, user_id: 'user-B' }));
+    release(Response.json({ ...metadata, app_id: 'mail', skill_id: 'search' }));
+    await expect(request).rejects.toThrow('account_context_changed');
+  });
+});
 
 describe('direct Apps skill execution', () => {
   // contract-test: direct surface=gui.web assertions=apps.execution.direct-shared-contract,apps.results.web-retained-graph

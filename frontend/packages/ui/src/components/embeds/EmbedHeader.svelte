@@ -258,6 +258,7 @@
         <button
           type="button"
           class="header-icon header-icon-button"
+          class:header-skill-identity={useSkillIcon}
           data-testid={presentation === 'apps' ? 'apps-hero-icon' : undefined}
           onclick={onHeaderIconClick}
           aria-label="Open skill settings"
@@ -271,7 +272,7 @@
           {/if}
         </button>
       {:else}
-        <div class="header-icon" data-testid={presentation === 'apps' ? 'apps-hero-icon' : undefined}>
+        <div class="header-icon" class:header-skill-identity={useSkillIcon} data-testid={presentation === 'apps' ? 'apps-hero-icon' : undefined} aria-hidden="true">
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
           {:else if safeAppIconName}
@@ -394,6 +395,7 @@
   .apps-presentation .header-center { box-sizing: border-box; max-width: min(100%, 640px); padding: 56px 40px 40px; gap: 10px; }
   .apps-presentation.has-cta .header-center { transform: translateY(-32px); }
   .apps-presentation .header-icon { width: 70px; height: 70px; border: 1px solid rgba(255,255,255,.5); border-radius: var(--radius-5); background: rgba(0,0,0,.14); box-shadow: 0 5px 14px rgba(0,0,0,.17); }
+  .apps-presentation .header-skill-identity { border: 0; background: transparent; box-shadow: none; }
   .apps-presentation .header-icon-button { min-width: 0; min-height: 0; margin: 0; padding: 0; box-sizing: border-box; }
   .apps-presentation .header-app-icon-mask,
   .apps-presentation .header-skill-icon { width: 52px; height: 52px; -webkit-mask-size: contain; mask-size: contain; }
