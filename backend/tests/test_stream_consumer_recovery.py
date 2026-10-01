@@ -790,6 +790,7 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
         user_id_hash="hash-1",
         message_history=[],
         is_incognito=True,
+        is_anonymous=failure_reason == "anonymous_usage_limit",
     )
 
     result = asyncio.run(stream_consumer._consume_main_processing_stream(
@@ -811,6 +812,11 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
     assert len(final_payloads) == 1
     assert final_payloads[0]["full_content_so_far"] == result[0]
     assert final_payloads[0].get("total_credits") is None
+    if failure_reason == "anonymous_usage_limit":
+        assert final_payloads[0]["error"] is True
+        assert final_payloads[0]["failure_reason"] == "anonymous_usage_limit"
+    else:
+        assert "failure_reason" not in final_payloads[0]
     assert terminal_class(
         {"main_processing_output": result[0]},
         stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE,

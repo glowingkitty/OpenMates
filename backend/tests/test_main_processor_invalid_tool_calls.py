@@ -247,6 +247,17 @@ processing_package = sys.modules.get("backend.apps.ai.processing")
 if getattr(processing_package, "main_processor", None) is main_processor:
     delattr(processing_package, "main_processor")
 
+# main_processor imports ToolProtocolGuard while stream_utils is stubbed above.
+# Drop that cached module too: later test modules must bind the real paragraph
+# aggregator when they import ToolProtocolGuard during collection.
+guard_module_name = "backend.apps.ai.utils.tool_protocol_guard"
+guard_module = sys.modules.get(guard_module_name)
+if getattr(guard_module, "aggregate_paragraphs", None) is object:
+    del sys.modules[guard_module_name]
+    utils_package = sys.modules.get("backend.apps.ai.utils")
+    if getattr(utils_package, "tool_protocol_guard", None) is guard_module:
+        delattr(utils_package, "tool_protocol_guard")
+
 
 async def _run_mocked_protocol_guard_main_processor(
     monkeypatch,

@@ -17,6 +17,7 @@ import type {
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance } from "./draftCore";
 import { isDraftUpdateBlockedByLocalDeletion } from "../chatSyncMerge";
+import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../../utils/chatDraftState";
 
 // --- WebSocket Handlers ---
 
@@ -486,14 +487,33 @@ const handleDraftVersionsResponse = async (payload: {
     // Server says draft_v == 0 → the draft was deleted (e.g., message was sent
     // on another device while this one was offline). Clear the local draft.
     try {
-      const chat = await chatDB.getChat(chat_id);
-      if (chat && chat.encrypted_draft_md) {
+      const chat = await chatDB.getRawChat(chat_id);
+      const isClearedDraftOnlyShell = !!(
+        chat && (chat.cleared_draft_v ?? 0) > 0 &&
+        !chat.encrypted_draft_md && !chat.encrypted_draft_preview &&
+        (chat.draft_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true)
+      );
+      if (chat && (chat.encrypted_draft_md || chat.encrypted_draft_preview || isClearedDraftOnlyShell)) {
         const tombstoneVersion = payload.tombstone_versions?.[chat_id] ?? 0;
-        if (tombstoneVersion === 0 || tombstoneVersion < (chat.draft_v ?? 0)) {
+        const deletionVersion = isClearedDraftOnlyShell && tombstoneVersion === 0
+          ? chat.cleared_draft_v ?? 0 : tombstoneVersion;
+        if (deletionVersion === 0 || deletionVersion < Math.max(chat.draft_v ?? 0, chat.cleared_draft_v ?? 0)) {
           console.info(
             `[DraftService] Preserving local draft for chat ${chat_id}; ` +
               `server deletion version ${tombstoneVersion} is not authoritative for local draft_v=${chat.draft_v ?? 0}.`,
           );
+          continue;
+        }
+        const editorState = get(draftEditorUIState);
+        if (editorState.currentChatId === chat_id && editorState.hasUnsavedChanges) continue;
+        if (isPersistedDraftOnlyChat(chat) || isClearedDraftOnlyShell) {
+          await chatDB.deleteChat(chat_id);
+          const { chatListCache } = await import("../chatListCache");
+          chatListCache.removeChat(chat_id);
+          chatMetadataCache.invalidateChat(chat_id);
+          const { chatSyncService } = await import("../chatSyncService");
+          chatSyncService.dispatchEvent(new CustomEvent("chatDeleted", { detail: { chat_id } }));
+          anyCleared = true;
           continue;
         }
         // Only clear if we actually have a local draft (avoid no-op writes)
@@ -585,7 +605,8 @@ export function registerWebSocketHandlers() {
       const allChats =
         chatListCache.getCache() ?? (await chatDB.getAllChats());
       const draftyChats = allChats.filter(
-        (c) => c.encrypted_draft_md && (c.draft_v ?? 0) > 0,
+        (c) => ((c.encrypted_draft_md || c.encrypted_draft_preview) && (c.draft_v ?? 0) > 0)
+          || ((c.cleared_draft_v ?? 0) > 0 && isDraftOnlyChatSurface(c, true)),
       );
 
       if (draftyChats.length > 0) {

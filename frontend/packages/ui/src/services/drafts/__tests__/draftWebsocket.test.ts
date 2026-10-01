@@ -73,9 +73,10 @@ const mocks = vi.hoisted(() => {
 
   return {
     chatDB: {
-      getRawChat: vi.fn(async () => ({ chat_id: 'chat-1', draft_v: 0 })),
+      getRawChat: vi.fn(),
       getChat: vi.fn(),
       updateChat: vi.fn(),
+      deleteChat: vi.fn(),
       upsertRawChat: vi.fn(async () => {
         store.update((current) => ({
           ...current,
@@ -83,8 +84,10 @@ const mocks = vi.hoisted(() => {
           lastSavedContentMarkdown: 'Please read this document.',
         }));
       }),
-      getAllChats: vi.fn(async () => []),
+      getAllChats: vi.fn(),
     },
+    chatListCache: { getCache: vi.fn(), removeChat: vi.fn() },
+    chatSyncService: { dispatchEvent: vi.fn() },
     chatMetadataCache: { invalidateChat: vi.fn() },
     decryptWithMasterKey: vi.fn(async () => 'Please read this document.'),
     draftEditorUIState: store,
@@ -109,6 +112,8 @@ const mocks = vi.hoisted(() => {
 vi.mock('../../db', () => ({ chatDB: mocks.chatDB }));
 vi.mock('../../websocketService', () => ({ webSocketService: mocks.webSocketService }));
 vi.mock('../../chatMetadataCache', () => ({ chatMetadataCache: mocks.chatMetadataCache }));
+vi.mock('../../chatListCache', () => ({ chatListCache: mocks.chatListCache }));
+vi.mock('../../chatSyncService', () => ({ chatSyncService: mocks.chatSyncService }));
 vi.mock('../../cryptoService', () => ({ decryptWithMasterKey: mocks.decryptWithMasterKey }));
 vi.mock('../draftState', () => ({ draftEditorUIState: mocks.draftEditorUIState }));
 vi.mock('../draftCore', () => ({ getEditorInstance: mocks.getEditorInstance }));
@@ -127,6 +132,10 @@ describe('draftWebsocket chat_draft_updated', () => {
     vi.clearAllMocks();
     mocks.handlers.clear();
     mocks.draftEditorUIState.reset();
+    mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: 'chat-1', draft_v: 0 });
+    mocks.chatDB.getAllChats.mockResolvedValue([]);
+    mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+    mocks.chatListCache.getCache.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -155,7 +164,7 @@ describe('draftWebsocket chat_draft_updated', () => {
 
   // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
   it('preserves a local draft newer than the reconnect tombstone', async () => {
-    mocks.chatDB.getChat.mockResolvedValue({
+    mocks.chatDB.getRawChat.mockResolvedValue({
       chat_id: 'chat-1',
       encrypted_draft_md: 'new-local-draft',
       encrypted_draft_preview: 'new-local-preview',
@@ -171,6 +180,96 @@ describe('draftWebsocket chat_draft_updated', () => {
     });
 
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
+  it('removes a draft-only shell cleared on another device while offline', async () => {
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: 'chat-1', encrypted_draft_md: 'master-key-ciphertext',
+      draft_v: 1, messages_v: 0, title_v: 0,
+    });
+    registerWebSocketHandlers();
+
+    await mocks.handlers.get('draft_versions_response')?.({
+      versions: { 'chat-1': 0 }, tombstone_versions: { 'chat-1': 2 },
+    });
+
+    expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith('chat-1');
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.removeChat).toHaveBeenCalledWith('chat-1');
+    expect(mocks.chatSyncService.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'chatDeleted', detail: { chat_id: 'chat-1' } }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.established-chat.presentation-unchanged
+  it.each([{ messages_v: 1 }, { encrypted_title: 'encrypted-title', title_v: 1 }])(
+    'retains established chat history while clearing an offline draft with %j', async (metadata) => {
+      mocks.chatDB.getRawChat.mockResolvedValue({
+        chat_id: 'chat-1', encrypted_draft_md: 'master-key-ciphertext',
+        draft_v: 1, messages_v: 0, title_v: 0, ...metadata,
+      });
+      registerWebSocketHandlers();
+
+      await mocks.handlers.get('draft_versions_response')?.({
+        versions: { 'chat-1': 0 }, tombstone_versions: { 'chat-1': 2 },
+      });
+
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+        ...metadata, encrypted_draft_md: null, encrypted_draft_preview: null,
+        draft_v: 0, cleared_draft_v: 2,
+      }));
+    },
+  );
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.persistence.local-first-encrypted
+  it('preserves unsaved editor text during reconnect deletion reconciliation', async () => {
+    mocks.draftEditorUIState.reset({ hasUnsavedChanges: true });
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: 'chat-1', encrypted_draft_md: 'older-saved-draft', draft_v: 1,
+    });
+    registerWebSocketHandlers();
+
+    await mocks.handlers.get('draft_versions_response')?.({
+      versions: { 'chat-1': 0 }, tombstone_versions: { 'chat-1': 2 },
+    });
+
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(mocks.chatSyncService.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.sync.version-authoritative
+  it('removes an already-cleared empty shell even after the server tombstone expires', async () => {
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: 'chat-1', encrypted_draft_md: null, encrypted_draft_preview: null,
+      draft_v: 0, cleared_draft_v: 2, messages_v: 0, title_v: 0,
+    });
+    registerWebSocketHandlers();
+
+    await mocks.handlers.get('draft_versions_response')?.({ versions: { 'chat-1': 0 } });
+
+    expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith('chat-1');
+    expect(mocks.chatListCache.removeChat).toHaveBeenCalledWith('chat-1');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.established-chat.presentation-unchanged
+  it('reconciles old empty draft shells on reconnect while excluding cleared established chats', async () => {
+    mocks.draftEditorUIState.reset({ currentChatId: null });
+    mocks.chatDB.getAllChats.mockResolvedValue([
+      { chat_id: 'old-empty-draft', draft_v: 0, cleared_draft_v: 2, messages_v: 0, title_v: 0 },
+      { chat_id: 'chat-with-history', draft_v: 0, cleared_draft_v: 2, messages_v: 1 },
+      { chat_id: 'generated-chat', draft_v: 0, cleared_draft_v: 2, encrypted_title: 'encrypted-title' },
+    ]);
+    registerWebSocketHandlers();
+
+    await mocks.handlers.get('open')?.(undefined);
+
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledExactlyOnceWith('get_draft_versions', {
+      chats: [{ chat_id: 'old-empty-draft', client_draft_v: 0 }],
+    });
   });
 });

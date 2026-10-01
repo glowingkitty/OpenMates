@@ -13,6 +13,7 @@ from scripts.ci_environment import (
     POSTGRES_IMAGE,
     SCHEMA_BUNDLE_FORMAT,
     SCHEMA_RESTORE_SEMANTICS,
+    SOURCE,
     apply_prepared_schema,
     compose_profile,
     require_runner,
@@ -196,6 +197,72 @@ def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
     assert "kv/data/providers/*" in policies["api-service"]
 
 
+def test_upload_vault_initializer_issues_a_separate_renewable_token(tmp_path, monkeypatch):
+    import httpx
+    import requests
+    from backend.upload.vault import setup_vault
+    from scripts.ci_environment import VAULT_INITIALIZE
+
+    core_dir = tmp_path / "core"
+    core_dir.mkdir()
+    upload_token_path = tmp_path / "upload" / "api.token"
+    monkeypatch.setattr(setup_vault, "API_TOKEN_FILE", str(upload_token_path))
+    monkeypatch.setenv("VAULT_TOKEN", "ephemeral-root")
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "ephemeral-internal")
+    monkeypatch.setenv("CI_UPLOADS", "1")
+    calls = []
+
+    class Response:
+        status_code = 204
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"auth": {"client_token": "core-token"}}
+
+    def core_request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        return Response()
+
+    monkeypatch.setattr(requests, "request", core_request)
+    monkeypatch.setattr(requests, "post", lambda url, **kwargs: core_request("post", url, **kwargs))
+
+    def vault_api(request: httpx.Request) -> httpx.Response:
+        token = request.headers["X-Vault-Token"]
+        calls.append((request.method, request.url.path, token))
+        if token == "core-token" and request.url.path.endswith("lookup-self"):
+            return httpx.Response(200, json={"data": {"policies": ["api-service", "api-encryption"], "ttl": 7200}})
+        if token == "ephemeral-root" and request.url.path.endswith("sys/policies/acl/uploads-service"):
+            assert b'auth/token/renew-self' in request.content
+            return httpx.Response(204)
+        if token == "ephemeral-root" and request.url.path.endswith("auth/token/create"):
+            import json
+            payload = json.loads(request.content)
+            assert payload["period"] == "168h"
+            assert payload["policies"] == ["uploads-service"]
+            assert payload["no_default_policy"] is True
+            return httpx.Response(200, json={"auth": {"client_token": "upload-token"}})
+        if token == "upload-token" and request.url.path.endswith("lookup-self"):
+            return httpx.Response(200, json={"data": {
+                "ttl": 604800, "renewable": True, "policies": ["uploads-service"],
+                "meta": {"uploads_token_kind": "periodic_v1"}, "explicit_max_ttl": 0,
+            }})
+        if token == "upload-token" and request.url.path.endswith("renew-self"):
+            return httpx.Response(200, json={"auth": {"lease_duration": 604800, "renewable": True}})
+        raise AssertionError(f"Unexpected Vault request: {request.method} {request.url.path}")
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(vault_api), **kwargs))
+    program = VAULT_INITIALIZE.replace("/vault-data/", str(core_dir) + "/")
+    exec(compile(program, "<ci-vault-init>", "exec"), {})
+
+    assert (core_dir / "api.token").read_text() == "core-token"
+    assert upload_token_path.read_text() == "upload-token"
+    assert upload_token_path.stat().st_mode & 0o777 == 0o600
+    assert any(call == ("POST", "/v1/auth/token/renew-self", "upload-token") for call in calls)
+
+
 def test_api_and_worker_receive_the_private_cms_admin_identity():
     services = compose_profile("a" * 40)["services"]
     cms = services["cms"]["environment"]
@@ -304,6 +371,12 @@ def test_upload_profile_requires_real_scanner_and_isolated_api_targets():
         if isinstance(mount, dict) and mount["target"] == "/vault-data"
     )
     assert token_mount["read_only"] is True
+    assert token_mount["source"] == "upload-vault-token"
+    assert "vault-tokens" not in [mount["source"] for mount in upload["volumes"] if isinstance(mount, dict)]
+    init = services["vault-init"]
+    assert init["environment"]["CI_UPLOADS"] == "1"
+    assert {mount["source"] for mount in init["volumes"] if isinstance(mount, dict)} == {"vault-tokens", "upload-vault-token"}
+    assert f"{SOURCE}/backend:/app/backend:ro" in init["volumes"]
     for target in (
         "/app/backend",
         "/app/backend_shared/python_schemas",

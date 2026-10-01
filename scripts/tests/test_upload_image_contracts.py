@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: infrastructure
 """
 Regression tests for upload-server image packaging contracts.
 
@@ -29,28 +30,32 @@ def test_upload_image_installs_tools_required_by_startup_script() -> None:
     assert "curl" in dockerfile
 
 
-def test_upload_service_does_not_import_core_backend_shared_modules() -> None:
+def test_upload_service_only_imports_packaged_shared_modules() -> None:
     upload_files = (PROJECT_ROOT / "backend" / "upload").rglob("*.py")
-
-    offenders = []
+    dockerfile = (PROJECT_ROOT / "backend" / "upload" / "Dockerfile").read_text(encoding="utf-8")
+    # These pure utilities carry no core service credentials or dependencies.
+    allowed = {
+        "backend.shared.python_utils.media_encryption",
+        "backend.shared.python_utils.object_storage_regions",
+    }
+    imported = set()
     for path in upload_files:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        imports_backend_shared = any(
-            (
-                isinstance(node, ast.ImportFrom)
-                and node.module is not None
-                and node.module.startswith("backend.shared")
-            )
-            or (
-                isinstance(node, ast.Import)
-                and any(alias.name.startswith("backend.shared") for alias in node.names)
-            )
-            for node in ast.walk(tree)
-        )
-        if imports_backend_shared:
-            offenders.append(str(path.relative_to(PROJECT_ROOT)))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("backend.shared"):
+                imported.add(node.module)
+            elif isinstance(node, ast.Import):
+                imported.update(alias.name for alias in node.names if alias.name.startswith("backend.shared"))
 
-    assert offenders == []
+    assert imported <= allowed, f"Unapproved core dependency in upload image: {imported - allowed}"
+    for module in imported:
+        source = module.replace(".", "/") + ".py"
+        assert f"COPY {source} /app/{source}" in dockerfile, f"Shared upload dependency is not packaged: {module}"
+
+
+def test_upload_image_imports_its_entry_point_during_build() -> None:
+    dockerfile = (PROJECT_ROOT / "backend" / "upload" / "Dockerfile").read_text(encoding="utf-8")
+    assert 'RUN python -c "import backend.upload.main"' in dockerfile
 
 
 def test_sightengine_http_client_accepts_provider_category() -> None:

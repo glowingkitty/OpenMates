@@ -9,7 +9,7 @@ OpenMates is an open-source, provider-independent AI assistant platform with bui
 [![OpenMates daily inspiration screenshot](./docs/images/readme-daily-inspiration.png)](https://openmates.org)
 
 > [!NOTE]
-> OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.23**.
+> OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.24**.
 
 ## See it in action
 
@@ -160,11 +160,11 @@ git clone https://github.com/glowingkitty/OpenMates.git
 cd OpenMates
 git switch dev
 corepack enable
-corepack prepare pnpm@10.23.0 --activate
+corepack prepare pnpm@10.24.0 --activate
 pnpm install --frozen-lockfile
 ```
 
-Contributor development uses Node.js 24.x and pnpm 10.23.0. Pull requests should normally target `dev`.
+Contributor development uses Node.js 24.x and pnpm 10.24.0. Pull requests should normally target `dev`.
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md), the [frontend standards](./docs/contributing/standards/frontend.md), [backend standards](./docs/contributing/standards/backend.md), and [testing guide](./docs/contributing/guides/testing.md) before making code changes.
 

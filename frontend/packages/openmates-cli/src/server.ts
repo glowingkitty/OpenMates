@@ -51,6 +51,7 @@ import {
   parseSecretEnvKey,
   redactEnvValue,
   resolveServiceSelection,
+  resolveTemplateSource,
   resolveRuntimeDeploymentMode,
   shouldAutoInstallRuntimeMonitoringServices,
   shouldCheckWebHealth,
@@ -64,12 +65,14 @@ import {
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
 import { applyCaddyPathUpdate, caddyHostOperation, verifyCaddyCoreRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
+  CMS_CACHE_INSPECT_FORMAT,
   applyRuntimeCheckResults,
   buildOperationalDeliveryReceipt,
   buildUpdateCompletionOutcome,
   deliverUpdateCompletionEmail,
   deliverRuntimeNotification,
   evaluateOperationalReportFreshness,
+  evaluateCmsCacheConsistency,
   evaluateRuntimeHeartbeat,
   evaluateRuntimeWatchdog,
   planOperationalMonitoring,
@@ -121,6 +124,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
 const CORE_NO_WEBAPP_TEMPLATE_FILE = join("core", "docker-compose.no-webapp.yml");
 const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
 const CORE_ALERTMANAGER_CONFIG_FILE = join("backend", "core", "monitoring", "alertmanager", "alertmanager.yml");
+const CORE_PROMETHEUS_CONFIG_DIR = join("backend", "core", "monitoring", "prometheus");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -779,6 +783,20 @@ function packagedCoreAlertmanagerTemplatePath(): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "alertmanager", "alertmanager.yml");
 }
 
+export function ensureCorePrometheusRuntimeFiles(installPath: string): void {
+  const packagedDir = join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "prometheus");
+  const runtimeDir = join(installPath, CORE_PROMETHEUS_CONFIG_DIR);
+  for (const fileName of ["prometheus.yml", "alert_rules.yml"]) {
+    const packagedPath = join(packagedDir, fileName);
+    if (!existsSync(packagedPath)) throw new Error(`Packaged Prometheus file not found: ${packagedPath}`);
+  }
+  mkdirSync(runtimeDir, { recursive: true });
+  for (const fileName of ["prometheus.yml", "alert_rules.yml"]) {
+    const runtimePath = join(runtimeDir, fileName);
+    if (!existsSync(runtimePath)) copyFileSync(join(packagedDir, fileName), runtimePath);
+  }
+}
+
 function readOfficialCloudNoWebappComposeTemplate(): string {
   const packaged = packagedNoWebappTemplatePath();
   if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
@@ -812,21 +830,29 @@ function fileHash(path: string): string | null {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
-async function loadSelfHostComposeTemplate(templateRef: string, role: ServerRole): Promise<string> {
+export async function loadSelfHostComposeTemplate(
+  templateRef: string,
+  role: ServerRole,
+  imageTag: string,
+  packageVersion = getPackageVersion(),
+): Promise<string> {
   const templateDir = process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
   if (templateDir) {
     return readFileSync(join(resolve(templateDir), ROLE_TEMPLATE_FILES[role]), "utf-8");
   }
 
-  const overrideUrl = process.env.OPENMATES_SELFHOST_COMPOSE_URL;
-  if (overrideUrl) {
-    return fetchText(overrideUrl);
-  }
-
   const packaged = packagedTemplatePath(role);
-  if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
-
-  return fetchText(`https://raw.githubusercontent.com/glowingkitty/OpenMates/${templateRef}/${ROLE_IMAGE_COMPOSE_FILES[role]}`);
+  const source = resolveTemplateSource({
+    role,
+    packagedTemplateExists: existsSync(packaged),
+    templateUrl: process.env.OPENMATES_SELFHOST_COMPOSE_URL,
+    templateRef,
+    imageTag,
+    packageVersion,
+  });
+  if (source.type === "packaged") return readFileSync(packaged, "utf-8");
+  if (source.type === "url") return fetchText(source.url);
+  return fetchText(`https://raw.githubusercontent.com/glowingkitty/OpenMates/${source.ref}/${source.path}`);
 }
 
 async function writeImageModeRuntimeFiles(installPath: string, imageTag: string, role: ServerRole): Promise<void> {
@@ -834,11 +860,12 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   const vaultConfigDir = join(roleDir, "vault", "config");
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
-  writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
+  writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role, imageTag));
   if (role === "core") {
     writeFileSync(join(installPath, OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE), readOfficialCloudNoWebappComposeTemplate());
   }
   if (role === "core") {
+    ensureCorePrometheusRuntimeFiles(installPath);
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
     writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
@@ -2410,6 +2437,33 @@ type RuntimeVerifierOutput = {
   restoreStatus?: "available" | "restore_unavailable";
 };
 
+function inspectCmsCacheConsistency(
+  installPath: string,
+  withOverrides: boolean,
+  installMode: NonNullable<ServerConfig["installMode"]>,
+): RuntimeVerifierOutput["checks"][number] {
+  const composeResult = spawnSync(
+    "docker",
+    [...composeArgs(installPath, withOverrides, installMode, "core"), "ps", "-q", "cms"],
+    { cwd: installPath, encoding: "utf-8", timeout: 5_000 },
+  );
+  const containerIds = composeResult.status === 0 ? composeResult.stdout.trim().split(/\s+/).filter(Boolean) : [];
+  const containerId = containerIds.length === 1 ? containerIds[0] : undefined;
+  if (!containerId) {
+    return evaluateCmsCacheConsistency({ containerFound: false, inspectionSucceeded: false, filteredEnvironment: "" });
+  }
+  const inspectResult = spawnSync(
+    "docker",
+    ["inspect", "--format", CMS_CACHE_INSPECT_FORMAT, containerId],
+    { cwd: installPath, encoding: "utf-8", timeout: 5_000 },
+  );
+  return evaluateCmsCacheConsistency({
+    containerFound: true,
+    inspectionSucceeded: inspectResult.status === 0,
+    filteredEnvironment: inspectResult.status === 0 ? inspectResult.stdout : "",
+  });
+}
+
 function runRuntimeVerification(installPath: string, role: ServerRole, config: ServerConfig | null): RuntimeVerifierOutput {
   const envText = existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "";
   const mode = resolveRuntimeDeploymentMode({
@@ -2437,6 +2491,11 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
     throw new Error(`Runtime verifier returned invalid output (${result.status ?? "unknown"}).`);
   }
   output.checks = output.checks.map((check) => ({ ...check, failureClass: check.failureClass ?? check.failure_class }));
+  if (role === "core") {
+    const cmsCacheCheck = inspectCmsCacheConsistency(installPath, withOverrides, installMode);
+    output.checks.push(cmsCacheCheck);
+    if (cmsCacheCheck.status !== "passed") output.status = "failed";
+  }
   if (mode.effectiveMode === "official_cloud") {
     const destinations = runtimeNotificationConfig(installPath);
     const configuredCount = [destinations.email, destinations.discordWebhookUrl, destinations.genericWebhook].filter(Boolean).length;

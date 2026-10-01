@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
 		Header,
@@ -140,7 +140,6 @@
 	let pendingPreviewTargetId = $state<string | null>(null);
 	let pendingResumeStarted = false;
 	let activeEditorPreview = $derived(streamPreviewWorkflows.find(item => item.id === pendingPreviewTargetId) ?? pendingPreviewWorkflow);
-	let landingPreviewWorkflows = $derived(pendingPreviewTargetId === null && !provisionalFullscreen ? streamPreviewWorkflows : []);
 	let routeAlive = true;
 	let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
 	let workflowHashState = $state<WorkflowHashState>({
@@ -257,14 +256,6 @@
 			saving = false;
 		}
 	}
-	$effect(() => {
-		const previewCount = landingPreviewWorkflows.length;
-		if (!previewCount) return;
-		void tick().then(() => {
-			const previews = document.querySelectorAll('[data-testid="workflow-ai-pending-preview"]');
-			previews[previewCount - 1]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-		});
-	});
 	let hasTimeTrigger = $derived(
 		editorGraph?.nodes.some((node) => node.type === 'schedule_trigger') ?? false
 	);
@@ -1350,7 +1341,7 @@
 						itemTestId="workflow-landing-card"
 						showReportIssue
 						showAllMode={browseMode !== 'recent'}
-						contentSlotVisible={streamPreviewWorkflows.length > 0 || (partialNotice !== null && partialWorkflowIds.length > 1) || (!!pendingSaveSessionId && !!pendingPreviewWorkflow && pendingPreviewTargetId === null)}
+						contentSlotVisible={partialNotice !== null && partialWorkflowIds.length > 1}
 						showAllLabel="Show my workflows"
 						showAllTestId="workflows-show-all"
 						browseLabel="Show templates"
@@ -1383,12 +1374,6 @@
 						{#if partialNotice && partialWorkflowIds.length > 1}
 							<p class="workflow-ai-partial-warning" data-testid="workflow-ai-partial-warning" role="status">{partialNotice}</p>
 						{/if}
-						{#each landingPreviewWorkflows as preview (preview.id)}
-							<WorkflowPendingPreview workflow={preview} mode="landing" phase={authoringPhase ?? 'saving'} acceptedNodeCount={acceptedNodeCounts[preview.id] ?? 0} isNew={!workflows.some(item => item.id === preview.id)} changes={$workflowWorkspaceStore.detailsById[preview.id] ? workflowNodeChanges($workflowWorkspaceStore.detailsById[preview.id].graph.nodes, preview.graph.nodes) : null}/>
-						{/each}
-						{#if !streamPreviewWorkflows.length && pendingSaveSessionId && pendingPreviewWorkflow && pendingPreviewTargetId === null}
-							<WorkflowPendingPreview workflow={pendingPreviewWorkflow} mode="landing" isNew={!workflows.some(item => item.id === pendingPreviewWorkflow?.id)}/>
-						{/if}
 						<svelte:fragment slot="composer">
 							<input bind:this={workflowImportInput} type="file" accept=".workflow.yml" data-testid="workflow-import-input" onchange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void importWorkflowFile(file); input.value = ''; }} hidden />
 							<div class="workflow-import-dropzone" class:dragging={draggingWorkflowFile} role="group" aria-label={$text('workflows.builder.file_import_group')} data-testid="workflow-import-dropzone" ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) { event.preventDefault(); draggingWorkflowFile = true; } }} ondragleave={() => { draggingWorkflowFile = false; }} ondrop={handleWorkflowFileDrop}>
@@ -1413,7 +1398,6 @@
 							/>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}
 							</div>
-							{#if pendingSaveSessionId || authoringPhase}<div class="workflow-ai-pending" data-testid="workflow-ai-pending" role="status"><span>{pendingSaveMessage || (authoringPhase === 'planning' ? 'Planning workflow...' : authoringPhase === 'retrying_node' ? 'Correcting this step...' : authoringPhase === 'validating' ? 'Validating workflow...' : $text('workflows.builder.ai_saving'))}</span>{#if pendingSaveSessionId && saving}<button type="button" data-testid="workflow-ai-stop" disabled={stopRequested} onclick={() => void stopAuthoring()}>{stopRequested ? 'Stopping...' : 'Stop'}</button>{/if}{#if pendingSaveSessionId && !saving}<button type="button" onclick={resumePendingSave}>{$text('workflows.builder.ai_check_status')}</button>{/if}</div>{/if}
 							{#if createdAiWorkflowIds.length > 1 && authoringAssumptions.length}<p class="workflow-ai-assumptions" data-testid="workflow-ai-assumptions" role="status">{authoringAssumptions.join(' ')}</p>{/if}
 						</svelte:fragment>
 					</WorkspaceHomeShell>

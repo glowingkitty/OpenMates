@@ -26,12 +26,16 @@
 #     data, or reach the main Vault.
 #
 # Architecture: This service is intentionally self-contained. It does not
-# import from backend.core or backend.shared to keep its dependency surface
-# minimal and its Docker image lean.
+# import core service code. Only explicitly packaged pure shared utilities are
+# permitted, keeping its dependency surface small and its image self-contained.
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from contextlib import suppress
+
+import httpx
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,6 +49,7 @@ from backend.upload.services.file_encryption import FileEncryptionService
 from backend.upload.services.preview_generator import PreviewGeneratorService
 from backend.upload.services.sightengine_service import SightEngineService
 from backend.upload.services.s3_upload import UploadsS3Service
+from backend.upload.vault.token_maintenance import maintain_api_token, renew_api_token
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +74,13 @@ async def lifespan(app: FastAPI):
     Vault. The main Vault is never contacted from this service.
     """
     logger.info("[Uploads] Starting up app-uploads service...")
+
+    vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
+    vault_token_path = "/vault-data/api.token"
+    # Fail startup if setup left a legacy token with a finite maximum lifetime.
+    # This uses the scoped token only; the app has no root token mount.
+    async with httpx.AsyncClient(timeout=10.0) as vault_client:
+        await renew_api_token(vault_client, vault_url, vault_token_path)
 
     # --- Malware scanner (ClamAV) ---
     # MalwareScannerService reads CLAMAV_HOST and CLAMAV_PORT from env vars directly
@@ -101,8 +113,8 @@ async def lifespan(app: FastAPI):
     # not available, detection is automatically disabled — uploads still succeed.
     sightengine = SightEngineService()
     await sightengine.initialize_from_vault(
-        vault_url=os.environ.get("VAULT_URL", "http://vault:8200"),
-        vault_token_path="/vault-data/api.token",
+        vault_url=vault_url,
+        vault_token_path=vault_token_path,
     )
     app.state.sightengine = sightengine
     if sightengine.is_enabled:
@@ -124,10 +136,14 @@ async def lifespan(app: FastAPI):
 
     logger.info("[Uploads] Startup complete. All services initialised.")
 
-    yield  # Application runs here
-
-    # Shutdown
-    logger.info("[Uploads] Shutting down app-uploads service...")
+    renewal_task = asyncio.create_task(maintain_api_token(vault_url, vault_token_path))
+    try:
+        yield  # Application runs here
+    finally:
+        renewal_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await renewal_task
+        logger.info("[Uploads] Shutting down app-uploads service...")
 
 
 # ---------------------------------------------------------------------------

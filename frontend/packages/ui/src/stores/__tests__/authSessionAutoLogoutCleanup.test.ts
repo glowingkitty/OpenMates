@@ -10,6 +10,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
+import type { DailyInspiration } from "../dailyInspirationStore";
 
 const cleanupCalls: string[] = [];
 let autoLogoutAction: (() => void) | undefined;
@@ -216,6 +217,7 @@ vi.mock("../../services/sharedChatKeyStorage", () => ({
 vi.mock("../../services/clientLogForwarder", () => ({
   clientLogForwarder: {
     start: vi.fn(),
+    startEphemeral: vi.fn(),
     stop: vi.fn(() => cleanupCalls.push("clientLogForwarder.stop")),
     stopEphemeral: vi.fn(() => cleanupCalls.push("clientLogForwarder.stopEphemeral")),
   },
@@ -260,11 +262,22 @@ vi.mock("../aiTypingStore", () => ({
   },
 }));
 
-vi.mock("../dailyInspirationStore", () => ({
-  dailyInspirationStore: {
-    reset: vi.fn(() => cleanupCalls.push("dailyInspirationStore.reset")),
-  },
-}));
+vi.mock("../dailyInspirationStore", async () => {
+  const { writable } = await import("svelte/store");
+  const store = writable({ inspirations: [] as Array<{ inspiration_id: string }>, source: "none" });
+  return {
+    dailyInspirationStore: {
+      subscribe: store.subscribe,
+      setInspirations: vi.fn((inspirations, options) =>
+        store.set({ inspirations, source: options?.source ?? "public-daily" }),
+      ),
+      reset: vi.fn(() => {
+        cleanupCalls.push("dailyInspirationStore.reset");
+        store.set({ inspirations: [], source: "none" });
+      }),
+    },
+  };
+});
 
 vi.mock("../workflowWorkspaceStore", () => ({
   workflowWorkspaceStore: {
@@ -353,6 +366,8 @@ import { authStore, isCheckingAuth } from "../authState";
 import { bumpLoginSessionGeneration, logout } from "../authLoginLogoutActions";
 import { setWebSocketToken } from "../../utils/cookies";
 import { loginInterfaceOpen, loginStayLoggedInRequested } from "../uiStateStore";
+import { dailyInspirationStore } from "../dailyInspirationStore";
+import { loadDefaultInspirations } from "../../demo_chats/loadDefaultInspirations";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
@@ -365,6 +380,8 @@ describe("checkAuth auto logout cleanup", () => {
     vi.clearAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    dailyInspirationStore.reset();
+    cleanupCalls.length = 0;
     window.location.hash = "#chat-id=old-private-chat";
     authStore.set({ isAuthenticated: true, isInitialized: false });
     loginInterfaceOpen.set(false);
@@ -378,6 +395,40 @@ describe("checkAuth auto logout cleanup", () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("keeps displayed inspirations stable across repeated session 503 retries", async () => {
+    dailyInspirationStore.setInspirations(
+      [{ inspiration_id: "server-default-1" } as DailyInspiration],
+      { source: "public-daily" },
+    );
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    mockFetch.mockResolvedValue({ ok: false, status: 503, statusText: "Service Unavailable" });
+
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(get(authStore).isAuthenticated).toBe(true);
+    expect(get(dailyInspirationStore).source).toBe("public-daily");
+    expect(loadDefaultInspirations).not.toHaveBeenCalled();
+    expect(cleanupCalls).not.toContain("dailyInspirationStore.reset");
+    expect(cleanupCalls).not.toContain("chatDB.deleteDatabase");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("restores inspirations once when offline auth has an empty store", async () => {
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    mockFetch.mockResolvedValue({ ok: false, status: 503, statusText: "Service Unavailable" });
+
+    expect(await checkAuth(undefined, true)).toBe(true);
+    await vi.waitFor(() => expect(loadDefaultInspirations).toHaveBeenCalledTimes(1));
+    dailyInspirationStore.setInspirations(
+      [{ inspiration_id: "restored-1" } as DailyInspiration],
+      { source: "authenticated-fallback" },
+    );
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(loadDefaultInspirations).toHaveBeenCalledTimes(1);
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle

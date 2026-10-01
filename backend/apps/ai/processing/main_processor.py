@@ -4602,7 +4602,12 @@ async def handle_main_processing(
                     tools=iteration_tools,
                     tool_choice=current_tool_choice,
                     max_tokens=current_output_token_limit,
-                    recoverable_attempt=answer_recovery.active,
+                    # A failed post-tool or forced answer may have already
+                    # published text. Let the outer loop rebuild clean evidence
+                    # and continue that prefix instead of appending an error.
+                    recoverable_attempt=(
+                        answer_recovery.active or force_no_tools or tool_inference_iterations > 0
+                    ),
                     stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
                 )
                 # Stream created successfully - break out of retry loop

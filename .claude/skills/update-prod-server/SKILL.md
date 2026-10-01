@@ -103,6 +103,38 @@ Never store or log the TOTP. Do not retry stale codes.
 
 ### 5. Inspect Prod Before Updating
 
+Check the installed production CLI version before every server update. Resolve
+the expected stable CLI version from the merged commit's
+`shared/config/product_version.json` (`cli.stableBase`) and confirm its `Publish CLI` run
+completed successfully. Upgrade the production CLI to that published version
+before generating or applying the update plan:
+
+```bash
+./scripts/prod-ssh.sh "openmates --version"
+./scripts/prod-ssh.sh "sudo -n /usr/bin/openmates upgrade --version <RELEASE_CLI_VERSION> --channel stable"
+./scripts/prod-ssh.sh "openmates --version"
+```
+
+Recheck the version after upgrading. Keep the runtime template tied to the
+reviewed merge SHA as well: an older CLI can pull new images while silently
+writing its older bundled Compose template. Use the supported immutable template
+override for both the dry-run and the actual update. Pin the images to the same
+merge SHA so a moving channel cannot advance between build verification and
+deployment:
+
+```bash
+./scripts/prod-ssh.sh "sudo -n env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --dry-run"
+```
+
+Do not treat an image revision or CLI upgrade alone as proof that the effective
+runtime configuration matches the release. During verification, inspect only the
+two non-secret CMS cache settings and require `CACHE_SKIP_ALLOWED=true` and
+`CACHE_AUTO_PURGE=true` in the running container. Missing settings can hide a
+new session-security or workflow record behind a cached empty lookup until the
+CMS cache expires, even while health endpoints return 200. Apply configuration
+through the CLI update/recreate path; a graceful restart does not apply new
+container environment values.
+
 Use only OpenMates CLI commands for runtime state changes:
 
 ```bash
@@ -127,7 +159,7 @@ secrets unless the user explicitly asks.
 Run the backend-only update:
 
 ```bash
-./scripts/prod-ssh.sh "openmates server update --path /home/superdev/openmates --exclude webapp --yes"
+./scripts/prod-ssh.sh "sudo -n env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --yes"
 ```
 
 If the update fails during setup or health checks:
@@ -157,6 +189,29 @@ starting:
 Treat container health and `http.role_health` as the primary rollback/update
 health signal. Report any remaining verifier failures as configuration or
 runtime-contract gaps, not as a successful full verification.
+
+Require `core.cms_cache_consistency` when the installed CLI provides that check;
+otherwise inspect the two effective cache flags without printing other container
+environment values. Before declaring a production rollout usable, verify a
+signed-in first-party session check and WebSocket phased sync as well as guest
+chat. Use an authorized disposable account or the operator's own browser
+confirmation; never borrow another user's credentials or clear their local keys
+or IndexedDB. A guest response and healthy public API do not prove authenticated
+session authority or encrypted chat sync works. Preserve and report any prepared
+workflow request stranded by a failed final save; configuration repair alone
+does not requeue a row still marked `running`.
+
+Include configured satellite services in release verification. In particular,
+require `https://upload.openmates.org/health` and the upload preflight with
+`Origin: https://openmates.org` to succeed before treating chat recording as
+usable. Realtime transcription alone does not prove its recording upload works.
+When a release changes the upload runtime, update its separate VM through the
+CLI as well, upgrading that VM's CLI first and pinning its image tag and
+`frontend/packages/openmates-cli/templates/upload/docker-compose.yml` override
+to the same reviewed merge SHA. Include `vault-setup` and `app-uploads` together
+when migrating token volumes: setup must populate the scoped periodic token
+before the app starts. A failed upload image must be restored through the CLI
+to a verified working image while its packaging defect is repaired.
 
 After the server update succeeds, smoke-test the production web app as a guest
 in a signed-out browser context with no prior account session. Keep the same

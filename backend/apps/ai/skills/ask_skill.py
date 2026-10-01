@@ -268,6 +268,7 @@ class OpenAIStreamResponse(BaseModel):
     # snapshot. Standard OpenAI clients can ignore this top-level field while
     # internal adapters use it to apply stream-time prefix rewrites safely.
     full_content: Optional[str] = Field(default=None, description="Authoritative final response snapshot (OpenMates extension).")
+    failure_reason: Optional[str] = Field(default=None, description="Safe anonymous failure code (OpenMates extension).")
     
     # Exclude null fields from JSON output
     model_config = {"from_attributes": True}
@@ -687,6 +688,7 @@ class AskSkill(BaseSkill):
                         ],
                         usage=usage_data,
                         full_content=full_response_content,
+                        failure_reason=chunk_info.get("failure_reason") if is_error else None,
                     )
                     yield f"data: {final_chunk.model_dump_json(exclude_none=True)}\n\n"
                     yield "data: [DONE]\n\n"
@@ -797,6 +799,7 @@ class AskSkill(BaseSkill):
                                     "total_credits": data.get("total_credits"),
                                     "category": data.get("category"),
                                     "anonymous_embeds": data.get("anonymous_embeds"),
+                                    "failure_reason": data.get("failure_reason") if is_error else None,
                                 }
                                 task_completed = True
                                 break
