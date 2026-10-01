@@ -17,7 +17,12 @@ assert os.environ.get("OPENMATES_CI_ISOLATED") == "1"
 assert os.environ.get("OPENMATES_DEPLOYMENT_MODE") == "self_host"
 assert os.environ.get("FRONTEND_URLS") == "http://localhost:5173"
 assert os.environ.get("CMS_URL") == "http://cms:8055"
-headers = {"Authorization": "Bearer " + os.environ["DIRECTUS_TOKEN"]}
+login = requests.post("http://cms:8055/auth/login", json={
+    "email": os.environ["DATABASE_ADMIN_EMAIL"],
+    "password": os.environ["DATABASE_ADMIN_PASSWORD"],
+}, timeout=15)
+login.raise_for_status()
+headers = {"Authorization": "Bearer " + login.json()["data"]["access_token"]}
 url = "http://cms:8055/items/user_tasks"
 response = requests.get(url, headers=headers, params={
     "filter[task_id][_eq]": sys.argv[1],
