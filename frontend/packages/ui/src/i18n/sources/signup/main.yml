@@ -48,27 +48,27 @@ test_for_free:
   verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.23
-  de: v0.23
-  zh: v0.23
-  es: v0.23
-  fr: v0.23
-  pt: v0.23
-  ru: v0.23
-  ja: v0.23
-  ko: v0.23
-  it: v0.23
-  tr: v0.23
-  vi: v0.23
-  id: v0.23
-  pl: v0.23
-  nl: v0.23
-  ar: v0.23
-  hi: v0.23
-  th: v0.23
-  cs: v0.23
-  sv: "v0.23"
-  he: v0.23
+  en: v0.24
+  de: v0.24
+  zh: v0.24
+  es: v0.24
+  fr: v0.24
+  pt: v0.24
+  ru: v0.24
+  ja: v0.24
+  ko: v0.24
+  it: v0.24
+  tr: v0.24
+  vi: v0.24
+  id: v0.24
+  pl: v0.24
+  nl: v0.24
+  ar: v0.24
+  hi: v0.24
+  th: v0.24
+  cs: v0.24
+  sv: "v0.24"
+  he: v0.24
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
