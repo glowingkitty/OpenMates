@@ -78,7 +78,9 @@ test("broken references and circular authored data fail validation", () => {
 
 // contract-test: supporting surface=cli assertions=workflows.portability.cli-commands
 test("filenames keep the workflow suffix and cannot introduce directory traversal", () => {
-  assert.equal(workflowFileName("../../Morning/Weather"), "-..-Morning-Weather.workflow.yml");
-  assert.equal(workflowFileName("Morning.workflow.yml"), "Morning.workflow.yml");
+  assert.equal(workflowFileName("Daily Rain Alert"), "daily_rain_alert.workflow.yml");
+  assert.equal(workflowFileName("  Daily   Rain Alert  "), "daily_rain_alert.workflow.yml");
+  assert.equal(workflowFileName("../../Morning/Weather"), "-..-morning-weather.workflow.yml");
+  assert.equal(workflowFileName("Morning.workflow.yml"), "morning.workflow.yml");
   assert.equal(workflowFileName("..."), "workflow.workflow.yml");
 });

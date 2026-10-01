@@ -43,7 +43,7 @@ test.describe('Portable Workflow files', () => {
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.more-export,workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary
   test('exports the saved blank definition from More as a Workflow YAML file', async ({ page }: { page: Page }) => {
-    const title = `Portable blank ${Date.now()}`;
+    const title = 'Daily Rain Alert';
     const created = await page.request.post(`${apiUrl()}/v1/workflows`, {
       data: { title, graph: { version: 2, trigger_node_id: null, nodes: [], edges: [] }, enabled: false },
     });
@@ -57,7 +57,7 @@ test.describe('Portable Workflow files', () => {
       const downloadPromise = page.waitForEvent('download');
       await page.getByTestId('workflow-export').click();
       const download = await downloadPromise;
-      expect(download.suggestedFilename()).toMatch(/\.workflow\.yml$/);
+      expect(download.suggestedFilename()).toBe('daily_rain_alert.workflow.yml');
       const stream = require('node:fs').readFileSync(await download.path(), 'utf8');
       const parsed = require('yaml').parse(stream);
       expect(parsed.format).toBe('openmates-workflow');

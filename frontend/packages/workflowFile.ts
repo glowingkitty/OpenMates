@@ -228,6 +228,7 @@ export function validateWorkflowFile(value: unknown): WorkflowFileDocument {
 export function workflowFileName(title: string): string {
   // eslint-disable-next-line no-control-regex -- Export filenames must exclude control characters.
   const stem = title.normalize("NFKC").replace(/[\x00-\x1f/\\<>:"|?*]/g, "-")
-    .replace(/\.workflow\.ya?ml$/i, "").replace(/^\.+|[. ]+$/g, "").trim().slice(0, 100);
+    .replace(/\.workflow\.ya?ml$/i, "").replace(/^\.+|[. ]+$/g, "").trim()
+    .toLowerCase().replace(/\s+/g, "_").slice(0, 100);
   return `${stem || "workflow"}.workflow.yml`;
 }
