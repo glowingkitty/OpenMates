@@ -109,7 +109,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         def numeric(key: str) -> list[float]:
             return [float(row[key]) for row in arm if isinstance(row.get(key), (int, float))]
 
-        first_preview = numeric("first_complete_component_ms")
+        # The streaming callback's first complete component is an action node.
+        # Gemini's first header is recorded separately in generation_metrics.
+        first_action = numeric("first_complete_component_ms")
         selection_cost = [row.get("preselection_metrics", {}).get("estimated_cost_usd") for row in arm]
         generation_cost = [row.get("generation_metrics", {}).get("estimated_cost_usd") for row in arm]
         summary[mode] = {
@@ -120,7 +122,7 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "failure_stages": {stage: sum(row.get("failure_stage") == stage for row in arm)
                                for stage in sorted({row.get("failure_stage") for row in arm if row.get("failure_stage")})},
             "median_preselection_ms": round(statistics.median(numeric("preselection_ms")), 1) if numeric("preselection_ms") else None,
-            "median_first_preview_after_generation_ms": round(statistics.median(first_preview), 1) if first_preview else None,
+            "median_first_preview_after_generation_ms": round(statistics.median(first_action), 1) if first_action else None,
             "median_total_ms": round(statistics.median(numeric("total_ms")), 1) if numeric("total_ms") else None,
             "preselection_estimated_cost_usd": round(sum(value for value in selection_cost if isinstance(value, (int, float))), 6),
             "generation_estimated_cost_usd": round(sum(value for value in generation_cost if isinstance(value, (int, float))), 6),
@@ -171,7 +173,7 @@ async def _main(args: argparse.Namespace) -> int:
             "description": "Direct versus app-first parallel per-app Jev selection; shared Gemini author and compiler",
             "model": args.model, "repeats": args.repeats,
             "scope": "Synthetic authoring only; no persistence or execution. Transport/schema failures are separate from intent failures.",
-            "first_preview_scope": "Time from Gemini generation start to first complete preview component callback; this may be a validated header or trigger, not the first action.",
+            "first_preview_scope": "Time from Gemini generation start to the first complete action-node callback. Gemini's earlier header is generation_metrics.first_component_ms; neither measure includes Jev preselection.",
             "cases": [asdict(case) for case in cases], "summary": summarize(rows), "rows": rows,
         }
         output = Path(args.output)

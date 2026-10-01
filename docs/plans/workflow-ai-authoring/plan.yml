@@ -6,7 +6,7 @@ approved_by_user: true
 goal: >-
   Let users describe one or multiple workflows in the Workflows workspace, by
   typing or recording speech, and have AI create valid workflows or edit existing
-  ones reliably. Clarify requests in chat when a valid result cannot be built.
+  ones reliably. Clarify requests only when Jev finds the instruction unclear.
   Make AI edits visible and easy to undo.
 
 scope:
@@ -26,49 +26,13 @@ scope:
 
 current_state:
   frontend: >-
-    The workspace has the fixed bottom shared text/audio composer and information
-    text above nodes. The generic authoring integration and complete-component
-    provisional stream are implemented in the task workspace. The task diff
-    includes Stop throttling and a partial-result notice, while the full
-    per-node and recovery contract remains unverified. Isolated stream CI
-    65cc2a70 passed; workflow-input CI 26af5fe6 failed a mobile layout case
-    and its flex fix awaits verification.
+    Revision 607cd834 is deployed to dev and Vercel. A local empty fullscreen shell opens synchronously on Send before Jev, Gemini or the first header. Processing appears above the graph; validated metadata and nodes update the inert shell with the fixed shared composer. Known multi-workflow batches return to the workspace. Focused stream CI run 36789254173 passed the equivalent immutable candidate. The one real dev browser creation remains blocked before inference by two-factor rejection on configured test accounts, with matching clocks and credential hashes.
   backend: >-
-    The task workspace now contains the registry-derived Jev preselector,
-    Gemini compact-plan authoring and complete-component stream, generic V2
-    compiler, shared workspace/chat planning path, and durable atomic batch
-    transaction and undo implementation. The task diff now includes actionable
-    schedule errors, schema-field descriptions, a chat partial-save warning,
-    and an updated live guard. The complete per-node validation,
-    correction-retry, and same-ID partial-edit behavior requires integrated
-    verification. Isolated CLI 3552920d and transaction 248a1316 CI
-    passed, but those scoped runs do not verify the complete new contract or
-    all CLI behavior. Integrated verification is needed before rollout claims.
+    Registry-based Jev selection, Gemini 3.8 Flash flat records, deterministic V2 validation, correction, Stop/disabled partial saves, atomic completed batches and guarded Undo are deployed. Revision 607cd834 fixes false conditional selection for filters/comparisons and requires explicit authored clock fields. Six varied CLI cases plus two targeted reruns have recorded exact instructions and summaries; all disposable workflows were removed. Revision 127f161f adds catalog-priced idempotent authoring billing and EUR marketplace guidance. One real CLI proof passed correct Friday/EUR structure, 13-credit wallet debit and two Billing history entries; UUID replay returned the same workflow without more inference/charges. Billing settings CI run 36796094385 passed one case.
   capability_contract: >-
-    The generic planner now selects from registry-derived executable contracts
-    and compiles a compact semantic plan into V2 with readiness and semantic
-    checks. Tomorrow runtime date values exist. The initial seven-case live
-    compact-plan trial passed graph and intent checks in six cases; the later
-    deployed retests passed three, four, then three of seven intent checks.
-    The bounded-schema run at 865ab7b passed web search, shopping and events
-    summary; three weather or speech requests failed at provider generation,
-    and subjective news omitted branch messages. A later exact-source paired
-    comparison at 68cdee found direct Jev selection 6/7 graph-valid and 4/7
-    intent-matching, versus app-first parallel per-app selection 7/7 and 6/7.
-    Each route ran each case once, so this does not establish a causal winner.
-    Direct weather had a wrong weekly time, both routes added unrequested Ask AI
-    in the subjective case, and direct events failed provider generation after
-    one complete preview. A targeted six-attempt live run on 9ee121b passed
-    two subjective-check attempts; four weather/events attempts failed provider
-    generation. The wrong weekly `at` value now has an actionable error and
-    schema-field descriptions are fixed in the task workspace, awaiting a full
-    live retry. No trial establishes product readiness.
+    Forty registered executable skill contracts were examined; the focused live corpus exercises web, shopping, nutrition, news, weather, events and AI transformation. Four initial requests matched intent. The corrected weather comparison matched intent after one invalid-JSON retry. The final shopping proof on 127f161f preserved Friday 18:00 UTC and EUR country de/max_price 150 in one Gemini attempt. Earlier direct/staged Jev comparison and failures remain historical evidence in the comparison document; this small corpus does not establish all-capability reliability.
   verification: >-
-    Focused checks passed 13 planner, 10 app-skill embed, 2 chat, 32
-    workflow-input helper, and 38 provider/compiler tests. Earlier isolated
-    CLI, transaction, and stream CI runs passed, while workflow-input CI failed
-    on mobile layout. A new coordinated CI run beginning 7d is pending; do not
-    mark acceptance criteria or the overall CLI/product path green yet.
+    The immediate fullscreen focused browser testcase passed in isolated CI at a94a685b (run 36789254173), with product source deployed as 607cd834. Authoring/provider, planner, shopping and billing checks passed; normal 127f161f deployment gates passed lint, translations, privacy audits and ten affected pytest files. Billing settings CI run 36796094385 and the live 13-credit debit/history/idempotent replay proof passed. No real browser AI timing exists because authentication failed before the authoring request. Overall acceptance, live partial-edit recovery and broader speech comparison remain pending.
   reuse:
     - Chat audio already provides streamed transcription and correction.
     - Workflow definition versions and workflow-input mutations provide the basis for the implemented version-guarded batch undo; integrated tests still need to verify complete metadata restoration and protection of later manual edits.
@@ -86,7 +50,7 @@ confirmed_decisions:
   - Save newly generated workflows disabled; save edits immediately while preserving their enabled state.
   - Prompt to save or discard unsaved manual edits before sending an AI edit.
   - Auto-submit a corrected recording; show raw transcription for review if correction fails.
-  - After one successful creation, open that workflow automatically. After multiple creations, remain on the landing page and show a New pill above each created workflow card in Continue.
+  - On create submission, immediately open a local provisional full-screen workflow shell before Jev or Gemini replies, with a processing container above the first node. Update title and description, then show each backend-validated node as it arrives. If Jev identifies multiple workflows, switch to the workspace batch view; show New pills after commit. The provisional shell creates no saved empty workflow, copy, or fake workflow ID. A real workflow is confirmed only after durable commit.
   - Show workflow information text above nodes and keep one shared composer, including audio, fixed at the bottom of the landing page and open editor.
   - Clarification opens a new chat and auto-sends the exact request prefixed with an @ mention for workflows.clarify_workflows.
   - List removed nodes above the graph; highlight added and edited nodes in place.
@@ -130,7 +94,7 @@ implementation_sequence:
     work: Add workflows.clarify_workflows, exact-request workspace handoff, selective workflow context in ordinary chat, and a batch-aware chat creation/editing path that uses the same transaction and validation service. Auto-save clarified results and show activation guidance for new workflows.
     dependency: Transactional batch service.
   - phase: Workspace UI and audio
-    work: Connect the shared fixed-bottom landing/editor composer and audio to the planner, show information text above nodes and validated nodes as they arrive, provide Stop and concrete partial-result recovery, resolve dirty edits before submission, auto-open a single completed workflow, show New pills for multiple completions and node diffs for edits, and expose guarded Undo AI changes.
+    work: Connect the shared fixed-bottom landing/editor composer and audio to the planner, immediately show a local full-screen empty shell with processing container on create submission, then stream validated metadata and nodes. Switch to workspace batch view when Jev identifies multiple workflows. Provide Stop and concrete partial-result recovery, resolve dirty edits before submission, show New pills for committed multiples and node diffs for edits, and expose guarded Undo AI changes.
     dependency: Shared backend authoring and undo APIs.
   - phase: Verification and rollout
     work: Add focused backend and browser contract coverage, exercise the selected architecture against seven real-inference requests with disposable synthetic state, and record validation-inclusive planning and durable-queue acknowledgement timings consistently. Expand to full backend and web verification before enabling broadly.
@@ -144,9 +108,11 @@ research_spike:
     request 2374.6 ms) and app-first parallel per-app selection 7/7 and 6/7
     (649.5 ms, 2546.1 ms). Both recalled every required skill and selected ten
     extra skills. Direct estimated total cost $0.031747 is incomplete after a
-    provider failure; staged $0.032562 is complete estimated usage. First
-    preview may be a header or trigger, not an action. This single sample does
-    not identify a causal winner; see the private
+    provider failure; staged $0.032562 is complete estimated usage. Including
+    Jev, median first-header callbacks were 1877.8/1953.9 ms and first-action
+    callbacks were 2063.3/2188.9 ms for direct/staged; direct had 3/7 actions
+    before 2 seconds, staged 0/7. The callbacks do not measure UI delivery or
+    prove pre-display validation. This single sample does not identify a causal winner; see the private
     /tmp/workflow-staged-flat-fixed-comparison-20260930.json report and the
     aggregate evidence document.
   jev_live_sample: >-
@@ -195,7 +161,7 @@ scenarios:
     title: One or several valid workflows
     given: [The user is on the Workflows landing page.]
     when: [The user describes one or several workflows.]
-    then: [Every valid workflow is created disabled with a Gemini 3.8 Flash title, description, and allowed icon; one creation opens automatically, while multiple creations remain on the landing page with New pills. A short incomplete request becomes a disabled blank workflow with the exact request as its title. Missing weekly day and time default to Monday at 09:00 and are shown as assumptions.]
+    then: [A create submission immediately opens a local empty full-screen workflow shell with processing above the first node; validated title, description and nodes arrive one at a time. If Jev identifies multiple workflows, switch to workspace batch view and show New pills after commit. Every saved valid workflow is disabled with a Gemini 3.8 Flash title, description, and allowed icon. A short incomplete request becomes a disabled blank workflow with the exact request as its title. Missing weekly day and time default to Monday at 09:00 and are shown as assumptions.]
   - id: S-2
     title: Jev identifies an unclear request
     given: [The user request is unclear or confusing to Jev before generation.]
@@ -225,11 +191,11 @@ scenarios:
     title: Node streaming, interruption, and durable acknowledgement
     given: [The user submits a workflow request from the shared fixed-bottom composer.]
     when: [Gemini authors a plan and the backend prepares the batch.]
-    then: [Each complete node appears only after deterministic validation. Stop or a twice-invalid node saves the valid prefix disabled with no automatic execution and a concrete recovery notice; full successful batches require final validation and an encrypted durable queue write before confirmation.]
+    then: [The local full-screen shell appears immediately on create submission without saving an empty workflow or inventing a workflow ID. Its processing container precedes the first node; metadata and each complete node appear only after deterministic validation. Stop or a twice-invalid node saves the valid prefix disabled with no automatic execution and a concrete recovery notice; full successful batches require final validation and an encrypted durable queue write before confirmation.]
 
 acceptance_criteria:
   - {id: AC-1, scenario: S-1, text: 'A validated one or multi-workflow request commits atomically; every new workflow is disabled and has LLM-generated title, description, and icon.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
-  - {id: AC-2, scenario: S-1, text: 'One successful creation opens its workflow; multiple creations leave the workspace on its landing page with a New pill above each created workflow card in Continue.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB]}
+  - {id: AC-2, scenario: S-1, text: 'Create submission immediately opens a local provisional full-screen workflow shell before Jev, Gemini, or a header; processing appears above the first node, then validated title, description and nodes appear one at a time. Jev-detected multiple workflows switch to workspace batch view; committed multiples show New pills in Continue. No empty placeholder or fake workflow ID is saved.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB]}
   - {id: AC-3, scenario: S-2, text: 'Only a request Jev finds unclear or confusing opens clarification chat with the exact instruction before generation; Gemini errors on clear requests remain in authoring recovery.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-WEB]}
   - {id: AC-4, scenario: S-3, text: 'An AI edit resolves dirty state and shows node changes. A full edit preserves enabled state; a stopped partial edit saves to the original ID, keeps unreached nodes, disables it, creates no copy, and guarded Undo restores the prior state including enabled state.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-EDIT]}
   - {id: AC-5, scenario: S-4, text: 'Voice input streams a preview and submits corrected text automatically, while failed correction leaves raw text for review.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VOICE]}
@@ -238,7 +204,8 @@ acceptance_criteria:
   - {id: AC-8, scenario: S-6, text: 'An explicit schedule timezone overrides the browser timezone; tomorrow weather resolves in that schedule timezone and never tests today’s forecast in its place.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PLANNER]}
   - {id: AC-9, scenario: S-3, text: 'Undo restores the entire AI batch or partial edit including prior enabled state only while every affected workflow remains at its AI version; later manual edits cause a conflict and remain unchanged.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH, T-EDIT]}
   - {id: AC-10, scenario: S-1, text: 'One request may mix creates and edits; fully completed batches commit all or none, while Stop or twice-invalid generation may save only a validated disabled partial prefix.', required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BATCH]}
-  - {id: AC-11, scenario: S-7, text: 'The shared fixed-bottom composer supports text, audio and Stop; each complete node streams only after deterministic validation. One invalid-node correction is allowed, then the valid prefix saves disabled with a recovery notice if still invalid. Full success requires whole-batch validation and an encrypted durable queue write.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB, T-PLANNER, T-BATCH]}
+  - {id: AC-11, scenario: S-7, text: 'The shared fixed-bottom composer supports text, audio and Stop; a local processing shell appears immediately on create submission, while each complete node streams only after deterministic validation. One invalid-node correction is allowed, then the valid prefix saves disabled with a recovery notice if still invalid. Full success requires whole-batch validation and an encrypted durable queue write.', required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-WEB, T-PLANNER, T-BATCH]}
+  - {id: AC-12, scenario: S-1, text: 'AI workflow authoring charges measured Jev and Gemini usage using catalog token rates and stable session-step charge IDs; Billing settings retains readable model, token and credit entries; replay does not charge again. Historical unbilled requests are not charged retroactively.', required: true, status: satisfied, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-BILLING]}
 
 tests:
   - id: T-BATCH
@@ -249,7 +216,33 @@ tests:
     covers: [AC-1, AC-3, AC-9, AC-10, AC-11]
     assertions: [Completed mixed valid batches commit atomically after durable encrypted queueing; Stop or twice-invalid generation saves only the validated disabled prefix; partial edits update the original ID and guarded Undo restores full prior state without overwriting later manual edits.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: Scoped transaction and input checks passed. Live d25b1938 cases proved two-create atomic commit and guarded Undo conflict. The earlier unsupported Slack case failed intent after chat substitution; its 557ebc1b rerun passed with exactly one disabled Monday chat prefix and no Friday or second workflow after explicit unsupported_operation failures. Durable acknowledgement timing, mixed create/edit batching, and partial-edit recovery remain unverified.
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757002613', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One browser transaction test passed: two targets commit once; stale and guarded undo batches roll back.'}
+          - {kind: focused_unit, source: prior_transaction_proof, result: 'Eight Node transaction proof checks passed; prior transaction suite also passed.'}
+          - {kind: focused_unit, source: current_worktree, result: '32 workflow-input helper checks passed.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-ca9da8d1.json', source_commit: d25b19389d00084acd64a7b9b89ef52427fed9ce, result: 'Four supported structural cases passed; two-create atomic commit and guarded Undo conflict were confirmed. Unsupported Slack case passed disabled-state safety but failed intent after chat substitution.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-6f0921dd.json', source_commit: 557ebc1b190c7cf39933aef04035714c7d6a2e80, result: 'Unsupported batch passed strict intent and safety assertions: exactly one disabled Monday chat prefix; no Friday or second workflow; cleanup zero.'}
+  - id: T-BILLING
+    type: pytest
+    file: backend/tests/test_workflow_authoring_billing.py
+    command: backend/.venv/bin/python -m pytest backend/tests/test_workflow_authoring_billing.py
+    target: backend/tests/test_workflow_authoring_billing.py
+    execution_environment: local
+    covers: [AC-12]
+    assertions: [Catalog pricing, every metered provider step, stable private charge identity, settlement outside Jev timeout, no unpaid saved draft, and token retention.]
+    red_phase: {required: false, expected: fail, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        reason: "Thirty-one focused billing/planner checks passed. Billing settings CI run 36796094385 passed one case at source 98433d18108a862514729e72112655b3526b6525; live CLI proof on 127f161f reconciled 13 credits, two history entries, same-session replay with no new charge and cleanup. Report: docs/plans/workflow-ai-authoring/evidence/diverse-workflow-authoring-2026-09-30.md."
   - id: T-WEB
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
@@ -257,9 +250,18 @@ tests:
     target: frontend/apps/web_app/tests/workflows-input.spec.ts
     execution_environment: isolated_github_ci
     covers: [AC-2, AC-3, AC-11]
-    assertions: [One completed creation opens its editor; multiple completions show New pills; the shared composer streams backend-validated nodes and supports Stop with partial recovery; only Jev-unclear requests hand off the exact instruction.]
+    assertions: [Create submission immediately opens a local empty full-screen shell with processing above the first node before Jev, Gemini, or header; validated metadata and nodes appear one at a time without a saved placeholder or fake ID; Jev-detected multiples switch to workspace batch view and committed multiples show New pills; Stop supports partial recovery; only Jev-unclear requests hand off the exact instruction.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: Earlier input and stream browser tests cover committed single/New, multiple/New, validated-node previews, retry, Stop with partial warning, rejection and disconnect recovery. The immediate local fullscreen shell before any HTTP response, validated header/node updates, inert controls, multiple view and Stop/recovery passed focused stream CI run 36789254173. Live dev inference browser timing remains blocked by test-account two-factor authentication; overall acceptance is pending.
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757013549', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One long browser case passed: single/New, editor preview and save rejection, node changes, Undo conflict/success, dirty Save/Discard/Stay, and landing edit.'}
+          - {kind: isolated_github_ci, run_id: '36759901975', source_commit: ace9b682fd0542f04820a3eaef153893b51662fc, harness_commit: cb431abddae62ddc44cc991febd91ac1bf8aaea6, profile: e2e, artifact: isolated-test-results, result: 'One long browser case passed: fragmented stream, rejection, disconnect recovery, single open, multiple New, validated nodes, retry phase, Stop, and partial warning.'}
+          - {kind: isolated_github_ci, run_id: '36789254173', source_commit: a94a685b05d5c870f2a00182fe8b45647091546b, equivalent_web_commit: 607cd834fa7d1563a05d3ee6e39840a0de144231, harness_commit: 9868c2f146fb5dd51b5cecad8371d8323bfeb813, profile: e2e, artifact: isolated-test-results, result: 'One focused browser testcase passed immediate fullscreen before response, processing above graph, validated metadata and individual nodes, inert controls, fixed composer, no fake GET/save, recovery, multiples and Stop.'}
   - id: T-EDIT
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
@@ -269,7 +271,16 @@ tests:
     covers: [AC-4, AC-9]
     assertions: [Dirty-state choice, change summary, node highlighting, full-edit enabled state, partial same-ID disabled edit with unreached nodes retained, persistent Undo including enabled state, and later-edit conflict work.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: The long input browser case passed dirty-state choices, node differences, and Undo conflict/success at an earlier candidate source; live strict schedule and app-parameter edits plus guarded Undo conflict passed, but same-ID disabled partial-edit and full UI delivery remain pending.
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757002613', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One browser transaction test passed: two-target commit and stale/guarded undo rollback.'}
+          - {kind: isolated_github_ci, run_id: '36757013549', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One long input browser case passed editor preview/rejection, changed-node highlights, Undo conflict/success, dirty Save/Discard/Stay, and landing edit.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-ca9da8d1.json', source_commit: d25b19389d00084acd64a7b9b89ef52427fed9ce, result: 'Strict schedule and app-parameter edits changed only intended fields; guarded Undo conflict preserved the later edit.'}
   - id: T-VOICE
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
@@ -279,7 +290,14 @@ tests:
     covers: [AC-5]
     assertions: [Recording preview, correction auto-submit, and raw transcript review on correction failure work.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: The passed browser test includes recording preview, corrected auto-submit, and the correction.failed branch showing the raw transcript without submission. Its test and workflow page files are identical between CI source 7d95d5e and deployed web cc4e802, so no rerun is needed for unchanged UI. Plan-wide green evidence remains pending under backend subject binding; live audio-provider behavior is not established.
+        scoped_passes:
+          - {kind: isolated_github_ci, run_id: '36757013549', source_commit: 7d95d5e546e509b8c537dbe388669f76d7a506a1, equivalent_web_commit: cc4e8026529738fd8ebc20b7c741ab31580c071d, harness_commit: 68cdee7984774de384ece75778fcf4eb4e0ddbec, profile: e2e, artifact: isolated-test-results, result: 'One browser test passed: recording preview, corrected auto-submit, correction.failed raw transcript review without submission, and edit-composer corrected submission.'}
   - id: T-CHAT
     type: pytest
     file: backend/tests/test_workflow_chat_authoring_context.py
@@ -288,7 +306,14 @@ tests:
     covers: [AC-6]
     assertions: [Clear chat requests load scoped authoring context and use the validated batch service; clarification uses the focus mode, activation guidance, and a partial-save notice when authoring stops.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: Twelve chat authoring/context checks passed at backend gate 729, but current-subject live chat auto-save and partial-warning behavior remain unverified.
+        scoped_passes:
+          - {kind: focused_unit, source: backend_gate_729, result: '12 chat authoring/context checks passed.'}
   - id: T-PLANNER
     type: pytest
     file: backend/tests/test_workflow_registry_planner.py
@@ -297,7 +322,17 @@ tests:
     covers: [AC-7, AC-8, AC-11]
     assertions: [App-first versus direct Jev skill selection is compared; the outage path feeds the same compact contract; each complete node is validated before streaming, invalid nodes get one correction, typed references and dates compile, and completed invalid graphs are rejected before acknowledgement.]
     red_phase: {required: false, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        reason: Focused checks, paid creation runs and four supported structural cases passed on d25b1938. The 557ebc1b reruns passed strict Berlin weather and unsupported-batch assertions, but the full planner contract and current-source integrated UI path remain unverified.
+        scoped_passes:
+          - {kind: focused_unit, source_commit: 1448b264853ec99767946b146b452b8dc0d1dc20, result: '88 selector, planner, compiler, and provider checks passed.'}
+          - {kind: focused_unit, source: earlier_preselection_suite, result: '8 preselection checks passed.'}
+          - {kind: focused_unit, source_commit: d25b19389d00084acd64a7b9b89ef52427fed9ce, result: '59 compiler/provider, 16 root planner, 22 selector, and 34 input checks passed; API rebuild and live retest pending.'}
+          - {kind: live_cli, report: '/tmp/openmates-workflow-authoring-session3e12/workflow-rollout-92d64fa2.json', source_commit: 557ebc1b190c7cf39933aef04035714c7d6a2e80, result: 'Strict weather intent passed: full Berlin daily 08:00 today with exact rain yes/no, one Gemini generation, and cleanup zero.'}
 
 tasks:
   - id: TASK-7413
@@ -328,8 +363,13 @@ tasks:
       shared_files: [docs/plans/workflow-ai-authoring/plan.yml]
 
 implementation_state:
-  subject_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
-  subject_commit_note: Baseline planning commit only; record the final implementation subject after a deployment receipt.
+  subject_commit: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+  subject_commit_note: Safety source is healthy on dev API runtime docker-10fdd6d9 and normal gates passed. Berlin weather and unsupported-batch live reruns passed strict assertions and cleanup zero. Web UI subject cc4e8026529738fd8ebc20b7c741ab31580c071d has a successful Vercel deployment; the newly accepted early full-screen preview is being implemented and has no verification yet.
+  dev_backend_revision: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+  dev_api_runtime: docker-10fdd6d9
+  dev_api_runtime_source: 557ebc1b190c7cf39933aef04035714c7d6a2e80
+  web_vercel_revision: cc4e8026529738fd8ebc20b7c741ab31580c071d
+  live_smoke_status: short_default_spoken_four_supported_structural_berlin_and_unsupported_reruns_passed_ui_preview_pending
 approvals:
   specification: {status: approved, approved_at: '2026-09-30', reason: 'The user explicitly directed per-node streaming, validation, one correction retry, Stop with saved partial work, Jev-only clarification, and the app-first comparison in turn 01a0f343-564b-7cf0-a3a9-8ed40bfe4643; subsequent replies directed partial edits in the original Workflow, disabled, with no copies. This records conversational product approval, not an exact-fingerprint receipt.'}
   plan: {status: approved, approved_at: '2026-09-30'}
@@ -362,10 +402,10 @@ attempts:
     recorded_at: '2026-09-29'
 handoff:
   current_task_id: TASK-8308
-  next_action: Wait for the pending coordinated CI run beginning 7d, run the full live retry on the actionable weekly-time and schema-field changes, verify the mobile flex fix, then measure durable acknowledgement timing and finish integrated acceptance evidence.
+  next_action: Authoring billing and EUR intent proof are complete. Retain the live browser authentication blocker; remaining accepted integration scope includes same-ID partial edits, clarification chat, and controlled raw-versus-corrected audio evaluation. Avoid repeating passing core web or corpus checks.
   command: Use the implemented task workspace and this Plan for bounded verification; record CI and deployment evidence before marking acceptance criteria complete.
   expected_outcome: A verified mixed-batch workflow authoring path across workspace and chat, with measured durable acknowledgement timing.
-  last_verified_commit: e2ee2ec6ee89e2e034a8f170818f002325ac6eaf
+  last_verified_commit: 127f161f55821ce98c7b7808aec1d487b8e59f0b
 
 remaining_engineering_decisions:
   - Set Jev preselection confidence gates, batch-size cap, and latency/cost targets from validation-inclusive evaluation and integrated queue measurements.

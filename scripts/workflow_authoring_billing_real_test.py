@@ -47,7 +47,7 @@ def test_workflow_authoring_billing() -> None:
     nonce = uuid.uuid4().hex[:8]
     text = ("Every Friday at 18:00 UTC, find noise-cancelling headphones costing no more than "
             f"150 euros and send me the matching products in chat. Name it Headphone Billing QA {nonce}.")
-    key = f"workflow-billing-proof:{nonce}"
+    key = str(uuid.uuid4())
     receipt = {"revision": args.revision, "exact_input": text, "checks": {}, "cleanup": False}
     workflow_id = None
     try:

@@ -14958,7 +14958,7 @@ function printWorkflowsHelp(): void {
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
-  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--idempotency-key <stable-key>] [--optimistic] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--timezone <IANA-zone>] [--idempotency-key <UUID>] [--optimistic] [--json]
   openmates workflows input-show <session-id> [--json]
   openmates workflows input-events <session-id> [--after <event-id>] [--json]
   openmates workflows input-follow-up <session-id> <text> [--json]
