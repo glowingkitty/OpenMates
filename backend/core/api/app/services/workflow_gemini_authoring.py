@@ -421,8 +421,13 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "Do not put arrays or objects directly in a _json field. App nodes need capability and input_json. "
         "Ask AI nodes need prompt_json. Exact Check nodes need mode exact and predicate_json. "
         "AI Check nodes need mode ai, question_json and selected_inputs_json. "
-        "Use only registered selected capabilities and declared inputs/outputs. Selected skills are candidates; "
-        "use only those actually needed. Scheduling, Check and Send are builtins. Ask AI processes prior values. "
+        "Use only registered selected capabilities and declared inputs/outputs. Jev's check_mode and chat_delivery "
+        "are relevance hints, not requirements or permission gates. Decide from the original request which "
+        "nodes are actually needed; a price filter or AI comparison must not acquire a Check merely because "
+        "Jev suggested it. An actual requested condition still needs its appropriate Check and branches. "
+        "Selected skills are candidates; use only those actually needed. Scheduling, exact/AI Check and Send "
+        "are builtins available regardless of Jev's hints. Honor explicit delivery channels and never silently "
+        "substitute chat for an unavailable channel. Ask AI processes prior values. "
         "Typed references are {\"ref\":{\"step\":\"earlier_id\",\"field\":\"declared_output\"}} "
         "inside _json fields; never hand-write graph edges, runtime IDs or interpolation syntax. "
         "Branch outputs stay in that branch; no sibling or future node references. "
@@ -475,6 +480,7 @@ class WorkflowGeminiAuthor:
                        on_plan_component: Callable[..., Any] | None = None,
                        accepted_prefixes: list[dict[str, Any]] | None = None,
                        correction: str | None = None,
+                       resolve_update_target: Callable[..., Any] | None = None,
                        should_stop: Callable[[], Any] | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
         """Stream complete flat records, returning a strict compact plan tree.
 
@@ -494,6 +500,20 @@ class WorkflowGeminiAuthor:
             raise ValueError("Accepted authoring prefixes are invalid")
         accumulators: list[FlatAuthoringAccumulator | None] = []
         frozen: list[dict[str, Any] | None] = []
+
+        async def target_context(header: dict[str, Any]) -> dict[str, Any] | None:
+            if header.get("operation") != "update" or resolve_update_target is None:
+                return selected_workflow
+            identifier = header.get("workflow_id")
+            if not isinstance(identifier, str):
+                raise ValueError("Workflow update target is missing")
+            result = resolve_update_target(identifier)
+            if inspect.isawaitable(result):
+                result = await result
+            if not isinstance(result, dict) or result.get("id") != identifier:
+                raise ValueError("Workflow update target is invalid")
+            return result
+
         for item in prior:
             if item is None:
                 accumulators.append(None)
@@ -501,7 +521,7 @@ class WorkflowGeminiAuthor:
                 continue
             if not isinstance(item, dict) or not isinstance(item.get("header"), dict) or not isinstance(item.get("nodes"), list):
                 raise ValueError("Accepted authoring prefix is invalid")
-            accumulator = FlatAuthoringAccumulator(selection, timezone, selected_workflow)
+            accumulator = FlatAuthoringAccumulator(selection, timezone, await target_context(item["header"]))
             accumulator.accept_header(item["header"])
             for node in item["nodes"]:
                 accumulator.accept_node(node)
@@ -555,6 +575,18 @@ class WorkflowGeminiAuthor:
                 raise WorkflowAuthoringStopped("Workflow authoring was stopped", metrics, snapshots())
 
         async def accept(component: dict[str, Any]) -> None:
+            try:
+                await accept_component(component)
+            except ValueError as exc:
+                index = component["workflow_index"]
+                item = accumulators[index] if 0 <= index < len(accumulators) else None
+                exc.component_location = {
+                    "phase": component["type"], "workflow_index": index,
+                    "node_index": len(item.records) if item else 0,
+                }
+                raise
+
+        async def accept_component(component: dict[str, Any]) -> None:
             workflow_index = component["workflow_index"]
             if workflow_index >= 8:
                 raise WorkflowAuthoringProviderError("Workflow batch exceeds its limit", metrics, snapshots())
@@ -571,7 +603,7 @@ class WorkflowGeminiAuthor:
                     if accumulator.header != header:
                         raise WorkflowAuthoringProviderError("Workflow retry changed an accepted header", metrics, snapshots())
                     return
-                accumulator = FlatAuthoringAccumulator(selection, timezone, selected_workflow)
+                accumulator = FlatAuthoringAccumulator(selection, timezone, await target_context(header))
                 try:
                     accumulator.accept_header(header)
                 except ValueError as exc:
@@ -629,7 +661,9 @@ class WorkflowGeminiAuthor:
             async with client.stream("POST", f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:streamGenerateContent",
                                      params={"alt": "sse"}, headers={"x-goog-api-key": str(key)}, json=body) as response:
                 if response.status_code != 200:
-                    raise WorkflowAuthoringProviderError(f"Workflow provider HTTP {response.status_code}", metrics, snapshots())
+                    error = WorkflowAuthoringProviderError(f"Workflow provider HTTP {response.status_code}", metrics, snapshots())
+                    error.http_status = response.status_code
+                    raise error
                 lines = response.aiter_lines() if should_stop is None else _stoppable_lines(response, check_stop)
                 async for line in lines:
                     await check_stop()
@@ -686,6 +720,13 @@ class WorkflowGeminiAuthor:
             return (plans[0] if len(plans) == 1 else {"operations": plans}), metrics
         except httpx.HTTPError as exc:
             raise WorkflowAuthoringProviderError("Workflow provider transport failed", metrics, snapshots()) from exc
+        except BaseException as exc:
+            # The planner may cancel through its component callback after the
+            # provider has already reported usage. Preserve that metering for
+            # settlement even when the callback stops the stream.
+            if not hasattr(exc, "metrics"):
+                exc.metrics = metrics
+            raise
         finally:
             metrics["seconds"] = round(time.perf_counter() - started, 3)
             if owned_client:

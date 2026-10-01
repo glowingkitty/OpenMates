@@ -30,10 +30,11 @@ def forecast_plan(title="Daily forecast"):
             ]}
 
 
-def configure(monkeypatch, *, operation="create", count=1, unavailable=False, clarity="clear", check_mode="none"):
+def configure(monkeypatch, *, operation="create", count=1, unavailable=False, clarity="clear", check_mode="none",
+              capability_ids=("weather.forecast", "ai.ask"), chat_delivery=True):
     registry = WorkflowCapabilityRegistry()
-    selection = WorkflowPreselection([registry.get_capability("weather.forecast"), registry.get_capability("ai.ask")],
-                                     operation, check_mode, True, {},
+    selection = WorkflowPreselection([registry.get_capability(identifier) for identifier in capability_ids],
+                                     operation, check_mode, chat_delivery, {},
                                      {"jev_calls": 1, "seconds": 0.01, "estimated_cost_usd": 0.0001}, count, clarity)
 
     class Selector:
@@ -284,6 +285,204 @@ async def test_invalid_node_never_streams_and_corrective_retry_keeps_accepted_pr
     assert "invented" not in str(checkpoints)
 
 
+def two_deliveries():
+    raw = flat_forecast()
+    second = deepcopy(raw["workflows"][0]["nodes"][1])
+    second["id"] = "second_message"
+    raw["workflows"][0]["nodes"].append(second)
+    return raw
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_separate_failing_nodes_each_get_one_correction_with_frozen_progress(monkeypatch):
+    configure(monkeypatch)
+    good = two_deliveries()
+    first_bad, second_bad = deepcopy(good), deepcopy(good)
+    first_bad["workflows"][0]["nodes"][1]["message_json"] = '{'
+    second_bad["workflows"][0]["nodes"][2]["message_json"] = '{'
+    author = FlatAuthor([first_bad, second_bad, good])
+    checkpoints, events = [], []
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Send two forecast messages", {"timezone": "UTC", "_on_checkpoint": checkpoints.append,
+                                       "_on_component": events.append}, object(), author)
+    assert result["action"] == "create_workflow" and len(author.requests) == 3
+    assert [len(request["accepted_prefixes"][0]["nodes"]) for request in author.requests[1:]] == [1, 2]
+    assert [item["accepted_node_count"] for item in checkpoints] == [0, 1, 2, 3]
+    retries = [event for event in events if event.get("phase") == "retrying_node"]
+    assert [(event["attempt"], event["node_index"], event["correction_attempt"]) for event in retries] == [
+        (2, 1, 1), (3, 2, 1)]
+    assert all(node["config"]["message"] == "{{ $nodes.weather.output.summary }}"
+               for checkpoint in checkpoints for node in checkpoint["graph"]["nodes"]
+               if node["type"] == "send_chat_message")
+    assert len({node["id"] for node in result["graph"]["nodes"]}) == 4
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_twice_invalid_node_stops_even_when_rejected_id_changes(monkeypatch):
+    configure(monkeypatch)
+    bad = flat_forecast()
+    bad["workflows"][0]["nodes"][1]["message_json"] = '{'
+    renamed = deepcopy(bad)
+    renamed["workflows"][0]["nodes"][1]["id"] = "renamed_failure"
+    author = FlatAuthor([bad, renamed, flat_forecast()])
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Daily forecast", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "partial" and len(author.requests) == 2
+    assert [node["id"] for node in result["operations"][0]["graph"]["nodes"]] == ["trigger", "weather"]
+    assert result["operations"][0]["enabled"] is False
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_later_twice_invalid_node_stops_after_earlier_node_was_repaired(monkeypatch):
+    configure(monkeypatch)
+    good = two_deliveries()
+    first_bad, later_bad = deepcopy(good), deepcopy(good)
+    first_bad["workflows"][0]["nodes"][1]["message_json"] = '{'
+    later_bad["workflows"][0]["nodes"][2]["message_json"] = '{'
+    author = FlatAuthor([first_bad, later_bad, later_bad, good])
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Send two forecast messages", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "partial" and len(author.requests) == 3
+    assert [node["id"] for node in result["operations"][0]["graph"]["nodes"]] == ["trigger", "weather", "message"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_header_and_first_node_have_independent_correction_allowances(monkeypatch):
+    configure(monkeypatch)
+    good = flat_forecast()
+    bad_header, bad_node = deepcopy(good), deepcopy(good)
+    bad_header["workflows"][0]["header"]["schedule"] = {"type": "daily", "time": "not-a-clock"}
+    bad_node["workflows"][0]["nodes"][0]["input_json"] = '{'
+    author = FlatAuthor([bad_header, bad_node, good])
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Daily forecast", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "create_workflow" and len(author.requests) == 3
+    assert author.requests[1]["accepted_prefixes"] == []
+    assert author.requests[2]["accepted_prefixes"][0]["nodes"] == []
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_nonrepairable_provider_request_error_does_not_repeat_the_same_request(monkeypatch):
+    configure(monkeypatch)
+
+    class RejectedAuthor:
+        calls = 0
+
+        async def generate(self, **kwargs):
+            self.calls += 1
+            error = module.WorkflowAuthoringProviderError("Workflow provider HTTP 400")
+            error.http_status = 400
+            raise error
+
+    author = RejectedAuthor()
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Daily forecast", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "partial" and result["operations"] == [] and author.calls == 1
+    assert result["_authoring_metrics"]["generation_attempts"][0]["provider_http_status"] == 400
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_real_adapter_and_compiler_repair_two_nodes_in_three_provider_requests(monkeypatch):
+    import httpx
+
+    configure(monkeypatch)
+    good = two_deliveries()
+    first_bad, second_bad = deepcopy(good), deepcopy(good)
+    first_bad["workflows"][0]["nodes"][1]["message_json"] = '{'
+    second_bad["workflows"][0]["nodes"][2]["message_json"] = '{'
+    responses, requests, checkpoints = [first_bad, second_bad, good], [], []
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    def provider(request):
+        payload = json.loads(request.content)
+        requests.append(json.loads(payload["contents"][0]["parts"][0]["text"]))
+        event = {"candidates": [{"content": {"parts": [{"text": json.dumps(responses[len(requests) - 1])}]},
+                                  "finishReason": "STOP"}],
+                 "usageMetadata": {"promptTokenCount": 600, "candidatesTokenCount": 120}}
+        return httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n')
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(provider)) as client:
+        author = module.WorkflowGeminiAuthor(Secrets(), client)
+        result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+            "Send two forecast messages", {"timezone": "UTC", "_on_checkpoint": checkpoints.append}, object(), author)
+    assert result["action"] == "create_workflow" and len(requests) == 3
+    assert [len(request["accepted_prefixes"][0]["nodes"]) for request in requests[1:]] == [1, 2]
+    assert "node 2" in requests[1]["validation_correction"]
+    assert "node 3" in requests[2]["validation_correction"]
+    assert [item["accepted_node_count"] for item in checkpoints] == [0, 1, 2, 3]
+    assert [attempt["input_tokens"] for attempt in result["_authoring_metrics"]["generation_attempts"]] == [600] * 3
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.access.boundaries
+@pytest.mark.asyncio
+@pytest.mark.parametrize("foreign_target", [False, True])
+async def test_jev_outage_adapter_loads_owned_overview_edit_before_header_validation(monkeypatch, foreign_target):
+    import httpx
+
+    configure(monkeypatch, unavailable=True)
+    registry = WorkflowCapabilityRegistry()
+    original = module.compile_authoring_plan(forecast_plan(), WorkflowPreselection(
+        [registry.get_capability("weather.forecast")], "create", "none", True, {}, {}), "UTC")["graph"]
+    target = {"id": "owned-workflow", "title": "Daily forecast", "description": "Original",
+              "version": 7, "icon": "cloud-rain", "graph": original}
+    header = {"operation": "update", "workflow_id": "foreign-workflow" if foreign_target else target["id"],
+              "schedule": {"type": "daily", "time": "10:00"}}
+    response = {"workflows": [{"header": header, "nodes": []}]}
+    loaded = []
+
+    class Secrets:
+        async def get_secret(self, **kwargs):
+            return "synthetic-key"
+
+    def provider(request):
+        event = {"candidates": [{"content": {"parts": [{"text": json.dumps(response)}]}, "finishReason": "STOP"}]}
+        return httpx.Response(200, text='data: ' + json.dumps(event) + '\n\n')
+
+    def load(identifier):
+        loaded.append(identifier)
+        assert identifier == target["id"]
+        return target
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(provider)) as client:
+        result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+            "Move Daily forecast to 10:00", {"timezone": "UTC", "_load_workflows": lambda: [
+                {key: target[key] for key in ("id", "title", "description")}], "_load_workflow": load},
+            object(), module.WorkflowGeminiAuthor(Secrets(), client))
+    if foreign_target:
+        assert result["action"] == "partial" and result["operations"] == [] and loaded == []
+    else:
+        assert result["action"] == "update_workflow" and loaded == [target["id"]]
+        assert result["expected_record_version"] == 7
+        assert result["graph"]["nodes"][0]["config"]["schedule"]["time"] == "10:00"
+        assert result["graph"]["nodes"][1:] == original["nodes"][1:]
+        assert result["_authoring_metrics"]["gemini_calls"] == 1
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation
+@pytest.mark.asyncio
+async def test_retry_allowances_are_independent_across_workflows(monkeypatch):
+    configure(monkeypatch, count=2)
+    good = {"workflows": [flat_forecast()["workflows"][0], flat_forecast()["workflows"][0]]}
+    good["workflows"][1]["header"]["title"] = "Second forecast"
+    first_bad, second_bad = deepcopy(good), deepcopy(good)
+    first_bad["workflows"][0]["nodes"][1]["message_json"] = '{'
+    second_bad["workflows"][1]["nodes"][1]["message_json"] = '{'
+    author = FlatAuthor([first_bad, second_bad, good])
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Create two forecast workflows", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "batch" and len(result["operations"]) == 2 and len(author.requests) == 3
+    assert [len(item["nodes"]) for item in author.requests[2]["accepted_prefixes"]] == [2, 1]
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.provisional-validation,workflows.authoring.atomic-update
 @pytest.mark.asyncio
 async def test_stop_keeps_accepted_prefix_without_a_retry(monkeypatch):
@@ -354,15 +553,56 @@ async def test_retry_metrics_keep_safe_failure_codes_without_private_correction(
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
 @pytest.mark.asyncio
-async def test_missing_requested_check_reports_specific_finalization_code(monkeypatch):
-    configure(monkeypatch, check_mode="ai")
+@pytest.mark.parametrize("hint", ["none", "exact", "ai", "both"])
+async def test_unused_jev_check_candidates_do_not_force_a_check_or_correction(monkeypatch, hint):
+    configure(monkeypatch, check_mode=hint)
     author = Author(forecast_plan())
     result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
-        "Send forecast only if it is useful", {"timezone": "UTC"}, object(), author)
-    assert result["action"] == "partial" and author.calls == 2
-    assert result["_authoring_metrics"]["last_failure_reason_code"] == "check_mode_omitted"
-    assert all(attempt["failure_reason_code"] == "check_mode_omitted"
-               for attempt in result["_authoring_metrics"]["generation_attempts"])
+        "Every day at 08:00 UTC, send the Berlin forecast", {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "create_workflow" and author.calls == 1
+    assert not any(node["type"] == "check" for node in result["graph"]["nodes"])
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
+@pytest.mark.asyncio
+async def test_price_filter_completes_without_a_check_despite_jev_control_hints(monkeypatch):
+    configure(monkeypatch, check_mode="both", chat_delivery=False,
+              capability_ids=("shopping.search_products", "weather.forecast", "ai.ask"))
+    raw = {"operation": "create", "title": "Headphones", "description": "Matching products under 150 euros",
+           "icon": "help-circle", "schedule": {"type": "weekly", "time": "18:00", "weekdays": ["friday"]},
+           "steps": [{"kind": "app", "id": "products", "capability": "shopping.search_products", "input": {
+               "requests": [{"query": "noise-cancelling headphones", "category": "electronics",
+                             "country": "de", "max_price": 150}]}},
+                     {"kind": "send", "id": "delivery", "title": "Headphones", "message": [
+                         {"ref": {"step": "products", "field": "results"}}]}]}
+    author = Author(raw)
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Every Friday at 18:00 UTC find headphones under 150 euros and send the matching products in chat",
+        {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "create_workflow" and author.calls == 1
+    assert [node["type"] for node in result["graph"]["nodes"]] == [
+        "schedule_trigger", "app_skill_action", "send_chat_message"]
+    assert result["graph"]["nodes"][1]["config"]["input"]["requests"][0]["max_price"] == 150
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan
+@pytest.mark.asyncio
+async def test_gemini_can_include_a_needed_exact_check_even_when_jev_suggests_none(monkeypatch):
+    configure(monkeypatch, check_mode="none", chat_delivery=False)
+    raw = forecast_plan()
+    raw["steps"][1:] = [{"kind": "check", "id": "rain", "mode": "exact", "predicate": {
+        "op": "eq", "left": {"ref": {"step": "weather", "field": "rain_expected"}}, "right": True},
+        "yes": [{"kind": "send", "id": "umbrella", "title": "Weather", "message": [{"text": "Take an umbrella"}]}],
+        "no": [{"kind": "send", "id": "dry", "title": "Weather", "message": [{"text": "It should be dry"}]}]}]
+    author = Author(raw)
+    result = await module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Every day check Berlin weather. If rain is expected send an umbrella reminder, otherwise say it should be dry",
+        {"timezone": "UTC"}, object(), author)
+    assert result["action"] == "create_workflow" and author.calls == 1
+    check = next(node for node in result["graph"]["nodes"] if node["type"] == "check")
+    assert check["config"]["mode"] == "exact"
+    assert check["config"]["predicate"]["left"] == "$nodes.weather.output.rain_expected"
+    assert {edge.get("branch") for edge in result["graph"]["edges"] if edge["from"] == "rain"} == {"yes", "no"}
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.compact-plan,workflows.authoring.provisional-validation

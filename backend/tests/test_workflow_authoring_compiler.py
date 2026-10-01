@@ -29,11 +29,11 @@ def filesystem_capabilities(monkeypatch):
 
 def selection(*capabilities: str, mode: str = "none", operation: str = "create",
               schedule_timezone: str | None = None, workflow_count: int | None = None,
-              preserve_schedule_timezone: bool = False) -> WorkflowPreselection:
+              preserve_schedule_timezone: bool = False, chat_delivery: bool = True) -> WorkflowPreselection:
     registry = WorkflowCapabilityRegistry()
     return WorkflowPreselection(
         capabilities=[registry.get_capability(identifier) for identifier in capabilities],
-        operation=operation, check_mode=mode, chat_delivery=True, scores={}, metrics={},
+        operation=operation, check_mode=mode, chat_delivery=chat_delivery, scores={}, metrics={},
         schedule_timezone=schedule_timezone, workflow_count=workflow_count,
         preserve_schedule_timezone=preserve_schedule_timezone,
     )
@@ -609,6 +609,29 @@ def test_check_mode_hint_does_not_remove_needed_fallback_check():
     assert any(node["id"] == "available" for node in result["graph"]["nodes"])
 
 
+def test_delivery_hint_does_not_block_send_or_require_selected_skills():
+    raw = plan([{"kind": "send", "id": "notice", "title": "Notice",
+                 "message": [{"text": "Your reminder is due."}]}])
+    chosen = selection("weather.forecast", "ai.ask", chat_delivery=False)
+
+    result = compile_authoring_plan(raw, chosen, "UTC")
+
+    assert [(node["id"], node["type"]) for node in result["graph"]["nodes"]] == [
+        ("trigger", "schedule_trigger"), ("notice", "send_chat_message")]
+    assert result["graph"]["nodes"][1]["config"]["message"] == "Your reminder is due."
+
+
+def test_no_effect_graph_still_fails_canonical_readiness():
+    raw = plan([
+        {"kind": "app", "id": "forecast", "capability": "weather.forecast",
+         "input": {"location": "Paris", "days": 1}},
+        {"kind": "end", "id": "done"},
+    ])
+
+    with pytest.raises(ValueError, match="reachable qualifying effect"):
+        compile_authoring_plan(raw, selection("weather.forecast", chat_delivery=False), "UTC")
+
+
 def test_ai_check_selected_inputs_and_branch_continuation():
     raw = plan([
         {"kind": "app", "id": "news", "capability": "news.search",
@@ -623,7 +646,7 @@ def test_ai_check_selected_inputs_and_branch_continuation():
                  "message": [{"text": "No important update."}]}]},
         {"kind": "send", "id": "followup", "title": "Followup", "message": [{"text": "Review complete."}]},
     ])
-    result = compile_authoring_plan(raw, selection("news.search", mode="ai"), "Europe/Berlin")
+    result = compile_authoring_plan(raw, selection("news.search", mode="none"), "Europe/Berlin")
     edges = result["graph"]["edges"]
     assert any(edge["from"] == "important" and edge["branch"] == "default" and edge["to"] == "followup"
                for edge in edges)
@@ -735,7 +758,7 @@ def test_preview_accepts_header_and_completed_app_without_delivery():
                      "input": {"location": "Berlin", "days": 1}}]
     partial = compile_authoring_preview(raw, selection("weather.forecast"), "Europe/Berlin")
     assert [node["id"] for node in partial["graph"]["nodes"]] == ["trigger", "forecast"]
-    with pytest.raises(ValueError, match="chat delivery"):
+    with pytest.raises(ValueError, match="reachable qualifying effect"):
         compile_authoring_plan(raw, selection("weather.forecast"), "Europe/Berlin")
 
 

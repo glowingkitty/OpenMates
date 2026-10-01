@@ -39,6 +39,8 @@ current_state:
     - Focus mentions already support explicit @focus:app:id activation.
 
 confirmed_decisions:
+  - Jev selects likely relevant skill and control context; Gemini decides which nodes the instruction actually needs. Check-mode and chat-delivery hints do not force nodes or prohibit supported builtins. Registered capability schemas, ownership, references and readiness remain authoritative.
+  - Each failing node slot gets one correction; a later failing node gets its own allowance after accepted progress. Changing a rejected node ID does not reset its allowance. Accepted prefixes remain frozen, and a stalled continuation or repeated completion failure stops safely.
   - A fully completed multi-workflow request commits atomically. Jev routes an unclear or confusing request to clarification before generation; Stop or a twice-invalid generated node instead retains the validated prefix as a disabled partial result.
   - A short complete instruction creates a ready disabled workflow through the natural-language authoring path. A short incomplete instruction creates a persisted disabled blank workflow with the exact request as its title and opens its editor. Only Jev-unclear or confusing requests go to clarification chat before generation; model errors in clear requests use partial-result recovery.
   - When a schedule omits its time, use 09:00 in the browser timezone or the explicitly requested timezone. When a weekly schedule omits its day, use Monday. Show these assumptions to the user.
@@ -398,6 +400,11 @@ decisions:
     status: active
     decision: Submit final workflow transcripts without separate correction by default; keep ordinary chat correction and a workflow rollback flag.
     reason: The user authorized bypass if confusing raw transcripts retained authoring quality. On 2026-10-01, raw weather and shopping requests with mid-sentence corrections preserved the final schedule, location, date, branches and price; the paired clean weather request produced the same behavior. This establishes a bounded text interpretation result, not ASR quality across languages.
+    decided_at: '2026-10-01'
+  - id: D-6
+    status: active
+    decision: Make Jev control relevance advisory and enforce one correction per failing node rather than one per request; preserve strict executable contracts and frozen accepted nodes.
+    reason: 'The user explicitly confirmed per-node correction and clarified that Jev loads likely relevant instructions while Gemini decides which parts to use, in turn 01a0f706-da18-7600-b82a-41e3fba7dfb5. The existing compact-plan and provisional-validation Specification covers these implementation corrections.'
     decided_at: '2026-10-01'
 attempts:
   - id: A-1

@@ -1,7 +1,7 @@
 """Owner-scoped, registry-derived natural language workflow authoring.
 
 Jev selects candidate skills/controls and existing targets. Gemini streams
-validated semantic nodes, with one corrective continuation if needed. The
+validated semantic nodes, with one correction for each failing node. The
 compiler owns graph wiring and saveable partial drafts. This module never
 persists or executes a model response.
 """
@@ -49,7 +49,6 @@ _PLAN_FAILURE_CODES = {
     "Not every requested workflow was authored": "workflow_count_mismatch",
     "An actionable request cannot become an empty or clarification plan": "empty_actionable_plan",
     "Unknown or repeated workflow update target": "invalid_update_target",
-    "Requested conditional control was omitted": "check_mode_omitted",
     "Mixed request omitted an operation": "mixed_operation_omitted",
     "A selected workflow edit was omitted": "update_target_omitted",
     "Create requires a title and description": "header_metadata",
@@ -245,12 +244,8 @@ class WorkflowRegistryPlanner:
                 seen_updates.add(identifier)
                 compiled["expected_record_version"] = targets[identifier]["version"]
             plans.append(compiled)
-        actual_modes = {node.get("config", {}).get("mode") for item in plans
-                        for node in item["graph"]["nodes"] if node["type"] == "check"}
-        required_modes = ({"exact", "ai"} if selection.check_mode == "both"
-                          else {selection.check_mode} - {"none"})
-        if not required_modes.issubset(actual_modes):
-            raise ValueError("Requested conditional control was omitted")
+        # Jev chooses likely relevant context, not required graph nodes. Gemini
+        # decides whether the request needs a filter, transformation or Check.
         kinds = {item["action"] for item in plans}
         if selection.operation == "mixed" and kinds != {"create_workflow", "update_workflow"}:
             raise ValueError("Mixed request omitted an operation")
@@ -272,6 +267,29 @@ class WorkflowRegistryPlanner:
         return {"action": "partial", "reason": reason,
                 "notice": PARTIAL_STOPPED if reason == "stopped" else PARTIAL_FAILURE,
                 "operations": operations}
+
+    @staticmethod
+    def _repair_key(error: ValueError, accumulators: dict[int, FlatAuthoringAccumulator]) -> tuple:
+        """Identify the failing slot, never a model-controlled ID or error text.
+
+        A corrected node advances the prefix and gives the next node its own
+        allowance. Renaming a rejected node cannot reset that allowance. A
+        malformed/unfinished transport record has no trustworthy slot, so its
+        allowance advances only with server-accepted progress. Prefix sizes are
+        bounded by the compiler and workflow limit; a stalled stream stops on
+        the second failure.
+        """
+        location = getattr(error, "component_location", None)
+        if isinstance(location, dict):
+            phase, index, position = (location.get(key) for key in ("phase", "workflow_index", "node_index"))
+            if (phase in {"header", "node"} and isinstance(index, int) and not isinstance(index, bool)
+                    and 0 <= index < MAX_WORKFLOWS and isinstance(position, int) and not isinstance(position, bool)
+                    and position >= 0 and (phase == "header" or
+                        index in accumulators and position <= len(accumulators[index].records))):
+                return phase, index, 0 if phase == "header" else position
+        if getattr(error, "completion_failure", False):
+            return ("completion",)
+        return ("continuation", tuple((index, len(item.records)) for index, item in sorted(accumulators.items())))
 
     async def _plan(self, text: str, context: dict[str, Any], jev: Any, author: Any) -> dict[str, Any]:
         started = time.perf_counter()
@@ -357,8 +375,27 @@ class WorkflowRegistryPlanner:
             if context.get("_fallback_overview"):
                 existing = {"selected_workflows": list(targets.values()),
                             "workflow_overview": context["_fallback_overview"]}
+
+            async def resolve_update_target(identifier: str) -> dict[str, Any]:
+                if identifier in targets:
+                    return targets[identifier]
+                allowed_ids = {item["id"] for item in context.get("_fallback_overview", [])}
+                if (not metrics.get("jev_unavailable") or identifier not in allowed_ids
+                        or not callable(context.get("_load_workflow"))):
+                    raise ValueError("Unknown workflow update target")
+                detail = _dump(await asyncio.to_thread(context["_load_workflow"], identifier))
+                if detail.get("id") != identifier:
+                    raise ValueError("Unknown workflow update target")
+                targets[identifier] = detail
+                # A corrective continuation must see the owned graph loaded
+                # during the previous streamed header, not just its overview.
+                if isinstance(existing, dict) and "selected_workflows" in existing:
+                    existing["selected_workflows"] = list(targets.values())
+                return detail
+
             correction = None
-            for attempt in range(2):
+            failures: dict[tuple, int] = {}
+            while True:
                 if self._stopped(context):
                     return finish(self._partial(accumulators, "stopped"))
                 frozen = {index: accumulator.flat_snapshot() for index, accumulator in accumulators.items()}
@@ -366,6 +403,18 @@ class WorkflowRegistryPlanner:
                 usage = None
 
                 async def accept(component: dict[str, Any], *, replay: bool = False) -> None:
+                    try:
+                        await accept_component(component, replay=replay)
+                    except ValueError as exc:
+                        index = component.get("workflow_index", 0)
+                        if isinstance(index, int) and not isinstance(index, bool) and 0 <= index < MAX_WORKFLOWS:
+                            exc.component_location = {
+                                "phase": component.get("type"), "workflow_index": index,
+                                "node_index": len(accumulators[index].records) if index in accumulators else 0,
+                            }
+                        raise
+
+                async def accept_component(component: dict[str, Any], *, replay: bool = False) -> None:
                     if self._stopped(context):
                         raise _AuthoringCancelled()
                     index = component.get("workflow_index", 0)
@@ -381,10 +430,7 @@ class WorkflowRegistryPlanner:
                         target = targets.get(header.get("workflow_id"))
                         if header["operation"] == "update" and target is None and metrics.get("jev_unavailable"):
                             identifier = header.get("workflow_id")
-                            allowed_ids = {item["id"] for item in context.get("_fallback_overview", [])}
-                            if identifier in allowed_ids and callable(context.get("_load_workflow")):
-                                target = _dump(await asyncio.to_thread(context["_load_workflow"], identifier))
-                                targets[identifier] = target
+                            target = await resolve_update_target(identifier)
                         if header["operation"] == "update" and target is None:
                             raise ValueError("Unknown workflow update target")
                         if index in accumulators:
@@ -445,9 +491,12 @@ class WorkflowRegistryPlanner:
                 if billing is not None:
                     await billing.precheck(model=GEMINI_MODEL)
                 metrics["gemini_calls"] += 1
+                attempt = metrics["gemini_calls"] - 1
+                completion_started = False
                 try:
                     kwargs = {"text": text, "selection": selection, "timezone": timezone,
                               "selected_workflow": existing, "on_plan_component": accept,
+                              "resolve_update_target": resolve_update_target,
                               "should_stop": lambda: self._stopped(context)}
                     if correction is not None:
                         kwargs.update(correction=correction,
@@ -478,6 +527,7 @@ class WorkflowRegistryPlanner:
                         for index, item in enumerate(operations):
                             await ingest(item, index)
                     await self._emit(context, {"type": "progress", "phase": "validating"})
+                    completion_started = True
                     plan = self._finalize(accumulators, selection, targets)
                 except _AuthoringCancelled as exc:
                     usage = getattr(exc, "metrics", None)
@@ -491,7 +541,15 @@ class WorkflowRegistryPlanner:
                         metrics["cost_estimate_complete"] = False
                     if isinstance(exc, WorkflowAuthoringStopped) or self._stopped(context):
                         return finish(self._partial(accumulators, "stopped"))
-                    correction = (getattr(exc, "validation_error", None) or str(exc))[:600]
+                    if completion_started:
+                        exc.completion_failure = True
+                    repair_key = self._repair_key(exc, accumulators)
+                    failures[repair_key] = failures.get(repair_key, 0) + 1
+                    detail = (getattr(exc, "validation_error", None) or str(exc))[:450]
+                    location = getattr(exc, "component_location", None)
+                    correction = (f"Correct workflow {repair_key[1] + 1}, "
+                                  f"{repair_key[0]} {repair_key[2] + 1}: {detail}"
+                                  if repair_key[0] in {"header", "node"} else detail)
                     metrics["last_failure_stage"] = "authoring_validation"
                     # Keep diagnostics useful without persisting the private
                     # correction text or a provider response. Provider codes
@@ -500,6 +558,9 @@ class WorkflowRegistryPlanner:
                                    or _PLAN_FAILURE_CODES.get(str(exc), "plan_validation"))
                     usage["failure_reason_code"] = reason_code
                     metrics["last_failure_reason_code"] = reason_code
+                    http_status = getattr(exc, "http_status", None)
+                    if isinstance(http_status, int):
+                        usage["provider_http_status"] = http_status
                     validation_code = getattr(exc, "validation_code", None)
                     if validation_code:
                         usage["validation_code"] = validation_code
@@ -512,8 +573,15 @@ class WorkflowRegistryPlanner:
                     if isinstance(validation_keyword, str) and validation_keyword in _VALIDATION_KEYWORDS:
                         usage["validation_keyword"] = validation_keyword
                         metrics["last_validation_keyword"] = validation_keyword
-                    if attempt == 0:
-                        await self._emit(context, {"type": "progress", "phase": "retrying_node", "attempt": 2})
+                    # An invalid provider request/authentication is not a node
+                    # error and sending the same schema again cannot repair it.
+                    if failures[repair_key] == 1 and http_status not in {400, 401, 403, 404, 413, 422}:
+                        progress = {"type": "progress", "phase": "retrying_node",
+                                    "attempt": attempt + 2, "correction_attempt": 1}
+                        if isinstance(location, dict):
+                            progress.update({key: location[key] for key in ("workflow_index", "node_index")
+                                             if key in location})
+                        await self._emit(context, progress)
                         continue
                     plan = self._partial(accumulators, "provider_error")
                 finally:

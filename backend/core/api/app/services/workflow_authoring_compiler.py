@@ -519,7 +519,6 @@ def _compile_authoring(
     nodes = [trigger]
     edges: list[WorkflowEdge] = []
     used_ids = {trigger_id}
-    sends = 0
     total = 0
 
     def edge(source: str, target: str, branch: str | None = None) -> None:
@@ -527,7 +526,7 @@ def _compile_authoring(
 
     def compile_sequence(items: list[Any], incoming: tuple[str, str | None] | None,
                          depth: int, known: set[str], continuation_pending: bool = False) -> None:
-        nonlocal sends, total
+        nonlocal total
         if depth > 4 or not isinstance(items, list):
             raise ValueError("Authoring Check nesting is too deep")
         previous = incoming
@@ -591,8 +590,6 @@ def _compile_authoring(
                               "selected_inputs": selected_inputs}
                 node = WorkflowNode(id=node_id, type=WorkflowNodeType.CHECK, config=config)
             elif kind == "send":
-                if not selection.chat_delivery:
-                    raise ValueError("Chat delivery was not selected")
                 prior_send = prior_nodes_by_id.get(node_id)
                 if "message" not in item:
                     if (operation != "update" or set(item) != {"kind", "id"} or prior_send is None
@@ -621,7 +618,6 @@ def _compile_authoring(
                     node = WorkflowNode(id=node_id, type=WorkflowNodeType.SEND_CHAT_MESSAGE,
                                         config={"title": item.get("title") or raw.get("title") or "Workflow update",
                                                 "message": message, "blocks": blocks})
-                sends += 1
             elif kind == "end":
                 if continuation_pending:
                     raise ValueError("End inside a Check branch cannot stop a queued continuation")
@@ -663,11 +659,8 @@ def _compile_authoring(
             raise ValueError("Updating an existing graph without steps requires a V2 trigger")
         nodes.extend(node.model_copy(deep=True) for node in previous_graph.nodes if node.id != trigger_id)
         edges.extend(edge.model_copy(deep=True) for edge in previous_graph.edges)
-        sends = sum(node.type == WorkflowNodeType.SEND_CHAT_MESSAGE for node in nodes)
     else:
         compile_sequence(steps, (trigger_id, None), 0, {trigger_id})
-    if not preview and not sends:
-        raise ValueError("Authoring plan has no chat delivery")
     if previous_graph and not preserve_prior_steps and not preview:
         old_ids = {node.id for node in previous_graph.nodes if node.id != trigger_id}
         new_ids = {node.id for node in nodes if node.id != trigger_id}

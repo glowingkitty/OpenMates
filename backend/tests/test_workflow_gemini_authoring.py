@@ -397,6 +397,7 @@ async def test_rejected_app_input_exposes_only_schema_field_path_for_retry():
     assert error.value.code == "node_selected_schema"
     assert error.value.validation_path == "$.steps[0].input.requests[0].providers[0]"
     assert error.value.validation_keyword == "enum"
+    assert error.value.component_location == {"phase": "node", "workflow_index": 0, "node_index": 0}
     assert "private-bad-provider" not in error.value.validation_error
     assert len(error.value.accepted_prefixes) == 1
     assert error.value.accepted_prefixes[0]["nodes"] == []
@@ -423,6 +424,7 @@ async def test_missing_app_input_reports_selected_kind_field_in_retry_correction
     assert error.value.code == "node_selected_schema"
     assert error.value.validation_path == "$.steps[0].input"
     assert error.value.validation_keyword == "required"
+    assert error.value.component_location == {"phase": "node", "workflow_index": 0, "node_index": 0}
     assert "required at $.steps[0].input" in error.value.validation_error
     assert error.value.accepted_prefixes[0]["nodes"] == []
 

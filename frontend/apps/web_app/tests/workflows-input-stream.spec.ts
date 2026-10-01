@@ -23,7 +23,7 @@ const graph = {
 
 test.describe('streamed workflow authoring', () => {
   // contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.composer-and-preview,workflows-ui.authoring.edit-control-and-undo
-  test('renders fragmented provisional graphs, clears rejection, and opens committed results', async ({ page }: { page: Page }) => {
+  test('renders fragmented provisional graphs through repeated corrections, clears rejection, and opens committed results', async ({ page }: { page: Page }) => {
     test.setTimeout(180000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
     await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -160,6 +160,15 @@ test.describe('streamed workflow authoring', () => {
       await expect(page.getByTestId('workspace-detail-description')).toHaveText('A draft with validated steps');
       await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(1);
       await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveCount(0);
+      // Controlled SSE verifies the browser handoff; provider retries and server saving are covered separately.
+      await page.evaluate(() => {
+        const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
+        if (!stream) throw new Error('Pending workflow stream was not opened');
+        stream.enqueue(new TextEncoder().encode('data: {"type":"progress","phase":"retrying_node","workflow_index":0,"node_index":0,"attempt":2}\n\n'));
+      });
+      await expect(page.getByTestId('workflow-ai-pending')).toContainText('Correcting this step');
+      await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(1);
+      await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveCount(0);
       await page.evaluate((event) => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
         if (!stream) throw new Error('Pending workflow stream was not opened');
@@ -176,6 +185,22 @@ test.describe('streamed workflow authoring', () => {
       await expect(page.getByTestId('workflow-export')).toHaveCount(0);
       await expect(page.getByTestId('workflow-version-selector')).toHaveCount(0);
       await expect(page.getByTestId('workflow-ai-stop')).toBeVisible();
+      await page.evaluate(() => {
+        const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
+        if (!stream) throw new Error('Pending workflow stream was not opened');
+        stream.enqueue(new TextEncoder().encode('data: {"type":"progress","phase":"retrying_node","workflow_index":0,"node_index":1,"attempt":3}\n\n'));
+      });
+      await expect(page.getByTestId('workflow-ai-pending')).toContainText('Correcting this step');
+      await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveText('1 step validated');
+      await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(2);
+      await expect(page.getByTestId('workflow-ai-stop')).toBeVisible();
+      await page.evaluate((event) => {
+        const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
+        if (!stream) throw new Error('Pending workflow stream was not opened');
+        stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
+      }, { ...preview(one, 0, 2), metadata: singleHeader.metadata });
+      await expect(page.getByTestId('workflow-ai-accepted-nodes')).toHaveText('2 steps validated');
+      await expect(page.getByTestId('workflow-ai-pending-preview').getByTestId('workflow-node-card')).toHaveCount(2);
       expect(provisionalFetches).toBe(0);
       await page.evaluate((one) => {
         const stream = (window as typeof window & { __workflowOpenStream?: ReadableStreamDefaultController<Uint8Array> }).__workflowOpenStream;
@@ -187,6 +212,7 @@ test.describe('streamed workflow authoring', () => {
       await expect(page.getByTestId('workflow-ai-edit-textarea')).toBeEnabled();
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(one.title);
       await page.getByTestId('workflow-detail-back').click();
+      await expect(page.getByTestId('workflow-landing-card').filter({ hasText: one.title })).toHaveCount(1);
 
       await configure([
         { type: 'started', session_id: 'multi-stream', status: 'running' },

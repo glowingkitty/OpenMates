@@ -20,7 +20,7 @@ from backend.core.api.app.services.workflow_gemini_authoring import WorkflowAuth
 from backend.core.api.app.services.workflow_authoring_preselection import WorkflowPreselection
 from backend.core.api.app.services.workflow_input_service import WorkflowInputService
 from backend.shared.python_utils.billing_utils import calculate_total_credits
-from backend.tests.test_workflow_registry_planner import Author, configure, forecast_plan
+from backend.tests.test_workflow_registry_planner import Author, FlatAuthor, configure, forecast_plan, two_deliveries
 from backend.tests.test_workflow_authoring_preselection import Decisions
 from backend.tests.test_workflows_models import rain_graph
 from backend.tests.workflow_test_utils import workflow_service
@@ -264,6 +264,36 @@ async def test_selected_workflow_edit_bills_generation_without_exposing_owner_to
         object(), author)
     assert result["action"] == "update_workflow" and result["expected_record_version"] == 7
     assert len(calls) == 1 and calls[0]["credits"] == 2
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.credits.idempotent-charge,workflows.authoring.provisional-validation
+async def test_independent_node_repairs_bill_every_provider_call_once(monkeypatch, ledger):
+    calls, charged, _ = ledger
+    configure(monkeypatch)
+    good = two_deliveries()
+    first_bad, second_bad = deepcopy(good), deepcopy(good)
+    first_bad["workflows"][0]["nodes"][1]["message_json"] = '{'
+    second_bad["workflows"][0]["nodes"][2]["message_json"] = '{'
+
+    class MeteredAuthor(FlatAuthor):
+        async def generate(self, **kwargs):
+            usage = {"input_tokens": 450, "output_tokens": 90}
+            try:
+                result, _ = await super().generate(**kwargs)
+            except ValueError as exc:
+                exc.metrics = usage
+                raise
+            return result, usage
+
+    author = MeteredAuthor([first_bad, second_bad, good])
+    result = await planner_module.WorkflowRegistryPlanner(secrets_manager=None)._plan(
+        "Send two forecast messages", {"timezone": "UTC", "_billing_user_id": "owner",
+                                       "_billing_session_id": "per-node-session"}, object(), author)
+    assert result["action"] == "create_workflow" and len(author.requests) == 3
+    assert [call["usage_details"]["provider_step"] for call in calls] == ["gemini:0", "gemini:1", "gemini:2"]
+    assert len(charged) == 3 and [call["credits"] for call in calls] == [2, 2, 2]
+    assert result["_authoring_metrics"]["billing"]["credits_charged"] == 6
 
 
 @pytest.mark.asyncio
