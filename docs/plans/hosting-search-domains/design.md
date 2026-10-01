@@ -85,6 +85,18 @@ Unknown checks stay distinct diagnostics. Show a compact partial-results notice
 when some checks failed, and preserve an exact in-use query under the default policy.
 Do not show the provider's raw 911 suggestion count as 911 available domains.
 
+## Hosting app icon reference
+
+The user confirmed the Hosting icon in Figma. Component `icons/apps/hosting`
+(`1180:8829`, file `PzgE78TVxG0eWuEeO6o8ve`) uses `icons/server`, matching the
+existing `static/icons/server.svg` glyph. The implementation reuses that asset
+and the Hosting gradient through the shared icon resolver and rounded app badge.
+The reference is a 97.11-pixel rounded-square app tile; embed badges retain their
+existing circular shape. The scope is the glyph and app mapping, with no change
+to the shared embed layout. Reference PNG/SVG and node evidence are retained in
+`test-results/figma/hosting-app-icon/`; isolated component screenshots verify the
+rendered server glyph in light and dark previews.
+
 ## Child: individual domain preview
 
 This is the same card used inside the fullscreen grid and when the assistant
@@ -171,6 +183,26 @@ already checked in-use children without another provider request. Preserve the
 selected order and show prices including known taxes. Price sorting is optional
 and must separate incomparable terms and unknown prices.
 
-Open design decisions: whether to include the local filter/sort controls in the
-first release, whether the first-year offer badge is useful in compact cards,
-and whether other term tiers should be expandable or shown as a short table.
+The first release includes local availability controls. Keep the selected
+provider/relevance order and omit price sorting. Show a first-year offer badge
+only for an evidenced discounted one-year registration tier. Fullscreen lists
+other supplied term tiers in a compact table, with registration and renewal
+separate, so minimum terms and different prices remain readable.
+
+## Verification inputs
+
+Use public synthetic, preloaded child data for the four bare component previews,
+then verify the registered renderer and encrypted Workflow delivery separately.
+The focused component check covers the following meaningful states:
+
+| Component | Required evidence |
+|---|---|
+| Search preview | Query, provider, selected/checked counts, comparable starting quote; processing, cancelled, empty, partial and error states. |
+| Search fullscreen | Bounded initial selection, local available/all/in-use filters with no network refetch, distinct unknown diagnostics, child opening, sibling navigation and return to the same filtered view. |
+| Domain preview | Separate registration and renewal, evidenced one-year offer, premium and minimum-term badges, missing prices, unavailable and unknown labels, long Unicode/ASCII domain suffix visibility. |
+| Domain fullscreen | Provider link, registration/renewal term tiers, supplied tax context and restrictions, minimum term, checked time, selectable IDN/ASCII text, navigation and return. |
+
+Assert readable labels, loaded icons, visible controls, keyboard interaction and
+no overlap or horizontal overflow at phone and laptop widths in light and dark
+themes. Keep preview chrome out of proof screenshots. Broader chat coverage
+follows the focused component result; real AI inference remains a dev-only check.

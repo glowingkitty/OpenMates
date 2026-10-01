@@ -31,7 +31,13 @@ planning_authority:
   note: OpenMates Tasks owns live work status. Plan task records document approved dependencies and acceptance
     criteria.
 implementation_state:
-  subject_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
+  subject_commit: 903653d514d9ffd72e27c9d477aaff778e63eebd
+verification_subjects:
+  rationale: The user required sequential delivery phases. Each evidence record retains its actual immutable tested source; a single shared subject commit would misrepresent earlier phase runs. Later changes receive focused checks for their affected behavior.
+  programmatic: 92f889b33aa348ea8838605c11830141d526004d
+  workflow: d5c33ef48d6545f977cf52aac70963cc6ff5ea2b
+  web_components: c132a0d66d8752ff8333babb9505a42159388bb5
+  web_owner_chat: 903653d514d9ffd72e27c9d477aaff778e63eebd
 approvals:
   specification:
     status: approved
@@ -122,7 +128,7 @@ acceptance_criteria:
   text: REST, CLI and SDKs execute grouped domain searches and availability selections with bounded truthful
     quotes and safe failures.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: cli
   verification_ids:
@@ -132,7 +138,7 @@ acceptance_criteria:
   scenario: S-4
   text: A read-only Workflow executes Hosting search and exposes typed normalized results.
   required: true
-  status: pending
+  status: satisfied
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
@@ -146,7 +152,9 @@ acceptance_criteria:
   coverage_status: covered
   verification_scope: playwright
   verification_ids:
+  - T-HOSTING-COMPONENT
   - T-HOSTING-WEB
+  - T-HOSTING-GRAPH
 tests:
 - id: T-GANDI-PROBE
   type: manual
@@ -167,6 +175,9 @@ tests:
     required: true
     expected: pass
     evidence:
+      status: passed
+      timestamp: '2026-10-01'
+      reason: Bounded paired public-input research completed; unsupported encodings are documented rather than counted as completed searches.
       fixture: docs/plans/hosting-search-domains/evidence/gandi-search-probe-2026-10-01.json
       script: scripts/api_tests/test_gandi_search_probe.py
       result: 34 completed responses and two documented unsupported-encoding timeouts; all paired routes
@@ -189,6 +200,9 @@ tests:
     required: true
     expected: pass
     evidence:
+      status: passed
+      timestamp: '2026-10-01'
+      reason: The user accepted the four proposed layouts and their availability-filter requirements before implementation.
       wireframes: docs/plans/hosting-search-domains/design.md
       reference: frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
 - id: T-HOSTING-API
@@ -207,6 +221,16 @@ tests:
     required: true
     expected: pass
     evidence:
+      status: passed
+      timestamp: '2026-10-01'
+      command: python3 scripts/ci_coordinator.py submit --session b91c --source 92f889b33aa348ea8838605c11830141d526004d --spec skill-hosting-search-api.spec.ts --mode e2e
+      run_id: '36868849326'
+      subject_commit: 92f889b33aa348ea8838605c11830141d526004d
+      execution_environment: isolated_github_ci
+      harness_commit: 77cb81e058e38e5ab0a7b5adaea63c3b4663f89b
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36868849326/artifacts/11166287883
       candidate: 92f889b33aa348ea8838605c11830141d526004d
       ci_job: 2829704813bd5547a7ed3e159cfb509ee80e756e6860c5ff4f9cf19971a98102
       run: https://github.com/glowingkitty/OpenMates/actions/runs/36868849326
@@ -233,14 +257,21 @@ tests:
     required: true
     expected: pass
     evidence:
+      status: passed
+      timestamp: '2026-10-01'
+      reason: The real dev-only requirements and CLI naming probes used disposable state; private receipts were inspected without publishing the chat.
       requirements:
         script: scripts/api_tests/test_hosting_requirements.py
         deployed_commit: 76b0f34b3565f910b25ee247250e3e37867315f4
         result: Real Jev applied to 21 checked domains and selected three; bounded quotes and result identities passed.
       social_chat:
-        status: pending
-        observed: Two real chat turns executed five Hosting search groups each; the initial reply omitted available alternatives and the follow-up failed during AI finalization.
+        status: passed
+        deployed_commit: 8c38e97a84512c48e966c20f58822255df548e05
+        result: Same-chat recovery recommended four useful name directions with checked available domains; registration and renewal quotes matched saved Gandi evidence.
+        batching: Trace confirms one Hosting call carrying five simultaneous request groups, charged one Hosting credit.
         cli_decoder: Strict TOON parsing retains nested results; two focused npm client regressions and the CLI build pass.
+        google_schema: The full Hosting tool schema passes Google SDK validation while retaining string and integer caller IDs; three focused schema tests pass.
+        earlier_failures: The initial reply omitted available alternatives; the next reply failed after Google rejected oneOf and the fallback could not reserve its next AI iteration. Fixed schema compatibility with anyOf; no budget override.
   execution_environment: dev_server_real_inference
 - id: T-HOSTING-WORKFLOW
   type: playwright
@@ -256,17 +287,66 @@ tests:
   green_phase:
     required: true
     expected: pass
-    evidence: {}
+    evidence:
+      status: passed
+      timestamp: '2026-10-01'
+      command: python3 scripts/ci_coordinator.py submit --session b91c --source d5c33ef48d6545f977cf52aac70963cc6ff5ea2b --spec skill-hosting-search-workflow.spec.ts --mode e2e
+      run_id: '36898310280'
+      subject_commit: d5c33ef48d6545f977cf52aac70963cc6ff5ea2b
+      execution_environment: isolated_github_ci
+      harness_commit: 31e9da9388953d1f14514941781f887f966f1ac6
+      profile: e2e
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36898310280/artifacts/11181447159
+      candidate: d5c33ef48d6545f977cf52aac70963cc6ff5ea2b
+      ci_job: 18db16d801fc2b56f2c1f8392c066b66810aeb1ca7c64436a734ba410cd3298e
+      run: https://github.com/glowingkitty/OpenMates/actions/runs/36898310280
+      result: Grouped step-test and full run passed with typed downstream checks, available-only empty evidence and encrypted chat delivery; one case with zero skipped, flaky or unexpected cases.
+      focused_units: Seventy-eight Workflow and thirteen provider cases passed; focused review found no blocking issue.
+      privacy: Real CI HTTP library logs contain fixed Gandi paths and no search query URLs.
+      deployment: Held until the user's webinar freeze ends at 22:00 Europe/Berlin.
+      earlier_failures: First CI lacked the Workflow worker due to stale harness membership; published profile manifest. Second completed the searches and checks but the push fixture skipped; use chat delivery and support anyOf IDs in the strict typed validator.
   file: frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts
   command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search-workflow.spec.ts
     --mode e2e
   execution_environment: isolated_github_ci
   target: candidate
+- id: T-HOSTING-COMPONENT
+  type: playwright
+  assertions:
+  - Four bare component fixtures prove bounded local availability filtering, distinct states, truthful quotes, responsive geometry and checked child navigation.
+  covers: [AC-6]
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {reason: New feature, not regression.}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-01'
+      command: python3 scripts/ci_coordinator.py submit --session b91c --source c132a0d66d8752ff8333babb9505a42159388bb5 --spec components/hosting-domain-search.spec.ts --mode component --no-prepared-builds
+      run_id: '36917735812'
+      subject_commit: c132a0d66d8752ff8333babb9505a42159388bb5
+      execution_environment: isolated_github_ci
+      harness_commit: 82f4486a6378fbcd19767f963bd697721680cf80
+      profile: component
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/36917735812/artifacts/11190841285
+      ci_job: ce17d797cdc2b492ad0ff9ab298422cd6195e07996b908d17c2cc8676aeabeaa
+      result: Four component cases passed with zero skipped, flaky or unexpected cases. Phone/laptop and light/dark screenshots were reviewed; Hosting glyph, bounded local filters, child navigation and quote/status details are visible.
+      resources: Account-free runner-local frontend; no backend, Docker services or disposable user state was started.
+      icon_reference: Figma icons/apps/hosting 1180:8829 uses the existing server.svg glyph. Shared circular embed badges are an accepted difference from the rounded-square app tile.
+  file: frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec components/hosting-domain-search.spec.ts --mode component
+  execution_environment: isolated_github_ci
+  target: candidate
 - id: T-HOSTING-WEB
   type: playwright
   assertions:
-  - Parent and child web embeds render, filter and navigate already checked results with responsive quote
-    and status details.
+  - A Workflow delivers selected domain cards into an encrypted owner chat; the real web renderer opens domain details and retains them after reload on phone and laptop.
+  - Parent checked-pool filtering and navigation are proven separately by the component fixtures and encrypted graph checks.
   covers:
   - AC-6
   red_phase:
@@ -278,11 +358,27 @@ tests:
     required: true
     expected: pass
     evidence: {}
-  file: frontend/apps/web_app/tests/skill-hosting-search.spec.ts
-  command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search.spec.ts
+  file: frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session b91c --source <candidate> --spec skill-hosting-search-workflow.spec.ts
     --mode e2e
   execution_environment: isolated_github_ci
   target: candidate
+- id: T-HOSTING-GRAPH
+  type: manual
+  assertions:
+  - A real naming chat saves encrypted checked children and bounded selected references with matching counts and intact quote tiers.
+  - CLI, npm and pip owner reads agree on the saved graph; temporary SDK device approval and private receipts stay within disposable test state.
+  covers: [AC-6]
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {reason: New encrypted graph verified through the authorized real CLI scenario.}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+  execution_environment: dev_server_real_inference
+  file: scripts/api_tests/test_hosting_embed_graph.py
 decisions:
 - id: D-1
   status: active
@@ -327,7 +423,7 @@ attempts:
 tasks:
 - id: TASK-2722
   title: Implement and verify Hosting domain search through REST, CLI and SDKs
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -360,7 +456,7 @@ tasks:
     shared_files: []
 - id: TASK-4721
   title: Implement and verify Hosting domain search in Workflows
-  status: pending
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -380,7 +476,7 @@ tasks:
     shared_files: []
 - id: TASK-7677
   title: Implement and verify Hosting domain search web embeds
-  status: pending
+  status: in_progress
   phase: working_tasks
   covers:
     scenarios:
@@ -389,8 +485,30 @@ tasks:
     - AC-6
   expected_files: &id002
   - frontend/packages/ui/src/components/embeds/hosting/
+  - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+  - frontend/packages/ui/src/components/embeds/childEmbedRetry.ts
+  - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+  - frontend/packages/ui/src/styles/icons.css
+  - frontend/packages/ui/src/utils/iconNameResolver.ts
+  - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+  - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+  - backend/apps/hosting/app.yml
+  - backend/core/api/app/services/embed_service.py
+  - backend/apps/ai/processing/main_processor.py
+  - backend/core/api/app/services/workflow_action_adapter.py
+  - backend/core/api/app/services/workflow_result_selection.py
+  - frontend/packages/ui/src/i18n/sources/embeds.yml
+  - frontend/apps/web_app/tests/components/hosting-domain-search.spec.ts
+  - frontend/apps/web_app/tests/skill-hosting-search-workflow.spec.ts
+  - packages/openmates-python/openmates/sdk.py
+  - packages/openmates-python/pyproject.toml
+  - packages/openmates-python/tests/test_sdk.py
+  - scripts/api_tests/test_hosting_embed_graph.py
+  - scripts/api_tests/test_hosting_social_chat.py
   verification_ids:
+  - T-HOSTING-COMPONENT
   - T-HOSTING-WEB
+  - T-HOSTING-GRAPH
   dependencies:
   - TASK-4721
   blockers: []
@@ -399,14 +517,16 @@ tasks:
     files: *id002
     shared_files: []
 handoff:
-  current_task_id: TASK-2722
-  next_action: Publish the approved CI candidate and verify
-    REST/CLI/SDK before Workflow and web work.
+  current_task_id: TASK-7677
+  next_action: Finish encrypted owner-chat CI, deploy the reviewed phase-two/three source, then run real CLI/SDK graph parity and deployed visual smoke.
   command: python3 scripts/plan_validate.py docs/plans/hosting-search-domains/plan.yml
-  expected_outcome: Verified REST/CLI/SDK search with default available-first top-ups and optional requirements
-    relevance.
-  last_verified_commit: 42669f74e91542faeaafa30a8d3ce39c16ce7ea2
-  blocker: null
+  expected_outcome: Responsive previews and fullscreens retain bounded local availability filters, truthful quotes, partial diagnostics and child navigation.
+  last_verified_commit: c132a0d66d8752ff8333babb9505a42159388bb5
+  scheduling_constraint:
+    action: Dev runtime changes and web app deployment
+    until: '2026-10-01 22:00 Europe/Berlin (20:00 UTC)'
+    status: elapsed
+    reason: User webinar freeze was respected; component edits and isolated CI were permitted during it.
 research:
   date: '2026-10-01'
   direct:
@@ -566,4 +686,8 @@ local_verification:
     upstream operations at a time
   cli: Scoped CLI and declaration build passed
   i18n: 21-locale translation build and validation passed
-  integration: Specification approval is recorded; REST/CLI/SDK integration execution is next.
+  embed_graph: Six backend graph cases passed, including safe Hosting caller-ID and query logging.
+  child_hydration: Five Hosting data and retry cases passed; delayed children retain loaded siblings and respect cancellation and retry limits.
+  sdk: Focused pip encrypted-embed decoding and graph-probe units passed; cleartext boundary, parity, documentation and test coverage audits passed.
+  review: Both phase-three review findings are resolved; the final bounded recheck found no remaining actionable concern.
+  integration: REST/CLI/SDK, Workflow and four focused web component cases passed. Encrypted owner-chat rendering is in isolated CI; the webinar freeze has elapsed.

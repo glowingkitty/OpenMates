@@ -214,11 +214,11 @@
   }
 
   const highlightSet = $derived(new Set(highlightRefs));
-  // Unresolved references remain internal so sync can recover them, but they
-  // are never cards or evidence that a map/calendar can be rendered.
+  // Unresolved references remain internal so sync can recover them. Hosting
+  // domains have a registered preview but no map/calendar coordinates.
   const eligibleEntries = $derived(entries.filter((entry) => entry.status === 'ready' && (
     (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 ||
-    calendarEntryFromMapEntry(entry) != null
+    calendarEntryFromMapEntry(entry) != null || (normalizeEmbedType(entry.embedType ?? '') === 'hosting-domain' && entry.preview != null)
   )));
   const categories = $derived.by(() => {
     const values = Array.from(new Set(eligibleEntries.map((entry) => entry.category)));
@@ -240,7 +240,9 @@
       .slice(0, MAX_VISIBLE_ENTRIES);
   });
   const carouselEntries = $derived.by(() => {
-    const mappable = visibleEntries.filter((entry) => (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0);
+    const mappable = visualTabs.length === 0
+      ? visibleEntries.filter((entry) => normalizeEmbedType(entry.embedType ?? '') === 'hosting-domain' && entry.preview != null)
+      : visibleEntries.filter((entry) => (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0);
     if (mapSelectionRefs.length > 0) {
       const selectionSet = new Set(mapSelectionRefs);
       return mappable.filter((entry) => selectionSet.has(entry.ref));
@@ -1335,7 +1337,7 @@
       preview: null,
       facets: extractFacets(category, decodedContent),
     } satisfies MapViewEntry;
-    if ((entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 || calendarEntryFromMapEntry(entry) != null) {
+    if ((entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 || calendarEntryFromMapEntry(entry) != null || normalizeEmbedType(embedData.type) === 'hosting-domain') {
       entry.preview = await resolveEntryPreview(entry);
     }
     entryCache.set(ref, { signature, entry });
@@ -1574,7 +1576,7 @@
 
 <span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
 {#if eligibleEntries.length > 0}
-<section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
+<section class="embeds-results-view embeds-map-view" class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
     {#if showVisualTabs}
@@ -1702,7 +1704,20 @@
     {/if}
   </header>
 
-  {#if visualTabs.length > 0}
+  {#if visualTabs.length === 0}
+    <div class="map-view-list" data-testid="embeds-map-view-list">
+      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
+        {#each carouselEntries as entry}
+          <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
+            {#if entry.preview}
+              {@const Component = getRenderableComponent(entry.preview.component)}
+              <Component {...entry.preview.props} />
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </div>
+  {:else}
   <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'} aria-hidden={filtersOpen}>
     {#if selectedVisualTab === 'map'}
       <div class="map-view-list" data-testid="embeds-map-view-list">
@@ -2220,6 +2235,15 @@
 
   .map-view-body.calendar-active {
     display: block;
+  }
+
+  .embeds-map-view.list-only .map-view-list,
+  .embeds-map-view.list-only .map-view-carousel {
+    height: auto;
+  }
+
+  .embeds-map-view.list-only .map-view-list {
+    border-bottom: 0;
   }
 
   .results-view-pane {

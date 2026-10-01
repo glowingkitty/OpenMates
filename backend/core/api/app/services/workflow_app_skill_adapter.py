@@ -42,6 +42,7 @@ WORKFLOW_RESULT_LIST_SKILLS = frozenset(
         ("fitness", "search_locations"),
         ("fitness", "search_classes"),
         ("health", "search_appointments"),
+        ("hosting", "search_domains"),
         ("images", "search"),
         ("maps", "search"),
         ("models3d", "search"),

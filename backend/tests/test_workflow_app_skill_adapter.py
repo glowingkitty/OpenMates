@@ -534,6 +534,76 @@ def test_generic_workflow_search_output_preserves_flattened_dict_results() -> No
     assert output["raw"] is raw_output
 
 
+# contract-test: supporting surface=rest_api assertions=hosting-domains.surface-parity,hosting-domains.availability.selection,hosting-domains.quotes.truthful
+def test_hosting_workflow_flattens_only_selected_domains_and_preserves_group_evidence() -> None:
+    selected = {
+        "domain_ascii": "example.com",
+        "domain_unicode": "example.com",
+        "availability": "available",
+        "url": "https://shop.gandi.net/en/domain/suggest?search=example.com",
+        "currency": "EUR",
+        "country": "DE",
+        "registration_tiers": [{"unit": "year", "price_including_tax": 14.28}],
+        "renewal_tiers": [{"unit": "year", "price_including_tax": 47.60}],
+    }
+    used = {"domain_ascii": "example.net", "availability": "unavailable"}
+    raw_output = {
+        "success": True,
+        "provider": "Gandi",
+        "results": [
+            {"id": "com", "query": "example.com", "partial": False,
+             "results": [selected], "checked_results": [selected], "warnings": [], "error": None},
+            {"id": 2, "query": "example.net", "partial": True,
+             "results": [], "checked_results": [used],
+             "warnings": ["The checked domain is unavailable"], "error": None},
+            {"id": "failed", "query": "bad.example", "partial": True,
+             "results": [], "checked_results": [],
+             "warnings": ["Some domain checks were unavailable"],
+             "error": "Domain provider unavailable"},
+        ],
+    }
+
+    output = _normalize_skill_output(
+        "hosting", "search_domains",
+        {"requests": [{"id": "com", "query": "example.com"},
+                      {"id": 2, "query": "example.net", "availability": "available_only"}]},
+        raw_output,
+    )
+
+    assert output["result_count"] == 1
+    assert output["provider"] == "Gandi"
+    assert output["results"] == [{
+        **selected,
+        "provider": "Gandi",
+        "canonical_url": selected["url"],
+        "source_id": selected["url"],
+    }]
+    assert output["results"][0]["registration_tiers"][0]["price_including_tax"] == 14.28
+    assert output["results"][0]["renewal_tiers"][0]["price_including_tax"] == 47.60
+    assert output["raw"] is raw_output
+    assert output["raw"]["results"][1]["id"] == 2
+    assert output["raw"]["results"][1]["checked_results"] == [used]
+    assert output["raw"]["results"][2]["error"] == "Domain provider unavailable"
+    assert "error" not in output  # A failed sibling does not fail the successful Workflow step.
+
+
+# contract-test: supporting surface=rest_api assertions=hosting-domains.results.partial-and-safe,hosting-domains.surface-parity
+def test_hosting_workflow_total_error_keeps_safe_group_diagnostics() -> None:
+    raw_output = {
+        "success": False, "provider": "Gandi", "error": "Domain provider unavailable",
+        "results": [{"id": "exact", "query": "example.com", "partial": True,
+                     "results": [], "checked_results": [{"domain_ascii": "example.com", "availability": "unknown"}],
+                     "warnings": ["Some domain availability checks were inconclusive"],
+                     "error": "Domain availability could not be checked"}],
+    }
+    output = _normalize_skill_output("hosting", "search_domains", {}, raw_output)
+
+    assert output["results"] == []
+    assert output["result_count"] == 0
+    assert output["error"] == "Domain provider unavailable"
+    assert output["raw"]["results"][0]["checked_results"][0]["availability"] == "unknown"
+
+
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
 def test_travel_connection_workflow_output_preserves_real_grouped_result_fields() -> None:
     connection = {

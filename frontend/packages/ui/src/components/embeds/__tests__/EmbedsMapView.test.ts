@@ -82,7 +82,7 @@ describe("EmbedsMapView", () => {
       const route = [decodedContent.origin, decodedContent.destination]
         .filter((value): value is string => typeof value === "string")
         .join(" -> ");
-      const skillName = String(decodedContent.displayName ?? decodedContent.title ?? (route || embedId));
+      const skillName = String(decodedContent.displayName ?? decodedContent.title ?? decodedContent.domain_ascii ?? (route || embedId));
       return {
         component: UnifiedEmbedPreview,
         props: {
@@ -108,6 +108,8 @@ describe("EmbedsMapView", () => {
         "place-two-222222": "place-two-id",
         "train-one-111111": "train-one-id",
         "train-two-222222": "train-two-id",
+        "example-com-ref": "example-com-id",
+        "example-net-ref": "example-net-id",
       };
       return map[ref] || ref;
     });
@@ -195,10 +197,23 @@ describe("EmbedsMapView", () => {
           updatedAt: 1,
         };
       }
+      if (embedId === "example-com-id" || embedId === "example-net-id") {
+        return {
+          embed_id: embedId,
+          type: "hosting_domain",
+          status: "finished",
+          content: embedId,
+          createdAt: 1,
+          updatedAt: 1,
+        };
+      }
       return null;
     });
 
     embedResolverMocks.decodeToonContent.mockImplementation(async (content: string) => {
+      if (content === "example-com-id" || content === "example-net-id") {
+        return { domain_ascii: content === "example-com-id" ? "example.com" : "example.net", availability: "unavailable" };
+      }
       if (content === "source-content") return { app_id: "events", skill_id: "search" };
       if (content === "travel-source-content") return { app_id: "travel", skill_id: "search_connections" };
       if (content === "event-content") {
@@ -355,6 +370,35 @@ describe("EmbedsMapView", () => {
       expect(target.querySelector('.calendar-time-column')).toBeNull();
       expect(target.querySelector('.calendar-items')).toBeNull();
     }
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+  it('renders selected Hosting domains as cards without a map or calendar', async () => {
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, {
+      target,
+      props: { id: 'hosting-domains', title: 'Checked domains', embedRefs: ['example-com-ref', 'example-net-ref'] },
+    });
+    await flush(target);
+
+    const cards = Array.from(target.querySelectorAll<HTMLElement>('[data-testid="embeds-map-view-card"]'));
+    expect(cards).toHaveLength(2);
+    expect(cards.map((card) => card.textContent)).toEqual([
+      expect.stringContaining('example.com'),
+      expect.stringContaining('example.net'),
+    ]);
+    expect(target.querySelectorAll('[data-testid="embed-preview"]')).toHaveLength(2);
+    expect(target.querySelector('[data-testid="embeds-map-view"]')?.classList.contains('list-only')).toBe(true);
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-pane"]')).toBeNull();
+    cards[0].querySelector<HTMLElement>('[data-testid="embed-preview"]')?.click();
+    await tick();
+    expect(fullscreenMocks.dispatchEmbedFullscreen).toHaveBeenCalledWith(expect.objectContaining({ embedId: 'example-com-id' }));
+
     unmount(component);
     target.remove();
   });

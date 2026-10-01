@@ -1656,6 +1656,7 @@ def test_searches_decrypted_chat_metadata_locally(monkeypatch):
     ]
 
 
+# contract-test: supporting surface=sdks.pip assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
 def test_load_decrypts_chat_messages_client_side(monkeypatch):
     api_key = "sk-api-python-load"
     master_key = os.urandom(32)
@@ -1671,6 +1672,14 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     encrypted_embed_content = _encrypt_combined(b'{"result": 4}', embed_key)
     encrypted_embed_preview = _encrypt_combined(b"2 + 2 = 4", embed_key)
     hashed_embed_id = hashlib.sha256(b"embed-1").hexdigest()
+    parent_toon = ("type: app_skill_use\napp_id: hosting\nskill_id: search_domains\n"
+                   "embed_ids[1]: domain-child\nselected_embed_ids[1]: domain-child\n"
+                   "checked_count: 1\nresult_count: 1")
+    child_toon = ("type: hosting_domain\napp_id: hosting\nskill_id: search_domains\n"
+                  "domain_ascii: meet-there.com\ndomain_unicode: meet-there.com\n"
+                  "availability: available\nregistration_tiers[1]:\n"
+                  "  - unit: year\n    duration_range:\n      minimum: 1\n      maximum: 1\n"
+                  "    price_including_tax: 13.09\nrenewal_tiers[0]:")
     requests_seen = []
 
     class FakeResponse:
@@ -1692,8 +1701,18 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
                 "encrypted_type": encrypted_embed_type,
                 "encrypted_content": encrypted_embed_content,
                 "encrypted_text_preview": encrypted_embed_preview,
+            }, {
+                "embed_id": "hosting-parent",
+                "encrypted_type": _encrypt_combined(b"app_skill_use", embed_key),
+                "encrypted_content": _encrypt_combined(parent_toon.encode(), embed_key),
+            }, {
+                "embed_id": "domain-child",
+                "encrypted_type": _encrypt_combined(b"hosting_domain", embed_key),
+                "encrypted_content": _encrypt_combined(child_toon.encode(), embed_key),
             }],
-            "embed_keys": [{"hashed_embed_id": hashed_embed_id, "key_type": "master", "encrypted_embed_key": encrypted_embed_key}],
+            "embed_keys": [{"hashed_embed_id": hashed_id, "key_type": "master", "encrypted_embed_key": encrypted_embed_key}
+                           for hashed_id in (hashed_embed_id, hashlib.sha256(b"hosting-parent").hexdigest(),
+                                             hashlib.sha256(b"domain-child").hexdigest())],
         })
 
     def fake_post(url, *, json, headers, timeout):
@@ -1713,10 +1732,31 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     assert loaded["embeds"][0]["type"] == "math.calculate"
     assert loaded["embeds"][0]["content"] == {"result": 4}
     assert loaded["embeds"][0]["text_preview"] == "2 + 2 = 4"
+    parent = loaded["embeds"][1]["content"]
+    child = loaded["embeds"][2]["content"]
+    assert parent["skill_id"] == "search_domains"
+    assert parent["embed_ids"] == parent["selected_embed_ids"] == ["domain-child"]
+    assert parent["checked_count"] == parent["result_count"] == 1
+    assert child["domain_ascii"] == "meet-there.com"
+    assert child["availability"] == "available"
+    assert child["registration_tiers"][0]["duration_range"] == {"minimum": 1, "maximum": 1}
+    assert child["registration_tiers"][0]["price_including_tax"] == 13.09
+    assert child["renewal_tiers"] == []
     assert requests_seen == [
         ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
     ]
+
+
+# contract-test: supporting surface=sdks.pip assertions=hosting-domains.surface-parity
+def test_embed_decoder_preserves_plain_text_and_invalid_toon():
+    from openmates.sdk import _parse_embed_content, _parse_maybe_json
+
+    malformed = "type: hosting_domain\nembed_ids[2]: only-one"
+    assert _parse_embed_content(malformed) == malformed
+    assert _parse_embed_content("ordinary embed text") == "ordinary embed text"
+    assert _parse_embed_content('{"type":"hosting_domain"}') == {"type": "hosting_domain"}
+    assert _parse_maybe_json("type: hosting_domain") == "type: hosting_domain"
 
 
 def test_chat_messages_fork_and_rewind_helpers_preserve_encrypted_payloads(monkeypatch):

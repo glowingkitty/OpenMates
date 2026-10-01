@@ -63,6 +63,7 @@ import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte"
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
+import HostingSearchEmbedPreview from "../../../embeds/hosting/HostingSearchEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import FitnessSearchEmbedPreview from "../../../embeds/fitness/FitnessSearchEmbedPreview.svelte";
@@ -595,6 +596,26 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           decodedContent,
           content,
         );
+      }
+      if (appId === "hosting" && skillId === "search_domains") {
+        const existingComponent = mountedComponents.get(content);
+        if (existingComponent) unmount(existingComponent);
+        disposeEmbedTree(content, false);
+        content.innerHTML = "";
+        const id = attrs.contentRef?.replace("embed:", "") || "";
+        const component = mount(HostingSearchEmbedPreview, {
+          target: content,
+          props: {
+            id,
+            content: decodedContent ?? {},
+            status: decodedContent?.status || embedData?.status || attrs.status || "processing",
+            taskId: decodedContent?.task_id,
+            skillTaskId: decodedContent?.skill_task_id,
+            onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+          },
+        });
+        mountedComponents.set(content, component);
+        return;
       }
       // For electronics search_components, render component search preview
       if (appId === "electronics" && skillId === "search_components") {

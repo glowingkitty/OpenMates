@@ -39,6 +39,13 @@ FOLLOWUP_PROMPT = (
     "fully qualified domains only when availability was checked, and compare evidenced "
     "registration and renewal prices and relevant restrictions. Do not guess about unchecked names."
 )
+RECOVERY_PROMPT = (
+    "Please finish the name recommendation for this in-person social hub. Give me 2–4 useful "
+    "product names with concrete domain options confirmed available by your earlier checks, "
+    "and include the renewal price and restrictions where the checked results provide them. "
+    "Use the domain results already checked in this chat where possible; refresh only if needed. "
+    "Clearly separate checked available options from names or domains that remain unverified."
+)
 DOMAIN_RE = re.compile(r"(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\.)+(?:com|net|app)\b", re.I)
 EMBED_REF_RE = re.compile(r"embed:([A-Za-z0-9_.:-]+)")
 INLINE_EMBED_RE = re.compile(r'"embed_id"\s*:\s*"([A-Za-z0-9_.:-]+)"')
@@ -232,7 +239,11 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path, help="Private JSON receipt path")
     parser.add_argument("--existing-chat-file", type=Path,
                         help="Private prior receipt; send one natural follow-up in the same chat")
+    parser.add_argument("--recovery", action="store_true",
+                        help="Ask for final recommendations from already-checked domain results")
     args = parser.parse_args()
+    if args.recovery and not args.existing_chat_file:
+        raise ProbeFailure("Recovery requires an existing private chat receipt")
     if urlsplit(args.api_url).scheme != "https" or urlsplit(args.api_url).hostname != "api.dev.openmates.org":
         raise ProbeFailure("This chat probe only runs against the dev API")
     if not CLI_DIST.is_file():
@@ -255,7 +266,8 @@ def main() -> int:
             existing_id = prior.get("chat_id")
             if not isinstance(existing_id, str) or not existing_id:
                 raise ProbeFailure("Prior private receipt has no chat ID")
-            created = _cli(env, args.api_url, ["chats", "send", "--chat", existing_id, FOLLOWUP_PROMPT],
+            followup_prompt = RECOVERY_PROMPT if args.recovery else FOLLOWUP_PROMPT
+            created = _cli(env, args.api_url, ["chats", "send", "--chat", existing_id, followup_prompt],
                            "Natural social-app follow-up", timeout=600)
         else:
             created = _cli(env, args.api_url, ["chats", "new", PROMPT], "Natural social-app chat", timeout=600)

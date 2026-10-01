@@ -283,6 +283,14 @@ def _matches_schema(value: Any, schema: Any) -> bool:
         return False
     if "enum" in schema and value not in schema["enum"]:
         return False
+    variants = schema.get("anyOf")
+    if variants is not None:
+        if not isinstance(variants, list) or not variants or not any(
+            _matches_schema(value, variant) for variant in variants
+        ):
+            return False
+        if "type" not in schema:
+            return True
     schema_type = schema.get("type")
     if schema_type == "string":
         return isinstance(value, str)

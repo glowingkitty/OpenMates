@@ -65,6 +65,8 @@ import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPrev
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
+import HostingSearchEmbedPreview from "../../../embeds/hosting/HostingSearchEmbedPreview.svelte";
+import HostingDomainEmbedPreview from "../../../embeds/hosting/HostingDomainEmbedPreview.svelte";
 import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEmbedPreview.svelte";
 import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
 import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
@@ -527,6 +529,11 @@ export class GroupRenderer implements EmbedRenderer {
             decodedContent,
             content,
           ),
+      ],
+      [
+        "hosting-domain",
+        (item, embedData, decodedContent, content) =>
+          this.renderHostingDomainComponent(item, embedData, decodedContent, content),
       ],
       [
         "electronics-pcb-schematic",
@@ -2557,6 +2564,22 @@ export class GroupRenderer implements EmbedRenderer {
             results,
             taskId,
             isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "hosting" && skillId === "search_domains") {
+        const component = mount(HostingSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            content: decodedContent ?? {},
+            status,
+            taskId,
+            skillTaskId: decodedContent?.skill_task_id,
             onFullscreen: handleFullscreen,
           },
         });
@@ -6494,6 +6517,29 @@ export class GroupRenderer implements EmbedRenderer {
    * Render a shopping product child embed using ShoppingResultEmbedPreview.
    * These are individual product cards from the shopping/search_products skill.
    */
+  private async renderHostingDomainComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const id = item.contentRef?.replace("embed:", "") || item.id || "";
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.innerHTML = "";
+    if (!content.isConnected) return;
+    const component = mount(HostingDomainEmbedPreview, {
+      target: content,
+      props: {
+        id,
+        content: (decodedContent ?? {}) as Record<string, unknown>,
+        onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+      },
+    });
+    mountedComponents.set(content, component);
+  }
+
   private async renderShoppingProductComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null = null,

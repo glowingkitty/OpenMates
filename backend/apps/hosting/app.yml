@@ -4,7 +4,24 @@ description_translation_key: hosting.description
 icon_image: server.svg
 category: work
 last_updated: "2026-10-01"
-embed_types: []
+# Parent search and independently openable checked-domain children.
+embed_types:
+  - id: search_domains
+    category: app-skill-use
+    skill_id: search_domains
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: hosting_domain
+    child_frontend_type: hosting-domain
+    groupable: false
+    preview_component: hosting/HostingSearchEmbedPreview.svelte
+    fullscreen_component: hosting/HostingSearchEmbedFullscreen.svelte
+    child_preview_component: hosting/HostingDomainEmbedPreview.svelte
+    child_fullscreen_component: hosting/HostingDomainEmbedFullscreen.svelte
+    icon: server
+    gradient_var: "--color-app-hosting"
+    i18n_namespace: embeds.hosting.search_domains
 skills:
   - id: search_domains
     anonymous_access: authenticated
@@ -46,6 +63,8 @@ skills:
       type: object
       properties:
         requests:
+          x-ui:
+            basic: true
           type: array
           minItems: 1
           maxItems: 5
@@ -54,16 +73,22 @@ skills:
             type: object
             properties:
               id:
+                x-ui:
+                  basic: false
                 description: Optional caller ID echoed in this group's result.
                 anyOf:
                   - type: string
                   - type: integer
               query:
+                x-ui:
+                  basic: true
                 type: string
                 description: An exact fully qualified domain (up to 253 characters), a short name, or a keyword idea (up to 100 characters).
                 minLength: 1
                 maxLength: 253
               tlds:
+                x-ui:
+                  basic: true
                 type: array
                 maxItems: 5
                 items:
@@ -72,21 +97,29 @@ skills:
                   Optional suffixes such as .com or .net. For a short single-label
                   name, check each exact name plus suffix before suggestions.
               country:
+                x-ui:
+                  basic: false
                 type: string
                 default: DE
                 description: Two-letter tax country code; returned explicitly with prices.
               currency:
+                x-ui:
+                  basic: false
                 type: string
                 default: EUR
                 enum: [EUR, USD]
                 description: Supported quote currency. Unsupported currencies are rejected.
               max_results:
+                x-ui:
+                  basic: false
                 type: integer
                 minimum: 1
                 maximum: 20
                 default: 10
                 description: Maximum selected results per group. Checked pool remains at most 40.
               availability:
+                x-ui:
+                  basic: true
                 type: string
                 enum: [prefer_available, available_only, all]
                 default: prefer_available
@@ -96,6 +129,8 @@ skills:
                   fills with unavailable. all preserves ranked checked available and
                   unavailable order. Unknown checks remain diagnostic only.
               relevance_criteria:
+                x-ui:
+                  basic: true
                 type: string
                 maxLength: 1000
                 description: >
@@ -107,5 +142,245 @@ skills:
             required: [query]
       required: [requests]
     workflow:
-      available: false
-      unavailable_reason: WORKFLOW_CLASSIFICATION_REQUIRED
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        requests:
+          - query: example.com
+            max_results: 1
+      output_schema:
+        type: object
+        properties:
+          summary:
+            x-ui:
+              basic: false
+            type: string
+          result_count:
+            x-ui:
+              basic: true
+            type: integer
+          provider:
+            x-ui:
+              basic: false
+            type: string
+          error:
+            x-ui:
+              basic: false
+            type: string
+          results:
+            x-ui:
+              basic: true
+            type: array
+            description: Selected checked domains, flattened across request groups.
+            items: &hosting_domain_workflow_result
+              type: object
+              properties:
+                domain_ascii:
+                  x-ui:
+                    basic: true
+                  type: string
+                domain_unicode:
+                  x-ui:
+                    basic: true
+                  type: string
+                availability:
+                  x-ui:
+                    basic: true
+                  type: string
+                  enum: [available, unavailable, unknown]
+                url:
+                  x-ui:
+                    basic: true
+                  type: string
+                canonical_url:
+                  x-ui:
+                    basic: false
+                  type: string
+                source_id:
+                  x-ui:
+                    basic: false
+                  type: string
+                currency:
+                  x-ui:
+                    basic: true
+                  type: string
+                country:
+                  x-ui:
+                    basic: false
+                  type: string
+                provider:
+                  x-ui:
+                    basic: false
+                  type: string
+                taxes:
+                  x-ui:
+                    basic: false
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        x-ui:
+                          basic: false
+                        type: string
+                      name_label:
+                        x-ui:
+                          basic: false
+                        type: string
+                      type:
+                        x-ui:
+                          basic: false
+                        type: string
+                      rate:
+                        x-ui:
+                          basic: false
+                        type: number
+                premium:
+                  x-ui:
+                    basic: false
+                  type: boolean
+                reserved:
+                  x-ui:
+                    basic: false
+                  type: boolean
+                restrictions:
+                  x-ui:
+                    basic: false
+                  type: array
+                  items:
+                    type: string
+                registration_phase:
+                  x-ui:
+                    basic: false
+                  type: string
+                registration_tiers:
+                  x-ui:
+                    basic: true
+                  type: array
+                  items: &hosting_domain_price_tier
+                    type: object
+                    properties:
+                      unit:
+                        x-ui:
+                          basic: false
+                        type: string
+                      duration_range:
+                        x-ui:
+                          basic: false
+                        type: object
+                        properties:
+                          minimum:
+                            x-ui:
+                              basic: false
+                            type: integer
+                          maximum:
+                            x-ui:
+                              basic: false
+                            type: integer
+                      minimum_term:
+                        x-ui:
+                          basic: false
+                        type: string
+                      price_excluding_tax:
+                        x-ui:
+                          basic: false
+                        type: number
+                      price_including_tax:
+                        x-ui:
+                          basic: true
+                        type: number
+                      normal_price:
+                        x-ui:
+                          basic: false
+                        type: number
+                      discount:
+                        x-ui:
+                          basic: false
+                        type: boolean
+                      product_taxes:
+                        x-ui:
+                          basic: false
+                        type: array
+                        items:
+                          type: object
+                renewal_tiers:
+                  x-ui:
+                    basic: true
+                  type: array
+                  items: *hosting_domain_price_tier
+                checked_at:
+                  x-ui:
+                    basic: false
+                  type: string
+                provider_url:
+                  x-ui:
+                    basic: false
+                  type: string
+          raw:
+            x-ui:
+              basic: false
+            type: object
+            description: Full grouped response, including bounded checked candidates and partial context.
+            properties:
+              results:
+                x-ui:
+                  basic: false
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      x-ui:
+                        basic: false
+                      anyOf:
+                        - type: string
+                        - type: integer
+                    query:
+                      x-ui:
+                        basic: false
+                      type: string
+                    country:
+                      x-ui:
+                        basic: false
+                      type: string
+                    currency:
+                      x-ui:
+                        basic: false
+                      type: string
+                    checked_at:
+                      x-ui:
+                        basic: false
+                      type: string
+                    partial:
+                      x-ui:
+                        basic: false
+                      type: boolean
+                    relevance_applied:
+                      x-ui:
+                        basic: false
+                      type: boolean
+                    warnings:
+                      x-ui:
+                        basic: false
+                      type: array
+                      items:
+                        type: string
+                    error:
+                      x-ui:
+                        basic: false
+                      type: string
+                    results:
+                      x-ui:
+                        basic: false
+                      type: array
+                      items: *hosting_domain_workflow_result
+                    checked_results:
+                      x-ui:
+                        basic: false
+                      type: array
+                      items: *hosting_domain_workflow_result

@@ -922,6 +922,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.hosting {
+  background: var(--color-app-hosting);
+  &::after {
+    background-image: url("@openmates/ui/static/icons/server.svg");
+  }
+}
+
 .icon_rounded.study {
   background: var(--color-app-study);
   &::after {

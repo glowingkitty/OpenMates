@@ -32,6 +32,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 import requests
+from toon_format import ToonDecodeError, decode as decode_toon
 
 from .generated.app_skills import GeneratedAppSkills
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
@@ -713,7 +714,7 @@ class OpenMates:
                 embed["text_preview"] = _decrypt_aes_gcm_text(embed["encrypted_text_preview"], embed_key)
             if isinstance(embed.get("encrypted_content"), str):
                 content = _decrypt_aes_gcm_text(embed["encrypted_content"], embed_key)
-                embed["content"] = _parse_maybe_json(content)
+                embed["content"] = _parse_embed_content(content)
             decrypted_embeds.append(embed)
         return decrypted_embeds
 
@@ -2837,6 +2838,19 @@ def _parse_maybe_json(value: str | None) -> Any:
         return json.loads(value)
     except json.JSONDecodeError:
         return value
+
+
+def _parse_embed_content(value: str) -> Any:
+    """Decode saved embed JSON or strict TOON without changing other SDK strings."""
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        pass
+    try:
+        decoded = decode_toon(value)
+    except ToonDecodeError:
+        return value
+    return decoded if isinstance(decoded, (dict, list)) else value
 
 
 def datetime_utc_date(unix_seconds: int) -> str:

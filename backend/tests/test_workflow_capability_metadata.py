@@ -22,6 +22,7 @@ from backend.core.api.app.services.workflow_capability_registry import (
     WORKFLOW_TEST_EXAMPLE_REQUIRED,
     WorkflowCapabilityRegistry,
     _FilesystemWorkflowMetadataRegistry,
+    _matches_schema,
 )
 from scripts.audit_workflow_capabilities import audit_workflow_capabilities
 
@@ -150,6 +151,32 @@ def test_test_allowed_capability_requires_a_schema_valid_example_input() -> None
 
     assert capability.enabled is False
     assert capability.reason == WORKFLOW_TEST_EXAMPLE_REQUIRED
+
+
+# contract-test: supporting surface=rest_api assertions=hosting-domains.surface-parity,hosting-domains.request.validated
+def test_hosting_capability_has_typed_workflow_contract_and_google_safe_ids() -> None:
+    capability = WorkflowCapabilityRegistry(_FilesystemWorkflowMetadataRegistry()).get_capability(
+        "hosting.search_domains"
+    )
+    assert capability.enabled is True
+    assert capability.metadata["cost"] == {"fixed": 1}
+    workflow = capability.metadata["workflow"]
+    assert {key: workflow[key] for key in (
+        "execution_mode", "effect", "unattended", "approval", "binding_requirements", "test_allowed",
+    )} == {
+        "execution_mode": "sync", "effect": "read", "unattended": True,
+        "approval": "never", "binding_requirements": ["none"], "test_allowed": True,
+    }
+    assert workflow["test_example_input"] == {"requests": [{"query": "example.com", "max_results": 1}]}
+    fields = capability.metadata["input_schema"]["properties"]["requests"]["items"]["properties"]
+    assert "anyOf" in fields["id"] and "oneOf" not in fields["id"]
+    assert all(_matches_schema(value, fields["id"]) for value in ("com", 2))
+    assert not any(_matches_schema(value, fields["id"]) for value in (True, [], None))
+    assert fields["availability"]["default"] == "prefer_available"
+    assert fields["max_results"]["maximum"] == 20
+    output = capability.metadata["output_schema"]["properties"]
+    assert output["results"]["type"] == "array"
+    assert output["raw"]["properties"]["results"]["items"]["properties"]["checked_results"]["type"] == "array"
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract

@@ -262,6 +262,7 @@
         "components/report-issue-confirmation.spec.ts",
         "components/settings-usage-overview.spec.ts",
         "components/embed-workspace.spec.ts",
+        "components/hosting-domain-search.spec.ts",
         "components/composer-embed-suggestions.spec.ts",
         "components/new-chat-embed-suggestions.spec.ts",
         "composer-embed-open.spec.ts",
