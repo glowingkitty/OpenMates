@@ -12,6 +12,7 @@ worktrees. Deletion manifests retain metadata and archive paths, not source.
 from __future__ import annotations
 
 import importlib.util
+import fcntl
 import json
 import os
 import subprocess
@@ -519,6 +520,49 @@ def test_hard_expiry_archive_failure_preserves_worktree(monkeypatch, tmp_path):
     assert path.exists()
     assert report["deleted"] == []
     assert report["failures"][0]["session_id"] == "old"
+
+
+def test_hard_expiry_serializes_other_process_and_releases_lock(tmp_path):
+    lock_path = tmp_path / "expiry.lock"
+    ready = tmp_path / "ready"
+    done = tmp_path / "done"
+    script = """
+import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location('expiry_child', sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.WORKTREE_EXPIRY_LOCK_FILE = pathlib.Path(sys.argv[2])
+module._managed_worktree_records = lambda: []
+pathlib.Path(sys.argv[3]).write_text('ready')
+module.expire_managed_worktrees(max_age_hours=168)
+module._managed_worktree_records = lambda: (_ for _ in ()).throw(RuntimeError('intentional'))
+try:
+    module.expire_managed_worktrees(max_age_hours=168)
+except RuntimeError:
+    pass
+module._managed_worktree_records = lambda: []
+module.expire_managed_worktrees(max_age_hours=168)
+pathlib.Path(sys.argv[4]).write_text('done')
+"""
+    with lock_path.open("a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        child = subprocess.Popen(
+            [sys.executable, "-c", script, str(SESSIONS_PATH), str(lock_path), str(ready), str(done)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while not ready.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert ready.exists()
+            time.sleep(0.15)
+            assert child.poll() is None
+            assert not done.exists()
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    stdout, stderr = child.communicate(timeout=5)
+    assert child.returncode == 0, (stdout, stderr)
+    assert done.exists()
 
 
 @pytest.mark.parametrize("child_old,child_removal_fails", [(False, False), (True, True)])

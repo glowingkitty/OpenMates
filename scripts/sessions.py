@@ -208,6 +208,8 @@ WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-loc
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 WORKTREE_ORPHAN_RECOVERY_DIR = CONTROL_PLANE_ROOT.parent / ".openmates-worktree-recovery"
 WORKTREE_EXPIRY_ARCHIVE_DIR = WORKTREE_ORPHAN_RECOVERY_DIR / "expired-worktrees"
+WORKTREE_EXPIRY_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "worktree-expiry.lock"
+_WORKTREE_EXPIRY_THREAD_LOCK = threading.Lock()
 DEFAULT_REPO_ID = "openmates"
 OPENMATESCLOUD_REPO_ID = "openmatescloud"
 OPENMATESCLOUD_REPO_ROOT = (CONTROL_PLANE_ROOT.parent / "OpenMatesCloud").resolve()
@@ -4674,6 +4676,22 @@ def _remove_expired_worktree(record: dict) -> None:
         raise RuntimeError(f"Expired worktree still exists after removal: {path}")
 
 
+def _serialized_worktree_expiry(callback):
+    """Hold one host-wide lock through inventory, archiving, and manifests."""
+    @wraps(callback)
+    def wrapped(*args, **kwargs):
+        with _WORKTREE_EXPIRY_THREAD_LOCK:
+            WORKTREE_EXPIRY_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with WORKTREE_EXPIRY_LOCK_FILE.open("a+", encoding="utf-8") as handle:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+                try:
+                    return callback(*args, **kwargs)
+                finally:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    return wrapped
+
+
+@_serialized_worktree_expiry
 def expire_managed_worktrees(
     *,
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
