@@ -10,6 +10,7 @@
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
+const { seedLegacyTaskLink } = require('./helpers/legacy-user-task-fixture');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const TASK_STATUSES = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
@@ -19,6 +20,69 @@ function taskCardIn(column: any, title: string): any {
 }
 
 test.describe('Tasks web app parity', () => {
+	// contract-test: direct surface=gui.web assertions=tasks.lifecycle.visible,tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+	test('persists a drag to Done for a historical external-chat task without changing its encrypted link', async ({ page }) => {
+		test.setTimeout(150_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, () => {}, async () => {});
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		const title = `Historical task drag ${Date.now()}`;
+		await page.getByTestId('task-workspace-input').fill(title);
+		const [created] = await Promise.all([
+			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/v1/user-tasks')),
+			page.getByTestId('task-workspace-submit').click(),
+		]);
+		expect(created.ok()).toBe(true);
+		const { task: newTask } = await created.json();
+		const tasksUrl = new URL('/v1/user-tasks', created.url()).toString();
+		const taskUrl = `${tasksUrl}/${newTask.task_id}`;
+		const readTask = async () => {
+			const response = await page.request.get(taskUrl);
+			expect(response.ok()).toBe(true);
+			return (await response.json()).task;
+		};
+		try {
+			seedLegacyTaskLink(newTask.task_id);
+			const legacyTask = await readTask();
+			const legacyLink = {
+				external_chat_provider: 'opencode',
+				external_chat_lookup_hash: 'c'.repeat(64),
+				encrypted_external_chat_id: newTask.encrypted_title,
+				encrypted_external_chat_title: newTask.encrypted_title,
+			};
+			expect(legacyTask).toMatchObject(legacyLink);
+			// Verify the reported failing REST action before exercising browser drag.
+			const completed = await page.request.post(`${taskUrl}/complete`, { data: { version: legacyTask.version } });
+			expect(completed.ok()).toBe(true);
+			const completedTask = await readTask();
+			expect(completedTask).toMatchObject({ ...legacyLink, status: 'done' });
+			const reset = await page.request.post(`${tasksUrl}/reorder`, {
+				data: { moves: [{ task_id: newTask.task_id, version: completedTask.version, status: 'todo', position: 0 }] },
+			});
+			expect(reset.ok()).toBe(true);
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			const card = taskCardIn(page.getByTestId('task-column-todo'), title);
+			await expect(card).toBeVisible({ timeout: 30_000 });
+			const [completeResponse, reorderResponse] = await Promise.all([
+				page.waitForResponse((response) => response.request().method() === 'POST' && response.url() === `${taskUrl}/complete`),
+				page.waitForResponse((response) => response.request().method() === 'POST' && response.url() === `${tasksUrl}/reorder`),
+				card.getByTestId('task-card-open').dragTo(page.getByTestId('task-column-done'), { targetPosition: { x: 80, y: 20 } }),
+			]);
+			expect(completeResponse.ok()).toBe(true);
+			expect(reorderResponse.ok()).toBe(true);
+			await expect(taskCardIn(page.getByTestId('task-column-done'), title)).toBeVisible();
+			await expect(page.getByText('Failed to update task', { exact: true })).toHaveCount(0);
+			expect(await readTask()).toMatchObject({ ...legacyLink, status: 'done', encrypted_title: newTask.encrypted_title });
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await expect(taskCardIn(page.getByTestId('task-column-done'), title)).toBeVisible({ timeout: 30_000 });
+		} finally {
+			const task = await readTask();
+			expect((await page.request.delete(`${taskUrl}?version=${task.version}`)).ok()).toBe(true);
+		}
+	});
+
 	// contract-test: supporting surface=gui.web assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity,workspace-shell.start.chat-visual-parity
 	test('preserves a multiline workspace draft through collapse, expansion and encrypted submission', async ({ page }) => {
 		test.setTimeout(120_000);

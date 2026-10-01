@@ -281,6 +281,52 @@ async def test_update_task_rejects_incomplete_or_native_external_chat_context() 
     directus.update_item_if_version.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.external-chat.encrypted-context,tasks.assignment.identity-separated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy_fields", [
+    {"external_chat_provider": "opencode", "external_chat_lookup_hash": "c" * 64, "encrypted_external_chat_id": "cipher-old-session", "encrypted_external_chat_title": "cipher-old-title"},
+    {"assignee_type": "external_ai", "assignee_identity": "opencode", "assignee_hash": None},
+    {"assignee_type": "openmates", "assignee_identity": None, "assignee_hash": None},
+])
+async def test_lifecycle_updates_preserve_unchanged_legacy_context_and_assignment(legacy_fields) -> None:
+    existing = {"id": "task-row", **task_payload(primary_chat_id=None), **legacy_fields}
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock(side_effect=lambda _collection, _id, patch, _version, **_scope: {**existing, **patch})
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    updated = await methods.update_task_if_version("task-1", "user-1", {
+        "version": 1, "status": "done", "position": -1, "queue_state": "none", "completed_at": 200,
+    }, 1)
+
+    assert updated["status"] == "done"
+    assert updated["position"] == -1
+    assert updated["version"] == 2
+    for field, value in legacy_fields.items():
+        assert updated[field] == value
+        assert field not in directus.update_item_if_version.await_args.args[2]
+    assert updated["encrypted_title"] == existing["encrypted_title"]
+    assert directus.update_item_if_version.await_args.kwargs["owner_hash"] == hash_id("user-1")
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.assignment.identity-separated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("patch,error", [
+    ({"external_chat_provider": "opencode"}, "provider is not allowed"),
+    ({"assignee_type": "external_ai", "assignee_identity": "opencode"}, "requires identity"),
+])
+async def test_explicit_legacy_context_and_assignment_mutations_still_rejected(patch, error) -> None:
+    existing = {"id": "task-row", **task_payload(primary_chat_id=None)}
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock()
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    with pytest.raises(ValueError, match=error):
+        await methods.update_task_if_version("task-1", "user-1", {"version": 1, **patch}, 1)
+    directus.update_item_if_version.assert_not_awaited()
+
+
 # contract-test: direct surface=rest_api assertions=tasks.blocking.encrypted-reason
 @pytest.mark.asyncio
 async def test_directus_task_updates_preserve_legacy_and_runtime_blocked_reason_codes() -> None:

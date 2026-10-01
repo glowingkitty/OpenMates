@@ -1130,17 +1130,22 @@ class UserTaskMethods:
             next_project_hashes = {hash_id(project_id) for project_id in linked_project_ids if project_id}
         next_plan_hash = hash_id(update["plan_id"]) if update.get("plan_id") else (hash_id(existing["plan_id"]) if existing.get("plan_id") else None)
 
+        context_fields = (
+            "primary_chat_id",
+            "external_chat_provider",
+            "external_chat_lookup_hash",
+            "encrypted_external_chat_id",
+            "encrypted_external_chat_title",
+        )
         effective_context = {
             field: update[field] if field in update else existing.get(field)
-            for field in (
-                "primary_chat_id",
-                "external_chat_provider",
-                "external_chat_lookup_hash",
-                "encrypted_external_chat_id",
-                "encrypted_external_chat_title",
-            )
+            for field in context_fields
         }
-        _validate_external_chat_context(effective_context)
+        # Retired providers remain on historical tasks. Lifecycle/order updates
+        # must preserve those links; only an explicit context mutation needs to
+        # satisfy the current allowlist. Creation still validates all fields.
+        if any(field in update for field in context_fields):
+            _validate_external_chat_context(effective_context)
         previous_owner = _conversation_owner(existing)
         next_owner = _conversation_owner(effective_context)
         # This check executes inside the same task lease and versioned update
@@ -1157,8 +1162,8 @@ class UserTaskMethods:
             field: update[field] if field in update else existing.get(field)
             for field in ("assignee_type", "assignee_identity", "assignee_hash")
         }
-        _validate_task_assignment(effective_assignment, user_id=user_id)
         if any(field in update for field in ("assignee_type", "assignee_identity", "assignee_hash")):
+            _validate_task_assignment(effective_assignment, user_id=user_id)
             update.update(effective_assignment)
 
         # Releasing a native chat needs no new wrapping key; the database removes
