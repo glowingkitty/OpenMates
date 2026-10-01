@@ -89,13 +89,12 @@
   .source-scroll .source-chip{flex:0 0 auto;max-width:none;white-space:nowrap}
   .add-label{color:var(--color-font-secondary);font-size:var(--font-size-small);font-weight:500;flex:0 0 auto}
   .field-row{padding-inline-start:2.5rem}
-  .chip{display:inline-flex;align-items:center;justify-content:flex-start;gap:.25rem;max-width:100%;border:0;border-radius:var(--radius-full);padding:.15rem .5rem;background:linear-gradient(135deg,var(--variable-start,var(--color-primary-start)),var(--variable-end,var(--color-primary-end)));color:var(--color-font-button);font:inherit;font-size:var(--font-size-small);font-weight:500;line-height:1.3;text-align:left;white-space:normal;overflow-wrap:anywhere;box-shadow:var(--shadow-sm);cursor:pointer}
+  .chip{display:inline-flex;align-items:center;justify-content:flex-start;gap:.25rem;max-width:100%;border:0;border-radius:var(--radius-full);height:auto;min-width:0;min-height:calc(var(--font-size-p) * 1.55);margin:0;padding:0 .5rem;background:linear-gradient(135deg,var(--variable-start,var(--color-primary-start)),var(--variable-end,var(--color-primary-end)));color:var(--color-font-button);font:inherit;font-size:var(--font-size-small);font-weight:500;line-height:1.3;text-align:left;white-space:normal;overflow-wrap:anywhere;box-shadow:var(--shadow-sm);cursor:pointer}
   .source-chip.selected{opacity:.6}
   .source-icon{display:inline-block;flex:0 0 auto;width:.875rem;height:.875rem;background:currentColor;-webkit-mask:var(--workflow-icon) center/contain no-repeat;mask:var(--workflow-icon) center/contain no-repeat}
-  .show-all{border:0;padding:.2rem .3rem;background:transparent;color:var(--color-primary-start);font:inherit;font-size:var(--font-size-small);cursor:pointer}
+  .show-all{height:auto;border:0;padding:.2rem .3rem;background:transparent;color:var(--color-primary-start);font:inherit;font-size:var(--font-size-small);cursor:pointer}
   .no-match{color:var(--color-font-secondary);font-size:var(--font-size-small)}
   button:focus-visible{outline:2px solid var(--color-button-primary);outline-offset:2px}
   button:disabled{cursor:default;opacity:.5}
-  @media(pointer:coarse){.chip,.show-all{min-height:2.75rem}}
   @media(max-width:420px){.field-row{padding-inline-start:0}}
 </style>

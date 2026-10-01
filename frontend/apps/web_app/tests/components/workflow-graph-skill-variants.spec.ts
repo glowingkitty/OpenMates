@@ -162,14 +162,17 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		const messageNode = page.locator('[data-node-id="message"]');
 		await messageNode.getByTestId('workflow-node-summary').click();
 		const messageEditor = messageNode.getByTestId('workflow-node-expanded');
-		const variables = messageEditor.getByTestId('workflow-message-variable-chips');
-		await expect(variables).toBeVisible();
-		const basicCount = await variables.locator('.chip').count();
+		const sources = messageEditor.getByTestId('workflow-variable-sources');
+		await expect(sources).toBeVisible();
+		const sourceScroll = messageEditor.getByTestId('workflow-variable-source-scroll');
+		await expect(sourceScroll).toHaveCSS('flex-wrap', 'nowrap');
+		await expect(sourceScroll).toHaveCSS('overflow-x', 'auto');
+		await sources.locator('[data-source-node-id="events"]').click();
+		const variables = messageEditor.getByTestId('workflow-ai-suggestions');
+		const basicCount = await variables.locator('[data-variable-reference]').count();
 		expect(basicCount).toBeGreaterThan(0);
-		await expect(variables).toHaveCSS('flex-wrap', 'nowrap');
-		await expect(variables).toHaveCSS('overflow-x', 'auto');
-		await messageEditor.getByRole('button', { name: 'Show all variables' }).click();
-		expect(await variables.locator('.chip').count()).toBeGreaterThan(basicCount);
+		await variables.getByRole('button', { name: 'Show all', exact: true }).click();
+		expect(await variables.locator('[data-variable-reference]').count()).toBeGreaterThan(basicCount);
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.mvp.authoring
@@ -192,7 +195,9 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		const query = editor.getByTestId('workflow-input-template-events-request-0-query');
 		const chips = editor.getByTestId('workflow-input-variable-chips-events-request-0-query');
 		await expect(query).toHaveAttribute('aria-multiline', 'false');
-		await expect(query.locator('.generic-mention')).toHaveText('@Example place lookup · Title');
+		await expect(query.locator('.generic-mention')).toHaveText('@fixture.places.title');
+		await expect(query.locator('.generic-mention')).toHaveAttribute('title', 'Example place lookup · Title');
+		await expect(query.locator('.workflow-mention-icon')).toBeVisible();
 		await expect(query).not.toContainText('$nodes');
 		await expect(query).not.toContainText('{{steps');
 		await expect(chips).toBeVisible();
@@ -203,8 +208,8 @@ test.describe('WorkflowGraphRenderer real skill variants', () => {
 		await query.press('Home');
 		await chips.getByRole('button', { name: '+ Example place lookup · Provider', exact: true }).click();
 		await expect(query.locator('.generic-mention')).toHaveCount(2);
-		await expect(query.locator('.generic-mention').first()).toHaveText('@Example place lookup · Provider');
-		await expect(query.locator('.generic-mention').last()).toHaveText('@Example place lookup · Title');
+		await expect(query.locator('.generic-mention').first()).toHaveText('@fixture.places.provider');
+		await expect(query.locator('.generic-mention').last()).toHaveText('@fixture.places.title');
 
 		const basicCount = await chips.getByRole('button').count();
 		const variableToggle = chips.locator('..').locator('.variable-toggle');

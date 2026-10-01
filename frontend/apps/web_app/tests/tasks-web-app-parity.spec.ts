@@ -19,6 +19,63 @@ function taskCardIn(column: any, title: string): any {
 }
 
 test.describe('Tasks web app parity', () => {
+	// contract-test: supporting surface=gui.web assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity,workspace-shell.start.chat-visual-parity
+	test('preserves a multiline workspace draft through collapse, expansion and encrypted submission', async ({ page }) => {
+		test.setTimeout(120_000);
+		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, () => {}, async () => {});
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		const composer = page.getByTestId('task-workspace-composer');
+		const input = page.getByTestId('task-workspace-input');
+		await expect(composer).toBeVisible({ timeout: 30_000 });
+		const restingHeight = (await composer.boundingBox())!.height;
+		const headline = `Multiline workspace draft ${Date.now()}`;
+		const draft = `${headline}\nInclude the weekly notes and follow up with the team.\nKeep these instructions together.`;
+		let taskId: string | null = null;
+		let tasksUrl = '';
+		try {
+			await input.fill(draft);
+			await input.press('Escape');
+			await expect(page.getByTestId('task-workspace-input-preview')).toHaveText(`${headline}…`);
+			await expect(input).toHaveValue(draft);
+			await expect.poll(async () => (await composer.boundingBox())!.height).toBe(restingHeight);
+			await input.click();
+			await page.getByTestId('task-workspace-input-expand').click();
+			await expect(page.getByTestId('task-workspace-input-expand')).toHaveAttribute('aria-expanded', 'true');
+			await expect(input).toHaveValue(draft);
+			await input.press('Escape');
+			const [response] = await Promise.all([
+				page.waitForResponse((candidate) => candidate.request().method() === 'POST' && candidate.url().endsWith('/v1/user-tasks')),
+				page.getByTestId('task-workspace-submit').click(),
+			]);
+			expect(response.ok()).toBe(true);
+			tasksUrl = new URL('/v1/user-tasks', response.url()).toString();
+			const payload = response.request().postDataJSON();
+			expect(payload.encrypted_title).toEqual(expect.any(String));
+			expect(JSON.stringify(payload)).not.toContain(headline);
+			const card = taskCardIn(page.getByTestId('task-column-todo'), headline);
+			await expect(card).toBeVisible({ timeout: 30_000 });
+			taskId = await card.getAttribute('data-task-id');
+			expect(taskId).toBeTruthy();
+			await expect(input).toHaveValue('');
+			await page.reload({ waitUntil: 'domcontentloaded' });
+			await expect(card).toBeVisible({ timeout: 30_000 });
+			await card.getByTestId('task-card-open').click();
+			await expect(page.getByTestId('task-detail-title')).toHaveText(draft);
+			await expect(page.getByTestId('workspace-detail-description')).toHaveText(draft);
+		} finally {
+			if (taskId) {
+				const current = await page.request.get(`${tasksUrl}/${taskId}`);
+				expect(current.ok()).toBe(true);
+				const { task } = await current.json();
+				expect((await page.request.delete(`${tasksUrl}/${taskId}?version=${task.version}`)).ok()).toBe(true);
+			}
+		}
+	});
+
 	// contract-test: supporting surface=gui.web assertions=tasks.content.client-encrypted,tasks.project-links.encrypted,tasks.surface.semantic-parity
 	test('creates project-scoped tasks from the compact Figma composer', async ({ page }) => {
 		test.setTimeout(150_000);

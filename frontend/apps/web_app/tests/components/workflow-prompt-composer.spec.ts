@@ -13,11 +13,130 @@ test.use({
 
 const preview = (width: number, variant?: string, theme = 'light') =>
   `/dev/preview/workspace/WorkspacePromptComposer?${new URLSearchParams({
-    theme, background: '#dbeafe', width: String(width), chrome: '0',
+    theme, background: theme === 'dark' ? '#171717' : '#dbeafe', width: String(width), chrome: '0',
     ...(variant ? { variant } : {}),
   })}`;
 
 test.describe('Workflow prompt composer', () => {
+  for (const [width, theme] of [[320, 'light'], [390, 'dark'], [1024, 'light']] as const) {
+    // contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable
+    test(`edit placeholder stays on one line at ${width}px in ${theme} mode and entered instructions expand`, async ({ page }: { page: Page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview(width, 'workflowEdit', theme), { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+      const composer = page.getByTestId('workflows-input-composer');
+      const input = page.getByTestId('workflows-input-textarea');
+      const icon = composer.locator('.workspace-prompt-ai-icon');
+      const mic = page.getByTestId('workflows-input-mic');
+      await expect(composer).toBeVisible();
+      await expect(input).toHaveAttribute('placeholder', 'Describe workflow change.');
+      await page.evaluate(() => document.fonts.ready);
+      const placeholderFit = await input.evaluate((element: HTMLTextAreaElement) => {
+        const style = getComputedStyle(element, '::placeholder');
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d')!;
+        context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const label = element.placeholder;
+        const spacing = Number.parseFloat(style.letterSpacing) || 0;
+        return { textWidth: context.measureText(label).width + Math.max(0, label.length - 1) * spacing, inputWidth: element.clientWidth };
+      });
+      expect(placeholderFit.textWidth).toBeLessThanOrEqual(placeholderFit.inputWidth);
+
+      const emptyHeight = await input.evaluate((element: HTMLTextAreaElement) => element.scrollHeight);
+      expect(emptyHeight).toBeLessThanOrEqual(30);
+      const [iconBox, inputBox, micBox] = await Promise.all([icon.boundingBox(), input.boundingBox(), mic.boundingBox()]);
+      if (!iconBox || !inputBox || !micBox) throw new Error('Composer controls must be measurable.');
+      expect(iconBox.x + iconBox.width).toBeLessThanOrEqual(inputBox.x);
+      expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(micBox.x);
+      await composer.screenshot({ path: test.info().outputPath(`workflow-change-empty-${width}-${theme}.png`) });
+      await input.fill('Add a morning summary\nInclude earlier results');
+      await expect(input).toHaveValue('Add a morning summary\nInclude earlier results');
+      await expect.poll(() => input.evaluate((element: HTMLTextAreaElement) => element.getBoundingClientRect().height)).toBeGreaterThan(emptyHeight);
+      await expect(page.getByTestId('workflows-input-submit')).toBeVisible();
+      await composer.screenshot({ path: test.info().outputPath(`workflow-change-filled-${width}-${theme}.png`) });
+    });
+  }
+
+  for (const [surface, variant] of [['workflows', 'workflowEdit'], ['tasks', 'tasks']] as const) {
+    for (const [width, theme] of [[390, 'dark'], [1024, 'light']] as const) {
+      // contract-test: supporting surface=gui.web assertions=workflows-ui.responsive-accessible-reachable,workspace-shell.start.chat-visual-parity
+      test(`${surface} keeps multiline drafts when collapsed and expands from four scrollable lines at ${width}px`, async ({ page }: { page: Page }) => {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto(preview(width, variant, theme), { waitUntil: 'domcontentloaded' });
+        await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30000 });
+        const composer = page.getByTestId(`${surface}-input-composer`);
+        const input = page.getByTestId(`${surface}-input-textarea`);
+        const toggle = page.getByTestId(`${surface}-input-textarea-expand`);
+        const collapsedPreview = page.getByTestId(`${surface}-input-textarea-preview`);
+        const restingHeight = (await composer.boundingBox())!.height;
+        await input.click();
+        await expect.poll(async () => (await composer.boundingBox())!.height).toBeGreaterThan(restingHeight);
+        await expect(toggle).toBeVisible();
+        await expect(toggle.locator('.icon_fullscreen')).toBeVisible();
+        const draft = 'A long first line that keeps the instructions available after collapsing this field\nSecond line\nThird line\nFourth line\nFifth line\nSixth line';
+        await input.fill(draft);
+        const geometry = await input.evaluate((element: HTMLTextAreaElement) => ({
+          height: element.clientHeight,
+          lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight),
+          scrollHeight: element.scrollHeight,
+          overflow: getComputedStyle(element).overflowY,
+        }));
+        expect(geometry.height).toBeLessThanOrEqual(geometry.lineHeight * 4 + 1);
+        expect(geometry.height).toBeGreaterThan(geometry.lineHeight * 2);
+        expect(geometry.scrollHeight).toBeGreaterThan(geometry.height);
+        expect(geometry.overflow).toBe('auto');
+        const [activeInput, activeComposer, activeSubmit] = await Promise.all([input.boundingBox(), composer.boundingBox(), page.getByTestId(`${surface}-input-submit`).boundingBox()]);
+        if (!activeInput || !activeComposer || !activeSubmit) throw new Error('Active composer controls must be measurable.');
+        expect(activeInput.width).toBeGreaterThan(activeComposer.width * .7);
+        expect(activeInput.y + activeInput.height).toBeLessThan(activeSubmit.y);
+        await input.evaluate((element: HTMLTextAreaElement) => { element.scrollTop = element.scrollHeight; });
+        expect(await input.evaluate((element: HTMLTextAreaElement) => element.scrollTop)).toBeGreaterThan(0);
+        await input.press('Escape');
+        await expect(input).not.toBeFocused();
+        await expect(input).toHaveValue(draft);
+        await expect(collapsedPreview).toHaveText(`${draft.split('\n')[0]}…`);
+        await expect(collapsedPreview).toHaveCSS('text-overflow', 'ellipsis');
+        await expect(collapsedPreview).toHaveCSS('white-space', 'nowrap');
+        await expect(toggle).toHaveCount(0);
+        await expect.poll(async () => (await composer.boundingBox())!.height).toBe(restingHeight);
+        await composer.screenshot({ path: test.info().outputPath(`${surface}-collapsed-${width}-${theme}.png`) });
+        await input.click();
+        await expect(input).toHaveValue(draft);
+        await expect(collapsedPreview).toHaveCount(0);
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await expect(toggle.locator('.icon_minimize')).toBeVisible();
+        await expect(input).toBeFocused();
+        await expect.poll(async () => (await input.boundingBox())!.height).toBeGreaterThan(geometry.height * 2);
+        const [toggleBox, submitBox] = await Promise.all([toggle.boundingBox(), page.getByTestId(`${surface}-input-submit`).boundingBox()]);
+        if (!toggleBox || !submitBox) throw new Error('Expanded composer controls must be measurable.');
+        expect(toggleBox.y + toggleBox.height).toBeLessThan(submitBox.y);
+        await composer.screenshot({ path: test.info().outputPath(`${surface}-expanded-${width}-${theme}.png`) });
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        await input.press('ControlOrMeta+End');
+        await input.press('Shift+Enter');
+        await input.press('x');
+        await expect(input).toHaveValue(`${draft}\nx`);
+        // Keyboard navigation stays within the active composer until focus leaves it.
+        await input.press('Tab');
+        await expect(toggle).toBeFocused();
+        await toggle.press('Enter');
+        await expect(input).toBeFocused();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await page.locator('body').click({ position: { x: 2, y: 2 } });
+        await expect(collapsedPreview).toBeVisible();
+        await expect(input).toHaveValue(`${draft}\nx`);
+        await expect.poll(async () => (await composer.boundingBox())!.height).toBe(restingHeight);
+        await input.click();
+        await page.getByTestId(`${surface}-input-submit`).focus();
+        await expect(collapsedPreview).toBeVisible();
+        await expect(toggle).toHaveCount(0);
+        await expect(input).toHaveValue(`${draft}\nx`);
+      });
+    }
+  }
+
   // contract-test: supporting surface=gui.web assertions=workflows-ui.files.composer-drop-import,workflows-ui.responsive-accessible-reachable
   test('file import replaces the AI icon, matches the microphone and fits phone and laptop inputs', async ({ page }: { page: Page }) => {
     for (const width of [390, 1280]) {
@@ -47,6 +166,8 @@ test.describe('Workflow prompt composer', () => {
         expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(micBox.x + 1);
         expect(micBox.x + micBox.width).toBeLessThanOrEqual(width);
         await file.focus();
+        await expect(page.getByTestId('workflows-input-textarea-expand')).toHaveCount(0);
+        expect((await input.boundingBox())!.height).toBeLessThanOrEqual(30);
         await page.keyboard.press('Tab');
         await page.keyboard.press('Shift+Tab');
         await expect(file).toBeFocused();
@@ -58,7 +179,7 @@ test.describe('Workflow prompt composer', () => {
         await expect(page.getByTestId('workflows-input-submit')).toBeVisible();
         const [filledFileBox, filledInputBox] = await Promise.all([file.boundingBox(), input.boundingBox()]);
         if (!filledFileBox || !filledInputBox) throw new Error('Filled composer controls must be measurable.');
-        expect(filledFileBox.x + filledFileBox.width).toBeLessThanOrEqual(filledInputBox.x + 2);
+        expect(filledFileBox.y).toBeGreaterThan(filledInputBox.y + filledInputBox.height);
       }
     }
     await page.goto(preview(390, 'disabled'), { waitUntil: 'networkidle' });

@@ -207,12 +207,25 @@ test.describe('Workflows input home', () => {
 			expect(infoBox.y + infoBox.height).toBeLessThan(firstNodeBox.y);
 			const editorComposer = page.getByTestId('workflow-ai-editor-composer');
 			await expect(editorComposer).toBeVisible();
+			await expect(page.getByTestId('workflow-ai-edit-textarea')).toHaveAttribute('placeholder', 'Describe workflow change.');
+			const dockSurface = await editorComposer.evaluate((element: HTMLElement) => {
+				const style = getComputedStyle(element);
+				return { backgroundImage: style.backgroundImage, backgroundColor: style.backgroundColor };
+			});
+			expect(dockSurface.backgroundImage).toContain('linear-gradient');
+			expect(dockSurface.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+			const editInput = page.getByTestId('workflow-ai-edit-textarea');
+			await expect.poll(() => editInput.evaluate((element: HTMLTextAreaElement) => element.scrollHeight)).toBeLessThanOrEqual(30);
+			const [scrollBox, fadeBox] = await Promise.all([management.locator('.management-grid').boundingBox(), editorComposer.boundingBox()]);
+			if (!scrollBox || !fadeBox) throw new Error('Scrolling content and composer fade must be measurable.');
+			expect(fadeBox.y).toBeLessThan(scrollBox.y + scrollBox.height);
 			const dockedBeforeScroll = await editorComposer.boundingBox();
 			if (!dockedBeforeScroll) throw new Error('Workflow editor composer must be measurable.');
 			expect(844 - dockedBeforeScroll.y - dockedBeforeScroll.height).toBeLessThan(32);
 			await management.locator('.management-grid').evaluate((element: HTMLElement) => { element.scrollTop = element.scrollHeight; });
 			const dockedAfterScroll = await editorComposer.boundingBox();
 			expect(Math.abs((dockedAfterScroll?.y ?? 0) - dockedBeforeScroll.y)).toBeLessThan(2);
+			await management.screenshot({ path: test.info().outputPath('workflow-change-composer-fade-phone.png') });
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await expect(page.getByTestId('workflow-ai-created-undo')).toHaveCount(0);
@@ -306,16 +319,26 @@ test.describe('Workflows input home', () => {
 				}) });
 			});
 			await page.unroute('**/v1/workflows/input/stream');
+			const multilineEdit = 'Update the steps\nInclude a morning summary\nUse the earlier events';
 			await page.route('**/v1/workflows/input/stream', async (route: Route) => {
 				if (route.request().method() !== 'POST') return route.continue();
 				const payload = route.request().postDataJSON();
 				expect(payload.selected_workflow_id).toBe(draft.id);
 				expect(payload.optimistic_save).toBe(true);
+				expect(payload.text).toBe(multilineEdit);
 				await route.fulfill({ status: 200, contentType: 'text/event-stream', headers: { 'access-control-allow-origin': new URL(page.url()).origin, 'access-control-allow-credentials': 'true' }, body: sseSession({
 					session_id: 'workflow-editor-success-spec', status: 'queued', message: 'Workflow prepared. Saving now.', preview_workflow: updatedWorkflow
 				}) });
 			});
-			await page.getByTestId('workflow-ai-edit-textarea').fill('Update the steps');
+			await page.getByTestId('workflow-ai-edit-textarea').fill(multilineEdit);
+			await page.getByTestId('workflow-ai-edit-textarea').press('Escape');
+			await expect(page.getByTestId('workflow-ai-edit-textarea-preview')).toHaveText('Update the steps…');
+			await expect(page.getByTestId('workflow-ai-edit-textarea')).toHaveValue(multilineEdit);
+			await page.getByTestId('workflow-ai-edit-textarea').click();
+			await page.getByTestId('workflow-ai-edit-textarea-expand').click();
+			await expect(page.getByTestId('workflow-ai-edit-textarea-expand')).toHaveAttribute('aria-expanded', 'true');
+			await expect(page.getByTestId('workflow-ai-edit-textarea')).toHaveValue(multilineEdit);
+			await page.getByTestId('workflow-ai-edit-textarea').press('Escape');
 			await page.getByTestId('workflow-ai-edit-submit').click();
 			await expect(page.getByTestId('workflow-ai-preview-title')).toHaveText(updatedWorkflow.title);
 			await expect(page.getByTestId('workflow-ai-preview-graph')).toBeVisible();
@@ -451,8 +474,13 @@ test.describe('Workflows input home', () => {
 		});
 		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
+		await page.getByTestId('workflow-input-textarea').click();
+		await page.getByTestId('workflow-input-textarea-expand').click();
+		await expect(page.getByTestId('workflow-input-textarea-expand')).toHaveAttribute('aria-expanded', 'true');
 		await page.getByTestId('workflow-input-mic').click();
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('record-overlay')).toBeVisible();
+		await expect(page.getByTestId('workflow-input-textarea-expand')).toHaveCount(0);
+		expect((await page.getByTestId('workflow-input-composer').boundingBox())!.height).toBeLessThanOrEqual(230);
 		await expect.poll(() => socketConnections, { timeout: 15000 }).toBeGreaterThan(0);
 		await expect(page.getByTestId('workflow-input-composer').getByTestId('recording-live-transcript')).toContainText('Weather tomorrow', { timeout: 15000 });
 		await page.getByTestId('workflow-input-composer').getByTestId('record-finish-button').click();

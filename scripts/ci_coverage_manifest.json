@@ -233,6 +233,7 @@
         "components/chat-inline-ratio-math.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
+        "components/workflow-message-editor-metadata.spec.ts",
         "components/workflow-ask-ai-editor.spec.ts",
         "components/workflow-ask-ai-test-preview.spec.ts",
         "components/workflow-check-editor.spec.ts",

@@ -113,9 +113,30 @@
   });
 
   $effect(() => {
+    // Schemas can arrive after the saved template is mounted. Reading outputs
+    // outside the value comparison keeps the display metadata reactive.
+    const declaredOutputs = new Map(outputs.map(output => [output.reference, output]));
     if (!editor) return;
     if (editor.isEditable === disabled) editor.setEditable(!disabled, false);
-    if (documentToTemplate(editor.getJSON()) !== value) editor.commands.setContent(templateToDocument(value, outputs), { emitUpdate: false });
+    if (documentToTemplate(editor.getJSON()) !== value) {
+      editor.commands.setContent(templateToDocument(value, outputs), { emitUpdate: false });
+    }
+    const transaction = editor.state.tr;
+    editor.state.doc.descendants((node, position) => {
+      if (node.type.name !== WORKFLOW_OUTPUT_NODE) return;
+      const output = declaredOutputs.get(node.attrs.mentionId);
+      if (!output) return;
+      const displayAttrs = outputToken(output).attrs ?? {};
+      const attrs = { ...node.attrs, ...displayAttrs, mentionSyntax: node.attrs.mentionSyntax };
+      if (Object.keys(displayAttrs).some(key => key !== 'mentionSyntax' && node.attrs[key] !== attrs[key])) {
+        transaction.setNodeMarkup(position, undefined, attrs);
+      }
+    });
+    if (transaction.docChanged) {
+      // Labels/icons are presentation only: keep the draft, caret and undo stack.
+      transaction.setMeta('preventUpdate', true).setMeta('addToHistory', false);
+      editor.view.dispatch(transaction);
+    }
   });
 </script>
 

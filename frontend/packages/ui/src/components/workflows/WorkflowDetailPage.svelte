@@ -89,7 +89,7 @@
   .kicker { position:absolute; top:1.25rem; font-size:var(--font-size-small); font-weight:650; }
   .identity { display:grid; justify-items:center; gap:.6rem; width:100%; }
   .identity-edit { padding:0; background:transparent; border:0; color:inherit; font:inherit; cursor:pointer; text-align:center; max-width:100%; }
-  h1 { margin:.15rem 0 0; font-size:var(--font-size-h2-mobile); line-height:1.3; overflow-wrap:anywhere; }
+  h1 { margin:.15rem 0 0; color:inherit; font-size:var(--font-size-h2-mobile); line-height:1.3; overflow-wrap:anywhere; }
   .description-edit { max-width:26rem; } p { margin:.2rem 0 0; font-size:var(--font-size-p); line-height:1.4; opacity:.95; }
   .metadata { position:absolute; bottom:1rem; font-size:var(--font-size-small); opacity:.8; }
   .toggle { display:flex; align-items:center; gap:.4rem; margin:0; padding:.25rem .4rem .25rem .6rem; min-height:2rem; border:0; border-radius:2rem; font:inherit; font-size:var(--font-size-small); font-weight:650; background:var(--color-primary); color:var(--color-font-button); cursor:pointer; box-shadow:var(--shadow-sm); }

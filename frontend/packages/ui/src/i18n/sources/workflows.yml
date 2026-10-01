@@ -611,8 +611,8 @@ builder.ai_new:
 
 builder.ai_edit_placeholder:
   context: Prompt placeholder for changing an open workflow with AI
-  en: Describe a change to this workflow
-  de: Beschreibe eine Änderung an diesem Workflow
+  en: Describe workflow change.
+  de: Workflow-Änderung beschreiben.
   verified_by_human: []
 
 builder.ai_edit_submit:
@@ -1476,7 +1476,7 @@ builder.chat_title:
 
 builder.message_placeholder:
   context: Workflow progressive builder control
-  en: "Enter the message here. Type @ to add a variable from an earlier step, or select one below."
+  en: "Enter the message here. Type @ to add a variable from an earlier step."
   verified_by_human: []
 
 builder.only_new_results:

@@ -16,10 +16,32 @@ const preview = (variant?: string) =>
 	})}`;
 
 test.describe('Workflow detail tabs', () => {
+	for (const theme of ['light', 'dark']) {
+		// contract-test: direct surface=gui.web assertions=workflows-ui.responsive-accessible-reachable
+		test(`keeps the gradient header title white in ${theme} mode`, async ({ page }: { page: Page }) => {
+			await page.setViewportSize({ width: 430, height: 844 });
+			const url = new URL(preview(), 'http://localhost');
+			url.searchParams.set('theme', theme);
+			await page.goto(`${url.pathname}${url.search}`, { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 30_000 });
+			const title = page.getByTestId('workspace-detail-title');
+			await expect(title).toHaveText('Weekly AI events');
+			await expect(title).toHaveCSS('color', 'rgb(255, 255, 255)');
+			await title.hover();
+			await expect(title).toHaveCSS('color', 'rgb(255, 255, 255)');
+			await title.click();
+			await page.getByRole('textbox', { name: 'Workflow name', exact: true }).fill('Updated weekly events');
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+			await expect(title).toHaveText('Weekly AI events');
+			await expect(title).toHaveCSS('color', 'rgb(255, 255, 255)');
+			await page.getByTestId('workspace-detail-header').screenshot({ path: test.info().outputPath(`workflow-header-${theme}.png`) });
+		});
+	}
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.authoring.composer-and-preview
 	test('shows a provisional identity without saved-workflow actions', async ({ page }: { page: Page }) => {
 		await page.goto(preview('provisional'), { waitUntil: 'networkidle' });
 		await expect(page.getByTestId('workspace-detail-title')).toHaveText('Processing…');
+		await expect(page.getByTestId('workspace-detail-title')).toHaveCSS('color', 'rgb(255, 255, 255)');
 		await expect(page.getByTestId('workspace-detail-description')).toHaveCount(0);
 		await expect(page.getByText('Click to add description')).toHaveCount(0);
 		await expect(page.getByTestId('workflow-detail-metadata')).toHaveCount(0);

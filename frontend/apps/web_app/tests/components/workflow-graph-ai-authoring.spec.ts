@@ -6,10 +6,10 @@ import type { Locator, Page, Route } from '@playwright/test';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-const preview = (variant?: string, width = 900) =>
+const preview = (variant?: string, width = 900, theme = 'light') =>
 	`/dev/preview/workflows/WorkflowGraphRenderer?${new URLSearchParams({
-		theme: 'light',
-		background: '#dbeafe',
+		theme,
+		background: theme === 'dark' ? '#171717' : '#dbeafe',
 		width: String(width),
 		chrome: '0',
 		...(variant ? { variant } : {})
@@ -680,7 +680,8 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await picker.getByRole('button', { name: 'Back' }).click();
 		picker = weatherNode.getByTestId('workflow-step-menu');
 		await expect(picker.locator('.title strong')).toHaveText('Use app');
-		await expect(picker.getByTestId('app-store-card')).toHaveCount(2);
+		await expect(picker.getByTestId('app-store-card')).toHaveCount(3);
+		await expect(picker.getByTestId('app-store-card').getByRole('heading')).toHaveText(['Web', 'Weather', 'News']);
 		await picker.getByRole('button', { name: 'Back' }).click();
 		picker = weatherNode.getByTestId('workflow-step-menu');
 		await expect(picker.locator('.choice')).toHaveText([
@@ -782,10 +783,10 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		let editor = messageNode.getByTestId('workflow-node-expanded');
 		const title = editor.getByTestId('workflow-message-title');
 		const body = editor.getByTestId('workflow-message-template');
-		const variables = editor.getByTestId('workflow-message-variable-chips');
+		const variables = editor.getByTestId('workflow-variable-sources');
 		await expect(body).toHaveAttribute('aria-label', /Type @ to add a variable/);
 		const [bodyBox, variablesBox] = await Promise.all([body.boundingBox(), variables.boundingBox()]);
-		expect(bodyBox && variablesBox && variablesBox.y > bodyBox.y).toBe(true);
+		expect(bodyBox && variablesBox && variablesBox.y < bodyBox.y).toBe(true);
 		await title.fill('Edited morning briefing');
 		await body.fill('Keep this unsaved weather and news draft.');
 		await editor.getByRole('button', { name: /^To:/ }).click();
@@ -811,7 +812,8 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await expect(editor.getByTestId('workflow-variable-required')).toBeVisible();
 		await expect(editor.locator('.message-block')).toHaveCount(0);
 		await expect(editor.getByText('Only results not previously sent')).toHaveCount(0);
-		const resultChip = editor.getByTestId('workflow-message-variable-chips').getByRole('button', { name: /Results/ }).first();
+		await editor.getByTestId('workflow-variable-sources').locator('[data-source-node-id="news"]').click();
+		const resultChip = editor.getByTestId('workflow-ai-suggestions').locator('[data-variable-reference="$nodes.news.output.results"]');
 		await expect(resultChip).toBeVisible();
 		expect(await resultChip.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('gradient');
 		await resultChip.click();
@@ -820,4 +822,71 @@ test.describe('WorkflowGraphRenderer Figma builder preview', () => {
 		await expect(body.locator('.workflow-mention-icon')).toBeVisible();
 		await expect(editor.getByTestId('workflow-node-save')).toBeEnabled();
 	});
+	for (const { width, theme } of [{ width: 900, theme: 'light' }, { width: 390, theme: 'dark' }]) {
+		// contract-test: direct surface=gui.web assertions=workflows-ui.editor.inline-action-variables,workflows-ui.message-and-budget,workflows-ui.responsive-accessible-reachable
+		test(`Send message shares source filtering and canonical mentions at ${width}px in ${theme} mode`, async ({ page }: { page: Page }) => {
+			await page.setViewportSize({ width, height: 900 });
+			await page.goto(preview(undefined, width, theme), { waitUntil: 'domcontentloaded' });
+			const node = page.locator('[data-node-id="message"]');
+			await node.getByTestId('workflow-node-summary').click();
+			const editor = node.getByTestId('workflow-node-expanded');
+			const body = editor.getByTestId('workflow-message-template');
+			const sources = editor.getByTestId('workflow-variable-sources');
+			const scroll = editor.getByTestId('workflow-variable-source-scroll');
+			await expect(editor.getByRole('heading', { name: 'What should the message be?', exact: true })).toHaveCount(0);
+			await expect(sources.locator('[data-source-node-id="weather"]')).toBeVisible();
+			await expect(sources.locator('[data-source-node-id="news"]')).toBeAttached();
+			await expect(scroll).toHaveCSS('overflow-x', 'auto');
+			await expect(scroll).toHaveCSS('mask-image', /linear-gradient/);
+			const [sourcesBox, bodyBox] = await Promise.all([sources.boundingBox(), body.boundingBox()]);
+			expect(sourcesBox && bodyBox && sourcesBox.y + sourcesBox.height <= bodyBox.y).toBe(true);
+			await expect(body).toHaveAttribute('aria-label', 'Enter the message here. Type @ to add a variable from an earlier step.');
+
+			const fields = editor.getByTestId('workflow-ai-suggestions');
+			await body.fill('Here are the stories: @news.search.results');
+			await expect(body.locator('.workflow-mention-query')).toHaveText('@news.search.results');
+			await expect(sources.locator('[data-source-node-id]')).toHaveCount(1);
+			const news = sources.locator('[data-source-node-id="news"]');
+			await expect(news.locator('.source-icon')).toBeVisible();
+			await expect(news).toHaveCSS('text-align', 'left');
+			await news.click();
+			const results = fields.locator('[data-variable-reference="$nodes.news.output.results"]');
+			await expect(fields.locator('[data-variable-reference]')).toHaveCount(1);
+			await expect(results).toHaveCSS('background-image', /linear-gradient/);
+			await results.click();
+			await expect(body.locator('.workflow-mention-query')).toHaveCount(0);
+			await expect(body.locator('.generic-mention')).toHaveText('@news.search.results');
+			await expect(body.locator('.workflow-mention-icon')).toBeVisible();
+			const mentionHeight = await body.locator('.generic-mention').evaluate(element => element.getBoundingClientRect().height);
+			const pillHeights = await editor.getByTestId('workflow-variable-picker').locator('.chip').evaluateAll(elements => elements.map(element => element.getBoundingClientRect().height));
+			expect(mentionHeight).toBeGreaterThan(0);
+			expect(pillHeights.length).toBeGreaterThan(1);
+			for (const height of pillHeights) expect(Math.abs(height - mentionHeight)).toBeLessThanOrEqual(1);
+			await expect(body).toHaveText('Here are the stories: @news.search.results');
+			await expect(editor.getByTestId('workflow-node-save')).toBeEnabled();
+			const [editorBox, inputBox] = await Promise.all([editor.boundingBox(), editor.getByTestId('workflow-send-message-input').boundingBox()]);
+			expect(editorBox && inputBox).toBeTruthy();
+			if (editorBox && inputBox) expectHorizontallyInside(editorBox, inputBox);
+			await editor.screenshot({ path: test.info().outputPath(`send-message-${width}-${theme}.png`), caret: 'initial' });
+		});
+	}
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.editor.inline-action-variables,workflows-ui.message-and-budget
+	test('Send message Show all explores fields of the chosen source while excluding result entry fields', async ({ page }: { page: Page }) => {
+		await page.goto(preview('eventsSearch'), { waitUntil: 'domcontentloaded' });
+		const node = page.locator('[data-node-id="message"]');
+		await node.getByTestId('workflow-node-summary').click();
+		await node.getByTestId('workflow-variable-sources').locator('[data-source-node-id="events"]').click();
+		const fields = node.getByTestId('workflow-ai-suggestions');
+		await expect(fields.locator('[data-variable-reference]')).toHaveCount(1);
+		await fields.getByRole('button', { name: 'Show all', exact: true }).click();
+		await expect(fields.getByRole('button', { name: 'Show less', exact: true })).toHaveAttribute('aria-expanded', 'true');
+		await expect(fields.locator('[data-variable-reference]')).toHaveCount(3);
+		const references = await fields.locator('[data-variable-reference]').evaluateAll(elements => elements.map(element => element.getAttribute('data-variable-reference')));
+		expect(references).toEqual(expect.arrayContaining(['$nodes.events.output.results', '$nodes.events.output.result_count', '$nodes.events.output.provider']));
+		expect(references.every(reference => reference?.startsWith('$nodes.events.output.') && !reference.includes('[*]') && !reference.includes('.results.'))).toBe(true);
+		await fields.getByRole('button', { name: 'Show less', exact: true }).click();
+		await expect(fields.locator('[data-variable-reference]')).toHaveCount(1);
+	});
+
 });
