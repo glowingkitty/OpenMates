@@ -96,7 +96,8 @@
         "workspace-sidebar.spec.ts",
         "components/chat-settings-preview.spec.ts",
         "components/sheet-fullscreen.spec.ts",
-        "notification-email-preferences.spec.ts"
+        "notification-email-preferences.spec.ts",
+        "notification-email-links.spec.ts"
       ]
     },
     "external_integration": {
